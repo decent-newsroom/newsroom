@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Montserrat&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
 
 
 :root {
@@ -28,3 +29,26 @@
     --color-text-contrast: #f4f1ee;
     --brand-color: black;
 }
+
+[data-theme="space"] {
+    --color-bg: #141120;             /* Deep violet-black */
+    --color-bg-light: #1e1a2e;       /* Slightly lighter for contrast */
+    --color-bg-primary: #251634;     /* Rich purple base (darkened brand tone) */
+
+    --color-text: #f4f0fc;           /* Near-white with a lavender hue */
+    --color-text-mid: #c9b9eb;       /* Soft pastel lavender */
+    --color-text-contrast: #0c0712;  /* Near-black for contrast */
+
+    --color-primary: #c095f4;    /* Vibrant purple (the new brand) */
+    --color-primary-light: #c9b9eb;        /* Lighter variant for hovers/effects */
+    --color-secondary: #e8bb8d;            /* Warm tan/peach for complementary balance */
+    --color-secondary-light: #f4d6b6;      /* Lighter peach tone */
+    --color-secondary-bg: #fbebdb;         /* Ultra-light background variant */
+
+    --color-border: #322c44;        /* Subtle purple-gray */
+
+    --brand-color: rgb(147, 51, 234);
+    --brand-font: 'Poppins', sans-serif; /* A classic, refined branding font */
+
+}
+

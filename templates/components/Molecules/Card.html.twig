@@ -17,9 +17,11 @@
             </div>
             <div class="card-body">
                     <h2 class="card-title">{{ article.title }}</h2>
-                    <p class="lede">
-                        {{ article.summary }}
-                    </p>
+                    {% if article.summary %}
+                        <p class="lede">
+                            {{ article.summary }}
+                        </p>
+                    {% endif %}
             </div>
         </a>
         <div class="card-footer"></div>

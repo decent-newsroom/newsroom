@@ -27,7 +27,7 @@
                 <div class="card-footer nostr-previews mt-3">
                     <div class="preview-container">
                         {% for link in commentLinks[item.id] %}
-                            <div class="mb-3">
+                            <div>
                                 <twig:Molecules:NostrPreview preview="{{ link }}" />
                             </div>
                         {% endfor %}

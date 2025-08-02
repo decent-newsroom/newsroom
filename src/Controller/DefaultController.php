@@ -10,6 +10,7 @@ use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -159,5 +160,36 @@ class DefaultController extends AbstractController
             'category' => $category,
             'index' => $catIndex
         ]);
+    }
+
+    /**
+     * OG Preview endpoint for URLs
+     */
+    #[Route('/og-preview/', name: 'og_preview', methods: ['POST'])]
+    public function ogPreview(RequestStack $requestStack): Response
+    {
+        $request = $requestStack->getCurrentRequest();
+        $data = json_decode($request->getContent(), true);
+        $url = $data['url'] ?? null;
+        if (!$url) {
+            return new Response('<div class="alert alert-warning">No URL provided.</div>', 400);
+        }
+        try {
+            $embed = new \Embed\Embed();
+            $info = $embed->get($url);
+            if (!$info) {
+                throw new \Exception('No OG data found');
+            }
+            return $this->render('components/Molecules/OgPreview.html.twig', [
+                'og' => [
+                    'title' => $info->title,
+                    'description' => $info->description,
+                    'image' => $info->image,
+                    'url' => $url
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return new Response('<div class="alert alert-warning">Unable to load OG preview for ' . htmlspecialchars($url) . '</div>', 200);
+        }
     }
 }

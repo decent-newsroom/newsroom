@@ -62,6 +62,7 @@ h2.card-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 10px;
 }
 
 .card.comment .metadata p {

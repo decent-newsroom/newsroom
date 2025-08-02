@@ -12,6 +12,7 @@ import './styles/layout.css';
 import './styles/button.css';
 import './styles/card.css';
 import './styles/article.css';
+import './styles/og.css';
 import './styles/form.css';
 import './styles/notice.css';
 import './styles/spinner.css';

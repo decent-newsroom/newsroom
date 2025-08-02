@@ -1,0 +1,11 @@
+.og-preview-card {
+    max-width: 100%;
+    padding: 20px;
+    margin: 10px 0;
+    background-color: var(--color-bg);
+}
+
+.og-preview-image {
+    width: 100%;
+    height: auto;
+}

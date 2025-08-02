@@ -9,5 +9,19 @@
             <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
             <span class="ms-2">Loading preview...</span>
         </div>
+        {% if preview.full_match is defined and preview.full_match %}
+            <div class="nostr-preview-link mt-2">
+                <a href="{{ preview.full_match }}" target="_blank" rel="noopener noreferrer">{{ preview.full_match }}</a>
+            </div>
+        {% endif %}
+        {% if preview.data is not null %}
+            <div class="nostr-preview-details mt-2">
+                {# Example: show kind if available #}
+                {% if preview.data.kind is defined %}
+                    <span class="badge bg-info">Kind: {{ preview.data.kind }}</span>
+                {% endif %}
+                {# Add more event details here as needed #}
+            </div>
+        {% endif %}
     </div>
 </div>

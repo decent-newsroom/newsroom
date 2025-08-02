@@ -9,6 +9,6 @@
 }
 
 .notice.info {
-    background-color: rgba(95, 115, 85, 0.15); /* Light version of --color-primary */
+    background-color: var(--color-bg-light); /* Light version of --color-primary */
     color: var(--color-text); /* Use theme text color for better contrast */
 }

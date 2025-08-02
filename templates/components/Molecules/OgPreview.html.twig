@@ -1,0 +1,21 @@
+<div class="og-preview-card">
+    {% if og.image %}
+        <div class="og-preview-image mb-2">
+            <a href="{{ og.url }}" target="_blank" rel="noopener noreferrer">
+                <img src="{{ og.image }}" alt="OG image for {{ og.title }}" />
+            </a>
+        </div>
+    {% endif %}
+    <div class="og-preview-content">
+        {% if og.title %}
+            <a href="{{ og.url }}" target="_blank" rel="noopener noreferrer"><small>{{ og.url }}</small></a>
+        {% endif %}
+        <div class="og-preview-title">
+            <a href="{{ og.url }}" target="_blank" rel="noopener noreferrer"><b>{{ og.title ?: og.url }}</b></a>
+        </div>
+        {% if og.description %}
+            <div class="og-preview-description text-muted">{{ og.description }}</div>
+        {% endif %}
+    </div>
+</div>
+
