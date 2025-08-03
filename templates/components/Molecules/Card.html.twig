@@ -4,7 +4,9 @@
             {% if category %}
                 <small>{{ category }}</small>
             {% else %}
-                <p>by <twig:Molecules:UserFromNpub ident="{{ article.pubkey }}" /></p>
+                {% if not is_author_profile %}
+                    <p>by <twig:Molecules:UserFromNpub ident="{{ article.pubkey }}" /></p>
+                {% endif %}
                 <small>{{ article.createdAt|date('F j Y') }}</small>
             {% endif %}
         </div>

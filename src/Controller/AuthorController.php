@@ -52,7 +52,8 @@ class AuthorController extends AbstractController
         return $this->render('pages/author.html.twig', [
             'author' => $author,
             'npub' => $npub,
-            'articles' => $articles
+            'articles' => $articles,
+            'is_author_profile' => true,
         ]);
     }
 

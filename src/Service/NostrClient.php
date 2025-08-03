@@ -98,13 +98,19 @@ class NostrClient
         return $reputableAuthorRelays;
     }
 
+    /**
+     * @throws \Exception
+     */
     public function getNpubMetadata($npub): \stdClass
     {
+        $relaySet = $this->defaultRelaySet;
+        $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
         $this->logger->info('Getting metadata for npub', ['npub' => $npub]);
         // Npubs are converted to hex for the request down the line
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::METADATA],
-            filters: ['authors' => [$npub]]
+            filters: ['authors' => [$npub]],
+            relaySet: $relaySet
         );
 
         $events = $this->processResponse($request->send(), function($received) {
@@ -115,11 +121,7 @@ class NostrClient
         $this->logger->info('Getting metadata for npub', ['response' => $events]);
 
         if (empty($events)) {
-            $meta = new \stdClass();
-            $content = new \stdClass();
-            $content->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
-            $meta->content = json_encode($content);
-            return $meta;
+            throw new \Exception('No metadata found for npub: ' . $npub);
         }
 
         // Sort by date and return newest
