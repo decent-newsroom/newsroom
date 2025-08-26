@@ -432,8 +432,8 @@ class NostrClient
 
         // Create request using the helper method
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::COMMENTS->value, KindsEnum::TEXT_NOTE->value],
-            filters: ['tag' => ['#A', [$coordinate]]],
+            kinds: [KindsEnum::COMMENTS->value, KindsEnum::TEXT_NOTE->value, KindsEnum::ZAP->value],
+            filters: ['tag' => ['#a', [$coordinate]]],
             relaySet: $relaySet
         );
 
@@ -460,10 +460,7 @@ class NostrClient
         $this->logger->info('Getting zaps for coordinate', ['coordinate' => $coordinate]);
 
         // Parse the coordinate to get pubkey
-        $parts = explode(':', $coordinate);
-        if (count($parts) !== 3) {
-            throw new \InvalidArgumentException('Invalid coordinate format, expected kind:pubkey:identifier');
-        }
+        $parts = explode(':', $coordinate, 3);
         $pubkey = $parts[1];
 
         // Get author's relays for better chances of finding zaps

@@ -123,64 +123,14 @@ final class SearchComponent
             $this->creditsManager->spendCredits($this->npub, 1, 'search');
             $this->credits--;
 
-            // Create an optimized query using collapse correctly
-            $mainQuery = new Query();
+            // Step 1: Run a quick naive query on title and summary only
+            $quickResults = $this->performQuickSearch($this->query);
 
-            // Build multi-match query for searching across fields
-            $multiMatch = new MultiMatch();
-            $multiMatch->setQuery($this->query);
-            $multiMatch->setFields([
-                'title^3',
-                'summary^2',
-                'content^1.5',
-                'topics'
-            ]);
-            $multiMatch->setType(MultiMatch::TYPE_MOST_FIELDS);
-            $multiMatch->setFuzziness('AUTO');
+            // Step 2: Run the comprehensive query
+            $comprehensiveResults = $this->performComprehensiveSearch($this->query);
 
-            $boolQuery = new BoolQuery();
-            $boolQuery->addMust($multiMatch);
-            $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
-
-            // For text fields, we need to use a different approach
-            // Create a regexp query that matches content with at least 250 chars
-            // This is a simplification - actually matches content with enough words
-            $lengthFilter = new Query\QueryString();
-            $lengthFilter->setQuery('content:/.{250,}/');
-            // $boolQuery->addFilter($lengthFilter);
-
-            $mainQuery->setQuery($boolQuery);
-
-            // Use the collapse field directly in the array format
-            // This fixes the [collapse] failed to parse field [inner_hits] error
-            $mainQuery->setParam('collapse', [
-                'field' => 'slug',
-                'inner_hits' => [
-                    'name' => 'latest_articles',
-                    'size' => 1 // Show more related articles
-                ]
-            ]);
-
-            // Reduce the minimum score threshold to include more results
-            $mainQuery->setMinScore(0.1); // Lower minimum score
-
-            // Sort by score and createdAt
-            $mainQuery->setSort([
-                '_score' => ['order' => 'desc'],
-                'createdAt' => ['order' => 'desc']
-            ]);
-
-            // Add pagination
-            $offset = ($this->page - 1) * $this->resultsPerPage;
-            $mainQuery->setFrom($offset);
-            $mainQuery->setSize($this->resultsPerPage);
-
-            // Execute the search
-            $results = $this->finder->find($mainQuery);
-            $this->logger->info('Search results count: ' . count($results));
-            $this->logger->info('Search results: ',  ['results' => $results]);
-
-            $this->results = $results;
+            // Combine results, making sure we don't have duplicates
+            $this->results = $this->mergeSearchResults($quickResults, $comprehensiveResults);
 
             // Cache the search results in session
             $this->saveSearchToSession($this->query, $this->results);
@@ -189,6 +139,149 @@ final class SearchComponent
             $this->logger->error('Search error: ' . $e->getMessage());
             $this->results = [];
         }
+    }
+
+    /**
+     * Perform a quick search on title and summary only
+     */
+    private function performQuickSearch(string $query): array
+    {
+        $mainQuery = new Query();
+
+        // Simple multi-match query for searching across title and summary only
+        $multiMatch = new MultiMatch();
+        $multiMatch->setQuery($query);
+        $multiMatch->setFields([
+            'title^5',  // Increased weight for title
+            'summary^3' // Increased weight for summary
+        ]);
+        $multiMatch->setType(MultiMatch::TYPE_BEST_FIELDS); // Changed to BEST_FIELDS for more precise matching
+        $multiMatch->setOperator(MultiMatch::OPERATOR_AND); // Require all terms to match for better precision
+
+        $boolQuery = new BoolQuery();
+        $boolQuery->addMust($multiMatch);
+        $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
+
+        $mainQuery->setQuery($boolQuery);
+
+        // Use the collapse field to prevent duplicate content
+        $mainQuery->setParam('collapse', [
+            'field' => 'slug'
+        ]);
+
+        // Set a minimum score to filter out irrelevant results
+        $mainQuery->setMinScore(0.5); // Higher minimum score for quick results
+
+        // Sort by relevance only for quick results
+        $mainQuery->setSort(['_score' => ['order' => 'desc']]);
+
+        // Limit to 5 results for the quick search
+        $mainQuery->setSize(5);
+
+        // Execute the quick search
+        $results = $this->finder->find($mainQuery);
+        $this->logger->info('Quick search results count: ' . count($results));
+
+        return $results;
+    }
+
+    /**
+     * Perform a comprehensive search across all fields
+     */
+    private function performComprehensiveSearch(string $query): array
+    {
+        $mainQuery = new Query();
+
+        // Build bool query with multiple conditions for more precise matching
+        $boolQuery = new BoolQuery();
+
+        // Add exact phrase match with high boost for very relevant results
+        $phraseMatch = new Query\MatchPhrase();
+        $phraseMatch->setField('title', [
+            'query' => $query,
+            'boost' => 10
+        ]);
+        $boolQuery->addShould($phraseMatch);
+
+        // Add regular multi-match with adjusted weights
+        $multiMatch = new MultiMatch();
+        $multiMatch->setQuery($query);
+        $multiMatch->setFields([
+            'title^4',
+            'summary^3',
+            'content^1.2',
+            'topics^2'
+        ]);
+        $multiMatch->setType(MultiMatch::TYPE_MOST_FIELDS);
+        $multiMatch->setFuzziness('AUTO');
+        $multiMatch->setOperator(MultiMatch::OPERATOR_AND); // Require all terms to match
+        $boolQuery->addMust($multiMatch);
+
+        // Exclude specific patterns
+        $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
+
+        // For content relevance, filter by minimum content length
+        $lengthFilter = new Query\QueryString();
+        $lengthFilter->setQuery('content:/.{250,}/');
+        $boolQuery->addFilter($lengthFilter);
+
+        $mainQuery->setQuery($boolQuery);
+
+        // Use the collapse field
+        $mainQuery->setParam('collapse', [
+            'field' => 'slug',
+            'inner_hits' => [
+                'name' => 'latest_articles',
+                'size' => 1
+            ]
+        ]);
+
+        // Increase minimum score to filter out irrelevant results
+        $mainQuery->setMinScore(0.3);
+
+        // Sort by score and createdAt
+        $mainQuery->setSort([
+            '_score' => ['order' => 'desc'],
+            'createdAt' => ['order' => 'desc']
+        ]);
+
+        // Add pagination for the comprehensive results
+        // Adjust the pagination to account for the quick results
+        $offset = ($this->page - 1) * ($this->resultsPerPage - 5);
+        if ($offset < 0) $offset = 0;
+
+        $mainQuery->setFrom($offset);
+        $mainQuery->setSize($this->resultsPerPage - 5);
+
+        // Execute the search
+        $results = $this->finder->find($mainQuery);
+        $this->logger->info('Comprehensive search results count: ' . count($results));
+
+        return $results;
+    }
+
+    /**
+     * Merge quick and comprehensive search results, ensuring no duplicates
+     */
+    private function mergeSearchResults(array $quickResults, array $comprehensiveResults): array
+    {
+        $mergedResults = $quickResults;
+        $slugs = [];
+
+        // Collect slugs from quick results to avoid duplicates
+        foreach ($quickResults as $result) {
+            $slugs[] = $result->getSlug();
+        }
+
+        // Add comprehensive results that aren't already in quick results
+        foreach ($comprehensiveResults as $result) {
+            if (!in_array($result->getSlug(), $slugs)) {
+                $mergedResults[] = $result;
+                $slugs[] = $result->getSlug();
+            }
+        }
+
+        return $mergedResults;
     }
 
     #[LiveListener('creditsAdded')]

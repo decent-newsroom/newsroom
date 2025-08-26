@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<h1>Latest 50 Articles</h1>
+<table>
+    <thead>
+    <tr>
+        <th>Title</th>
+        <th>Summary</th>
+        <th>Coordinate</th>
+        <th>Add to Index</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for article in articles %}
+        <tr>
+            <td><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></td>
+            <td>{{ article.summary|slice(0, 100) }}{% if article.summary|length > 100 %}...{% endif %}</td>
+            <td>
+                <span data-controller="copy-to-clipboard">
+                    <span class="hidden" data-copy-to-clipboard-target="textToCopy">30023:{{ article.pubkey }}:{{ article.slug }}</span>
+                    <button type="button"
+                            data-copy-to-clipboard-target="copyButton"
+                            data-action="click->copy-to-clipboard#copyToClipboard"
+                            style="margin-left: 0.5em;">Copy to Clipboard</button>
+                </span>
+            </td>
+            <td>
+                <form method="post" action="{{ path('admin_article_add_to_index') }}" style="display:inline;">
+                    <input type="hidden" name="slug" value="{{ article.slug }}">
+                    <label>
+                        <select name="index_key" required>
+                            <option value="">Select index</option>
+                            {% for index in indexes %}
+                                <option value="{{ index }}">{{ index }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <button type="submit">Add</button>
+                </form>
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="4">No articles found.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -13,7 +13,40 @@
 
 {% block body %}
 
-    {{ form_start(form) }}
-    {{ form_end(form) }}
+    <div {{ stimulus_controller('nostr-publish', {
+        publishUrl: path('api-article-publish'),
+        csrfToken: csrf_token('nostr_publish')
+    }) }} data-nostr-publish-form-target="form">
+
+        <!-- Status messages -->
+        <div data-nostr-publish-target="status"></div>
+
+        {{ form_start(form) }}
+
+        <!-- Override the submit button to use Nostr publishing -->
+        {{ form_row(form.title) }}
+        {{ form_row(form.summary) }}
+        {{ form_row(form.content) }}
+        {{ form_row(form.image) }}
+        {{ form_row(form.topics) }}
+
+        <!-- Custom actions section with Nostr publish button -->
+        <div class="actions">
+            <!-- Replace the default submit button with Nostr publish button -->
+            <button type="button"
+                    class="btn btn-primary"
+                    data-nostr-publish-target="publishButton"
+                    data-action="click->nostr-publish#publish">
+                Publish to Nostr
+            </button>
+        </div>
+
+        <!-- Keep the original submit button hidden for fallback -->
+        <div style="display: none;">
+            {{ form_row(form.actions.submit) }}
+        </div>
+
+        {{ form_end(form) }}
+    </div>
 
 {% endblock %}

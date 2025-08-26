@@ -9,28 +9,19 @@ framework:
                 property: 'currentPlace'
             supports:
                 - App\Entity\Article
-            initial_marking: preview
+            initial_marking: empty
             places:
-                - preview
                 - draft
-                - revised
                 - published
                 - edited
             transitions:
                 to_draft:
-                    from: preview
+                    from: empty
                     to:   draft
-                to_revision:
-                    from: draft
-                    to:   revised
-                publish_preview:
-                    from: preview
-                    to:   published
-                publish_draft:
-                    from: draft
-                    to:   published
-                publish_revised:
-                    from: revised
+                publish:
+                    from: 
+                        - draft
+                        - edited
                     to:   published
                 edit:
                     from: published

@@ -10,16 +10,19 @@ use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use League\CommonMark\Exception\CommonMarkException;
+use Mdanter\Ecc\Crypto\Signature\SchnorrSignature;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\AsciiSlugger;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
 
 class ArticleController  extends AbstractController
@@ -27,7 +30,7 @@ class ArticleController  extends AbstractController
     /**
      * @throws \Exception
      */
-    #[Route('/article/{naddr}', name: 'article-naddr')]
+    #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-z]{59})$'])]
     public function naddr(NostrClient $nostrClient, $naddr)
     {
         $decoded = new Bech32($naddr);
@@ -254,5 +257,253 @@ class ArticleController  extends AbstractController
             'author' => $user->getMetadata(),
         ]);
     }
+
+    /**
+     * API endpoint to receive and process signed Nostr events
+     * @throws \Exception
+     */
+    #[Route('/api/article/publish', name: 'api-article-publish', methods: ['POST'])]
+    public function publishNostrEvent(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        NostrClient $nostrClient,
+        WorkflowInterface $articlePublishingWorkflow,
+        CsrfTokenManagerInterface $csrfTokenManager
+    ): JsonResponse {
+        try {
+            // Verify CSRF token
+            $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+            if (!$csrfTokenManager->isTokenValid(new \Symfony\Component\Security\Csrf\CsrfToken('nostr_publish', $csrfToken))) {
+                return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
+            }
+
+            // Get JSON data
+            $data = json_decode($request->getContent(), true);
+            if (!$data || !isset($data['event'])) {
+                return new JsonResponse(['error' => 'Invalid request data'], 400);
+            }
+
+            $signedEvent = $data['event'];
+            $formData = $data['formData'] ?? [];
+
+            // Validate Nostr event structure
+            $this->validateNostrEvent($signedEvent);
+
+            // Verify the event signature
+            if (!$this->verifyNostrSignature($signedEvent)) {
+                return new JsonResponse(['error' => 'Invalid event signature'], 400);
+            }
+
+            // Check if user is authenticated and matches the event pubkey
+            $user = $this->getUser();
+            if (!$user) {
+                return new JsonResponse(['error' => 'User not authenticated'], 401);
+            }
+
+            $key = new Key();
+            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+
+            if ($signedEvent['pubkey'] !== $currentPubkey) {
+                return new JsonResponse(['error' => 'Event pubkey does not match authenticated user'], 403);
+            }
+
+            // Extract article data from the signed event
+            $articleData = $this->extractArticleDataFromEvent($signedEvent, $formData);
+
+            // Check if article with same slug already exists for this author
+            $repository = $entityManager->getRepository(Article::class);
+            $existingArticle = $repository->findOneBy([
+                'slug' => $articleData['slug'],
+                'pubkey' => $currentPubkey
+            ]);
+
+            if ($existingArticle) {
+                // Update existing article (NIP-33 replaceable event)
+                $article = $existingArticle;
+            } else {
+                // Create new article
+                $article = new Article();
+                $article->setPubkey($currentPubkey);
+                $article->setKind(KindsEnum::LONGFORM);
+            }
+
+            // Update article properties
+            $article->setEventId($this->generateEventId($signedEvent));
+            $article->setSlug($articleData['slug']);
+            $article->setTitle($articleData['title']);
+            $article->setSummary($articleData['summary']);
+            $article->setContent($articleData['content']);
+            $article->setImage($articleData['image']);
+            $article->setTopics($articleData['topics']);
+            $article->setSig($signedEvent['sig']);
+            $article->setRaw($signedEvent);
+            $article->setCreatedAt(new \DateTimeImmutable('@' . $signedEvent['created_at']));
+            $article->setPublishedAt(new \DateTimeImmutable());
+
+            // Check workflow permissions
+            if ($articlePublishingWorkflow->can($article, 'publish')) {
+                $articlePublishingWorkflow->apply($article, 'publish');
+            }
+
+            // Save to database
+            $entityManager->persist($article);
+            $entityManager->flush();
+
+            // Optionally publish to Nostr relays
+            try {
+                // Convert the signed event array to a proper Event object
+                $eventObj = new \swentel\nostr\Event\Event();
+                $eventObj->setId($signedEvent['id']);
+                $eventObj->setPublicKey($signedEvent['pubkey']);
+                $eventObj->setCreatedAt($signedEvent['created_at']);
+                $eventObj->setKind($signedEvent['kind']);
+                $eventObj->setTags($signedEvent['tags']);
+                $eventObj->setContent($signedEvent['content']);
+                $eventObj->setSignature($signedEvent['sig']);
+
+                // Get user's relays or use default ones
+                $relays = [];
+                if ($user && method_exists($user, 'getRelays') && $user->getRelays()) {
+                    foreach ($user->getRelays() as $relayArr) {
+                        if (isset($relayArr[1]) && isset($relayArr[2]) && $relayArr[2] === 'write') {
+                            $relays[] = $relayArr[1];
+                        }
+                    }
+                }
+
+                // Fallback to default relays if no user relays found
+                if (empty($relays)) {
+                    $relays = [
+                        'wss://relay.damus.io',
+                        'wss://relay.primal.net',
+                        'wss://nos.lol'
+                    ];
+                }
+
+                $nostrClient->publishEvent($eventObj, $relays);
+            } catch (\Exception $e) {
+                // Log error but don't fail the request - article is saved locally
+                error_log('Failed to publish to Nostr relays: ' . $e->getMessage());
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'message' => 'Article published successfully',
+                'articleId' => $article->getId(),
+                'slug' => $article->getSlug()
+            ]);
+
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'error' => 'Publishing failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function validateNostrEvent(array $event): void
+    {
+        $requiredFields = ['id', 'pubkey', 'created_at', 'kind', 'tags', 'content', 'sig'];
+
+        foreach ($requiredFields as $field) {
+            if (!isset($event[$field])) {
+                throw new \InvalidArgumentException("Missing required field: $field");
+            }
+        }
+
+        if ($event['kind'] !== 30023) {
+            throw new \InvalidArgumentException('Invalid event kind. Expected 30023 for long-form content.');
+        }
+
+        // Validate d tag exists (required for NIP-33)
+        $dTagFound = false;
+        foreach ($event['tags'] as $tag) {
+            if (is_array($tag) && count($tag) >= 2 && $tag[0] === 'd') {
+                $dTagFound = true;
+                break;
+            }
+        }
+
+        if (!$dTagFound) {
+            throw new \InvalidArgumentException('Missing required "d" tag for replaceable event');
+        }
+    }
+
+    private function verifyNostrSignature(array $event): bool
+    {
+        try {
+            // Reconstruct the event ID
+            $serializedEvent = json_encode([
+                0,
+                $event['pubkey'],
+                $event['created_at'],
+                $event['kind'],
+                $event['tags'],
+                $event['content']
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+            $eventId = hash('sha256', $serializedEvent);
+
+            // Verify the event ID matches
+            if ($eventId !== $event['id']) {
+                return false;
+            }
+
+            return (new SchnorrSignature())->verify($event['pubkey'], $event['sig'], $event['id']);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function extractArticleDataFromEvent(array $event, array $formData): array
+    {
+        $data = [
+            'title' => '',
+            'summary' => '',
+            'content' => $event['content'],
+            'image' => '',
+            'topics' => [],
+            'slug' => ''
+        ];
+
+        // Extract data from tags
+        foreach ($event['tags'] as $tag) {
+            if (!is_array($tag) || count($tag) < 2) continue;
+
+            switch ($tag[0]) {
+                case 'd':
+                    $data['slug'] = $tag[1];
+                    break;
+                case 'title':
+                    $data['title'] = $tag[1];
+                    break;
+                case 'summary':
+                    $data['summary'] = $tag[1];
+                    break;
+                case 'image':
+                    $data['image'] = $tag[1];
+                    break;
+                case 't':
+                    $data['topics'][] = $tag[1];
+                    break;
+            }
+        }
+
+        // Fallback to form data if not found in tags
+        if (empty($data['title']) && !empty($formData['title'])) {
+            $data['title'] = $formData['title'];
+        }
+        if (empty($data['summary']) && !empty($formData['summary'])) {
+            $data['summary'] = $formData['summary'];
+        }
+
+        return $data;
+    }
+
+    private function generateEventId(array $event): string
+    {
+        return $event['id'];
+    }
+
+    // ...existing code...
 
 }

@@ -1,10 +1,11 @@
 <div class="comments">
     {% for item in list %}
-        <div class="card comment">
+        <div class="card comment {% if item.kind is defined and item.kind == 9735 %}zap-comment{% endif %}">
             <div class="metadata">
                 <p><twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" /></p>
                 <small>{{ item.created_at|date('F j Y') }}</small>
             </div>
+
             <div class="card-body">
                 <twig:Atoms:Content content="{{ item.content }}" />
             </div>
@@ -19,6 +20,21 @@
                         {% endfor %}
                     </div>
                 </div>
+            {% endif %}
+            {% if item.tags is defined and item.tags|length > 0 %}
+                <ul>
+                    {% for tag in item.tags %}
+                        <li>
+                            <strong>{{ tag[0] }}:</strong> {{ tag[1] }}
+                            {% if tag[2] is defined %}
+                                <span>{{ tag[2] }}</span>
+                            {% endif %}
+                            {% if tag[3] is defined %}
+                                <span>{{ tag[3] }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
             {% endif %}
         </div>
     {% endfor %}

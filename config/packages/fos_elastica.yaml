@@ -8,6 +8,7 @@ fos_elastica:
     indexes:
         # create the index by running php bin/console fos:elastica:populate
         articles:
+            index_name: '%env(ELASTICSEARCH_INDEX_NAME)%'
             settings:
                 index:
                     # Increase refresh interval for better write performance

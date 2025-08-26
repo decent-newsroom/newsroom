@@ -67,4 +67,46 @@ readonly class RedisCacheService
             return [];
         }
     }
+
+    /**
+     * Get a magazine index object by key.
+     * @param string $key
+     * @return object|null
+     */
+    public function getMagazineIndex(string $key): ?object
+    {
+        try {
+            $item = $this->redisCache->getItem($key);
+            return $item->isHit() ? $item->get() : null;
+        } catch (\Exception $e) {
+            $this->logger->error('Error fetching magazine index.', ['exception' => $e]);
+            return null;
+        }
+    }
+
+    /**
+     * Update a magazine index by inserting a new article tag at the top.
+     * @param string $key
+     * @param array $articleTag The tag array, e.g. ['a', 'article:slug', ...]
+     * @return bool
+     */
+    public function addArticleToIndex(string $key, array $articleTag): bool
+    {
+        $index = $this->getMagazineIndex($key);
+        if (!$index || !isset($index->tags) || !is_array($index->tags)) {
+            $this->logger->error('Invalid index object or missing tags array.');
+            return false;
+        }
+        // Insert the new article tag at the top
+        array_unshift($index->tags, $articleTag);
+        try {
+            $item = $this->redisCache->getItem($key);
+            $item->set($index);
+            $this->redisCache->save($item);
+            return true;
+        } catch (\Exception $e) {
+            $this->logger->error('Error updating magazine index.', ['exception' => $e]);
+            return false;
+        }
+    }
 }

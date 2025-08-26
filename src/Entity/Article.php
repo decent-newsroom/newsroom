@@ -8,7 +8,6 @@ use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use FOS\ElasticaBundle\Provider\IndexableInterface;
 
 /**
  * Entity storing long-form articles
