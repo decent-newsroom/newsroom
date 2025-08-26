@@ -1,0 +1,81 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Visitor Analytics{% endblock %}
+
+{% block body %}
+    <div class="analytics-container">
+        <h1>Page Visit Analytics</h1>
+
+        <div class="analytics-card">
+            <h2>Visit Count by Route</h2>
+
+            {% if visitStats|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Visit Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in visitStats %}
+                            <tr>
+                                <td>{{ stat.route }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No visit data recorded yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-info">
+            <p>This data shows the number of page visits per route. No personal user data is collected.</p>
+        </div>
+    </div>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .analytics-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .analytics-card {
+        background: gray;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .analytics-table th, .analytics-table td {
+        padding: 10px;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .analytics-table th {
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .analytics-info {
+        font-size: 0.9rem;
+        color: var(--color-border);
+    }
+</style>
+{% endblock %}

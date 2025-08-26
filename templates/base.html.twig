@@ -25,7 +25,7 @@
         {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
 </head>
-<body data-controller="service-worker">
+<body data-controller="service-worker visit-analytics" data-visit-analytics-path-value="{{ app.request.pathInfo }}">
 
 <twig:Header />
 
