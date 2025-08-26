@@ -7,13 +7,12 @@
     <tr>
         <th>Title</th>
         <th>Summary</th>
-        <th>Coordinate</th>
-        <th>Add to Index</th>
+        <th>Actions</th>
     </tr>
     </thead>
     <tbody>
     {% for article in articles %}
-        <tr>
+        <tr style="padding-bottom: 5px;">
             <td><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></td>
             <td>{{ article.summary|slice(0, 100) }}{% if article.summary|length > 100 %}...{% endif %}</td>
             <td>
@@ -24,8 +23,7 @@
                             data-action="click->copy-to-clipboard#copyToClipboard"
                             style="margin-left: 0.5em;">Copy to Clipboard</button>
                 </span>
-            </td>
-            <td>
+
                 <form method="post" action="{{ path('admin_article_add_to_index') }}" style="display:inline;">
                     <input type="hidden" name="slug" value="{{ article.slug }}">
                     <label>

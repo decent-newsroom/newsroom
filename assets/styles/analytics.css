@@ -1,0 +1,37 @@
+.analytics-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.analytics-card {
+    background: lightgray;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.analytics-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.analytics-table th, .analytics-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-table th {
+    text-align: left;
+    font-weight: 600;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.analytics-info {
+    font-size: 0.9rem;
+    color: var(--color-border);
+}

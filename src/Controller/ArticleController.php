@@ -77,7 +77,10 @@ class ArticleController  extends AbstractController
         $article = null;
         // check if an item with same eventId already exists in the db
         $repository = $entityManager->getRepository(Article::class);
+        // slug might be url encoded, decode it
+        $slug = urldecode($slug);
         $articles = $repository->findBy(['slug' => $slug]);
+
         $revisions = count($articles);
 
         if ($revisions === 0) {
