@@ -16,7 +16,7 @@
     <div {{ stimulus_controller('nostr-publish', {
         publishUrl: path('api-article-publish'),
         csrfToken: csrf_token('nostr_publish')
-    }) }} data-nostr-publish-form-target="form">
+    }) }} data-nostr-publish-target="form">
 
         <!-- Status messages -->
         <div data-nostr-publish-target="status"></div>
@@ -37,13 +37,8 @@
                     class="btn btn-primary"
                     data-nostr-publish-target="publishButton"
                     data-action="click->nostr-publish#publish">
-                Publish to Nostr
+                Publish
             </button>
-        </div>
-
-        <!-- Keep the original submit button hidden for fallback -->
-        <div style="display: none;">
-            {{ form_row(form.actions.submit) }}
         </div>
 
         {{ form_end(form) }}

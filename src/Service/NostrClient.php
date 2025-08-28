@@ -432,7 +432,7 @@ class NostrClient
 
         // Create request using the helper method
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::COMMENTS->value, KindsEnum::TEXT_NOTE->value, KindsEnum::ZAP->value],
+            kinds: [KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value],
             filters: ['tag' => ['#a', [$coordinate]]],
             relaySet: $relaySet
         );
@@ -470,7 +470,7 @@ class NostrClient
         // Create request using the helper method
         // Zaps are kind 9735
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::ZAP],
+            kinds: [KindsEnum::ZAP_RECEIPT],
             filters: ['tag' => ['#a', [$coordinate]]],
             relaySet: $relaySet
         );

@@ -1,14 +1,27 @@
 <div class="comments">
     {% for item in list %}
-        <div class="card comment {% if item.kind is defined and item.kind == 9735 %}zap-comment{% endif %}">
+        <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
             <div class="metadata">
-                <p><twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" /></p>
+                <p>
+                    <twig:Molecules:UserFromNpub ident="{{ item.kind == '9735' ? zappers[item.id] : item.pubkey }}" />
+                </p>
                 <small>{{ item.created_at|date('F j Y') }}</small>
             </div>
 
             <div class="card-body">
+                {% if item.kind is defined and item.kind == '9735' %}
+                    <div class="zap-amount">
+                        {% if zapAmounts[item.id] is defined %}
+                            <strong>{{ zapAmounts[item.id] }} sat</strong>
+                        {% else %}
+                            <em>Zap</em>
+                        {% endif %}
+                    </div>
+                {% endif %}
                 <twig:Atoms:Content content="{{ item.content }}" />
             </div>
+
+
             {# Display Nostr link previews if links detected #}
             {% if commentLinks[item.id] is defined and commentLinks[item.id]|length > 0 %}
                 <div class="card-footer nostr-previews mt-3">
@@ -21,6 +34,8 @@
                     </div>
                 </div>
             {% endif %}
+            {# Display tags if user logged in and has role ROLE_ADMIN #}
+            {% if is_granted('ROLE_ADMIN') %}
             {% if item.tags is defined and item.tags|length > 0 %}
                 <ul>
                     {% for tag in item.tags %}
@@ -35,6 +50,7 @@
                         </li>
                     {% endfor %}
                 </ul>
+            {% endif %}
             {% endif %}
         </div>
     {% endfor %}

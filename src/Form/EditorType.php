@@ -9,8 +9,6 @@ use App\Form\DataTransformer\CommaSeparatedToJsonTransformer;
 use App\Form\DataTransformer\HtmlToMdTransformer;
 use App\Form\Type\QuillType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\FormType;
-use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
@@ -42,22 +40,7 @@ class EditorType extends AbstractType
                 'required' => false,
                 'sanitize_html' => true,
                 'help' => 'Separate tags with commas, skip #',
-                'attr' => ['placeholder' => 'Enter tags', 'class' => 'form-control']])
-            ->add(
-                $builder->create('actions', FormType::class,
-                    ['row_attr' => ['class' => 'actions'], 'label' => false, 'mapped' => false])
-                    ->add('submit', SubmitType::class, [
-                        'label' => 'Submit',
-                        'attr' => ['class' => 'btn btn-primary']])
-                    ->add('draft', SubmitType::class, [
-                        'label' => 'Save as draft',
-                        'attr' => ['class' => 'btn btn-secondary']])
-                    ->add('preview', SubmitType::class, [
-                        'label' => 'Preview',
-                        'attr' => ['class' => 'btn btn-secondary']])
-            );
-
-
+                'attr' => ['placeholder' => 'Enter tags', 'class' => 'form-control']]);
 
         // Apply the custom transformer
         $builder->get('topics')

@@ -15,12 +15,14 @@ use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
+use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
@@ -30,7 +32,7 @@ class ArticleController  extends AbstractController
     /**
      * @throws \Exception
      */
-    #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-z]{59})$'])]
+    #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, $naddr)
     {
         $decoded = new Bech32($naddr);
@@ -98,7 +100,7 @@ class ArticleController  extends AbstractController
             $article = $articles[0];
         }
 
-        $cacheKey = 'article_' . $article->getId();
+        $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
         if (!$cacheItem->isHit()) {
             $cacheItem->set($converter->convertToHtml($article->getContent()));
@@ -116,60 +118,6 @@ class ArticleController  extends AbstractController
             'npub' => $npub,
             'content' => $cacheItem->get(),
         ]);
-    }
-
-    /**
-     * Fetch complete event to show as preview
-     * POST data contains an object with request params
-     */
-    #[Route('/preview/', name: 'article-preview-event', methods: ['POST'])]
-    public function articlePreviewEvent(
-        Request $request,
-        NostrClient $nostrClient,
-        RedisCacheService $redisCacheService,
-        CacheItemPoolInterface $articlesCache
-    ): Response {
-        $data = $request->getContent();
-        // descriptor is an object with properties type, identifier and data
-        // if type === 'nevent', identifier is the event id
-        // if type === 'naddr', identifier is the naddr
-        // if type === 'nprofile', identifier is the npub
-        $descriptor = json_decode($data);
-        $previewData = [];
-
-        // if nprofile, get from redis cache
-        if ($descriptor->type === 'nprofile') {
-            $hint = json_decode($descriptor->decoded);
-            $key = new Key();
-            $npub = $key->convertPublicKeyToBech32($hint->pubkey);
-            $metadata = $redisCacheService->getMetadata($npub);
-            $metadata->npub = $npub;
-            $metadata->pubkey = $hint->pubkey;
-            $metadata->type = 'nprofile';
-            // Render the NostrPreviewContent component with the preview data
-            $html = $this->renderView('components/Molecules/NostrPreviewContent.html.twig', [
-                'preview' => $metadata
-            ]);
-        } else {
-            // For nevent or naddr, fetch the event data
-            try {
-                $previewData = $nostrClient->getEventFromDescriptor($descriptor);
-                $previewData->type = $descriptor->type; // Add type to the preview data
-                // Render the NostrPreviewContent component with the preview data
-                $html = $this->renderView('components/Molecules/NostrPreviewContent.html.twig', [
-                    'preview' => $previewData
-                ]);
-            } catch (\Exception $e) {
-                $html = '<span>Error fetching preview: ' . htmlspecialchars($e->getMessage()) . '</span>';
-            }
-        }
-
-
-        return new Response(
-            $html,
-            Response::HTTP_OK,
-            ['Content-Type' => 'text/html']
-        );
     }
 
     /**
@@ -235,33 +183,6 @@ class ArticleController  extends AbstractController
     }
 
     /**
-     * Preview article
-     * @throws InvalidArgumentException
-     * @throws CommonMarkException
-     * @throws \Exception
-     */
-    #[Route('/article-preview/{d}', name: 'article-preview')]
-    public function preview($d, Converter $converter,
-                            CacheItemPoolInterface $articlesCache): Response
-    {
-        $user = $this->getUser();
-        $key = new Key();
-        $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-
-        $cacheKey = 'article_' . $currentPubkey . '_' . $d;
-        $cacheItem = $articlesCache->getItem($cacheKey);
-        $article = $cacheItem->get();
-
-        $content = $converter->convertToHtml($article->getContent());
-
-        return $this->render('pages/article.html.twig', [
-            'article' => $article,
-            'content' => $content,
-            'author' => $user->getMetadata(),
-        ]);
-    }
-
-    /**
      * API endpoint to receive and process signed Nostr events
      * @throws \Exception
      */
@@ -276,7 +197,7 @@ class ArticleController  extends AbstractController
         try {
             // Verify CSRF token
             $csrfToken = $request->headers->get('X-CSRF-TOKEN');
-            if (!$csrfTokenManager->isTokenValid(new \Symfony\Component\Security\Csrf\CsrfToken('nostr_publish', $csrfToken))) {
+            if (!$csrfTokenManager->isTokenValid(new CsrfToken('nostr_publish', $csrfToken))) {
                 return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
             }
 
@@ -286,15 +207,20 @@ class ArticleController  extends AbstractController
                 return new JsonResponse(['error' => 'Invalid request data'], 400);
             }
 
+            /* @var array $signedEvent */
             $signedEvent = $data['event'];
-            $formData = $data['formData'] ?? [];
+            // Convert the signed event array to a proper Event object
+            $eventObj = new Event();
+            $eventObj->setId($signedEvent['id']);
+            $eventObj->setPublicKey($signedEvent['pubkey']);
+            $eventObj->setCreatedAt($signedEvent['created_at']);
+            $eventObj->setKind($signedEvent['kind']);
+            $eventObj->setTags($signedEvent['tags']);
+            $eventObj->setContent($signedEvent['content']);
+            $eventObj->setSignature($signedEvent['sig']);
 
-            // Validate Nostr event structure
-            $this->validateNostrEvent($signedEvent);
-
-            // Verify the event signature
-            if (!$this->verifyNostrSignature($signedEvent)) {
-                return new JsonResponse(['error' => 'Invalid event signature'], 400);
+            if (!$eventObj->verify()) {
+                return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
             // Check if user is authenticated and matches the event pubkey
@@ -302,6 +228,8 @@ class ArticleController  extends AbstractController
             if (!$user) {
                 return new JsonResponse(['error' => 'User not authenticated'], 401);
             }
+
+            $formData = $data['formData'] ?? [];
 
             $key = new Key();
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
@@ -313,25 +241,12 @@ class ArticleController  extends AbstractController
             // Extract article data from the signed event
             $articleData = $this->extractArticleDataFromEvent($signedEvent, $formData);
 
-            // Check if article with same slug already exists for this author
-            $repository = $entityManager->getRepository(Article::class);
-            $existingArticle = $repository->findOneBy([
-                'slug' => $articleData['slug'],
-                'pubkey' => $currentPubkey
-            ]);
 
-            if ($existingArticle) {
-                // Update existing article (NIP-33 replaceable event)
-                $article = $existingArticle;
-            } else {
-                // Create new article
-                $article = new Article();
-                $article->setPubkey($currentPubkey);
-                $article->setKind(KindsEnum::LONGFORM);
-            }
-
-            // Update article properties
-            $article->setEventId($this->generateEventId($signedEvent));
+            // Create new article
+            $article = new Article();
+            $article->setPubkey($currentPubkey);
+            $article->setKind(KindsEnum::LONGFORM);
+            $article->setEventId($signedEvent['id']);
             $article->setSlug($articleData['slug']);
             $article->setTitle($articleData['title']);
             $article->setSummary($articleData['summary']);
@@ -343,44 +258,25 @@ class ArticleController  extends AbstractController
             $article->setCreatedAt(new \DateTimeImmutable('@' . $signedEvent['created_at']));
             $article->setPublishedAt(new \DateTimeImmutable());
 
-            // Check workflow permissions
-            if ($articlePublishingWorkflow->can($article, 'publish')) {
-                $articlePublishingWorkflow->apply($article, 'publish');
-            }
-
             // Save to database
             $entityManager->persist($article);
             $entityManager->flush();
 
             // Optionally publish to Nostr relays
             try {
-                // Convert the signed event array to a proper Event object
-                $eventObj = new \swentel\nostr\Event\Event();
-                $eventObj->setId($signedEvent['id']);
-                $eventObj->setPublicKey($signedEvent['pubkey']);
-                $eventObj->setCreatedAt($signedEvent['created_at']);
-                $eventObj->setKind($signedEvent['kind']);
-                $eventObj->setTags($signedEvent['tags']);
-                $eventObj->setContent($signedEvent['content']);
-                $eventObj->setSignature($signedEvent['sig']);
-
                 // Get user's relays or use default ones
                 $relays = [];
                 if ($user && method_exists($user, 'getRelays') && $user->getRelays()) {
                     foreach ($user->getRelays() as $relayArr) {
                         if (isset($relayArr[1]) && isset($relayArr[2]) && $relayArr[2] === 'write') {
-                            $relays[] = $relayArr[1];
+                            // $relays[] = $relayArr[1];
                         }
                     }
                 }
 
                 // Fallback to default relays if no user relays found
                 if (empty($relays)) {
-                    $relays = [
-                        'wss://relay.damus.io',
-                        'wss://relay.primal.net',
-                        'wss://nos.lol'
-                    ];
+                    throw new \Exception('No write relays configured for user.');
                 }
 
                 $nostrClient->publishEvent($eventObj, $relays);
@@ -501,12 +397,5 @@ class ArticleController  extends AbstractController
 
         return $data;
     }
-
-    private function generateEventId(array $event): string
-    {
-        return $event['id'];
-    }
-
-    // ...existing code...
 
 }

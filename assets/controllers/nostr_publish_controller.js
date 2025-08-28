@@ -9,18 +9,29 @@ export default class extends Controller {
 
     connect() {
         console.log('Nostr publish controller connected');
-        this.checkNostrSupport();
-    }
+        // Helpful debug to verify values are wired from Twig
+        try {
+            console.debug('[nostr-publish] publishUrl:', this.publishUrlValue || '(none)');
+            console.debug('[nostr-publish] has csrfToken:', Boolean(this.csrfTokenValue));
+        } catch (_) {}
 
-    checkNostrSupport() {
-        if (!window.nostr) {
-            this.showError('Nostr extension not found. Please install a Nostr browser extension like nos2x or Alby.');
-            this.publishButtonTarget.disabled = true;
+        // Provide a sensible fallback if not passed via values
+        if (!this.hasPublishUrlValue || !this.publishUrlValue) {
+            this.publishUrlValue = '/api/article/publish';
         }
     }
 
     async publish(event) {
         event.preventDefault();
+
+        if (!this.publishUrlValue) {
+            this.showError('Publish URL is not configured');
+            return;
+        }
+        if (!this.csrfTokenValue) {
+            this.showError('Missing CSRF token');
+            return;
+        }
 
         if (!window.nostr) {
             this.showError('Nostr extension not found');
@@ -218,6 +229,9 @@ export default class extends Controller {
     }
 
     generateSlug(title) {
+        // add a random seed at the end of the title to avoid collisions
+        const randomSeed = Math.random().toString(36).substring(2, 8);
+        title = `${title} ${randomSeed}`;
         return title
             .toLowerCase()
             .replace(/[^a-z0-9\s-]/g, '') // Remove special characters

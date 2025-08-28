@@ -16,7 +16,7 @@ enum KindsEnum: int
     case LONGFORM = 30023; // NIP-23
     case LONGFORM_DRAFT = 30024; // NIP-23
     case PUBLICATION_INDEX = 30040;
-    case ZAP = 9735; // NIP-57, Zaps
+    case ZAP_RECEIPT = 9735; // NIP-57, Zaps
     case HIGHLIGHTS = 9802;
     case RELAY_LIST = 10002; // NIP-65, Relay list metadata
     case APP_DATA = 30078; // NIP-78, Arbitrary custom app data
