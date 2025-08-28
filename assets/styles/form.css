@@ -15,7 +15,7 @@ input {
     clear: both;
 }
 
-input, textarea {
+input, textarea, select {
     background-color: var(--color-bg);
     color: var(--color-text);
     border: 2px solid var(--color-border);
@@ -23,7 +23,7 @@ input, textarea {
     border-radius: 0;  /* Sharp edges */
 }
 
-input:focus, textarea:focus {
+input:focus, textarea:focus, select:focus {
     border-color: var(--color-primary);
     outline: none;
 }

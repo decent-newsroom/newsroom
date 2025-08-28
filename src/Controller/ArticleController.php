@@ -122,58 +122,32 @@ class ArticleController  extends AbstractController
 
     /**
      * Create new article
-     * @throws InvalidArgumentException
      * @throws \Exception
      */
     #[Route('/article-editor/create', name: 'editor-create')]
     #[Route('/article-editor/edit/{id}', name: 'editor-edit')]
-    public function newArticle(Request $request, EntityManagerInterface $entityManager, CacheItemPoolInterface $articlesCache,
-                               WorkflowInterface $articlePublishingWorkflow, Article $article = null): Response
+    public function newArticle(Request $request, EntityManagerInterface $entityManager, $id = null): Response
     {
-        if (!$article) {
+        if (!$id) {
             $article = new Article();
             $article->setKind(KindsEnum::LONGFORM);
             $article->setCreatedAt(new \DateTimeImmutable());
             $formAction = $this->generateUrl('editor-create');
         } else {
-            $formAction = $this->generateUrl('editor-edit', ['id' => $article->getId()]);
+            $formAction = $this->generateUrl('editor-edit', ['id' => $id]);
+            $repository = $entityManager->getRepository(Article::class);
+            $article = $repository->find($id);
+        }
+
+        if ($article->getPubkey() === null) {
+            $user = $this->getUser();
+            $key = new Key();
+            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+            $article->setPubkey($currentPubkey);
         }
 
         $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
         $form->handleRequest($request);
-
-        // Step 3: Check if the form is submitted and valid
-        if ($form->isSubmitted() && $form->isValid()) {
-            $user = $this->getUser();
-            $key = new Key();
-            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-
-            if ($article->getPubkey() === null) {
-                $article->setPubkey($currentPubkey);
-            }
-
-            // Check which button was clicked
-            if ($form->getClickedButton() === $form->get('actions')->get('submit')) {
-                // Save button was clicked, handle the "Publish" action
-                $this->addFlash('success', 'Product published!');
-            } elseif ($form->getClickedButton() === $form->get('actions')->get('draft')) {
-                // Save and Publish button was clicked, handle the "Draft" action
-                $this->addFlash('success', 'Product saved as draft!');
-            } elseif ($form->getClickedButton() === $form->get('actions')->get('preview')) {
-                // Preview button was clicked, handle the "Preview" action
-                // construct slug from title and save to tags
-                $slugger = new AsciiSlugger();
-                $slug = $slugger->slug($article->getTitle())->lower();
-                $article->setSig(''); // clear the sig
-                $article->setSlug($slug);
-                $cacheKey = 'article_' . $currentPubkey . '_' . $article->getSlug();
-                $cacheItem = $articlesCache->getItem($cacheKey);
-                $cacheItem->set($article);
-                $articlesCache->save($cacheItem);
-
-                return $this->redirectToRoute('article-preview', ['d' => $article->getSlug()]);
-            }
-        }
 
         // load template with content editor
         return $this->render('pages/editor.html.twig', [
@@ -191,7 +165,6 @@ class ArticleController  extends AbstractController
         Request $request,
         EntityManagerInterface $entityManager,
         NostrClient $nostrClient,
-        WorkflowInterface $articlePublishingWorkflow,
         CsrfTokenManagerInterface $csrfTokenManager
     ): JsonResponse {
         try {
@@ -269,7 +242,7 @@ class ArticleController  extends AbstractController
                 if ($user && method_exists($user, 'getRelays') && $user->getRelays()) {
                     foreach ($user->getRelays() as $relayArr) {
                         if (isset($relayArr[1]) && isset($relayArr[2]) && $relayArr[2] === 'write') {
-                            // $relays[] = $relayArr[1];
+                            $relays[] = $relayArr[1];
                         }
                     }
                 }

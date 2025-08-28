@@ -27,6 +27,46 @@
         {{ form_row(form.summary) }}
         {{ form_row(form.content) }}
         {{ form_row(form.image) }}
+
+        <div data-controller="image-upload">
+          <button type="button"
+                  class="btn btn-secondary"
+                  data-action="click->image-upload#openDialog">
+            Upload Image
+          </button>
+
+          <div data-image-upload-target="dialog" style="display:none;">
+              <div class="iu-backdrop" data-action="click->image-upload#closeDialog"></div>
+              <div class="iu-modal">
+                  <div class="modal-header">
+                      <h5>Upload Image</h5>
+                      <button type="button" class="close" data-action="click->image-upload#closeDialog">&times;</button>
+                  </div>
+                  <div class="modal-body">
+                      <div style="margin-bottom:1em;">
+                          <label for="upload-provider">Upload to</label>
+                          <select id="upload-provider" data-image-upload-target="provider">
+                              <option value="sovbit">files.sovbit.host</option>
+                              <option value="nostrbuild">nostr.build</option>
+                              <option value="nostrcheck">nostrcheck.me</option>
+                          </select>
+                      </div>
+
+                      <div data-image-upload-target="dropArea"
+                           class="upload-area"
+                           style="border:2px dashed #ccc;padding:2em;text-align:center;cursor:pointer;min-height:4em;">
+                          <span>Drag &amp; drop or click to select an image</span>
+                          <input type="file" accept="image/*" style="display:none;" data-image-upload-target="fileInput">
+                      </div>
+
+                      <div data-image-upload-target="progress" style="display:none;margin-top:1em;"></div>
+                      <div data-image-upload-target="error" style="color:red;margin-top:1em;"></div>
+                  </div>
+              </div>
+             </div>
+        </div>
+
+
         {{ form_row(form.topics) }}
 
         <div class="actions">
