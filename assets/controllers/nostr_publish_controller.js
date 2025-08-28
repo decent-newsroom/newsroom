@@ -9,16 +9,10 @@ export default class extends Controller {
 
     connect() {
         console.log('Nostr publish controller connected');
-        // Helpful debug to verify values are wired from Twig
         try {
             console.debug('[nostr-publish] publishUrl:', this.publishUrlValue || '(none)');
             console.debug('[nostr-publish] has csrfToken:', Boolean(this.csrfTokenValue));
         } catch (_) {}
-
-        // Provide a sensible fallback if not passed via values
-        if (!this.hasPublishUrlValue || !this.publishUrlValue) {
-            this.publishUrlValue = '/api/article/publish';
-        }
     }
 
     async publish(event) {
@@ -87,11 +81,7 @@ export default class extends Controller {
 
         const formData = new FormData(form);
 
-        // Get content from Quill editor if available
-        const quillEditor = document.querySelector('.ql-editor');
         let content = formData.get('editor[content]') || '';
-
-        // Convert HTML to markdown (basic conversion)
         content = this.htmlToMarkdown(content);
 
         const title = formData.get('editor[title]') || '';
@@ -124,7 +114,7 @@ export default class extends Controller {
 
         // Create tags array
         const tags = [
-            ['d', formData.slug], // NIP-33 replaceable event identifier
+            ['d', formData.slug],
             ['title', formData.title],
             ['published_at', Math.floor(Date.now() / 1000).toString()]
         ];
@@ -191,7 +181,6 @@ export default class extends Controller {
         markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
         markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
         markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-        markdown = markdown.replace(/<u[^>]*>(.*?)<\/u>/gi, '_$1_');
 
         // Convert links
         markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');

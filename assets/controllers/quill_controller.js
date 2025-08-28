@@ -9,9 +9,9 @@ export default class extends Controller {
 
     connect() {
         const toolbarOptions = [
-            ['bold', 'italic', 'underline', 'strike'],
+            ['bold', 'italic', 'strike'],
             ['link', 'blockquote', 'code-block', 'image'],
-            [{ 'header': 1 }, { 'header': 2 }],
+            [{ 'header': 1 }, { 'header': 2 }, { 'header': 3 }],
             [{ list: 'ordered' }, { list: 'bullet' }],
         ];
 

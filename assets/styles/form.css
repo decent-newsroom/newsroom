@@ -55,3 +55,15 @@ input:focus, textarea:focus {
 .image-with-preview input {
     flex-grow: 1;
 }
+
+textarea, input {
+    font-family: var(--font-family), sans-serif;
+}
+
+.quill {
+    border: 2px solid var(--color-border);
+}
+
+#editor {
+    margin: 0;
+}

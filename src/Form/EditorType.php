@@ -22,16 +22,16 @@ class EditorType extends AbstractType
         // create a form with a title field, a QuillType content field and a submit button
         $builder
             ->add('title', TextType::class, [
-                'required' => false,
+                'required' => true,
                 'sanitize_html' => true,
-                'attr' => ['placeholder' => 'Awesome article', 'class' => 'form-control']])
+                'attr' => ['placeholder' => 'Awesome title', 'class' => 'form-control']])
             ->add('summary', TextareaType::class, [
                 'required' => false,
                 'sanitize_html' => true,
                 'attr' => ['class' => 'form-control']])
             ->add('content', QuillType::class, [
-                'required' => false,
-                'attr' => ['placeholder' => 'Enter content', 'class' => 'form-control']])
+                'required' => true,
+                'attr' => ['placeholder' => 'Write content', 'class' => 'form-control']])
             ->add('image', UrlType::class, [
                 'required' => false,
                 'label' => 'Cover image URL',
@@ -40,7 +40,7 @@ class EditorType extends AbstractType
                 'required' => false,
                 'sanitize_html' => true,
                 'help' => 'Separate tags with commas, skip #',
-                'attr' => ['placeholder' => 'Enter tags', 'class' => 'form-control']]);
+                'attr' => ['placeholder' => 'Add tags', 'class' => 'form-control']]);
 
         // Apply the custom transformer
         $builder->get('topics')
