@@ -6,6 +6,7 @@ enum KindsEnum: int
 {
     case METADATA = 0; // metadata, NIP-01
     case TEXT_NOTE = 1; // text note, NIP-01, will not implement
+    case IMAGE = 20; // NIP-68, images
     case FOLLOWS = 3;
     case REPOST = 6; // Only wraps kind 1, NIP-18, will not implement
     case GENERIC_REPOST = 16; // Generic repost, original kind signalled in a "k" tag, NIP-18

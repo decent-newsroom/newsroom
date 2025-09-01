@@ -10,6 +10,7 @@ use App\Service\RedisCacheService;
 use Exception;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data;
+use nostriphant\NIP19\Data\Note;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -41,8 +42,7 @@ class EventController extends AbstractController
             switch ($decoded->type) {
                 case 'note':
                     // Handle note (regular event)
-                    $relays = $data->relays ?? [];
-                    $event = $nostrClient->getEventById($data->identifier, $relays);
+                    $event = $nostrClient->getEventById($data->data);
                     break;
 
                 case 'nprofile':
