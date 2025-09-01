@@ -13,7 +13,8 @@
             <summary>
               <strong>📁 {{ mag.name }}</strong>
               <small class="text-muted">(slug: {{ mag.slug }})</small>
-              <a class="btn btn-sm ms-2" href="{{ path('admin_magazine_edit', {slug: mag.slug}) }}">Edit</a>
+              <!-- Top-level Edit now points to wizard category management -->
+              <a class="btn btn-sm ms-2" href="{{ path('mag_wizard_edit', {slug: mag.slug}) }}">Edit</a>
             </summary>
             {% if mag.categories is not empty %}
               <ul class="list-unstyled ms-3 mt-2">

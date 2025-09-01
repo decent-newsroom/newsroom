@@ -20,6 +20,7 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use swentel\nostr\Key\Key;
 use Redis as RedisClient;
+use Symfony\Contracts\Cache\CacheInterface;
 
 class MagazineWizardController extends AbstractController
 {
@@ -238,6 +239,76 @@ class MagazineWizardController extends AbstractController
         $this->clearDraft($request);
         $this->addFlash('info', 'Magazine setup canceled.');
         return $this->redirectToRoute('home');
+    }
+
+    #[Route('/magazine/wizard/edit/{slug}', name: 'mag_wizard_edit')]
+    public function editStart(string $slug, CacheInterface $redisCache, Request $request): Response
+    {
+        // Load magazine event
+        $magEvent = $redisCache->get('magazine-' . $slug, function () {
+            return null;
+        });
+        if (!$magEvent || !method_exists($magEvent, 'getTags')) {
+            throw $this->createNotFoundException('Magazine not found');
+        }
+        $tags = (array)$magEvent->getTags();
+
+        $draft = new \App\Dto\MagazineDraft();
+        $draft->slug = $slug;
+        $draft->title = $this->getTagValue($tags, 'title') ?? '';
+        $draft->summary = $this->getTagValue($tags, 'summary') ?? '';
+        $draft->imageUrl = $this->getTagValue($tags, 'image') ?? '';
+        $draft->language = $this->getTagValue($tags, 'l');
+        $draft->tags = $this->getAllTagValues($tags, 't');
+        $draft->categories = [];
+
+        // For each category coordinate (30040:pubkey:slug), load its index and map
+        foreach ($tags as $t) {
+            if (is_array($t) && ($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
+                $parts = explode(':', (string)$t[1], 3);
+                if (count($parts) !== 3) { continue; }
+                $catSlug = $parts[2];
+                $catEvent = $redisCache->get('magazine-' . $catSlug, function () { return null; });
+                if (!$catEvent || !method_exists($catEvent, 'getTags')) { continue; }
+                $ctags = (array)$catEvent->getTags();
+                $cat = new \App\Dto\CategoryDraft();
+                $cat->slug = $catSlug;
+                $cat->title = $this->getTagValue($ctags, 'title') ?? '';
+                $cat->summary = $this->getTagValue($ctags, 'summary') ?? '';
+                $cat->tags = $this->getAllTagValues($ctags, 't');
+                $cat->articles = [];
+                foreach ($ctags as $ct) {
+                    if (is_array($ct) && ($ct[0] ?? null) === 'a' && isset($ct[1])) {
+                        $cat->articles[] = (string)$ct[1];
+                    }
+                }
+                $draft->categories[] = $cat;
+            }
+        }
+
+        $this->saveDraft($request, $draft);
+        return $this->redirectToRoute('mag_wizard_setup');
+    }
+
+    private function getTagValue(array $tags, string $name): ?string
+    {
+        foreach ($tags as $t) {
+            if (is_array($t) && ($t[0] ?? null) === $name && isset($t[1])) {
+                return (string)$t[1];
+            }
+        }
+        return null;
+    }
+
+    private function getAllTagValues(array $tags, string $name): array
+    {
+        $out = [];
+        foreach ($tags as $t) {
+            if (is_array($t) && ($t[0] ?? null) === $name && isset($t[1])) {
+                $out[] = (string)$t[1];
+            }
+        }
+        return $out;
     }
 
     private function getDraft(Request $request): ?MagazineDraft
