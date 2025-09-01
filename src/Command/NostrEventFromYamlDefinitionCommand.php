@@ -20,6 +20,7 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Contracts\Cache\CacheInterface;
+use Redis as RedisClient;
 
 #[AsCommand(name: 'app:yaml_to_nostr', description: 'Traverses folders, converts YAML files to JSON using object mapping, and saves the result in Redis cache.')]
 class NostrEventFromYamlDefinitionCommand extends Command
@@ -31,7 +32,8 @@ class NostrEventFromYamlDefinitionCommand extends Command
                                 private readonly ArticleFactory           $factory,
                                 ParameterBagInterface                     $bag,
                                 private readonly ObjectPersisterInterface $itemPersister,
-                                private readonly EntityManagerInterface   $entityManager)
+                                private readonly EntityManagerInterface   $entityManager,
+                                private readonly RedisClient              $redis)
     {
         $this->nsec = $bag->get('nsec');
         parent::__construct();
@@ -87,11 +89,24 @@ class NostrEventFromYamlDefinitionCommand extends Command
                 $slug = array_filter($tags, function ($tag) {
                     return ($tag[0] === 'd');
                 });
-                // Generate a Redis key
-                $cacheKey = 'magazine-' . $slug[0][1];
-                $cacheItem = $this->redisCache->getItem($cacheKey);
-                $cacheItem->set($event);
-                $this->redisCache->save($cacheItem);
+                $slug = $slug[0][1] ?? null;
+                if ($slug) {
+                    $cacheKey = 'magazine-' . $slug;
+                    $cacheItem = $this->redisCache->getItem($cacheKey);
+                    $cacheItem->set($event);
+                    $this->redisCache->save($cacheItem);
+
+                    // If top-level magazine (has 'a' tags referencing 30040 categories), record slug
+                    $isTopLevelMagazine = false;
+                    foreach ($tags as $t) {
+                        if (($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
+                            $isTopLevelMagazine = true; break;
+                        }
+                    }
+                    if ($isTopLevelMagazine) {
+                        try { $this->redis->sAdd('magazine_slugs', $slug); } catch (\Throwable) {}
+                    }
+                }
 
                 $output->writeln("<info>Saved index.</info>");
             } catch (\Exception $e) {

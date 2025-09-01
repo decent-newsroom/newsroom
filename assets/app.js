@@ -19,6 +19,7 @@ import './styles/spinner.css';
 import './styles/a2hs.css';
 import './styles/analytics.css';
 import './styles/modal.css';
+import './styles/utilities.css';
 
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');

@@ -1,0 +1,65 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Magazines</h1>
+
+  {% if magazines is empty %}
+    <p>No magazines found.</p>
+  {% else %}
+    <ul class="list-unstyled">
+      {% for mag in magazines %}
+        <li class="mb-2">
+          <details open>
+            <summary>
+              <strong>📁 {{ mag.name }}</strong>
+              <small class="text-muted">(slug: {{ mag.slug }})</small>
+              <a class="btn btn-sm ms-2" href="{{ path('admin_magazine_edit', {slug: mag.slug}) }}">Edit</a>
+            </summary>
+            {% if mag.categories is not empty %}
+              <ul class="list-unstyled ms-3 mt-2">
+                {% for cat in mag.categories %}
+                  <li class="mb-1">
+                    <details>
+                      <summary>
+                        📁 {{ cat.name }} <small class="text-muted">(slug: {{ cat.slug }})</small>
+                        <a class="btn btn-sm ms-2" href="{{ path('admin_magazine_edit', {slug: cat.slug}) }}">Edit</a>
+                      </summary>
+                      {% if cat.files is not empty %}
+                        <div class="ms-3 mt-2">
+                          <table class="file-table" style="width:100%;border-collapse:collapse;">
+                            <tbody>
+                            {% for file in cat.files %}
+                              <tr>
+                                <td style="padding:.25rem .5rem;vertical-align:top;">
+                                  📄 <a href="{{ path('article-slug', {slug: file.slug|url_encode}) }}">{{ file.name }}</a>
+                                  <div class="small text-muted">slug: {{ file.slug }}</div>
+                                </td>
+                                <td style="padding:.25rem .5rem;vertical-align:top;white-space:nowrap;">
+                                  {% if file.authorPubkey %}
+                                    <a href="{{ path('author-redirect', {pubkey: file.authorPubkey}) }}">{{ file.authorPubkey|slice(0,8) ~ '…' ~ file.authorPubkey|slice(-4) }}</a>
+                                  {% else %}
+                                    <span class="text-muted">unknown author</span>
+                                  {% endif %}
+                                </td>
+                                <td class="small text-muted" style="padding:.25rem .5rem;vertical-align:top;">{{ file.coordinate }}</td>
+                              </tr>
+                            {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      {% else %}
+                        <div class="ms-3 text-muted">No articles.</div>
+                      {% endif %}
+                    </details>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="ms-3 text-muted">No categories.</div>
+            {% endif %}
+          </details>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

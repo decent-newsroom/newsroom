@@ -19,6 +19,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use swentel\nostr\Key\Key;
+use Redis as RedisClient;
 
 class MagazineWizardController extends AbstractController
 {
@@ -97,6 +98,7 @@ class MagazineWizardController extends AbstractController
         foreach ($draft->categories as $cat) {
             $tags = [];
             $tags[] = ['d', $cat->slug];
+            $tags[] = ['type', 'magazine'];
             if ($cat->title) { $tags[] = ['title', $cat->title]; }
             if ($cat->summary) { $tags[] = ['summary', $cat->summary]; }
             foreach ($cat->tags as $t) { $tags[] = ['t', $t]; }
@@ -125,6 +127,7 @@ class MagazineWizardController extends AbstractController
 
         $magTags = [];
         $magTags[] = ['d', $draft->slug];
+        $magTags[] = ['type', 'magazine'];
         if ($draft->title) { $magTags[] = ['title', $draft->title]; }
         if ($draft->summary) { $magTags[] = ['summary', $draft->summary]; }
         if ($draft->imageUrl) { $magTags[] = ['image', $draft->imageUrl]; }
@@ -159,7 +162,8 @@ class MagazineWizardController extends AbstractController
     public function publishIndexEvent(
         Request $request,
         CacheItemPoolInterface $redisCache,
-        CsrfTokenManagerInterface $csrfTokenManager
+        CsrfTokenManagerInterface $csrfTokenManager,
+        RedisClient $redis
     ): JsonResponse {
         // Verify CSRF token
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
@@ -208,6 +212,21 @@ class MagazineWizardController extends AbstractController
             $redisCache->save($item);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Redis error'], 500);
+        }
+
+        // If the event is a top-level magazine index (references 30040 categories), record slug in a set for admin listing
+        try {
+            $isTopLevelMagazine = false;
+            foreach ($signedEvent['tags'] as $tag) {
+                if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string)$tag[1], '30040:')) {
+                    $isTopLevelMagazine = true; break;
+                }
+            }
+            if ($isTopLevelMagazine) {
+                $redis->sAdd('magazine_slugs', $slug);
+            }
+        } catch (\Throwable $e) {
+            // non-fatal
         }
 
         return new JsonResponse(['ok' => true]);
