@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Review & Sign</h1>
+
+  <div class="notice info">
+    <p>Review the details below. When ready, click Sign & Publish. Your NIP-07 extension will be used to sign events.</p>
+  </div>
+
+  <section class="mb-4">
+    <h2>Magazine</h2>
+    <ul>
+      <li><strong>Title:</strong> {{ draft.title }}</li>
+      <li><strong>Summary:</strong> {{ draft.summary }}</li>
+      <li><strong>Image URL:</strong> {{ draft.imageUrl ?: '—' }}</li>
+      <li><strong>Language:</strong> {{ draft.language ?: '—' }}</li>
+      <li><strong>Tags:</strong> {{ draft.tags is defined and draft.tags|length ? draft.tags|join(', ') : '—' }}</li>
+      <li><strong>Slug:</strong> {{ draft.slug }}</li>
+    </ul>
+  </section>
+
+  <section class="mb-4">
+    <h2>Categories</h2>
+    {% if draft.categories is defined and draft.categories|length %}
+      <ol>
+        {% for cat in draft.categories %}
+          <li>
+            <div>
+              <strong>{{ cat.title }}</strong> (slug: {{ cat.slug }})<br>
+              <em>{{ cat.summary }}</em><br>
+              <small>Tags: {{ cat.tags is defined and cat.tags|length ? cat.tags|join(', ') : '—' }}</small>
+              {% if cat.articles is defined and cat.articles|length %}
+                <div class="mt-2">
+                  <strong>Articles:</strong>
+                  <ul>
+                    {% for a in cat.articles %}
+                      <li><code>{{ a }}</code></li>
+                    {% endfor %}
+                  </ul>
+                </div>
+              {% else %}
+                <div class="mt-2"><small>No articles yet.</small></div>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p>No categories.</p>
+    {% endif %}
+  </section>
+
+  <section class="mb-4">
+    <details>
+      <summary>Show event previews (JSON)</summary>
+      <div class="mt-2">
+        <h3>Category events</h3>
+        <pre class="small">{{ categoryEventsJson }}</pre>
+        <h3>Magazine event</h3>
+        <pre class="small">{{ magazineEventJson }}</pre>
+      </div>
+    </details>
+  </section>
+
+  <div
+    {{ stimulus_controller('nostr-index-sign', {
+      categoryEvents: categoryEventsJson,
+      magazineEvent: magazineEventJson,
+      publishUrl: path('api-index-publish'),
+      csrfToken: csrfToken
+    }) }}
+  >
+    <section class="mb-3">
+      <h3>Final magazine event (with category 'a' tags)</h3>
+      <pre class="small" data-nostr-index-sign-target="computedPreview"></pre>
+    </section>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
+      <button class="btn btn-primary" data-nostr-index-sign-target="publishButton" data-action="click->nostr-index-sign#signAndPublish">Sign & Publish</button>
+    </div>
+
+    <div class="mt-3" data-nostr-index-sign-target="status"></div>
+  </div>
+{% endblock %}

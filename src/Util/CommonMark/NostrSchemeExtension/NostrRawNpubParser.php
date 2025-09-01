@@ -30,8 +30,18 @@ readonly class NostrRawNpubParser implements InlineParserInterface
         $fullMatch = $inlineContext->getFullMatch();
         $meta = $this->redisCacheService->getMetadata($fullMatch);
 
+        // Use shortened npub as default name, from first and last 8 characters of the fullMatch
+        $name =  substr($fullMatch, 0, 8) . '...' . substr($fullMatch, -8);
+        if (!empty($meta->display_name)) {
+            // If we have a name, use it
+            $name = $meta->name;
+        } else if (!empty($meta->name)) {
+            // If we have a name, use it
+            $name = $meta->name;
+        }
+
         // Create a new inline node for the custom link
-        $inlineContext->getContainer()->appendChild(new NostrMentionLink($meta->name, $fullMatch));
+        $inlineContext->getContainer()->appendChild(new NostrMentionLink($name, $fullMatch));
 
         // Advance the cursor to consume the matched part (important!)
         $cursor->advanceBy(strlen($fullMatch));
