@@ -118,7 +118,8 @@ export default class extends Controller {
         const tags = [
             ['d', formData.slug],
             ['title', formData.title],
-            ['published_at', Math.floor(Date.now() / 1000).toString()]
+            ['published_at', Math.floor(Date.now() / 1000).toString()],
+            ['client', 'Decent Newsroom']
         ];
 
         if (formData.summary) {
