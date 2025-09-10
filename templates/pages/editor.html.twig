@@ -16,7 +16,7 @@
     <div {{ stimulus_controller('nostr-publish', {
         publishUrl: path('api-article-publish'),
         csrfToken: csrf_token('nostr_publish')
-    }) }} data-nostr-publish-target="form">
+    }) }} data-nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
 
         <!-- Status messages -->
         <div data-nostr-publish-target="status"></div>

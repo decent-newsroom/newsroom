@@ -20,7 +20,7 @@ class Content
     public function mount($content): void
     {
         try {
-            $this->parsed = $this->converter->convertToHtml($content);
+            $this->parsed = $this->converter->convertToHTML($content);
         } catch (CommonMarkException) {
             $this->parsed = $content;
         }

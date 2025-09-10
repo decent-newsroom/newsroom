@@ -78,3 +78,29 @@ blockquote p {
     height: auto;
     aspect-ratio: 16/9;
 }
+
+.ql-snow .ql-tooltip.ql-image-tooltip {
+    white-space: nowrap;
+}
+
+.ql-snow .ql-tooltip.ql-image-tooltip .ql-tooltip-editor {
+    display: inline-flex;
+    gap: .5rem;
+    align-items: center;
+}
+
+.ql-snow .ql-tooltip.ql-image-tooltip input {
+    width: 220px;
+}
+
+.ql-snow .ql-tooltip.ql-image-tooltip .ql-action::before {
+    content: 'Insert';
+}
+
+.ql-snow .ql-tooltip.ql-image-tooltip .ql-cancel::before {
+    content: 'Cancel';
+}
+
+.ql-snow .ql-tooltip.ql-image-tooltip::before {
+    content: 'Image:';
+}

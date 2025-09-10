@@ -12,6 +12,7 @@ export default class extends Controller {
         try {
             console.debug('[nostr-publish] publishUrl:', this.publishUrlValue || '(none)');
             console.debug('[nostr-publish] has csrfToken:', Boolean(this.csrfTokenValue));
+            console.debug('[nostr-publish] existing slug:', (this.element.dataset.slug || '(none)'));
         } catch (_) {}
     }
 
@@ -61,7 +62,7 @@ export default class extends Controller {
 
             // Optionally redirect after successful publish
             setTimeout(() => {
-                window.location.href = `/article/d/${formData.slug}`;
+                window.location.href = `/article/d/${encodeURIComponent(formData.slug)}`;
             }, 2000);
 
         } catch (error) {
@@ -95,8 +96,9 @@ export default class extends Controller {
             .filter(topic => topic.length > 0)
             .map(topic => topic.startsWith('#') ? topic : `#${topic}`);
 
-        // Generate slug from title
-        const slug = this.generateSlug(title);
+        // Reuse existing slug if provided on the container (editing), else generate from title
+        const existingSlug = (this.element.dataset.slug || '').trim();
+        const slug = existingSlug || this.generateSlug(title);
 
         return {
             title,
@@ -184,6 +186,15 @@ export default class extends Controller {
 
         // Convert links
         markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+
+        // Convert images (handle src/alt in any order)
+        markdown = markdown.replace(/<img\b[^>]*>/gi, (imgTag) => {
+            const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
+            const altMatch = imgTag.match(/alt=["']([^"']*)["']/i);
+            const src = srcMatch ? srcMatch[1] : '';
+            const alt = altMatch ? altMatch[1] : '';
+            return src ? `![${alt}](${src})` : '';
+        });
 
         // Convert lists
         markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, '$1\n');

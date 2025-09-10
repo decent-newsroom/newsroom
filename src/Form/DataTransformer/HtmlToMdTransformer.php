@@ -2,6 +2,9 @@
 
 namespace App\Form\DataTransformer;
 
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\MarkdownConverter;
 use League\HTMLToMarkdown\HtmlConverter;
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Exception\TransformationFailedException;
@@ -9,11 +12,17 @@ use Symfony\Component\Form\Exception\TransformationFailedException;
 class HtmlToMdTransformer implements DataTransformerInterface
 {
 
-    private $converter;
+    private HtmlConverter $htmlToMd;
+    private MarkdownConverter $mdToHtml;
 
     public function __construct()
     {
-        $this->converter = new HtmlConverter();
+        $this->htmlToMd = new HtmlConverter();
+
+        // Create a minimal Environment for Markdown -> HTML conversion used by the editor
+        $environment = new Environment([]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $this->mdToHtml = new MarkdownConverter($environment);
     }
 
     /**
@@ -22,12 +31,17 @@ class HtmlToMdTransformer implements DataTransformerInterface
      */
     public function transform(mixed $value): mixed
     {
-        if ($value === null) {
+        if ($value === null || $value === '') {
             return '';
         }
 
-        // Optional: You can add a markdown-to-html conversion if needed
-        return $value; // You could return rendered markdown here.
+        try {
+            // Convert Markdown to HTML for the editor field
+            return (string) $this->mdToHtml->convert((string) $value);
+        } catch (\Throwable $e) {
+            // If conversion fails, fall back to raw value to avoid breaking the form
+            return (string) $value;
+        }
     }
 
     /**
@@ -41,8 +55,8 @@ class HtmlToMdTransformer implements DataTransformerInterface
         }
 
         try {
-            // Convert HTML to Markdown
-            return $this->converter->convert($value);
+            // Convert HTML (from the editor) to Markdown for storage
+            return $this->htmlToMd->convert((string) $value);
         } catch (\Exception $e) {
             throw new TransformationFailedException('Failed to convert HTML to Markdown');
         }

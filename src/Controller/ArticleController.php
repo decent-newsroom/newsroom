@@ -103,7 +103,7 @@ class ArticleController  extends AbstractController
         $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
         if (!$cacheItem->isHit()) {
-            $cacheItem->set($converter->convertToHtml($article->getContent()));
+            $cacheItem->set($converter->convertToHTML($article->getContent()));
             $articlesCache->save($cacheItem);
         }
 
@@ -111,12 +111,24 @@ class ArticleController  extends AbstractController
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
         $author = $redisCacheService->getMetadata($npub);
 
+        // determine whether the logged-in user is the author
+        $canEdit = false;
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+                $canEdit = ($currentPubkey === $article->getPubkey());
+            } catch (\Throwable $e) {
+                $canEdit = false;
+            }
+        }
 
         return $this->render('pages/article.html.twig', [
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
             'content' => $cacheItem->get(),
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -125,18 +137,27 @@ class ArticleController  extends AbstractController
      * @throws \Exception
      */
     #[Route('/article-editor/create', name: 'editor-create')]
-    #[Route('/article-editor/edit/{id}', name: 'editor-edit')]
-    public function newArticle(Request $request, EntityManagerInterface $entityManager, $id = null): Response
+    #[Route('/article-editor/edit/{slug}', name: 'editor-edit-slug')]
+    public function newArticle(Request $request, EntityManagerInterface $entityManager, $slug = null): Response
     {
-        if (!$id) {
+        if (!$slug) {
             $article = new Article();
             $article->setKind(KindsEnum::LONGFORM);
             $article->setCreatedAt(new \DateTimeImmutable());
             $formAction = $this->generateUrl('editor-create');
         } else {
-            $formAction = $this->generateUrl('editor-edit', ['id' => $id]);
+            $formAction = $this->generateUrl('editor-edit-slug', ['slug' => $slug]);
             $repository = $entityManager->getRepository(Article::class);
-            $article = $repository->find($id);
+            $slug = urldecode($slug);
+            $articles = $repository->findBy(['slug' => $slug]);
+            if (count($articles) === 0) {
+                throw $this->createNotFoundException('The article could not be found');
+            }
+            // Sort by createdAt, get latest revision
+            usort($articles, function ($a, $b) {
+                return $b->getCreatedAt() <=> $a->getCreatedAt();
+            });
+            $article = end($articles);
         }
 
         if ($article->getPubkey() === null) {
@@ -152,7 +173,7 @@ class ArticleController  extends AbstractController
         // load template with content editor
         return $this->render('pages/editor.html.twig', [
             'article' => $article,
-            'form' => $this->createForm(EditorType::class, $article)->createView(),
+            'form' => $form->createView(),
         ]);
     }
 
