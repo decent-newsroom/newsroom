@@ -94,11 +94,9 @@ class ArticleController  extends AbstractController
             usort($articles, function ($a, $b) {
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
-            // get the last article
-            $article = end($articles);
-        } else {
-            $article = $articles[0];
         }
+
+        $article = $articles[0];
 
         $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
@@ -157,7 +155,7 @@ class ArticleController  extends AbstractController
             usort($articles, function ($a, $b) {
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
-            $article = end($articles);
+            $article = array_pop($articles);
         }
 
         if ($article->getPubkey() === null) {

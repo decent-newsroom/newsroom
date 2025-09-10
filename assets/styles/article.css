@@ -7,6 +7,13 @@
     margin-top: 2em;
 }
 
+.article-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
 .article-main p,
 .article-main ul,
 .article-main ol,

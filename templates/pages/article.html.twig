@@ -13,16 +13,17 @@
 
 {% block body %}
 
+    <div class="article-actions">
+        {% if canEdit %}
+            <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
+        {% endif %}
 
-    {% if canEdit %}
-        <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
-    {% endif %}
-
-    {% if is_granted('ROLE_ADMIN') %}
-    <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
-        Copy coordinates
-    </button>
-    {% endif %}
+        {% if is_granted('ROLE_ADMIN') %}
+            <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
+                Copy coordinates
+            </button>
+        {% endif %}
+    </div>
 
     <div class="card">
         <div class="card-header">

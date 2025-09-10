@@ -36,6 +36,11 @@ class AuthorController extends AbstractController
         $query = new Terms('pubkey', [$pubkey]);
         $list = array_merge($list, $finder->find($query, 25));
 
+        // Sort articles by date
+        usort($list, function ($a, $b) {
+            return $b->getCreatedAt() <=> $a->getCreatedAt();
+        });
+
         $articles = [];
         // Deduplicate by slugs
         foreach ($list as $item) {
@@ -43,11 +48,6 @@ class AuthorController extends AbstractController
                 $articles[(string) $item->getSlug()] = $item;
             }
         }
-
-        // Sort articles by date
-        usort($articles, function ($a, $b) {
-            return $b->getCreatedAt() <=> $a->getCreatedAt();
-        });
 
         return $this->render('pages/author.html.twig', [
             'author' => $author,
