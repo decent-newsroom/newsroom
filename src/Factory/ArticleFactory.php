@@ -6,6 +6,7 @@ use App\Entity\Article;
 use App\Enum\EventStatusEnum;
 use App\Enum\KindsEnum;
 use InvalidArgumentException;
+use Mdanter\Ecc\Crypto\Signature\SchnorrSignature;
 
 /**
  * Map nostr events of kind 30023 to local article entity
@@ -17,6 +18,12 @@ class ArticleFactory
         if ($source->kind !== KindsEnum::LONGFORM->value) {
             throw new InvalidArgumentException('Source event kind should be 30023');
         }
+
+        $validity = (new SchnorrSignature())->verify($source->pubkey, $source->sig, $source->id);
+        if (!$validity) {
+            throw new InvalidArgumentException('Invalid event signature');
+        }
+
         $entity = new Article();
         $entity->setRaw($source);
         $entity->setEventId($source->id);
