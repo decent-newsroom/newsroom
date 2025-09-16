@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class DefaultController extends AbstractController
 {
@@ -26,28 +27,21 @@ class DefaultController extends AbstractController
 
     /**
      * @throws Exception
-     * @throws InvalidArgumentException
      */
     #[Route('/', name: 'home')]
     public function index(): Response
     {
-        // get latest articles
-        $q = new Query();
-        $q->setSize(12);
-        $q->setSort(['createdAt' => ['order' => 'desc']]);
-        $latest = $this->finder->find($q);
-        // get newsroom index, loop over categories, pick top three from each and display in sections
-        $mag = $this->redisCache->get('magazine-newsroom-magazine-by-newsroom', function (){
-            return null;
-        });
-        $tags = $mag->getTags();
-
-        $cats = array_filter($tags, function($tag) {
-            return ($tag[0] === 'a');
+        $cacheKey = 'home-latest-articles';
+        $latest = $this->redisCache->get($cacheKey, function (ItemInterface $item) {
+            $item->expiresAfter(13600); // about 4 hours
+            // get latest articles
+            $q = new Query();
+            $q->setSize(50);
+            $q->setSort(['createdAt' => ['order' => 'desc']]);
+            return $this->finder->find($q);
         });
 
         return $this->render('home.html.twig', [
-            'indices' => array_values($cats),
             'latest' => $latest
         ]);
     }

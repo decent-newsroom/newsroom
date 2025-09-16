@@ -49,7 +49,7 @@ class QualityCheckArticlesCommand extends Command
         $content = $article->getContent();
 
         // No empty title
-        if (empty($article->getTitle()) || strtolower($article->getTitle()) === 'test') {
+        if (empty($article->getTitle()) || strtolower($article->getTitle()) === 'test' || strtolower($article->getTitle()) === 'step counter') {
             return false;
         }
 
