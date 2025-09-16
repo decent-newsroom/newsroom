@@ -18,8 +18,17 @@ class VisitorAnalyticsController extends AbstractController
     {
         $visitStats = $visitRepository->getVisitCountByRoute();
 
+        // Counters for the last 24 hours and last 7 days
+        $last24h = new \DateTimeImmutable('-24 hours');
+        $last7d = new \DateTimeImmutable('-7 days');
+
+        $last24hCount = $visitRepository->countVisitsSince($last24h);
+        $last7dCount = $visitRepository->countVisitsSince($last7d);
+
         return $this->render('admin/analytics.html.twig', [
             'visitStats' => $visitStats,
+            'last24hCount' => $last24hCount,
+            'last7dCount' => $last7dCount,
         ]);
     }
 }

@@ -7,6 +7,14 @@
         <h1>Page Visit Analytics</h1>
 
         <div class="analytics-card">
+            <h2>Total Visits</h2>
+            <ul class="analytics-stats">
+                <li><strong>Last 24 hours:</strong> {{ last24hCount }}</li>
+                <li><strong>Last 7 days:</strong> {{ last7dCount }}</li>
+            </ul>
+        </div>
+
+        <div class="analytics-card">
             <h2>Visit Count by Route</h2>
 
             {% if visitStats|length > 0 %}
@@ -14,7 +22,7 @@
                     <thead>
                         <tr>
                             <th>Route</th>
-                            <th>Visit Count</th>
+                            <th style="min-width: 100px;text-align: right;">#</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -36,4 +44,3 @@
         </div>
     </div>
 {% endblock %}
-

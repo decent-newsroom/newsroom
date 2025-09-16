@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Visit;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -33,5 +34,18 @@ class VisitRepository extends ServiceEntityRepository
             ->orderBy('count', 'DESC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Returns total number of visits since the given datetime (inclusive).
+     */
+    public function countVisitsSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.visitedAt >= :since')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 }
