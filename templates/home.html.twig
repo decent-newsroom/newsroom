@@ -4,13 +4,18 @@
 {% endblock %}
 
 {% block body %}
-    {# content #}
-    {% for item in indices %}
-        <twig:Organisms:FeaturedList :category="item" class="featured-list"/>
-    {% endfor %}
+    <div
+        data-controller="search-visibility"
+        data-action="search:changed@window->search-visibility#toggle"
+    >
+        <twig:SearchComponent :currentRoute="app.current_route" />
+        <div data-search-visibility-target="list">
+            <twig:Organisms:CardList :list="latest" />
+        </div>
+    </div>
 {% endblock %}
 
 {% block aside %}
-{#    <h6>Magazines</h6>#}
-{#    <twig:Organisms:ZineList />#}
+    <h6>Magazines</h6>
+    <twig:Organisms:ZineList />
 {% endblock %}

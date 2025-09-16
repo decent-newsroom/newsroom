@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Enum\IndexStatusEnum;
+use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Service\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -71,7 +72,7 @@ class NostrEventFromYamlDefinitionCommand extends Command
             try {
                 // Deserialize YAML content into an Event object
                 $event = new Event();
-                $event->setKind(30040);
+                $event->setKind(KindsEnum::PUBLICATION_INDEX->value);
                 $tags = $yamlContent['tags'];
                 $event->setTags($tags);
                 $items = array_filter($tags, function ($tag) {

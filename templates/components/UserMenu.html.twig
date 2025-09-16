@@ -25,10 +25,9 @@
             </li>
         </ul>
     {% else %}
-        <div class="notice info">
-            <p>Log in to access search.</p>
+        <div class="mt-2">
+            <twig:Atoms:Button {{ ...stimulus_action('login', 'loginAct') }}>{{ 'heading.logIn'|trans }}</twig:Atoms:Button>
         </div>
-        <twig:Atoms:Button {{ ...stimulus_action('login', 'loginAct') }}>{{ 'heading.logIn'|trans }}</twig:Atoms:Button>
     {% endif %}
     <div>
         <div class="spinner" data-loading>

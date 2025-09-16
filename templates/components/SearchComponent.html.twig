@@ -7,17 +7,37 @@
                        placeholder="{{ 'text.search'|trans }}"
                        data-model="norender|query"
                        value="{{ this.query }}"
+                       data-controller="search-broadcast"
+                       data-action="input->search-broadcast#onInput"
                 />
-                <button type="submit"><twig:ux:icon name="iconoir:search" class="icon" /></button>
+                <button type="submit"
+                {% if not is_granted('IS_AUTHENTICATED_FULLY') %}disabled{% endif %}
+                ><twig:ux:icon name="iconoir:search" class="icon" /></button>
             </label>
+            {% if is_granted('IS_AUTHENTICATED_FULLY') %}
             <div style="text-align: right">
                 <small class="help-text">
                     <em>{{ 'credit.balance'|trans({'%count%': credits, 'count': credits}) }}</em>
                 </small>
             </div>
+            {% endif %}
         </form>
 
-            <!-- Loading Indicator -->
+        {% if not is_granted('IS_AUTHENTICATED_FULLY') %}
+            <div class="notice info mb-5">
+                <p>Log in to search articles.</p>
+                <small>Currently only available on desktop.</small>
+            </div>
+        {% endif %}
+
+
+        {% if is_granted('IS_AUTHENTICATED_FULLY') and credits == 0 %}
+            <div class="mb-5">
+                <twig:GetCreditsComponent />
+            </div>
+        {% endif %}
+
+        <!-- Loading Indicator -->
             <div style="text-align: center">
                 <div class="spinner" data-loading>
                     <div class="lds-dual-ring"></div>
@@ -31,11 +51,4 @@
         {% elseif this.query is not empty %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>
         {% endif %}
-
-    {% block aside %}
-        {% if credits == 0 %}
-            <twig:GetCreditsComponent />
-        {% endif %}
-    {% endblock %}
 </div>
-

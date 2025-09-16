@@ -1,16 +1,22 @@
 <div {{ attributes }}>
     {% for item in nzines %}
-        {% if item.npub in indices|keys %}
-        {% set idx = indices[item.npub] %}
-            {% if idx|length > 0 %}
-            <a class="card" href="{{ path('nzine_view', { npub: item.npub })}}">
-                <div class="card-body">
-                    <h3 class="card-title">{{ idx.title }}</h3>
+        {% set idx = indices[item.npub] is defined ? indices[item.npub] : null %}
+        <a class="card" href="{{ path('nzine_view', { npub: item.npub })}}">
+            <div class="card-body">
+                <h3 class="card-title">
+                    {% if idx and idx.title %}
+                        {{ idx.title }}
+                    {% elseif item.slug %}
+                        {{ item.slug }}
+                    {% else %}
+                        {{ item.npub }}
+                    {% endif %}
+                </h3>
+                {% if idx and idx.summary %}
                     <p class="hidden">{{ idx.summary }}</p>
-                </div>
-            </a>
-            <br>
-            {% endif %}
-        {% endif %}
+                {% endif %}
+            </div>
+        </a>
+        <br>
     {% endfor %}
 </div>

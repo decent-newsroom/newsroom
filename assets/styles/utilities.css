@@ -45,3 +45,5 @@
 /* Details/Summary tweaks */
 details>summary{cursor:pointer}
 
+/* Text truncation with ellipsis */
+.line-clamp-5 {display: -webkit-box;-webkit-box-orient: vertical;-webkit-line-clamp: 5;overflow: hidden;text-overflow: ellipsis;}

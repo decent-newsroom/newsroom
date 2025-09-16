@@ -6,9 +6,11 @@ namespace App\Controller;
 
 use App\Dto\CategoryDraft;
 use App\Dto\MagazineDraft;
+use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineSetupType;
 use App\Service\RedisCacheService;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -164,7 +166,8 @@ class MagazineWizardController extends AbstractController
         Request $request,
         CacheItemPoolInterface $redisCache,
         CsrfTokenManagerInterface $csrfTokenManager,
-        RedisClient $redis
+        RedisClient $redis,
+        EntityManagerInterface $entityManager
     ): JsonResponse {
         // Verify CSRF token
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
@@ -184,7 +187,7 @@ class MagazineWizardController extends AbstractController
         $eventObj->setId($signedEvent['id'] ?? '');
         $eventObj->setPublicKey($signedEvent['pubkey'] ?? '');
         $eventObj->setCreatedAt($signedEvent['created_at'] ?? time());
-        $eventObj->setKind($signedEvent['kind'] ?? 30040);
+        $eventObj->setKind($signedEvent['kind'] ?? KindsEnum::PUBLICATION_INDEX->value);
         $eventObj->setTags($signedEvent['tags'] ?? []);
         $eventObj->setContent($signedEvent['content'] ?? '');
         $eventObj->setSignature($signedEvent['sig'] ?? '');
@@ -229,6 +232,20 @@ class MagazineWizardController extends AbstractController
         } catch (\Throwable $e) {
             // non-fatal
         }
+
+        // Save to persistence as Event entity
+        // Map swentel Event to Event entity, it's always a new event
+        $event = new \App\Entity\Event();
+        $event->setId($eventObj->getId());
+        $event->setPubkey($eventObj->getPublicKey());
+        $event->setCreatedAt($eventObj->getCreatedAt());
+        $event->setKind($eventObj->getKind());
+        $event->setTags($eventObj->getTags());
+        $event->setContent($eventObj->getContent());
+        $event->setSig($eventObj->getSignature());
+        // Persist
+        $entityManager->persist($event);
+        $entityManager->flush();
 
         return new JsonResponse(['ok' => true]);
     }

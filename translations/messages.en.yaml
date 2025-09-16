@@ -3,6 +3,7 @@ text:
     search: 'Search...'
     searching: 'Searching...'
     noResults: 'No results.'
+    searchMobileNotice: 'Search is currently only available on desktop for logged-in users.'
 heading:
     roles: 'Roles'
     logout: 'Log out'

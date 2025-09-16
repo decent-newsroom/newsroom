@@ -1,0 +1,21 @@
+{% extends 'base.html.twig' %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ magazine.title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ magazine.summary }}">
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block nav %}
+{% endblock %}
+
+{% block body %}
+    {# hero #}
+    <twig:Organisms:MagazineHero :magazine="magazine" class="mb-4"/>
+    {# content #}
+    {% for item in indices %}
+        <twig:Organisms:FeaturedList :category="item" class="featured-list"/>
+    {% endfor %}
+{% endblock %}

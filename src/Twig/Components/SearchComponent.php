@@ -28,6 +28,7 @@ final class SearchComponent
     public array $results = [];
 
     public bool $interactive = true;
+    public string $currentRoute;
 
     public int $credits = 0;
     public ?string $npub = null;
@@ -55,8 +56,9 @@ final class SearchComponent
     {
     }
 
-    public function mount(): void
+    public function mount($currentRoute = 'search'): void
     {
+        $this->currentRoute = $currentRoute;
         $token = $this->tokenStorage->getToken();
         $this->npub = $token?->getUserIdentifier();
 
@@ -71,7 +73,7 @@ final class SearchComponent
         }
 
         // Restore search results from session if available and no query provided
-        if (empty($this->query)) {
+        if (empty($this->query) && $this->currentRoute == 'search') {
             $session = $this->requestStack->getSession();
             if ($session->has(self::SESSION_QUERY_KEY)) {
                 $this->query = $session->get(self::SESSION_QUERY_KEY);
@@ -237,7 +239,7 @@ final class SearchComponent
         ]);
 
         // Increase minimum score to filter out irrelevant results
-        $mainQuery->setMinScore(0.3);
+        $mainQuery->setMinScore(0.35);
 
         // Sort by score and createdAt
         $mainQuery->setSort([

@@ -19,6 +19,7 @@ use Psr\Log\LoggerInterface;
 class DefaultController extends AbstractController
 {
     public function __construct(
+        private readonly FinderInterface $finder,
         private readonly CacheInterface $redisCache)
     {
     }
@@ -30,6 +31,11 @@ class DefaultController extends AbstractController
     #[Route('/', name: 'home')]
     public function index(): Response
     {
+        // get latest articles
+        $q = new Query();
+        $q->setSize(12);
+        $q->setSort(['createdAt' => ['order' => 'desc']]);
+        $latest = $this->finder->find($q);
         // get newsroom index, loop over categories, pick top three from each and display in sections
         $mag = $this->redisCache->get('magazine-newsroom-magazine-by-newsroom', function (){
             return null;
@@ -41,7 +47,8 @@ class DefaultController extends AbstractController
         });
 
         return $this->render('home.html.twig', [
-            'indices' => array_values($cats)
+            'indices' => array_values($cats),
+            'latest' => $latest
         ]);
     }
 
