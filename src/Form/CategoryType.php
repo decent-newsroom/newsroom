@@ -27,10 +27,12 @@ class CategoryType extends AbstractType
             ->add('summary', TextType::class, [
                 'label' => 'Summary',
                 'required' => false,
+                'empty_data' => '',
             ])
             ->add('tags', TextType::class, [
                 'label' => 'Tags (comma separated)',
                 'required' => false,
+                'empty_data' => '',
             ]);
 
         $builder->get('tags')->addModelTransformer($this->transformer);
@@ -43,4 +45,3 @@ class CategoryType extends AbstractType
         ]);
     }
 }
-

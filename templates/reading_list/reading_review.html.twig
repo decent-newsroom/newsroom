@@ -1,0 +1,62 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Review & Sign Reading List</h1>
+
+  <div class="notice info">
+    <p>Review your reading list. When ready, click Sign & Publish. Your NIP-07 extension will be used to sign the event.</p>
+  </div>
+
+  <section class="mb-4">
+    <h2>Reading List</h2>
+    <ul>
+      <li><strong>Title:</strong> {{ draft.title }}</li>
+      <li><strong>Summary:</strong> {{ draft.summary ?: '—' }}</li>
+      <li><strong>Tags:</strong> {{ draft.tags is defined and draft.tags|length ? draft.tags|join(', ') : '—' }}</li>
+      <li><strong>Slug:</strong> {{ draft.slug }}</li>
+    </ul>
+
+    {% if draft.articles is defined and draft.articles|length %}
+      <div class="mt-2">
+        <strong>Articles:</strong>
+        <ul>
+          {% for a in draft.articles %}
+            <li><code>{{ a }}</code></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <div class="mt-2"><small>No articles yet.</small></div>
+    {% endif %}
+  </section>
+
+  <section class="mb-4">
+    <details>
+      <summary>Show event preview (JSON)</summary>
+      <div class="mt-2">
+        <pre class="small">{{ eventJson }}</pre>
+      </div>
+    </details>
+  </section>
+
+  <div
+    {{ stimulus_controller('nostr-single-sign', {
+      event: eventJson,
+      publishUrl: path('api-index-publish'),
+      csrfToken: csrfToken
+    }) }}
+  >
+    <section class="mb-3">
+      <h3>Final event (with your pubkey)</h3>
+      <pre class="small" data-nostr-single-sign-target="computedPreview"></pre>
+    </section>
+
+    <div class="d-flex flex-row gap-2">
+      <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
+      <button class="btn btn-primary" data-nostr-single-sign-target="publishButton" data-action="click->nostr-single-sign#signAndPublish">Sign & Publish</button>
+    </div>
+
+    <div class="mt-3" data-nostr-single-sign-target="status"></div>
+  </div>
+{% endblock %}
+

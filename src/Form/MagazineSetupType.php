@@ -28,19 +28,23 @@ class MagazineSetupType extends AbstractType
             ])
             ->add('summary', TextType::class, [
                 'label' => 'Description / summary',
-                'required' => true,
+                'required' => false,
+                'empty_data' => '',
             ])
             ->add('imageUrl', TextType::class, [
                 'label' => 'Logo / image URL',
                 'required' => false,
+                'empty_data' => '',
             ])
             ->add('language', TextType::class, [
                 'label' => 'Language (optional)',
                 'required' => false,
+                'empty_data' => '',
             ])
             ->add('tags', TextType::class, [
                 'label' => 'Tags (comma separated, optional)',
                 'required' => false,
+                'empty_data' => '',
             ])
             ->add('categories', CollectionType::class, [
                 'entry_type' => CategoryType::class,
@@ -61,4 +65,3 @@ class MagazineSetupType extends AbstractType
         ]);
     }
 }
-

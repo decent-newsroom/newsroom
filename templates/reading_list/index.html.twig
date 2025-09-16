@@ -1,0 +1,10 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Your Reading Lists</h1>
+  <p>Create and share curated reading lists.</p>
+  <div class="d-flex flex-row gap-2">
+    <a class="btn btn-primary" href="{{ path('read_wizard_setup') }}">Create a Reading List</a>
+    <a class="btn btn-secondary" href="{{ path('reading_list_compose') }}">Open Composer</a>
+  </div>
+{% endblock %}

@@ -12,11 +12,16 @@
         {% endif %}
         <ul class="user-nav">
             <li>
-                <a href="{{ path('editor-create') }}">Write an article</a>
+                <a href="{{ path('editor-create') }}">Write Article</a>
             </li>
             <li>
-                <a href="{{ path('mag_wizard_setup') }}">Create magazine</a>
+                <a href="{{ path('reading_list_index') }}">Compose List</a>
             </li>
+            {% if is_granted('ROLE_EDITOR') %}
+            <li>
+                <a href="{{ path('mag_wizard_setup') }}">Create Magazine</a>
+            </li>
+            {% endif %}
             <li>
                 <a href="{{ path('app_search_index') }}">{{ 'heading.search'|trans }}</a>
             </li>

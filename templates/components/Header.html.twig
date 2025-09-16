@@ -1,14 +1,6 @@
 <header class="header" data-controller="menu" {{ attributes }}>
     <div class="header__logo">
         <h1 class="brand"><a href="/">newsroom</a></h1>
-        <button class="hamburger btn btn-secondary" data-action="click->menu#toggle" aria-label="Menu">&#9776;</button>
-    </div>
-    <div class="header__categories"  data-menu-target="menu">
-        <ul>
-            {% for category in cats %}
-                <li><twig:Molecules:CategoryLink coordinate="{{ category }}" /></li>
-            {% endfor %}
-        </ul>
     </div>
     <div data-controller="progress-bar">
         <div id="progress-bar" data-progress-bar-target="bar"></div>

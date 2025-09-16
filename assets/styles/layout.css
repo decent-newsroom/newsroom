@@ -56,13 +56,6 @@ header {
     left: 0;
 }
 
-/* Hamburger button */
-.hamburger {
-    cursor: pointer;
-    display: none; /* Hidden on desktop */
-    font-size: 26px;
-}
-
 .header__logo {
     display: flex;
     width: 100%;
@@ -80,36 +73,9 @@ header {
     z-index: 1000;
 }
 
-/* Mobile Styles */
-@media (max-width: 768px) {
-    .header__logo {
-        justify-content: space-around;
-    }
-
-    .header__categories {
-        display: none;
-        flex-direction: column;
-        padding-top: 10px;
-    }
-
-    .header__categories.active {
-        display: flex;
-    }
-
-    .hamburger {
-        display: block;
-        align-self: center;
-    }
-
-    .header__categories ul {
-        flex-direction: column;
-        gap: 10px;
-    }
-}
-
 /* Main content */
 main {
-    margin-top: 140px;
+    margin-top: 90px;
     flex-grow: 1;
     padding: 1em;
     word-break: break-word;
@@ -117,7 +83,7 @@ main {
 
 .user-menu {
     position: fixed;
-    top: 150px;
+    top: 100px;
     width: calc(21vw - 10px);
     min-width: 150px;
     max-width: 270px;
@@ -130,10 +96,8 @@ main {
 
 /* Right sidebar */
 aside {
-    width: 190px;
-    min-width: 150px;
-    flex-shrink: 0;
-    flex-grow: 0;
+    margin-top: 90px;
+    width: 300px;
     padding: 1em;
 }
 

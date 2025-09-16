@@ -13,6 +13,7 @@ use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveListener;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
+use Symfony\UX\LiveComponent\ComponentToolsTrait;
 use Symfony\Contracts\Cache\CacheInterface;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
@@ -22,6 +23,7 @@ use Elastica\Query\MultiMatch;
 final class SearchComponent
 {
     use DefaultActionTrait;
+    use ComponentToolsTrait;
 
     #[LiveProp(writable: true, useSerializerForHydration: true)]
     public string $query = '';
@@ -41,6 +43,10 @@ final class SearchComponent
 
     #[LiveProp]
     public int $resultsPerPage = 12;
+
+    // New: render results with add-to-list buttons when true
+    #[LiveProp(writable: true)]
+    public bool $selectMode = false;
 
     private const string SESSION_KEY = 'last_search_results';
     private const string SESSION_QUERY_KEY = 'last_search_query';
@@ -143,6 +149,28 @@ final class SearchComponent
         }
     }
 
+    #[LiveAction]
+    public function addToReadingList(?string $coordinate = null): void
+    {
+        if ($coordinate === null || $coordinate === '') {
+            return; // nothing to add
+        }
+        $session = $this->requestStack->getSession();
+        $draft = $session->get('read_wizard');
+        if (!$draft instanceof \App\Dto\CategoryDraft) {
+            $draft = new \App\Dto\CategoryDraft();
+            $draft->title = $draft->title ?: 'Reading List';
+            if (!$draft->slug) {
+                $draft->slug = substr(bin2hex(random_bytes(6)), 0, 8);
+            }
+        }
+        if (!in_array($coordinate, $draft->articles, true)) {
+            $draft->articles[] = $coordinate;
+        }
+        $session->set('read_wizard', $draft);
+        $this->emit('readingListUpdated');
+    }
+
     /**
      * Perform a quick search on title and summary only
      */
@@ -163,7 +191,6 @@ final class SearchComponent
         $boolQuery = new BoolQuery();
         $boolQuery->addMust($multiMatch);
         $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
-
         $mainQuery->setQuery($boolQuery);
 
         // Use the collapse field to prevent duplicate content

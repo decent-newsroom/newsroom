@@ -23,10 +23,15 @@ class CategoryArticlesType extends AbstractType
             ])
             ->add('articles', CollectionType::class, [
                 'entry_type' => TextType::class,
+                'entry_options' => [
+                    'attr' => [
+                        'placeholder' => '30023:pubkey:slug'
+                    ],
+                ],
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,
-                'label' => 'Article coordinates (kind:npub|pubkey:slug)',
+                'label' => 'Article coordinates (kind:pubkey:slug)',
                 'prototype' => true,
             ]);
     }
@@ -38,4 +43,3 @@ class CategoryArticlesType extends AbstractType
         ]);
     }
 }
-

@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Compose Reading List</h1>
+
+    <section>
+      <twig:ReadingListDraftComponent />
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <div class="mt-2">
+        <h1>Search & Add</h1>
+        <p>Search articles and click “Add to list”.</p>
+        <twig:SearchComponent :selectMode="true" currentRoute="compose" />
+    </div>
+{% endblock %}

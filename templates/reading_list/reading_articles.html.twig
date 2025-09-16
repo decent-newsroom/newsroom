@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+  <h1>Attach Articles</h1>
+
+  <div class="notice info">
+    <p>Add article coordinates to your reading list. Use format <code>30023:pubkey:slug</code>.</p>
+  </div>
+
+  {{ form_start(form) }}
+  {{ form_row(form.title, {label: 'Reading list title'}) }}
+
+  <h3>Articles</h3>
+  <div
+    {{ stimulus_controller('form-collection') }}
+    data-form-collection-index-value="{{ form.articles|length > 0 ? form.articles|last.vars.name + 1 : 0 }}"
+    data-form-collection-prototype-value="{{ form_widget(form.articles.vars.prototype)|e('html_attr') }}">
+    <ul class="d-flex gap-2 list-unstyled" {{ stimulus_target('form-collection', 'collectionContainer') }}>
+      {% for item in form.articles %}
+        <li class="d-flex flex-row">{{ form_row(item) }}</li>
+      {% endfor %}
+    </ul>
+    <button type="button" class="btn btn-secondary mt-2" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add article</button>
+  </div>
+
+  <div class="mt-3 d-flex flex-row gap-2">
+    <a class="btn btn-secondary" href="{{ path('read_wizard_setup') }}">Back</a>
+    <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
+    <button class="btn btn-primary">Review</button>
+  </div>
+  {{ form_end(form) }}
+{% endblock %}

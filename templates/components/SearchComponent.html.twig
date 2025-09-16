@@ -47,7 +47,41 @@
 
         <!-- Results -->
         {% if this.results is not empty %}
-            <twig:Organisms:CardList :list="this.results" class="article-list" />
+            {% if this.selectMode %}
+                <div class="article-list">
+                    <ul class="list-unstyled d-grid gap-2">
+                        {% for art in this.results %}
+                            {% if art.slug is not empty and art.title is not empty %}
+                                {% set artKind = art.kind ? art.kind.value : 30023 %}
+                                {% set coordinate = artKind ~ ':' ~ art.pubkey ~ ':' ~ art.slug %}
+                                <li class="card p-3">
+                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                        <div class="flex-fill">
+                                            <div class="metadata">
+                                                <small>by <twig:Molecules:UserFromNpub ident="{{ art.pubkey }}" /></small>
+                                                <small class="ms-2">{{ art.createdAt|date('F j Y') }}</small>
+                                            </div>
+                                            <a href="{{ path('article-slug', {slug: art.slug}) }}"><h3 class="h5 m-0">{{ art.title }}</h3></a>
+                                            {% if art.summary %}<p class="mt-2 small line-clamp-5">{{ art.summary }}</p>{% endif %}
+                                            <code class="small text-muted">{{ coordinate }}</code>
+                                        </div>
+                                        <div>
+                                            <button
+                                                class="btn btn-sm btn-primary"
+                                                data-action="live#action"
+                                                data-live-action-param="addToReadingList"
+                                                data-live-coordinate-param="{{ coordinate }}"
+                                            >Add to list</button>
+                                        </div>
+                                    </div>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <twig:Organisms:CardList :list="this.results" class="article-list" />
+            {% endif %}
         {% elseif this.query is not empty %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>
         {% endif %}
