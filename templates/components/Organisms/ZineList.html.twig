@@ -1,4 +1,5 @@
 <div {{ attributes }}>
+    {% if nzines is not empty %}
     {% for item in nzines %}
         {% set idx = indices[item.npub] is defined ? indices[item.npub] : null %}
         <a class="card" href="{{ path('nzine_view', { npub: item.npub })}}">
@@ -19,4 +20,7 @@
         </a>
         <br>
     {% endfor %}
+    {% else %}
+    <p><small>No magazines yet.</small></p>
+    {% endif %}
 </div>

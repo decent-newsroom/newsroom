@@ -1,0 +1,16 @@
+<div {{ attributes }}>
+  {% set items = this.lists %}
+  {% if items is not empty %}
+    <ul class="list-unstyled small d-grid gap-2">
+      {% for item in items %}
+        <li>
+          <a href="{{ path('magazine-category', { slug: item.slug }) }}">{{ item.title }}</a>
+          <div><small class="text-muted">{{ item.createdAt|date('Y-m-d') }}</small></div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p><small>No reading lists yet.</small></p>
+  {% endif %}
+</div>
+
