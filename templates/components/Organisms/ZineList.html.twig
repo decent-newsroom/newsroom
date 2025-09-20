@@ -27,7 +27,7 @@
                     {% endfor %}
                 {% endif %}
                 {% if categoryTags is not empty %}
-                    <ul class="list-unstyled d-flex flex-row gap-3 justify-content-center mt-3">
+                    <ul class="list-unstyled d-flex flex-row flex-wrap gap-3 justify-content-center mt-3">
                         {% for catTag in categoryTags %}
                             <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="item.slug" /></li>
                         {% endfor %}

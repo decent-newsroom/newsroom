@@ -152,6 +152,10 @@ aside header {
         grid-template-columns: auto;
     }
 
+    main {
+        margin-top: 60px;
+    }
+
     nav header,
     aside header {
         display: block;
@@ -167,7 +171,6 @@ aside header {
         gap: .5rem;
         position: sticky;
         top: 61px; /* below main header */
-        background: var(--color-bg);
         z-index: 1050;
         padding: .5rem 0;
     }

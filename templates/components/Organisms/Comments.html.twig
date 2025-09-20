@@ -3,7 +3,13 @@
         <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
             <div class="metadata">
                 <p>
-                    <twig:Molecules:UserFromNpub ident="{{ item.kind == '9735' ? zappers[item.id] : item.pubkey }}" />
+                    {% if item.kind != '9735' %}
+                        <twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" />
+                    {% elseif zappers[item.id] %}
+                        <twig:Molecules:UserFromNpub ident="{{ zappers[item.id]  }}" />
+                    {% else %}
+                        <em>Unknown</em>
+                    {% endif %}
                 </p>
                 <small>{{ item.created_at|date('F j Y') }}</small>
             </div>
