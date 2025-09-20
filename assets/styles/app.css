@@ -207,11 +207,6 @@ div:nth-child(odd) .featured-list {
     border-bottom: 1px solid var(--color-border);
 }
 
-.featured-list .card-header img {
-    max-height: 500px;
-    aspect-ratio: 1;
-}
-
 .article-list .metadata {
     display: flex;
     flex-direction: row;

@@ -2,8 +2,12 @@
 
 namespace App\Service;
 
+use App\Entity\Event;
+use App\Enum\KindsEnum;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -13,6 +17,7 @@ readonly class RedisCacheService
     public function __construct(
         private NostrClient     $nostrClient,
         private CacheInterface  $redisCache,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     )
     {
@@ -70,18 +75,37 @@ readonly class RedisCacheService
 
     /**
      * Get a magazine index object by key.
-     * @param string $key
+     * @param string $slug
      * @return object|null
+     * @throws InvalidArgumentException
      */
-    public function getMagazineIndex(string $key): ?object
+    public function getMagazineIndex(string $slug): ?object
     {
-        try {
-            $item = $this->redisCache->getItem($key);
-            return $item->isHit() ? $item->get() : null;
-        } catch (\Exception $e) {
-            $this->logger->error('Error fetching magazine index.', ['exception' => $e]);
-            return null;
-        }
+        // redis cache lookup of magazine index by slug
+        $key = 'magazine-index-' . $slug;
+        return $this->redisCache->get($key, function (ItemInterface $item) use ($slug) {
+            $item->expiresAfter(3600); // 1 hour
+
+            $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+            // filter, only keep type === magazine and slug === $mag
+            $nzines = array_filter($nzines, function ($index) use ($slug) {
+                // look for slug
+                return $index->getSlug() === $slug;
+            });
+
+            if (count($nzines) === 0) {
+                return new Response('Magazine not found', 404);
+            }
+            // sort by createdAt, keep newest
+            usort($nzines, function ($a, $b) {
+                return $b->getCreatedAt() <=> $a->getCreatedAt();
+            });
+            $nzine = array_pop($nzines);
+
+            $this->logger->info('Magazine lookup', ['mag' => $slug, 'found' => json_encode($nzine)]);
+
+            return $nzine;
+        });
     }
 
     /**

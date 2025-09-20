@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Event;
+use App\Enum\KindsEnum;
+use App\Service\RedisCacheService;
+use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
 use Elastica\Query;
 use Elastica\Query\Terms;
@@ -32,22 +36,7 @@ class DefaultController extends AbstractController
     #[Route('/', name: 'home')]
     public function index(): Response
     {
-        $cacheKey = 'home-latest-articles';
-        $latest = $this->redisCache->get($cacheKey, function (ItemInterface $item) {
-            $item->expiresAfter(13600); // about 4 hours
-            // get latest articles
-            $q = new Query();
-            $q->setSize(12);
-            $q->setSort(['createdAt' => ['order' => 'desc']]);
-            $col = new Collapse();
-            $col->setFieldname('pubkey');
-            $q->setCollapse($col);
-            return $this->finder->find($q);
-        });
-
-        return $this->render('home.html.twig', [
-            'latest' => $latest
-        ]);
+        return $this->render('home.html.twig');
     }
 
     /**
@@ -87,18 +76,25 @@ class DefaultController extends AbstractController
             return $this->finder->find($q);
         });
 
-        return $this->render('home.html.twig', [
+        return $this->render('pages/latest.html.twig', [
             'latest' => $latest
         ]);
     }
 
     /**
+     * Magazine front page: title, summary, category links, featured list.
      * @throws InvalidArgumentException
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
-    public function magIndex($mag) : Response
+    public function magIndex(string $mag, RedisCacheService $redisCache) : Response
     {
-        return new Response('Not implemented yet', 501);
+        // redis cache lookup of magazine index by slug
+        $magazine = $redisCache->getMagazineIndex($mag);
+
+        return $this->render('magazine/magazine-front.html.twig', [
+            'magazine' => $magazine,
+            'mag' => $mag,
+        ]);
     }
 
     /**
@@ -106,9 +102,12 @@ class DefaultController extends AbstractController
      */
     #[Route('/mag/{mag}/cat/{slug}', name: 'magazine-category')]
     public function magCategory($mag, $slug, CacheInterface $redisCache,
+                                RedisCacheService $redisCacheService,
                                 FinderInterface $finder,
                                 LoggerInterface $logger): Response
     {
+        $magazine = $redisCacheService->getMagazineIndex($mag);
+
         $catIndex = $redisCache->get('magazine-' . $slug, function (){
             throw new Exception('Not found');
         });
@@ -211,6 +210,8 @@ class DefaultController extends AbstractController
         }
 
         return $this->render('pages/category.html.twig', [
+            'mag' => $mag,
+            'magazine' => $magazine,
             'list' => $list,
             'category' => $category,
             'index' => $catIndex
