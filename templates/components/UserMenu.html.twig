@@ -14,9 +14,9 @@
             <li>
                 <a href="{{ path('editor-create') }}">Write Article</a>
             </li>
-            <li>
-                <a href="{{ path('reading_list_index') }}">Compose List</a>
-            </li>
+{#            <li>#}
+{#                <a href="{{ path('reading_list_index') }}">Compose List</a>#}
+{#            </li>#}
             {% if is_granted('ROLE_ADMIN') %}
             <li>
                 <a href="{{ path('mag_wizard_setup') }}">Create Magazine</a>

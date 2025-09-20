@@ -1,17 +1,17 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Compose Reading List</h1>
-
-    <section>
-      <twig:ReadingListDraftComponent />
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-3 mb-3">
+            <h1>Compose Reading List</h1>
+        </div>
     </section>
-{% endblock %}
 
-{% block aside %}
-    <div class="mt-2">
-        <h1>Search & Add</h1>
-        <p>Search articles and click “Add to list”.</p>
-        <twig:SearchComponent :selectMode="true" currentRoute="compose" />
-    </div>
+    <section class="d-flex flex-row gap-3">
+      <twig:ReadingListDraftComponent />
+        <div class="mt-3">
+            <p>Search articles and click “Add to list”.</p>
+            <twig:SearchComponent :selectMode="true" currentRoute="compose" />
+        </div>
+    </section>
 {% endblock %}

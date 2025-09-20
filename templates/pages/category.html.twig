@@ -10,6 +10,7 @@
 
 {% block body %}
     <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
-
-    <twig:Organisms:CardList :list="list" :category="index" :mag="mag" class="article-list" />
+    <div class="w-container">
+        <twig:Organisms:CardList :list="list" :category="index" :mag="mag" class="article-list" />
+    </div>
 {% endblock %}

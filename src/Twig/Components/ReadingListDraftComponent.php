@@ -3,10 +3,16 @@
 namespace App\Twig\Components;
 
 use App\Dto\CategoryDraft;
+use App\Enum\KindsEnum;
+use App\Service\NostrClient;
+use nostriphant\NIP19\Bech32;
+use nostriphant\NIP19\Data\NAddr;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveListener;
+use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
 #[AsLiveComponent]
@@ -16,9 +22,20 @@ final class ReadingListDraftComponent
 
     public ?CategoryDraft $draft = null;
 
-    public function __construct(private readonly RequestStack $requestStack)
-    {
-    }
+    #[LiveProp(writable: true)]
+    public string $naddrInput = '';
+
+    #[LiveProp]
+    public string $naddrError = '';
+
+    #[LiveProp]
+    public string $naddrSuccess = '';
+
+    public function __construct(
+        private readonly RequestStack $requestStack,
+        private readonly NostrClient $nostrClient,
+        private readonly LoggerInterface $logger,
+    ) {}
 
     public function mount(): void
     {
@@ -40,6 +57,81 @@ final class ReadingListDraftComponent
             $draft->articles = array_values(array_filter($draft->articles, fn($c) => $c !== $coordinate));
             $session->set('read_wizard', $draft);
             $this->draft = $draft;
+        }
+    }
+
+    #[LiveAction]
+    public function addNaddr(): void
+    {
+        $this->naddrError = '';
+        $this->naddrSuccess = '';
+        $raw = trim($this->naddrInput);
+        if ($raw === '') {
+            $this->naddrError = 'Empty input.';
+            return;
+        }
+
+        // Extract naddr (accept nostr:naddr1... or raw naddr1...)
+        if (preg_match('/(naddr1[0-9a-zA-Z]+)/', $raw, $m) !== 1) {
+            $this->naddrError = 'No naddr found.';
+            return;
+        }
+        $naddr = $m[1];
+
+        try {
+            $decoded = new Bech32($naddr);
+            if ($decoded->type !== 'naddr') {
+                $this->naddrError = 'Invalid naddr type.';
+                return;
+            }
+            /** @var NAddr $data */
+            $data = $decoded->data;
+            $slug = $data->identifier;
+            $pubkey = $data->pubkey;
+            $kind = $data->kind;
+            $relays = $data->relays;
+
+            if ($kind !== KindsEnum::LONGFORM->value) {
+                $this->naddrError = 'Not a long-form article (kind '.$kind.').';
+                return;
+            }
+            if (!$slug) {
+                $this->naddrError = 'Missing identifier (slug).';
+                return;
+            }
+
+            $coordinate = $kind . ':' . $pubkey . ':' . $slug;
+
+            $session = $this->requestStack->getSession();
+            $draft = $session->get('read_wizard');
+            if (!$draft instanceof CategoryDraft) {
+                $draft = new CategoryDraft();
+            }
+            if (!in_array($coordinate, $draft->articles, true)) {
+                // Attempt to fetch article so it exists locally (best-effort)
+                try {
+                    $this->nostrClient->getLongFormFromNaddr($slug, $relays, $pubkey, $kind);
+                } catch (\Throwable $e) {
+                    // Non-fatal; still add coordinate
+                    $this->logger->warning('Failed fetching article from naddr', [
+                        'error' => $e->getMessage(),
+                        'naddr' => $naddr
+                    ]);
+                }
+                $draft->articles[] = $coordinate;
+                $session->set('read_wizard', $draft);
+                $this->draft = $draft;
+                $this->naddrSuccess = 'Added article: ' . $coordinate;
+            } else {
+                $this->naddrSuccess = 'Article already in list.';
+            }
+            $this->naddrInput = '';
+        } catch (\Throwable $e) {
+            $this->naddrError = 'Decode failed.';
+            $this->logger->error('naddr decode failed', [
+                'input' => $raw,
+                'error' => $e->getMessage()
+            ]);
         }
     }
 
