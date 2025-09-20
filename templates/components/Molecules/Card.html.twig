@@ -1,18 +1,17 @@
 {% if article is defined %}
     <div class="card">
         <div class="metadata">
-            {% if category %}
-                <small>{{ category }}</small>
-            {% else %}
-                {% if not is_author_profile %}
-                    <p>by <twig:Molecules:UserFromNpub ident="{{ article.pubkey }}" /></p>
-                {% endif %}
-                <small>{{ article.createdAt|date('F j Y') }}</small>
+            {% if not is_author_profile %}
+                <p>by <twig:Molecules:UserFromNpub ident="{{ article.pubkey }}" /></p>
             {% endif %}
+            <small>{{ article.createdAt|date('F j Y') }}</small>
         </div>
-        <a href="{{ path('article-slug', {slug: article.slug}) }}">
+        {% set link = path('article-slug', {slug: article.slug}) %}
+        {% if cat  and mag %}
+            {% set link = path('magazine-category-article', {slug: article.slug, cat: cat, mag: mag}) %}
+        {% endif %}
+        <a href="{{ link }}">
             <div class="card-header">
-                {% if category %}<small class="text-uppercase">{{ category }}</small>{% endif %}
                 {% if article.image %}
                     <img src="{{ article.image }}" alt="Cover image for {{ article.title }}" onerror="this.style.display='none';" >
                 {% endif %}

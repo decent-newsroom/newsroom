@@ -7,7 +7,7 @@
             <div>
                 {% set feature = list[0] %}
                 <div class="card">
-                    <a href="{{ path('article-slug', {slug: feature.slug}) }}">
+                    <a href="{{ path('magazine-category-article', {slug: feature.slug, cat: catSlug, mag: mag}) }}">
                         <div class="card-header">
                             {% if feature.image %}
                                 <img src="{{ feature.image }}" alt="Cover image for {{ feature.title }}">
@@ -26,7 +26,7 @@
                 {% for item in list %}
                     {% if item != feature %}
                         <div class="card">
-                            <a href="{{ path('article-slug', {slug: item.slug}) }}">
+                            <a href="{{ path('magazine-category-article', {slug: feature.slug, cat: catSlug, mag: mag}) }}">
                                 <div class="card-body">
                                     <h2 class="card-title">{{ item.title }}</h2>
                                     <p class="lede truncate">

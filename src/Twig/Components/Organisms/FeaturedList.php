@@ -13,7 +13,9 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent]
 final class FeaturedList
 {
+    public string $mag;
     public string $category;
+    public string $catSlug;
     public string $title;
     public array $list = [];
 
@@ -39,6 +41,9 @@ final class FeaturedList
         foreach ($catIndex->getTags() as $tag) {
             if ($tag[0] === 'title') {
                 $this->title = $tag[1];
+            }
+            if ($tag[0] === 'd') {
+                $this->catSlug = $tag[1];
             }
             if ($tag[0] === 'a') {
                 $parts = explode(':', $tag[1], 3);

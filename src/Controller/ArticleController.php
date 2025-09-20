@@ -121,12 +121,15 @@ class ArticleController  extends AbstractController
             }
         }
 
+        $canonical = $this->generateUrl('article-slug', ['slug' => $article->getSlug()], 0);
+
         return $this->render('pages/article.html.twig', [
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
             'content' => $cacheItem->get(),
             'canEdit' => $canEdit,
+            'canonical' => $canonical
         ]);
     }
 

@@ -8,16 +8,8 @@
     <meta property="og:site_name" content="Newsroom">
 {% endblock %}
 
-{% block nav %}
-{% endblock %}
-
 {% block body %}
     <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
 
-    <twig:Organisms:CardList :list="list" class="article-list" />
-{% endblock %}
-
-{% block aside %}
-    {#    <h6>Magazines</h6>#}
-    {#    <twig:Organisms:ZineList />#}
+    <twig:Organisms:CardList :list="list" :category="index" :mag="mag" class="article-list" />
 {% endblock %}

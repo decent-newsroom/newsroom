@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\RedisCacheService;
+use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
 use Elastica\Query;
 use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
+use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -215,6 +219,70 @@ class DefaultController extends AbstractController
             'list' => $list,
             'category' => $category,
             'index' => $catIndex
+        ]);
+    }
+
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    #[Route('/mag/{mag}/cat/{cat}/d/{slug}', name: 'magazine-category-article')]
+    public function magArticle($mag, $cat, $slug,
+                               RedisCacheService $redisCacheService,
+                               CacheItemPoolInterface $articlesCache,
+                               EntityManagerInterface $entityManager,
+                               Converter $converter,
+                               LoggerInterface $logger): Response
+    {
+        $magazine = $redisCacheService->getMagazineIndex($mag);
+
+        $article = null;
+        // check if an item with same eventId already exists in the db
+        $repository = $entityManager->getRepository(Article::class);
+        // slug might be url encoded, decode it
+        $slug = urldecode($slug);
+        $articles = $repository->findBy(['slug' => $slug]);
+
+        $revisions = count($articles);
+
+        if ($revisions === 0) {
+            throw $this->createNotFoundException('The article could not be found');
+        }
+
+        if ($revisions > 1) {
+            // sort articles by created at date
+            usort($articles, function ($a, $b) {
+                return $b->getCreatedAt() <=> $a->getCreatedAt();
+            });
+        }
+
+        $article = $articles[0];
+
+        $cacheKey = 'article_' . $article->getEventId();
+        $cacheItem = $articlesCache->getItem($cacheKey);
+        if (!$cacheItem->isHit()) {
+            $cacheItem->set($converter->convertToHTML($article->getContent()));
+            $articlesCache->save($cacheItem);
+        }
+
+        $key = new Key();
+        $npub = $key->convertPublicKeyToBech32($article->getPubkey());
+        $author = $redisCacheService->getMetadata($npub);
+
+        // set canonical url to this article as article-slug path
+        $canonical = $this->generateUrl('article-slug', [
+            'slug' => $article->getSlug()
+        ], 0);
+
+        return $this->render('pages/article.html.twig', [
+            'magazine' => $magazine,
+            'mag' => $mag,
+            'article' => $article,
+            'author' => $author,
+            'npub' => $npub,
+            'content' => $cacheItem->get(),
+            'canEdit' => false,
+            'canonical' => $canonical
         ]);
     }
 

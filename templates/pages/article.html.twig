@@ -3,7 +3,7 @@
 {% block ogtags %}
     <meta property="og:title" content="{{ article.title }}">
     <meta property="og:type" content="article">
-    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:url" content="{{ canonical }}">
     {% if article.image %}
         <meta property="og:image" content="{{ article.image }}">
     {% endif %}
@@ -12,6 +12,9 @@
 {% endblock %}
 
 {% block body %}
+    {% if magazine is defined %}
+        <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
+    {% endif %}
 
     <div class="article-actions">
         {% if canEdit %}
@@ -25,61 +28,60 @@
         {% endif %}
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h1 class="card-title">{{ article.title }}</h1>
-        </div>
-        {% if author %}
-            <div class="byline">
-                <span>
-                    {{ 'text.byline'|trans }} <a href="{{ path('author-redirect', {'pubkey': article.pubkey}) }}">
-                        <twig:Atoms:NameOrNpub :author="author" :npub="npub" />
-                    </a>
-                </span>
-                <span>
-                    {% if article.publishedAt is not null %}
-                        <small>{{ article.publishedAt|date('F j, Y') }}</small>
-                    {% else %}
-                        <small>
-{#                            <twig:ux:icon name="heroicons:pencil" class="icon" /> #}
-                            {{ article.createdAt|date('F j, Y') }}</small><br>
-                    {% endif %}
-                </span>
+    <div class="w-container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">{{ article.title }}</h1>
             </div>
-        {% endif %}
-    </div>
-    <div class="card-body">
-        <div class="lede">
-            {{ article.summary }}
+            {% if author %}
+                <div class="byline">
+                    <span>
+                        {{ 'text.byline'|trans }} <a href="{{ path('author-redirect', {'pubkey': article.pubkey}) }}">
+                            <twig:Atoms:NameOrNpub :author="author" :npub="npub" />
+                        </a>
+                    </span>
+                    <span>
+                        {% if article.publishedAt is not null %}
+                            <small>{{ article.publishedAt|date('F j, Y') }}</small>
+                        {% else %}
+                            <small>
+    {#                            <twig:ux:icon name="heroicons:pencil" class="icon" /> #}
+                                {{ article.createdAt|date('F j, Y') }}</small><br>
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
         </div>
-
-        {% if article.image %}
-            <div class="article__image">
-                <img src="{{ article.image }}" alt="{{ article.title }}">
+        <div class="card-body">
+            <div class="lede">
+                {{ article.summary }}
             </div>
-        {% endif %}
 
-        <div class="article-main">
-            {{ content|raw }}
+            {% if article.image %}
+                <div class="article__image">
+                    <img src="{{ article.image }}" alt="{{ article.title }}">
+                </div>
+            {% endif %}
+
+            <div class="article-main">
+                {{ content|raw }}
+            </div>
+
+            {% if article.topics|length > 0 %}
+            <hr class="divider" />
+            <div class="tags">
+                {% for tag in article.topics %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
         </div>
 
-        {% if article.topics|length > 0 %}
         <hr class="divider" />
-        <div class="tags">
-            {% for tag in article.topics %}
-                <span class="tag">{{ tag }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
 
+        <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
     </div>
-
-    <hr class="divider" />
-
-    {#    <pre>#}
-{#        {{ article.content }}#}
-{#    </pre>#}
-    <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
 {% endblock %}
 
 {% block aside %}

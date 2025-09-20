@@ -283,10 +283,6 @@ div:nth-child(odd) .featured-list {
 .header .container {
     display: flex;
     flex-direction: column;
-    align-items: start;
-    width: 100%;
-    max-width: 1200px;
-    padding: 0 20px;
 }
 
 .header__categories ul {

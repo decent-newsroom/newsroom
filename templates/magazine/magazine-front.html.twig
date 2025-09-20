@@ -16,7 +16,7 @@
     <section class="mb-5">
         {% if categoryTags is not empty %}
             {% for cat in categoryTags %}
-                <twig:Organisms:FeaturedList category="{{ cat }}" class="featured-list"/>
+                <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list"/>
             {% endfor %}
         {% endif %}
     </section>

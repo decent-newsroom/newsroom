@@ -2,7 +2,7 @@
     {% set is_author_profile = is_author_profile|default(false) %}
     {% for item in list %}
         {%  if item.slug is not empty and item.title is not empty %}
-            <twig:Molecules:Card :article="item" :is_author_profile="is_author_profile"></twig:Molecules:Card>
+            <twig:Molecules:Card :article="item" :is_author_profile="is_author_profile" :category="category" :mag="mag"></twig:Molecules:Card>
         {% endif %}
     {% endfor %}
 </div>
