@@ -12,32 +12,8 @@
 {% endblock %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5 mb-5">
-            <h1>{{ magazine.title|default(magazine.slug|default(mag)) }}</h1>
-            {% if magazine.summary is defined and magazine.summary %}
-                <p class="eyebrow">{{ magazine.summary }}</p>
-            {% endif %}
-            {# Category links (from 'a' tags) #}
-            {% set categoryTags = [] %}
-            {% if magazine.tags is defined %}
-                {% for tag in magazine.tags %}
-                    {% if tag[0] is defined and tag[0] == 'a' %}
-                        {% set categoryTags = categoryTags|merge([tag]) %}
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-            {% if categoryTags is not empty %}
-                <ul class="list-unstyled d-flex flex-row gap-3 justify-content-center mt-3">
-                    {% for catTag in categoryTags %}
-                        <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="text-muted mt-4">No categories yet.</p>
-            {% endif %}
-        </div>
-    </section>
+    <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
+
     <twig:Organisms:CardList :list="list" class="article-list" />
 {% endblock %}
 

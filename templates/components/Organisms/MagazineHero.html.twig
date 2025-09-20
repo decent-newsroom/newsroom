@@ -1,0 +1,21 @@
+<div {{ attributes }}>
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5 mb-5">
+            <h1><a href="{{ path('magazine-index', {mag: mag}) }}">{{ magazine.title|default(magazine.slug|default(mag)) }}</a></h1>
+            {% if magazine.summary is defined and magazine.summary %}
+                <p class="eyebrow">{{ magazine.summary }}</p>
+            {% endif %}
+
+            {# Use computed property via this.categoryTags #}
+            {% if this.categoryTags is not empty %}
+                <ul class="list-unstyled d-flex flex-row gap-3 justify-content-center mt-3">
+                    {% for catTag in this.categoryTags %}
+                        <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted mt-4">No categories yet.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
