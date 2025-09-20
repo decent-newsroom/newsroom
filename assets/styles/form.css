@@ -19,6 +19,7 @@ label {
 input, textarea, select {
     display: block;
     clear: both;
+    width: 100%;
 }
 
 input, textarea, select, .quill {
@@ -86,4 +87,8 @@ fieldset {
 
 .actions {
     margin-bottom: 1.5em;
+}
+
+form ul.list-unstyled li > div > label {
+    display: none;
 }

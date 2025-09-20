@@ -15,16 +15,18 @@
     {{ stimulus_controller('form-collection') }}
     data-form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"
     data-form-collection-prototype-value="{{ form_widget(form.categories.vars.prototype)|e('html_attr') }}">
-    <ul {{ stimulus_target('form-collection', 'collectionContainer') }}>
+    <ul class="list-unstyled" {{ stimulus_target('form-collection', 'collectionContainer') }}>
       {% for cat in form.categories %}
-        <li>{{ form_row(cat) }}</li>
+        <li class="mb-3">{{ form_row(cat) }}</li>
       {% endfor %}
     </ul>
-    <button type="button" class="btn btn-secondary" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add category</button>
+      <div class="actions mt-3">
+          <button type="button" class="btn btn-secondary" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add category</button>
+      </div>
   </div>
 
-  <div class="mt-3 d-flex flex-row gap-2">
-    <a class="btn btn-outline-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
+  <div class="mt-3 d-flex flex-row gap-2 actions">
+    <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
     <button class="btn btn-primary">Next: Attach articles</button>
   </div>
   {{ form_end(form) }}
