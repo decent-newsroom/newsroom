@@ -249,3 +249,8 @@ nav > header, aside > header { /* prevent global header fixed rules applying to 
     position: static;
     width: auto;
 }
+
+p.measure {
+    max-width: 65ch;
+    margin: 1em auto;
+}
