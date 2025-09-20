@@ -12,26 +12,40 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 final class ZineList
 {
     public array $nzines = [];
-    public array $indices = [];
 
     public function __construct(private readonly EntityManagerInterface $entityManager)
     {
     }
 
-    public function mount(?array $nzines = null): void
+    public function mount(): void
     {
-        $this->nzines = $nzines ?? $this->entityManager->getRepository(Nzine::class)->findAll();
-        if (count($this->nzines) > 0) {
-            // find indices for each nzine
-            foreach ($this->nzines as $zine) {
-                $ids = $this->entityManager->getRepository(Event::class)->findBy(['pubkey' => $zine->getNpub(), 'kind' => KindsEnum::PUBLICATION_INDEX]);
-                $id = array_filter($ids, function($k) use ($zine) {
-                    return $k->getSlug() == $zine->getSlug();
-                });
-                if ($id) {
-                    $this->indices[$zine->getNpub()] = array_pop($id);
+
+        $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+
+        // filter, only keep type === magazine
+        $this->nzines = array_filter($nzines, function ($index) {
+            // look for tags
+            $tags = $index->getTags();
+            $isMagType = false;
+            $isTopLevel = false;
+            foreach ($tags as $tag) {
+                // only if tag 'type' with value 'magazine'
+                if ($tag[0] === 'type' && $tag[1] === 'magazine') {
+                    $isMagType = true;
+                }
+                // and only contains other indices:
+                // a tags with kind 30040
+                if ($tag[0] === 'a' && $isTopLevel === false) {
+                    // tag format: ['a', 'kind:pubkey:slug']
+                    $parts = explode(':', $tag[1]);
+                    if ($parts[0] == (string)KindsEnum::PUBLICATION_INDEX->value) {
+                        $isTopLevel = true;
+                    }
                 }
             }
-        }
+            return $isMagType && $isTopLevel;
+        });
+
+
     }
 }

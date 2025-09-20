@@ -1,36 +1,43 @@
-{% extends 'base.html.twig' %}
-
-{% block nav %}
-{% endblock %}
+{% extends 'layout-full.html.twig' %}
 
 {% block body %}
-    <h1>About Decent Newsroom</h1>
-    <h2>Rebuilding Trust in Journalism</h2>
+    <main class="d-flex gap-3 static">
+        <h1>About Decent Newsroom</h1>
+        <section>
+            <h2>Rebuilding Trust in Journalism</h2>
 
-    <p>The internet, and especially social media, made news instant and abundant, but also cheap and unreliable. The value of simply reporting what happened and where has dropped to zero,
-        buried under waves of misinformation, clickbait, and AI-generated noise. Worse, sorting truth from falsehood now costs more than spreading lies.</p>
+            <p>The internet, and especially social media, made news instant and abundant, but also cheap and unreliable. The value of simply reporting what happened and where has dropped to zero,
+                buried under waves of misinformation, clickbait, and AI-generated noise. Worse, sorting truth from falsehood now costs more than spreading lies.</p>
 
-    <p>Decent Newsroom is our answer to this crisis. We are building a curated, decentralized magazine featuring high-quality, long-form journalism published on Nostr.</p>
+            <p>Decent Newsroom is our answer to this crisis. We are building a curated, decentralized magazine featuring high-quality, long-form journalism published on Nostr.</p>
+        </section>
 
-    <h2>How It Works</h2>
-    <dl>
-        <dt><strong>Curated Excellence</strong></dt>
-        <dd>We showcase a selection of featured articles.</dd>
+        <section>
+            <h2>Why It Matters</h2>
+            <p>The age of the newsroom isn’t over—it’s just evolving. We believe in bringing back editorial standards, collaboration, and high-value reporting in a decentralized way. Decent Newsroom is here to cut through the noise and rebuild trust in digital journalism.</p>
+        </section>
 
-        <dt><strong>Indexed & Searchable</strong></dt>
-        <dd>Every article in Decent Newsroom is easily discoverable, improving access for readers and exposure for authors.</dd>
-        <dd>Simple search is available to logged-in users.</dd>
-        <dd>Semantic search is in development.</dd>
+        <section class="mb-5">
+            <p>To support us and get early access to the future of publishing, visit our crowdfunding page <a href="https://geyser.fund/project/newsroom" target="_blank">Geyser fund - Newsroom</a>.</p>
+            <br>
+            <p class="measure">For more info reach out to
+                <twig:Molecules:UserFromNpub ident="{{ project_npub }}" /> or
+                <twig:Molecules:UserFromNpub ident="{{ dev_npub }}" />.
+            </p>
+        </section>
+    </main>
 
-        <dt><strong>Open to Writers & Publishers</strong> <span class="badge">Soon</span></dt>
-        <dd>Content creators can request indexing for their work, making it searchable and eligible for inclusion.</dd>
-        <dd>Publishers can create and manage their own magazines.</dd>
-    </dl>
-
-    <h2>Why It Matters</h2>
-    <p>The age of the newsroom isn’t over—it’s just evolving. We believe in bringing back editorial standards, collaboration, and high-value reporting in a decentralized way. Decent Newsroom is here to cut through the noise and rebuild trust in digital journalism.</p>
-
-    <br>
-    <p>To support us and get early access to the future of publishing, visit our crowdfunding page <a href="https://geyser.fund/project/newsroom" target="_blank">Geyser fund - Newsroom</a>.</p>
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5">
+            <h1>Newsstand</h1>
+            <p class="eyebrow">for the digital age</p>
+        </div>
+        <div class="mb-5">
+            <p class="measure">Flip through a world of magazines in one place. Build your lineup, catch fresh releases, anywhere.</p>
+            <div class="cta-row">
+                <a class="btn btn--primary" href="{{ path('newsstand') }}">Explore the rack</a>
+            </div>
+        </div>
+    </section>
 
 {% endblock %}

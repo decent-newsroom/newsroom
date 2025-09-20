@@ -1,4 +1,4 @@
-<div class="user-menu" {{ attributes.defaults(stimulus_controller('login')) }}>
+<div {{ attributes.defaults(stimulus_controller('login')) }}>
     {% if app.user %}
         <div class="notice info">
             <twig:Molecules:UserFromNpub ident="{{ app.user.npub }}" />
@@ -17,14 +17,11 @@
             <li>
                 <a href="{{ path('reading_list_index') }}">Compose List</a>
             </li>
-            {% if is_granted('ROLE_EDITOR') %}
+            {% if is_granted('ROLE_ADMIN') %}
             <li>
                 <a href="{{ path('mag_wizard_setup') }}">Create Magazine</a>
             </li>
             {% endif %}
-            <li>
-                <a href="{{ path('app_search_index') }}">{{ 'heading.search'|trans }}</a>
-            </li>
             <li>
                 <a href="/logout" data-action="live#$render">{{ 'heading.logout'|trans }}</a>
             </li>

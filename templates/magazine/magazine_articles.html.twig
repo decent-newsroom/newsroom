@@ -1,4 +1,4 @@
-{% extends 'base.html.twig' %}
+{% extends 'layout.html.twig' %}
 
 {% block body %}
   <h1>Attach Articles</h1>
@@ -6,9 +6,8 @@
   {{ form_start(form) }}
 
   {% for cat in form.categories %}
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">{{ form_row(cat.title) }}</h5>
+    <fieldset class="mb-3">
+        <div class="card-title mb-3">{{ form_row(cat.title) }}</div>
         <div
           {{ stimulus_controller('form-collection') }}
           data-form-collection-index-value="{{ cat.articles|length > 0 ? cat.articles|last.vars.name + 1 : 0 }}"
@@ -21,12 +20,11 @@
           </ul>
           <button class="btn btn-sm btn-secondary" type="button" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add coordinate</button>
         </div>
-      </div>
-    </div>
+    </fieldset>
   {% endfor %}
 
-  <div class="mt-3 d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
+  <div class="mt-3 d-flex flex-row gap-2">
+    <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
     <button class="btn btn-primary">Next: Review & Sign</button>
   </div>
 

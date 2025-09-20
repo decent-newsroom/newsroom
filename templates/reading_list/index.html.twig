@@ -1,8 +1,15 @@
-{% extends 'base.html.twig' %}
+{% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Your Reading Lists</h1>
-  <p>Create and share curated reading lists.</p>
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-1">
+            <h1>Your Reading Lists</h1>
+            <p class="eyebrow">create and share curated reading lists</p>
+        </div>
+        <div class="cta-row mb-5">
+            <a class="btn btn-primary" href="{{ path('read_wizard_setup') }}">Create new</a>
+        </div>
+    </section>
 
   {% if lists is defined and lists|length %}
     <ul class="list-unstyled d-grid gap-2 mb-4">
@@ -17,9 +24,9 @@
             <div class="d-flex flex-row gap-2">
               <a class="btn btn-sm btn-primary" href="{{ path('reading_list_compose') }}">Open Composer</a>
               {% if item.slug %}
-                <a class="btn btn-sm btn-outline-primary" href="{{ path('magazine-category', { slug: item.slug }) }}">View</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ path('reading-list', { slug: item.slug }) }}">View</a>
                 <span data-controller="copy-to-clipboard">
-                  <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ absolute_url(path('magazine-category', { slug: item.slug })) }}</span>
+                  <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug })) }}</span>
                   <button class="btn btn-sm btn-secondary"
                           data-copy-to-clipboard-target="copyButton"
                           data-action="click->copy-to-clipboard#copyToClipboard">Copy link</button>
@@ -34,7 +41,4 @@
     <p><small>No reading lists found.</small></p>
   {% endif %}
 
-  <div class="d-flex flex-row gap-2">
-    <a class="btn btn-primary" href="{{ path('read_wizard_setup') }}">Create a Reading List</a>
-  </div>
 {% endblock %}

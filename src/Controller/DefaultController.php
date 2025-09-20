@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Elastica\Collapse;
 use Elastica\Query;
 use Elastica\Query\Terms;
 use Exception;
@@ -36,8 +37,11 @@ class DefaultController extends AbstractController
             $item->expiresAfter(13600); // about 4 hours
             // get latest articles
             $q = new Query();
-            $q->setSize(50);
+            $q->setSize(12);
             $q->setSort(['createdAt' => ['order' => 'desc']]);
+            $col = new Collapse();
+            $col->setFieldname('pubkey');
+            $q->setCollapse($col);
             return $this->finder->find($q);
         });
 
@@ -46,12 +50,62 @@ class DefaultController extends AbstractController
         ]);
     }
 
+    /**
+     * @throws Exception
+     */
+    #[Route('/newsstand', name: 'newsstand')]
+    public function newsstand(): Response
+    {
+        return $this->render('pages/newsstand.html.twig');
+    }
+
+    /**
+     * @throws Exception
+     */
+    #[Route('/lists', name: 'lists')]
+    public function lists(): Response
+    {
+        return $this->render('pages/lists.html.twig');
+    }
 
     /**
      * @throws InvalidArgumentException
      */
-    #[Route('/cat/{slug}', name: 'magazine-category')]
-    public function magCategory($slug, CacheInterface $redisCache,
+    #[Route('/latest', name: 'latest')]
+    public function latest() : Response
+    {
+        $cacheKey = 'home-latest-articles';
+        $latest = $this->redisCache->get($cacheKey, function (ItemInterface $item) {
+            $item->expiresAfter(13600); // about 4 hours
+            // get latest articles
+            $q = new Query();
+            $q->setSize(12);
+            $q->setSort(['createdAt' => ['order' => 'desc']]);
+            $col = new Collapse();
+            $col->setFieldname('pubkey');
+            $q->setCollapse($col);
+            return $this->finder->find($q);
+        });
+
+        return $this->render('home.html.twig', [
+            'latest' => $latest
+        ]);
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    #[Route('/mag/{mag}', name: 'magazine-index')]
+    public function magIndex($mag) : Response
+    {
+        return new Response('Not implemented yet', 501);
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    #[Route('/mag/{mag}/cat/{slug}', name: 'magazine-category')]
+    public function magCategory($mag, $slug, CacheInterface $redisCache,
                                 FinderInterface $finder,
                                 LoggerInterface $logger): Response
     {
@@ -162,6 +216,18 @@ class DefaultController extends AbstractController
             'index' => $catIndex
         ]);
     }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    #[Route('/list/{slug}', name: 'reading-list')]
+    public function readingList($slug, CacheInterface $redisCache,
+                                FinderInterface $finder,
+                                LoggerInterface $logger): Response
+    {
+        return new Response('Not implemented yet', 501);
+    }
+
 
     /**
      * OG Preview endpoint for URLs

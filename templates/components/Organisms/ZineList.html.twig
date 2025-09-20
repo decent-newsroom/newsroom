@@ -1,23 +1,40 @@
 <div {{ attributes }}>
     {% if nzines is not empty %}
     {% for item in nzines %}
-        {% set idx = indices[item.npub] is defined ? indices[item.npub] : null %}
-        <a class="card" href="{{ path('nzine_view', { npub: item.npub })}}">
-            <div class="card-body">
+        <div class="card">
+            <div class="card-body text-center">
                 <h3 class="card-title">
-                    {% if idx and idx.title %}
-                        {{ idx.title }}
+                    <a href="{{ path('magazine-index', {mag: item.slug}) }}">
+                    {% if item and item.title %}
+                        {{ item.title }}
                     {% elseif item.slug %}
                         {{ item.slug }}
                     {% else %}
-                        {{ item.npub }}
+                        Untitled Magazine
                     {% endif %}
+                    </a>
                 </h3>
-                {% if idx and idx.summary %}
-                    <p class="hidden">{{ idx.summary }}</p>
+                {% if item and item.summary %}
+                    <p class="lede">{{ item.summary }}</p>
+                {% endif %}
+                {# Category links (from 'a' tags) #}
+                {% set categoryTags = [] %}
+                {% if item.tags is defined %}
+                    {% for tag in item.tags %}
+                        {% if tag[0] is defined and tag[0] == 'a' %}
+                            {% set categoryTags = categoryTags|merge([tag]) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if categoryTags is not empty %}
+                    <ul class="list-unstyled d-flex flex-row gap-3 justify-content-center mt-3">
+                        {% for catTag in categoryTags %}
+                            <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="item.slug" /></li>
+                        {% endfor %}
+                    </ul>
                 {% endif %}
             </div>
-        </a>
+        </div>
         <br>
     {% endfor %}
     {% else %}

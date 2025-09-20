@@ -22,6 +22,12 @@ button:active, .btn:active {
     border-color: var(--color-text);
 }
 
+a.btn, a.btn:hover, a.btn:active {
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
 .btn.btn-secondary {
     color: var(--color-secondary);
     background-color: var(--color-bg);

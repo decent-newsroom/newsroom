@@ -9,25 +9,38 @@
 * - Footer (footer)
 **/
 
-
-
-
 /* Layout Container */
 .layout {
     max-width: 100%;
-    width: 1200px;
+    width: 100%;
     margin: 0 auto;
-    display: flex;
     flex-grow: 1;
+    display: grid;
+    grid-template-columns: 200px auto 200px;
+}
+
+nav, aside {
+    position: sticky;
+    top: 70px;
 }
 
 nav {
-    width: 21vw;
-    min-width: 150px;
-    max-width: 280px;
-    flex-shrink: 0;
     padding: 1em;
     overflow-y: auto; /* Ensure the menu is scrollable if content is too long */
+}
+
+header {
+    position: fixed;
+    width: 100vw;
+    min-height: 60px;
+    top: 0;
+    left: 0;
+}
+
+.header__logo {
+    display: flex;
+    width: 100%;
+    margin-left: 10px;
 }
 
 nav ul {
@@ -49,19 +62,6 @@ nav a:hover {
     text-decoration: none;
 }
 
-header {
-    position: fixed;
-    width: 100vw;
-    top: 0;
-    left: 0;
-}
-
-.header__logo {
-    display: flex;
-    width: 100%;
-    justify-content: center;
-}
-
 #progress-bar {
     position: absolute;
     left: 0;
@@ -75,16 +75,33 @@ header {
 
 /* Main content */
 main {
+    display: flex;
+    flex-direction: column;
     margin-top: 90px;
     flex-grow: 1;
-    padding: 1em;
+    padding: 0 1em;
     word-break: break-word;
+}
+
+main.static {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1000px;
+}
+
+.w-container {
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .user-menu {
     position: fixed;
     top: 100px;
-    width: calc(21vw - 10px);
     min-width: 150px;
     max-width: 270px;
 }
@@ -96,9 +113,10 @@ main {
 
 /* Right sidebar */
 aside {
-    margin-top: 90px;
-    width: 300px;
-    padding: 1em;
+    display: flex;
+    flex-direction: column;
+    margin-top: 80px;
+    padding: 0 1em;
 }
 
 table {
@@ -121,14 +139,93 @@ dt {
     margin-top: 10px;
 }
 
+.mobile-toggles {
+    display: none;
+}
+
+nav header,
+aside header {
+    display: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .layout {
+        grid-template-columns: auto;
+    }
+
+    nav header,
+    aside header {
+        display: block;
+    }
+
     nav, aside {
         display: none; /* Hide the sidebars on small screens */
     }
-    main {
-        margin-top: 90px;
-        width: 100%;
+
+    .mobile-toggles {
+        display: flex;
+        justify-content: space-between;
+        gap: .5rem;
+        position: sticky;
+        top: 61px; /* below main header */
+        background: var(--color-bg);
+        z-index: 1050;
+        padding: .5rem 0;
+    }
+
+    .mobile-toggles .toggle {
+        background: var(--color-primary);
+        color: var(--color-text-contrast);
+        border: none;
+        padding: .4rem .75rem;
+        cursor: pointer;
+        font: inherit;
+    }
+
+    nav.is-open, aside.is-open {
+        display: block;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        width: 80%;
+        max-width: 260px;
+        background: var(--color-bg);
+        box-shadow: 0 0 12px rgba(0,0,0,.4);
+        overflow-y: auto;
+        z-index: 1200;
+        padding: 90px 1em 1em; /* space for global header height */
+        animation: slideIn .25s ease;
+    }
+
+    nav.is-open { left: 0; }
+    aside.is-open { right: 0; }
+
+    body.no-scroll { overflow: hidden; }
+
+    nav.is-open > header, aside.is-open > header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: flex-end;
+        padding: .5rem;
+        background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    nav.is-open button.close, aside.is-open button.close {
+        background: transparent;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--color-text);
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(-15px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
 }
 
@@ -148,4 +245,9 @@ footer .footer-links {
 
 .search input {
     flex-grow: 1;
+}
+
+nav > header, aside > header { /* prevent global header fixed rules applying to nested headers */
+    position: static;
+    width: auto;
 }

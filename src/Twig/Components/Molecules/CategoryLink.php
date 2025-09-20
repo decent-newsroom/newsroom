@@ -10,6 +10,7 @@ final class CategoryLink
 {
     public string $title;
     public string $slug;
+    public ?string $mag = null; // magazine slug passed from parent (optional)
 
     public function __construct(private CacheInterface $redisCache)
     {
@@ -18,11 +19,17 @@ final class CategoryLink
     public function mount($coordinate): void
     {
         if (key_exists(1, $coordinate)) {
-            $parts = explode(':', $coordinate[1]);
-            $this->slug = $parts[2];
-            $cat = $this->redisCache->get('magazine-' . $parts[2], function (){
+            $parts = explode(':', $coordinate[1], 3);
+            // Expect format kind:pubkey:slug
+            $this->slug = $parts[2] ?? '';
+            $cat = $this->redisCache->get('magazine-' . $this->slug, function (){
                 return null;
             });
+
+            if ($cat === null) {
+                $this->title = $this->slug ?: 'Category';
+                return;
+            }
 
             $tags = $cat->getTags();
 
@@ -30,9 +37,10 @@ final class CategoryLink
                 return ($tag[0] === 'title');
             });
 
-            $this->title = $title[array_key_first($title)][1];
+            $this->title = $title[array_key_first($title)][1] ?? ($this->slug ?: 'Category');
         } else {
-            dump($coordinate);die();
+            $this->title = 'Category';
+            $this->slug = '';
         }
 
     }

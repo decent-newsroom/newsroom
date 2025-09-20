@@ -1,4 +1,9 @@
-<a {% if path('magazine-category', { 'slug' : slug }) in app.request.uri %}class="active"{% endif %}
-   href="{{ path('magazine-category', { 'slug' : slug }) }}">
+{% if mag is defined and mag and slug %}
+    {% set catPath = path('magazine-category', { 'mag': mag, 'slug': slug }) %}
+{% else %}
+    {% set catPath = '#' %}
+{% endif %}
+<a {% if catPath in app.request.uri %}class="active"{% endif %}
+   href="{{ catPath }}">
     {{ title }}
 </a>

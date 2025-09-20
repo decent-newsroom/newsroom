@@ -1,0 +1,72 @@
+
+.center{ text-align: center; }
+
+/* Eyebrow + lede */
+.eyebrow{
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .8rem;
+    color: var(--color-text-mid);
+    margin: 0 0 1rem;
+}
+
+/* Hero split */
+.ln-hero{
+    margin-top: 100px;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+.ln-hero__copy{ }
+.ln-hero__frame{ display:flex; justify-content:center; }
+.frame{
+    width: min(560px, 40vw);
+    border-radius: 14px;
+    border: var(--border-hair);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--color-bg-light) 80%, var(--color-bg)), var(--color-bg));
+    overflow: hidden;
+}
+
+/* Generic section shell */
+.ln-section{ position: relative; padding: 3.2rem 0; }
+
+/* Split layout for features */
+.ln-split{
+    display: grid; gap: var(--gutter);
+    grid-template-columns: 280px 1fr;
+    align-items: start;
+}
+.ln-split__aside{ position: sticky; top: 24px; align-self: start; }
+.ln-split__body .measure{ max-width: 70ch; }
+.cta-row{ margin-top: .6rem; }
+
+/* Section palettes (alternating) */
+.ln-section--search{
+    background: var(--color-accent-300);
+}
+
+.ln-section--newsstand{
+    background: color-mix(in oklab, var(--color-primary) 18%, var(--color-bg));
+}
+
+.ln-section--reader{
+    background: var(--color-bg-light);
+}
+.ln-section--editor{
+    background: var(--color-teal-400);
+}
+.ln-section--newsroom{
+    background: color-mix(in oklab, var(--color-bg-light) 82%, var(--color-bg));
+}
+.ln-section--marketplace{
+    background: color-mix(in oklab, var(--color-primary) 18%, var(--color-bg));
+}
+.ln-section--unfold{
+    background: color-mix(in oklab, var(--color-accent-warm) 60%, var(--color-bg));
+}
+
+
+
+/* Motion */
+@media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+}

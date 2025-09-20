@@ -19,6 +19,19 @@
     --heading-font: 'EB Garamond', serif; /* Set the font for headings */
     --brand-font: 'Lobster', serif; /* A classic, refined branding font */
     --brand-color: white;
+
+    --color-accent: #8FCB7E;           /* fresh moss (main accent) */
+    --color-accent-strong: #B98BDC;    /* lilac pop for headings/CTAs */
+    --color-accent-teal: #78C8BD;      /* teal for tags/pills */
+    --color-accent-warm: #E1B574;      /* warm highlight (badges/notes) */
+    --color-accent-600: #7FBF70;
+    --color-accent-500: #8FCB7E;
+    --color-accent-400: #A5D692;
+    --color-accent-300: #BCE3A9;
+    --color-teal-500: #78C8BD;
+    --color-teal-400: #8ED5CC;
+    --color-lilac-500: #B98BDC;
+    --color-lilac-400: #C7A1E3;
 }
 
 [data-theme="light"] {

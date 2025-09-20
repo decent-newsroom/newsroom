@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block layout %}
+    <div class="layout" data-controller="sidebar-toggle">
+        <div>
+            <nav id="leftNav">
+                <header>
+                    <button class="close" data-action="click->sidebar-toggle#close" aria-label="Close left sidebar">✕</button>
+                </header>
+                <ul class="user-nav">
+                    <li>
+                        <a href="{{ path('newsstand') }}">Newsstand</a>
+                    </li>
+                    <li>
+                        <a href="{{ path('lists') }}">Lists</a>
+                    </li>
+                    <li>
+                        <a href="{{ path('app_search_index') }}">{{ 'heading.search'|trans }}</a>
+                    </li>
+                </ul>
+                <twig:UserMenu />
+                {% block nav %}{% endblock %}
+            </nav>
+        </div>
+        <main>
+            <div class="mobile-toggles">
+                <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">☰ Left</button>
+                <button class="toggle" aria-controls="rightNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">Right ☰</button>
+            </div>
+            {% block body %}{% endblock %}
+        </main>
+        <div>
+            <aside id="rightNav">
+                <header>
+                    <button class="close" data-action="click->sidebar-toggle#close" aria-label="Close right sidebar">✕</button>
+                </header>
+                {% block aside %}{% endblock %}
+            </aside>
+        </div>
+    </div>
+{% endblock %}

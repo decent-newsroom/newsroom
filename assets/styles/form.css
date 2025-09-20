@@ -1,8 +1,14 @@
-form, form > div {
+form {
     display: flex;
     flex-direction: column;
     clear: both;
     margin-bottom: 1em;
+}
+
+form > div:not(.actions) {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5em;
 }
 
 label {
@@ -10,17 +16,26 @@ label {
     clear: both;
 }
 
-input {
-    display: flex;
+input, textarea, select {
+    display: block;
     clear: both;
 }
 
-input, textarea, select {
+input, textarea, select, .quill {
     background-color: var(--color-bg);
     color: var(--color-text);
-    border: 2px solid var(--color-border);
-    padding: 10px;
+    border: 1px solid var(--color-primary);
     border-radius: 0;  /* Sharp edges */
+}
+
+input, textarea, select {
+    padding: 10px;
+}
+
+textarea, input, select {
+    font-family: var(--font-family), sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
 }
 
 input:focus, textarea:focus, select:focus {
@@ -56,14 +71,6 @@ input:focus, textarea:focus, select:focus {
     flex-grow: 1;
 }
 
-textarea, input {
-    font-family: var(--font-family), sans-serif;
-}
-
-.quill {
-    border: 2px solid var(--color-border);
-}
-
 #editor {
     margin: 0;
 }
@@ -71,4 +78,12 @@ textarea, input {
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+fieldset {
+    border: none;
+}
+
+.actions {
+    margin-bottom: 1.5em;
 }

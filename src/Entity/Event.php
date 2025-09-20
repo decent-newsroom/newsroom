@@ -115,8 +115,8 @@ class Event
     public function getTitle(): ?string
     {
         foreach ($this->getTags() as $tag) {
-            if (array_key_first($tag) === 'title') {
-                return $tag['title'];
+            if ($tag[0] === 'title') {
+                return $tag[1];
             }
         }
         return null;

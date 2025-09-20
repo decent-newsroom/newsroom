@@ -1,0 +1,45 @@
+{% extends 'layout-full.html.twig' %}
+
+{% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
+
+{% block body %}
+
+    <section class="ln-hero d-flex gap-3 center">
+        <h1 class="brand">Unfold</h1>
+        <p class="eyebrow">by Decent Newsroom</p>
+        <p class="lede mb-5">Your magazine, your way.</p>
+    </section>
+
+    <section class="d-flex gap-3 center ln-section--unfold">
+        <div class="container mt-5">
+            <h2>Unfold is a skin for your magazine</h2>
+        </div>
+        <div class="mb-5">
+            <p class="measure">Any magazine created on Decent Newsroom can be plugged in,
+                styled according to your wishes and deployed to a custom domain.</p>
+        </div>
+    </section>
+
+    <section class="d-flex gap-3 center ln-section--newsroom">
+        <div class="container mt-5">
+            <h2>Unfold Lite</h2>
+        </div>
+        <div class="mb-5">
+            <p class="measure">We also offer subdomains, if rolling out your own website feels daunting.</p>
+        </div>
+    </section>
+
+    <section class="d-flex gap-3 center ln-section--marketplace">
+        <div class="container mt-5">
+            <h2>Interested?</h2>
+        </div>
+        <div class="mb-5">
+            <p class="measure">Reach out to
+                <twig:Molecules:UserFromNpub ident="{{ project_npub }}" /> or
+                <twig:Molecules:UserFromNpub ident="{{ dev_npub }}" />.
+            </p>
+        </div>
+    </section>
+
+
+{% endblock %}

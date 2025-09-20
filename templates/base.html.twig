@@ -19,8 +19,7 @@
         <meta property="og:image" content="{{ asset('icons/favicon.ico') }}" />
     {% endblock %}
 
-    {% block stylesheets %}
-    {% endblock %}
+    {% block stylesheets %}{% endblock %}
     {% block javascripts %}
         {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
@@ -29,19 +28,7 @@
 
 <twig:Header />
 
-
-<div class="layout">
-    <nav>
-        <twig:UserMenu />
-        {% block nav %}{% endblock %}
-    </nav>
-    <main>
-        {% block body %}{% endblock %}
-    </main>
-    <aside>
-        {% block aside %}{% endblock %}
-    </aside>
-</div>
+{% block layout %}{% endblock %}
 
 <div data-controller="install-prompt">
     <div
@@ -53,7 +40,6 @@
         <button data-action="click->install-prompt#dismiss">No thanks</button>
     </div>
 </div>
-
 
 <footer>
     <twig:Footer />

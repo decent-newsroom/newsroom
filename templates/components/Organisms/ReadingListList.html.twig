@@ -4,7 +4,7 @@
     <ul class="list-unstyled small d-grid gap-2">
       {% for item in items %}
         <li>
-          <a href="{{ path('magazine-category', { slug: item.slug }) }}">{{ item.title }}</a>
+          <a href="{{ path('reading-list', { slug: item.slug }) }}">{{ item.title }}</a>
           <div><small class="text-muted">{{ item.createdAt|date('Y-m-d') }}</small></div>
         </li>
       {% endfor %}

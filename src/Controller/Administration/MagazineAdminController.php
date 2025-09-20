@@ -114,15 +114,6 @@ class MagazineAdminController extends AbstractController
             ];
         }
 
-        // Sort alphabetically
-        usort($magazines, fn($a, $b) => strcmp($a['name'], $b['name']));
-        foreach ($magazines as &$mag) {
-            usort($mag['categories'], fn($a, $b) => strcmp($a['name'], $b['name']));
-            foreach ($mag['categories'] as &$cat) {
-                usort($cat['files'], fn($a, $b) => strcmp($a['name'], $b['name']));
-            }
-        }
-
         return $this->render('admin/magazines.html.twig', [
             'magazines' => $magazines,
         ]);

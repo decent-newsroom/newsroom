@@ -7,3 +7,4 @@ when@local:
         profiler:
             only_exceptions: false
             collect_serializer_data: true
+            collect: false
