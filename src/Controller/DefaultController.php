@@ -62,30 +62,6 @@ class DefaultController extends AbstractController
     }
 
     /**
-     * @throws InvalidArgumentException
-     */
-    #[Route('/latest', name: 'latest')]
-    public function latest() : Response
-    {
-        $cacheKey = 'home-latest-articles';
-        $latest = $this->redisCache->get($cacheKey, function (ItemInterface $item) {
-            $item->expiresAfter(13600); // about 4 hours
-            // get latest articles
-            $q = new Query();
-            $q->setSize(12);
-            $q->setSort(['createdAt' => ['order' => 'desc']]);
-            $col = new Collapse();
-            $col->setFieldname('pubkey');
-            $q->setCollapse($col);
-            return $this->finder->find($q);
-        });
-
-        return $this->render('pages/latest.html.twig', [
-            'latest' => $latest
-        ]);
-    }
-
-    /**
      * Magazine front page: title, summary, category links, featured list.
      * @throws InvalidArgumentException
      */
@@ -284,17 +260,6 @@ class DefaultController extends AbstractController
             'canEdit' => false,
             'canonical' => $canonical
         ]);
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    #[Route('/list/{slug}', name: 'reading-list')]
-    public function readingList($slug, CacheInterface $redisCache,
-                                FinderInterface $finder,
-                                LoggerInterface $logger): Response
-    {
-        return new Response('Not implemented yet', 501);
     }
 
 

@@ -1,0 +1,21 @@
+{% extends 'layout.html.twig' %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ list.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ list.summary ?? '' }}">
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5 mb-5">
+            <h1>{{ list.title }}</h1>
+            <p class="eyebrow">{{ list.summary }}</p>
+        </div>
+    </section>
+
+
+    <twig:Organisms:CardList :list="articles" class="article-list" />
+{% endblock %}

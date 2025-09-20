@@ -1,11 +1,13 @@
 <div {{ attributes }}>
     <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5 mb-5">
+        <div class="container mt-5">
             <h1><a href="{{ path('magazine-index', {mag: mag}) }}">{{ magazine.title|default(magazine.slug|default(mag)) }}</a></h1>
             {% if magazine.summary is defined and magazine.summary %}
                 <p class="eyebrow">{{ magazine.summary }}</p>
             {% endif %}
-
+            <div>by <twig:Molecules:UserFromNpub :ident="magazine.pubkey" /></div>
+        </div>
+        <div class="container mb-5">
             {# Use computed property via this.categoryTags #}
             {% if this.categoryTags is not empty %}
                 <ul class="list-unstyled d-flex flex-row gap-3 justify-content-center mt-3">
