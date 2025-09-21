@@ -156,6 +156,11 @@ aside header {
         margin-top: 60px;
     }
 
+    section {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
     nav header,
     aside header {
         display: block;
