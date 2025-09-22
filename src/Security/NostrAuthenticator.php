@@ -181,6 +181,24 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
         } catch (\Throwable $e) {
             throw new AuthenticationException('Tag validation failed: ' . $e->getMessage());
         }
+
+        // Detect bunker vs extension login by presence of a client tag
+        try {
+            $tags = $event->getTags();
+            if (is_array($tags)) {
+                foreach ($tags as $tag) {
+                    if (is_array($tag) && isset($tag[0], $tag[1]) && $tag[0] === 't') {
+                        $method = $tag[1];
+                        if (in_array($method, ['bunker', 'extension'], true)) {
+                            $request->getSession()->set('nostr_sign_method', $method);
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // non-fatal
+        }
     }
 
     /**

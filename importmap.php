@@ -60,4 +60,40 @@ return [
     'es-module-shims' => [
         'version' => '2.0.10',
     ],
+    'nostr-tools' => [
+        'version' => '2.17.0',
+    ],
+    '@noble/curves/secp256k1' => [
+        'version' => '1.2.0',
+    ],
+    '@noble/hashes/utils' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/sha256' => [
+        'version' => '1.3.1',
+    ],
+    '@scure/base' => [
+        'version' => '1.1.1',
+    ],
+    '@noble/ciphers/aes' => [
+        'version' => '0.5.3',
+    ],
+    '@noble/ciphers/chacha' => [
+        'version' => '0.5.3',
+    ],
+    '@noble/ciphers/utils' => [
+        'version' => '0.5.3',
+    ],
+    '@noble/hashes/hkdf' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/hmac' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/crypto' => [
+        'version' => '1.3.1',
+    ],
+    'nostr-tools/nip46' => [
+        'version' => '2.17.0',
+    ],
 ];

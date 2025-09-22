@@ -1,0 +1,27 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Remote Signer Login | Decent Newsroom{% endblock %}
+
+{% block body %}
+<div class="container my-5">
+  <h1 class="h3 mb-4">Remote Signer</h1>
+  <p class="text-muted">Scan the QR below with a NIP-46 compatible bunker signer to pair a remote signing session. Keep this page open while pairing.</p>
+  <div class="card">
+    <div class="card-body" data-controller="amber-connect">
+      <div class="row">
+        <div class="col-md-6 text-center mb-3">
+          <div data-amber-connect-target="qr" class="mb-2"></div>
+        </div>
+        <div class="col-md-6">
+          <h2 class="h6">Status</h2>
+          <div data-amber-connect-target="status" class="small text-muted">Initializing…</div>
+          <hr>
+          <p class="small text-muted mb-1">After pairing, any page that uses window.nostr will automatically use this remote signer session.</p>
+          <p class="small text-muted">If pairing stalls, refresh this page to generate a new ephemeral key.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

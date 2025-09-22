@@ -8,7 +8,8 @@ export default class extends Controller {
   async loginAct() {
     const tags = [
       ['u', window.location.origin + '/login'],
-      ['method', 'POST']
+      ['method', 'POST'],
+      ['t', 'extension']
     ]
     const ev = {
       created_at: Math.floor(Date.now()/1000),
@@ -34,3 +35,4 @@ export default class extends Controller {
     }
   }
 }
+
