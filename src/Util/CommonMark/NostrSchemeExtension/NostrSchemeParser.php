@@ -2,6 +2,7 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
+use App\Service\RedisCacheService;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
@@ -15,8 +16,11 @@ use nostriphant\NIP19\Data\NPub;
 class NostrSchemeParser  implements InlineParserInterface
 {
 
-    public function __construct()
+    private RedisCacheService $redisCacheService;
+
+    public function __construct(RedisCacheService $redisCache, RedisCacheService $redisCacheService)
     {
+        $this->redisCacheService = $redisCacheService;
     }
 
     public function getMatchDefinition(): InlineParserMatch
@@ -40,7 +44,12 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'npub':
                     /** @var NPub $object */
                     $object = $decoded->data;
-                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $bechEncoded));
+                    $profile = $this->redisCacheService->getMetadata($bechEncoded);
+                    if (isset($profile['name'])) {
+                        $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile['name'], $bechEncoded));
+                    } else {
+                        $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $bechEncoded));
+                    }
                     break;
                 case 'nprofile':
                     /** @var NProfile $decodedProfile */
@@ -48,7 +57,7 @@ class NostrSchemeParser  implements InlineParserInterface
                     $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decodedProfile->pubkey));
                     break;
                 case 'nevent':
-                    /** @var NEvent $decodedNpub */
+                    /** @var NEvent $decodedEvent */
                     $decodedEvent = $decoded->data;
                     $eventId = $decodedEvent->id;
                     $relays = $decodedEvent->relays;
@@ -57,7 +66,7 @@ class NostrSchemeParser  implements InlineParserInterface
                     $inlineContext->getContainer()->appendChild(new NostrSchemeData('nevent', $bechEncoded, $relays, $author, $kind));
                     break;
                 case 'naddr':
-                    /** @var NAddr $decodedNpub */
+                    /** @var NAddr $decodedEvent */
                     $decodedEvent = $decoded->data;
                     $identifier = $decodedEvent->identifier;
                     $pubkey = $decodedEvent->pubkey;
