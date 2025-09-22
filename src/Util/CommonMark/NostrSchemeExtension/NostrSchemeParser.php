@@ -39,8 +39,7 @@ class NostrSchemeParser  implements InlineParserInterface
             switch ($decoded->type) {
                 case 'npub':
                     /** @var NPub $decoded */
-                    $decoded = $decoded->data;
-                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decoded->data->data));
+                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decoded->data));
                     break;
                 case 'nprofile':
                     /** @var NProfile $decodedProfile */
