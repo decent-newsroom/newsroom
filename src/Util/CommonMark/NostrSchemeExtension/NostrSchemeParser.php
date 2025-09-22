@@ -40,7 +40,7 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'npub':
                     /** @var NPub $object */
                     $object = $decoded->data;
-                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $object->data));
+                    $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $bechEncoded));
                     break;
                 case 'nprofile':
                     /** @var NProfile $decodedProfile */
