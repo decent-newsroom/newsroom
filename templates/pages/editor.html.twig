@@ -13,6 +13,9 @@
 
 {% block body %}
     <div class="w-container">
+        <div class="notice">
+            Log in is required to post articles.
+        </div>
         <div {{ stimulus_controller('nostr-publish', {
             publishUrl: path('api-article-publish'),
             csrfToken: csrf_token('nostr_publish')

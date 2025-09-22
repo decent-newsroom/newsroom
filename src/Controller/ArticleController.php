@@ -164,8 +164,10 @@ class ArticleController  extends AbstractController
         if ($article->getPubkey() === null) {
             $user = $this->getUser();
             $key = new Key();
-            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-            $article->setPubkey($currentPubkey);
+            if (!!$user) {
+                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+                $article->setPubkey($currentPubkey);
+            }
         }
 
         $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
