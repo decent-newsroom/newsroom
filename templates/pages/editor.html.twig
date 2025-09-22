@@ -13,9 +13,11 @@
 
 {% block body %}
     <div class="w-container">
-        <div class="notice">
-            Log in is required to post articles.
+        {% if not is_granted('ROLE_USER') %}
+        <div class="notice info">
+            <p>Log in is required to post articles.</p>
         </div>
+        {% endif %}
         <div {{ stimulus_controller('nostr-publish', {
             publishUrl: path('api-article-publish'),
             csrfToken: csrf_token('nostr_publish')
