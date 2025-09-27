@@ -41,20 +41,9 @@ class ArticleManagementController extends AbstractController
                 if (count($articles) >= 50) break;
             }
         }
-        // Fetch main index and extract nested indexes
-        $mainIndex = $redisCacheService->getMagazineIndex('magazine-newsroom-magazine-by-newsroom');
-        $indexes = [];
-        if ($mainIndex && $mainIndex->getTags() !== null) {
-            foreach ($mainIndex->getTags() as $tag) {
-                if ($tag[0] === 'a' && isset($tag[1])) {
-                    $parts = explode(':', $tag[1], 3);
-                    $indexes[$tag[1]] = end($parts); // Extract index key from tag
-                }
-            }
-        }
         return $this->render('admin/articles.html.twig', [
             'articles' => $articles,
-            'indexes' => $indexes,
+            'indexes' => [],
         ]);
     }
 

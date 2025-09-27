@@ -17,7 +17,7 @@ class NostrSchemeExtension  implements ExtensionInterface
     {
         $environment
             ->addInlineParser(new NostrMentionParser($this->redisCacheService), 200)
-            ->addInlineParser(new NostrSchemeParser(), 199)
+            ->addInlineParser(new NostrSchemeParser($this->redisCacheService), 199)
             ->addInlineParser(new NostrRawNpubParser($this->redisCacheService), 198)
 
             ->addRenderer(NostrSchemeData::class, new NostrEventRenderer(), 2)

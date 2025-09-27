@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Entity\Article;
+use App\Entity\Event;
+use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Redis as RedisClient;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,7 +21,296 @@ class MagazineAdminController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function index(RedisClient $redis, CacheInterface $redisCache, EntityManagerInterface $em): Response
     {
-        // 1) Collect known top-level magazine slugs from Redis set (populated on publish)
+        // Optimized database-first approach
+        $magazines = $this->getMagazinesFromDatabase($em, $redis, $redisCache);
+
+        return $this->render('admin/magazines.html.twig', [
+            'magazines' => $magazines,
+        ]);
+    }
+
+    private function getMagazinesFromDatabase(EntityManagerInterface $em, RedisClient $redis, CacheInterface $redisCache): array
+    {
+        // 1) Get magazine events directly from database using indexed queries
+        $magazineEvents = $this->getMagazineEvents($em);
+
+        // Fallback: if no magazines found in DB, try Redis as backup
+        if (empty($magazineEvents)) {
+            return $this->getFallbackMagazinesFromRedis($redis, $redisCache, $em);
+        }
+
+        // 2) Get all category events in one query
+        $categoryCoordinates = $this->extractCategoryCoordinates($magazineEvents);
+        $categoryEvents = $this->getCategoryEventsByCoordinates($em, $categoryCoordinates);
+
+        // 3) Get all article slugs and batch query articles
+        $articleCoordinates = $this->extractArticleCoordinates($categoryEvents);
+        $articles = $this->getArticlesByCoordinates($em, $articleCoordinates);
+
+        // 4) Build magazine structure efficiently
+        return $this->buildMagazineStructure($magazineEvents, $categoryEvents, $articles);
+    }
+
+    private function getMagazineEvents(EntityManagerInterface $em): array
+    {
+        // Query magazines using database index on kind
+        $qb = $em->createQueryBuilder();
+        $qb->select('e')
+           ->from(Event::class, 'e')
+           ->where('e.kind = :magazineKind')
+           ->setParameter('magazineKind', KindsEnum::PUBLICATION_INDEX->value)
+           ->orderBy('e.created_at', 'DESC');
+
+        $allMagazineEvents = $qb->getQuery()->getResult();
+
+        // Filter to only show top-level magazines (those that contain other indexes, not direct articles)
+        return $this->filterTopLevelMagazines($allMagazineEvents);
+    }
+
+    private function filterTopLevelMagazines(array $magazineEvents): array
+    {
+        $topLevelMagazines = [];
+
+        foreach ($magazineEvents as $event) {
+            $hasSubIndexes = false;
+            $hasDirectArticles = false;
+
+            foreach ($event->getTags() as $tag) {
+                if ($tag[0] === 'a' && isset($tag[1])) {
+                    $coord = $tag[1];
+
+                    // Check if this coordinate points to another index (30040:...)
+                    if (str_starts_with($coord, '30040:')) {
+                        $hasSubIndexes = true;
+                    }
+                    // Check if this coordinate points to articles (30023: or 30024:)
+                    elseif (str_starts_with($coord, '30023:') || str_starts_with($coord, '30024:')) {
+                        $hasDirectArticles = true;
+                    }
+                }
+            }
+
+            // Only include magazines that have sub-indexes but no direct articles
+            // This identifies top-level magazines that organize other indexes
+            if ($hasSubIndexes && !$hasDirectArticles) {
+                $topLevelMagazines[] = $event;
+            }
+        }
+
+        return $topLevelMagazines;
+    }
+
+    private function extractCategoryCoordinates(array $magazineEvents): array
+    {
+        $coordinates = [];
+        foreach ($magazineEvents as $event) {
+            foreach ($event->getTags() as $tag) {
+                if ($tag[0] === 'a' && isset($tag[1]) && str_starts_with($tag[1], '30040:')) {
+                    $coordinates[] = $tag[1];
+                }
+            }
+        }
+        return array_unique($coordinates);
+    }
+
+    private function getCategoryEventsByCoordinates(EntityManagerInterface $em, array $coordinates): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        // Extract slugs from coordinates for efficient querying
+        $slugs = [];
+        foreach ($coordinates as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) === 3) {
+                $slugs[] = $parts[2];
+            }
+        }
+
+        if (empty($slugs)) {
+            return [];
+        }
+
+        // Use PostgreSQL-compatible JSON operations
+        $connection = $em->getConnection();
+        $placeholders = str_repeat('?,', count($slugs) - 1) . '?';
+
+        $sql = "
+            SELECT * FROM event e
+            WHERE e.kind = ?
+            AND EXISTS (
+                SELECT 1 FROM json_array_elements(e.tags) AS tag_element
+                WHERE tag_element->>0 = 'd'
+                AND tag_element->>1 IN ({$placeholders})
+            )
+        ";
+
+        $params = [KindsEnum::PUBLICATION_INDEX->value, ...$slugs];
+        $result = $connection->executeQuery($sql, $params);
+        $rows = $result->fetchAllAssociative();
+
+        // Convert result rows back to Event entities
+        $indexed = [];
+        foreach ($rows as $row) {
+            $event = new Event();
+            $event->setId($row['id']);
+            if ($row['event_id'] !== null) {
+                $event->setEventId($row['event_id']);
+            }
+            $event->setKind($row['kind']);
+            $event->setPubkey($row['pubkey']);
+            $event->setContent($row['content']);
+            $event->setCreatedAt($row['created_at']);
+            $event->setTags(json_decode($row['tags'], true) ?: []);
+            $event->setSig($row['sig']);
+
+            $slug = $event->getSlug();
+            if ($slug) {
+                $indexed[$slug] = $event;
+            }
+        }
+
+        return $indexed;
+    }
+
+    private function extractArticleCoordinates(array $categoryEvents): array
+    {
+        $coordinates = [];
+        foreach ($categoryEvents as $event) {
+            foreach ($event->getTags() as $tag) {
+                if ($tag[0] === 'a' && isset($tag[1])) {
+                    $coordinates[] = $tag[1];
+                }
+            }
+        }
+        return array_unique($coordinates);
+    }
+
+    private function getArticlesByCoordinates(EntityManagerInterface $em, array $coordinates): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        // Extract slugs for batch query
+        $slugs = [];
+        foreach ($coordinates as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) === 3 && !empty($parts[2])) {
+                $slugs[] = $parts[2];
+            }
+        }
+
+        if (empty($slugs)) {
+            return [];
+        }
+
+        // Batch query articles using index on slug
+        $qb = $em->createQueryBuilder();
+        $qb->select('a')
+           ->from(Article::class, 'a')
+           ->where($qb->expr()->in('a.slug', ':slugs'))
+           ->setParameter('slugs', $slugs);
+
+        $articles = $qb->getQuery()->getResult();
+
+        // Index by slug for efficient lookup
+        $indexed = [];
+        foreach ($articles as $article) {
+            if ($article->getSlug()) {
+                $indexed[$article->getSlug()] = $article;
+            }
+        }
+
+        return $indexed;
+    }
+
+    private function buildMagazineStructure(array $magazineEvents, array $categoryEvents, array $articles): array
+    {
+        $magazines = [];
+
+        foreach ($magazineEvents as $event) {
+            $magazineData = $this->parseEventTags($event);
+
+            // Build categories for this magazine
+            $categories = [];
+            foreach ($magazineData['a'] as $coord) {
+                if (!str_starts_with($coord, '30040:')) continue;
+
+                $parts = explode(':', $coord, 3);
+                if (count($parts) !== 3) continue;
+
+                $catSlug = $parts[2];
+                if (!isset($categoryEvents[$catSlug])) continue;
+
+                $categoryEvent = $categoryEvents[$catSlug];
+                $categoryData = $this->parseEventTags($categoryEvent);
+
+                // Build files for this category
+                $files = [];
+                foreach ($categoryData['a'] as $aCoord) {
+                    $partsA = explode(':', $aCoord, 3);
+                    if (count($partsA) !== 3) continue;
+
+                    $artSlug = $partsA[2];
+                    $authorPubkey = $partsA[1] ?? '';
+
+                    /** @var Article $article */
+                    $article = $articles[$artSlug] ?? null;
+                    $title = $article ? $article->getTitle() : $artSlug;
+
+                    // Get the date - prefer publishedAt, fallback to createdAt
+                    $date = null;
+                    if ($article) {
+                        $date = $article->getPublishedAt() ?? $article->getCreatedAt();
+                    }
+
+                    $files[] = [
+                        'name' => $title ?? $artSlug,
+                        'slug' => $artSlug,
+                        'coordinate' => $aCoord,
+                        'authorPubkey' => $authorPubkey,
+                        'date' => $date,
+                    ];
+                }
+
+                $categories[] = [
+                    'name' => $categoryData['title'],
+                    'slug' => $categoryData['slug'],
+                    'files' => $files,
+                ];
+            }
+
+            $magazines[] = [
+                'name' => $magazineData['title'],
+                'slug' => $magazineData['slug'],
+                'categories' => $categories,
+            ];
+        }
+
+        return $magazines;
+    }
+
+    private function parseEventTags($event): array
+    {
+        $title = null; $slug = null; $a = [];
+        foreach ($event->getTags() as $tag) {
+            if (!is_array($tag) || !isset($tag[0])) continue;
+            if ($tag[0] === 'title' && isset($tag[1])) $title = $tag[1];
+            if ($tag[0] === 'd' && isset($tag[1])) $slug = $tag[1];
+            if ($tag[0] === 'a' && isset($tag[1])) $a[] = $tag[1];
+        }
+        return [
+            'title' => $title ?? ($slug ?? '(untitled)'),
+            'slug' => $slug ?? '',
+            'a' => $a,
+        ];
+    }
+
+    private function getFallbackMagazinesFromRedis(RedisClient $redis, CacheInterface $redisCache, EntityManagerInterface $em): array
+    {
+        // Fallback to original Redis implementation for backward compatibility
         $slugs = [];
         try {
             $members = $redis->sMembers('magazine_slugs');
@@ -30,22 +321,16 @@ class MagazineAdminController extends AbstractController
             // ignore set errors
         }
 
-        // 2) Ensure the known main magazine is included if present in cache
         try {
             $main = $redisCache->get('magazine-newsroom-magazine-by-newsroom', fn() => null);
-            if ($main) {
-                if (!in_array('newsroom-magazine-by-newsroom', $slugs, true)) {
-                    $slugs[] = 'newsroom-magazine-by-newsroom';
-                }
+            if ($main && !in_array('newsroom-magazine-by-newsroom', $slugs, true)) {
+                $slugs[] = 'newsroom-magazine-by-newsroom';
             }
         } catch (\Throwable) {
             // ignore
         }
 
-        // 3) Load magazine events and build structure
         $magazines = [];
-
-        // Helper to parse tags
         $parse = function($event): array {
             $title = null; $slug = null; $a = [];
             foreach ((array) $event->getTags() as $tag) {
@@ -63,40 +348,48 @@ class MagazineAdminController extends AbstractController
 
         foreach ($slugs as $slug) {
             $event = $redisCache->get('magazine-' . $slug, fn() => null);
-            if (!$event || !method_exists($event, 'getTags')) {
-                continue;
-            }
-            $data = $parse($event);
+            if (!$event || !method_exists($event, 'getTags')) continue;
 
-            // Resolve categories
+            $data = $parse($event);
             $categories = [];
+
             foreach ($data['a'] as $coord) {
                 if (!str_starts_with((string)$coord, '30040:')) continue;
                 $parts = explode(':', (string)$coord, 3);
                 if (count($parts) !== 3) continue;
+
                 $catSlug = $parts[2];
                 $catEvent = $redisCache->get('magazine-' . $catSlug, fn() => null);
                 if (!$catEvent || !method_exists($catEvent, 'getTags')) continue;
-                $catData = $parse($catEvent);
 
-                // Files under category from its 'a' coordinates
+                $catData = $parse($catEvent);
                 $files = [];
                 $repo = $em->getRepository(Article::class);
+
                 foreach ($catData['a'] as $aCoord) {
                     $partsA = explode(':', (string)$aCoord, 3);
                     if (count($partsA) !== 3) continue;
+
                     $artSlug = $partsA[2];
                     $authorPubkey = $partsA[1] ?? '';
                     $title = null;
+                    $date = null;
+
                     if ($artSlug !== '') {
                         $article = $repo->findOneBy(['slug' => $artSlug]);
-                        if ($article) { $title = $article->getTitle(); }
+                        if ($article) {
+                            $title = $article->getTitle();
+                            // Get the date - prefer publishedAt, fallback to createdAt
+                            $date = $article->getPublishedAt() ?? $article->getCreatedAt();
+                        }
                     }
+
                     $files[] = [
                         'name' => $title ?? $artSlug,
                         'slug' => $artSlug,
                         'coordinate' => $aCoord,
                         'authorPubkey' => $authorPubkey,
+                        'date' => $date,
                     ];
                 }
 
@@ -114,8 +407,6 @@ class MagazineAdminController extends AbstractController
             ];
         }
 
-        return $this->render('admin/magazines.html.twig', [
-            'magazines' => $magazines,
-        ]);
+        return $magazines;
     }
 }

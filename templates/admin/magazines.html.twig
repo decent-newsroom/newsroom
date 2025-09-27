@@ -6,7 +6,7 @@
   {% if magazines is empty %}
     <p>No magazines found.</p>
   {% else %}
-    <ul class="list-unstyled">
+    <ul class="list-unstyled mb-3">
       {% for mag in magazines %}
         <li class="mb-2">
           <details open>
@@ -28,6 +28,14 @@
                       {% if cat.files is not empty %}
                         <div class="ms-3 mt-2">
                           <table class="file-table" style="width:100%;border-collapse:collapse;">
+                            <thead>
+                              <tr>
+                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Article</th>
+                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Author</th>
+                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Date</th>
+                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Coordinate</th>
+                              </tr>
+                            </thead>
                             <tbody>
                             {% for file in cat.files %}
                               <tr>
@@ -37,9 +45,17 @@
                                 </td>
                                 <td style="padding:.25rem .5rem;vertical-align:top;white-space:nowrap;">
                                   {% if file.authorPubkey %}
-                                    <a href="{{ path('author-redirect', {pubkey: file.authorPubkey}) }}">{{ file.authorPubkey|slice(0,8) ~ '…' ~ file.authorPubkey|slice(-4) }}</a>
+                                    <twig:Molecules:UserFromNpub :ident="file.authorPubkey" />
                                   {% else %}
                                     <span class="text-muted">unknown author</span>
+                                  {% endif %}
+                                </td>
+                                <td style="padding:.25rem .5rem;vertical-align:top;white-space:nowrap;">
+                                  {% if file.date %}
+                                    <span class="small text-muted">{{ file.date|date('M j, Y') }}</span>
+                                    <div class="small text-muted">{{ file.date|date('H:i') }}</div>
+                                  {% else %}
+                                    <span class="small text-muted">—</span>
                                   {% endif %}
                                 </td>
                                 <td class="small text-muted" style="padding:.25rem .5rem;vertical-align:top;">{{ file.coordinate }}</td>

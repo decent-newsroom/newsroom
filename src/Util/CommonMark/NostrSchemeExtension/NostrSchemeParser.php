@@ -18,7 +18,7 @@ class NostrSchemeParser  implements InlineParserInterface
 
     private RedisCacheService $redisCacheService;
 
-    public function __construct(RedisCacheService $redisCache, RedisCacheService $redisCacheService)
+    public function __construct(RedisCacheService $redisCacheService)
     {
         $this->redisCacheService = $redisCacheService;
     }
