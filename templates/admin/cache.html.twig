@@ -1,0 +1,154 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Cache Management - {{ parent() }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .cache-management {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .cache-status {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .cache-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .cache-action-btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .cache-action-btn:hover {
+            background: #0056b3;
+        }
+        .cache-action-btn.danger {
+            background: #dc3545;
+        }
+        .cache-action-btn.danger:hover {
+            background: #c82333;
+        }
+        .cache-info {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+{% endblock %}
+
+{% block layout %}
+<div class="cache-management" data-controller="service-worker">
+    <h1>Cache Management</h1>
+
+    <div class="cache-info">
+        <h3>Caching Strategy Overview</h3>
+        <p>Your newsroom application uses a multi-layered caching strategy:</p>
+        <ul>
+            <li><strong>Service Worker Cache</strong> - Caches JS, CSS, fonts, and images for offline access</li>
+            <li><strong>Browser Cache</strong> - HTTP cache headers for optimal browser caching</li>
+            <li><strong>Asset Versioning</strong> - Content-hashed filenames for cache busting</li>
+        </ul>
+    </div>
+
+    <div class="cache-status" data-service-worker-target="status">
+        Loading cache status...
+    </div>
+
+    <div class="cache-actions">
+        <button
+            class="cache-action-btn"
+            data-action="click->service-worker#displayCacheInfoAction"
+        >
+            Show Cache Status
+        </button>
+
+        <button
+            class="cache-action-btn"
+            data-action="click->service-worker#preloadCriticalAssetsAction"
+        >
+            Preload Critical Assets
+        </button>
+
+        <button
+            class="cache-action-btn"
+            data-action="click->service-worker#refreshCacheAction"
+        >
+            Refresh All Caches
+        </button>
+
+        <button
+            class="cache-action-btn"
+            data-action="click->service-worker#clearAssetsCacheAction"
+        >
+            Clear Assets Cache
+        </button>
+
+        <button
+            class="cache-action-btn"
+            data-action="click->service-worker#clearStaticCacheAction"
+        >
+            Clear Static Cache
+        </button>
+
+        <button
+            class="cache-action-btn danger"
+            data-action="click->service-worker#clearCacheAction"
+        >
+            Clear All Caches
+        </button>
+    </div>
+
+    <div class="cache-info">
+        <h3>Cache Types Explained</h3>
+        <dl>
+            <dt><strong>Assets Cache (newsroom-assets-v1)</strong></dt>
+            <dd>Stores JS files, CSS files, fonts, and images. Uses "cache-first" strategy for fast loading.</dd>
+
+            <dt><strong>Static Cache (newsroom-static-v1)</strong></dt>
+            <dd>Stores static pages like About, Roadmap, etc. Uses "network-first" strategy for fresh content.</dd>
+
+            <dt><strong>Runtime Cache (newsroom-runtime-v1)</strong></dt>
+            <dd>Stores API responses and dynamic content with short expiration times.</dd>
+        </dl>
+    </div>
+
+    <div class="cache-info">
+        <h3>Asset Caching Details</h3>
+        <p>The following asset types are automatically cached:</p>
+        <ul>
+            <li><strong>JavaScript files (.js)</strong> - Cached for 30 days</li>
+            <li><strong>CSS files (.css)</strong> - Cached for 30 days</li>
+            <li><strong>Font files (.woff2, .woff, .ttf)</strong> - Cached for 1 year</li>
+            <li><strong>Images (.png, .jpg, .svg, .ico)</strong> - Cached for 30 days</li>
+            <li><strong>Static pages</strong> - Cached for 1 day with network-first strategy</li>
+        </ul>
+    </div>
+
+    <div class="cache-info">
+        <h3>Performance Benefits</h3>
+        <ul>
+            <li>Faster page loads after first visit</li>
+            <li>Reduced bandwidth usage</li>
+            <li>Better offline experience</li>
+            <li>Automatic cache invalidation when assets change</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

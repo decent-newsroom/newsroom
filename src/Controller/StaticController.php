@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -52,9 +53,26 @@ class StaticController extends AbstractController
         return $this->render('static/unfold.html.twig');
     }
 
-    #[Route('/journals', name: 'journals_index')]
-    public function journalsIndex(): Response
+    #[Route('/api/static-routes', name: 'api_static_routes', methods: ['GET'])]
+    public function getStaticRoutes(): JsonResponse
     {
-        return $this->render('pages/journals.html.twig');
+        $staticRoutes = [
+            '/about',
+            '/roadmap',
+            '/tos',
+            '/landing',
+            '/unfold',
+        ];
+
+        return new JsonResponse([
+            'routes' => $staticRoutes,
+            'cacheName' => 'newsroom-static-v1'
+        ]);
+    }
+
+    #[Route('/admin/cache', name: 'admin_cache', methods: ['GET'])]
+    public function cacheManagement(): Response
+    {
+        return $this->render('admin/cache.html.twig');
     }
 }

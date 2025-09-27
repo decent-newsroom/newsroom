@@ -324,32 +324,6 @@ class ArticleController  extends AbstractController
         }
     }
 
-    private function verifyNostrSignature(array $event): bool
-    {
-        try {
-            // Reconstruct the event ID
-            $serializedEvent = json_encode([
-                0,
-                $event['pubkey'],
-                $event['created_at'],
-                $event['kind'],
-                $event['tags'],
-                $event['content']
-            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-            $eventId = hash('sha256', $serializedEvent);
-
-            // Verify the event ID matches
-            if ($eventId !== $event['id']) {
-                return false;
-            }
-
-            return (new SchnorrSignature())->verify($event['pubkey'], $event['sig'], $event['id']);
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
     private function extractArticleDataFromEvent(array $event, array $formData): array
     {
         $data = [

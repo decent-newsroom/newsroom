@@ -24,15 +24,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Contracts\Cache\ItemInterface;
 
 class DefaultController extends AbstractController
 {
-    public function __construct(
-        private readonly FinderInterface $finder,
-        private readonly CacheInterface $redisCache)
-    {
-    }
 
     /**
      * @throws Exception

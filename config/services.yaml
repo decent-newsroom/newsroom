@@ -5,7 +5,6 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     encryption_key: '%env(APP_ENCRYPTION_KEY)%'
-    nsec: '%env(APP_NSEC)%'
 
 services:
     # default configuration for services in *this* file

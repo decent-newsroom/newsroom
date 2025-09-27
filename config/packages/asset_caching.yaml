@@ -1,0 +1,16 @@
+# Asset caching configuration for better browser caching
+framework:
+    assets:
+        # AssetMapper already handles versioning via manifest.json
+        # No need to set version_strategy as it conflicts with json_manifest_path
+        json_manifest_path: '%kernel.project_dir%/public/assets/manifest.json'
+
+# Configure HTTP cache headers for static assets
+when@prod:
+    framework:
+        http_cache:
+            # Cache static assets for longer periods
+            default_ttl: 3600 # 1 hour default
+            private_headers: ['authorization', 'cookie']
+            allow_reload: false
+            allow_revalidate: false

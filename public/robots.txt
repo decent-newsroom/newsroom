@@ -1,0 +1,18 @@
+# Robots.txt
+
+# Disallow all by default
+User-agent: *
+Disallow: /
+
+# Allow only specific public content
+Allow: /assets/
+Allow: /icons/
+Allow: /$
+Allow: /unfold
+Allow: /about
+Allow: /mag/
+Allow: /p/
+Allow: /list/
+
+# Crawl delay
+Crawl-delay: 1

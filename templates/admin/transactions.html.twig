@@ -20,7 +20,7 @@
         {% for tx in transactions %}
             <tr>
                 <td>{{ tx.id }}</td>
-                <td><span title="{{ tx.npub }}">{{ tx.npub|shortenNpub }}</span></td>
+                <td><span title="{{ tx.npub }}"><twig:Molecules:UserFromNpub :ident="tx.npub" /></span></td>
                 <td>{{ tx.type }}</td>
                 <td>{{ tx.amount }}</td>
                 <td>{{ tx.reason ?: '—' }}</td>

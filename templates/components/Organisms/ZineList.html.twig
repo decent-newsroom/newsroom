@@ -3,7 +3,7 @@
     {% for item in nzines %}
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="card-title">
+                <h2 class="card-title">
                     <a href="{{ path('magazine-index', {mag: item.slug}) }}">
                     {% if item and item.title %}
                         {{ item.title }}
@@ -13,7 +13,7 @@
                         Untitled Magazine
                     {% endif %}
                     </a>
-                </h3>
+                </h2>
                 {% if item and item.summary %}
                     <p class="lede">{{ item.summary }}</p>
                 {% endif %}
