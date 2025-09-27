@@ -512,6 +512,7 @@ class NostrClient
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
             // Save each article to the database
             $this->saveEachArticleToTheDatabase($article);
+            return $article; // Return the article so it gets added to the results array
         });
     }
 
