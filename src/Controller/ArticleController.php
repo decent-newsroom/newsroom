@@ -100,10 +100,10 @@ class ArticleController  extends AbstractController
 
         $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
+        //if (!$cacheItem->isHit()) {
             $cacheItem->set($converter->convertToHTML($article->getContent()));
             $articlesCache->save($cacheItem);
-        }
+        //}
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());

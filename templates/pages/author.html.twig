@@ -9,7 +9,7 @@
     <h1><twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub></h1>
     <div>
         {% if author.about is defined %}
-            {{ author.about|markdown_to_html|mentionify  }}
+            {{ author.about|markdown_to_html|mentionify|linkify  }}
         {% endif %}
     </div>
 

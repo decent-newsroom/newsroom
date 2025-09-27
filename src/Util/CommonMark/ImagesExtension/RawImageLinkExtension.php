@@ -9,6 +9,6 @@ class RawImageLinkExtension implements ExtensionInterface
 {
     public function register(EnvironmentBuilderInterface $environment): void
     {
-        $environment->addInlineParser(new RawImageLinkParser());
+        $environment->addInlineParser(new RawImageLinkParser(),201);
     }
 }

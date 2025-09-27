@@ -276,7 +276,7 @@ class NostrClient
 
         // Create request using the helper method
         $request = $this->createNostrRequest(
-            kinds: [], // Leave empty to accept any kind
+            kinds: [],
             filters: ['ids' => [$eventId]],
             relaySet: $relaySet
         );
@@ -691,7 +691,9 @@ class NostrClient
     {
         $subscription = new Subscription();
         $filter = new Filter();
-        $filter->setKinds($kinds);
+        if (!empty($kinds)) {
+            $filter->setKinds($kinds);
+        }
 
         foreach ($filters as $key => $value) {
             $method = 'set' . ucfirst($key);

@@ -2,6 +2,7 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
+use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
@@ -11,16 +12,22 @@ use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
 use nostriphant\NIP19\Data\NProfile;
 use nostriphant\NIP19\Data\NPub;
+use Twig\Environment;
+use swentel\nostr\Key\Key;
 
 
 class NostrSchemeParser  implements InlineParserInterface
 {
 
     private RedisCacheService $redisCacheService;
+    private NostrClient $nostrClient;
+    private Environment $twig;
 
-    public function __construct(RedisCacheService $redisCacheService)
+    public function __construct(RedisCacheService $redisCacheService, NostrClient $nostrClient, Environment $twig)
     {
         $this->redisCacheService = $redisCacheService;
+        $this->nostrClient = $nostrClient;
+        $this->twig = $twig;
     }
 
     public function getMatchDefinition(): InlineParserMatch
@@ -45,8 +52,8 @@ class NostrSchemeParser  implements InlineParserInterface
                     /** @var NPub $object */
                     $object = $decoded->data;
                     $profile = $this->redisCacheService->getMetadata($bechEncoded);
-                    if (isset($profile['name'])) {
-                        $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile['name'], $bechEncoded));
+                    if (isset($profile->name)) {
+                        $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile->name, $bechEncoded));
                     } else {
                         $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $bechEncoded));
                     }
@@ -59,11 +66,32 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'nevent':
                     /** @var NEvent $decodedEvent */
                     $decodedEvent = $decoded->data;
-                    $eventId = $decodedEvent->id;
-                    $relays = $decodedEvent->relays;
-                    $author = $decodedEvent->author;
-                    $kind = $decodedEvent->kind;
-                    $inlineContext->getContainer()->appendChild(new NostrSchemeData('nevent', $bechEncoded, $relays, $author, $kind));
+
+                    // Fetch the actual event data using the same logic as EventController
+                    $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
+
+                    if ($event) {
+                        // Get author metadata if available
+                        $authorMetadata = null;
+                        if (isset($event->pubkey)) {
+                            $key = new Key();
+                            $npub = $key->convertPublicKeyToBech32($event->pubkey);
+                            $authorMetadata = $this->redisCacheService->getMetadata($npub);
+                        }
+
+                        // Render the embedded event card
+                        $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
+                            'event' => $event,
+                            'author' => $authorMetadata,
+                            'nevent' => $bechEncoded
+                        ]);
+
+                        // Create a new node type for embedded HTML content
+                        $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($eventCardHtml));
+                    } else {
+                        // Fallback to simple link if event not found
+                        $inlineContext->getContainer()->appendChild(new NostrSchemeData('nevent', $bechEncoded, $decodedEvent->relays, $decodedEvent->author, $decodedEvent->kind));
+                    }
                     break;
                 case 'naddr':
                     /** @var NAddr $decodedEvent */

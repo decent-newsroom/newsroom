@@ -12,11 +12,6 @@
                 {% endif %}
 
                 <twig:Molecules:UserFromNpub ident="{{ event.pubkey }}" />
-                <div>
-                    {% if author.about is defined %}
-                        {{ author.about|markdown_to_html|mentionify  }}
-                    {% endif %}
-                </div>
                 <hr />
             {% endif %}
             <div class="event-meta">
@@ -70,7 +65,6 @@
     .event-container {
         max-width: 800px;
         margin: 2rem auto;
-        padding: 1.5rem;
         background: #fff;
         border-radius: 8px;
     }
@@ -81,14 +75,13 @@
         align-items: flex-start;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid #eee;
-        padding-bottom: 1rem;
+        padding: 1rem;
     }
 
     .event-content {
+        padding: 1rem;
         font-size: 1.1rem;
         line-height: 1.6;
-        margin-bottom: 2rem;
-        white-space: pre-wrap;
     }
 
     .nostr-links {
@@ -104,7 +97,6 @@
     }
 
     .link-list li {
-        margin-bottom: 0.5rem;
         word-break: break-all;
     }
 
@@ -117,8 +109,7 @@
     .event-footer {
         display: flex;
         justify-content: space-between;
-        margin-top: 1.5rem;
-        padding-top: 1rem;
+        padding: 1rem;
         border-top: 1px solid #eee;
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Enum\KindsEnum;
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
@@ -52,7 +53,7 @@ class EventController extends AbstractController
 
                 case 'nevent':
                     // Handle nevent identifier (event with additional metadata)
-                    $relays = $data->relays ?? [];
+                    $relays = $data->relays ?? null;
                     $event = $nostrClient->getEventById($data->id, $relays);
                     break;
 
@@ -65,6 +66,11 @@ class EventController extends AbstractController
                         'relays' => $data->relays ?? []
                     ];
                     $event = $nostrClient->getEventByNaddr($decodedData);
+                    if ($data->kind === KindsEnum::LONGFORM->value) {
+                        // If it's a long-form content, redirect to the article page
+                        $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
+                        return $this->redirectToRoute('article-slug', ['slug' => $data->identifier]);
+                    }
                     break;
 
                 default:

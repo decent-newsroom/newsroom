@@ -2,10 +2,8 @@
 
 namespace App\Util\CommonMark\ImagesExtension;
 
-use League\CommonMark\Node\Block\Paragraph;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Extension\CommonMark\Node\Inline\Image;
-use League\CommonMark\Extension\CommonMark\Node\Inline\SoftBreak;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
 
@@ -21,13 +19,12 @@ class RawImageLinkParser implements InlineParserInterface
     {
         $cursor = $inlineContext->getCursor();
         $match = $inlineContext->getFullMatch();
-        // Create an <img> element instead of a text link
-        $image = new Image($match, '');
-        $paragraph = new Paragraph();
-        $paragraph->appendChild($image);
-        $inlineContext->getContainer()->appendChild($paragraph);
 
-        // Advance the cursor to consume the matched part (important!)
+        // Create an inline Image element directly (not wrapped in a paragraph)
+        $image = new Image($match, '', $match);
+        $inlineContext->getContainer()->appendChild($image);
+
+        // Advance the cursor to consume the matched part
         $cursor->advanceBy(strlen($match));
 
         return true;

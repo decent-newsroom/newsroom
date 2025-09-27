@@ -1,0 +1,77 @@
+{# Embedded event card component #}
+<div class="embedded-event-card" data-nevent="{{ nevent }}">
+    <div class="event-header">
+        {% if author %}
+            {% if author.image is defined %}
+                <img src="{{ author.image }}" class="avatar-small" alt="{{ author.name }}" onerror="this.style.display = 'none'" />
+            {% endif %}
+            <div class="author-info">
+                <strong>{{ author.name ?? 'Anonymous' }}</strong>
+                {% if author.nip05 is defined %}
+                    <span class="nip05">{{ author.nip05 }}</span>
+                {% endif %}
+            </div>
+        {% endif %}
+        <div class="event-meta">
+            <span class="event-date">{{ event.created_at|date('M j, Y H:i') }}</span>
+        </div>
+    </div>
+    <div class="event-content line-clamp-5">
+        {{ event.content|markdown_to_html|mentionify }}
+    </div>
+    <div class="event-footer">
+        <a href="/e/{{ nevent }}" class="view-full">View full event</a>
+    </div>
+</div>
+
+<style>
+.embedded-event-card {
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    background: #f8f9fa;
+}
+
+.embedded-event-card .event-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.embedded-event-card .avatar-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.embedded-event-card .author-info {
+    flex: 1;
+}
+
+.embedded-event-card .nip05 {
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.embedded-event-card .event-meta {
+    color: #6c757d;
+    font-size: 0.8em;
+}
+
+.embedded-event-card .event-content {
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+.embedded-event-card .event-footer {
+    text-align: right;
+}
+
+.embedded-event-card .view-full {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.85em;
+}
+</style>
