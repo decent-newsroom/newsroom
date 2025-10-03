@@ -11,102 +11,245 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\InteractiveAuthenticatorInterface;
+use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 
 /**
- * Authenticator for Nostr protocol-based authentication.
+ * Authenticator for Nostr protocol-based authentication (NIP-98).
  *
- * This authenticator processes requests to the /login endpoint with a Nostr-based Authorization header.
- * It decodes and verifies the Nostr event, checks for expiration, and validates the Schnorr signature.
- * On successful authentication, it issues a SelfValidatingPassport with the user's public key in Bech32 format.
- *
- * Implements interactive authentication for Symfony security.
+ * This authenticator processes requests with a Nostr-based Authorization header.
+ * It validates NIP-98 HTTP auth events (kind 27235) with proper URL and method verification.
+ * Implements comprehensive security checks including expiration, signature validation, and event structure.
  */
-class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAuthenticatorInterface
+class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAuthenticatorInterface, AuthenticationEntryPointInterface
 {
+    private const NOSTR_AUTH_SCHEME = 'Nostr ';
+    private const NIP98_KIND = 27235;
+    private const MAX_EVENT_AGE_SECONDS = 60;
+
     /**
      * Checks if the request should be handled by this authenticator.
-     *
-     * @param Request $request The HTTP request.
-     * @return bool|null True if the request is supported, false otherwise.
      */
     public function supports(Request $request): ?bool
     {
-        if ($request->getPathInfo() === '/login' && $request->headers->has('Authorization')) {
-            return true;
-        }
-        return false;
+        return $request->headers->has('Authorization') &&
+               str_starts_with($request->headers->get('Authorization', ''), self::NOSTR_AUTH_SCHEME);
     }
 
     /**
      * Performs authentication using the Nostr Authorization header.
-     *
-     * @param Request $request The HTTP request.
-     * @return SelfValidatingPassport The authenticated passport.
-     * @throws AuthenticationException If authentication fails (invalid header, expired, or invalid signature).
      */
     public function authenticate(Request $request): SelfValidatingPassport
     {
-        $authHeader = $request->headers->get('Authorization');
-        if (!str_starts_with($authHeader, 'Nostr ')) {
-            throw new AuthenticationException('Invalid Authorization header');
-        }
+        try {
+            $authHeader = $request->headers->get('Authorization');
 
-        $eventStr = base64_decode(substr($authHeader, 6), true);
-        $encoders = [new JsonEncoder()];
-        $normalizers = [new ObjectNormalizer()];
-        $serializer = new Serializer($normalizers, $encoders);
-        /** @var Event $event */
-        $event = $serializer->deserialize($eventStr, Event::class, 'json');
-        if (time() > $event->getCreatedAt() + 60) {
-            throw new AuthenticationException('Expired');
-        }
-        $validity = (new SchnorrSignature())->verify($event->getPubkey(), $event->getSig(), $event->getId());
-        if (!$validity) {
-            throw new AuthenticationException('Invalid Authorization header');
-        }
+            if (!str_starts_with($authHeader, self::NOSTR_AUTH_SCHEME)) {
+                throw new AuthenticationException('Invalid Authorization scheme. Expected "Nostr" scheme.');
+            }
 
-        $key = new Key();
+            $eventData = $this->decodeAuthorizationHeader($authHeader);
+            $event = $this->deserializeEvent($eventData);
 
-        return new SelfValidatingPassport(
-            new UserBadge($key->convertPublicKeyToBech32($event->getPubkey()))
-        );
+            $this->validateEvent($event, $request);
+            $this->validateSignature($event);
+
+            return new SelfValidatingPassport(
+                new UserBadge($this->convertToUserIdentifier($event->getPubkey()))
+            );
+        } catch (AuthenticationException $e) {
+            // Re-throw authentication exceptions as-is
+            throw $e;
+        } catch (\Exception $e) {
+            // Catch any other unexpected exceptions and convert them to authentication failures
+            throw new AuthenticationException('Authentication failed due to invalid or malformed data: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Catch even more severe errors (like ValueError from GMP operations)
+            throw new AuthenticationException('Authentication failed due to cryptographic error: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Handles successful authentication.
-     *
-     * @param Request $request The HTTP request.
-     * @param TokenInterface $token The authenticated token.
-     * @param string $firewallName The firewall name.
-     * @return Response|null The response to return, or null to continue.
+     * Decodes the base64-encoded event from the Authorization header.
      */
+    private function decodeAuthorizationHeader(string $authHeader): string
+    {
+        try {
+            $encodedEvent = substr($authHeader, strlen(self::NOSTR_AUTH_SCHEME));
+            $decodedEvent = base64_decode($encodedEvent, true);
+
+            if ($decodedEvent === false) {
+                throw new AuthenticationException('Invalid base64 encoding in Authorization header.');
+            }
+
+            return $decodedEvent;
+        } catch (\Throwable $e) {
+            throw new AuthenticationException('Failed to decode authorization header: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Deserializes the JSON event data into an Event object.
+     */
+    private function deserializeEvent(string $eventData): Event
+    {
+        try {
+            $serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
+
+            /** @var Event $event */
+            $event = $serializer->deserialize($eventData, Event::class, 'json');
+            return $event;
+        } catch (NotEncodableValueException $e) {
+            throw new AuthenticationException('Invalid JSON in authorization event: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            throw new AuthenticationException('Failed to parse event data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Validates the Nostr event according to NIP-98 specifications.
+     */
+    private function validateEvent(Event $event, Request $request): void
+    {
+        try {
+            // Validate event kind (must be 27235 for HTTP auth)
+            if ($event->getKind() !== self::NIP98_KIND) {
+                throw new AuthenticationException('Invalid event kind. Expected ' . self::NIP98_KIND . ' for HTTP authentication.');
+            }
+
+            // Validate timestamp (not expired)
+            if (time() > $event->getCreatedAt() + self::MAX_EVENT_AGE_SECONDS) {
+                throw new AuthenticationException('Authentication event has expired.');
+            }
+
+            // Validate required fields
+            if (empty($event->getPubkey()) || empty($event->getSig()) || empty($event->getId())) {
+                throw new AuthenticationException('Missing required event fields (pubkey, sig, or id).');
+            }
+
+            // Validate NIP-98 tags (URL and method)
+            $this->validateNip98Tags($event, $request);
+        } catch (AuthenticationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new AuthenticationException('Event validation failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Validates NIP-98 specific tags (URL and HTTP method).
+     */
+    private function validateNip98Tags(Event $event, Request $request): void
+    {
+        try {
+            $tags = $event->getTags();
+            $foundUrl = false;
+            $foundMethod = false;
+
+            foreach ($tags as $tag) {
+                if (count($tag) >= 2) {
+                    if ($tag[0] === 'u') {
+                        $foundUrl = true;
+                        $expectedUrl = $request->getSchemeAndHttpHost() . $request->getRequestUri();
+                        if ($tag[1] !== $expectedUrl) {
+                            throw new AuthenticationException('URL tag does not match request URL.');
+                        }
+                    }
+                    if ($tag[0] === 'method') {
+                        $foundMethod = true;
+                        if ($tag[1] !== $request->getMethod()) {
+                            throw new AuthenticationException('Method tag does not match request method.');
+                        }
+                    }
+                }
+            }
+
+            if (!$foundUrl) {
+                throw new AuthenticationException('Missing required "u" (URL) tag in authentication event.');
+            }
+
+            if (!$foundMethod) {
+                throw new AuthenticationException('Missing required "method" tag in authentication event.');
+            }
+        } catch (AuthenticationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new AuthenticationException('Tag validation failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Validates the Schnorr signature of the event.
+     */
+    private function validateSignature(Event $event): void
+    {
+        try {
+            $schnorr = new SchnorrSignature();
+            $isValid = $schnorr->verify($event->getPubkey(), $event->getSig(), $event->getId());
+
+            if (!$isValid) {
+                throw new AuthenticationException('Invalid event signature.');
+            }
+        } catch (AuthenticationException $e) {
+            throw $e;
+        } catch (\ValueError $e) {
+            // Handle GMP errors specifically (like gmp_init errors with invalid hex strings)
+            throw new AuthenticationException('Invalid signature format or public key format.');
+        } catch (\Exception $e) {
+            throw new AuthenticationException('Signature verification failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Catch any other errors (like memory issues, etc.)
+            throw new AuthenticationException('Cryptographic verification failed due to system error.');
+        }
+    }
+
+    /**
+     * Converts the public key to a user identifier (Bech32 format).
+     */
+    private function convertToUserIdentifier(string $pubkey): string
+    {
+        try {
+            $key = new Key();
+            return $key->convertPublicKeyToBech32($pubkey);
+        } catch (\Throwable $e) {
+            throw new AuthenticationException('Failed to convert public key to user identifier: ' . $e->getMessage());
+        }
+    }
+
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        return new Response('Authentication Successful', 200);
-    }
-
-    /**
-     * Handles failed authentication.
-     *
-     * @param Request $request The HTTP request.
-     * @param AuthenticationException $exception The exception thrown during authentication.
-     * @return Response|null The response to return, or null to continue.
-     */
-    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
-    {
+        // Return null to continue to the intended route
         return null;
     }
 
-    /**
-     * Indicates whether this authenticator is interactive.
-     *
-     * @return bool True if interactive.
-     */
+    public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
+    {
+        return new Response(
+            json_encode(['error' => 'Authentication failed', 'message' => $exception->getMessage()]),
+            Response::HTTP_UNAUTHORIZED,
+            ['Content-Type' => 'application/json']
+        );
+    }
+
+    public function start(Request $request, AuthenticationException $authException = null): Response
+    {
+        $message = 'Authentication required';
+        if ($authException) {
+            $message = $authException->getMessage();
+        }
+
+        return new Response(
+            json_encode(['error' => 'Authentication required', 'message' => $message]),
+            Response::HTTP_UNAUTHORIZED,
+            ['Content-Type' => 'application/json']
+        );
+    }
+
     public function isInteractive(): bool
     {
         return true;

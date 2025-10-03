@@ -16,6 +16,7 @@ security:
                 - App\Security\NostrAuthenticator
             logout:
                 path: /logout
+            entry_point: App\Security\NostrAuthenticator
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
