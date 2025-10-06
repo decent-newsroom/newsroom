@@ -25,10 +25,22 @@ class VisitorAnalyticsController extends AbstractController
         $last24hCount = $visitRepository->countVisitsSince($last24h);
         $last7dCount = $visitRepository->countVisitsSince($last7d);
 
+        // Unique session tracking
+        $uniqueVisitors24h = $visitRepository->countUniqueSessionsSince($last24h);
+        $uniqueVisitors7d = $visitRepository->countUniqueSessionsSince($last7d);
+        $totalUniqueVisitors = $visitRepository->countUniqueVisitors();
+
+        // Session-based visit breakdown
+        $sessionStats = $visitRepository->getVisitsBySession($last7d);
+
         return $this->render('admin/analytics.html.twig', [
             'visitStats' => $visitStats,
             'last24hCount' => $last24hCount,
             'last7dCount' => $last7dCount,
+            'uniqueVisitors24h' => $uniqueVisitors24h,
+            'uniqueVisitors7d' => $uniqueVisitors7d,
+            'totalUniqueVisitors' => $totalUniqueVisitors,
+            'sessionStats' => $sessionStats,
         ]);
     }
 }

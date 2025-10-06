@@ -48,4 +48,49 @@ class VisitRepository extends ServiceEntityRepository
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
+
+    /**
+     * Returns the count of unique sessions (logged-in users) since the given datetime.
+     */
+    public function countUniqueSessionsSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(DISTINCT v.sessionId)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.sessionId IS NOT NULL')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns visits grouped by session ID with counts.
+     */
+    public function getVisitsBySession(\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.sessionId, COUNT(v.id) as visitCount, MIN(v.visitedAt) as firstVisit, MAX(v.visitedAt) as lastVisit')
+            ->where('v.sessionId IS NOT NULL')
+            ->groupBy('v.sessionId')
+            ->orderBy('visitCount', 'DESC');
+
+        if ($since) {
+            $qb->andWhere('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns unique visitor count (distinct session IDs).
+     */
+    public function countUniqueVisitors(): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(DISTINCT v.sessionId)')
+            ->where('v.sessionId IS NOT NULL');
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
 }

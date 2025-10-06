@@ -15,6 +15,16 @@
         </div>
 
         <div class="analytics-card">
+            <h2>Unique Logged-In Visitors</h2>
+            <ul class="analytics-stats">
+                <li><strong>Last 24 hours:</strong> {{ uniqueVisitors24h }}</li>
+                <li><strong>Last 7 days:</strong> {{ uniqueVisitors7d }}</li>
+                <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
+            </ul>
+            <p class="analytics-note">Tracked by session ID for logged-in users only</p>
+        </div>
+
+        <div class="analytics-card">
             <h2>Visit Count by Route</h2>
 
             {% if visitStats|length > 0 %}
@@ -39,8 +49,36 @@
             {% endif %}
         </div>
 
+        <div class="analytics-card">
+            <h2>User Sessions (Last 7 Days)</h2>
+            {% if sessionStats|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th class="text-right">Visits</th>
+                            <th class="text-right">First Visit</th>
+                            <th class="text-right">Last Visit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in sessionStats %}
+                            <tr>
+                                <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
+                                <td class="text-right">{{ stat.visitCount }}</td>
+                                <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
+                                <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No logged-in visitor sessions recorded in the last 7 days.</p>
+            {% endif %}
+        </div>
+
         <div class="analytics-info">
-            <p>This data shows the number of page visits per route. No personal user data is collected.</p>
+            <p>Visit tracking is now automated via event listener. Session IDs are captured for logged-in users to track unique visitors and user engagement patterns.</p>
         </div>
     </div>
 {% endblock %}

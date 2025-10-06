@@ -20,9 +20,13 @@ class Visit
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $visitedAt;
 
-    public function __construct(string $route)
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $sessionId = null;
+
+    public function __construct(string $route, ?string $sessionId = null)
     {
         $this->route = $route;
+        $this->sessionId = $sessionId;
         $this->visitedAt = new \DateTimeImmutable();
     }
 
@@ -45,5 +49,16 @@ class Visit
     public function getVisitedAt(): \DateTimeImmutable
     {
         return $this->visitedAt;
+    }
+
+    public function getSessionId(): ?string
+    {
+        return $this->sessionId;
+    }
+
+    public function setSessionId(?string $sessionId): self
+    {
+        $this->sessionId = $sessionId;
+        return $this;
     }
 }
