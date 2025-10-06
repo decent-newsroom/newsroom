@@ -17,35 +17,30 @@ final class Version20250927120000 extends AbstractMigration
         return 'Add database indexes to optimize magazine queries';
     }
 
-    public function isTransactional(): bool
-    {
-        return false;
-    }
-
     public function up(Schema $schema): void
     {
         // Add index on event.kind for efficient magazine event queries
-        $this->addSql('CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_EVENT_KIND ON event (kind)');
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_KIND ON event (kind)');
 
         // Add composite index on event.kind and created_at for sorted magazine queries
-        $this->addSql('CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_EVENT_KIND_CREATED ON event (kind, created_at DESC)');
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_KIND_CREATED ON event (kind, created_at DESC)');
 
         // Add index on article.slug for efficient article lookups
-        $this->addSql('CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_ARTICLE_SLUG ON article (slug)');
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_ARTICLE_SLUG ON article (slug)');
 
         // Add index on event.pubkey for author-based queries
-        $this->addSql('CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_EVENT_PUBKEY ON event (pubkey)');
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_PUBKEY ON event (pubkey)');
 
         // Add GIN index on tags JSON column for efficient JSON queries
-        $this->addSql('CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_EVENT_TAGS_GIN ON event USING GIN (tags)');
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_TAGS_GIN ON event USING GIN (tags)');
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP INDEX CONCURRENTLY IF EXISTS IDX_EVENT_KIND');
-        $this->addSql('DROP INDEX CONCURRENTLY IF EXISTS IDX_EVENT_KIND_CREATED');
-        $this->addSql('DROP INDEX CONCURRENTLY IF EXISTS IDX_ARTICLE_SLUG');
-        $this->addSql('DROP INDEX CONCURRENTLY IF EXISTS IDX_EVENT_PUBKEY');
-        $this->addSql('DROP INDEX CONCURRENTLY IF EXISTS IDX_EVENT_TAGS_GIN');
+        $this->addSql('DROP INDEX IF EXISTS IDX_EVENT_KIND');
+        $this->addSql('DROP INDEX IF EXISTS IDX_EVENT_KIND_CREATED');
+        $this->addSql('DROP INDEX IF EXISTS IDX_ARTICLE_SLUG');
+        $this->addSql('DROP INDEX IF EXISTS IDX_EVENT_PUBKEY');
+        $this->addSql('DROP INDEX IF EXISTS IDX_EVENT_TAGS_GIN');
     }
 }
