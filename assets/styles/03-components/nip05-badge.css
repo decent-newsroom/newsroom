@@ -21,9 +21,3 @@
     white-space: nowrap;
 }
 
-@media (max-width: 640px) {
-    .nip05-identifier {
-        max-width: 150px;
-    }
-}
-

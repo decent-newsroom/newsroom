@@ -46,13 +46,15 @@ a.btn, a.btn:hover, a.btn:active {
 }
 
 .btn.btn-secondary {
-    color: var(--color-secondary);
-    background-color: var(--color-secondary);
-    border: 2px solid var(--color-bg);
+    color: var(--color-text);
+    background-color: transparent;
+    border: 2px solid var(--color-secondary);
     text-decoration: none;
 }
 
 .btn.btn-secondary:hover {
+    background-color: var(--color-secondary);
+    color: var(--color-text-contrast);
     border: 2px solid var(--color-secondary);
     text-decoration: none;
 }
