@@ -26,14 +26,19 @@ class VisitRepository extends ServiceEntityRepository
         }
     }
 
-    public function getVisitCountByRoute(): array
+    public function getVisitCountByRoute(\DateTimeImmutable $since = null): array
     {
-        return $this->createQueryBuilder('v')
+        $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('count', 'DESC');
+
+        if ($since) {
+            $qb->where('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     /**

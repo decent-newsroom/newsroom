@@ -15,17 +15,17 @@
         </div>
 
         <div class="analytics-card">
-            <h2>Unique Logged-In Visitors</h2>
+            <h2>Unique Visitors</h2>
             <ul class="analytics-stats">
                 <li><strong>Last 24 hours:</strong> {{ uniqueVisitors24h }}</li>
                 <li><strong>Last 7 days:</strong> {{ uniqueVisitors7d }}</li>
                 <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
             </ul>
-            <p class="analytics-note">Tracked by session ID for logged-in users only</p>
+            <p class="analytics-note">Tracked by session ID (includes both anonymous and logged-in visitors)</p>
         </div>
 
         <div class="analytics-card">
-            <h2>Visit Count by Route</h2>
+            <h2>Visit Count by Route (Last 7 Days)</h2>
 
             {% if visitStats|length > 0 %}
                 <table class="analytics-table">
@@ -45,12 +45,12 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>No visit data recorded yet.</p>
+                <p>No visit data recorded in the last 7 days.</p>
             {% endif %}
         </div>
 
         <div class="analytics-card">
-            <h2>User Sessions (Last 7 Days)</h2>
+            <h2>Visitor Sessions (Last 7 Days)</h2>
             {% if sessionStats|length > 0 %}
                 <table class="analytics-table">
                     <thead>
@@ -73,12 +73,12 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>No logged-in visitor sessions recorded in the last 7 days.</p>
+                <p>No visitor sessions recorded in the last 7 days.</p>
             {% endif %}
         </div>
 
         <div class="analytics-info">
-            <p>Visit tracking is now automated via event listener. Session IDs are captured for logged-in users to track unique visitors and user engagement patterns.</p>
+            <p>Visit tracking is automated via event listener. Session IDs track all unique visitors (both anonymous and logged-in) for accurate engagement analytics.</p>
         </div>
     </div>
 {% endblock %}

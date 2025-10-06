@@ -47,14 +47,15 @@ class VisitTrackingListener
             }
         }
 
-        // Get session ID if user is logged in
+        // Get session ID for all visitors (both logged-in and anonymous)
         $sessionId = null;
-        if ($this->security->getUser()) {
-            // Start session if not already started
-            if (!$request->hasSession() || !$request->getSession()->isStarted()) {
-                $request->getSession()->start();
+        if ($request->hasSession()) {
+            $session = $request->getSession();
+            // Start session if not already started to get/create a session ID
+            if (!$session->isStarted()) {
+                $session->start();
             }
-            $sessionId = $request->getSession()->getId();
+            $sessionId = $session->getId();
         }
 
         // Create and save the visit record
