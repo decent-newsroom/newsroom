@@ -546,6 +546,66 @@ class NostrClient
         });
     }
 
+    /**
+     * Get video shorts (kind 22) for a given pubkey
+     * @throws \Exception
+     */
+    public function getVideoShortsForPubkey(string $ident, int $limit = 20): array
+    {
+        // Add user relays to the default set
+        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+        // Create a RelaySet from the author's relays
+        $relaySet = $this->defaultRelaySet;
+        if (!empty($authorRelays)) {
+            $relaySet = $this->createRelaySet($authorRelays);
+        }
+
+        // Create request for kind 22 (short video events)
+        $request = $this->createNostrRequest(
+            kinds: [22], // NIP-71 Short video events
+            filters: [
+                'authors' => [$ident],
+                'limit' => $limit
+            ],
+            relaySet: $relaySet
+        );
+
+        // Process the response and return raw events
+        return $this->processResponse($request->send(), function($event) {
+            return $event; // Return the raw event
+        });
+    }
+
+    /**
+     * Get normal video events (kind 21) for a given pubkey
+     * @throws \Exception
+     */
+    public function getNormalVideosForPubkey(string $ident, int $limit = 20): array
+    {
+        // Add user relays to the default set
+        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+        // Create a RelaySet from the author's relays
+        $relaySet = $this->defaultRelaySet;
+        if (!empty($authorRelays)) {
+            $relaySet = $this->createRelaySet($authorRelays);
+        }
+
+        // Create request for kind 21 (normal video events)
+        $request = $this->createNostrRequest(
+            kinds: [21], // NIP-71 Normal video events
+            filters: [
+                'authors' => [$ident],
+                'limit' => $limit
+            ],
+            relaySet: $relaySet
+        );
+
+        // Process the response and return raw events
+        return $this->processResponse($request->send(), function($event) {
+            return $event; // Return the raw event
+        });
+    }
+
     public function getArticles(array $slugs): array
     {
         $articles = [];

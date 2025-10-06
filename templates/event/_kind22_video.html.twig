@@ -1,0 +1,162 @@
+{# NIP-71 Video Event (kind 22) #}
+<div class="video-event">
+    {# Title tag #}
+    {% set title = null %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'title' %}
+            {% set title = tag[1] %}
+        {% endif %}
+    {% endfor %}
+
+    {% if title %}
+        <h2 class="video-title">{{ title }}</h2>
+    {% endif %}
+
+    {# Content warning #}
+    {% set contentWarning = null %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'content-warning' %}
+            {% set contentWarning = tag[1] %}
+        {% endif %}
+    {% endfor %}
+
+    {% if contentWarning %}
+        <div class="content-warning">
+            <strong>⚠️ Content Warning:</strong> {{ contentWarning }}
+            <button class="btn-show-nsfw" onclick="this.parentElement.nextElementSibling.classList.remove('hidden'); this.parentElement.style.display='none';">Show Content</button>
+        </div>
+        <div class="video-gallery hidden">
+    {% else %}
+        <div class="video-gallery">
+    {% endif %}
+
+    {# Display videos from imeta tags #}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'imeta' %}
+            {% set videoUrl = null %}
+            {% set mimeType = null %}
+            {% set dimensions = null %}
+            {% set altText = null %}
+            {% set previewImage = null %}
+            {% set fallbacks = [] %}
+
+            {# Parse imeta tag parameters #}
+            {% for i in 1..(tag|length - 1) %}
+                {% set param = tag[i] %}
+                {% if param starts with 'url ' %}
+                    {% set potentialUrl = param[4:] %}
+                    {# Check if it's a video URL #}
+                    {% if potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i' or potentialUrl matches '/video/i' %}
+                        {% set videoUrl = potentialUrl %}
+                    {% endif %}
+                {% elseif param starts with 'image ' %}
+                    {% set previewImage = param[6:] %}
+                {% elseif param starts with 'm ' %}
+                    {% set mimeType = param[2:] %}
+                {% elseif param starts with 'dim ' %}
+                    {% set dimensions = param[4:] %}
+                {% elseif param starts with 'alt ' %}
+                    {% set altText = param[4:] %}
+                {% elseif param starts with 'fallback ' %}
+                    {% set fallbackUrl = param[9:] %}
+                    {# Only add video fallbacks #}
+                    {% if fallbackUrl matches '/\\.(mp4|webm|ogg|mov)$/i' or fallbackUrl matches '/video/i' %}
+                        {% set fallbacks = fallbacks|merge([fallbackUrl]) %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if videoUrl %}
+                <div class="video-item">
+                    <video controls
+                           {% if previewImage %}poster="{{ previewImage }}"{% endif %}
+                           {% if dimensions %}data-dimensions="{{ dimensions }}"{% endif %}
+                           class="video-player"
+                           preload="metadata">
+                        <source src="{{ videoUrl }}" {% if mimeType %}type="{{ mimeType }}"{% endif %} />
+                        {% for fallback in fallbacks %}
+                            <source src="{{ fallback }}" />
+                        {% endfor %}
+                        Your browser does not support the video tag.
+                    </video>
+
+                    {% if altText %}
+                        <p class="video-alt">{{ altText }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+    </div>
+
+    {# Description from content #}
+    {% if event.content %}
+        <div class="video-description mt-1">
+            <twig:Atoms:Content :content="event.content" />
+        </div>
+    {% endif %}
+
+    {# Duration #}
+    {% set duration = null %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'duration' %}
+            {% set duration = tag[1] %}
+        {% endif %}
+    {% endfor %}
+
+    {% if duration %}
+        <div class="video-duration">
+            <span class="duration-icon">⏱️</span>
+            <span>Duration: {{ (duration / 60)|round(0, 'floor') }}:{{ '%02d'|format(duration % 60) }}</span>
+        </div>
+    {% endif %}
+
+    {# Published timestamp #}
+    {% set publishedAt = null %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'published_at' %}
+            {% set publishedAt = tag[1] %}
+        {% endif %}
+    {% endfor %}
+
+    {% if publishedAt %}
+        <div class="video-published">
+            <span>Originally published: {{ publishedAt|date('F j, Y') }}</span>
+        </div>
+    {% endif %}
+
+    {# Hashtags #}
+    {% set hashtags = [] %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 't' %}
+            {% set hashtags = hashtags|merge([tag[1]]) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if hashtags|length > 0 %}
+        <div class="video-hashtags">
+            {% for hashtag in hashtags %}
+                <span class="hashtag">#{{ hashtag }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {# Participants #}
+    {% set participants = [] %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'p' %}
+            {% set participants = participants|merge([tag[1]]) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if participants|length > 0 %}
+        <div class="video-participants">
+            <h4>Participants:</h4>
+            <div class="participants-list">
+                {% for pubkey in participants %}
+                    <twig:Molecules:UserFromNpub ident="{{ pubkey }}" />
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>

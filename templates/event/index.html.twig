@@ -22,8 +22,11 @@
         {# NIP-68 Picture Event (kind 20) #}
         {% if event.kind == 20 %}
             {% include 'event/_kind20_picture.html.twig' %}
+        {# NIP-71 Video Events (kind 21 and 22) #}
+        {% elseif event.kind == 21 or event.kind == 22 %}
+            {% include 'event/_kind22_video.html.twig' %}
         {% else %}
-            {# Regular event content for non-picture events #}
+            {# Regular event content for non-picture and non-video events #}
             <div class="event-content">
                 <twig:Atoms:Content :content="event.content" />
             </div>
@@ -47,7 +50,7 @@
             {# Source link from r tag #}
             {% set sourceUrl = null %}
             {% for tag in event.tags %}
-                {% if tag[0] == 'r' and tag[2] == 'source' %}
+                {% if tag[0] == 'r' and tag|length > 2 and tag[2] == 'source' %}
                     {% set sourceUrl = tag[1] %}
                 {% endif %}
             {% endfor %}

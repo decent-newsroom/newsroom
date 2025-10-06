@@ -50,17 +50,38 @@
 
                         {# Extract first image from imeta tags #}
                         {% set firstImageUrl = null %}
+                        {% set firstVideoUrl = null %}
                         {% set imageAlt = null %}
+                        {% set isVideo = false %}
                         {% for tag in event.tags %}
-                            {% if tag[0] == 'imeta' and firstImageUrl is null %}
+                            {% if tag[0] == 'imeta' %}
+                                {% set videoUrl = null %}
+                                {% set imageUrl = null %}
                                 {% for i in 1..(tag|length - 1) %}
                                     {% set param = tag[i] %}
-                                    {% if param starts with 'url ' and firstImageUrl is null %}
-                                        {% set firstImageUrl = param[4:] %}
+                                    {% if param starts with 'url ' %}
+                                        {% set potentialUrl = param[4:] %}
+                                        {# Check if it's a video URL #}
+                                        {% if potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i' or potentialUrl matches '/video/i' %}
+                                            {% set videoUrl = potentialUrl %}
+                                            {% set isVideo = true %}
+                                        {% else %}
+                                            {% set imageUrl = potentialUrl %}
+                                        {% endif %}
+                                    {% elseif param starts with 'image ' %}
+                                        {# Preview image for video #}
+                                        {% set imageUrl = param[6:] %}
                                     {% elseif param starts with 'alt ' %}
                                         {% set imageAlt = param[4:] %}
                                     {% endif %}
                                 {% endfor %}
+                                {# Set the first video and image found #}
+                                {% if videoUrl and firstVideoUrl is null %}
+                                    {% set firstVideoUrl = videoUrl %}
+                                {% endif %}
+                                {% if imageUrl and firstImageUrl is null %}
+                                    {% set firstImageUrl = imageUrl %}
+                                {% endif %}
                             {% endif %}
                         {% endfor %}
 
@@ -72,9 +93,16 @@
                             {% if firstImageUrl %}
                                 <div class="masonry-image-container">
                                     <img src="{{ firstImageUrl }}"
-                                         alt="{{ imageAlt|default(title|default('Picture')) }}"
+                                         alt="{{ imageAlt|default(title|default(isVideo ? 'Video' : 'Picture')) }}"
                                          class="masonry-image"
                                          loading="lazy" />
+                                    {% if isVideo %}
+                                        <div class="video-overlay">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="white" opacity="0.9">
+                                                <path d="M8 5v14l11-7z"/>
+                                            </svg>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             {% endif %}
 
@@ -103,4 +131,32 @@
             </div>
         {% endif %}
     </div>
+{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<style>
+    .masonry-image-container {
+        position: relative;
+    }
+
+    .video-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .video-overlay svg {
+        margin-left: 4px;
+    }
+</style>
 {% endblock %}

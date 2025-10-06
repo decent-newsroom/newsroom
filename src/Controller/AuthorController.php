@@ -23,9 +23,6 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
     public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService): Response
     {
-        $keys = new Key();
-        $pubkey = $keys->convertToHex($npub);
-
         $author = $redisCacheService->getMetadata($npub);
 
         // Retrieve picture events (kind 20) for the author
@@ -35,22 +32,39 @@ class AuthorController extends AbstractController
             $pictureEvents = [];
         }
 
+        // Retrieve video shorts (kind 22) for the author
+        try {
+            $videoShorts = $nostrClient->getVideoShortsForPubkey($npub, 30);
+        } catch (Exception $e) {
+            $videoShorts = [];
+        }
+
+        // Retrieve normal videos (kind 21) for the author
+        try {
+            $normalVideos = $nostrClient->getNormalVideosForPubkey($npub, 30);
+        } catch (Exception $e) {
+            $normalVideos = [];
+        }
+
+        // Merge picture events, video shorts, and normal videos
+        $mediaEvents = array_merge($pictureEvents, $videoShorts, $normalVideos);
+
         // Deduplicate by event ID
         $uniqueEvents = [];
-        foreach ($pictureEvents as $event) {
+        foreach ($mediaEvents as $event) {
             if (!isset($uniqueEvents[$event->id])) {
                 $uniqueEvents[$event->id] = $event;
             }
         }
 
         // Convert back to indexed array and sort by date (newest first)
-        $pictureEvents = array_values($uniqueEvents);
-        usort($pictureEvents, function ($a, $b) {
+        $mediaEvents = array_values($uniqueEvents);
+        usort($mediaEvents, function ($a, $b) {
             return $b->created_at <=> $a->created_at;
         });
 
         // Encode event IDs as note1... for each event
-        foreach ($pictureEvents as $event) {
+        foreach ($mediaEvents as $event) {
             $nip19 = new Nip19Helper(); // The NIP-19 helper class.
             $event->noteId = $nip19->encodeNote($event->id);
         }
@@ -58,7 +72,7 @@ class AuthorController extends AbstractController
         return $this->render('pages/author-media.html.twig', [
             'author' => $author,
             'npub' => $npub,
-            'pictureEvents' => $pictureEvents,
+            'pictureEvents' => $mediaEvents,
             'is_author_profile' => true,
         ]);
     }
