@@ -29,6 +29,7 @@
     width: 100%;
     max-width: 100%;
     height: auto;
+    max-height: 100vh;
     display: block;
     background-color: #000;
 }
@@ -142,4 +143,3 @@
         padding: 4px 8px;
     }
 }
-

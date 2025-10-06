@@ -606,6 +606,37 @@ class NostrClient
         });
     }
 
+    /**
+     * Get all media events (pictures and videos) for a given pubkey in a single request
+     * This is more efficient than making 3 separate requests
+     * @throws \Exception
+     */
+    public function getAllMediaEventsForPubkey(string $ident, int $limit = 30): array
+    {
+        // Add user relays to the default set
+        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+        // Create a RelaySet from the author's relays
+        $relaySet = $this->defaultRelaySet;
+        if (!empty($authorRelays)) {
+            $relaySet = $this->createRelaySet($authorRelays);
+        }
+
+        // Create request for all media kinds (20, 21, 22) in ONE request
+        $request = $this->createNostrRequest(
+            kinds: [20, 21, 22], // NIP-68 Pictures, NIP-71 Videos (normal and shorts)
+            filters: [
+                'authors' => [$ident],
+                'limit' => $limit
+            ],
+            relaySet: $relaySet
+        );
+
+        // Process the response and return raw events
+        return $this->processResponse($request->send(), function($event) {
+            return $event; // Return the raw event
+        });
+    }
+
     public function getArticles(array $slugs): array
     {
         $articles = [];

@@ -280,4 +280,122 @@ readonly class RedisCacheService
             return false;
         }
     }
+
+    /**
+     * Get media events (pictures and videos) for a given npub with caching
+     *
+     * @param string $npub The author's npub
+     * @param int $limit Maximum number of events to fetch
+     * @return array Array of media events
+     */
+    public function getMediaEvents(string $npub, int $limit = 30): array
+    {
+        $cacheKey = 'media_' . $npub . '_' . $limit;
+        try {
+            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub, $limit) {
+                $item->expiresAfter(600); // 10 minutes cache for media events
+
+                try {
+                    // Use the optimized single-request method
+                    $mediaEvents = $this->nostrClient->getAllMediaEventsForPubkey($npub, $limit);
+
+                    // Deduplicate by event ID
+                    $uniqueEvents = [];
+                    foreach ($mediaEvents as $event) {
+                        if (!isset($uniqueEvents[$event->id])) {
+                            $uniqueEvents[$event->id] = $event;
+                        }
+                    }
+
+                    // Convert back to indexed array and sort by date (newest first)
+                    $mediaEvents = array_values($uniqueEvents);
+                    usort($mediaEvents, function ($a, $b) {
+                        return $b->created_at <=> $a->created_at;
+                    });
+
+                    return $mediaEvents;
+                } catch (\Exception $e) {
+                    $this->logger->error('Error getting media events.', ['exception' => $e, 'npub' => $npub]);
+                    return [];
+                }
+            });
+        } catch (InvalidArgumentException $e) {
+            $this->logger->error('Cache error getting media events.', ['exception' => $e]);
+            return [];
+        }
+    }
+
+    /**
+     * Get all media events for pagination (fetches large batch, caches, returns paginated)
+     *
+     * @param string $npub The author's npub
+     * @param int $page Page number (1-based)
+     * @param int $pageSize Number of items per page
+     * @return array ['events' => array, 'hasMore' => bool, 'total' => int]
+     */
+    public function getMediaEventsPaginated(string $npub, int $page = 1, int $pageSize = 60): array
+    {
+        // Cache key for all media events (not page-specific)
+        $cacheKey = 'media_all_' . $npub;
+
+        try {
+            // Fetch and cache all media events
+            $allMediaEvents = $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+                $item->expiresAfter(600); // 10 minutes cache
+
+                try {
+                    // Fetch a large batch to account for deduplication
+                    // Nostr relays are unstable, so we fetch more than we need
+                    $mediaEvents = $this->nostrClient->getAllMediaEventsForPubkey($npub, 200);
+
+                    // Deduplicate by event ID
+                    $uniqueEvents = [];
+                    foreach ($mediaEvents as $event) {
+                        if (!isset($uniqueEvents[$event->id])) {
+                            $uniqueEvents[$event->id] = $event;
+                        }
+                    }
+
+                    // Convert back to indexed array and sort by date (newest first)
+                    $mediaEvents = array_values($uniqueEvents);
+                    usort($mediaEvents, function ($a, $b) {
+                        return $b->created_at <=> $a->created_at;
+                    });
+
+                    return $mediaEvents;
+                } catch (\Exception $e) {
+                    $this->logger->error('Error getting media events.', ['exception' => $e, 'npub' => $npub]);
+                    return [];
+                }
+            });
+
+            // Perform pagination on cached results
+            $total = count($allMediaEvents);
+            $offset = ($page - 1) * $pageSize;
+
+            // Get the page slice
+            $pageEvents = array_slice($allMediaEvents, $offset, $pageSize);
+
+            // Check if there are more pages
+            $hasMore = ($offset + $pageSize) < $total;
+
+            return [
+                'events' => $pageEvents,
+                'hasMore' => $hasMore,
+                'total' => $total,
+                'page' => $page,
+                'pageSize' => $pageSize,
+            ];
+
+        } catch (InvalidArgumentException $e) {
+            $this->logger->error('Cache error getting paginated media events.', ['exception' => $e]);
+            return [
+                'events' => [],
+                'hasMore' => false,
+                'total' => 0,
+                'page' => $page,
+                'pageSize' => $pageSize,
+            ];
+        }
+    }
 }

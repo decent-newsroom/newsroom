@@ -12,6 +12,7 @@ use FOS\ElasticaBundle\Finder\FinderInterface;
 use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -25,47 +26,13 @@ class AuthorController extends AbstractController
     {
         $author = $redisCacheService->getMetadata($npub);
 
-        // Retrieve picture events (kind 20) for the author
-        try {
-            $pictureEvents = $nostrClient->getPictureEventsForPubkey($npub, 30);
-        } catch (Exception $e) {
-            $pictureEvents = [];
-        }
-
-        // Retrieve video shorts (kind 22) for the author
-        try {
-            $videoShorts = $nostrClient->getVideoShortsForPubkey($npub, 30);
-        } catch (Exception $e) {
-            $videoShorts = [];
-        }
-
-        // Retrieve normal videos (kind 21) for the author
-        try {
-            $normalVideos = $nostrClient->getNormalVideosForPubkey($npub, 30);
-        } catch (Exception $e) {
-            $normalVideos = [];
-        }
-
-        // Merge picture events, video shorts, and normal videos
-        $mediaEvents = array_merge($pictureEvents, $videoShorts, $normalVideos);
-
-        // Deduplicate by event ID
-        $uniqueEvents = [];
-        foreach ($mediaEvents as $event) {
-            if (!isset($uniqueEvents[$event->id])) {
-                $uniqueEvents[$event->id] = $event;
-            }
-        }
-
-        // Convert back to indexed array and sort by date (newest first)
-        $mediaEvents = array_values($uniqueEvents);
-        usort($mediaEvents, function ($a, $b) {
-            return $b->created_at <=> $a->created_at;
-        });
+        // Use paginated cached media events - fetches 200 from relays, serves first 24
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($npub, 1, 24);
+        $mediaEvents = $paginatedData['events'];
 
         // Encode event IDs as note1... for each event
         foreach ($mediaEvents as $event) {
-            $nip19 = new Nip19Helper(); // The NIP-19 helper class.
+            $nip19 = new Nip19Helper();
             $event->noteId = $nip19->encodeNote($event->id);
         }
 
@@ -73,7 +40,44 @@ class AuthorController extends AbstractController
             'author' => $author,
             'npub' => $npub,
             'pictureEvents' => $mediaEvents,
+            'hasMore' => $paginatedData['hasMore'],
+            'total' => $paginatedData['total'],
             'is_author_profile' => true,
+        ]);
+    }
+
+    /**
+     * AJAX endpoint to load more media events
+     */
+    #[Route('/p/{npub}/media/load-more', name: 'author-media-load-more', requirements: ['npub' => '^npub1.*'])]
+    public function mediaLoadMore($npub, Request $request, RedisCacheService $redisCacheService): Response
+    {
+        $page = $request->query->getInt('page', 2); // Default to page 2
+
+        // Get paginated data from cache - 24 items per page
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($npub, $page, 24);
+        $mediaEvents = $paginatedData['events'];
+
+        // Encode event IDs as note1... for each event
+        foreach ($mediaEvents as $event) {
+            $nip19 = new Nip19Helper();
+            $event->noteId = $nip19->encodeNote($event->id);
+        }
+
+        return $this->json([
+            'events' => array_map(function($event) {
+                return [
+                    'id' => $event->id,
+                    'noteId' => $event->noteId,
+                    'content' => $event->content ?? '',
+                    'created_at' => $event->created_at,
+                    'kind' => $event->kind,
+                    'tags' => $event->tags ?? [],
+                ];
+            }, $mediaEvents),
+            'hasMore' => $paginatedData['hasMore'],
+            'page' => $paginatedData['page'],
+            'total' => $paginatedData['total'],
         ]);
     }
 
