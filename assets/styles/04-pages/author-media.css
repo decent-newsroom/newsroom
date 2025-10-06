@@ -17,6 +17,7 @@
 .tab-link:hover {
     color: #333;
     border-bottom-color: #ccc;
+    text-decoration: none;
 }
 
 .tab-link.active {
@@ -77,7 +78,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(to top, var(--color-secondary) 0%, rgba(var(--color-secondary-rgb, 0, 100, 0), 0.8) 70%, transparent 100%);
+    background: var(--color-secondary);
     color: white;
     padding: 2rem 1rem 1rem;
     transform: translateY(100%);
