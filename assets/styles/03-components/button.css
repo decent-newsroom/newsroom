@@ -32,9 +32,22 @@ a.btn, a.btn:hover, a.btn:active {
     text-align: center;
 }
 
+.btn.btn-accent {
+    background-color: var(--color-accent-300);
+    border-color: var(--color-accent-300);
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.btn.btn-accent:hover {
+    border: 2px solid var(--color-secondary);
+    color: var(--color-secondary);
+    text-decoration: none;
+}
+
 .btn.btn-secondary {
     color: var(--color-secondary);
-    background-color: var(--color-bg);
+    background-color: var(--color-secondary);
     border: 2px solid var(--color-bg);
     text-decoration: none;
 }

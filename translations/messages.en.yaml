@@ -7,7 +7,7 @@ text:
 heading:
     roles: 'Roles'
     logout: 'Log out'
-    logIn: 'Log in'
+    logIn: 'Log in options'
     createNzine: 'Create an N-Zine'
     editNzine: 'Edit your N-Zine'
     search: 'Search'

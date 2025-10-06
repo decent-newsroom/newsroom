@@ -10,10 +10,9 @@
   {% else %}
     <div class="card">
       <div class="card-body" data-controller="login">
-        <h2 class="h5 mb-2">Browser Extension Login</h2>
-        <p class="text-muted small mb-3">Use your Nostr browser extension to authenticate.</p>
-        <button type="button" class="btn btn-primary" data-action="click->login#loginAct">Login with Nostr</button>
-        <p class="mt-3 small mb-0"><a href="{{ path('app_login_amber') }}">Need Amber / Bunker remote signer?</a></p>
+        <p class="text-muted small mb-3">Use your Nostr credentials to authenticate.</p>
+        <button class="btn btn--primary" data-action="click->login#loginAct">Login with Extension</button>
+        <a class="btn btn--primary" href="{{ path('app_login_signer') }}">Login with a remote signer</a>
       </div>
     </div>
   {% endif %}

@@ -34,8 +34,8 @@ class LoginController extends AbstractController
         return $this->render('login/index.html.twig', [ 'authenticated' => false ]);
     }
 
-    #[Route('/login/amber', name: 'app_login_amber', methods: ['GET'])]
-    public function amber(#[CurrentUser] ?User $user): Response
+    #[Route('/login/signer', name: 'app_login_signer', methods: ['GET'])]
+    public function signer(#[CurrentUser] ?User $user): Response
     {
         if (null !== $user) {
             return $this->redirectToRoute('newsstand');

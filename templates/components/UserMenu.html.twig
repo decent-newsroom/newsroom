@@ -28,7 +28,17 @@
         </ul>
     {% else %}
         <div class="mt-2">
-            <twig:Atoms:Button {{ ...stimulus_action('login', 'loginAct') }}>{{ 'heading.logIn'|trans }}</twig:Atoms:Button>
+                <span>
+                    {{ 'heading.logIn'|trans }}
+                </span>
+                <ul class="dropdown-menu">
+                    <li>
+                        <twig:Atoms:Button {{ ...stimulus_action('login', 'loginAct') }} tag="a" variant="accent">Extension</twig:Atoms:Button>
+                    </li>
+                    <li>
+                        <twig:Atoms:Button href="{{ path('app_login_signer') }}" tag="a" variant="accent">Signer</twig:Atoms:Button>
+                    </li>
+                </ul>
         </div>
     {% endif %}
     <div>
