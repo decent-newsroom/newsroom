@@ -17,6 +17,11 @@ final class Version20250927120000 extends AbstractMigration
         return 'Add database indexes to optimize magazine queries';
     }
 
+    public function isTransactional(): bool
+    {
+        return false;
+    }
+
     public function up(Schema $schema): void
     {
         // Add index on event.kind for efficient magazine event queries
