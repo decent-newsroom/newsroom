@@ -32,8 +32,8 @@ final class Version20250927120000 extends AbstractMigration
         $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_PUBKEY ON event (pubkey)');
 
         // Add GIN index on tags JSON column for efficient JSON queries
-        // Note: jsonb_ops is the default operator class for JSONB columns
-        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_TAGS_GIN ON event USING GIN (tags jsonb_ops)');
+        // Note: json_ops is the operator class for JSON columns
+        $this->addSql('CREATE INDEX IF NOT EXISTS IDX_EVENT_TAGS_GIN ON event USING GIN (tags json_ops)');
     }
 
     public function down(Schema $schema): void
