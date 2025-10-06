@@ -29,6 +29,7 @@ import './styles/03-components/spinner.css';
 import './styles/03-components/a2hs.css';
 import './styles/03-components/og.css';
 import './styles/03-components/nostr-previews.css';
+import './styles/03-components/nip05-badge.css';
 import './styles/03-components/picture-event.css';
 import './styles/03-components/search.css';
 import './styles/03-components/image-upload.css';

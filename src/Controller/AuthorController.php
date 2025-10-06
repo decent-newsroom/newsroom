@@ -66,6 +66,29 @@ class AuthorController extends AbstractController
     /**
      * @throws Exception
      */
+    #[Route('/p/{npub}/about', name: 'author-about', requirements: ['npub' => '^npub1.*'])]
+    public function about($npub, RedisCacheService $redisCacheService): Response
+    {
+        $keys = new Key();
+        $pubkey = $keys->convertToHex($npub);
+
+        // Get metadata with raw event for debugging
+        $profileData = $redisCacheService->getMetadataWithRawEvent($npub);
+        $author = $profileData['metadata'];
+        $rawEvent = $profileData['rawEvent'];
+
+        return $this->render('pages/author-about.html.twig', [
+            'author' => $author,
+            'npub' => $npub,
+            'pubkey' => $pubkey,
+            'rawEvent' => $rawEvent,
+            'is_author_profile' => true,
+        ]);
+    }
+
+    /**
+     * @throws Exception
+     */
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
     public function index($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService, FinderInterface $finder): Response
     {

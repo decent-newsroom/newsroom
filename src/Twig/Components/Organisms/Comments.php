@@ -85,6 +85,11 @@ final class Comments
             }
             $description = json_decode($descriptionJson);
 
+            // 2) If description has content, add it to the comment
+            if (!empty($description->content)) {
+                $comment->content = $description->content;
+            }
+
             // 3) Get amount: prefer explicit 'amount' tag (msat), fallback to BOLT11 invoice parsing
             $amountSats = null;
 

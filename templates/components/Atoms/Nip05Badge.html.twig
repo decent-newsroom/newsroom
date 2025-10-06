@@ -1,0 +1,8 @@
+<div {{ attributes }}>
+    {% if this.isVerified %}
+        <span class="nip05-badge verified"
+              title="Verified NIP-05 identifier{% if this.hasRelays() %} ({{ this.relays|length }} relay{{ this.relays|length > 1 ? 's' : '' }}){% endif %}">
+            <span class="nip05-identifier">{{ this.displayIdentifier }}</span>
+        </span>
+    {% endif %}
+</div>

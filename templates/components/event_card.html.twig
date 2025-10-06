@@ -7,9 +7,6 @@
             {% endif %}
             <div class="author-info">
                 <strong>{{ author.name ?? 'Anonymous' }}</strong>
-                {% if author.nip05 is defined %}
-                    <span class="nip05">{{ author.nip05 }}</span>
-                {% endif %}
             </div>
         {% endif %}
         <div class="event-meta">

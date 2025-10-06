@@ -34,22 +34,169 @@ readonly class RedisCacheService
             return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
                 try {
-                    $meta = $this->nostrClient->getNpubMetadata($npub);
+                    $rawEvent = $this->nostrClient->getNpubMetadata($npub);
                 } catch (\Exception $e) {
                     $this->logger->error('Error getting user data.', ['exception' => $e]);
-                    $meta = new \stdClass();
-                    $content = new \stdClass();
-                    $meta->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
-                    $meta->content = json_encode($content);
+                    $rawEvent = new \stdClass();
+                    $rawEvent->content = json_encode([
+                        'name' => substr($npub, 0, 8) . '…' . substr($npub, -4)
+                    ]);
+                    $rawEvent->tags = [];
                 }
-                $this->logger->info('Metadata:', ['meta' => json_encode($meta)]);
-                return json_decode($meta->content);
+
+                // Parse content as JSON
+                $contentData = json_decode($rawEvent->content ?? '{}');
+                if (!$contentData) {
+                    $contentData = new \stdClass();
+                }
+
+                // Fields that should be collected as arrays when multiple values exist
+                $arrayFields = ['nip05', 'lud16', 'lud06'];
+                $arrayCollectors = [];
+
+                // Parse tags and merge/override content data
+                // Common metadata tags: name, about, picture, banner, nip05, lud16, website, etc.
+                $tags = $rawEvent->tags ?? [];
+                foreach ($tags as $tag) {
+                    if (is_array($tag) && count($tag) >= 2) {
+                        $tagName = $tag[0];
+
+                        // Check if this field should be collected as an array
+                        if (in_array($tagName, $arrayFields)) {
+                            if (!isset($arrayCollectors[$tagName])) {
+                                $arrayCollectors[$tagName] = [];
+                            }
+                            // Collect all values from position 1 onwards (tag can have multiple values)
+                            for ($i = 1; $i < count($tag); $i++) {
+                                $arrayCollectors[$tagName][] = $tag[$i];
+                            }
+                        } else {
+                            // Override content field with tag value (first occurrence wins for non-array fields)
+                            // For non-array fields, only use the first value (tag[1])
+                            if (!isset($contentData->$tagName) && isset($tag[1])) {
+                                $contentData->$tagName = $tag[1];
+                            }
+                        }
+                    }
+                }
+
+                // Merge array collectors into content data
+                foreach ($arrayCollectors as $fieldName => $values) {
+                    // Remove duplicates
+                    $values = array_unique($values);
+                    $contentData->$fieldName = $values;
+                }
+
+                // If content had a single value for an array field but no tags, convert to array
+                foreach ($arrayFields as $fieldName) {
+                    if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
+                        $contentData->$fieldName = [$contentData->$fieldName];
+                    }
+                }
+
+                $this->logger->info('Metadata (with tags):', [
+                    'meta' => json_encode($contentData),
+                    'tags' => json_encode($tags)
+                ]);
+
+                return $contentData;
             });
         } catch (InvalidArgumentException $e) {
             $this->logger->error('Error getting user data.', ['exception' => $e]);
             $content = new \stdClass();
             $content->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
             return $content;
+        }
+    }
+
+    /**
+     * Get metadata with raw event for debugging purposes.
+     *
+     * @param string $npub
+     * @return array{metadata: \stdClass, rawEvent: \stdClass}
+     */
+    public function getMetadataWithRawEvent(string $npub): array
+    {
+        $cacheKey = '0_with_raw_' . $npub;
+        try {
+            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+                $item->expiresAfter(3600); // 1 hour, adjust as needed
+                try {
+                    $rawEvent = $this->nostrClient->getNpubMetadata($npub);
+                } catch (\Exception $e) {
+                    $this->logger->error('Error getting user data.', ['exception' => $e]);
+                    $rawEvent = new \stdClass();
+                    $rawEvent->content = json_encode([
+                        'name' => substr($npub, 0, 8) . '…' . substr($npub, -4)
+                    ]);
+                    $rawEvent->tags = [];
+                }
+
+                // Parse content as JSON
+                $contentData = json_decode($rawEvent->content ?? '{}');
+                if (!$contentData) {
+                    $contentData = new \stdClass();
+                }
+
+                // Fields that should be collected as arrays when multiple values exist
+                $arrayFields = ['nip05', 'lud16', 'lud06'];
+                $arrayCollectors = [];
+
+                // Parse tags and merge/override content data
+                $tags = $rawEvent->tags ?? [];
+                foreach ($tags as $tag) {
+                    if (is_array($tag) && count($tag) >= 2) {
+                        $tagName = $tag[0];
+
+                        // Check if this field should be collected as an array
+                        if (in_array($tagName, $arrayFields)) {
+                            if (!isset($arrayCollectors[$tagName])) {
+                                $arrayCollectors[$tagName] = [];
+                            }
+                            // Collect all values from position 1 onwards (tag can have multiple values)
+                            for ($i = 1; $i < count($tag); $i++) {
+                                $arrayCollectors[$tagName][] = $tag[$i];
+                            }
+                        } else {
+                            // Override content field with tag value (first occurrence wins for non-array fields)
+                            // For non-array fields, only use the first value (tag[1])
+                            if (!isset($contentData->$tagName) && isset($tag[1])) {
+                                $contentData->$tagName = $tag[1];
+                            }
+                        }
+                    }
+                }
+
+                // Merge array collectors into content data
+                foreach ($arrayCollectors as $fieldName => $values) {
+                    // Remove duplicates
+                    $values = array_unique($values);
+                    $contentData->$fieldName = $values;
+                }
+
+                // If content had a single value for an array field but no tags, convert to array
+                foreach ($arrayFields as $fieldName) {
+                    if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
+                        $contentData->$fieldName = [$contentData->$fieldName];
+                    }
+                }
+
+                return [
+                    'metadata' => $contentData,
+                    'rawEvent' => $rawEvent
+                ];
+            });
+        } catch (InvalidArgumentException $e) {
+            $this->logger->error('Error getting user data with raw event.', ['exception' => $e]);
+            $content = new \stdClass();
+            $content->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
+            $rawEvent = new \stdClass();
+            $rawEvent->content = json_encode($content);
+            $rawEvent->tags = [];
+            return [
+                'metadata' => $content,
+                'rawEvent' => $rawEvent
+            ];
         }
     }
 
