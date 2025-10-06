@@ -21,16 +21,16 @@ final class Version20251006135000 extends AbstractMigration
     {
         // this up() migration is auto-generated, please modify it to your needs
         $this->addSql(<<<'SQL'
-            DROP INDEX idx_article_slug
+            DROP INDEX IF EXISTS idx_article_slug
         SQL);
         $this->addSql(<<<'SQL'
-            DROP INDEX idx_3bae0aa7afece2eb
+            DROP INDEX IF EXISTS idx_3bae0aa7afece2eb
         SQL);
         $this->addSql(<<<'SQL'
-            DROP INDEX idx_event_kind_created
+            DROP INDEX IF EXISTS idx_event_kind_created
         SQL);
         $this->addSql(<<<'SQL'
-            DROP INDEX idx_event_pubkey
+            DROP INDEX IF EXISTS idx_event_pubkey
         SQL);
         $this->addSql(<<<'SQL'
             ALTER TABLE visit ADD session_id VARCHAR(255) DEFAULT NULL
