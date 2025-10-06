@@ -122,10 +122,6 @@
     white-space: nowrap;
 }
 /* NIP-68 Picture Event Styles */
-.picture-event {
-    margin: 1rem 0;
-}
-
 .picture-title {
     font-size: 1.5rem;
     margin-bottom: 1rem;

@@ -8,10 +8,6 @@
         {% endif %}
     {% endfor %}
 
-    {% if title %}
-        <h2 class="video-title">{{ title }}</h2>
-    {% endif %}
-
     {# Content warning #}
     {% set contentWarning = null %}
     {% for tag in event.tags %}
@@ -38,6 +34,7 @@
             {% set dimensions = null %}
             {% set altText = null %}
             {% set previewImage = null %}
+            {% set blurhash = null %}
             {% set fallbacks = [] %}
 
             {# Parse imeta tag parameters #}
@@ -51,6 +48,8 @@
                     {% endif %}
                 {% elseif param starts with 'image ' %}
                     {% set previewImage = param[6:] %}
+                {% elseif param starts with 'blurhash ' %}
+                    {% set blurhash = param[9:] %}
                 {% elseif param starts with 'm ' %}
                     {% set mimeType = param[2:] %}
                 {% elseif param starts with 'dim ' %}
@@ -71,6 +70,9 @@
                     <video controls
                            {% if previewImage %}poster="{{ previewImage }}"{% endif %}
                            {% if dimensions %}data-dimensions="{{ dimensions }}"{% endif %}
+                           {% if blurhash %}data-blurhash="{{ blurhash }}"{% endif %}
+                           {% if title %}title="{{ title }}"{% endif %}
+                           aria-label="{{ altText|default(title)|default('Video') }}"
                            class="video-player"
                            preload="metadata">
                         <source src="{{ videoUrl }}" {% if mimeType %}type="{{ mimeType }}"{% endif %} />
@@ -91,7 +93,7 @@
 
     {# Description from content #}
     {% if event.content %}
-        <div class="video-description mt-1">
+        <div class="video-description">
             <twig:Atoms:Content :content="event.content" />
         </div>
     {% endif %}
