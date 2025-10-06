@@ -1,0 +1,145 @@
+/**
+ * Typography Styles
+ * Base typography including headings, paragraphs, links, and text utilities
+ */
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    max-width: 100%;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-family), sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--heading-font), serif;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--color-primary);
+    margin: 30px 0 10px;
+}
+
+h1 {
+    font-size: 3.2rem;
+    margin-top: 0.25em;
+    font-weight: 300;
+}
+
+h1.brand {
+    font-family: var(--brand-font), serif;
+    color: var(--color-primary);
+    font-size: 3.2rem;
+}
+
+h1.brand a {
+    color: var(--brand-color);
+    text-decoration: none;
+}
+
+h1.brand a:hover {
+    text-decoration: none;
+}
+
+h1:not(.brand) > a:hover {
+    text-decoration: none;
+    font-weight: 500;
+}
+
+h2 {
+    font-size: 2.2rem;
+}
+
+h2.brand {
+    font-family: var(--brand-font), serif;
+    color: var(--color-primary);
+}
+
+h3 {
+    font-size: 2rem;
+}
+
+h4 {
+    font-size: 1.9rem;
+}
+
+h5 {
+    font-size: 1.75rem;
+}
+
+h6 {
+    font-size: 1.5rem;
+}
+
+/* Sidebar heading overrides */
+aside h1 {
+    font-size: 1.2rem;
+}
+
+aside h2 {
+    font-size: 1.1rem;
+}
+
+aside p.lede {
+    font-size: 1rem;
+}
+
+/* Paragraphs and text */
+p {
+    margin: 0 0 15px;
+}
+
+.lede {
+    font-family: var(--main-body-font), serif;
+    font-size: 1.6rem;
+    word-wrap: break-word;
+    font-weight: 300;
+}
+
+strong:not(>h2), .strong {
+    color: var(--color-primary);
+}
+
+/* Links */
+a {
+    color: var(--color-secondary);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Images and icons */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+svg.icon {
+    width: 2em;
+    height: 2em;
+}
+
+/* Utility classes */
+.hidden {
+    display: none;
+}
+
+.divider {
+    border: 2px solid var(--color-primary);
+    margin: 20px 0;
+}
+
+.truncate {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

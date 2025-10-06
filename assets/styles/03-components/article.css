@@ -1,17 +1,22 @@
+/**
+ * Article Component
+ * Article-specific styling (content, actions, metadata)
+ */
+
 .article-main {
-    margin-top: 30px;
+    margin-top: var(--spacing-5);
 }
 
 .article-main h2, .article-main h3,
 .article-main h4, .article-main h5, .article-main h6 {
-    margin-top: 2em;
+    margin-top: var(--spacing-5);
 }
 
 .article-actions {
     display: flex;
     justify-content: flex-start;
-    gap: 1rem;
-    margin: 1rem 0;
+    gap: var(--spacing-3);
+    margin: var(--spacing-3) 0;
 }
 
 .article-main p,
@@ -38,28 +43,28 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin: 2rem 0;
-    padding-top: 0.5rem;
+    margin: var(--spacing-5) 0;
+    padding-top: var(--spacing-2);
     border-top: 1px solid var(--color-border);
     font-size: 1rem;
 }
 
 blockquote {
     border-left: 6px solid var(--color-bg-light);
-    padding-left: 3px;
-    margin: 50px 0 50px 3px;
+    padding-left: var(--spacing-1);
+    margin: var(--spacing-6) 0 var(--spacing-6) var(--spacing-1);
 }
 
 blockquote p {
     font-size: 1.6rem;
     font-style: italic;
     color: var(--color-text-mid);
-    padding-left: 30px;
+    padding-left: var(--spacing-5);
 }
 
 .table-of-contents {
     border-left: var(--color-secondary) 6px solid;
-    margin: 2em 0;
+    margin: var(--spacing-5) 0;
 }
 
 .table-of-contents li {
@@ -70,7 +75,7 @@ blockquote p {
 .heading-permalink {
     float: left;
     padding-right: 0;
-    margin-left: -30px;
+    margin-left: calc(var(--spacing-5) * -1);
     line-height: 1.2;
     color: var(--color-secondary);
 }
@@ -110,4 +115,41 @@ blockquote p {
 
 .ql-snow .ql-tooltip.ql-image-tooltip::before {
     content: 'Image:';
+}
+
+/* Article tags/topics */
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin: var(--spacing-4) 0;
+}
+
+.tag {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    background-color: var(--color-primary);
+    color: var(--color-text-contrast);
+    border-radius: 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.tag:hover {
+    background-color: var(--color-secondary);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+/* Hashtag styling (for inline hashtags in content) */
+.hashtag {
+    color: var(--color-secondary);
+    font-weight: 500;
+}
+
+.hashtag:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
 }

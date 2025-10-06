@@ -13,6 +13,11 @@
         {% endif %}
     </div>
 
+    <div class="profile-tabs">
+        <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link active">Articles</a>
+        <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link">Media</a>
+    </div>
+
     <hr />
 
 {#    {% if relays|length > 0 %}#}

@@ -2,32 +2,32 @@
 
 {% block body %}
   <h1>Edit Index: {{ title }}</h1>
-  <div class="d-flex gap-4">
+  <div class="magazine-editor-layout">
     <!-- Left: Search articles -->
-    <section style="flex:1;min-width:320px;">
-      <form method="get" action="{{ path('admin_magazine_edit', {slug: slug}) }}" class="mb-3 d-flex gap-2">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search articles…" style="flex:1;">
+    <section class="magazine-editor-section">
+      <form method="get" action="{{ path('admin_magazine_edit', {slug: slug}) }}" class="magazine-search-form">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search articles…">
         <button class="btn btn-primary" type="submit">Search</button>
       </form>
 
       {% if q %}
-        <h3 class="mb-2">Results for “{{ q }}”</h3>
+        <h3 class="mb-2">Results for "{{ q }}"</h3>
         {% if results is empty %}
           <div class="text-muted">No results.</div>
         {% else %}
-          <table style="width:100%;border-collapse:collapse;">
+          <table class="magazine-table">
             <tbody>
             {% for article in results %}
               <tr>
-                <td style="padding:.25rem .5rem;vertical-align:top;">
+                <td>
                   📄 <a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a>
                   <div class="small text-muted">slug: {{ article.slug }}</div>
                 </td>
-                <td style="padding:.25rem .5rem;white-space:nowrap;vertical-align:top;">
+                <td class="author">
                   {% set pubkey = article.pubkey %}
                   <a href="{{ path('author-redirect', {pubkey: pubkey}) }}">{{ pubkey|slice(0,8) ~ '…' ~ pubkey|slice(-4) }}</a>
                 </td>
-                <td style="padding:.25rem .5rem;text-align:right;vertical-align:top;">
+                <td class="actions">
                   <form method="post" action="{{ path('admin_magazine_add_article', {slug: slug}) }}">
                     <input type="hidden" name="_token" value="{{ csrfToken }}">
                     <input type="hidden" name="article_slug" value="{{ article.slug }}">
@@ -45,16 +45,16 @@
     </section>
 
     <!-- Right: Current index contents -->
-    <section style="flex:1;min-width:320px;">
+    <section class="magazine-editor-section">
       <h3 class="mb-2">Current entries</h3>
       {% if current is empty %}
         <div class="text-muted">No entries yet.</div>
       {% else %}
-        <table style="width:100%;border-collapse:collapse;">
+        <table class="magazine-table">
           <tbody>
           {% for item in current %}
             <tr>
-              <td style="padding:.25rem .5rem;vertical-align:top;">
+              <td>
                 {% if item.kind == '30023' %}
                   📄 <a href="{{ path('article-slug', {slug: item.slug|url_encode}) }}">{{ item.slug }}</a>
                 {% elseif item.kind == '30040' %}
@@ -64,10 +64,10 @@
                 {% endif %}
                 <div class="small text-muted">coord: {{ item.coord }}</div>
               </td>
-              <td style="padding:.25rem .5rem;white-space:nowrap;vertical-align:top;">
+              <td class="author">
                 <a href="{{ path('author-redirect', {pubkey: item.pubkey}) }}">{{ item.pubkey|slice(0,8) ~ '…' ~ item.pubkey|slice(-4) }}</a>
               </td>
-              <td style="padding:.25rem .5rem;text-align:right;vertical-align:top;">
+              <td class="actions">
                 {% if item.kind == '30023' %}
                   <form method="post" action="{{ path('admin_magazine_remove_article', {slug: slug}) }}">
                     <input type="hidden" name="_token" value="{{ csrfToken }}">
@@ -84,4 +84,3 @@
     </section>
   </div>
 {% endblock %}
-

@@ -1,4 +1,9 @@
-/* Utility classes (plain CSS) - spacing, text, layout, alerts, etc. */
+/**
+ * Utility Classes
+ * Bootstrap-style utility classes for quick styling adjustments
+ * Note: For main loading spinners, use .lds-dual-ring from spinner.css
+ *       .spinner-border is for inline/button spinners
+ */
 
 /* Spacing scale: 0=0, 1=.25rem, 2=.5rem, 3=1rem, 4=1.5rem, 5=3rem */
 .m-0{margin:0!important}.m-1{margin:.25rem!important}.m-2{margin:.5rem!important}.m-3{margin:1rem!important}.m-4{margin:1.5rem!important}.m-5{margin:3rem!important}
@@ -9,13 +14,15 @@
 .mx-0{margin-left:0!important;margin-right:0!important}.mx-1{margin-left:.25rem!important;margin-right:.25rem!important}.mx-2{margin-left:.5rem!important;margin-right:.5rem!important}.mx-3{margin-left:1rem!important;margin-right:1rem!important}.mx-4{margin-left:1.5rem!important;margin-right:1.5rem!important}.mx-5{margin-left:3rem!important;margin-right:3rem!important}
 .my-0{margin-top:0!important;margin-bottom:0!important}.my-1{margin-top:.25rem!important;margin-bottom:.25rem!important}.my-2{margin-top:.5rem!important;margin-bottom:.5rem!important}.my-3{margin-top:1rem!important;margin-bottom:1rem!important}.my-4{margin-top:1.5rem!important;margin-bottom:1.5rem!important}.my-5{margin-top:3rem!important;margin-bottom:3rem!important}
 .mx-auto{margin-left:auto!important;margin-right:auto!important}
+
 /* Display & layout */
 .d-flex{display:flex!important;flex-direction:column}
 .d-inline{display:inline!important}
 .d-block{display:block!important}
 .gap-0{gap:0!important}.gap-1{gap:.25rem!important}.gap-2{gap:.5rem!important}.gap-3{gap:1rem!important}.gap-4{gap:1.5rem!important}.gap-5{gap:3rem!important}
 
-.flex-row{flex-direction:row} .flex-wrap{flex-wrap: wrap}
+.flex-row{flex-direction:row}
+.flex-wrap{flex-wrap: wrap}
 .justify-content-between{justify-content:space-between!important}
 .justify-content-center{justify-content:center!important}
 .align-items-center{align-items:center!important}
@@ -43,7 +50,7 @@
 /* Buttons - sizes only (base buttons defined elsewhere) */
 .btn.btn-sm{padding:.25rem .5rem;font-size:.875rem;line-height:1.25;border-radius:.2rem}
 
-/* Spinner (bootstrap-like) */
+/* Inline spinner (for buttons, etc.) */
 .spinner-border{display:inline-block;width:1.5rem;height:1.5rem;border:.2em solid currentColor;border-right-color:transparent;border-radius:50%;animation:spinner-border .75s linear infinite}
 .spinner-border-sm{width:1rem;height:1rem;border-width:.15em}
 @keyframes spinner-border{to{transform:rotate(360deg)}}
@@ -52,4 +59,4 @@
 details>summary{cursor:pointer}
 
 /* Text truncation with ellipsis */
-.line-clamp-5 {display: -webkit-box;-webkit-box-orient: vertical;-webkit-line-clamp: 5;overflow: hidden;text-overflow: ellipsis;}
+.line-clamp-5{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden;text-overflow:ellipsis}

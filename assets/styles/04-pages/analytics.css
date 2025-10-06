@@ -1,14 +1,14 @@
 .analytics-container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 20px;
+    padding: var(--spacing-4);
 }
 
 .analytics-card {
     background: lightgray;
     border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
@@ -18,7 +18,7 @@
 }
 
 .analytics-table th, .analytics-table td {
-    padding: 10px;
+    padding: var(--spacing-2);
     border-bottom: 1px solid var(--color-border);
 }
 

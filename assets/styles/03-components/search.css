@@ -1,0 +1,21 @@
+/* Search Component Styles */
+.search-component {
+    margin-bottom: 1rem;
+}
+
+.search-credits {
+    text-align: right;
+}
+
+.search-credits .help-text {
+    font-size: 0.875rem;
+}
+
+.search-loading {
+    text-align: center;
+}
+
+.search form {
+    margin-bottom: 1rem;
+}
+

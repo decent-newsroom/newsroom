@@ -18,9 +18,16 @@
                 <span class="event-date">{{ event.created_at|date('F j, Y - H:i') }}</span>
             </div>
         </div>
-        <div class="event-content">
-            <twig:Atoms:Content :content="event.content" />
-        </div>
+
+        {# NIP-68 Picture Event (kind 20) #}
+        {% if event.kind == 20 %}
+            {% include 'event/_kind20_picture.html.twig' %}
+        {% else %}
+            {# Regular event content for non-picture events #}
+            <div class="event-content">
+                <twig:Atoms:Content :content="event.content" />
+            </div>
+        {% endif %}
 
         {% if nostrLinks is defined and nostrLinks|length > 0 %}
         <div class="nostr-links">
@@ -37,6 +44,24 @@
         {% endif %}
 
         <div class="event-footer">
+            {# Source link from r tag #}
+            {% set sourceUrl = null %}
+            {% for tag in event.tags %}
+                {% if tag[0] == 'r' and tag[2] == 'source' %}
+                    {% set sourceUrl = tag[1] %}
+                {% endif %}
+            {% endfor %}
+
+            {% if sourceUrl %}
+                <div class="picture-source">
+                    <span class="source-label">Source:</span>
+                    <a href="{{ sourceUrl }}" target="_blank" rel="noopener noreferrer" class="source-link">
+                        {{ sourceUrl }}
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if is_granted('ROLE_ADMIN') %}
             <div class="event-tags">
                 {% if event.tags is defined and event.tags|length > 0 %}
                     <ul>
@@ -54,6 +79,7 @@
                     </ul>
                 {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -84,6 +110,163 @@
         line-height: 1.6;
     }
 
+    /* NIP-68 Picture Event Styles */
+    .picture-event {
+        padding: 1rem;
+    }
+
+    .picture-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+
+    .content-warning {
+        background-color: #fff3cd;
+        border: 2px solid #ffc107;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+
+    .btn-show-nsfw {
+        margin-top: 0.5rem;
+        padding: 0.5rem 1rem;
+        background-color: #ffc107;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .btn-show-nsfw:hover {
+        background-color: #e0a800;
+    }
+
+    .picture-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .picture-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: #f5f5f5;
+    }
+
+    .picture-image {
+        width: 100%;
+        height: auto;
+        display: block;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .annotated-users {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .user-tag {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        pointer-events: all;
+        cursor: pointer;
+        transform: translate(-50%, -50%);
+    }
+
+    .picture-alt {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    .picture-description {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        color: #333;
+    }
+
+    .picture-location {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        color: #555;
+        font-size: 0.95rem;
+    }
+
+    .location-icon {
+        font-size: 1.2rem;
+    }
+
+    .geohash {
+        background-color: #e9ecef;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        cursor: help;
+    }
+
+    .picture-hashtags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .hashtag {
+        background-color: #e7f3ff;
+        color: #0066cc;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .hashtag:hover {
+        background-color: #d0e7ff;
+    }
+
+    .picture-source {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .source-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .source-link {
+        color: #0066cc;
+        text-decoration: none;
+        word-break: break-all;
+    }
+
+    .source-link:hover {
+        text-decoration: underline;
+    }
+
     .nostr-links {
         margin: 1.5rem 0;
         padding: 1rem;
@@ -108,6 +291,7 @@
 
     .event-footer {
         display: flex;
+        flex-direction: column;
         justify-content: space-between;
         padding: 1rem;
         border-top: 1px solid #eee;
@@ -124,6 +308,23 @@
 
     .event-tags li, .event-references li {
         margin-bottom: 0.5rem;
+    }
+
+    .error {
+        color: #dc3545;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .picture-gallery {
+            grid-template-columns: 1fr;
+        }
+
+        .picture-title {
+            font-size: 1.5rem;
+        }
     }
 </style>
 {% endblock %}

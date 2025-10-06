@@ -1,9 +1,13 @@
+/**
+ * Button Component
+ * Primary button styles and variants
+ */
 
 button, .btn, a.btn {
     background-color: var(--color-primary);
     color: var(--color-text-contrast);
     border: 2px solid var(--color-primary);
-    padding: 10px 20px;
+    padding: var(--button-padding-y) var(--button-padding-x);
     text-transform: uppercase;
     font-weight: bold;
     cursor: pointer;

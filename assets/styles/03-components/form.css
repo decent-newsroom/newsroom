@@ -1,14 +1,19 @@
+/**
+ * Form Component
+ * Form input styles and layout
+ */
+
 form {
     display: flex;
     flex-direction: column;
     clear: both;
-    margin-bottom: 1em;
+    margin-bottom: var(--spacing-3);
 }
 
 form > div:not(.actions) {
     display: flex;
     flex-direction: column;
-    margin-bottom: 1.5em;
+    margin-bottom: var(--spacing-4);
 }
 
 label {
@@ -30,7 +35,7 @@ input, textarea, select, .quill {
 }
 
 input, textarea, select {
-    padding: 10px;
+    padding: var(--input-padding);
 }
 
 textarea, input, select {
@@ -65,7 +70,7 @@ input:focus, textarea:focus, select:focus {
 .image-with-preview img.avatar {
     width: 40px;
     height: 40px;
-    margin-right: 1em;
+    margin-right: var(--spacing-3);
 }
 
 .image-with-preview input {
@@ -86,7 +91,7 @@ fieldset {
 }
 
 .actions {
-    margin-bottom: 1.5em;
+    margin-bottom: var(--spacing-4);
 }
 
 form ul.list-unstyled li > div > label {

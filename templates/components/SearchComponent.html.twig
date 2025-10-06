@@ -15,7 +15,7 @@
                 ><twig:ux:icon name="iconoir:search" class="icon" /></button>
             </label>
             {% if is_granted('IS_AUTHENTICATED_FULLY') %}
-            <div style="text-align: right">
+            <div class="search-credits">
                 <small class="help-text">
                     <em>{{ 'credit.balance'|trans({'%count%': credits, 'count': credits}) }}</em>
                 </small>
@@ -38,7 +38,7 @@
         {% endif %}
 
         <!-- Loading Indicator -->
-            <div style="text-align: center">
+            <div class="search-loading">
                 <div class="spinner" data-loading>
                     <div class="lds-dual-ring"></div>
                 </div>

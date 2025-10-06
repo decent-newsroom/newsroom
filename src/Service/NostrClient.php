@@ -516,6 +516,36 @@ class NostrClient
         });
     }
 
+    /**
+     * Get picture events (kind 20) for a specific author
+     * @throws \Exception
+     */
+    public function getPictureEventsForPubkey(string $ident, int $limit = 20): array
+    {
+        // Add user relays to the default set
+        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+        // Create a RelaySet from the author's relays
+        $relaySet = $this->defaultRelaySet;
+        if (!empty($authorRelays)) {
+            $relaySet = $this->createRelaySet($authorRelays);
+        }
+
+        // Create request for kind 20 (picture events)
+        $request = $this->createNostrRequest(
+            kinds: [20], // NIP-68 Picture events
+            filters: [
+                'authors' => [$ident],
+                'limit' => $limit
+            ],
+            relaySet: $relaySet
+        );
+
+        // Process the response and return raw events
+        return $this->processResponse($request->send(), function($event) {
+            return $event; // Return the raw event
+        });
+    }
+
     public function getArticles(array $slugs): array
     {
         $articles = [];

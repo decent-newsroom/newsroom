@@ -29,7 +29,7 @@ nav, aside {
 }
 
 nav {
-    padding: 1em;
+    padding: var(--spacing-3);
     overflow-y: auto; /* Ensure the menu is scrollable if content is too long */
 }
 
@@ -47,7 +47,7 @@ nav ul {
 }
 
 nav li {
-    margin: 0.5em 0;
+    margin: var(--spacing-2) 0;
 }
 
 nav a {
@@ -77,7 +77,7 @@ main {
     flex-direction: column;
     margin-top: 90px;
     flex-grow: 1;
-    padding: 0 1em;
+    padding: 0 var(--spacing-3);
     word-break: break-word;
 }
 
@@ -94,7 +94,7 @@ main.static {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-3);
 }
 
 .user-menu {
@@ -240,17 +240,29 @@ footer {
     background-color: #333;
     color: white;
     text-align: center;
-    padding: 1em 0;
+    padding: var(--spacing-3) 0;
     position: relative;
     width: 100%;
 }
 
 footer .footer-links {
-    margin: 24px 0;
+    margin: var(--spacing-4) 0;
 }
 
-.search input {
-    flex-grow: 1;
+footer a {
+    color: var(--color-accent, #8FCB7E);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+footer a:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+footer p {
+    margin: var(--spacing-2) 0;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 nav > header, aside > header { /* prevent global header fixed rules applying to nested headers */

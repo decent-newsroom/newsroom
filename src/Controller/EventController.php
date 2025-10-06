@@ -24,7 +24,7 @@ class EventController extends AbstractController
     /**
      * @throws Exception
      */
-    #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^nevent1.*'])]
+    #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note)1.*'])]
     public function index($nevent, NostrClient $nostrClient, RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser, LoggerInterface $logger): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);

@@ -1,11 +1,17 @@
+/**
+ * Card Component
+ * Specific card implementations (price lists, comments, etc.)
+ * For shared card styles, see cards-shared.css
+ */
+
 h2.card-title {
-    margin-top: 10px;
+    margin-top: var(--spacing-2);
 }
 
 .price-list {
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: var(--spacing-4);
 }
 
 .price-list .card {
@@ -14,17 +20,24 @@ h2.card-title {
     justify-content: start;
     border: var(--color-primary) solid 1px;
     flex-grow: 1;
-    padding: 20px;
+    padding: var(--spacing-4);
     flex-basis: 300px;
 }
 
 .price-list .card .features {
-    list-style: none; padding: 0;
+    list-style: none;
+    padding: 0;
 }
 
-.price { font-size: 22px; font-weight: bold; color: var(--color-secondary); }
+.price {
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--color-secondary);
+}
 
-.price-list .card .features li { padding: 8px 0; }
+.price-list .card .features li {
+    padding: var(--spacing-2) 0;
+}
 
 .price-list .card button:last-child {
     margin-top: auto;
@@ -51,7 +64,7 @@ h2.card-title {
     display: flex;
     flex-direction: column;
     background-color: var(--color-bg-light);
-    padding: 10px;
+    padding: var(--spacing-2);
 }
 
 .card.comment.zap-comment {
@@ -62,7 +75,7 @@ h2.card-title {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-2);
 }
 
 .card.comment .metadata p {

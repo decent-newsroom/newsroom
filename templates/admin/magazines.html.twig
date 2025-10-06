@@ -27,30 +27,30 @@
                       </summary>
                       {% if cat.files is not empty %}
                         <div class="ms-3 mt-2">
-                          <table class="file-table" style="width:100%;border-collapse:collapse;">
+                          <table class="magazine-table">
                             <thead>
                               <tr>
-                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Article</th>
-                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Author</th>
-                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Date</th>
-                                <th style="padding:.25rem .5rem;text-align:left;border-bottom:1px solid #dee2e6;">Coordinate</th>
+                                <th>Article</th>
+                                <th>Author</th>
+                                <th>Date</th>
+                                <th>Coordinate</th>
                               </tr>
                             </thead>
                             <tbody>
                             {% for file in cat.files %}
                               <tr>
-                                <td style="padding:.25rem .5rem;vertical-align:top;">
+                                <td>
                                   📄 <a href="{{ path('article-slug', {slug: file.slug|url_encode}) }}">{{ file.name }}</a>
                                   <div class="small text-muted">slug: {{ file.slug }}</div>
                                 </td>
-                                <td style="padding:.25rem .5rem;vertical-align:top;white-space:nowrap;">
+                                <td class="author">
                                   {% if file.authorPubkey %}
                                     <twig:Molecules:UserFromNpub :ident="file.authorPubkey" />
                                   {% else %}
                                     <span class="text-muted">unknown author</span>
                                   {% endif %}
                                 </td>
-                                <td style="padding:.25rem .5rem;vertical-align:top;white-space:nowrap;">
+                                <td class="author">
                                   {% if file.date %}
                                     <span class="small text-muted">{{ file.date|date('M j, Y') }}</span>
                                     <div class="small text-muted">{{ file.date|date('H:i') }}</div>
@@ -58,7 +58,7 @@
                                     <span class="small text-muted">—</span>
                                   {% endif %}
                                 </td>
-                                <td class="small text-muted" style="padding:.25rem .5rem;vertical-align:top;">{{ file.coordinate }}</td>
+                                <td class="small text-muted">{{ file.coordinate }}</td>
                               </tr>
                             {% endfor %}
                             </tbody>

@@ -40,7 +40,7 @@
                 Upload Image
               </button>
 
-              <div data-image-upload-target="dialog" style="display:none;">
+              <div data-image-upload-target="dialog" class="iu-dialog">
                   <div class="iu-backdrop" data-action="click->image-upload#closeDialog"></div>
                   <div class="iu-modal">
                       <div class="modal-header">
@@ -48,7 +48,7 @@
                           <button type="button" class="close" data-action="click->image-upload#closeDialog">&times;</button>
                       </div>
                       <div class="modal-body">
-                          <div style="margin-bottom:1em;">
+                          <div>
                               <label for="upload-provider">Upload to</label>
                               <select id="upload-provider" data-image-upload-target="provider">
                                   <option value="sovbit">files.sovbit.host</option>
@@ -57,15 +57,13 @@
                               </select>
                           </div>
 
-                          <div data-image-upload-target="dropArea"
-                               class="upload-area"
-                               style="border:2px dashed #ccc;padding:2em;text-align:center;cursor:pointer;min-height:4em;">
+                          <div data-image-upload-target="dropArea" class="upload-area">
                               <span>Drag &amp; drop or click to select an image</span>
-                              <input type="file" accept="image/*" style="display:none;" data-image-upload-target="fileInput">
+                              <input type="file" accept="image/*" data-image-upload-target="fileInput">
                           </div>
 
-                          <div data-image-upload-target="progress" style="display:none;margin-top:1em;"></div>
-                          <div data-image-upload-target="error" style="color:red;margin-top:1em;"></div>
+                          <div data-image-upload-target="progress" class="upload-progress"></div>
+                          <div data-image-upload-target="error" class="upload-error"></div>
                       </div>
                   </div>
                  </div>

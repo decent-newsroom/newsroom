@@ -1,0 +1,13 @@
+/**
+ * Base Reset
+ * Minimal reset and base element styles
+ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}

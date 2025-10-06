@@ -1,0 +1,175 @@
+/**
+ * Header Component
+ * Main site header with navigation categories
+ */
+
+.header {
+    text-align: center;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.header .container {
+    display: flex;
+    flex-direction: column;
+}
+
+.header__categories ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    padding: 0;
+}
+
+.header__categories li {
+    list-style: none;
+}
+
+.header__categories li a:hover {
+    text-decoration: none;
+}
+/**
+ * Shared Card Styles
+ * Styles that are used across different card types in the app
+ */
+
+.card {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    padding: 0;
+    margin: 0 0 2rem 0;
+    border-radius: 0;  /* Sharp edges */
+}
+
+.card a:hover {
+    text-decoration: none;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.card a:hover h2 {
+    color: var(--color-text);
+}
+
+.card.bordered {
+    border: 2px solid var(--color-border);
+}
+
+.card-header {
+    margin: 10px 0;
+}
+
+.header__image {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.header__image::before {
+    content: "";
+    display: block;
+    padding-top: 56.25%; /* 16:9 aspect ratio */
+}
+
+.header__image img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-body {
+    font-size: 1rem;
+}
+
+.card-footer {
+    border-top: 1px solid var(--color-border);
+    margin: 20px 0;
+}
+
+/* Featured cards layout */
+.featured-cat {
+    border-bottom: 2px solid var(--color-border);
+    padding-left: 10px;
+}
+
+.featured-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.featured-list > * {
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    padding: 10px;
+}
+
+div:nth-child(odd) .featured-list {
+    flex-direction: row-reverse;
+}
+
+.featured-list div:first-child {
+    flex: 0 0 66%;
+}
+
+.featured-list div:last-child {
+    flex: 0 0 34%;
+}
+
+.featured-list h2.card-title {
+    font-size: 1.5rem;
+}
+
+.featured-list p.lede {
+    font-size: 1.4rem;
+}
+
+.featured-list .card {
+    margin-bottom: 20px;
+}
+
+.featured-list .card:not(:last-child) {
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Article list cards */
+.article-list .metadata {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.article-list .metadata p {
+    margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .featured-list {
+        flex-direction: column !important;
+    }
+
+    .featured-list .card-header {
+        margin-top: 20px;
+    }
+
+    .featured-list .card {
+        border-bottom: 1px solid var(--color-border) !important;
+    }
+
+    .featured-list > * {
+        margin-bottom: 10px;
+        padding: 0;
+    }
+}
+

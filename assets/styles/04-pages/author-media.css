@@ -1,0 +1,123 @@
+.profile-tabs {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-link {
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.3s ease;
+}
+
+.tab-link:hover {
+    color: #333;
+    border-bottom-color: #ccc;
+}
+
+.tab-link.active {
+    color: #0066cc;
+    border-bottom-color: #0066cc;
+    font-weight: 600;
+}
+
+.masonry-grid {
+    column-count: 3;
+    column-gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+@media (max-width: 1200px) {
+    .masonry-grid {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 768px) {
+    .masonry-grid {
+        column-count: 1;
+    }
+}
+
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.masonry-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.masonry-link, .masonry-link:hover {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.masonry-image-container {
+    width: 100%;
+    overflow: hidden;
+    background-color: #f5f5f5;
+}
+
+.masonry-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.masonry-item:hover .masonry-image {
+    transform: scale(1.05);
+}
+
+.masonry-caption {
+    padding: 1rem 1rem 0.5rem;
+}
+
+.masonry-caption h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    line-height: 1.4;
+}
+
+.masonry-description {
+    padding: 0 1rem;
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.5;
+}
+
+.masonry-meta {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #f0f0f0;
+    margin-top: 0.5rem;
+}
+
+.event-date {
+    font-size: 0.85rem;
+    color: #999;
+}
+
+.no-media {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+}
+
+.no-media p {
+    font-size: 1.1rem;
+}
+

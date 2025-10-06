@@ -10,12 +10,59 @@ use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use swentel\nostr\Key\Key;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 class AuthorController extends AbstractController
 {
+    /**
+     * @throws Exception
+     */
+    #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
+    public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService): Response
+    {
+        $keys = new Key();
+        $pubkey = $keys->convertToHex($npub);
+
+        $author = $redisCacheService->getMetadata($npub);
+
+        // Retrieve picture events (kind 20) for the author
+        try {
+            $pictureEvents = $nostrClient->getPictureEventsForPubkey($npub, 30);
+        } catch (Exception $e) {
+            $pictureEvents = [];
+        }
+
+        // Deduplicate by event ID
+        $uniqueEvents = [];
+        foreach ($pictureEvents as $event) {
+            if (!isset($uniqueEvents[$event->id])) {
+                $uniqueEvents[$event->id] = $event;
+            }
+        }
+
+        // Convert back to indexed array and sort by date (newest first)
+        $pictureEvents = array_values($uniqueEvents);
+        usort($pictureEvents, function ($a, $b) {
+            return $b->created_at <=> $a->created_at;
+        });
+
+        // Encode event IDs as note1... for each event
+        foreach ($pictureEvents as $event) {
+            $nip19 = new Nip19Helper(); // The NIP-19 helper class.
+            $event->noteId = $nip19->encodeNote($event->id);
+        }
+
+        return $this->render('pages/author-media.html.twig', [
+            'author' => $author,
+            'npub' => $npub,
+            'pictureEvents' => $pictureEvents,
+            'is_author_profile' => true,
+        ]);
+    }
+
     /**
      * @throws Exception
      */

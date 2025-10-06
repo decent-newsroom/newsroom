@@ -1,0 +1,92 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+
+    {% if author.image is defined %}
+        <img src="{{ author.image }}" class="avatar" alt="{{ author.name }}" onerror="this.style.display = 'none'" />
+    {% endif %}
+
+    <h1><twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub></h1>
+    <div>
+        {% if author.about is defined %}
+            {{ author.about|markdown_to_html|mentionify|linkify  }}
+        {% endif %}
+    </div>
+
+    <div class="profile-tabs">
+        <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link">Articles</a>
+        <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link active">Media</a>
+    </div>
+
+    <hr />
+
+    <div class="w-container">
+        {% if pictureEvents|length > 0 %}
+            <div class="masonry-grid">
+                {% for event in pictureEvents %}
+                    <div class="masonry-item">
+                        {# Extract title #}
+                        {% set title = null %}
+                        {% for tag in event.tags %}
+                            {% if tag[0] == 'title' %}
+                                {% set title = tag[1] %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Extract first image from imeta tags #}
+                        {% set firstImageUrl = null %}
+                        {% set imageAlt = null %}
+                        {% for tag in event.tags %}
+                            {% if tag[0] == 'imeta' and firstImageUrl is null %}
+                                {% for i in 1..(tag|length - 1) %}
+                                    {% set param = tag[i] %}
+                                    {% if param starts with 'url ' and firstImageUrl is null %}
+                                        {% set firstImageUrl = param[4:] %}
+                                    {% elseif param starts with 'alt ' %}
+                                        {% set imageAlt = param[4:] %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Generate nevent for linking #}
+                        {% set eventId = event.id %}
+                        {% set noteId = event.noteId %}
+
+                        <a href="/e/{{ noteId }}" class="masonry-link">
+                            {% if firstImageUrl %}
+                                <div class="masonry-image-container">
+                                    <img src="{{ firstImageUrl }}"
+                                         alt="{{ imageAlt|default(title|default('Picture')) }}"
+                                         class="masonry-image"
+                                         loading="lazy" />
+                                </div>
+                            {% endif %}
+
+                            {% if title %}
+                                <div class="masonry-caption">
+                                    <h3>{{ title }}</h3>
+                                </div>
+                            {% endif %}
+
+                            {% if event.content %}
+                                <div class="masonry-description mt-1">
+                                    {{ event.content|length > 100 ? event.content[:100] ~ '...' : event.content }}
+                                </div>
+                            {% endif %}
+
+                            <div class="masonry-meta">
+                                <span class="event-date">{{ event.created_at|date('M j, Y') }}</span>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-media">
+                <p>No media found for this author.</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
