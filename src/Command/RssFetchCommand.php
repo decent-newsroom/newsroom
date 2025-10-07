@@ -347,6 +347,14 @@ class RssFetchCommand extends Command
                 $existing->setPublishedAt($item['pubDate']);
             }
 
+            // Extract and set image from tags
+            foreach ($eventObject->tags as $tag) {
+                if ($tag[0] === 'image' && isset($tag[1])) {
+                    $existing->setImage($tag[1]);
+                    break;
+                }
+            }
+
             // Extract and set summary from tags (now with HTML stripped)
             foreach ($eventObject->tags as $tag) {
                 if ($tag[0] === 'summary' && isset($tag[1])) {

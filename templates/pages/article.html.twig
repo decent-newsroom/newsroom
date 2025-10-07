@@ -32,7 +32,7 @@
         {% endif %}
     </div>
 
-    <div class="w-container">
+    <article class="w-container">
         <div class="card">
             <div class="card-header">
                 <h1 class="card-title">{{ article.title }}</h1>
@@ -83,7 +83,7 @@
         </div>
 
         <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
-    </div>
+    </article>
 {% endblock %}
 
 {% block aside %}

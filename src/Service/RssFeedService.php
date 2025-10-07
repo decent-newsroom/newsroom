@@ -121,6 +121,21 @@ class RssFeedService
             }
         }
 
+        // Extract image from media:content
+        $imageUrl = null;
+        if (isset($namespaces['media'])) {
+            $mediaChildren = $item->children($namespaces['media']);
+            if (isset($mediaChildren->content)) {
+                foreach ($mediaChildren->content as $mediaContent) {
+                    $medium = (string) $mediaContent['medium'];
+                    if ($medium === 'image' || empty($medium)) {
+                        $imageUrl = (string) $mediaContent['url'];
+                        break;
+                    }
+                }
+            }
+        }
+
         // Parse publication date
         $pubDate = null;
         if (isset($item->pubDate)) {
@@ -135,6 +150,7 @@ class RssFeedService
             'content' => $content,
             'categories' => $categories,
             'guid' => (string) ($item->guid ?? ''),
+            'image' => $imageUrl,
         ];
     }
 
@@ -186,4 +202,3 @@ class RssFeedService
         ];
     }
 }
-

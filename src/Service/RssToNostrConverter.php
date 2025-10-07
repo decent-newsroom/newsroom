@@ -51,14 +51,8 @@ class RssToNostrConverter
         $event = new Event();
         $event->setKind(KindsEnum::LONGFORM->value);
 
-        // Set content
+        // Set content (without appending the link)
         $content = $rssItem['content'] ?? $rssItem['description'] ?? '';
-
-        // If we have both content and link, append a reference
-        if (!empty($rssItem['link'])) {
-            $content .= "\n\n---\n\nOriginal article: " . $rssItem['link'];
-        }
-
         $event->setContent($content);
 
         // Generate unique slug from title and timestamp
@@ -76,6 +70,11 @@ class RssToNostrConverter
             $event->addTag(['summary', $summary]);
         }
 
+        // Add image tag if available
+        if (!empty($rssItem['image'])) {
+            $event->addTag(['image', $rssItem['image']]);
+        }
+
         // Add published_at tag
         if ($rssItem['pubDate'] instanceof \DateTimeImmutable) {
             $event->addTag(['published_at', (string) $rssItem['pubDate']->getTimestamp()]);
@@ -86,7 +85,12 @@ class RssToNostrConverter
             $event->addTag(['t', $matchedCategory['slug']]);
         }
 
-        // Add reference to original URL
+        // Add source tag for original article URL
+        if (!empty($rssItem['link'])) {
+            $event->addTag(['source', $rssItem['link']]);
+        }
+
+        // Add reference to original URL (r tag for generic reference)
         if (!empty($rssItem['link'])) {
             $event->addTag(['r', $rssItem['link']]);
         }
