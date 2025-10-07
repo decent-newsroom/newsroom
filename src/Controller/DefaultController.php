@@ -50,22 +50,31 @@ class DefaultController extends AbstractController
      * @throws Exception
      */
     #[Route('/latest-articles', name: 'latest_articles')]
-    public function latestArticles(FinderInterface $finder): Response
+    public function latestArticles(FinderInterface $finder, CacheItemPoolInterface $articlesCache): Response
     {
-        // Query all articles and sort by created_at descending
-        $query = new Query();
-        $query->setSize(50);
-        $query->setSort(['createdAt' => ['order' => 'desc']]);
+        $cacheKey = 'latest_articles_list';
+        $cacheItem = $articlesCache->getItem($cacheKey);
 
-        // Use collapse to deduplicate by slug field
-        $collapse = new Collapse();
-        $collapse->setFieldname('slug');
-        $query->setCollapse($collapse);
+        if (!$cacheItem->isHit()) {
+            // Query all articles and sort by created_at descending
+            $query = new Query();
+            $query->setSize(50);
+            $query->setSort(['createdAt' => ['order' => 'desc']]);
 
-        $articles = $finder->find($query);
+            // Use collapse to deduplicate by slug field
+            $collapse = new Collapse();
+            $collapse->setFieldname('slug');
+            $query->setCollapse($collapse);
+
+            $articles = $finder->find($query);
+
+            $cacheItem->set($articles);
+            $cacheItem->expiresAfter(300); // Cache for 5 minutes
+            $articlesCache->save($cacheItem);
+        }
 
         return $this->render('pages/latest-articles.html.twig', [
-            'articles' => $articles,
+            'articles' => $cacheItem->get(),
         ]);
     }
 
