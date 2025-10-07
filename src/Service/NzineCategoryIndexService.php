@@ -84,12 +84,13 @@ class NzineCategoryIndexService
             }
 
             $title = $category['title'];
-            $slug = !empty($category['slug'])
-                ? $category['slug']
-                : $slugger->slug($title)->lower()->toString();
+            $slug =  $category['slug'];
 
             // Check if category index already exists
             if (isset($existingBySlug[$slug])) {
+                // FIX: Add existing index to return array
+                $categoryIndices[$slug] = $existingBySlug[$slug];
+
                 $this->logger->debug('Using existing category index', [
                     'category_slug' => $slug,
                     'title' => $title,
@@ -137,6 +138,7 @@ class NzineCategoryIndexService
         $this->logger->info('Category indices ready', [
             'nzine_id' => $nzine->getId(),
             'total_categories' => count($categories),
+            'total_indices_returned' => count($categoryIndices),
             'indexed_by_slug' => array_keys($categoryIndices),
         ]);
 
@@ -158,19 +160,25 @@ class NzineCategoryIndexService
 
     /**
      * Add an article to a category index
+     * Creates a new signed event with the article added to the existing tags
      *
      * @param EventEntity $categoryIndex The category index event
      * @param string $articleCoordinate The article coordinate (kind:pubkey:slug)
      * @param Nzine $nzine The nzine entity (needed for signing)
+     * @return EventEntity The new category index event (with updated article list)
      */
-    public function addArticleToCategoryIndex(EventEntity $categoryIndex, string $articleCoordinate, Nzine $nzine): void
+    public function addArticleToCategoryIndex(EventEntity $categoryIndex, string $articleCoordinate, Nzine $nzine): EventEntity
     {
         // Check if article already exists in the index
-        $tags = $categoryIndex->getTags();
-        foreach ($tags as $tag) {
+        $existingTags = $categoryIndex->getTags();
+        foreach ($existingTags as $tag) {
             if ($tag[0] === 'a' && isset($tag[1]) && $tag[1] === $articleCoordinate) {
-                // Article already in index
-                return;
+                // Article already in index, return existing event
+                $this->logger->debug('Article already in category index', [
+                    'article_coordinate' => $articleCoordinate,
+                    'event_id' => $categoryIndex->getId(),
+                ]);
+                return $categoryIndex;
             }
         }
 
@@ -187,42 +195,43 @@ class NzineCategoryIndexService
             throw new \RuntimeException('Cannot sign category index: bot private key not found');
         }
 
-        // Add article coordinate to tags
-        $tags[] = ['a', $articleCoordinate];
-
-        // Create a new Event object with updated tags
+        // Create a new Event object with ALL existing tags PLUS the new article tag
         $event = new Event();
         $event->setKind($categoryIndex->getKind());
         $event->setContent($categoryIndex->getContent() ?? '');
         $event->setPublicKey($categoryIndex->getPubkey());
 
-        // Add all tags including the new article coordinate
-        foreach ($tags as $tag) {
+        // Add ALL existing tags first
+        foreach ($existingTags as $tag) {
             $event->addTag($tag);
         }
+
+        // Add the new article coordinate tag
+        $event->addTag(['a', $articleCoordinate]);
 
         // Sign the event with current timestamp
         $signer = new Sign();
         $signer->signEvent($event, $privateKey);
 
-        // Convert to JSON and back to get all properties including sig
-        $eventJson = $event->toJson();
-        $eventData = json_decode($eventJson, true);
+        // Convert to JSON and deserialize to NEW EventEntity
+        $serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
+        $newEventEntity = $serializer->deserialize($event->toJson(), EventEntity::class, 'json');
 
-        // Update the EventEntity with new tags, signature, ID, and timestamp
-        $categoryIndex->setTags($tags);
-        $categoryIndex->setSig($eventData['sig']);
-        $categoryIndex->setId($eventData['id']);
-        $categoryIndex->setEventId($eventData['id']);
-        $categoryIndex->setCreatedAt($eventData['created_at']);
+        // Persist the NEW event entity
+        $this->entityManager->persist($newEventEntity);
 
-        $this->entityManager->persist($categoryIndex);
+        $articleCount = count(array_filter($newEventEntity->getTags(), fn($tag) => $tag[0] === 'a'));
 
-        $this->logger->debug('Added article to category index and re-signed', [
-            'category_slug' => $this->extractSlugFromTags($tags),
+        $this->logger->debug('Created new category index event with article added', [
+            'category_slug' => $this->extractSlugFromTags($newEventEntity->getTags()),
             'article_coordinate' => $articleCoordinate,
-            'event_id' => $eventData['id'],
+            'old_event_id' => $categoryIndex->getId(),
+            'new_event_id' => $newEventEntity->getId(),
+            'total_tags' => count($newEventEntity->getTags()),
+            'article_count' => $articleCount,
         ]);
+
+        return $newEventEntity;
     }
 
     /**
@@ -272,25 +281,20 @@ class NzineCategoryIndexService
                     $event->addTag($tag);
                 }
 
-                // Sign the event with current timestamp
+                // Sign the event with current timestamp (creates new ID)
                 $signer->signEvent($event, $privateKey);
 
-                // Convert to JSON and back to get all properties including sig
-                $eventJson = $event->toJson();
-                $eventData = json_decode($eventJson, true);
+                // Deserialize to a NEW EventEntity (not updating the old one)
+                $newEventEntity = $serializer->deserialize($event->toJson(), EventEntity::class, 'json');
 
-                // Update the EventEntity with new signature and timestamp
-                $categoryIndex->setSig($eventData['sig']);
-                $categoryIndex->setId($eventData['id']);
-                $categoryIndex->setEventId($eventData['id']);
-                $categoryIndex->setCreatedAt($eventData['created_at']);
+                // Persist the NEW event entity
+                $this->entityManager->persist($newEventEntity);
 
-                $this->entityManager->persist($categoryIndex);
-
-                $this->logger->info('Re-signed category index', [
+                $this->logger->info('Created new category index event (re-signed)', [
                     'category_slug' => $slug,
-                    'event_id' => $eventData['id'],
-                    'article_count' => count(array_filter($categoryIndex->getTags(), fn($tag) => $tag[0] === 'a')),
+                    'old_event_id' => $categoryIndex->getId(),
+                    'new_event_id' => $newEventEntity->getId(),
+                    'article_count' => count(array_filter($newEventEntity->getTags(), fn($tag) => $tag[0] === 'a')),
                 ]);
             } catch (\Exception $e) {
                 $this->logger->error('Failed to re-sign category index', [
@@ -302,7 +306,7 @@ class NzineCategoryIndexService
 
         $this->entityManager->flush();
 
-        $this->logger->info('Category indices re-signed', [
+        $this->logger->info('Category indices re-signed and new events created', [
             'nzine_id' => $nzine->getId(),
             'count' => count($categoryIndices),
         ]);

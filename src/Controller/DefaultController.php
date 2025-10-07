@@ -49,6 +49,29 @@ class DefaultController extends AbstractController
     /**
      * @throws Exception
      */
+    #[Route('/latest-articles', name: 'latest_articles')]
+    public function latestArticles(FinderInterface $finder): Response
+    {
+        // Query all articles and sort by created_at descending
+        $query = new Query();
+        $query->setSize(50);
+        $query->setSort(['createdAt' => ['order' => 'desc']]);
+
+        // Use collapse to deduplicate by slug field
+        $collapse = new Collapse();
+        $collapse->setFieldname('slug');
+        $query->setCollapse($collapse);
+
+        $articles = $finder->find($query);
+
+        return $this->render('pages/latest-articles.html.twig', [
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * @throws Exception
+     */
     #[Route('/lists', name: 'lists')]
     public function lists(): Response
     {

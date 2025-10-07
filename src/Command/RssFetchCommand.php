@@ -401,6 +401,18 @@ class RssFetchCommand extends Command
             // Don't return - continue processing without a category
         }
 
+        // Ensure matched category has a slug field
+        if ($matchedCategory && empty($matchedCategory['slug'])) {
+            // Generate slug from title if not present
+            $slugger = new \Symfony\Component\String\Slugger\AsciiSlugger();
+            $matchedCategory['slug'] = $slugger->slug($matchedCategory['title'] ?? $matchedCategory['name'] ?? '')->lower()->toString();
+
+            $this->logger->debug('Generated slug for matched category', [
+                'category_title' => $matchedCategory['title'] ?? $matchedCategory['name'] ?? 'unknown',
+                'generated_slug' => $matchedCategory['slug'],
+            ]);
+        }
+
         if ($isDryRun) {
             $categoryLabel = $matchedCategory
                 ? ($matchedCategory['name'] ?? $matchedCategory['title'] ?? $matchedCategory['slug'] ?? 'unknown')
@@ -467,11 +479,16 @@ class RssFetchCommand extends Command
                 );
 
                 try {
-                    $this->categoryIndexService->addArticleToCategoryIndex(
+                    // addArticleToCategoryIndex now returns a NEW event entity
+                    $updatedCategoryIndex = $this->categoryIndexService->addArticleToCategoryIndex(
                         $categoryIndices[$categorySlug],
                         $articleCoordinate,
                         $nzine
                     );
+
+                    // Update the reference in the array to point to the new event
+                    $categoryIndices[$categorySlug] = $updatedCategoryIndex;
+
                     // Flush to ensure the category index is saved to the database
                     $this->entityManager->flush();
 

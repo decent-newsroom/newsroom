@@ -12,6 +12,9 @@
                         <a href="{{ path('newsstand') }}">Newsstand</a>
                     </li>
                     <li>
+                        <a href="{{ path('latest_articles') }}">Latest articles</a>
+                    </li>
+                    <li>
                         <a href="{{ path('reading_list_index') }}">Reading Lists</a>
                     </li>
                     {% if is_granted('ROLE_ADMIN') %}
