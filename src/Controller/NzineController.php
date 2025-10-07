@@ -302,20 +302,20 @@ class NzineController extends AbstractController
     }
 
 
-    #[Route('/nzine/v/{npub}', name: 'nzine_view')]
-    public function nzineView($npub, EntityManagerInterface $entityManager): Response
+    #[Route('/nzine/v/{pubkey}', name: 'nzine_view')]
+    public function nzineView($pubkey, EntityManagerInterface $entityManager): Response
     {
-        $nzine = $entityManager->getRepository(Nzine::class)->findOneBy(['npub' => $npub]);
+        $nzine = $entityManager->getRepository(Nzine::class)->findOneBy(['npub' => $pubkey]);
         if (!$nzine) {
             throw $this->createNotFoundException('N-Zine not found');
         }
         // Find all index events for this nzine
-        $indices = $entityManager->getRepository(EventEntity::class)->findBy(['pubkey' => $npub, 'kind' => KindsEnum::PUBLICATION_INDEX]);
+        $indices = $entityManager->getRepository(EventEntity::class)->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX]);
         $mainIndexCandidates = array_filter($indices, function ($index) use ($nzine) {
             return $index->getSlug() == $nzine->getSlug();
         });
 
-        dump($indices);die();
+        dump($indices, $mainIndexCandidates);die();
 
         $mainIndex = array_pop($mainIndexCandidates);
 

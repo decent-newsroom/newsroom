@@ -30,7 +30,7 @@
                 <div class="d-flex flex-row gap-2">
                   <a class="btn btn-sm btn-primary" href="{{ path('nzine_edit', { npub: nzine.npub }) }}">Edit</a>
                   {% if nzine.hasMainIndex %}
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('nzine_view', { npub: nzine.npub }) }}">View</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ path('nzine_view', { pubkey: nzine.npub }) }}">View</a>
                   {% else %}
                     <span class="btn btn-sm btn-outline-secondary disabled" title="Publish the NZine first">View</span>
                   {% endif %}

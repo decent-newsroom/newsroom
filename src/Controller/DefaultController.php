@@ -60,10 +60,26 @@ class DefaultController extends AbstractController
      * @throws InvalidArgumentException
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
-    public function magIndex(string $mag, RedisCacheService $redisCache) : Response
+    public function magIndex(string $mag, EntityManagerInterface $entityManager) : Response
     {
-        // redis cache lookup of magazine index by slug
-        $magazine = $redisCache->getMagazineIndex($mag);
+        // Get latest magazine index by slug from database
+        $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+
+        // Filter by slug
+        $nzines = array_filter($nzines, function ($index) use ($mag) {
+            return $index->getSlug() === $mag;
+        });
+
+        if (count($nzines) === 0) {
+            throw $this->createNotFoundException('Magazine not found');
+        }
+
+        // Sort by createdAt, keep newest
+        usort($nzines, function ($a, $b) {
+            return $b->getCreatedAt() <=> $a->getCreatedAt();
+        });
+
+        $magazine = array_shift($nzines);
 
         return $this->render('magazine/magazine-front.html.twig', [
             'magazine' => $magazine,
@@ -197,9 +213,15 @@ class DefaultController extends AbstractController
             }
         }
 
-        // Create a simple stdClass object with the tags for template compatibility
-        $catIndex = new \stdClass();
-        $catIndex->tags = $tags;
+        // Create a proper Event object for template compatibility
+        $catIndex = new \swentel\nostr\Event\Event();
+        $catIndex->setId($eventData['id']);
+        $catIndex->setPublicKey($eventData['pubkey']);
+        $catIndex->setCreatedAt($eventData['created_at']);
+        $catIndex->setKind($eventData['kind']);
+        $catIndex->setTags($tags);
+        $catIndex->setContent($eventData['content']);
+        $catIndex->setSignature($eventData['sig']);
 
         return $this->render('pages/category.html.twig', [
             'mag' => $mag,

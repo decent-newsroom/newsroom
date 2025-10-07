@@ -461,9 +461,17 @@ class RssFetchCommand extends Command
                 try {
                     $this->categoryIndexService->addArticleToCategoryIndex(
                         $categoryIndices[$categorySlug],
-                        $articleCoordinate
+                        $articleCoordinate,
+                        $nzine
                     );
+                    // Flush to ensure the category index is saved to the database
                     $this->entityManager->flush();
+
+                    $this->logger->debug('Added article to category index', [
+                        'article_slug' => $article->getSlug(),
+                        'category_slug' => $categorySlug,
+                        'coordinate' => $articleCoordinate,
+                    ]);
                 } catch (\Exception $e) {
                     $this->logger->warning('Failed to add article to category index', [
                         'article_slug' => $article->getSlug(),
@@ -471,6 +479,11 @@ class RssFetchCommand extends Command
                         'error' => $e->getMessage(),
                     ]);
                 }
+            } else {
+                $this->logger->warning('Category index not found for matched category', [
+                    'category_slug' => $categorySlug,
+                    'available_indices' => array_keys($categoryIndices),
+                ]);
             }
         }
 

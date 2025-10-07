@@ -3,7 +3,6 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Entity\Event;
-use App\Entity\Nzine;
 use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
@@ -23,7 +22,7 @@ final class ZineList
         $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
 
         // filter, only keep type === magazine
-        $this->nzines = array_filter($nzines, function ($index) {
+        $filtered = array_filter($nzines, function ($index) {
             // look for tags
             $tags = $index->getTags();
             $isMagType = false;
@@ -46,6 +45,15 @@ final class ZineList
             return $isMagType && $isTopLevel;
         });
 
+        // Deduplicate by slug
+        $uniqueNzines = [];
+        foreach ($filtered as $nzine) {
+            $slug = $nzine->getSlug();
+            if ($slug !== null) {
+                $uniqueNzines[$slug] = $nzine;
+            }
+        }
 
+        $this->nzines = array_values($uniqueNzines);
     }
 }
