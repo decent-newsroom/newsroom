@@ -2,12 +2,10 @@
 
 namespace App\Twig\Components\Organisms;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Query;
 use Elastica\Query\Terms;
 use FOS\ElasticaBundle\Finder\FinderInterface;
-use Psr\Cache\InvalidArgumentException;
-use swentel\nostr\Event\Event;
-use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -20,25 +18,39 @@ final class FeaturedList
     public array $list = [];
 
     public function __construct(
-        private readonly CacheInterface $redisCache,
+        private readonly EntityManagerInterface $entityManager,
         private readonly FinderInterface $finder)
     {
     }
 
     /**
-     * @throws InvalidArgumentException
      * @throws \Exception
      */
     public function mount($category): void
     {
         $parts = explode(':', $category[1]);
-        /** @var Event $catIndex */
-        $catIndex = $this->redisCache->get('magazine-' . $parts[2], function (){
-            throw new \Exception('Not found');
-        });
+        $categorySlug = $parts[2] ?? '';
+
+        // Query the database for the category event by slug using native SQL
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                LIMIT 1";
+
+        $conn = $this->entityManager->getConnection();
+        $result = $conn->executeQuery($sql, [
+            json_encode([['d', $categorySlug]])
+        ]);
+
+        $eventData = $result->fetchAssociative();
+
+        if ($eventData === false) {
+            return;
+        }
+
+        $tags = json_decode($eventData['tags'], true);
 
         $slugs = [];
-        foreach ($catIndex->getTags() as $tag) {
+        foreach ($tags as $tag) {
             if ($tag[0] === 'title') {
                 $this->title = $tag[1];
             }

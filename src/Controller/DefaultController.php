@@ -75,23 +75,37 @@ class DefaultController extends AbstractController
      * @throws InvalidArgumentException
      */
     #[Route('/mag/{mag}/cat/{slug}', name: 'magazine-category')]
-    public function magCategory($mag, $slug, CacheInterface $redisCache,
+    public function magCategory($mag, $slug, EntityManagerInterface $entityManager,
                                 RedisCacheService $redisCacheService,
                                 FinderInterface $finder,
                                 LoggerInterface $logger): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
-        $catIndex = $redisCache->get('magazine-' . $slug, function (){
-            throw new Exception('Not found');
-        });
+        // Query the database for the category event by slug using native SQL
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                LIMIT 1";
+
+        $conn = $entityManager->getConnection();
+        $result = $conn->executeQuery($sql, [
+            json_encode([['d', $slug]])
+        ]);
+
+        $eventData = $result->fetchAssociative();
+
+        if ($eventData === false) {
+            throw new Exception('Category not found');
+        }
+
+        $tags = json_decode($eventData['tags'], true);
 
         $list = [];
         $coordinates = []; // Store full coordinates (kind:author:slug)
         $category = [];
 
         // Extract category metadata and article coordinates
-        foreach ($catIndex->getTags() as $tag) {
+        foreach ($tags as $tag) {
             if ($tag[0] === 'title') {
                 $category['title'] = $tag[1];
             }
@@ -182,6 +196,10 @@ class DefaultController extends AbstractController
                 }
             }
         }
+
+        // Create a simple stdClass object with the tags for template compatibility
+        $catIndex = new \stdClass();
+        $catIndex->tags = $tags;
 
         return $this->render('pages/category.html.twig', [
             'mag' => $mag,

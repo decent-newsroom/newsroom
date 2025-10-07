@@ -43,6 +43,7 @@
 
 /* Alerts */
 .alert{position:relative;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid transparent;border-radius:.25rem}
+.alert-default{color:var(--color-text);background-color:var(--color-secondary-bg);border-color:var(--color-secondary-bg)}
 .alert-info{color:#055160;background-color:#e9f5ff;border-color:#b6e0fe}
 .alert-success{color:#0f5132;background-color:#edf7ed;border-color:#c6e6c6}
 .alert-danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7}

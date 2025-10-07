@@ -135,7 +135,7 @@ class Event
     public function getSlug(): ?string
     {
         foreach ($this->getTags() as $tag) {
-            if ($tag[0] === 'd') {
+            if (key_exists(0, $tag) && $tag[0] === 'd') {
                 return $tag[1];
             }
         }

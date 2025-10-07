@@ -15,14 +15,38 @@ class NzineBotType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $isDisabled = $options['disabled'] ?? false;
+
         $builder
             ->add('name', TextType::class, [
-                'required' => true
+                'required' => true,
+                'label' => 'N-Zine Name',
+                'help' => 'The name of your N-Zine publication',
+                'disabled' => $isDisabled
             ])
             ->add('about', TextareaType::class, [
-                'required' => false
+                'required' => false,
+                'label' => 'Description',
+                'help' => 'Describe what this N-Zine is about',
+                'disabled' => $isDisabled
             ])
-            ->add('submit', SubmitType::class)
+            ->add('feedUrl', TextType::class, [
+                'required' => false,
+                'label' => 'RSS Feed URL',
+                'help' => 'Optional: Add an RSS/Atom feed URL to automatically fetch and publish articles',
+                'attr' => [
+                    'placeholder' => 'https://example.com/feed.rss'
+                ],
+                'disabled' => $isDisabled
+            ])
+            ->add('submit', SubmitType::class, [
+                'label' => 'Create N-Zine',
+                'disabled' => $isDisabled,
+                'attr' => [
+                    'class' => 'btn btn-primary',
+                    'title' => $isDisabled ? 'Please login to create an N-Zine' : ''
+                ]
+            ])
         ;
     }
 

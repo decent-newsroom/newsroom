@@ -257,6 +257,12 @@ class Article
         return $this;
     }
 
+    public function clearTopics(): static
+    {
+        $this->topics = [];
+        return $this;
+    }
+
     public function getEventStatus(): ?EventStatusEnum
     {
         return $this->eventStatus;

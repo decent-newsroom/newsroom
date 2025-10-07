@@ -41,6 +41,15 @@ class Nzine
     #[ORM\Column(type: 'string')]
     private string $state = 'draft';
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $feedUrl = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastFetchedAt = null;
+
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $feedConfig = null;
+
     public function __construct()
     {
         $this->mainCategories = new ArrayCollection();
@@ -137,5 +146,35 @@ class Nzine
     public function setState(string $state): void
     {
         $this->state = $state;
+    }
+
+    public function getFeedUrl(): ?string
+    {
+        return $this->feedUrl;
+    }
+
+    public function setFeedUrl(?string $feedUrl): void
+    {
+        $this->feedUrl = $feedUrl;
+    }
+
+    public function getLastFetchedAt(): ?\DateTimeImmutable
+    {
+        return $this->lastFetchedAt;
+    }
+
+    public function setLastFetchedAt(?\DateTimeImmutable $lastFetchedAt): void
+    {
+        $this->lastFetchedAt = $lastFetchedAt;
+    }
+
+    public function getFeedConfig(): ?array
+    {
+        return $this->feedConfig;
+    }
+
+    public function setFeedConfig(?array $feedConfig): void
+    {
+        $this->feedConfig = $feedConfig;
     }
 }

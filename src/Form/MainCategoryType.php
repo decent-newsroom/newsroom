@@ -21,9 +21,19 @@ class MainCategoryType extends AbstractType
         $builder
             ->add('title', TextType::class, [
                 'label' => 'Title',
+                'help' => 'Category display name'
+            ])
+            ->add('slug', TextType::class, [
+                'label' => 'Slug',
+                'help' => 'URL-friendly identifier (e.g., ai-ml, blockchain)',
+                'required' => false,
+                'attr' => [
+                    'placeholder' => 'auto-generated from title if empty'
+                ]
             ])
             ->add('tags', TextType::class, [
                 'label' => 'Tags',
+                'help' => 'Comma-separated tags for matching RSS items (e.g., artificial-intelligence, AI, machine-learning)'
             ]);
 
         $builder->get('tags')->addModelTransformer($this->transformer);

@@ -259,16 +259,25 @@ class MagazineWizardController extends AbstractController
     }
 
     #[Route('/magazine/wizard/edit/{slug}', name: 'mag_wizard_edit')]
-    public function editStart(string $slug, CacheInterface $redisCache, Request $request): Response
+    public function editStart(string $slug, EntityManagerInterface $entityManager, Request $request): Response
     {
-        // Load magazine event
-        $magEvent = $redisCache->get('magazine-' . $slug, function () {
-            return null;
-        });
-        if (!$magEvent || !method_exists($magEvent, 'getTags')) {
+        // Load magazine event from database
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                LIMIT 1";
+
+        $conn = $entityManager->getConnection();
+        $result = $conn->executeQuery($sql, [
+            json_encode([['d', $slug]])
+        ]);
+
+        $magEventData = $result->fetchAssociative();
+
+        if ($magEventData === false) {
             throw $this->createNotFoundException('Magazine not found');
         }
-        $tags = (array)$magEvent->getTags();
+
+        $tags = json_decode($magEventData['tags'], true);
 
         $draft = new \App\Dto\MagazineDraft();
         $draft->slug = $slug;
@@ -285,9 +294,16 @@ class MagazineWizardController extends AbstractController
                 $parts = explode(':', (string)$t[1], 3);
                 if (count($parts) !== 3) { continue; }
                 $catSlug = $parts[2];
-                $catEvent = $redisCache->get('magazine-' . $catSlug, function () { return null; });
-                if (!$catEvent || !method_exists($catEvent, 'getTags')) { continue; }
-                $ctags = (array)$catEvent->getTags();
+
+                // Query database for category event
+                $catResult = $conn->executeQuery($sql, [
+                    json_encode([['d', $catSlug]])
+                ]);
+                $catEventData = $catResult->fetchAssociative();
+
+                if ($catEventData === false) { continue; }
+
+                $ctags = json_decode($catEventData['tags'], true);
                 $cat = new \App\Dto\CategoryDraft();
                 $cat->slug = $catSlug;
                 $cat->title = $this->getTagValue($ctags, 'title') ?? '';

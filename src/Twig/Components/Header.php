@@ -11,21 +11,4 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent]
 class Header
 {
-    public array $cats;
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    public function __construct(private readonly CacheInterface $redisCache)
-    {
-        $mag = $this->redisCache->get('magazine-newsroom-magazine-by-newsroom', function (){
-            return null;
-        });
-
-        $tags = $mag->getTags();
-
-        $this->cats = array_filter($tags, function($tag) {
-            return ($tag[0] === 'a');
-        });
-    }
 }

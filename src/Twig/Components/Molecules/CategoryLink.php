@@ -2,7 +2,8 @@
 
 namespace App\Twig\Components\Molecules;
 
-use Symfony\Contracts\Cache\CacheInterface;
+use App\Entity\Event;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -12,7 +13,7 @@ final class CategoryLink
     public string $slug;
     public ?string $mag = null; // magazine slug passed from parent (optional)
 
-    public function __construct(private CacheInterface $redisCache)
+    public function __construct(private EntityManagerInterface $entityManager)
     {
     }
 
@@ -22,16 +23,25 @@ final class CategoryLink
             $parts = explode(':', $coordinate[1], 3);
             // Expect format kind:pubkey:slug
             $this->slug = $parts[2] ?? '';
-            $cat = $this->redisCache->get('magazine-' . $this->slug, function (){
-                return null;
-            });
 
-            if ($cat === null) {
+            // Query the database for the category event by slug using native SQL
+            $sql = "SELECT e.* FROM event e
+                    WHERE e.tags::jsonb @> ?::jsonb
+                    LIMIT 1";
+
+            $conn = $this->entityManager->getConnection();
+            $result = $conn->executeQuery($sql, [
+                json_encode([['d', $this->slug]])
+            ]);
+
+            $eventData = $result->fetchAssociative();
+
+            if ($eventData === false) {
                 $this->title = $this->slug ?: 'Category';
                 return;
             }
 
-            $tags = $cat->getTags();
+            $tags = json_decode($eventData['tags'], true);
 
             $title = array_filter($tags, function($tag) {
                 return ($tag[0] === 'title');

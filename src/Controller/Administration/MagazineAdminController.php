@@ -6,6 +6,7 @@ namespace App\Controller\Administration;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Entity\Nzine;
 use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Redis as RedisClient;
@@ -26,6 +27,74 @@ class MagazineAdminController extends AbstractController
 
         return $this->render('admin/magazines.html.twig', [
             'magazines' => $magazines,
+        ]);
+    }
+
+    #[Route('/admin/magazines/{npub}/delete', name: 'admin_magazine_delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function delete(string $npub, EntityManagerInterface $em): Response
+    {
+        try {
+            // Find and delete all events associated with this nzine (main index + category indices)
+            $events = $em->getRepository(Event::class)->findBy([
+                'pubkey' => $npub,
+                'kind' => KindsEnum::PUBLICATION_INDEX->value
+            ]);
+
+            $deletedCount = count($events);
+
+            foreach ($events as $event) {
+                $em->remove($event);
+            }
+
+            // Also delete the Nzine entity itself
+            $nzine = $em->getRepository(\App\Entity\Nzine::class)->findOneBy(['npub' => $npub]);
+            if ($nzine) {
+                $em->remove($nzine);
+            }
+
+            $em->flush();
+
+            $this->addFlash('success', sprintf(
+                'Deleted nzine and %d associated index events.',
+                $deletedCount
+            ));
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Failed to delete nzine: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('admin_magazines');
+    }
+
+    #[Route('/admin/magazines/orphaned', name: 'admin_magazines_orphaned')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function listOrphaned(EntityManagerInterface $em): Response
+    {
+
+        // Find nzines (entities)
+        $nzines = $em->getRepository(\App\Entity\Nzine::class)->findAll();
+        $nzineNpubs = array_map(fn($n) => $n->getNpub(), $nzines);
+
+        // Also find malformed nzines (have Nzine entity but no or broken indices)
+        $malformed = [];
+        foreach ($nzines as $nzine) {
+            $npub = $nzine->getNpub();
+            $hasIndices = isset($indexesByPubkey[$npub]) && !empty($indexesByPubkey[$npub]);
+
+            if (!$hasIndices || empty($nzine->getSlug())) {
+                $malformed[] = [
+                    'nzine' => $nzine,
+                    'npub' => $npub,
+                    'slug' => $nzine->getSlug(),
+                    'state' => $nzine->getState(),
+                    'categories' => count($nzine->getMainCategories()),
+                    'indices' => $indexesByPubkey[$npub] ?? [],
+                ];
+            }
+        }
+
+        return $this->render('admin/magazines_orphaned.html.twig', [
+            'malformed' => $nzines,
         ]);
     }
 
@@ -321,9 +390,18 @@ class MagazineAdminController extends AbstractController
             // ignore set errors
         }
 
+        // Check for main magazine in database instead of Redis
         try {
-            $main = $redisCache->get('magazine-newsroom-magazine-by-newsroom', fn() => null);
-            if ($main && !in_array('newsroom-magazine-by-newsroom', $slugs, true)) {
+            $conn = $em->getConnection();
+            $sql = "SELECT e.* FROM event e
+                    WHERE e.tags::jsonb @> ?::jsonb
+                    LIMIT 1";
+            $result = $conn->executeQuery($sql, [
+                json_encode([['d', 'newsroom-magazine-by-newsroom']])
+            ]);
+            $mainEventData = $result->fetchAssociative();
+
+            if ($mainEventData !== false && !in_array('newsroom-magazine-by-newsroom', $slugs, true)) {
                 $slugs[] = 'newsroom-magazine-by-newsroom';
             }
         } catch (\Throwable) {
@@ -331,9 +409,9 @@ class MagazineAdminController extends AbstractController
         }
 
         $magazines = [];
-        $parse = function($event): array {
+        $parse = function(array $tags): array {
             $title = null; $slug = null; $a = [];
-            foreach ((array) $event->getTags() as $tag) {
+            foreach ($tags as $tag) {
                 if (!is_array($tag) || !isset($tag[0])) continue;
                 if ($tag[0] === 'title' && isset($tag[1])) $title = $tag[1];
                 if ($tag[0] === 'd' && isset($tag[1])) $slug = $tag[1];
@@ -346,11 +424,27 @@ class MagazineAdminController extends AbstractController
             ];
         };
 
-        foreach ($slugs as $slug) {
-            $event = $redisCache->get('magazine-' . $slug, fn() => null);
-            if (!$event || !method_exists($event, 'getTags')) continue;
+        $conn = $em->getConnection();
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                LIMIT 1";
 
-            $data = $parse($event);
+        foreach ($slugs as $slug) {
+            // Query database for magazine event
+            try {
+                $result = $conn->executeQuery($sql, [
+                    json_encode([['d', $slug]])
+                ]);
+                $eventData = $result->fetchAssociative();
+
+                if ($eventData === false) continue;
+
+                $tags = json_decode($eventData['tags'], true);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $data = $parse($tags);
             $categories = [];
 
             foreach ($data['a'] as $coord) {
@@ -359,10 +453,22 @@ class MagazineAdminController extends AbstractController
                 if (count($parts) !== 3) continue;
 
                 $catSlug = $parts[2];
-                $catEvent = $redisCache->get('magazine-' . $catSlug, fn() => null);
-                if (!$catEvent || !method_exists($catEvent, 'getTags')) continue;
 
-                $catData = $parse($catEvent);
+                // Query database for category event
+                try {
+                    $catResult = $conn->executeQuery($sql, [
+                        json_encode([['d', $catSlug]])
+                    ]);
+                    $catEventData = $catResult->fetchAssociative();
+
+                    if ($catEventData === false) continue;
+
+                    $catTags = json_decode($catEventData['tags'], true);
+                } catch (\Throwable) {
+                    continue;
+                }
+
+                $catData = $parse($catTags);
                 $files = [];
                 $repo = $em->getRepository(Article::class);
 

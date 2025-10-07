@@ -1,0 +1,64 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+
+  <h1>N-Zines</h1>
+  <p class="text-muted">Clean up broken or incomplete N-Zine data from the database.</p>
+
+  <hr>
+
+  <h2>Malformed N-Zines</h2>
+  <p>These have Nzine entities but missing or broken indices:</p>
+
+  {% if malformed is empty %}
+    <div class="alert alert-success">✓ No malformed nzines found!</div>
+  {% else %}
+    <div class="alert alert-warning">
+      Found {{ malformed|length }} malformed nzine(s). These should be deleted or fixed.
+    </div>
+
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>NPub</th>
+          <th>Slug</th>
+          <th>State</th>
+          <th>Categories</th>
+          <th>Indices</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in malformed %}
+          <tr>
+            <td><code class="small">{{ item.npub|slice(0, 16) }}...</code></td>
+            <td>
+              {% if item.slug %}
+                <code>{{ item.slug }}</code>
+              {% else %}
+                <span class="text-danger">NULL</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{{ path('admin_magazine_delete', {npub: item.npub}) }}" style="display: inline;" onsubmit="return confirm('Delete this malformed nzine and all its indices? This cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-danger">🗑️ Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <hr>
+
+  <div class="alert alert-info">
+    <strong>Tips:</strong>
+    <ul class="mb-0">
+      <li>Malformed nzines usually result from incomplete wizard flows or failed publishes</li>
+      <li>Orphaned indices can occur when nzine entities are manually deleted from the database</li>
+      <li>Always use the delete function here rather than manual database deletion</li>
+    </ul>
+  </div>
+{% endblock %}
+
