@@ -8,7 +8,7 @@
 .analytics-card {
     margin-bottom: var(--spacing-5);
     padding: var(--spacing-3);
-    background-color: var(--color-card-bg, #f8f9fa);
+    background-color: var(--color-bg-light);
     border-radius: 0.5rem;
 }
 
@@ -50,7 +50,7 @@
 
 .analytics-info {
     padding: var(--spacing-3);
-    background-color: var(--color-info-bg, #e9f5ff);
+    background-color: var(--color-bg-light);
     border-radius: 0.25rem;
 }
 
@@ -106,7 +106,7 @@
 .magazine-table th {
     padding: 0.25rem 0.5rem;
     text-align: left;
-    border-bottom: 1px solid var(--color-border, #dee2e6);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .magazine-table td {
@@ -129,8 +129,8 @@
 
 .content-warning {
     padding: 1rem;
-    background-color: var(--color-warning-bg, #fff3cd);
-    border: 1px solid var(--color-warning-border, #ffc107);
+    background-color: var(--color-accent-warm);
+    border: 1px solid var(--color-accent-600);
     border-radius: 0.25rem;
     margin-bottom: 1rem;
 }
@@ -185,5 +185,5 @@
 .picture-alt {
     margin-top: 0.5rem;
     font-style: italic;
-    color: var(--color-text-muted, #6c757d);
+    color: var(--color-text-mid);
 }

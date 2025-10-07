@@ -37,14 +37,14 @@
 .video-alt {
     margin-top: var(--spacing-2);
     font-size: 0.9em;
-    color: var(--color-text-secondary, #666);
+    color: var(--color-text-mid);
     font-style: italic;
 }
 
 .content-warning {
     padding: var(--spacing-3);
-    background-color: var(--color-warning-bg, #fff3cd);
-    border: 1px solid var(--color-warning-border, #ffc107);
+    background-color: var(--color-accent-warm);
+    border: 1px solid var(--color-accent-600);
     border-radius: 4px;
     margin-bottom: var(--spacing-3);
 }
@@ -52,13 +52,13 @@
 .content-warning strong {
     display: block;
     margin-bottom: var(--spacing-2);
-    color: var(--color-warning-text, #856404);
+    color: var(--color-text);
 }
 
 .btn-show-nsfw {
     margin-top: var(--spacing-2);
     padding: var(--spacing-2) var(--spacing-3);
-    background-color: var(--color-primary, #007bff);
+    background-color: var(--color-primary);
     color: white;
     border: none;
     border-radius: 4px;
@@ -67,7 +67,7 @@
 }
 
 .btn-show-nsfw:hover {
-    background-color: var(--color-primary-hover, #0056b3);
+    background-color: var(--color-secondary);
 }
 
 .video-description {
@@ -79,7 +79,7 @@
 .video-published {
     margin-top: var(--spacing-2);
     font-size: 0.9em;
-    color: var(--color-text-secondary, #666);
+    color: var(--color-text-mid);
     padding: 0 var(--spacing-2);
 }
 
@@ -98,16 +98,16 @@
 .video-hashtags .hashtag {
     display: inline-block;
     padding: var(--spacing-1) var(--spacing-2);
-    background-color: var(--color-bg-light, #f8f9fa);
+    background-color: var(--color-bg-light);
     border-radius: 12px;
     font-size: 0.85em;
-    color: var(--color-primary, #007bff);
+    color: var(--color-primary);
 }
 
 .video-participants {
     margin-top: var(--spacing-3);
     padding-top: var(--spacing-3);
-    border-top: 1px solid var(--color-border, #dee2e6);
+    border-top: 1px solid var(--color-border);
 }
 
 .video-participants h4 {
