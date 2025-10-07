@@ -1,43 +1,79 @@
-<div {{ attributes }}>
-    <h2>Title: <b>{{ draft.title ?: 'Reading List' }}</b></h2>
-    <p><small>Slug: {{ draft.slug }}</small></p>
+<div {{ attributes.defaults({class: 'card reading-list-draft'}) }}>
+    <div class="card-body">
+        {# Workflow Status #}
+        {% if draft %}
+            <twig:ReadingListWorkflowStatus :draft="draft" class="mb-3" />
+        {% endif %}
 
-  {% if draft.summary %}<p>{{ draft.summary }}</p>{% endif %}
-
-  <h3 class="mt-4">Articles</h3>
-  {% if draft.articles is not empty %}
-    <ul class="small">
-      {% for coord in draft.articles %}
-        <li class="d-flex justify-content-between align-items-center gap-2">
-          <code class="flex-fill">{{ coord }}</code>
-          <button class="btn btn-sm btn-outline-danger" data-action="live#action" data-live-action-param="remove" data-live-coordinate-param="{{ coord }}">Remove</button>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p><small>No articles yet. Use search or paste an naddr to add some.</small></p>
-  {% endif %}
-
-    <div class="mt-3">
-        <form class="d-flex gap-3" data-action="live#action:prevent" data-live-action-param="addNaddr">
-            <label>
-                <input
-                    type="text"
-                    placeholder="Paste article naddr (nostr:naddr1...)"
-                    class="form-control form-control-sm"
-                    data-model="norender|naddrInput"
-                    value="{{ naddrInput }}"
-                />
-            </label>
-            <div class="actions">
-                <button class="btn btn-sm btn-secondary">Add</button>
+        {% if editingMeta %}
+            <form data-action="live#action:prevent" data-live-action-param="updateMeta">
+                <div class="mb-2">
+                    <label class="form-label small">Title</label>
+                    <input
+                        type="text"
+                        name="title"
+                        class="form-control form-control-sm"
+                        value="{{ draft.title ?: 'My Reading List' }}"
+                    />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Summary (optional)</label>
+                    <textarea
+                        name="summary"
+                        class="form-control form-control-sm"
+                        rows="2"
+                    >{{ draft.summary }}</textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    <button type="button" class="btn btn-sm btn-secondary" data-action="live#action" data-live-action-param="toggleEditMeta">Cancel</button>
+                </div>
+            </form>
+        {% else %}
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <h2 class="h5 mb-1">{{ draft.title ?: 'My Reading List' }}</h2>
+                    {% if draft.summary %}
+                        <p class="small text-muted mb-1">{{ draft.summary }}</p>
+                    {% endif %}
+                    <p class="small text-muted mb-0">Slug: <code>{{ draft.slug }}</code></p>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" data-action="live#action" data-live-action-param="toggleEditMeta">
+                    ✏️ Edit
+                </button>
             </div>
-        </form>
-        {% if naddrError %}<div class="small text-danger mt-1">{{ naddrError }}</div>{% endif %}
-        {% if naddrSuccess %}<div class="small text-success mt-1">{{ naddrSuccess }}</div>{% endif %}
-    </div>
+        {% endif %}
 
-  <div class="mt-3">
-    <a class="btn btn-primary" href="{{ path('read_wizard_review') }}">Review & Sign</a>
-  </div>
+        <hr />
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="h6 mb-0">Articles ({{ draft.articles|length }})</h3>
+            {% if draft.articles is not empty %}
+                <button class="btn btn-sm btn-outline-danger" data-action="live#action" data-live-action-param="clearAll" onclick="return confirm('Clear all articles?')">
+                    Clear All
+                </button>
+            {% endif %}
+        </div>
+
+        {% if draft.articles is not empty %}
+            <ul class="list-unstyled small">
+                {% for coord in draft.articles %}
+                    <li class="d-flex justify-content-between align-items-center gap-2 mb-2 p-2 bg-light rounded">
+                        <code class="flex-fill text-truncate" title="{{ coord }}">{{ coord }}</code>
+                        <button class="btn btn-sm btn-outline-danger" data-action="live#action" data-live-action-param="remove" data-live-coordinate-param="{{ coord }}">×</button>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="small text-muted"><em>No articles yet. Use the quick add or search below to add articles.</em></p>
+        {% endif %}
+
+        <hr />
+
+        <div class="mt-3">
+            <a class="btn btn-success w-100" href="{{ path('read_wizard_review') }}">
+                📝 Review & Publish Reading List
+            </a>
+        </div>
+    </div>
 </div>

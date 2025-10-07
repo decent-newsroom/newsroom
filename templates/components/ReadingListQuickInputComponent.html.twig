@@ -1,0 +1,27 @@
+<div {{ attributes }}>
+    <form data-action="live#action:prevent" data-live-action-param="addMultiple">
+        <div class="mb-3">
+            <label class="form-label">
+                <strong>Paste article naddresses or coordinates</strong>
+                <small class="d-block text-muted">One per line. Supports both formats:</small>
+                <small class="d-block text-muted">• naddr1... (or nostr:naddr1...)</small>
+                <small class="d-block text-muted">• 30023:pubkey:slug</small>
+            </label>
+            <textarea
+                class="form-control font-monospace"
+                placeholder="Paste one or more articles here (one per line)&#10;Example:&#10;nostr:naddr1qqs8w4r3v3jhxapfdehhxarjv4jzumn9wdshgct5d4kz7cte8ycrjcpzfmhxue69uhk7m3vd46x7un4dejxemn80e3k7aewwp3k7tnzd9nkjmn8v3jhyetdw4jx7at59ehxetn2d9hqjqqqqqxjt8kyx...&#10;30023:a1b2c3d4e5f6...abcd:my-article-slug"
+                rows="6"
+                data-model="norender|input"
+            >{{ input }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add to Reading List</button>
+    </form>
+
+    {% if error %}
+        <div class="alert alert-danger mt-3">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+        <div class="alert alert-success mt-3">{{ success }}</div>
+    {% endif %}
+</div>
+

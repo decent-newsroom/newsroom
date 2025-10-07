@@ -1,0 +1,77 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <h2 class="h4 mb-3">📚 Add Article to Reading List</h2>
+
+                        <div class="alert alert-info mb-4">
+                            <small>
+                                <strong>Article coordinate:</strong><br>
+                                <code class="small">{{ coordinate }}</code>
+                            </small>
+                        </div>
+
+                        <form method="post">
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Select a reading list:</label>
+
+                                <div class="list-group">
+                                    {# Create new list option #}
+                                    <label class="list-group-item list-group-item-action">
+                                        <input class="form-check-input me-2" type="radio" name="selected_list" value="__new__"
+                                               {% if not currentDraft or availableLists is empty %}checked{% endif %}>
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <div>
+                                                <strong>➕ Create New Reading List</strong>
+                                                <small class="d-block text-muted">Start a fresh collection</small>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    {# Existing lists #}
+                                    {% if availableLists is not empty %}
+                                        {% for list in availableLists %}
+                                            <label class="list-group-item list-group-item-action">
+                                                <input class="form-check-input me-2" type="radio" name="selected_list" value="{{ list.slug }}"
+                                                       {% if currentDraft and currentDraft.slug == list.slug %}checked{% endif %}>
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong>{{ list.title }}</strong>
+                                                        <small class="d-block text-muted">
+                                                            {{ list.articleCount }} article{{ list.articleCount != 1 ? 's' : '' }}
+                                                            {% if list.summary %} • {{ list.summary|u.truncate(50, '...') }}{% endif %}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary flex-fill">
+                                    Add to Selected List →
+                                </button>
+                                <a href="{{ app.request.headers.get('referer') ?: path('home') }}" class="btn btn-outline-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        After adding, you'll be taken to the compose page where you can add more articles or publish your list.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

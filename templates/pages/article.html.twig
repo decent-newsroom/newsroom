@@ -21,6 +21,10 @@
             <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
         {% endif %}
 
+        {% if app.user %}
+            <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
+        {% endif %}
+
         {% if is_granted('ROLE_ADMIN') %}
             <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
                 Copy coordinates

@@ -1,0 +1,40 @@
+<div {{ attributes }}>
+    <div class="reading-list-selector">
+        <label class="form-label small mb-2">
+            <strong>Add to Reading List:</strong>
+        </label>
+
+        <select
+            class="form-select form-select-sm mb-2"
+            data-model="live|selectedSlug"
+            data-action="live#action"
+            data-live-action-param="selectList"
+        >
+            <option value="__new__" {% if selectedSlug == '' %}selected{% endif %}>
+                ➕ Create New Reading List
+            </option>
+
+            {% if availableLists is not empty %}
+                <optgroup label="Your Existing Lists">
+                    {% for list in availableLists %}
+                        <option value="{{ list.slug }}" {% if selectedSlug == list.slug %}selected{% endif %}>
+                            {{ list.title }} ({{ list.articleCount }} articles)
+                        </option>
+                    {% endfor %}
+                </optgroup>
+            {% endif %}
+        </select>
+
+        {% if currentDraft %}
+            <div class="alert alert-info alert-sm">
+                <small>
+                    <strong>Current:</strong> {{ currentDraft.title ?: 'New Reading List' }}
+                    {% if currentDraft.articles|length > 0 %}
+                        <br><strong>Articles:</strong> {{ currentDraft.articles|length }}
+                    {% endif %}
+                </small>
+            </div>
+        {% endif %}
+    </div>
+</div>
+

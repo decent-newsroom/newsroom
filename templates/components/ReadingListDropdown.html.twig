@@ -1,0 +1,66 @@
+{% set lists = this.getListsWithArticles() %}
+{% set publishUrl = path('api-index-publish') %}
+{% set csrfToken = csrf_token('nostr_publish') %}
+
+<div {{ attributes }}
+     data-controller="reading-list-dropdown"
+     data-reading-list-dropdown-coordinate-value="{{ coordinate }}"
+     data-reading-list-dropdown-lists-value="{{ lists|json_encode|e('html_attr') }}"
+     data-reading-list-dropdown-publish-url-value="{{ publishUrl }}"
+     data-reading-list-dropdown-csrf-token-value="{{ csrfToken }}">
+
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle"
+                type="button"
+                id="readingListDropdown"
+                data-reading-list-dropdown-target="dropdown"
+                data-action="click->reading-list-dropdown#toggleDropdown"
+                aria-expanded="false">
+            📚 Add to Reading List
+        </button>
+        <ul class="dropdown-menu"
+            aria-labelledby="readingListDropdown"
+            data-reading-list-dropdown-target="menu">
+            {% if lists is empty %}
+                <li>
+                    <span class="dropdown-item disabled">
+                        <em>No reading lists yet</em>
+                    </span>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+            {% else %}
+                <li class="dropdown-header">Select a list:</li>
+                {% for list in lists %}
+                    <li>
+                        <a class="dropdown-item"
+                           href="#"
+                           data-action="click->reading-list-dropdown#addToList"
+                           data-slug="{{ list.slug }}"
+                           data-title="{{ list.title }}">
+                            <div class="d-flex flex-row">
+                                <div>
+                                    <strong>{{ list.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ list.articleCount }} article{{ list.articleCount != 1 ? 's' : '' }}
+                                    </small>
+                                </div>
+                                {% if list.articles and coordinate in list.articles %}
+                                    <span class="badge bg-success ms-2">✓</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+            {% endif %}
+            <li>
+                <a class="dropdown-item" href="{{ path('read_wizard_setup') }}">
+                    <strong>➕ Create New List</strong>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div data-reading-list-dropdown-target="status" style="display: none;"></div>
+</div>

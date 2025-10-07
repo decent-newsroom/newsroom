@@ -1,0 +1,62 @@
+<div {{ attributes }}>
+    <div class="workflow-status-card"
+         data-controller="workflow-progress"
+         data-workflow-progress-percentage-value="{{ this.completionPercentage }}"
+         data-workflow-progress-status-value="{{ this.currentState }}"
+         data-workflow-progress-color-value="{{ this.badgeColor }}"
+         data-workflow-progress-animated-value="true">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Workflow Status</h6>
+            <span class="badge bg-{{ this.badgeColor }}" data-workflow-progress-target="badge">
+                {{ this.statusMessage }}
+            </span>
+        </div>
+
+        {# Progress bar with Stimulus controller #}
+        <div class="progress mb-3" style="height: 8px;">
+            <div
+                class="progress-bar bg-{{ this.badgeColor }}"
+                role="progressbar"
+                style="width: 0%"
+                aria-valuenow="0"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="{{ this.statusMessage }}: {{ this.completionPercentage }}% complete"
+                data-workflow-progress-target="bar"
+            ></div>
+        </div>
+
+        {# Current state info #}
+        <div class="workflow-state-info">
+            <p class="small text-muted mb-2">
+                <strong>Current State:</strong>
+                <span data-workflow-progress-target="statusText">
+                    {{ this.currentState|replace({'_': ' '})|title }}
+                </span>
+            </p>
+
+            {% if this.nextSteps is not empty %}
+                <div class="next-steps" data-workflow-progress-target="nextSteps">
+                    <p class="small mb-1"><strong>Next Steps:</strong></p>
+                    <ul class="small mb-0">
+                        {% for step in this.nextSteps %}
+                            <li>{{ step }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Publish button state #}
+        {% if this.readyToPublish %}
+            <div class="alert alert-success alert-sm mt-3 mb-0">
+                <small>✓ Your reading list is ready to publish!</small>
+            </div>
+        {% elseif this.currentState == 'published' %}
+            <div class="alert alert-info alert-sm mt-3 mb-0">
+                <small>✓ Published successfully!</small>
+            </div>
+        {% endif %}
+    </div>
+</div>

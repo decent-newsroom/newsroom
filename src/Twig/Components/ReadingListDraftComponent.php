@@ -5,6 +5,7 @@ namespace App\Twig\Components;
 use App\Dto\CategoryDraft;
 use App\Enum\KindsEnum;
 use App\Service\NostrClient;
+use App\Service\ReadingListWorkflowService;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
@@ -31,10 +32,14 @@ final class ReadingListDraftComponent
     #[LiveProp]
     public string $naddrSuccess = '';
 
+    #[LiveProp(writable: true)]
+    public bool $editingMeta = false;
+
     public function __construct(
         private readonly RequestStack $requestStack,
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
+        private readonly ReadingListWorkflowService $workflowService,
     ) {}
 
     public function mount(): void
@@ -49,6 +54,31 @@ final class ReadingListDraftComponent
     }
 
     #[LiveAction]
+    public function toggleEditMeta(): void
+    {
+        $this->editingMeta = !$this->editingMeta;
+    }
+
+    #[LiveAction]
+    public function updateMeta(string $title = '', string $summary = ''): void
+    {
+        $session = $this->requestStack->getSession();
+        $draft = $session->get('read_wizard');
+        if (!$draft instanceof CategoryDraft) {
+            $draft = new CategoryDraft();
+        }
+        $draft->title = $title ?: 'My Reading List';
+        $draft->summary = $summary;
+
+        // Update workflow state
+        $this->workflowService->updateMetadata($draft);
+
+        $session->set('read_wizard', $draft);
+        $this->draft = $draft;
+        $this->editingMeta = false;
+    }
+
+    #[LiveAction]
     public function remove(string $coordinate): void
     {
         $session = $this->requestStack->getSession();
@@ -58,6 +88,15 @@ final class ReadingListDraftComponent
             $session->set('read_wizard', $draft);
             $this->draft = $draft;
         }
+    }
+
+    #[LiveAction]
+    public function clearAll(): void
+    {
+        $session = $this->requestStack->getSession();
+        $session->remove('read_wizard');
+        $this->draft = new CategoryDraft();
+        $this->draft->slug = substr(bin2hex(random_bytes(6)), 0, 8);
     }
 
     #[LiveAction]
@@ -119,9 +158,14 @@ final class ReadingListDraftComponent
                     ]);
                 }
                 $draft->articles[] = $coordinate;
+
+                // Update workflow state
+                $this->workflowService->addArticles($draft);
+
                 $session->set('read_wizard', $draft);
                 $this->draft = $draft;
                 $this->naddrSuccess = 'Added article: ' . $coordinate;
+                $this->dispatchBrowserEvent('readingListUpdated');
             } else {
                 $this->naddrSuccess = 'Article already in list.';
             }
@@ -149,8 +193,6 @@ final class ReadingListDraftComponent
         }
 
         $this->draft = new CategoryDraft();
-        $this->draft->title = 'Reading List';
         $this->draft->slug = substr(bin2hex(random_bytes(6)), 0, 8);
-        $session->set('read_wizard', $this->draft);
     }
 }

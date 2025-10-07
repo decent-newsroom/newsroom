@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Dto\CategoryDraft;
 use App\Form\CategoryArticlesType;
 use App\Form\CategoryType;
+use App\Service\ReadingListManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -66,6 +67,53 @@ class ReadingListWizardController extends AbstractController
 
         return $this->render('reading_list/reading_articles.html.twig', [
             'form' => $form->createView(),
+        ]);
+    }
+
+    #[Route('/reading-list/add-article', name: 'read_wizard_add_article')]
+    public function addArticle(Request $request, ReadingListManager $readingListManager): Response
+    {
+        // Get the coordinate from the query parameter
+        $coordinate = $request->query->get('coordinate');
+
+        if (!$coordinate) {
+            $this->addFlash('error', 'No article coordinate provided.');
+            return $this->redirectToRoute('reading_list_compose');
+        }
+
+        // Get available reading lists
+        $availableLists = $readingListManager->getUserReadingLists();
+        $currentDraft = $readingListManager->getCurrentDraft();
+
+        // Handle form submission
+        if ($request->isMethod('POST')) {
+            $selectedSlug = $request->request->get('selected_list');
+
+            // Load or create the selected list
+            if ($selectedSlug === '__new__' || !$selectedSlug) {
+                $draft = $readingListManager->createNewDraft();
+            } else {
+                $draft = $readingListManager->loadPublishedListIntoDraft($selectedSlug);
+            }
+
+            // Add the article to the draft
+            if (!in_array($coordinate, $draft->articles, true)) {
+                $draft->articles[] = $coordinate;
+                $session = $request->getSession();
+                $session->set('read_wizard', $draft);
+            }
+
+            // Redirect to compose page with success message
+            return $this->redirectToRoute('reading_list_compose', [
+                'add' => $coordinate,
+                'list' => $selectedSlug ?? '__new__'
+            ]);
+        }
+
+        return $this->render('reading_list/add_article_confirm.html.twig', [
+            'coordinate' => $coordinate,
+            'availableLists' => $availableLists,
+            'currentDraft' => $currentDraft,
         ]);
     }
 

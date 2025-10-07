@@ -1,0 +1,119 @@
+/* Reading List Workflow Styles */
+
+/* Workflow Status Component */
+.workflow-status-card {
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.workflow-status-card .progress {
+    border-radius: 4px;
+    background-color: #e9ecef;
+    overflow: hidden;
+}
+
+.workflow-status-card .progress-bar {
+    transition: width 0.6s ease-in-out, background-color 0.3s ease;
+}
+
+/* Pulse animation for progress bar updates */
+@keyframes workflow-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scaleY(1.1);
+    }
+}
+
+.workflow-progress-pulse {
+    animation: workflow-pulse 0.5s ease-in-out;
+}
+
+/* Celebration animation when reaching 100% */
+@keyframes workflow-celebrate {
+    0%, 100% {
+        transform: scaleX(1);
+    }
+    25% {
+        transform: scaleX(1.02);
+    }
+    50% {
+        transform: scaleX(0.98);
+    }
+    75% {
+        transform: scaleX(1.01);
+    }
+}
+
+.workflow-progress-celebrate {
+    animation: workflow-celebrate 0.6s ease-in-out;
+}
+
+/* Shimmer effect for publishing state */
+@keyframes workflow-shimmer {
+    0% {
+        background-position: -100% 0;
+    }
+    100% {
+        background-position: 100% 0;
+    }
+}
+
+.workflow-status-card .progress-bar.bg-warning {
+    background: linear-gradient(
+        90deg,
+        #ffc107 0%,
+        #ffeb3b 50%,
+        #ffc107 100%
+    );
+    background-size: 200% 100%;
+    animation: workflow-shimmer 2s ease-in-out infinite;
+}
+
+.workflow-status-card .next-steps ul {
+    padding-left: 1.25rem;
+    margin-bottom: 0;
+}
+
+.workflow-status-card .next-steps li {
+    color: #495057;
+}
+
+.workflow-state-info {
+    font-size: 0.875rem;
+}
+
+/* Reading List Selector */
+.reading-list-selector {
+    max-width: 500px;
+}
+
+.reading-list-selector .form-select {
+    cursor: pointer;
+}
+
+.reading-list-selector .alert-info {
+    border-left: 3px solid #0dcaf0;
+}
+
+/* Floating Quick Add Widget */
+.reading-list-quick-add {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+/* Badge animations */
+.workflow-status-card .badge {
+    transition: all 0.3s ease;
+}
+
+.workflow-status-card .badge:hover {
+    transform: scale(1.05);
+}

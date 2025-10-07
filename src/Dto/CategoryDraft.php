@@ -10,8 +10,20 @@ class CategoryDraft
     public string $summary = '';
     /** @var string[] */
     public array $tags = [];
-    /** @var string[] article coordinates like kind:pubkey|npub:slug */
+    /** @var string[] article coordinates like kind:pubkey:slug */
     public array $articles = [];
     public string $slug = '';
-}
 
+    /** Workflow state tracking */
+    private string $workflowState = 'empty';
+
+    public function getWorkflowState(): string
+    {
+        return $this->workflowState;
+    }
+
+    public function setWorkflowState(string $state): void
+    {
+        $this->workflowState = $state;
+    }
+}

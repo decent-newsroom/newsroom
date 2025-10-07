@@ -53,3 +53,79 @@ framework:
                 publish:
                     from: nested_indices_created
                     to: published
+        reading_list_workflow:
+            type: state_machine
+            audit_trail:
+                enabled: true
+            marking_store:
+                type: method
+                property: workflowState
+            supports:
+                - App\Dto\CategoryDraft
+            initial_marking: empty
+            places:
+                - empty
+                - draft
+                - has_metadata
+                - has_articles
+                - ready_for_review
+                - publishing
+                - published
+                - editing
+            transitions:
+                start_draft:
+                    from: empty
+                    to: draft
+                add_metadata:
+                    from: 
+                        - draft
+                        - editing
+                    to: has_metadata
+                    metadata:
+                        title: Metadata Added
+                        description: Title and summary have been set
+                add_articles:
+                    from: 
+                        - has_metadata
+                        - draft
+                        - editing
+                    to: has_articles
+                    metadata:
+                        title: Articles Added
+                        description: At least one article has been added
+                ready_for_review:
+                    from: has_articles
+                    to: ready_for_review
+                    guard: "subject.title != '' and subject.articles|length > 0"
+                    metadata:
+                        title: Ready for Review
+                        description: Reading list is ready to be published
+                start_publishing:
+                    from: ready_for_review
+                    to: publishing
+                    metadata:
+                        title: Publishing
+                        description: Generating Nostr event for publication
+                complete_publishing:
+                    from: publishing
+                    to: published
+                    metadata:
+                        title: Published
+                        description: Reading list has been published to Nostr
+                edit_published:
+                    from: published
+                    to: editing
+                    metadata:
+                        title: Editing
+                        description: Modifying a published reading list
+                cancel:
+                    from:
+                        - draft
+                        - has_metadata
+                        - has_articles
+                        - ready_for_review
+                        - editing
+                    to: empty
+                    metadata:
+                        title: Cancelled
+                        description: Reading list draft has been cancelled

@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
-use Elastica\Query;
-use Elastica\Query\BoolQuery;
-use Elastica\Query\Term;
-use FOS\ElasticaBundle\Finder\FinderInterface;
-use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\Cache\CacheInterface;
 
 class ReadingListController extends AbstractController
 {
@@ -79,36 +75,64 @@ class ReadingListController extends AbstractController
     }
 
     #[Route('/reading-list/compose', name: 'reading_list_compose')]
-    public function compose(): Response
+    public function compose(Request $request, EntityManagerInterface $em): Response
     {
-        return $this->render('reading_list/compose.html.twig');
+        // Check if a coordinate was passed via URL parameter
+        $coordinate = $request->query->get('add');
+        $addedArticle = null;
+
+        if ($coordinate) {
+            // Auto-add the coordinate to the current draft
+            $session = $request->getSession();
+            $draft = $session->get('read_wizard');
+
+            if (!$draft instanceof \App\Dto\CategoryDraft) {
+                $draft = new \App\Dto\CategoryDraft();
+                $draft->title = 'My Reading List';
+                $draft->slug = substr(bin2hex(random_bytes(6)), 0, 8);
+            }
+
+            if (!in_array($coordinate, $draft->articles, true)) {
+                $draft->articles[] = $coordinate;
+                $session->set('read_wizard', $draft);
+                $addedArticle = $coordinate;
+            }
+        }
+
+        return $this->render('reading_list/compose.html.twig', [
+            'addedArticle' => $addedArticle,
+        ]);
     }
 
     /**
      *
-     * @throws InvalidArgumentException
      */
     #[Route('/p/{pubkey}/list/{slug}', name: 'reading-list')]
-    public function readingList($pubkey, $slug, CacheInterface $redisCache,
+    public function readingList($pubkey, $slug,
                                 EntityManagerInterface $em,
-                                FinderInterface $finder,
                                 LoggerInterface $logger): Response
     {
-        $key = 'single-reading-list-' . $pubkey . '-' . $slug;
-        $logger->info(sprintf('Reading list: %s', $key));
-        $list = $redisCache->get($key, function() use ($em, $pubkey, $slug) {
-            // find reading list by pubkey+slug, kind 30040
-            $lists = $em->getRepository(Event::class)->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX]);
-            // filter by tag d = $slug
-            $lists = array_filter($lists, function($ev) use ($slug) {
-                return $ev->getSlug() === $slug;
-            });
-            // sort revisions and keep latest
-            usort($lists, function($a, $b) {
-                return $b->getCreatedAt() <=> $a->getCreatedAt();
-            });
-            return array_pop($lists);
-        });
+        $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
+
+        // Find reading list by pubkey+slug, kind 30040 directly from database
+        $repo = $em->getRepository(Event::class);
+        $lists = $repo->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX], ['created_at' => 'DESC']);
+        // Filter by slug
+        $list = null;
+        foreach ($lists as $ev) {
+            if (!$ev instanceof Event) continue;
+
+            $eventSlug = $ev->getSlug();
+
+            if ($eventSlug === $slug) {
+                $list = $ev;
+                break; // Found the latest one
+            }
+        }
+
+        if (!$list) {
+            throw $this->createNotFoundException('Reading list not found');
+        }
 
         // fetch articles listed in the list's a tags
         $coordinates = []; // Store full coordinates (kind:author:slug)
@@ -118,26 +142,30 @@ class ReadingListController extends AbstractController
                 $coordinates[] = $tag[1]; // Store the full coordinate
             }
         }
+
         $articles = [];
         if (count($coordinates) > 0) {
-            $boolQuery = new BoolQuery();
+            $articleRepo = $em->getRepository(Article::class);
+
+            // Query database directly for each coordinate
             foreach ($coordinates as $coord) {
                 $parts = explode(':', $coord, 3);
-                [$kind, $author, $slug] = $parts;
-                $termQuery = new BoolQuery();
-                $termQuery->addMust(new Term(['kind' => (int)$kind]));
-                $termQuery->addMust(new Term(['pubkey' => strtolower($author)]));
-                $termQuery->addMust(new Term(['slug' => $slug]));
-                $boolQuery->addShould($termQuery);
-            }
-            $finalQuery = new Query($boolQuery);
-            $finalQuery->setSize(100); // Limit to 100 results
-            $results = $finder->find($finalQuery);
-            // Index results by their full coordinate for easy lookup
-            foreach ($results as $result) {
-                if ($result instanceof Event) {
-                    $coordKey = sprintf('%d:%s:%s', $result->getKind(), strtolower($result->getPubkey()), $result->getSlug());
-                    $articles[$coordKey] = $result;
+                if (count($parts) === 3) {
+                    [$kind, $author, $articleSlug] = $parts;
+
+                    // Find the most recent event matching this coordinate
+                    $events = $articleRepo->findBy([
+                        'slug' => $articleSlug,
+                        'pubkey' => $author
+                    ], ['createdAt' => 'DESC']);
+
+                    // Filter by slug and get the latest
+                    foreach ($events as $event) {
+                        if ($event->getSlug() === $articleSlug) {
+                            $articles[] = $event;
+                            break; // Take the first match (most recent if ordered)
+                        }
+                    }
                 }
             }
         }
