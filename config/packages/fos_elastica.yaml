@@ -16,6 +16,12 @@ fos_elastica:
                     # Optimize indexing
                     number_of_shards: 1
                     number_of_replicas: 0
+                    # Add query cache settings for faster repeated searches
+                    queries:
+                        cache:
+                            enabled: true
+                    # Optimize for search performance
+                    max_result_window: 10000
                 analysis:
                     analyzer:
                         custom_analyzer:
@@ -29,16 +35,23 @@ fos_elastica:
                 title:
                     type: text
                     analyzer: custom_analyzer
+                    # Add term_vector for faster phrase queries
+                    term_vector: with_positions_offsets
                 content:
                     type: text
                     analyzer: custom_analyzer
+                    # Don't store norms for content to save space and improve speed
+                    norms: false
                 summary:
                     type: text
                     analyzer: custom_analyzer
+                    term_vector: with_positions_offsets
                 tags:
                     type: keyword
                 slug:
                     type: keyword
+                    # Enable doc_values for faster sorting/aggregations
+                    doc_values: true
                 pubkey:
                     type: keyword
                 topics: ~
