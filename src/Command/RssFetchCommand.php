@@ -2,544 +2,385 @@
 
 namespace App\Command;
 
+use App\Entity\Article;
+use App\Entity\NzineBot;
 use App\Factory\ArticleFactory;
-use App\Repository\ArticleRepository;
 use App\Repository\NzineRepository;
 use App\Service\EncryptionService;
 use App\Service\NostrClient;
-use App\Service\NzineCategoryIndexService;
 use App\Service\RssFeedService;
-use App\Service\RssToNostrConverter;
-use App\Service\TagMatchingService;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
+use League\HTMLToMarkdown\HtmlConverter;
+use swentel\nostr\Event\Event;
+use swentel\nostr\Key\Key;
+use swentel\nostr\Sign\Sign;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 
 #[AsCommand(
     name: 'nzine:rss:fetch',
-    description: 'Fetch RSS feeds and publish as Nostr events for configured nzines',
+    description: 'Fetch RSS feeds and save new articles for configured nzines',
 )]
 class RssFetchCommand extends Command
 {
-    private SymfonyStyle $io;
-
     public function __construct(
-        private readonly NzineRepository $nzineRepository,
-        private readonly ArticleRepository $articleRepository,
-        private readonly RssFeedService $rssFeedService,
-        private readonly TagMatchingService $tagMatchingService,
-        private readonly RssToNostrConverter $rssToNostrConverter,
-        private readonly ArticleFactory $articleFactory,
-        private readonly NostrClient $nostrClient,
+        private readonly NzineRepository        $nzineRepository,
+        private readonly ArticleFactory         $factory,
+        private readonly RssFeedService         $rssFeedService,
         private readonly EntityManagerInterface $entityManager,
-        private readonly EncryptionService $encryptionService,
-        private readonly LoggerInterface $logger,
-        private readonly NzineCategoryIndexService $categoryIndexService
+        private readonly NostrClient            $nostrClient,
+        private readonly EncryptionService      $encryptionService
     ) {
         parent::__construct();
     }
 
-    protected function configure(): void
-    {
-        $this
-            ->addOption('nzine-id', null, InputOption::VALUE_OPTIONAL, 'Process only this specific nzine ID')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Test without actually publishing events')
-            ->addOption('limit', null, InputOption::VALUE_OPTIONAL, 'Limit number of items to process per feed', 50);
-    }
-
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->io = new SymfonyStyle($input, $output);
+        $io = new SymfonyStyle($input, $output);
+        $slugger = new AsciiSlugger();
 
-        $nzineId = $input->getOption('nzine-id');
-        $isDryRun = $input->getOption('dry-run');
-        $limit = (int) $input->getOption('limit');
-
-        $this->io->title('RSS Feed to Nostr Aggregator');
-
-        if ($isDryRun) {
-            $this->io->warning('Running in DRY-RUN mode - no events will be published');
-        }
-
-        // Get nzines to process
-        $nzines = $nzineId
-            ? [$this->nzineRepository->findRssNzineById((int) $nzineId)]
-            : $this->nzineRepository->findActiveRssNzines();
-
-        $nzines = array_filter($nzines); // Remove nulls
-
-        if (empty($nzines)) {
-            $this->io->warning('No RSS-enabled nzines found');
-            return Command::SUCCESS;
-        }
-
-        $this->io->info(sprintf('Processing %d nzine(s)', count($nzines)));
-
-        $totalStats = [
-            'nzines_processed' => 0,
-            'items_fetched' => 0,
-            'items_matched' => 0,
-            'items_skipped_duplicate' => 0,
-            'items_skipped_unmatched' => 0,
-            'events_created' => 0,
-            'events_updated' => 0,
-            'errors' => 0,
-        ];
-
+        $nzines = $this->nzineRepository->findAll();
         foreach ($nzines as $nzine) {
-            try {
-                $stats = $this->processNzine($nzine, $isDryRun, $limit);
-
-                // Aggregate stats
-                foreach ($stats as $key => $value) {
-                    $totalStats[$key] = ($totalStats[$key] ?? 0) + $value;
-                }
-
-                $totalStats['nzines_processed']++;
-            } catch (\Exception $e) {
-                $this->io->error(sprintf(
-                    'Error processing nzine #%d: %s',
-                    $nzine->getId(),
-                    $e->getMessage()
-                ));
-                $this->logger->error('Nzine processing error', [
-                    'nzine_id' => $nzine->getId(),
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-                $totalStats['errors']++;
+            if (!$nzine->getFeedUrl()) {
+                continue;
             }
-        }
 
-        // Display final statistics
-        $this->io->success('RSS feed processing completed');
-        $this->io->table(
-            ['Metric', 'Count'],
-            [
-                ['Nzines processed', $totalStats['nzines_processed']],
-                ['Items fetched', $totalStats['items_fetched']],
-                ['Items matched', $totalStats['items_matched']],
-                ['Events created', $totalStats['events_created']],
-                ['Events updated', $totalStats['events_updated']],
-                ['Duplicates skipped', $totalStats['items_skipped_duplicate']],
-                ['Unmatched skipped', $totalStats['items_skipped_unmatched']],
-                ['Errors', $totalStats['errors']],
-            ]
-        );
+            /** @var NzineBot $bot */
+            $bot = $nzine->getNzineBot();
+            $bot->setEncryptionService($this->encryptionService);
 
-        return $totalStats['errors'] > 0 ? Command::FAILURE : Command::SUCCESS;
-    }
+            $key = new Key();
+            $npub = $key->getPublicKey($bot->getNsec());
+            $articles = $this->entityManager->getRepository(Article::class)->findBy(['pubkey' => $npub]);
+            $io->writeln('Found ' . count($articles) . ' existing articles for bot ' . $npub);
 
-    /**
-     * Process a single nzine's RSS feed
-     */
-    private function processNzine($nzine, bool $isDryRun, int $limit): array
-    {
-        $stats = [
-            'items_fetched' => 0,
-            'items_matched' => 0,
-            'items_skipped_duplicate' => 0,
-            'items_skipped_unmatched' => 0,
-            'events_created' => 0,
-            'events_updated' => 0,
-        ];
-
-        $this->io->section(sprintf('Processing Nzine #%d: %s', $nzine->getId(), $nzine->getSlug()));
-
-        $feedUrl = $nzine->getFeedUrl();
-        if (empty($feedUrl)) {
-            $this->io->warning('No feed URL configured');
-            return $stats;
-        }
-
-        // Fetch RSS feed
-        try {
-            $feedItems = $this->rssFeedService->fetchFeed($feedUrl);
-            $stats['items_fetched'] = count($feedItems);
-
-            $this->io->text(sprintf('Fetched %d items from feed', count($feedItems)));
-        } catch (\Exception $e) {
-            $this->io->error(sprintf('Failed to fetch feed: %s', $e->getMessage()));
-            throw $e;
-        }
-
-        // Limit items if specified
-        if ($limit > 0 && count($feedItems) > $limit) {
-            $feedItems = array_slice($feedItems, 0, $limit);
-            $this->io->text(sprintf('Limited to %d items', $limit));
-        }
-
-        // Get nzine categories
-        $categories = $nzine->getMainCategories();
-        if (empty($categories)) {
-            $this->io->warning('No categories configured - skipping all items');
-            $stats['items_skipped_unmatched'] = count($feedItems);
-            return $stats;
-        }
-
-        // Ensure category index events exist in the database
-        $categoryIndices = [];
-        if (!$isDryRun) {
-            $this->io->text('Ensuring category index events exist...');
-            try {
-                $categoryIndices = $this->categoryIndexService->ensureCategoryIndices($nzine);
-                $this->io->text(sprintf('Category indices ready: %d', count($categoryIndices)));
-            } catch (\Exception $e) {
-                $this->io->warning(sprintf('Could not create category indices: %s', $e->getMessage()));
-                $this->logger->warning('Category index creation failed', [
-                    'nzine_id' => $nzine->getId(),
-                    'error' => $e->getMessage(),
-                ]);
-                // Continue processing even if category indices fail
-            }
-        }
-
-        // Process each feed item
-        $this->io->progressStart(count($feedItems));
-
-        foreach ($feedItems as $item) {
-            $this->io->progressAdvance();
+            $io->section('Fetching RSS for: ' . $nzine->getFeedUrl());
 
             try {
-                $result = $this->processRssItem($item, $nzine, $categories, $isDryRun, $categoryIndices);
-
-                if ($result === 'created') {
-                    $stats['events_created']++;
-                    $stats['items_matched']++;
-                } elseif ($result === 'updated') {
-                    $stats['events_updated']++;
-                    $stats['items_matched']++;
-                } elseif ($result === 'duplicate') {
-                    $stats['items_skipped_duplicate']++;
-                } elseif ($result === 'unmatched') {
-                    $stats['items_skipped_unmatched']++;
-                }
-            } catch (\Exception $e) {
-                $this->io->error(sprintf(
-                    'Error processing RSS item "%s": %s',
-                    $item['title'] ?? 'unknown',
-                    $e->getMessage()
-                ));
-                $this->logger->error('Error processing RSS item', [
-                    'nzine_id' => $nzine->getId(),
-                    'item_title' => $item['title'] ?? 'unknown',
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-            }
-        }
-
-        $this->io->progressFinish();
-
-        // Re-sign all category indices after articles have been added
-        if (!$isDryRun && !empty($categoryIndices)) {
-            $this->io->text('Re-signing category indices...');
-            try {
-                $this->categoryIndexService->resignCategoryIndices($categoryIndices, $nzine);
-                $this->io->text(sprintf('✓ Re-signed %d category indices', count($categoryIndices)));
-            } catch (\Exception $e) {
-                $this->io->warning(sprintf('Failed to re-sign category indices: %s', $e->getMessage()));
-                $this->logger->error('Category index re-signing failed', [
-                    'nzine_id' => $nzine->getId(),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        // Update last fetched timestamp
-        if (!$isDryRun) {
-            $nzine->setLastFetchedAt(new \DateTimeImmutable());
-            $this->entityManager->flush();
-        }
-
-        $this->io->table(
-            ['Metric', 'Count'],
-            [
-                ['Items fetched', $stats['items_fetched']],
-                ['Items matched', $stats['items_matched']],
-                ['Events created', $stats['events_created']],
-                ['Events updated', $stats['events_updated']],
-                ['Duplicates skipped', $stats['items_skipped_duplicate']],
-                ['Unmatched skipped', $stats['items_skipped_unmatched']],
-            ]
-        );
-
-        return $stats;
-    }
-
-    /**
-     * Process a single RSS item
-     *
-     * @return string Result: 'created', 'duplicate', or 'unmatched'
-     */
-    private function processRssItem(array $item, $nzine, array $categories, bool $isDryRun, array $categoryIndices): string
-    {
-        // Generate slug for duplicate detection
-        $slug = $this->rssToNostrConverter->generateSlugForItem($item);
-
-        // Check if already exists
-        $existing = $this->articleRepository->findOneBy(['slug' => $slug]);
-        if ($existing) {
-            if ($isDryRun) {
-                $this->io->text(sprintf(
-                    '  🔄 Would update: "%s"',
-                    $item['title'] ?? 'unknown'
-                ));
-                return 'updated';
+                $feed = $this->rssFeedService->fetchFeed($nzine->getFeedUrl());
+            } catch (\Throwable $e) {
+                $io->warning('Failed to fetch ' . $nzine->getFeedUrl() . ': ' . $e->getMessage());
+                continue;
             }
 
-            $this->io->text(sprintf(
-                '  🔄 Updating existing article: "%s"',
-                $item['title'] ?? 'unknown'
-            ));
-            $this->logger->debug('Found existing article - updating', [
-                'slug' => $slug,
-                'title' => $item['title'],
-            ]);
+            foreach ($feed['items'] as $item) {
+                try {
+                    $event = new Event();
+                    $event->setKind(30023); // NIP-23 Long-form content
 
-            // Match to category for fresh data
-            $matchedCategory = $this->tagMatchingService->findMatchingCategory(
-                $item['categories'] ?? [],
-                $categories
-            );
+                    // created_at — use parsed pubDate (timestamp int) or now
+                    $createdAt = isset($item['pubDate']) && is_numeric($item['pubDate'])
+                        ? (int)$item['pubDate']
+                        : time();
+                    $event->setCreatedAt($createdAt);
 
-            // Convert to Nostr event to get fresh data with all processing applied
-            $nostrEvent = $this->rssToNostrConverter->convertToNostrEvent(
-                $item,
-                $matchedCategory,
-                $nzine
-            );
+                    // slug (NIP-33 'd' tag) — stable per source item
+                    $base = trim(($nzine->getSlug() ?? 'nzine') . '-' . ($item['title'] ?? ''));
+                    $slug = (string) $slugger->slug($base)->lower();
 
-            // Add original RSS categories as additional tags
-            if (!empty($item['categories'])) {
-                foreach ($item['categories'] as $rssCategory) {
-                    $categorySlug = strtolower(trim($rssCategory));
-                    $tagExists = false;
+                    // HTML → Markdown
+                    $raw = trim($item['content'] ?? '') ?: trim($item['description'] ?? '');
+                    $rawHtml = $this->normalizeWeirdHtml($raw);
+                    $cleanHtml = $this->sanitizeHtml($rawHtml);
+                    $markdown = $this->htmlToMarkdown($cleanHtml);
+                    $event->setContent($markdown);
 
-                    foreach ($nostrEvent->getTags() as $existingTag) {
-                        if (is_array($existingTag) && $existingTag[0] === 't' && isset($existingTag[1]) && $existingTag[1] === $categorySlug) {
-                            $tagExists = true;
-                            break;
+                    // Tags
+                    $tags = [
+                        ['title', $this->safeStr($item['title'] ?? '')],
+                        ['d', $slug],
+                        ['source', $this->safeStr($item['link'] ?? '')],
+                    ];
+
+                    // summary (short description)
+                    $summary = $this->ellipsis($this->plainText($item['description'] ?? ''), 280);
+                    if ($summary !== '') {
+                        $tags[] = ['summary', $summary];
+                    }
+
+                    // image
+                    if (!empty($item['image'])) {
+                        $tags[] = ['image', $this->safeStr($item['image'])];
+                    } else {
+                        // try to sniff first <img> from content if media tag was missing
+                        if (preg_match('~<img[^>]+src="([^"]+)"~i', $rawHtml, $m)) {
+                            $tags[] = ['image', $m[1]];
                         }
                     }
 
-                    if (!$tagExists) {
-                        $nostrEvent->addTag(['t', $categorySlug]);
+                    // categories → "t" tags
+                    if (!empty($item['categories']) && is_array($item['categories'])) {
+                        foreach ($item['categories'] as $category) {
+                            $cat = trim((string)$category);
+                            if ($cat !== '') {
+                                $event->addTag(['t', $cat]);
+                            }
+                        }
                     }
+
+                    $event->setTags($tags);
+
+                    // Sign event
+                    $signer = new Sign();
+                    $signer->signEvent($event, $bot->getNsec());
+
+                    // Publish (add/adjust relays as you like)
+                    try {
+                        $this->nostrClient->publishEvent($event, [
+                            'wss://purplepag.es',
+                            'wss://relay.damus.io',
+                            'wss://nos.lol',
+                        ]);
+                        $io->writeln('Published long-form event: ' . ($item['title'] ?? '(no title)'));
+                    } catch (\Throwable $e) {
+                        $io->warning('Publish failed: ' . $e->getMessage());
+                    }
+
+                    // Persist locally
+                    $article = $this->factory->createFromLongFormContentEvent((object)$event->toArray());
+                    $this->entityManager->persist($article);
+
+                } catch (\Throwable $e) {
+                    // keep going on item errors
+                    $io->warning('Item failed: ' . ($item['title'] ?? '(no title)') . ' — ' . $e->getMessage());
                 }
             }
 
-            // Convert to stdClass for processing
-            $eventObject = json_decode($nostrEvent->toJson());
-
-            // Update all fields from the fresh event data
-            $existing->setContent($eventObject->content);
-            $existing->setTitle($item['title'] ?? '');
-
-            // Set createdAt and publishedAt from RSS pubDate if available
-            if (isset($item['pubDate']) && $item['pubDate'] instanceof \DateTimeImmutable) {
-                $existing->setCreatedAt($item['pubDate']);
-                $existing->setPublishedAt($item['pubDate']);
-            }
-
-            // Extract and set image from tags
-            foreach ($eventObject->tags as $tag) {
-                if ($tag[0] === 'image' && isset($tag[1])) {
-                    $existing->setImage($tag[1]);
-                    break;
-                }
-            }
-
-            // Extract and set summary from tags (now with HTML stripped)
-            foreach ($eventObject->tags as $tag) {
-                if ($tag[0] === 'summary' && isset($tag[1])) {
-                    $existing->setSummary($tag[1]);
-                    break;
-                }
-            }
-
-            // Clear existing topics and re-add from fresh data
-            $existing->clearTopics();
-            foreach ($eventObject->tags as $tag) {
-                if ($tag[0] === 't' && isset($tag[1])) {
-                    $existing->addTopic($tag[1]);
-                }
-            }
-
-            $this->entityManager->persist($existing);
             $this->entityManager->flush();
+            $io->success('RSS fetch complete for: ' . $nzine->getFeedUrl());
 
-            $this->logger->info('Article updated with fresh RSS data', [
-                'slug' => $slug,
-                'title' => $item['title'],
-            ]);
-
-            return 'updated';
-        }
-
-        // Match to category
-        $matchedCategory = $this->tagMatchingService->findMatchingCategory(
-            $item['categories'] ?? [],
-            $categories
-        );
-
-        if (!$matchedCategory) {
-            $this->io->text(sprintf(
-                '  ℹ No category match: "%s" [categories: %s] - importing as standalone',
-                $item['title'] ?? 'unknown',
-                implode(', ', $item['categories'] ?? ['none'])
-            ));
-            $this->logger->debug('No category match for item - importing as standalone', [
-                'title' => $item['title'],
-                'categories' => $item['categories'] ?? [],
-            ]);
-            // Don't return - continue processing without a category
-        }
-
-        // Ensure matched category has a slug field
-        if ($matchedCategory && empty($matchedCategory['slug'])) {
-            // Generate slug from title if not present
-            $slugger = new \Symfony\Component\String\Slugger\AsciiSlugger();
-            $matchedCategory['slug'] = $slugger->slug($matchedCategory['title'] ?? $matchedCategory['name'] ?? '')->lower()->toString();
-
-            $this->logger->debug('Generated slug for matched category', [
-                'category_title' => $matchedCategory['title'] ?? $matchedCategory['name'] ?? 'unknown',
-                'generated_slug' => $matchedCategory['slug'],
-            ]);
-        }
-
-        if ($isDryRun) {
-            $categoryLabel = $matchedCategory
-                ? ($matchedCategory['name'] ?? $matchedCategory['title'] ?? $matchedCategory['slug'] ?? 'unknown')
-                : 'standalone';
-
-            $this->io->text(sprintf(
-                '  ✓ Would create: "%s" → %s',
-                $item['title'] ?? 'unknown',
-                $categoryLabel
-            ));
-            $this->logger->info('[DRY RUN] Would create event', [
-                'title' => $item['title'],
-                'category' => $categoryLabel,
-                'slug' => $slug,
-            ]);
-            return 'created';
-        }
-
-        // Convert to Nostr event (with or without category)
-        $nostrEvent = $this->rssToNostrConverter->convertToNostrEvent(
-            $item,
-            $matchedCategory,
-            $nzine
-        );
-
-        // Add original RSS categories as additional tags (topics)
-        // This ensures RSS feed categories are preserved even if they don't match nzine categories
-        if (!empty($item['categories'])) {
-            foreach ($item['categories'] as $rssCategory) {
-                // Add as 't' tag if not already present
-                $categorySlug = strtolower(trim($rssCategory));
-                $tagExists = false;
-
-                foreach ($nostrEvent->getTags() as $existingTag) {
-                    if (is_array($existingTag) && $existingTag[0] === 't' && isset($existingTag[1]) && $existingTag[1] === $categorySlug) {
-                        $tagExists = true;
-                        break;
-                    }
-                }
-
-                if (!$tagExists) {
-                    $nostrEvent->addTag(['t', $categorySlug]);
-                }
-            }
-        }
-
-        // Convert Nostr Event to stdClass object for ArticleFactory
-        $eventObject = json_decode($nostrEvent->toJson());
-
-        // Create Article entity from the event object
-        $article = $this->articleFactory->createFromLongFormContentEvent($eventObject);
-        $this->entityManager->persist($article);
-        $this->entityManager->flush();
-
-        // Add article to category index if category matched
-        if ($matchedCategory && isset($matchedCategory['slug']) && !empty($categoryIndices)) {
-            $categorySlug = $matchedCategory['slug'];
-            if (isset($categoryIndices[$categorySlug])) {
-                $articleCoordinate = sprintf(
-                    '%d:%s:%s',
-                    $article->getKind()->value,
-                    $article->getPubkey(),
-                    $article->getSlug()
-                );
-
+            // --- Update bot profile (kind 0) using feed metadata ---
+            $feedMeta = $feed['feed'] ?? null;
+            if ($feedMeta) {
+                $profile = [
+                    'name'    => $feedMeta['title'] ?? $nzine->getTitle(),
+                    'about'   => $feedMeta['description'] ?? '',
+                    'picture' => $feedMeta['image'] ?? null,
+                    'website' => $feedMeta['link'] ?? null,
+                ];
+                $p = new Event();
+                $p->setKind(0);
+                $p->setCreatedAt(time());
+                $p->setContent(json_encode($profile, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                $signer = new Sign();
+                $signer->signEvent($p, $bot->getNsec());
                 try {
-                    // addArticleToCategoryIndex now returns a NEW event entity
-                    $updatedCategoryIndex = $this->categoryIndexService->addArticleToCategoryIndex(
-                        $categoryIndices[$categorySlug],
-                        $articleCoordinate,
-                        $nzine
-                    );
-
-                    // Update the reference in the array to point to the new event
-                    $categoryIndices[$categorySlug] = $updatedCategoryIndex;
-
-                    // Flush to ensure the category index is saved to the database
-                    $this->entityManager->flush();
-
-                    $this->logger->debug('Added article to category index', [
-                        'article_slug' => $article->getSlug(),
-                        'category_slug' => $categorySlug,
-                        'coordinate' => $articleCoordinate,
-                    ]);
-                } catch (\Exception $e) {
-                    $this->logger->warning('Failed to add article to category index', [
-                        'article_slug' => $article->getSlug(),
-                        'category_slug' => $categorySlug,
-                        'error' => $e->getMessage(),
-                    ]);
+                    $this->nostrClient->publishEvent($p, ['wss://purplepag.es']);
+                    $io->success('Published bot profile (kind 0) with feed metadata');
+                } catch (\Throwable $e) {
+                    $io->warning('Failed to publish bot profile event: ' . $e->getMessage());
                 }
-            } else {
-                $this->logger->warning('Category index not found for matched category', [
-                    'category_slug' => $categorySlug,
-                    'available_indices' => array_keys($categoryIndices),
-                ]);
             }
         }
 
-        $categoryLabel = $matchedCategory
-            ? ($matchedCategory['name'] ?? $matchedCategory['title'] ?? $matchedCategory['slug'] ?? 'unknown')
-            : 'standalone';
+        return Command::SUCCESS;
+    }
 
-        $this->io->text(sprintf(
-            '  ✓ Created: "%s" → %s',
-            $item['title'] ?? 'unknown',
-            $categoryLabel
-        ));
+    /** -------- Helpers: HTML prep + converter + small utils -------- */
 
-        // Publish to relays (async/background in production)
-        try {
-            // TODO: Get configured relays from nzine or use default
-            // $this->nostrClient->publishEvent($nostrEvent, $relays);
-            $this->logger->info('Event created and saved', [
-                'event_id' => $nostrEvent->getId() ?? 'unknown',
-                'title' => $item['title'],
-                'category' => $categoryLabel,
-            ]);
-        } catch (\Exception $e) {
-            $this->logger->warning('Failed to publish to relays', [
-                'event_id' => $nostrEvent->getId() ?? 'unknown',
-                'error' => $e->getMessage(),
-            ]);
-            // Continue even if relay publishing fails
+    private function normalizeWeirdHtml(string $html): string
+    {
+        // 1) Unwrap Ghost "HTML cards": keep only the <body> content, drop <html>/<head> wrappers and scripts
+        $html = preg_replace_callback('/<!--\s*kg-card-begin:\s*html\s*-->.*?<!--\s*kg-card-end:\s*html\s*-->/si', function ($m) {
+            $block = $m[0];
+            // Extract inner <body>…</body> if present
+            if (preg_match('/<body\b[^>]*>(.*?)<\/body>/si', $block, $mm)) {
+                $inner = $mm[1];
+            } else {
+                // No explicit body; just strip the markers
+                $inner = preg_replace('/<!--\s*kg-card-(?:begin|end):\s*html\s*-->/', '', $block);
+            }
+            return $inner;
+        }, $html);
+
+        // 2) Nuke any remaining document wrappers that would cut DOM parsing short
+        $html = preg_replace([
+            '/<\/?html[^>]*>/i',
+            '/<\/?body[^>]*>/i',
+            '/<head\b[^>]*>.*?<\/head>/si',
+        ], '', $html);
+
+        dump($html);
+
+        return $html;
+    }
+
+
+    private function sanitizeHtml(string $html): string
+    {
+        if ($html === '') return $html;
+
+        // 0) quick pre-clean: kill scripts/styles early to avoid DOM bloat
+        $html = preg_replace('~<(script|style)\b[^>]*>.*?</\1>~is', '', $html);
+        $html = preg_replace('~<!--.*?-->~s', '', $html); // comments
+
+        // 1) Normalize weird widgets and wrappers BEFORE DOM parse
+        // lightning-widget → simple text
+        $html = preg_replace_callback(
+            '~<lightning-widget[^>]*\bto="([^"]+)"[^>]*>.*?</lightning-widget>~is',
+            fn($m) => '<p>⚡ Tips: ' . htmlspecialchars($m[1]) . '</p>',
+            $html
+        );
+        // Ghost/Koenig wrappers: keep useful inner content
+        $html = preg_replace('~<figure[^>]*\bkg-image-card\b[^>]*>\s*(<img[^>]+>)\s*</figure>~i', '$1', $html);
+        $html = preg_replace('~<div[^>]*\bkg-callout-card\b[^>]*>(.*?)</div>~is', '<blockquote>$1</blockquote>', $html);
+        // YouTube iframes → links
+        $html = preg_replace_callback(
+            '~<iframe[^>]+src="https?://www\.youtube\.com/embed/([A-Za-z0-9_\-]+)[^"]*"[^>]*></iframe>~i',
+            fn($m) => '<p><a href="https://youtu.be/' . $m[1] . '">Watch on YouTube</a></p>',
+            $html
+        );
+
+        // 2) Try to pretty up malformed markup via Tidy (if available)
+        if (function_exists('tidy_parse_string')) {
+            try {
+                $tidy = tidy_parse_string($html, [
+                    'clean' => true,
+                    'output-xhtml' => true,
+                    'show-body-only' => false,
+                    'wrap' => 0,
+                    'drop-empty-paras' => true,
+                    'merge-divs' => true,
+                    'merge-spans' => true,
+                    'numeric-entities' => false,
+                    'quote-ampersand' => true,
+                ], 'utf8');
+                $tidy->cleanRepair();
+                $html = (string)$tidy;
+            } catch (\Throwable $e) {
+                // ignore tidy failures
+            }
         }
 
-        return 'created';
+        // 3) DOM sanitize: remove junk, unwrap html/body/head, allowlist elements/attrs
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        libxml_use_internal_errors(true);
+        $loaded = $dom->loadHTML(
+        // force UTF-8 meta so DOMDocument doesn't mangle
+            '<!DOCTYPE html><meta http-equiv="Content-Type" content="text/html; charset=utf-8">'.$html,
+            LIBXML_NOWARNING | LIBXML_NOERROR
+        );
+        libxml_clear_errors();
+        if (!$loaded) {
+            // fallback: as-is minus tags we already stripped
+            return $html;
+        }
+
+        $xpath = new \DOMXPath($dom);
+
+        // Remove <head>, <script>, <style>, <link>, <meta>, <noscript>, <object>, <embed>
+        foreach (['//head','//script','//style','//link','//meta','//noscript','//object','//embed'] as $q) {
+            foreach ($xpath->query($q) as $n) {
+                $n->parentNode?->removeChild($n);
+            }
+        }
+
+        // Remove iframes that survived (non-YouTube or any at this point)
+        foreach ($xpath->query('//iframe') as $n) {
+            $n->parentNode?->removeChild($n);
+        }
+
+        // Remove any custom elements we don’t want (e.g., <lightning-widget>, <amp-*>)
+        foreach ($xpath->query('//*[starts-with(name(), "amp-") or local-name()="lightning-widget"]') as $n) {
+            $n->parentNode?->removeChild($n);
+        }
+
+        // Allowlist basic attributes; drop event handlers/javascript: urls
+        $allowedAttrs = ['href','src','alt','title','width','height','class'];
+        foreach ($xpath->query('//@*') as $attr) {
+            $name = $attr->nodeName;
+            $val  = $attr->nodeValue ?? '';
+            if (!in_array($name, $allowedAttrs, true)) {
+                $attr->ownerElement?->removeAttributeNode($attr);
+                continue;
+            }
+            // kill javascript: and data: except images
+            if ($name === 'href' || $name === 'src') {
+                $valTrim = trim($val);
+                $lower = strtolower($valTrim);
+                $isDataImg = str_starts_with($lower, 'data:image/');
+                if (str_starts_with($lower, 'javascript:') || (str_starts_with($lower, 'data:') && !$isDataImg)) {
+                    $attr->ownerElement?->removeAttribute($name);
+                } else {
+                    $attr->nodeValue = $valTrim;
+                }
+            }
+        }
+
+        // Unwrap <html> and <body> → gather innerHTML
+        $body = $dom->getElementsByTagName('body')->item(0);
+        $container = $body ?: $dom; // fallback
+
+        // Drop empty spans/divs that are just whitespace
+        foreach ($xpath->query('.//span|.//div', $container) as $n) {
+            if (!trim($n->textContent ?? '') && !$n->getElementsByTagName('*')->length) {
+                $n->parentNode?->removeChild($n);
+            }
+        }
+
+        // Serialize inner HTML of container
+        $cleanHtml = '';
+        foreach ($container->childNodes as $child) {
+            $cleanHtml .= $dom->saveHTML($child);
+        }
+
+        // Final tiny cleanups
+        $cleanHtml = preg_replace('~\s+</p>~', '</p>', $cleanHtml);
+        $cleanHtml = preg_replace('~<p>\s+</p>~', '', $cleanHtml);
+
+        return trim($cleanHtml);
+    }
+
+    private function htmlToMarkdown(string $html): string
+    {
+        $converter = $this->makeConverter();
+        $md = trim($converter->convert($html));
+
+        // ensure there's a blank line after images
+        // 1) images that already sit alone on a line
+        $md = preg_replace('/^(>?\s*)!\[[^\]]*]\([^)]*\)\s*$/m', "$0\n", $md);
+        // 2) inline images: add a newline after the token (optional — comment out if you only want #1)
+        $md = preg_replace('/!\[[^\]]*]\([^)]*\)/', "$0\n", $md);
+
+        // collapse any excessive blank lines to max two
+        $md = preg_replace("/\n{3,}/", "\n\n", $md);
+
+        // Optional: coalesce too many blank lines caused by sanitization/conversion
+        $md = preg_replace("~\n{3,}~", "\n\n", $md);
+
+        return $md;
+    }
+
+    private function makeConverter(): HtmlConverter
+    {
+        return new HtmlConverter([
+            'header_style' => 'atx',
+            'bold_style'   => '**',
+            'italic_style' => '*',
+            'hard_break'   => true,
+            'strip_tags'   => true,
+            'remove_nodes' => 'script style',
+        ]);
+    }
+
+    private function plainText(string $html): string
+    {
+        return trim(html_entity_decode(strip_tags($html)));
+    }
+
+    private function ellipsis(string $text, int $max): string
+    {
+        $text = trim($text);
+        if ($text === '' || mb_strlen($text) <= $max) return $text;
+        return rtrim(mb_substr($text, 0, $max - 1)) . '…';
+    }
+
+    private function safeStr(?string $s): string
+    {
+        return $s === null ? '' : trim($s);
     }
 }
-

@@ -28,12 +28,13 @@ final class FeaturedList
      */
     public function mount($category): void
     {
-        $parts = explode(':', $category[1]);
+        $parts = explode(':', $category[1], 3);
         $categorySlug = $parts[2] ?? '';
 
-        // Query the database for the category event by slug using native SQL
+        // Query the database for the latest category event by slug using native SQL
         $sql = "SELECT e.* FROM event e
                 WHERE e.tags::jsonb @> ?::jsonb
+                ORDER BY e.created_at DESC
                 LIMIT 1";
 
         $conn = $this->entityManager->getConnection();

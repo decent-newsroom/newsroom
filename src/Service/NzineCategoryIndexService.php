@@ -12,7 +12,6 @@ use swentel\nostr\Sign\Sign;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 
 /**
  * Service for managing category index events for nzines
@@ -59,7 +58,6 @@ class NzineCategoryIndexService
             return [];
         }
 
-        $slugger = new AsciiSlugger();
         $categoryIndices = [];
 
         // Load all existing category indices for this nzine at once
@@ -72,28 +70,22 @@ class NzineCategoryIndexService
         // Index existing events by their d-tag (slug)
         $existingBySlug = [];
         foreach ($existingIndices as $existingIndex) {
-            $slug = $this->extractSlugFromTags($existingIndex->getTags());
+            $slug = $existingIndex->getSlug();
             if ($slug) {
                 $existingBySlug[$slug] = $existingIndex;
             }
         }
 
         foreach ($categories as $category) {
-            if (empty($category['title'])) {
-                continue;
-            }
-
-            $title = $category['title'];
             $slug =  $category['slug'];
 
             // Check if category index already exists
             if (isset($existingBySlug[$slug])) {
-                // FIX: Add existing index to return array
                 $categoryIndices[$slug] = $existingBySlug[$slug];
 
                 $this->logger->debug('Using existing category index', [
                     'category_slug' => $slug,
-                    'title' => $title,
+                    'title' => $category['title'],
                 ]);
                 continue;
             }
@@ -102,7 +94,7 @@ class NzineCategoryIndexService
             $event = new Event();
             $event->setKind(KindsEnum::PUBLICATION_INDEX->value);
             $event->addTag(['d', $slug]);
-            $event->addTag(['title', $title]);
+            $event->addTag(['title', $category['title']]);
             $event->addTag(['auto-update', 'yes']);
             $event->addTag(['type', 'magazine']);
 
@@ -121,14 +113,16 @@ class NzineCategoryIndexService
 
             // Convert to EventEntity and save
             $serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
+            // Move id to eventId before persisting
+            $eventId = $event->getId();
+            $event->setId(null);
             $eventEntity = $serializer->deserialize($event->toJson(), EventEntity::class, 'json');
-
+            $eventEntity->setEventId($eventId);
             $this->entityManager->persist($eventEntity);
             $categoryIndices[$slug] = $eventEntity;
 
             $this->logger->info('Created category index event', [
                 'nzine_id' => $nzine->getId(),
-                'category_title' => $title,
                 'category_slug' => $slug,
             ]);
         }
@@ -215,10 +209,13 @@ class NzineCategoryIndexService
 
         // Convert to JSON and deserialize to NEW EventEntity
         $serializer = new Serializer([new ObjectNormalizer()], [new JsonEncoder()]);
+        // Move id to eventId before persisting
+        $eventId = $event->getId();
         $newEventEntity = $serializer->deserialize($event->toJson(), EventEntity::class, 'json');
-
+        $newEventEntity->setEventId($eventId);
         // Persist the NEW event entity
         $this->entityManager->persist($newEventEntity);
+        $this->entityManager->flush();
 
         $articleCount = count(array_filter($newEventEntity->getTags(), fn($tag) => $tag[0] === 'a'));
 

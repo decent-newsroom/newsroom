@@ -10,7 +10,6 @@ use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use League\CommonMark\Exception\CommonMarkException;
-use Mdanter\Ecc\Crypto\Signature\SchnorrSignature;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Cache\CacheItemPoolInterface;
@@ -23,9 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
-use Symfony\Component\Workflow\WorkflowInterface;
 
 class ArticleController  extends AbstractController
 {

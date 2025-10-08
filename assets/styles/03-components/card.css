@@ -60,6 +60,13 @@ h2.card-title {
     object-fit: cover;
 }
 
+@media screen and (min-width: 1200px) {
+    .featured-list .card-header img {
+        max-height: initial !important;
+        aspect-ratio: 1.4;
+    }
+}
+
 .card.comment {
     display: flex;
     flex-direction: column;

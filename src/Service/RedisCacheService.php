@@ -7,6 +7,7 @@ use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -453,6 +454,21 @@ readonly class RedisCacheService
         } catch (InvalidArgumentException $e) {
             $this->logger->error('Cache error getting naddr event.', ['exception' => $e, 'decodedData' => $decodedData]);
             return null;
+        }
+    }
+
+    public function setMetadata(\swentel\nostr\Event\Event $event)
+    {
+        $key = new Key();
+        $npub = $key->convertPublicKeyToBech32($event->getPublicKey());
+        $cacheKey = '0_' . $npub;
+        try {
+            $item = $this->redisCache->getItem($cacheKey);
+            $item->set(json_decode($event->getContent()));
+            $item->expiresAfter(3600); // 1 hour
+            $this->redisCache->save($item);
+        } catch (\Exception $e) {
+            $this->logger->error('Error setting user metadata.', ['exception' => $e]);
         }
     }
 }

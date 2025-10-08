@@ -5,24 +5,13 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-/**
- * Service for fetching and parsing RSS feeds
- */
 class RssFeedService
 {
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger
-    ) {
-    }
+    ) {}
 
-    /**
-     * Fetch and parse an RSS feed from a URL
-     *
-     * @param string $feedUrl The URL of the RSS feed
-     * @return array Array of feed items, each containing: title, link, pubDate, description, content, categories
-     * @throws \Exception if feed cannot be fetched or parsed
-     */
     public function fetchFeed(string $feedUrl): array
     {
         try {
@@ -30,9 +19,7 @@ class RssFeedService
 
             $response = $this->httpClient->request('GET', $feedUrl, [
                 'timeout' => 30,
-                'headers' => [
-                    'User-Agent' => 'Newsroom RSS Aggregator/1.0',
-                ],
+                'headers' => ['User-Agent' => 'Newsroom RSS Aggregator/1.0'],
             ]);
 
             if ($response->getStatusCode() !== 200) {
@@ -40,14 +27,14 @@ class RssFeedService
             }
 
             $xmlContent = $response->getContent();
-            $items = $this->parseRssFeed($xmlContent);
+            $parsed = $this->parseRssFeed($xmlContent);
 
             $this->logger->info('RSS feed fetched successfully', [
                 'url' => $feedUrl,
-                'items' => count($items),
+                'items' => count($parsed['items']),
             ]);
 
-            return $items;
+            return $parsed;
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch RSS feed', [
                 'url' => $feedUrl,
@@ -57,13 +44,6 @@ class RssFeedService
         }
     }
 
-    /**
-     * Parse RSS XML content into structured array
-     *
-     * @param string $xmlContent Raw XML content
-     * @return array Array of parsed feed items
-     * @throws \Exception if XML parsing fails
-     */
     private function parseRssFeed(string $xmlContent): array
     {
         libxml_use_internal_errors(true);
@@ -76,44 +56,56 @@ class RssFeedService
         }
 
         $items = [];
+        $feedMeta = [
+            'title' => null,
+            'description' => null,
+            'link' => null,
+            'image' => null,
+        ];
 
-        // Handle both RSS 2.0 and Atom feeds
+        // RSS 2.0
         if (isset($xml->channel->item)) {
-            // RSS 2.0
             foreach ($xml->channel->item as $item) {
                 $items[] = $this->parseRssItem($item);
             }
-        } elseif (isset($xml->entry)) {
-            // Atom feed
+            $feedMeta['title'] = (string)($xml->channel->title ?? '');
+            $feedMeta['description'] = (string)($xml->channel->description ?? '');
+            $feedMeta['link'] = (string)($xml->channel->link ?? '');
+            if (isset($xml->channel->image->url)) {
+                $feedMeta['image'] = (string)$xml->channel->image->url;
+            }
+        }
+        // Atom
+        elseif (isset($xml->entry)) {
             foreach ($xml->entry as $entry) {
                 $items[] = $this->parseAtomEntry($entry);
             }
+            $feedMeta['title'] = (string)($xml->title ?? '');
+            $feedMeta['description'] = (string)($xml->subtitle ?? '');
+            $feedMeta['link'] = (string)($xml->link['href'] ?? '');
+            $feedMeta['image'] = (string)($xml->logo ?? '');
         }
 
-        return $items;
+        return ['feed' => $feedMeta, 'items' => $items];
     }
 
-    /**
-     * Parse a single RSS 2.0 item
-     */
     private function parseRssItem(\SimpleXMLElement $item): array
     {
         $namespaces = $item->getNamespaces(true);
         $content = '';
 
-        // Try to get full content from content:encoded or description
+        // content:encoded
         if (isset($namespaces['content'])) {
             $contentChildren = $item->children($namespaces['content']);
             if (isset($contentChildren->encoded)) {
                 $content = (string) $contentChildren->encoded;
             }
         }
-
-        if (empty($content)) {
+        if ($content === '') {
             $content = (string) ($item->description ?? '');
         }
 
-        // Extract categories
+        // categories
         $categories = [];
         if (isset($item->category)) {
             foreach ($item->category as $category) {
@@ -121,61 +113,67 @@ class RssFeedService
             }
         }
 
-        // Extract image from media:content
+        // media:content image
         $imageUrl = null;
         if (isset($namespaces['media'])) {
             $mediaChildren = $item->children($namespaces['media']);
             if (isset($mediaChildren->content)) {
                 foreach ($mediaChildren->content as $mediaContent) {
                     $medium = (string) $mediaContent['medium'];
-                    if ($medium === 'image' || empty($medium)) {
+                    if ($medium === 'image' || $medium === '') {
                         $imageUrl = (string) $mediaContent['url'];
                         break;
                     }
                 }
             }
         }
+        // ghost/bitnami quirk
+        if (!$imageUrl && isset($item->content) && isset($item->content->_url)) {
+            $medium = isset($item->content->_medium) ? (string)$item->content->_medium : '';
+            if ($medium === 'image' || $medium === '') {
+                $imageUrl = (string)$item->content->_url;
+            }
+        }
 
-        // Parse publication date
-        $pubDate = null;
+        // pubDate → timestamp int
+        $pubTs = null;
         if (isset($item->pubDate)) {
-            $pubDate = new \DateTimeImmutable((string) $item->pubDate);
+            try {
+                $pubTs = (new \DateTimeImmutable((string)$item->pubDate))->getTimestamp();
+            } catch (\Throwable $e) {
+                $pubTs = null;
+            }
         }
 
         return [
-            'title' => (string) ($item->title ?? ''),
-            'link' => (string) ($item->link ?? ''),
-            'pubDate' => $pubDate,
-            'description' => (string) ($item->description ?? ''),
-            'content' => $content,
-            'categories' => $categories,
-            'guid' => (string) ($item->guid ?? ''),
-            'image' => $imageUrl,
+            'title'       => (string) ($item->title ?? ''),
+            'link'        => (string) ($item->link ?? ''),
+            'pubDate'     => $pubTs,
+            'description' => html_entity_decode(strip_tags((string)($item->description ?? ''))),
+            'content'     => (string)$content,
+            'categories'  => $categories,
+            'guid'        => (string) ($item->guid ?? ''),
+            'image'       => $imageUrl,
         ];
     }
 
-    /**
-     * Parse a single Atom entry
-     */
     private function parseAtomEntry(\SimpleXMLElement $entry): array
     {
-        $namespaces = $entry->getNamespaces(true);
-
-        // Get link
+        // link
         $link = '';
         if (isset($entry->link)) {
             foreach ($entry->link as $l) {
-                if ((string) $l['rel'] === 'alternate' || !isset($l['rel'])) {
-                    $link = (string) $l['href'];
+                if ((string)$l['rel'] === 'alternate' || !isset($l['rel'])) {
+                    $link = (string)$l['href'];
                     break;
                 }
             }
         }
 
-        // Get content
+        // content
         $content = (string) ($entry->content ?? $entry->summary ?? '');
 
-        // Get categories/tags
+        // categories
         $categories = [];
         if (isset($entry->category)) {
             foreach ($entry->category as $category) {
@@ -183,22 +181,26 @@ class RssFeedService
             }
         }
 
-        // Parse publication date
-        $pubDate = null;
-        if (isset($entry->published)) {
-            $pubDate = new \DateTimeImmutable((string) $entry->published);
-        } elseif (isset($entry->updated)) {
-            $pubDate = new \DateTimeImmutable((string) $entry->updated);
+        // pubDate → timestamp int
+        $pubTs = null;
+        try {
+            if (isset($entry->published)) {
+                $pubTs = (new \DateTimeImmutable((string)$entry->published))->getTimestamp();
+            } elseif (isset($entry->updated)) {
+                $pubTs = (new \DateTimeImmutable((string)$entry->updated))->getTimestamp();
+            }
+        } catch (\Throwable $e) {
+            $pubTs = null;
         }
 
         return [
-            'title' => (string) ($entry->title ?? ''),
-            'link' => $link,
-            'pubDate' => $pubDate,
-            'description' => (string) ($entry->summary ?? ''),
-            'content' => $content,
-            'categories' => $categories,
-            'guid' => (string) ($entry->id ?? ''),
+            'title'       => (string) ($entry->title ?? ''),
+            'link'        => $link,
+            'pubDate'     => $pubTs,
+            'description' => html_entity_decode(strip_tags((string)($entry->summary ?? ''))),
+            'content'     => $content,
+            'categories'  => $categories,
+            'guid'        => (string) ($entry->id ?? ''),
         ];
     }
 }
