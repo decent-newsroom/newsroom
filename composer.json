@@ -3,7 +3,6 @@
     "type": "project",
     "license": "MIT",
     "description": "A decentralised newsroom",
-    "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
         "php": ">=8.3.13",
@@ -11,6 +10,7 @@
         "ext-iconv": "*",
         "ext-openssl": "*",
         "ext-redis": "*",
+        "bitvora/bitvora-php": "dev-master",
         "doctrine/dbal": "^4.2",
         "doctrine/doctrine-bundle": "^2.13",
         "doctrine/doctrine-migrations-bundle": "^3.3",
