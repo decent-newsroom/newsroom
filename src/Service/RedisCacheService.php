@@ -398,4 +398,61 @@ readonly class RedisCacheService
             ];
         }
     }
+
+    /**
+     * Get a single event by ID with caching
+     *
+     * @param string $eventId The event ID
+     * @param array|null $relays Optional relays to query
+     * @return object|null The event object or null if not found
+     */
+    public function getEvent(string $eventId, ?array $relays = null): ?object
+    {
+        $cacheKey = 'event_' . $eventId . ($relays ? '_' . md5(json_encode($relays)) : '');
+
+        try {
+            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($eventId, $relays) {
+                $item->expiresAfter(1800); // 30 minutes cache for events
+
+                try {
+                    $event = $this->nostrClient->getEventById($eventId, $relays);
+                    return $event;
+                } catch (\Exception $e) {
+                    $this->logger->error('Error getting event.', ['exception' => $e, 'eventId' => $eventId]);
+                    return null;
+                }
+            });
+        } catch (InvalidArgumentException $e) {
+            $this->logger->error('Cache error getting event.', ['exception' => $e, 'eventId' => $eventId]);
+            return null;
+        }
+    }
+
+    /**
+     * Get a parameterized replaceable event (naddr) with caching
+     *
+     * @param array $decodedData The decoded naddr data
+     * @return object|null The event object or null if not found
+     */
+    public function getNaddrEvent(array $decodedData): ?object
+    {
+        $cacheKey = 'naddr_' . $decodedData['kind'] . '_' . $decodedData['pubkey'] . '_' . $decodedData['identifier'] . '_' . md5(json_encode($decodedData['relays'] ?? []));
+
+        try {
+            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($decodedData) {
+                $item->expiresAfter(1800); // 30 minutes cache for naddr events
+
+                try {
+                    $event = $this->nostrClient->getEventByNaddr($decodedData);
+                    return $event;
+                } catch (\Exception $e) {
+                    $this->logger->error('Error getting naddr event.', ['exception' => $e, 'decodedData' => $decodedData]);
+                    return null;
+                }
+            });
+        } catch (InvalidArgumentException $e) {
+            $this->logger->error('Cache error getting naddr event.', ['exception' => $e, 'decodedData' => $decodedData]);
+            return null;
+        }
+    }
 }

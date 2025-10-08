@@ -48,10 +48,24 @@ const CACHE_STRATEGIES = {
     cacheName: ASSETS_CACHE,
     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   },
-  // Static pages - network first with cache fallback
+  // Nostr event pages - cache first with background update
+  nostrEvents: {
+    pattern: /^https?.*\/e\/(note|nevent)1.*/,
+    strategy: 'staleWhileRevalidate',
+    cacheName: RUNTIME_CACHE,
+    maxAge: 10 * 60 * 1000 // 10 minutes
+  },
+  // Nostr articles, profiles - cache first with background update
+  nostrArticles: {
+    pattern: /^https?.*\/(article|p)\/*/,
+    strategy: 'staleWhileRevalidate',
+    cacheName: RUNTIME_CACHE,
+    maxAge: 10 * 60 * 1000 // 10 minutes
+  },
+  // Static pages
   pages: {
     pattern: /^https?.*\/(about|roadmap|tos|landing|unfold)$/,
-    strategy: 'networkFirst',
+    strategy: 'staleWhileRevalidate',
     cacheName: STATIC_CACHE,
     maxAge: 24 * 60 * 60 * 1000 // 1 day
   },

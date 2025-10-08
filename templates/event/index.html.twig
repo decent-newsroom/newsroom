@@ -1,6 +1,84 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Nostr Event{% endblock %}
+{% block title %}
+    {%- if author and author.name is defined -%}
+        {{ author.name }} - Nostr Event
+    {%- else -%}
+        Nostr Event
+    {%- endif -%}
+{% endblock %}
+
+{% block ogtags %}
+    {# Set og:type dynamically based on event kind #}
+    {% set ogType = 'article' %}
+    {% if event.kind == 21 or event.kind == 22 %}
+        {% set ogType = 'video.other' %}
+    {% elseif event.kind == 20 %}
+        {% set ogType = 'article' %} {# Could use 'image' but 'article' is more widely supported #}
+    {% endif %}
+    <meta property="og:type" content="{{ ogType }}" />
+    <meta property="og:title" content="{% if author and author.name is defined %}{{ author.name }} - Nostr Event{% else %}Nostr Event{% endif %}" />
+
+    {# OG Description - use event content or fallback #}
+    {% set ogDescription = event.content|default('View this Nostr event')|striptags|slice(0, 200) %}
+    <meta property="og:description" content="{{ ogDescription }}" />
+
+    {# URL #}
+    <meta property="og:url" content="{{ app.request.uri }}" />
+
+    {# Image - try to extract from event or use author image #}
+    {% set ogImage = null %}
+
+    {# For picture events (kind 20), try to get image from url tag #}
+    {% if event.kind == 20 %}
+        {% for tag in event.tags %}
+            {% if tag[0] == 'url' and ogImage is null %}
+                {% set ogImage = tag[1] %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# For video events (kind 21/22), try to get thumbnail #}
+    {% if (event.kind == 21 or event.kind == 22) and ogImage is null %}
+        {% for tag in event.tags %}
+            {% if tag[0] == 'thumb' and ogImage is null %}
+                {% set ogImage = tag[1] %}
+            {% elseif tag[0] == 'image' and ogImage is null %}
+                {% set ogImage = tag[1] %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# Fallback to author image if available #}
+    {% if ogImage is null and author and author.image is defined %}
+        {% set ogImage = author.image %}
+    {% endif %}
+
+    {# Use default icon if no image found #}
+    {% if ogImage is null %}
+        {% set ogImage = app.request.schemeAndHttpHost ~ asset('icons/apple-touch-icon.png') %}
+    {% endif %}
+
+    <meta property="og:image" content="{{ ogImage }}" />
+
+    {# Twitter Card tags #}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{% if author and author.name is defined %}{{ author.name }} - Nostr Event{% else %}Nostr Event{% endif %}" />
+    <meta name="twitter:description" content="{{ ogDescription }}" />
+    <meta name="twitter:image" content="{{ ogImage }}" />
+
+    {# Article metadata #}
+    {% if event.created_at is defined %}
+        <meta property="article:published_time" content="{{ event.created_at|date('c') }}" />
+    {% endif %}
+
+    {% if author and author.name is defined %}
+        <meta property="article:author" content="{{ author.name }}" />
+    {% endif %}
+
+    {# Site name #}
+    <meta property="og:site_name" content="Decent Newsroom" />
+{% endblock %}
 
 {% block body %}
 <div class="container">

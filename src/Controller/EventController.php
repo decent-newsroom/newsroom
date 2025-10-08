@@ -9,6 +9,7 @@ use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
 use Exception;
+use http\Client\Request;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data;
 use nostriphant\NIP19\Data\Note;
@@ -25,7 +26,8 @@ class EventController extends AbstractController
      * @throws Exception
      */
     #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note)1.*'])]
-    public function index($nevent, NostrClient $nostrClient, RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser, LoggerInterface $logger): Response
+    public function index($nevent, \Symfony\Component\HttpFoundation\Request $request, NostrClient $nostrClient,
+                          RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser, LoggerInterface $logger): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -99,11 +101,26 @@ class EventController extends AbstractController
             }
 
             // Render template with the event data and extracted Nostr links
-            return $this->render('event/index.html.twig', [
+            $response = $this->render('event/index.html.twig', [
                 'event' => $event,
                 'author' => $authorMetadata,
                 'nostrLinks' => $nostrLinks
             ]);
+
+            // Add HTTP caching headers for request-level caching
+            $response->setPublic(); // Allow public caching (browsers, CDNs)
+            $response->setMaxAge(300); // Cache for 5 minutes
+            $response->setSharedMaxAge(300); // Same for shared caches (CDNs)
+
+            // Add ETag for conditional requests
+            $etag = md5($nevent . ($event->created_at ?? '') . ($event->content ?? ''));
+            $response->setEtag($etag);
+            $response->setLastModified(new \DateTime('@' . ($event->created_at ?? time())));
+
+            // Check if client has current version
+            $response->isNotModified($request);
+
+            return $response;
 
         } catch (Exception $e) {
             $logger->error('Error processing event', ['error' => $e->getMessage()]);
