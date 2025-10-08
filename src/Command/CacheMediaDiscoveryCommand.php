@@ -21,12 +21,13 @@ use Symfony\Contracts\Cache\CacheInterface;
 )]
 class CacheMediaDiscoveryCommand extends Command
 {
-    private const int CACHE_TTL = 10800; // 3 hours in seconds
+    private const int CACHE_TTL = 32500; // 9ish hours in seconds
 
     // Hardcoded topic to hashtag mapping (same as controller)
     private const TOPIC_HASHTAGS = [
-        'photography' => ['photography', 'photo', 'photostr', 'photographer', 'photos', 'picture'],
-        'nature' => ['nature', 'landscape', 'wildlife', 'outdoor', 'naturephotography', 'pets', 'catstr', 'dogstr', 'flowers', 'forest', 'mountains', 'beach', 'sunset', 'sunrise'],
+        'photography' => ['photography', 'photo', 'photostr', 'photographer', 'photos', 'picture', 'image', 'images', 'gallery', 'coffee'],
+        'nature' => ['nature', 'landscape', 'wildlife', 'outdoor', 'naturephotography', 'pets', 'catstr', 'dogstr',
+            'flowers', 'forest', 'mountains', 'beach', 'sunset', 'sunrise'],
         'travel' => ['travel', 'traveling', 'wanderlust', 'adventure', 'explore', 'city', 'vacation', 'trip'],
     ];
 
@@ -48,7 +49,8 @@ class CacheMediaDiscoveryCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $force = $input->getOption('force');
+        $force = true; // Always force refresh for this command
+        // $force = $input->getOption('force');
 
         $io->title('Media Discovery Cache Update');
 
@@ -59,7 +61,7 @@ class CacheMediaDiscoveryCommand extends Command
                 $allHashtags = array_merge($allHashtags, self::TOPIC_HASHTAGS[$topic]);
             }
 
-            $cacheKey = 'media_discovery_events_' . md5(implode(',', $allHashtags));
+            $cacheKey = 'media_discovery_events_all';
 
             if ($force) {
                 $io->info('Force refresh enabled - deleting existing cache');

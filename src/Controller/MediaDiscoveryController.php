@@ -34,11 +34,10 @@ class MediaDiscoveryController extends AbstractController
             }
 
             // Cache key for all media events
-            $cacheKey = 'media_discovery_events_' . md5(implode(',', $allHashtags));
+            $cacheKey = 'media_discovery_events_all';
 
             // Read from cache only - the cache is populated by the CacheMediaDiscoveryCommand
-            $allCachedEvents = $cache->get($cacheKey, function (ItemInterface $item) {
-                $item->expiresAfter(self::CACHE_TTL);
+            $allCachedEvents = $cache->get($cacheKey, function () {
                 // Return empty array if cache is not populated yet
                 // The command should be run to populate this
                 return [];

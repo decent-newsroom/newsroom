@@ -668,6 +668,7 @@ class NostrClient
         $allEvents = [];
         $relayset = new RelaySet();
         $relayset->addRelay(new Relay('wss://theforest.nostr1.com'));
+        $relayset->addRelay(new Relay('wss://relay.nostr.band'));
 
         // Fetch events for each hashtag
         foreach ($hashtags as $hashtag) {
