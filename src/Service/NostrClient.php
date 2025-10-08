@@ -637,6 +637,59 @@ class NostrClient
         });
     }
 
+    /**
+     * Get recent media events (pictures and videos) from the last 3 days
+     * Fetches from all relays without filtering by author
+     * @throws \Exception
+     */
+    public function getRecentMediaEvents(int $limit = 100): array
+    {
+        // Create request for all media kinds (20, 21, 22) from the last 3 days
+        $request = $this->createNostrRequest(
+            kinds: [20, 21, 22], // NIP-68 Pictures, NIP-71 Videos (normal and shorts)
+            filters: [
+                'limit' => $limit
+            ],
+            relaySet: $this->defaultRelaySet
+        );
+
+        // Process the response and return raw events
+        return $this->processResponse($request->send(), function($event) {
+            return $event; // Return the raw event
+        });
+    }
+
+    /**
+     * Get media events filtered by specific hashtags
+     * @throws \Exception
+     */
+    public function getMediaEventsByHashtags(array $hashtags): array
+    {
+        $allEvents = [];
+        $relayset = new RelaySet();
+        $relayset->addRelay(new Relay('wss://theforest.nostr1.com'));
+
+        // Fetch events for each hashtag
+        foreach ($hashtags as $hashtag) {
+            $request = $this->createNostrRequest(
+                kinds: [20], // NIP-68 Pictures, later maybe NIP-71 Videos
+                filters: [
+                    'tag' => ['#t', [$hashtag]],
+                    'limit' => 100 // Fetch 100 per hashtag
+                ],
+                relaySet: $relayset
+            );
+
+            $events = $this->processResponse($request->send(), function($event) {
+                return $event;
+            });
+
+            $allEvents = array_merge($allEvents, $events);
+        }
+
+        return $allEvents;
+    }
+
     public function getArticles(array $slugs): array
     {
         $articles = [];

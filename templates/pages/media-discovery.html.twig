@@ -1,0 +1,180 @@
+{% extends 'layout.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('styles/media-discovery.css') }}">
+{% endblock %}
+
+{% block body %}
+
+    <div class="discover-header">
+        <h1>Media</h1>
+        <p class="discover-subtitle">Discovery through serendipity</p>
+    </div>
+
+    <div class="w-container">
+        {% if error is defined %}
+            <div class="error-message">
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        {% if mediaEvents|length > 0 %}
+            <div class="masonry-grid">
+                {% for event in mediaEvents %}
+                    <div class="masonry-item">
+                        {# Extract title #}
+                        {% set title = null %}
+                        {% for tag in event.tags %}
+                            {% if tag[0] == 'title' %}
+                                {% set title = tag[1] %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Extract first image from imeta tags #}
+                        {% set firstImageUrl = null %}
+                        {% set firstVideoUrl = null %}
+                        {% set imageAlt = null %}
+                        {% set isVideo = false %}
+                        {% set imageWidth = null %}
+                        {% set imageHeight = null %}
+                        {% for tag in event.tags %}
+                            {% if tag[0] == 'imeta' %}
+                                {% set videoUrl = null %}
+                                {% set imageUrl = null %}
+                                {% set previewImage = null %}
+                                {% set width = null %}
+                                {% set height = null %}
+                                {% for i in 1..(tag|length - 1) %}
+                                    {% set param = tag[i] %}
+                                    {% if param starts with 'url ' %}
+                                        {% set potentialUrl = param[4:] %}
+                                        {# Check if it's a video URL #}
+                                        {% if potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i' or potentialUrl matches '/video/i' %}
+                                            {% set videoUrl = potentialUrl %}
+                                            {% set isVideo = true %}
+                                        {% else %}
+                                            {% set imageUrl = potentialUrl %}
+                                        {% endif %}
+                                    {% elseif param starts with 'image ' %}
+                                        {# Preview/poster image for video or regular image #}
+                                        {% set previewImage = param[6:] %}
+                                    {% elseif param starts with 'alt ' %}
+                                        {% set imageAlt = param[4:] %}
+                                    {% elseif param starts with 'dim ' %}
+                                        {# Extract dimensions like "dim 1920x1080" #}
+                                        {% set dimensions = param[4:]|split('x') %}
+                                        {% if dimensions|length == 2 %}
+                                            {% set width = dimensions[0] %}
+                                            {% set height = dimensions[1] %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                {# Set the first video and image found #}
+                                {% if videoUrl and firstVideoUrl is null %}
+                                    {% set firstVideoUrl = videoUrl %}
+                                    {# Use preview image if available, otherwise try to use the main image URL #}
+                                    {% if previewImage and firstImageUrl is null %}
+                                        {% set firstImageUrl = previewImage %}
+                                    {% elseif imageUrl and firstImageUrl is null %}
+                                        {% set firstImageUrl = imageUrl %}
+                                    {% endif %}
+                                    {% if width and height and imageWidth is null %}
+                                        {% set imageWidth = width %}
+                                        {% set imageHeight = height %}
+                                    {% endif %}
+                                {% endif %}
+                                {# For non-video items, use the image URL or preview #}
+                                {% if not videoUrl and firstImageUrl is null %}
+                                    {% if imageUrl %}
+                                        {% set firstImageUrl = imageUrl %}
+                                        {% if width and height and imageWidth is null %}
+                                            {% set imageWidth = width %}
+                                            {% set imageHeight = height %}
+                                        {% endif %}
+                                    {% elseif previewImage %}
+                                        {% set firstImageUrl = previewImage %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Calculate aspect ratio percentage for placeholder if dimensions available #}
+                        {% set aspectRatio = null %}
+                        {% if imageWidth and imageHeight %}
+                            {% set aspectRatio = (imageHeight / imageWidth * 100)|round(2) %}
+                        {% endif %}
+
+                        {# Generate nevent for linking #}
+                        {% set eventId = event.id %}
+                        {% set noteId = event.noteId %}
+
+                        <a href="/e/{{ noteId }}" class="masonry-link">
+                            {% if firstImageUrl %}
+                                <div class="masonry-image-container {% if aspectRatio %}has-dimensions{% endif %}" {% if aspectRatio %}style="padding-bottom: {{ aspectRatio }}%;"{% endif %} data-controller="image-loader">
+                                    <img data-src="{{ firstImageUrl }}"
+                                         alt="{{ imageAlt|default(title|default(isVideo ? 'Video' : 'Picture')) }}"
+                                         class="masonry-image"
+                                         data-image-loader-target="image"
+                                         onerror="this.closest('.masonry-item').style.display='none'" />
+                                    {% if isVideo %}
+                                        <div class="video-overlay">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="white" opacity="0.9">
+                                                <path d="M8 5v14l11-7z"/>
+                                            </svg>
+                                        </div>
+                                    {% endif %}
+                                    {% if event.content %}
+                                        <div class="masonry-hover-caption">
+                                            {% if event.content %}
+                                                <p>{{ event.content|length > 100 ? event.content[:100] ~ '...' : event.content }}</p>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% elseif isVideo %}
+                                {# Video without preview image - show placeholder with video icon #}
+                                <div class="masonry-image-container video-no-preview">
+                                    <div class="video-placeholder">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="currentColor" opacity="0.4">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    </div>
+                                    {% if event.content %}
+                                        <div class="masonry-hover-caption">
+                                            {% if event.content %}
+                                                <p>{{ event.content|length > 100 ? event.content[:100] ~ '...' : event.content }}</p>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="discover-footer">
+                <p class="media-count">End of the line. Reload for a new batch.</p>
+            </div>
+        {% else %}
+            <div class="no-media">
+                <p>No media found. Reload to try again.</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block aside %}
+{#    <div class="topic-filter">#}
+{#        <h3 class="aside-heading">Browse by Topic</h3>#}
+{#        <div class="topic-list">#}
+{#            {% for topic in topics %}#}
+{#                <a href="{{ path('media-discovery', {'topic': topic}) }}"#}
+{#                   class="topic-item {{ selectedTopic == topic ? 'active' : '' }}">#}
+{#                    {{ topic|capitalize }}#}
+{#                </a>#}
+{#            {% endfor %}#}
+{#        </div>#}
+{#    </div>#}
+{% endblock %}
