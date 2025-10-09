@@ -9,6 +9,7 @@ use App\Enum\IndexStatusEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\ElasticaBundle\Persister\ObjectPersister;
 use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
+use swentel\nostr\Key\Key;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -17,6 +18,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'articles:qa', description: 'Mark articles by quality and select which to index')]
 class QualityCheckArticlesCommand extends Command
 {
+    private const BLACKLIST = [
+        'npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'
+    ];
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager
     )
@@ -46,6 +51,13 @@ class QualityCheckArticlesCommand extends Command
 
     private function meetsCriteria(Article $article): bool
     {
+        // Exclude blacklisted pubkeys
+        $key = new Key();
+        if (in_array($key->convertPublicKeyToBech32($article->getPubkey()), self::BLACKLIST, true))
+        {
+            return false;
+        }
+
         $content = $article->getContent();
 
         // No empty title
