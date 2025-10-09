@@ -77,7 +77,7 @@ class DefaultController extends AbstractController
             $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
 
             $query = new Query($boolQuery);
-            $query->setSize(50);
+            $query->setSize(30);
             $query->setSort(['createdAt' => ['order' => 'desc']]);
 
 
