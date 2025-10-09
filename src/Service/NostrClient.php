@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
+use App\Service\RedisCacheService;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -12,6 +13,7 @@ use nostriphant\NIP19\Data;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Filter\Filter;
+use swentel\nostr\Key\Key;
 use swentel\nostr\Message\EventMessage;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
@@ -38,10 +40,10 @@ class NostrClient
     ];
 
     public function __construct(private readonly EntityManagerInterface $entityManager,
-                                private readonly ManagerRegistry $managerRegistry,
-                                private readonly ArticleFactory $articleFactory,
-                                private readonly TokenStorageInterface $tokenStorage,
-                                private readonly LoggerInterface $logger)
+                                private readonly ManagerRegistry        $managerRegistry,
+                                private readonly ArticleFactory         $articleFactory,
+                                private readonly TokenStorageInterface  $tokenStorage,
+                                private readonly LoggerInterface        $logger, private readonly RedisCacheService $redisCacheService)
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
@@ -171,6 +173,12 @@ class NostrClient
     public function publishEvent(Event $event, array $relays): array
     {
         $eventMessage = new EventMessage($event);
+        // If no relays, fetch relays for user then post to those
+        if (empty($relays)) {
+            $key = new Key();
+            $relays = $this->redisCacheService->getRelays($key->convertPublicKeyToBech32($event->getPublicKey()));
+        }
+
         $relaySet = new RelaySet();
         foreach ($relays as $relayWss) {
             $relay = new Relay($relayWss);

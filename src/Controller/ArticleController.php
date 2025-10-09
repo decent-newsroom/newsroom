@@ -261,24 +261,9 @@ class ArticleController  extends AbstractController
             $cacheKey = 'article_' . $article->getEventId();
             $articlesCache->delete($cacheKey);
 
-            // Optionally publish to Nostr relays
+            // Publish to Nostr relays
             try {
-                // Get user's relays or use default ones
-                $relays = [];
-                if ($user && method_exists($user, 'getRelays') && $user->getRelays()) {
-                    foreach ($user->getRelays() as $relayArr) {
-                        if (isset($relayArr[1]) && isset($relayArr[2]) && $relayArr[2] === 'write') {
-                            $relays[] = $relayArr[1];
-                        }
-                    }
-                }
-
-                // Fallback to default relays if no user relays found
-                if (empty($relays)) {
-                    throw new \Exception('No write relays configured for user.');
-                }
-
-                $nostrClient->publishEvent($eventObj, $relays);
+                $nostrClient->publishEvent($eventObj, []);
             } catch (\Exception $e) {
                 // Log error but don't fail the request - article is saved locally
                 error_log('Failed to publish to Nostr relays: ' . $e->getMessage());
