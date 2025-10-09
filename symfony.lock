@@ -234,15 +234,15 @@
         ]
     },
     "symfony/ux-live-component": {
-        "version": "2.21",
+        "version": "2.26",
         "recipe": {
             "repo": "github.com/symfony/recipes",
             "branch": "main",
             "version": "2.6",
-            "ref": "73e69baf18f47740d6f58688c5464b10cdacae06"
+            "ref": "b7130b7b5ddc2f8994bd6149d7c093b184782f0c"
         },
         "files": [
-            "./config/routes/ux_live_component.yaml"
+            "config/routes/ux_live_component.yaml"
         ]
     },
     "symfony/ux-twig-component": {
