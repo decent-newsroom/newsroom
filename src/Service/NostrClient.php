@@ -42,7 +42,7 @@ class NostrClient
                                 private readonly ManagerRegistry        $managerRegistry,
                                 private readonly ArticleFactory         $articleFactory,
                                 private readonly TokenStorageInterface  $tokenStorage,
-                                private readonly LoggerInterface        $logger, private readonly RedisCacheService $redisCacheService)
+                                private readonly LoggerInterface        $logger)
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
