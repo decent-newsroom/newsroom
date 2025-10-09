@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
-use App\Service\RedisCacheService;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
