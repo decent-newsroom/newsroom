@@ -3,6 +3,10 @@
  * Article-specific styling (content, actions, metadata)
  */
 
+article {
+    margin-bottom: var(--spacing-5);
+}
+
 .article-main {
     margin-top: var(--spacing-5);
 }
@@ -152,4 +156,8 @@ blockquote p {
 .hashtag:hover {
     color: var(--color-primary);
     text-decoration: underline;
+}
+
+article .card {
+    margin: 0;
 }

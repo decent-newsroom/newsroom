@@ -166,6 +166,8 @@
     max-width: 100%;
     height: auto;
     display: block;
+    margin: 0 auto;
+    max-height: calc(100vh - 100px);
 }
 
 .annotated-users {
@@ -180,10 +182,4 @@
     border-radius: 0.25rem;
     font-size: 0.875rem;
     white-space: nowrap;
-}
-
-.picture-alt {
-    margin-top: 0.5rem;
-    font-style: italic;
-    color: var(--color-text-mid);
 }

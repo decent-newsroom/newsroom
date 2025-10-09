@@ -100,11 +100,19 @@ p {
     margin: 0 0 15px;
 }
 
+a.btn, button {
+    font-family: var(--font-family), sans-serif;
+    font-size: 1rem;
+    line-height: 1.1;
+    text-transform: uppercase;
+}
+
 .lede {
     font-family: var(--main-body-font), serif;
     font-size: 1.6rem;
     word-wrap: break-word;
     font-weight: 300;
+    margin-bottom: var(--spacing-3);
 }
 
 strong:not(>h2), .strong {

@@ -1,0 +1,32 @@
+figure.media {
+    margin: 0;
+    padding: var(--spacing-3) var(--spacing-3) 0 var(--spacing-3);
+    border: none;
+    box-shadow: none;
+    background-color: var(--color-bg-light);
+}
+
+.picture-description {
+    display: flex;
+    flex-direction: row;
+    padding: var(--spacing-3)  var(--spacing-3)  var(--spacing-1)  var(--spacing-3) ;
+}
+
+@media screen and (max-width: 768px) {
+    .picture-description {
+        flex-direction: column;
+        gap: var(--spacing-2);
+        padding-bottom: var(--spacing-2);
+    }
+}
+
+
+figcaption.picture-description div {
+    flex-grow: 1;
+}
+
+figcaption.picture-description p,
+figcaption.picture-description .credits {
+    font-size: 1rem;
+    line-height: 1.2;
+}
