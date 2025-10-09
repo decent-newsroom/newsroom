@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use FOS\ElasticaBundle\Finder\FinderInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -14,7 +15,6 @@ use Elastica\Query;
 use Elastica\Collapse;
 use Elastica\Query\Terms;
 use Psr\Cache\CacheItemPoolInterface;
-use App\Search\FinderInterface;
 use swentel\nostr\Key\Key;
 
 #[AsCommand(name: 'app:cache_latest_articles', description: 'Cache the latest articles list')]
