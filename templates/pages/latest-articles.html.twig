@@ -19,3 +19,17 @@
     </section>
 {% endblock %}
 
+{% block aside %}
+    <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+        <h2>News Bots</h2>
+        <p class="eyebrow">Automated news curators</p>
+    </div>
+    {# Use list of pubkeys in newsBots to show cards for newsbots #}
+    {%  for bot in newsBots %}
+        <div class="card mt-3">
+            <div class="card-body text-center">
+                <twig:Molecules:UserFromNpub :ident="bot" />
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
