@@ -16,13 +16,12 @@ use Elastica\Collapse;
 use Elastica\Query\Terms;
 use Psr\Cache\CacheItemPoolInterface;
 use swentel\nostr\Key\Key;
-use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(name: 'app:cache_latest_articles', description: 'Cache the latest articles list')]
 class CacheLatestArticlesCommand extends Command
 {
     private FinderInterface $finder;
-    private CacheInterface $appCache;
+    private CacheItemPoolInterface $articlesCache;
     private ParameterBagInterface $params;
 
     public function __construct(FinderInterface $finder, CacheItemPoolInterface $articlesCache, ParameterBagInterface $params)

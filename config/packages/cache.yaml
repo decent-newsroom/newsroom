@@ -16,3 +16,7 @@ framework:
             #my.dedicated.cache: null
             subscriptions.cache: null
             credits.cache: null
+            articles.cache:
+                adapter: cache.adapter.redis
+                provider: Redis
+                default_lifetime: 3600
