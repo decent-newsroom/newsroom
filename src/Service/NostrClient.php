@@ -176,7 +176,7 @@ class NostrClient
         // If no relays, fetch relays for user then post to those
         if (empty($relays)) {
             $key = new Key();
-            $relays = $this->redisCacheService->getRelays($key->convertPublicKeyToBech32($event->getPublicKey()));
+            $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 5);
         }
 
         $relaySet = new RelaySet();
