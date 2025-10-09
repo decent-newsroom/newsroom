@@ -81,10 +81,17 @@
 {% endblock %}
 
 {% block body %}
+    {# Title from tags #}
+    {% set title = 'Untitled' %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'title' %}
+            {% set title = tag[1] %}
+        {% endif %}
+    {% endfor %}
 <article class="w-container">
     <div class="card">
         <div class="card-header">
-            <h1 class="card-title">{{ event.title ?? 'Untitled' }}</h1>
+            <h1 class="card-title">{{ title }}</h1>
         </div>
         {% if author %}
             <div class="byline">
@@ -115,9 +122,11 @@
     </div>
 </article>
 
-<div class="notice mt-4">
-    <p>This is a work in progress. If your event didn't render right, we apologize. Working on it!</p>
-</div>
+    <div class="w-container d-flex">
+        <div class="notice info mt-4">
+            <p>This is a work in progress. If your event didn't render right, we apologize. Working on it!</p>
+        </div>
+    </div>
 
 <div class="container">
     {% if nostrLinks is defined and nostrLinks|length > 0 %}
