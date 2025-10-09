@@ -60,7 +60,7 @@ class ArticleController  extends AbstractController
     /**
      * @throws InvalidArgumentException|CommonMarkException
      */
-    #[Route('/article/d/{slug}', name: 'article-slug')]
+    #[Route('/article/d/{slug}', name: 'article-slug', requirements: ['slug' => '.+'])]
     public function article(
         $slug,
         EntityManagerInterface $entityManager,
