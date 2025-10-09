@@ -8,8 +8,8 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 readonly class Nip05VerificationService
 {
-    private const int CACHE_TTL = 3600; // 1 hour
-    private const int REQUEST_TIMEOUT = 5; // 5 seconds
+    private const CACHE_TTL = 3600; // 1 hour
+    private const REQUEST_TIMEOUT = 5; // 5 seconds
 
     public function __construct(
         private CacheInterface $redisCache,

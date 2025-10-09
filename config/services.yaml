@@ -69,3 +69,6 @@ services:
     App\Command\NostrEventFromYamlDefinitionCommand:
         arguments:
             $itemPersister: '@fos_elastica.object_persister.articles'
+    
+    App\Util\NostrPhp\TweakedRequest: ~
+    swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'

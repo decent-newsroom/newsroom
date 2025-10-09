@@ -16,7 +16,7 @@ class NostrEventRenderer implements NodeRendererInterface
             throw new \InvalidArgumentException('Incompatible inline node type: ' . get_class($node));
         }
 
-        if ($node->getType() === 'nevent') {
+        if ($node->getType() === 'nevent' || $node->getType() === 'note') {
             // Construct the local link URL from the special part
             $url = '/e/' . $node->getSpecial();
         } else if ($node->getType() === 'naddr') {

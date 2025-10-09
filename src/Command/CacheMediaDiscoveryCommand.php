@@ -21,7 +21,7 @@ use Symfony\Contracts\Cache\CacheInterface;
 )]
 class CacheMediaDiscoveryCommand extends Command
 {
-    private const int CACHE_TTL = 32500; // 9ish hours in seconds
+    private const CACHE_TTL = 32500; // 9ish hours in seconds
 
     // Hardcoded topic to hashtag mapping (same as controller)
     private const TOPIC_HASHTAGS = [

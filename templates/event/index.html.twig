@@ -81,26 +81,29 @@
 {% endblock %}
 
 {% block body %}
-<div class="container">
-    <div class="event-container">
-        <div class="event-header">
-            {% if author %}
-                {% if author.image is defined %}
-                    <img src="{{ author.image }}" class="avatar" alt="{{ author.name }}" onerror="this.style.display = 'none'" />
-                {% endif %}
-
-                <twig:Molecules:UserFromNpub ident="{{ event.pubkey }}" />
-                <hr />
-            {% endif %}
-            <div class="event-meta">
-                <span class="event-date">{{ event.created_at|date('F j, Y - H:i') }}</span>
-            </div>
+<article class="w-container">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">{{ event.title ?? 'Untitled' }}</h1>
         </div>
-
+        {% if author %}
+            <div class="byline">
+                    <span>
+                        {{ 'text.byline'|trans }} <a href="{{ path('author-redirect', {'pubkey': event.pubkey}) }}">
+                            <twig:Molecules:UserFromNpub :ident="event.pubkey" />
+                        </a>
+                    </span>
+                <span>
+                    <small>{{ event.created_at|date('F j, Y') }}</small>
+                </span>
+            </div>
+        {% endif %}
+    </div>
+    <div class="card-body">
         {# NIP-68 Picture Event (kind 20) #}
         {% if event.kind == 20 %}
             {% include 'event/_kind20_picture.html.twig' %}
-        {# NIP-71 Video Events (kind 21 and 22) #}
+            {# NIP-71 Video Events (kind 21 and 22) #}
         {% elseif event.kind == 21 or event.kind == 22 %}
             {% include 'event/_kind22_video.html.twig' %}
         {% else %}
@@ -109,59 +112,65 @@
                 <twig:Atoms:Content :content="event.content" />
             </div>
         {% endif %}
+    </div>
+</article>
 
-        {% if nostrLinks is defined and nostrLinks|length > 0 %}
-        <div class="nostr-links">
-            <h4>Referenced Nostr Links</h4>
-            <ul class="link-list">
-                {% for link in nostrLinks %}
-                <li>
-                    <a href="/e/{{ link.identifier }}">{{ link.identifier }}</a>
-                    <span class="link-type">({{ link.type }})</span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
+    <pre>
+        {{ event|json_encode(constant('JSON_PRETTY_PRINT')) }}
+    </pre>
+
+<div class="container">
+    {% if nostrLinks is defined and nostrLinks|length > 0 %}
+    <div class="nostr-links">
+        <h4>Referenced Nostr Links</h4>
+        <ul class="link-list">
+            {% for link in nostrLinks %}
+            <li>
+                <a href="/e/{{ link.identifier }}">{{ link.identifier }}</a>
+                <span class="link-type">({{ link.type }})</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="event-footer">
+        {# Source link from r tag #}
+        {% set sourceUrl = null %}
+        {% for tag in event.tags %}
+            {% if tag[0] == 'r' and tag|length > 2 and tag[2] == 'source' %}
+                {% set sourceUrl = tag[1] %}
+            {% endif %}
+        {% endfor %}
+
+        {% if sourceUrl %}
+            <div class="picture-source">
+                <span class="source-label">Source:</span>
+                <a href="{{ sourceUrl }}" target="_blank" rel="noopener noreferrer" class="source-link">
+                    {{ sourceUrl }}
+                </a>
+            </div>
         {% endif %}
 
-        <div class="event-footer">
-            {# Source link from r tag #}
-            {% set sourceUrl = null %}
-            {% for tag in event.tags %}
-                {% if tag[0] == 'r' and tag|length > 2 and tag[2] == 'source' %}
-                    {% set sourceUrl = tag[1] %}
-                {% endif %}
-            {% endfor %}
-
-            {% if sourceUrl %}
-                <div class="picture-source">
-                    <span class="source-label">Source:</span>
-                    <a href="{{ sourceUrl }}" target="_blank" rel="noopener noreferrer" class="source-link">
-                        {{ sourceUrl }}
-                    </a>
-                </div>
-            {% endif %}
-
-            {% if is_granted('ROLE_ADMIN') %}
-            <div class="event-tags">
-                {% if event.tags is defined and event.tags|length > 0 %}
-                    <ul>
-                    {% for tag in event.tags %}
-                        <li>
-                            <strong>{{ tag[0] }}:</strong> {{ tag[1] }}
-                            {% if tag[2] is defined %}
-                                <span>{{ tag[2] }}</span>
-                            {% endif %}
-                            {% if tag[3] is defined %}
-                                <span>{{ tag[3] }}</span>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                    </ul>
-                {% endif %}
-            </div>
+        {% if is_granted('ROLE_ADMIN') %}
+        <div class="event-tags">
+            {% if event.tags is defined and event.tags|length > 0 %}
+                <ul>
+                {% for tag in event.tags %}
+                    <li>
+                        <strong>{{ tag[0] }}:</strong> {{ tag[1] }}
+                        {% if tag[2] is defined %}
+                            <span>{{ tag[2] }}</span>
+                        {% endif %}
+                        {% if tag[3] is defined %}
+                            <span>{{ tag[3] }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -191,17 +200,6 @@
     }
 
     /* NIP-68 Picture Event Styles */
-    .picture-event {
-        padding: 1rem;
-    }
-
-    .picture-title {
-        font-size: 1.8rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        color: #333;
-    }
-
     .content-warning {
         background-color: #fff3cd;
         border: 2px solid #ffc107;
@@ -225,63 +223,6 @@
         background-color: #e0a800;
     }
 
-    .picture-gallery {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .picture-item {
-        position: relative;
-        border-radius: 8px;
-        overflow: hidden;
-        background-color: #f5f5f5;
-    }
-
-    .picture-image {
-        width: 100%;
-        height: auto;
-        display: block;
-        object-fit: cover;
-        border-radius: 8px;
-    }
-
-    .annotated-users {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-    }
-
-    .user-tag {
-        position: absolute;
-        background-color: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.9rem;
-        pointer-events: all;
-        cursor: pointer;
-        transform: translate(-50%, -50%);
-    }
-
-    .picture-alt {
-        font-size: 0.9rem;
-        color: #666;
-        margin-top: 0.5rem;
-        font-style: italic;
-    }
-
-    .picture-description {
-        font-size: 1.1rem;
-        line-height: 1.6;
-        margin-bottom: 1rem;
-        color: #333;
-    }
-
     .picture-location {
         display: flex;
         align-items: center;
@@ -302,26 +243,6 @@
         font-family: monospace;
         font-size: 0.85rem;
         cursor: help;
-    }
-
-    .picture-hashtags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .hashtag {
-        background-color: #e7f3ff;
-        color: #0066cc;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-
-    .hashtag:hover {
-        background-color: #d0e7ff;
     }
 
     .picture-source {

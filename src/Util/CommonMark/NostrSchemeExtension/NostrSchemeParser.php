@@ -10,6 +10,7 @@ use League\CommonMark\Parser\InlineParserContext;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
+use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
 use nostriphant\NIP19\Data\NPub;
 use Twig\Environment;
@@ -32,7 +33,9 @@ class NostrSchemeParser  implements InlineParserInterface
 
     public function getMatchDefinition(): InlineParserMatch
     {
-        return InlineParserMatch::regex('nostr:[0-9a-zA-Z]+');
+        return InlineParserMatch::regex(
+            'nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\\s<>()\\[\\]{}"\'`.,;:!?]*'
+        );
     }
 
     public function parse(InlineParserContext $inlineContext): bool
@@ -62,6 +65,25 @@ class NostrSchemeParser  implements InlineParserInterface
                     /** @var NProfile $decodedProfile */
                     $decodedProfile = $decoded->data;
                     $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decodedProfile->pubkey));
+                    break;
+                case 'note':
+                    /** @var Note $decodedEvent */
+                    $decodedEvent = $decoded->data;
+                    // Fetch the actual event data using the same logic as EventController
+                    $event = $this->nostrClient->getEventById($decodedEvent->data);
+                    // If note is kind 20
+                    // Render the embedded picture card
+                    if (!$event || $event->kind !== 20) {
+                        // Fallback to simple link if event not found or not kind 20
+                        $inlineContext->getContainer()->appendChild(new NostrSchemeData('note', $bechEncoded, [], null, null));
+                        break;
+                    }
+                    $pictureCardHtml = $this->twig->render('/event/_kind20_picture.html.twig', [
+                        'event' => $event,
+                        'embed' => true
+                    ]);
+                    // Create a new node type for embedded HTML content
+                    $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($pictureCardHtml));
                     break;
                 case 'nevent':
                     /** @var NEvent $decodedEvent */
@@ -109,7 +131,7 @@ class NostrSchemeParser  implements InlineParserInterface
             }
 
         } catch (\Exception $e) {
-            // dump($e->getMessage());
+            dump($e->getMessage());
             return false;
         }
 

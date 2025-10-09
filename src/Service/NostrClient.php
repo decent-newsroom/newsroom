@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
+use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use nostriphant\NIP19\Data;
@@ -26,7 +27,7 @@ class NostrClient
     /**
      * List of reputable relays in descending order of reputation
      */
-    private const array REPUTABLE_RELAYS = [
+    private const REPUTABLE_RELAYS = [
         'wss://theforest.nostr1.com',
         'wss://relay.damus.io',
         'wss://relay.primal.net',
@@ -44,8 +45,7 @@ class NostrClient
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://relay.damus.io')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://relay.primal.net')); // public aggregator relay
+        $this->defaultRelaySet->addRelay(new Relay('wss://nostr.land')); // public aggregator relay
     }
 
     /**
@@ -271,6 +271,26 @@ class NostrClient
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
+        // Merge relays with reputable ones
+        $allRelays = array_unique(array_merge($relays, self::REPUTABLE_RELAYS));
+        // Loop over reputable relays and bail as soon as you get a valid event back
+        foreach ($allRelays as $reputableRelay) {
+            $this->logger->info('Trying reputable relay first', ['relay' => $reputableRelay]);
+            $request = $this->createNostrRequest(
+                kinds: [],
+                filters: ['ids' => [$eventId], 'limit' => 1],
+                relaySet: $this->createRelaySet([$reputableRelay]),
+                stopGap: $eventId
+            );
+            $events = $this->processResponse($request->send(), function($event) {
+                $this->logger->debug('Received event', ['event' => $event]);
+                return $event;
+            });
+            if (!empty($events)) {
+                return $events[0];
+            }
+        }
+
         // Use provided relays or default if empty
         $relaySet = empty($relays) ? $this->defaultRelaySet : $this->createRelaySet($relays);
 
@@ -353,18 +373,6 @@ class NostrClient
         });
 
         return !empty($events) ? $events[0] : null;
-    }
-
-    /**
-     * Fetch a note by its ID
-     *
-     * @param string $noteId The note ID
-     * @return object|null The note or null if not found
-     * @throws \Exception
-     */
-    public function getNoteById(string $noteId): ?object
-    {
-        return $this->getEventById($noteId);
     }
 
     private function saveLongFormContent(mixed $filtered): void
@@ -862,7 +870,7 @@ class NostrClient
         return $articlesMap;
     }
 
-    private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null): Request
+    private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null, $stopGap = null ): TweakedRequest
     {
         $subscription = new Subscription();
         $filter = new Filter();
@@ -884,7 +892,7 @@ class NostrClient
         }
 
         $requestMessage = new RequestMessage($subscription->getId(), [$filter]);
-        return new Request($relaySet ?? $this->defaultRelaySet, $requestMessage);
+        return (new TweakedRequest($relaySet ?? $this->defaultRelaySet, $requestMessage))->stopOnEventId($stopGap);
     }
 
     private function processResponse(array $response, callable $eventHandler): array

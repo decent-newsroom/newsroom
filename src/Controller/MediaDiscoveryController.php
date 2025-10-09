@@ -12,8 +12,8 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 class MediaDiscoveryController extends AbstractController
 {
-    private const int CACHE_TTL = 10800; // 3 hours in seconds
-    private const int MAX_DISPLAY_EVENTS = 42;
+    private const CACHE_TTL = 10800; // 3 hours in seconds
+    private const MAX_DISPLAY_EVENTS = 42;
 
     // Hardcoded topic to hashtag mapping
     private const TOPIC_HASHTAGS = [

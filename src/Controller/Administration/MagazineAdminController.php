@@ -103,11 +103,6 @@ class MagazineAdminController extends AbstractController
         // 1) Get magazine events directly from database using indexed queries
         $magazineEvents = $this->getMagazineEvents($em);
 
-        // Fallback: if no magazines found in DB, try Redis as backup
-        if (empty($magazineEvents)) {
-            return $this->getFallbackMagazinesFromRedis($redis, $redisCache, $em);
-        }
-
         // 2) Get all category events in one query
         $categoryCoordinates = $this->extractCategoryCoordinates($magazineEvents);
         $categoryEvents = $this->getCategoryEventsByCoordinates($em, $categoryCoordinates);
@@ -139,12 +134,22 @@ class MagazineAdminController extends AbstractController
     private function filterTopLevelMagazines(array $magazineEvents): array
     {
         $topLevelMagazines = [];
+        // Sort by createdAt descending to keep latest in case of duplicates
+        usort($magazineEvents, fn($a, $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
 
+        $seenSlugs = [];
         foreach ($magazineEvents as $event) {
             $hasSubIndexes = false;
             $hasDirectArticles = false;
-
+            $isOldDuplicate = false;
             foreach ($event->getTags() as $tag) {
+                // Keep a list of slugs, so you can skip if already there
+                if ($tag[0] === 'd' && isset($tag[1])) {
+                    if (in_array($tag[1], $seenSlugs)) {
+                        $isOldDuplicate = true;
+                    }
+                    $seenSlugs[] = $tag[1];
+                }
                 if ($tag[0] === 'a' && isset($tag[1])) {
                     $coord = $tag[1];
 
@@ -161,11 +166,10 @@ class MagazineAdminController extends AbstractController
 
             // Only include magazines that have sub-indexes but no direct articles
             // This identifies top-level magazines that organize other indexes
-            if ($hasSubIndexes && !$hasDirectArticles) {
+            if ($hasSubIndexes && !$hasDirectArticles && !$isOldDuplicate) {
                 $topLevelMagazines[] = $event;
             }
         }
-
         return $topLevelMagazines;
     }
 

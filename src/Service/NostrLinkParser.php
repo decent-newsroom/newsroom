@@ -7,7 +7,7 @@ use Psr\Log\LoggerInterface;
 
 readonly class NostrLinkParser
 {
-    private const string NOSTR_LINK_PATTERN = '/(?:nostr:)(nevent1[a-z0-9]+|naddr1[a-z0-9]+|nprofile1[a-z0-9]+|note1[a-z0-9]+|npub1[a-z0-9]+)/';
+    private const NOSTR_LINK_PATTERN = '/(?:nostr:)(nevent1[a-z0-9]+|naddr1[a-z0-9]+|nprofile1[a-z0-9]+|note1[a-z0-9]+|npub1[a-z0-9]+)/';
 
     private const URL_PATTERN = '/https?:\/\/[\w\-\.\?\,\'\/\\\+&%@\?\$#_=:\(\)~;]+/i';
 

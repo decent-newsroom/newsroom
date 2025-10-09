@@ -97,10 +97,10 @@ class ArticleController  extends AbstractController
 
         $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
+        //if (!$cacheItem->isHit()) {
             $cacheItem->set($converter->convertToHTML($article->getContent()));
             $articlesCache->save($cacheItem);
-        }
+        //}
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
@@ -155,7 +155,7 @@ class ArticleController  extends AbstractController
             usort($articles, function ($a, $b) {
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
-            $article = array_pop($articles);
+            $article = array_shift($articles);
         }
 
         if ($article->getPubkey() === null) {
@@ -186,6 +186,7 @@ class ArticleController  extends AbstractController
         Request $request,
         EntityManagerInterface $entityManager,
         NostrClient $nostrClient,
+        CacheItemPoolInterface $articlesCache,
         CsrfTokenManagerInterface $csrfTokenManager
     ): JsonResponse {
         try {
@@ -255,6 +256,10 @@ class ArticleController  extends AbstractController
             // Save to database
             $entityManager->persist($article);
             $entityManager->flush();
+
+            // Clear relevant caches
+            $cacheKey = 'article_' . $article->getEventId();
+            $articlesCache->delete($cacheKey);
 
             // Optionally publish to Nostr relays
             try {

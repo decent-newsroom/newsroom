@@ -8,6 +8,11 @@
         {% endif %}
     {% endfor %}
 
+    {% set isEmbed = false %}
+    {% if embed is defined and embed %}
+        {% set isEmbed = true %}
+    {% endif %}
+
     {% if title %}
         <h2 class="picture-title">{{ title }}</h2>
     {% endif %}
@@ -61,19 +66,42 @@
                 {% endif %}
             {% endfor %}
 
+            {# Alt is also own tag #}
+            {% for tag in event.tags %}
+                {% if tag[0] == 'alt' %}
+                    {% set altText = tag[1] %}
+                {% endif %}
+            {% endfor %}
+
+            {# Display the image with fallbacks and annotations #}
+
             {% if imageUrl %}
                 <div class="picture-item">
-                    <picture>
-                        {% for fallback in fallbacks %}
-                            <source srcset="{{ fallback }}" />
-                        {% endfor %}
-                        <img src="{{ imageUrl }}"
-                             alt="{{ altText|default('Picture') }}"
-                             {% if dimensions %}data-dimensions="{{ dimensions }}"{% endif %}
-                             {% if blurhash %}data-blurhash="{{ blurhash }}"{% endif %}
-                             class="picture-image"
-                             onerror="if(this.nextSibling) this.src=this.nextSibling.srcset; else this.parentElement.innerHTML='<p class=error>Image failed to load</p>';" />
-                    </picture>
+                    <figure class="media">
+                        {% if isEmbed %}
+                            <a href="{{ path('nevent', {nevent: event.id|nEncode }) }}" aria-label="View standalone">
+                        {% endif %}
+                        <picture>
+                            {% for fallback in fallbacks %}
+                                <source srcset="{{ fallback }}" />
+                            {% endfor %}
+                            <img src="{{ imageUrl }}"
+                                 alt="{{ altText|default('Picture') }}"
+                                 {% if dimensions %}data-dimensions="{{ dimensions }}"{% endif %}
+                                 {% if blurhash %}data-blurhash="{{ blurhash }}"{% endif %}
+                                 class="picture-image"
+                                 onerror="if(this.nextSibling) this.src=this.nextSibling.srcset; else this.parentElement.innerHTML='<p class=error>Image failed to load</p>';" />
+                        </picture>
+                        {% if isEmbed %}
+                            </a>
+                        {% endif %}
+                        <figcaption class="picture-description">
+                            <twig:Atoms:Content :content="event.content" />
+                            {% if isEmbed %}
+                                <span class="credits">Image by <twig:Molecules:UserFromNpub :ident="event.pubkey" class="credits" /></span>
+                            {% endif %}
+                        </figcaption>
+                    </figure>
 
                     {# Display annotated users #}
                     {% if annotatedUsers|length > 0 %}
@@ -88,22 +116,11 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-
-                    {% if altText %}
-                        <p class="picture-alt">{{ altText }}</p>
-                    {% endif %}
                 </div>
             {% endif %}
         {% endif %}
     {% endfor %}
     </div>
-
-    {# Description from content #}
-    {% if event.content %}
-        <div class="picture-description mt-1">
-            <twig:Atoms:Content :content="event.content" />
-        </div>
-    {% endif %}
 
     {# Location data #}
     {% set location = null %}
@@ -125,6 +142,7 @@
     {% endif %}
 
     {# Hashtags #}
+    {% if not isEmbed %}
     {% set hashtags = [] %}
     {% for tag in event.tags %}
         {% if tag[0] == 't' %}
@@ -133,10 +151,11 @@
     {% endfor %}
 
     {% if hashtags|length > 0 %}
-        <div class="picture-hashtags">
+        <div class="tags">
             {% for hashtag in hashtags %}
-                <span class="hashtag">#{{ hashtag }}</span>
+                <span class="tag">#{{ hashtag }}</span>
             {% endfor %}
         </div>
+    {% endif %}
     {% endif %}
 </div>

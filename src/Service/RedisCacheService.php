@@ -248,7 +248,7 @@ readonly class RedisCacheService
             usort($nzines, function ($a, $b) {
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
-            $nzine = array_pop($nzines);
+            $nzine = array_shift($nzines);
 
             $this->logger->info('Magazine lookup', ['mag' => $slug, 'found' => json_encode($nzine)]);
 

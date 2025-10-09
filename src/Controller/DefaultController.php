@@ -12,6 +12,7 @@ use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
 use Elastica\Query;
+use Elastica\Query\BoolQuery;
 use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
@@ -19,6 +20,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Tests\Compiler\K;
 use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,11 +58,25 @@ class DefaultController extends AbstractController
         $cacheKey = 'latest_articles_list_' . $env ; // Use env to differentiate cache between environments
         $cacheItem = $articlesCache->getItem($cacheKey);
 
+        $key = new Key();
+        $excludedPubkeys = [
+            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
+            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
+            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
+            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
+            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz (Just annoying)
+            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed 𝚋𝚘𝚝 (Just annoying)
+        ];
+
         if (!$cacheItem->isHit()) {
             // Query all articles and sort by created_at descending
-            $query = new Query();
+            $boolQuery = new BoolQuery();
+            $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+
+            $query = new Query($boolQuery);
             $query->setSize(50);
             $query->setSort(['createdAt' => ['order' => 'desc']]);
+
 
             // Use collapse to deduplicate by slug field
             $collapse = new Collapse();
@@ -134,7 +150,8 @@ class DefaultController extends AbstractController
         // Query the database for the category event by slug using native SQL
         $sql = "SELECT e.* FROM event e
                 WHERE e.tags::jsonb @> ?::jsonb
-                LIMIT 1";
+                ORDER BY e.created_at DESC
+                ";
 
         $conn = $entityManager->getConnection();
         $result = $conn->executeQuery($sql, [
@@ -142,6 +159,7 @@ class DefaultController extends AbstractController
         ]);
 
         $eventData = $result->fetchAssociative();
+
 
         if ($eventData === false) {
             throw new Exception('Category not found');
@@ -165,6 +183,8 @@ class DefaultController extends AbstractController
                 $coordinates[] = $tag[1]; // Store the full coordinate
             }
         }
+
+        dump($tags);die;
 
         if (!empty($coordinates)) {
             // Extract slugs for elasticsearch query

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use BitWasp\Bech32\Exception\Bech32Exception;
+use swentel\nostr\Nip19\Nip19Helper;
 use Twig\Extension\AbstractExtension;
-use Twig\TwigFunction;
 use Twig\TwigFilter;
 
 class Filters extends AbstractExtension
@@ -15,7 +16,8 @@ class Filters extends AbstractExtension
         return [
             new TwigFilter('shortenNpub', [$this, 'shortenNpub']),
             new TwigFilter('linkify', [$this, 'linkify'], ['is_safe' => ['html']]),
-            new TwigFilter('mentionify', [$this, 'mentionify'], ['is_safe' => ['html']])
+            new TwigFilter('mentionify', [$this, 'mentionify'], ['is_safe' => ['html']]),
+            new TwigFilter('nEncode', [$this, 'nEncode']),
         ];
     }
 
@@ -58,5 +60,15 @@ class Filters extends AbstractExtension
             },
             $text
         );
+    }
+
+    public function nEncode(string $eventId): string
+    {
+        $nip19 = new Nip19Helper();
+        try {
+            return $nip19->encodeNote($eventId);
+        } catch (Bech32Exception) {
+            return $eventId; // Return original if encoding fails
+        }
     }
 }
