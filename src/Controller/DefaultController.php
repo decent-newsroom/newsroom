@@ -54,6 +54,9 @@ class DefaultController extends AbstractController
     #[Route('/latest-articles', name: 'latest_articles')]
     public function latestArticles(FinderInterface $finder, CacheItemPoolInterface $articlesCache): Response
     {
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', '300');
+
         $env = $this->getParameter('kernel.environment');
         $cacheKey = 'latest_articles_list_' . $env ; // Use env to differentiate cache between environments
         $cacheItem = $articlesCache->getItem($cacheKey);
@@ -86,7 +89,7 @@ class DefaultController extends AbstractController
             $articles = $finder->find($query);
 
             $cacheItem->set($articles);
-            $cacheItem->expiresAfter(300); // Cache for 5 minutes
+            $cacheItem->expiresAfter(3600); // Cache for 1 hour
             $articlesCache->save($cacheItem);
         }
 
@@ -184,8 +187,6 @@ class DefaultController extends AbstractController
                 $coordinates[] = $tag[1]; // Store the full coordinate
             }
         }
-
-        dump($tags);die;
 
         if (!empty($coordinates)) {
             // Extract slugs for elasticsearch query
