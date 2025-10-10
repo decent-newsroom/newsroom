@@ -29,7 +29,7 @@ services:
 
     # 
     FOS\ElasticaBundle\Finder\FinderInterface:
-        alias: fos_elastica.finder.articles_v2
+        alias: fos_elastica.finder.articles
 
     # Redis
     Symfony\Component\Cache\Adapter\RedisAdapter:
@@ -64,11 +64,11 @@ services:
     
     App\Command\IndexArticlesCommand:
         arguments:
-            $itemPersister: '@fos_elastica.object_persister.articles_v2'
+            $itemPersister: '@fos_elastica.object_persister.articles'
                 
     App\Command\NostrEventFromYamlDefinitionCommand:
         arguments:
-            $itemPersister: '@fos_elastica.object_persister.articles_v2'
+            $itemPersister: '@fos_elastica.object_persister.articles'
     
     App\Util\NostrPhp\TweakedRequest: ~
     swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'
