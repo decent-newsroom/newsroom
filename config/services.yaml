@@ -64,11 +64,11 @@ services:
     
     App\Command\IndexArticlesCommand:
         arguments:
-            $itemPersister: '@fos_elastica.object_persister.articles'
+            $itemPersister: '@fos_elastica.object_persister.articles_v2'
                 
     App\Command\NostrEventFromYamlDefinitionCommand:
         arguments:
-            $itemPersister: '@fos_elastica.object_persister.articles'
+            $itemPersister: '@fos_elastica.object_persister.articles_v2'
     
     App\Util\NostrPhp\TweakedRequest: ~
     swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'
