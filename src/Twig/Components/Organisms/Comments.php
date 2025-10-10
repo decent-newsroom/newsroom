@@ -4,6 +4,7 @@ namespace App\Twig\Components\Organisms;
 
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
+use App\Service\RedisCacheService;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -14,10 +15,12 @@ final class Comments
     public array $processedContent = [];
     public array $zapAmounts = [];
     public array $zappers = [];
+    public array $authorsMetadata = [];
 
     public function __construct(
         private readonly NostrClient $nostrClient,
-        private readonly NostrLinkParser $nostrLinkParser
+        private readonly NostrLinkParser $nostrLinkParser,
+        private readonly RedisCacheService $redisCacheService
 
     ) {
     }
@@ -35,6 +38,17 @@ final class Comments
         $this->parseNostrLinks();
         // Parse Zaps to get amounts and zappers from receipts
         $this->parseZaps();
+        // Collect all unique pubkeys for batch metadata fetching
+        $pubkeys = [];
+        foreach ($this->list as $comment) {
+            if ($comment->kind != 9735) {
+                $pubkeys[] = $comment->pubkey;
+            } elseif (isset($this->zappers[$comment->id])) {
+                $pubkeys[] = $this->zappers[$comment->id];
+            }
+        }
+        $pubkeys = array_unique($pubkeys);
+        $this->authorsMetadata = $this->redisCacheService->getMultipleMetadata($pubkeys);
     }
 
     /**

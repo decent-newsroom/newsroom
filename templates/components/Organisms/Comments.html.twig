@@ -2,15 +2,13 @@
     {% for item in list %}
         <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
             <div class="metadata">
-                <p>
                     {% if item.kind != '9735' %}
-                        <twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" />
+                        <twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" :user="authorsMetadata[item.pubkey]" />
                     {% elseif zappers[item.id] %}
-                        <twig:Molecules:UserFromNpub ident="{{ zappers[item.id]  }}" />
+                        <twig:Molecules:UserFromNpub ident="{{ zappers[item.id]  }}" :user="authorsMetadata[zappers[item.id]]" />
                     {% else %}
-                        <em>Unknown</em>
+                        <p><em>Unknown</em></p>
                     {% endif %}
-                </p>
                 <small>{{ item.created_at|date('F j Y') }}</small>
             </div>
 
