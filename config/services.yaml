@@ -29,7 +29,7 @@ services:
 
     # 
     FOS\ElasticaBundle\Finder\FinderInterface:
-        alias: fos_elastica.finder.articles
+        alias: fos_elastica.finder.articles_v2
 
     # Redis
     Symfony\Component\Cache\Adapter\RedisAdapter:
