@@ -1,0 +1,24 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Preview Tabular Data Event{% endblock %}
+
+{% block body %}
+<div class="w-container"
+     data-controller="tabular-publish"
+     data-tabular-publish-publish-url-value="{{ path('tabular_data_publish_event') }}"
+     data-tabular-publish-csrf-token-value="{{ csrf_token('tabular_publish') }}"
+     data-tabular-publish-event-data-value="{{ event|json_encode }}">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Event Preview</h1>
+        </div>
+        <div class="card-body">
+            <p>Here is the generated event. Click "Sign and Publish" to sign with your Nostr key and publish to relays.</p>
+            <pre>{{ event|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+            <div data-tabular-publish-target="status"></div>
+            <button data-tabular-publish-target="publishButton" data-action="tabular-publish#publish" class="btn btn-primary">Sign and Publish</button>
+            <a href="{{ path('tabular_data_publish') }}" class="btn btn-secondary">Back</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

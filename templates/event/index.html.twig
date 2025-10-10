@@ -113,6 +113,8 @@
             {# NIP-71 Video Events (kind 21 and 22) #}
         {% elseif event.kind == 21 or event.kind == 22 %}
             {% include 'event/_kind22_video.html.twig' %}
+        {% elseif event.kind == 1450 %}
+            {% include 'event/_kind1450_tabular.html.twig' %}
         {% else %}
             {# Regular event content for non-picture and non-video events #}
             <div class="event-content">

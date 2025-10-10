@@ -21,4 +21,5 @@ enum KindsEnum: int
     case HIGHLIGHTS = 9802;
     case RELAY_LIST = 10002; // NIP-65, Relay list metadata
     case APP_DATA = 30078; // NIP-78, Arbitrary custom app data
+    case TABULAR_DATA = 1450; // NIP-XX, Tabular Data (CSV)
 }
