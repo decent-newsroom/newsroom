@@ -3,6 +3,7 @@
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
 use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
@@ -17,7 +18,8 @@ use swentel\nostr\Key\Key;
 readonly class NostrMentionParser implements InlineParserInterface
 {
     public function __construct(
-        private RedisCacheService $redisCacheService
+        private RedisCacheService $redisCacheService,
+        private NostrKeyUtil $nostrKeyUtil,
     ){}
 
     public function getMatchDefinition(): InlineParserMatch
@@ -40,7 +42,8 @@ readonly class NostrMentionParser implements InlineParserInterface
         $npubLink = substr($fullMatch, strpos($fullMatch, 'npub1'), -1);  // e.g., "npubXXXX"
 
         if (empty($label)) {
-            $metadata = $this->redisCacheService->getMetadata($npubLink);
+
+            $metadata = $this->redisCacheService->getMetadata($this->nostrKeyUtil->npubToHex($npubLink));
             $label = $metadata->display_name ?? $metadata->name;
         }
 
