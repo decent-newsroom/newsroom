@@ -4,6 +4,7 @@ namespace App\Security;
 
 use App\Entity\User;
 use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -40,7 +41,13 @@ readonly class UserDTOProvider implements UserProviderInterface
         $this->logger->info('Refresh user.', ['user' => $user->getUserIdentifier()]);
         $freshUser = $this->entityManager->getRepository(User::class)
             ->findOneBy(['npub' => $user->getUserIdentifier()]);
-        $metadata = $this->redisCacheService->getMetadata($user->getUserIdentifier());
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        } catch (\InvalidArgumentException $e) {
+            $this->logger->error('Invalid npub identifier.', ['npub' => $user->getUserIdentifier()]);
+            throw $e;
+        }
+        $metadata = $this->redisCacheService->getMetadata($pubkey);
         $freshUser->setMetadata($metadata);
         return $freshUser;
     }
@@ -75,7 +82,13 @@ readonly class UserDTOProvider implements UserProviderInterface
             $this->entityManager->flush();
         }
 
-        $metadata = $this->redisCacheService->getMetadata($identifier);
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($identifier);
+        } catch (\InvalidArgumentException $e) {
+            $this->logger->error('Invalid npub identifier.', ['npub' => $identifier]);
+            throw $e;
+        }
+        $metadata = $this->redisCacheService->getMetadata($pubkey);
         $user->setMetadata($metadata);
         $this->logger->debug('User metadata set.', ['metadata' => json_encode($user->getMetadata())]);
 
