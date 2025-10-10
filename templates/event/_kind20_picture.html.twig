@@ -35,7 +35,8 @@
         <div class="picture-gallery">
     {% endif %}
 
-    {# Display images from imeta tags #}
+    {# Collect all imeta images into an array #}
+    {% set images = [] %}
     {% for tag in event.tags %}
         {% if tag[0] == 'imeta' %}
             {% set imageUrl = null %}
@@ -45,7 +46,6 @@
             {% set altText = null %}
             {% set fallbacks = [] %}
             {% set annotatedUsers = [] %}
-
             {# Parse imeta tag parameters #}
             {% for i in 1..(tag|length - 1) %}
                 {% set param = tag[i] %}
@@ -65,62 +65,87 @@
                     {% set annotatedUsers = annotatedUsers|merge([param[14:]]) %}
                 {% endif %}
             {% endfor %}
-
             {# Alt is also own tag #}
-            {% for tag in event.tags %}
-                {% if tag[0] == 'alt' %}
-                    {% set altText = tag[1] %}
+            {% for altTag in event.tags %}
+                {% if altTag[0] == 'alt' %}
+                    {% set altText = altTag[1] %}
                 {% endif %}
             {% endfor %}
-
-            {# Display the image with fallbacks and annotations #}
-
-            {% if imageUrl %}
-                <div class="picture-item">
-                    <figure class="media">
-                        {% if isEmbed %}
-                            <a href="{{ path('nevent', {nevent: event.id|nEncode }) }}" aria-label="View standalone">
-                        {% endif %}
-                        <picture>
-                            {% for fallback in fallbacks %}
-                                <source srcset="{{ fallback }}" />
-                            {% endfor %}
-                            <img src="{{ imageUrl }}"
-                                 alt="{{ altText|default('Picture') }}"
-                                 {% if dimensions %}data-dimensions="{{ dimensions }}"{% endif %}
-                                 {% if blurhash %}data-blurhash="{{ blurhash }}"{% endif %}
-                                 class="picture-image"
-                                 onerror="if(this.nextSibling) this.src=this.nextSibling.srcset; else this.parentElement.innerHTML='<p class=error>Image failed to load</p>';" />
-                        </picture>
-                        {% if isEmbed %}
-                            </a>
-                        {% endif %}
-                        <figcaption class="picture-description">
-                            <twig:Atoms:Content :content="event.content" />
-                            {% if isEmbed %}
-                                <span class="credits">Image by <twig:Molecules:UserFromNpub :ident="event.pubkey" class="credits" /></span>
-                            {% endif %}
-                        </figcaption>
-                    </figure>
-
-                    {# Display annotated users #}
-                    {% if annotatedUsers|length > 0 %}
-                        <div class="annotated-users">
-                            {% for userAnnotation in annotatedUsers %}
-                                {% set parts = userAnnotation|split(':') %}
-                                {% if parts|length == 3 %}
-                                    <div class="user-tag" data-left="{{ parts[1] }}" data-top="{{ parts[2] }}" style="left: {{ parts[1] }}%; top: {{ parts[2] }}%;">
-                                        <twig:Molecules:UserFromNpub ident="{{ parts[0] }}" />
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
-            {% endif %}
+            {% set images = images|merge([{
+                'url': imageUrl,
+                'mimeType': mimeType,
+                'blurhash': blurhash,
+                'dimensions': dimensions,
+                'altText': altText,
+                'fallbacks': fallbacks,
+                'annotatedUsers': annotatedUsers
+            }]) %}
         {% endif %}
     {% endfor %}
+
+    {% if images|length > 0 %}
+    <div class="gallery-view" data-controller="gallery">
+        <div class="main-image-wrapper">
+            {% set main = images[0] %}
+            <figure class="media">
+                {% if isEmbed %}
+                    <a href="{{ path('nevent', {nevent: event.id|nEncode }) }}" aria-label="View standalone">
+                {% endif %}
+                <picture>
+                    {% for fallback in main.fallbacks %}
+                        <source srcset="{{ fallback }}" />
+                    {% endfor %}
+                    <img src="{{ main.url }}"
+                         alt="{{ main.altText|default('Picture') }}"
+                         {% if main.dimensions %}data-dimensions="{{ main.dimensions }}"{% endif %}
+                         {% if main.blurhash %}data-blurhash="{{ main.blurhash }}"{% endif %}
+                         class="picture-image main-image"
+                         data-gallery-target="mainImage"
+                         />
+                </picture>
+
+                {% if images|length > 1 %}
+                    <div class="thumbnails" data-gallery-target="thumbnails">
+                        {% for img in images %}
+                            <img src="{{ img.url }}"
+                                 alt="{{ img.altText|default('Picture') }}"
+                                 class="thumbnail{% if loop.first %} selected{% endif %}"
+                                 data-gallery-target="thumbnail"
+                                 data-action="click->gallery#switch"
+                                 data-gallery-index="{{ loop.index0 }}"
+                                 {% if img.dimensions %}data-dimensions="{{ img.dimensions }}"{% endif %}
+                                {% if img.blurhash %}data-blurhash="{{ img.blurhash }}"{% endif %}
+                            />
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if isEmbed %}
+                    </a>
+                {% endif %}
+                <figcaption class="picture-description">
+                    <twig:Atoms:Content :content="event.content" />
+                    {% if isEmbed %}
+                        <span class="credits">Image by <twig:Molecules:UserFromNpub :ident="event.pubkey" class="credits" /></span>
+                    {% endif %}
+                </figcaption>
+            </figure>
+            {# Display annotated users for main image #}
+            {% if main.annotatedUsers|length > 0 %}
+                <div class="annotated-users">
+                    {% for userAnnotation in main.annotatedUsers %}
+                        {% set parts = userAnnotation|split(':') %}
+                        {% if parts|length == 3 %}
+                            <div class="user-tag" data-left="{{ parts[1] }}" data-top="{{ parts[2] }}" style="left: {{ parts[1] }}%; top: {{ parts[2] }}%;">
+                                <twig:Molecules:UserFromNpub ident="{{ parts[0] }}" />
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
     </div>
+    {% endif %}
 
     {# Location data #}
     {% set location = null %}
