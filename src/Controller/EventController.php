@@ -92,13 +92,7 @@ class EventController extends AbstractController
                 $logger->info('Parsed Nostr links from content', ['count' => count($nostrLinks)]);
             }
 
-            // If author is included in the event, get metadata
-            $authorMetadata = null;
-            if (isset($event->pubkey)) {
-                $key = new Key();
-                $npub = $key->convertPublicKeyToBech32($event->pubkey);
-                $authorMetadata = $redisCacheService->getMetadata($npub);
-            }
+            $authorMetadata = $redisCacheService->getMetadata($event->pubkey);
 
             // Render template with the event data and extracted Nostr links
             $response = $this->render('event/index.html.twig', [

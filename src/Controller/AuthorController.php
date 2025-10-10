@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
@@ -22,9 +23,10 @@ class AuthorController extends AbstractController
      * @throws Exception
      */
     #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
-    public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService): Response
+    public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService, NostrKeyUtil $keyUtil): Response
     {
-        $author = $redisCacheService->getMetadata($npub);
+
+        $author = $redisCacheService->getMetadata($keyUtil->npubToHex($npub));
 
         // Use paginated cached media events - fetches 200 from relays, serves first 24
         $paginatedData = $redisCacheService->getMediaEventsPaginated($npub, 1, 24);
@@ -113,7 +115,7 @@ class AuthorController extends AbstractController
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
 
-        $author = $redisCacheService->getMetadata($npub);
+        $author = $redisCacheService->getMetadata($pubkey);
         // Retrieve long-form content for the author
         try {
             $list = $nostrClient->getLongFormContentForPubkey($npub);

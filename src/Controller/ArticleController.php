@@ -104,7 +104,7 @@ class ArticleController  extends AbstractController
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
-        $author = $redisCacheService->getMetadata($npub);
+        $author = $redisCacheService->getMetadata($article->getPubkey());
 
         // determine whether the logged-in user is the author
         $canEdit = false;
