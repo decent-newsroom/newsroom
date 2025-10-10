@@ -7,7 +7,7 @@ fos_elastica:
             password: '%env(ELASTICSEARCH_PASSWORD)%'
     indexes:
         # create the index by running php bin/console fos:elastica:populate
-        articles:
+        articles_v2:
             index_name: '%env(ELASTICSEARCH_INDEX_NAME)%'
             use_alias: true
             settings:                    
