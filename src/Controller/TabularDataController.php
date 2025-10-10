@@ -19,10 +19,6 @@ class TabularDataController extends AbstractController
     #[Route('/tabular-data', name: 'tabular_data_publish')]
     public function publish(Request $request, NostrClient $nostrClient): Response
     {
-        $user = $this->getUser();
-        if (!$user) {
-            return $this->redirectToRoute('login');
-        }
 
         $form = $this->createForm(TabularDataType::class);
         $form->handleRequest($request);

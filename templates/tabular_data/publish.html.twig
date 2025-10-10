@@ -1,0 +1,38 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Publish Tabular Data{% endblock %}
+
+{% block body %}
+<div class="w-container">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Publish Tabular Data</h1>
+        </div>
+        <div class="card-body">
+            {{ form_start(form) }}
+                <div class="form-group">
+                    {{ form_label(form.title) }}
+                    {{ form_widget(form.title) }}
+                    {{ form_errors(form.title) }}
+                </div>
+                <div class="form-group">
+                    {{ form_label(form.csvContent) }}
+                    {{ form_widget(form.csvContent) }}
+                    {{ form_errors(form.csvContent) }}
+                </div>
+                <div class="form-group">
+                    {{ form_label(form.license) }}
+                    {{ form_widget(form.license) }}
+                    {{ form_errors(form.license) }}
+                </div>
+                <div class="form-group">
+                    {{ form_label(form.units) }}
+                    {{ form_widget(form.units) }}
+                    {{ form_errors(form.units) }}
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Event</button>
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+{% endblock %}
