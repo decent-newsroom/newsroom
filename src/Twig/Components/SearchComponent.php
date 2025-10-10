@@ -187,7 +187,7 @@ final class SearchComponent
 
         // Add phrase match for exact matches (high boost)
         $phraseMatch = new Query\MatchPhrase();
-        $phraseMatch->setField('title', [
+        $phraseMatch->setField('search_combined', [
             'query' => $query,
             'boost' => 10
         ]);
@@ -196,15 +196,8 @@ final class SearchComponent
         // Main multi-match query with optimized settings
         $multiMatch = new MultiMatch();
         $multiMatch->setQuery($query);
-        $multiMatch->setFields([
-            'title^5',
-            'summary^3',
-            'content^1.5',
-            'topics^2'
-        ]);
-        $multiMatch->setType(MultiMatch::TYPE_BEST_FIELDS); // Faster than MOST_FIELDS
+        $multiMatch->setFields(['search_combined']);
         $multiMatch->setFuzziness('AUTO');
-        $multiMatch->setOperator(MultiMatch::OPERATOR_OR); // OR is faster and more forgiving
         $boolQuery->addMust($multiMatch);
 
         // Exclude specific patterns
