@@ -93,13 +93,7 @@ class NostrSchemeParser  implements InlineParserInterface
                     $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
 
                     if ($event) {
-                        // Get author metadata if available
-                        $authorMetadata = null;
-                        if (isset($event->pubkey)) {
-                            $key = new Key();
-                            $npub = $key->convertPublicKeyToBech32($event->pubkey);
-                            $authorMetadata = $this->redisCacheService->getMetadata($npub);
-                        }
+                        $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
 
                         // Render the embedded event card
                         $eventCardHtml = $this->twig->render('components/event_card.html.twig', [

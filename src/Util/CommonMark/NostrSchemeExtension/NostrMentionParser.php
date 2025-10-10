@@ -42,7 +42,6 @@ readonly class NostrMentionParser implements InlineParserInterface
         $npubLink = substr($fullMatch, strpos($fullMatch, 'npub1'), -1);  // e.g., "npubXXXX"
 
         if (empty($label)) {
-
             $metadata = $this->redisCacheService->getMetadata($this->nostrKeyUtil->npubToHex($npubLink));
             $label = $metadata->display_name ?? $metadata->name;
         }
