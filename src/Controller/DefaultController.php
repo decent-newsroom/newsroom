@@ -351,7 +351,7 @@ class DefaultController extends AbstractController
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
-        $author = $redisCacheService->getMetadata($npub);
+        $author = $redisCacheService->getMetadata($article->getPubkey());
 
         // set canonical url to this article as article-slug path
         $canonical = $this->generateUrl('article-slug', [

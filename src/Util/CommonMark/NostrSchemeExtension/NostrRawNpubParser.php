@@ -3,6 +3,7 @@
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
 use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
@@ -14,7 +15,10 @@ use League\CommonMark\Parser\InlineParserContext;
 readonly class NostrRawNpubParser implements InlineParserInterface
 {
 
-    public function __construct(private RedisCacheService $redisCacheService)
+    public function __construct(
+        private RedisCacheService $redisCacheService,
+        private NostrKeyUtil $nostrKeyUtil,
+    )
     {
     }
 
@@ -28,7 +32,8 @@ readonly class NostrRawNpubParser implements InlineParserInterface
         $cursor = $inlineContext->getCursor();
         // Get the match and extract relevant parts
         $fullMatch = $inlineContext->getFullMatch();
-        $meta = $this->redisCacheService->getMetadata($fullMatch);
+
+        $meta = $this->redisCacheService->getMetadata($this->nostrKeyUtil->npubToHex($fullMatch));
 
         // Use shortened npub as default name, from first and last 8 characters of the fullMatch
         $name =  substr($fullMatch, 0, 8) . '...' . substr($fullMatch, -8);
