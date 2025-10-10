@@ -4,6 +4,7 @@ namespace App\Util\CommonMark\NostrSchemeExtension;
 
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
@@ -20,15 +21,13 @@ use swentel\nostr\Key\Key;
 class NostrSchemeParser  implements InlineParserInterface
 {
 
-    private RedisCacheService $redisCacheService;
-    private NostrClient $nostrClient;
-    private Environment $twig;
-
-    public function __construct(RedisCacheService $redisCacheService, NostrClient $nostrClient, Environment $twig)
+    public function __construct(
+        private readonly RedisCacheService $redisCacheService,
+        private readonly NostrClient       $nostrClient,
+        private readonly Environment       $twig,
+        private readonly NostrKeyUtil      $keyUtil
+    )
     {
-        $this->redisCacheService = $redisCacheService;
-        $this->nostrClient = $nostrClient;
-        $this->twig = $twig;
     }
 
     public function getMatchDefinition(): InlineParserMatch
@@ -54,7 +53,7 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'npub':
                     /** @var NPub $object */
                     $object = $decoded->data;
-                    $profile = $this->redisCacheService->getMetadata($bechEncoded);
+                    $profile = $this->redisCacheService->getMetadata($this->keyUtil->npubToHex($bechEncoded));
                     if (isset($profile->name)) {
                         $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile->name, $bechEncoded));
                     } else {
