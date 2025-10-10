@@ -6,6 +6,7 @@ use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
+use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Exception\CommonMarkException;
 use League\CommonMark\Extension\Autolink\AutolinkExtension;
@@ -29,7 +30,8 @@ readonly class Converter
     public function __construct(
         private RedisCacheService $redisCacheService,
         private NostrClient $nostrClient,
-        private TwigEnvironment $twig
+        private TwigEnvironment $twig,
+        private NostrKeyUtil $nostrKeyUtil
     ){}
 
     /**
@@ -68,7 +70,7 @@ readonly class Converter
         $environment->addExtension(new TableExtension());
         $environment->addExtension(new StrikethroughExtension());
         // create a custom extension, that handles nostr mentions
-        $environment->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig));
+        $environment->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil));
         $environment->addExtension(new SmartPunctExtension());
         $environment->addExtension(new EmbedExtension());
         $environment->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
