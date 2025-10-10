@@ -58,7 +58,7 @@
                                     <div class="d-flex justify-content-between align-items-start gap-3">
                                         <div class="flex-fill">
                                             <div class="metadata">
-                                                <small>by <twig:Molecules:UserFromNpub ident="{{ art.pubkey }}" /></small>
+                                                <small>by <twig:Molecules:UserFromNpub ident="{{ art.pubkey }}" user="{{ authors[art.pubkey] }}" /></small>
                                                 <small class="ms-2">{{ art.createdAt|date('F j Y') }}</small>
                                             </div>
                                             <a href="{{ path('article-slug', {slug: art.slug}) }}"><h3 class="h5 m-0">{{ art.title }}</h3></a>

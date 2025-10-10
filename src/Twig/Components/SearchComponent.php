@@ -3,6 +3,7 @@
 namespace App\Twig\Components;
 
 use App\Credits\Service\CreditsManager;
+use App\Service\RedisCacheService;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -28,6 +29,7 @@ final class SearchComponent
     #[LiveProp(writable: true, useSerializerForHydration: true)]
     public string $query = '';
     public array $results = [];
+    public array $authors = [];
 
     public bool $interactive = true;
     public string $currentRoute;
@@ -57,7 +59,8 @@ final class SearchComponent
         private readonly TokenStorageInterface $tokenStorage,
         private readonly LoggerInterface $logger,
         private readonly CacheInterface $cache,
-        private readonly RequestStack $requestStack
+        private readonly RequestStack $requestStack,
+        private readonly RedisCacheService $redisCacheService
     )
     {
     }
@@ -84,6 +87,8 @@ final class SearchComponent
             if ($session->has(self::SESSION_QUERY_KEY)) {
                 $this->query = $session->get(self::SESSION_QUERY_KEY);
                 $this->results = $session->get(self::SESSION_KEY, []);
+                $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
+                $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
                 $this->logger->info('Restored search results from session for query: ' . $this->query);
             }
         }
@@ -102,6 +107,7 @@ final class SearchComponent
 
         if (empty($this->query)) {
             $this->results = [];
+            $this->authors = [];
             $this->clearSearchCache();
             return;
         }
@@ -117,12 +123,15 @@ final class SearchComponent
         if ($session->has(self::SESSION_QUERY_KEY) &&
             $session->get(self::SESSION_QUERY_KEY) === $this->query) {
             $this->results = $session->get(self::SESSION_KEY, []);
+            $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
+            $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
             $this->logger->info('Using cached search results for query: ' . $this->query);
             return;
         }
 
         if (!$this->creditsManager->canAfford($this->npub, 1)) {
             $this->results = [];
+            $this->authors = [];
             return;
         }
 
@@ -133,6 +142,8 @@ final class SearchComponent
 
             // Perform optimized single search query
             $this->results = $this->performOptimizedSearch($this->query);
+            $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
+            $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
 
             // Cache the search results in session
             $this->saveSearchToSession($this->query, $this->results);
@@ -140,6 +151,7 @@ final class SearchComponent
         } catch (\Exception $e) {
             $this->logger->error('Search error: ' . $e->getMessage());
             $this->results = [];
+            $this->authors = [];
         }
     }
 
