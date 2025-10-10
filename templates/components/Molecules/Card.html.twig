@@ -2,7 +2,9 @@
     <div class="card">
         <div class="metadata">
             {% if not is_author_profile %}
-                <p>by <twig:Molecules:UserFromNpub ident="{{ article.pubkey }}" /></p>
+                {% set pubkey = article.pubkey %}
+                {% set user = authors_metadata[pubkey] ?? null %}
+                <p>by <twig:Molecules:UserFromNpub :user="user" :ident="pubkey" /></p>
             {% endif %}
             <small>{{ article.createdAt|date('F j Y') }}</small>
         </div>

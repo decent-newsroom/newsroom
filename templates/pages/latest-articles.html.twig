@@ -14,7 +14,7 @@
                 No published articles found.
             </div>
         {% else %}
-            <twig:Organisms:CardList :list="articles" class="article-list" />
+            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
         {% endif %}
     </section>
 {% endblock %}

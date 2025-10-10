@@ -1,187 +1,154 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Service;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 readonly class RedisCacheService
 {
-
     public function __construct(
-        private NostrClient     $nostrClient,
-        private CacheInterface  $redisCache,
+        private NostrClient $nostrClient,
+        private CacheItemPoolInterface $redisCache,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
-    )
+    ) {}
+
+    /**
+     * Generate the cache key for user metadata (hex pubkey only).
+     */
+    private function getUserCacheKey(string $pubkey): string
     {
+        return '0_' . $pubkey;
     }
 
     /**
-     * @param string $npub
+     * @param string $pubkey Hex-encoded public key
      * @return \stdClass
+     * @throws InvalidArgumentException
      */
-    public function getMetadata(string $npub): \stdClass
+    public function getMetadata(string $pubkey): \stdClass
     {
-        $cacheKey = '0_' . $npub;
+        if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+            throw new \InvalidArgumentException('getMetadata expects hex pubkey');
+        }
+        $cacheKey = $this->getUserCacheKey($pubkey);
+        // Default content if fetching/parsing fails
+        $content = new \stdClass();
+        // Pubkey to npub
+        $npub = NostrKeyUtil::hexToNpub($pubkey);
+        $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
+        $content->name = $defaultName;
+
         try {
-            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+            $content = $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
-                try {
-                    $rawEvent = $this->nostrClient->getNpubMetadata($npub);
-                } catch (\Exception $e) {
-                    $this->logger->error('Error getting user data.', ['exception' => $e]);
-                    $rawEvent = new \stdClass();
-                    $rawEvent->content = json_encode([
-                        'name' => substr($npub, 0, 8) . '…' . substr($npub, -4)
-                    ]);
-                    $rawEvent->tags = [];
-                }
-
-                // Parse content as JSON
-                $contentData = json_decode($rawEvent->content ?? '{}');
-                if (!$contentData) {
-                    $contentData = new \stdClass();
-                }
-
-                // Fields that should be collected as arrays when multiple values exist
-                $arrayFields = ['nip05', 'lud16', 'lud06'];
-                $arrayCollectors = [];
-
-                // Parse tags and merge/override content data
-                // Common metadata tags: name, about, picture, banner, nip05, lud16, website, etc.
-                $tags = $rawEvent->tags ?? [];
-                foreach ($tags as $tag) {
-                    if (is_array($tag) && count($tag) >= 2) {
-                        $tagName = $tag[0];
-
-                        // Check if this field should be collected as an array
-                        if (in_array($tagName, $arrayFields)) {
-                            if (!isset($arrayCollectors[$tagName])) {
-                                $arrayCollectors[$tagName] = [];
-                            }
-                            // Collect all values from position 1 onwards (tag can have multiple values)
-                            for ($i = 1; $i < count($tag); $i++) {
-                                $arrayCollectors[$tagName][] = $tag[$i];
-                            }
-                        } else {
-                            // Override content field with tag value (first occurrence wins for non-array fields)
-                            // For non-array fields, only use the first value (tag[1])
-                            if (!isset($contentData->$tagName) && isset($tag[1])) {
-                                $contentData->$tagName = $tag[1];
-                            }
-                        }
-                    }
-                }
-
-                // Merge array collectors into content data
-                foreach ($arrayCollectors as $fieldName => $values) {
-                    // Remove duplicates
-                    $values = array_unique($values);
-                    $contentData->$fieldName = $values;
-                }
-
-                // If content had a single value for an array field but no tags, convert to array
-                foreach ($arrayFields as $fieldName) {
-                    if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
-                        $contentData->$fieldName = [$contentData->$fieldName];
-                    }
-                }
-
-                $this->logger->info('Metadata (with tags):', [
-                    'meta' => json_encode($contentData),
-                    'tags' => json_encode($tags)
-                ]);
-
-                return $contentData;
+                $rawEvent = $this->fetchRawUserEvent($pubkey);
+                return $this->parseUserMetadata($rawEvent, $pubkey);
             });
         } catch (InvalidArgumentException $e) {
             $this->logger->error('Error getting user data.', ['exception' => $e]);
-            $content = new \stdClass();
-            $content->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
-            return $content;
         }
+        // If content is still default, delete cache to retry next time
+        if (isset($content->name) && $content->name === $defaultName
+            && $this->redisCache->hasItem($cacheKey)) {
+            try {
+                $this->redisCache->deleteItem($cacheKey);
+            } catch (\Exception $e) {
+                $this->logger->error('Error deleting user cache item.', ['exception' => $e]);
+            }
+        }
+        return $content;
+    }
+
+    /**
+     * Fetch raw user event from Nostr client, with error fallback.
+     * @param string $pubkey Hex-encoded public key
+     */
+    private function fetchRawUserEvent(string $pubkey): \stdClass
+    {
+        try {
+            return $this->nostrClient->getNpubMetadata(NostrKeyUtil::hexToNpub($pubkey));
+        } catch (\Exception $e) {
+            $this->logger->error('Error getting user data.', ['exception' => $e]);
+            $rawEvent = new \stdClass();
+            $rawEvent->content = json_encode([
+                'name' => substr($pubkey, 0, 8) . '…' . substr($pubkey, -4)
+            ]);
+            $rawEvent->tags = [];
+            return $rawEvent;
+        }
+    }
+
+    /**
+     * Parse user metadata from a raw event object.
+     */
+    private function parseUserMetadata(\stdClass $rawEvent, string $pubkey): \stdClass
+    {
+        $contentData = json_decode($rawEvent->content ?? '{}');
+        if (!$contentData) {
+            $contentData = new \stdClass();
+        }
+        $arrayFields = ['nip05', 'lud16', 'lud06'];
+        $arrayCollectors = [];
+        $tags = $rawEvent->tags ?? [];
+        foreach ($tags as $tag) {
+            if (is_array($tag) && count($tag) >= 2) {
+                $tagName = $tag[0];
+                if (in_array($tagName, $arrayFields, true)) {
+                    if (!isset($arrayCollectors[$tagName])) {
+                        $arrayCollectors[$tagName] = [];
+                    }
+                    for ($i = 1; $i < count($tag); $i++) {
+                        $arrayCollectors[$tagName][] = $tag[$i];
+                    }
+                } elseif (!isset($contentData->$tagName) && isset($tag[1])) {
+                    $contentData->$tagName = $tag[1];
+                }
+            }
+        }
+        foreach ($arrayCollectors as $fieldName => $values) {
+            $contentData->$fieldName = array_unique($values);
+        }
+        foreach ($arrayFields as $fieldName) {
+            if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
+                $contentData->$fieldName = [$contentData->$fieldName];
+            }
+        }
+        $this->logger->info('Metadata (with tags):', [
+            'meta' => json_encode($contentData),
+            'tags' => json_encode($tags)
+        ]);
+        return $contentData;
     }
 
     /**
      * Get metadata with raw event for debugging purposes.
      *
-     * @param string $npub
+     * @param string $pubkey Hex-encoded public key
      * @return array{metadata: \stdClass, rawEvent: \stdClass}
+     * @throws InvalidArgumentException
      */
-    public function getMetadataWithRawEvent(string $npub): array
+    public function getMetadataWithRawEvent(string $pubkey): array
     {
-        $cacheKey = '0_with_raw_' . $npub;
+        if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+            throw new \InvalidArgumentException('getMetadataWithRawEvent expects hex pubkey');
+        }
+        $cacheKey = '0_with_raw_' . $pubkey;
         try {
-            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
-                try {
-                    $rawEvent = $this->nostrClient->getNpubMetadata($npub);
-                } catch (\Exception $e) {
-                    $this->logger->error('Error getting user data.', ['exception' => $e]);
-                    $rawEvent = new \stdClass();
-                    $rawEvent->content = json_encode([
-                        'name' => substr($npub, 0, 8) . '…' . substr($npub, -4)
-                    ]);
-                    $rawEvent->tags = [];
-                }
-
-                // Parse content as JSON
-                $contentData = json_decode($rawEvent->content ?? '{}');
-                if (!$contentData) {
-                    $contentData = new \stdClass();
-                }
-
-                // Fields that should be collected as arrays when multiple values exist
-                $arrayFields = ['nip05', 'lud16', 'lud06'];
-                $arrayCollectors = [];
-
-                // Parse tags and merge/override content data
-                $tags = $rawEvent->tags ?? [];
-                foreach ($tags as $tag) {
-                    if (is_array($tag) && count($tag) >= 2) {
-                        $tagName = $tag[0];
-
-                        // Check if this field should be collected as an array
-                        if (in_array($tagName, $arrayFields)) {
-                            if (!isset($arrayCollectors[$tagName])) {
-                                $arrayCollectors[$tagName] = [];
-                            }
-                            // Collect all values from position 1 onwards (tag can have multiple values)
-                            for ($i = 1; $i < count($tag); $i++) {
-                                $arrayCollectors[$tagName][] = $tag[$i];
-                            }
-                        } else {
-                            // Override content field with tag value (first occurrence wins for non-array fields)
-                            // For non-array fields, only use the first value (tag[1])
-                            if (!isset($contentData->$tagName) && isset($tag[1])) {
-                                $contentData->$tagName = $tag[1];
-                            }
-                        }
-                    }
-                }
-
-                // Merge array collectors into content data
-                foreach ($arrayCollectors as $fieldName => $values) {
-                    // Remove duplicates
-                    $values = array_unique($values);
-                    $contentData->$fieldName = $values;
-                }
-
-                // If content had a single value for an array field but no tags, convert to array
-                foreach ($arrayFields as $fieldName) {
-                    if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
-                        $contentData->$fieldName = [$contentData->$fieldName];
-                    }
-                }
-
+                $rawEvent = $this->fetchRawUserEvent($pubkey);
+                $contentData = $this->parseUserMetadata($rawEvent, $pubkey);
                 return [
                     'metadata' => $contentData,
                     'rawEvent' => $rawEvent
@@ -190,7 +157,7 @@ readonly class RedisCacheService
         } catch (InvalidArgumentException $e) {
             $this->logger->error('Error getting user data with raw event.', ['exception' => $e]);
             $content = new \stdClass();
-            $content->name = substr($npub, 0, 8) . '…' . substr($npub, -4);
+            $content->name = substr($pubkey, 0, 8) . '…' . substr($pubkey, -4);
             $rawEvent = new \stdClass();
             $rawEvent->content = json_encode($content);
             $rawEvent->tags = [];
@@ -199,6 +166,38 @@ readonly class RedisCacheService
                 'rawEvent' => $rawEvent
             ];
         }
+    }
+
+    /**
+     * Fetch metadata for multiple pubkeys at once using Redis getItems.
+     * Falls back to getMetadata for cache misses.
+     *
+     * @param string[] $pubkeys Array of hex pubkeys
+     * @return array<string, \stdClass> Map of pubkey => metadata
+     * @throws InvalidArgumentException
+     */
+    public function getMultipleMetadata(array $pubkeys): array
+    {
+        foreach ($pubkeys as $pubkey) {
+            if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+                throw new \InvalidArgumentException('getMultipleMetadata expects all hex pubkeys');
+            }
+        }
+        $result = [];
+        $cacheKeys = array_map(fn($pubkey) => $this->getUserCacheKey($pubkey), $pubkeys);
+        $pubkeyMap = array_combine($cacheKeys, $pubkeys);
+        $items = $this->redisCache->getItems($cacheKeys);
+        foreach ($items as $cacheKey => $item) {
+            $pubkey = $pubkeyMap[$cacheKey];
+            if ($item->isHit()) {
+                $result[$pubkey] = $item->get();
+            }
+        }
+        $missedPubkeys = array_diff($pubkeys, array_keys($result));
+        foreach ($missedPubkeys as $pubkey) {
+            $result[$pubkey] = $this->getMetadata($pubkey);
+        }
+        return $result;
     }
 
     public function getRelays($npub)
@@ -471,4 +470,5 @@ readonly class RedisCacheService
             $this->logger->error('Error setting user metadata.', ['exception' => $e]);
         }
     }
+
 }

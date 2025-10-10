@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
 use Elastica\Query;
@@ -52,7 +53,9 @@ class DefaultController extends AbstractController
      * @throws Exception
      */
     #[Route('/latest-articles', name: 'latest_articles')]
-    public function latestArticles(FinderInterface $finder, CacheItemPoolInterface $articlesCache): Response
+    public function latestArticles(FinderInterface $finder,
+                                   RedisCacheService $redisCacheService,
+                                   CacheItemPoolInterface $articlesCache): Response
     {
         set_time_limit(300); // 5 minutes
         ini_set('max_execution_time', '300');
@@ -80,7 +83,6 @@ class DefaultController extends AbstractController
             $query->setSize(30);
             $query->setSort(['createdAt' => ['order' => 'desc']]);
 
-
             // Use collapse to deduplicate by slug field
             $collapse = new Collapse();
             $collapse->setFieldname('slug');
@@ -93,9 +95,26 @@ class DefaultController extends AbstractController
             $articlesCache->save($cacheItem);
         }
 
+        $articles = $cacheItem->get();
+
+        // Collect all unique author pubkeys from articles
+        $authorPubkeys = [];
+        foreach ($articles as $article) {
+            if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                $authorPubkeys[] = $article->pubkey;
+            } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
+                $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+            }
+        }
+        $authorPubkeys = array_unique($authorPubkeys);
+
+        // Fetch all author metadata in one batch using pubkeys
+        $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
         return $this->render('pages/latest-articles.html.twig', [
-            'articles' => $cacheItem->get(),
-            'newsBots' => array_slice($excludedPubkeys, 0, 4)
+            'articles' => $articles,
+            'newsBots' => array_slice($excludedPubkeys, 0, 4),
+            'authorsMetadata' => $authorsMetadata
         ]);
     }
 

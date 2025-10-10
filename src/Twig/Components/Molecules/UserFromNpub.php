@@ -3,7 +3,7 @@
 namespace App\Twig\Components\Molecules;
 
 use App\Service\RedisCacheService;
-use swentel\nostr\Key\Key;
+use App\Util\NostrKeyUtil;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -17,16 +17,23 @@ final class UserFromNpub
     {
     }
 
-    public function mount(string $ident): void
+    /**
+     * Accepts either npub or pubkey as ident. Always converts to pubkey for lookups.
+     */
+    public function mount(string $ident, $user = null): void
     {
-        // if npub doesn't start with 'npub' then assume it's a hex pubkey
-        if (!str_starts_with($ident, 'npub')) {
-            $keys = new Key();
+        $this->user = $user;
+        if (NostrKeyUtil::isHexPubkey($ident)) {
             $this->pubkey = $ident;
-            $this->npub = $keys->convertPublicKeyToBech32($ident);
-        } else {
+            $this->npub = NostrKeyUtil::hexToNpub($ident);
+        } elseif (NostrKeyUtil::isNpub($ident)) {
             $this->npub = $ident;
+            $this->pubkey = NostrKeyUtil::npubToHex($ident);
+        } else {
+            throw new \InvalidArgumentException('UserFromNpub expects npub or hex pubkey');
         }
-        $this->user = $this->redisCacheService->getMetadata($this->npub);
+        if ($this->user === null) {
+            $this->user = $this->redisCacheService->getMetadata($this->pubkey);
+        }
     }
 }
