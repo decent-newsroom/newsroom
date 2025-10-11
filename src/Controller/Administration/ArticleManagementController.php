@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Service\RedisCacheService;
+use Elastica\Query;
 use FOS\ElasticaBundle\Finder\PaginatedFinderInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -20,6 +21,7 @@ class ArticleManagementController extends AbstractController
 
     public function listArticles(
         #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
+        #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
         RedisCacheService $redisCacheService
     ): Response
     {
@@ -41,9 +43,24 @@ class ArticleManagementController extends AbstractController
                 if (count($articles) >= 50) break;
             }
         }
+        // Separate query for aggregations
+        $aggQuery = new Query([
+            'size' => 0,
+            'aggs' => [
+                'tags' => [
+                    'terms' => [
+                        'field' => 'topics',
+                        'size' => 50
+                    ]
+                ]
+            ]
+        ]);
+        $aggResults = $index->search($aggQuery);
+        $tagCounts = $aggResults->getAggregations()['tags']['buckets'] ?? [];
         return $this->render('admin/articles.html.twig', [
             'articles' => $articles,
             'indexes' => [],
+            'tagCounts' => $tagCounts,
         ]);
     }
 

@@ -1,0 +1,29 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<h1>Explore Topics</h1>
+<p>Select a topic to view the 10 most recent articles related to it.</p>
+
+<div class="topics-list">
+    {% for key, topic in topics %}
+        <a href="{{ path('topics', {'topic': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
+            {{ topic.name }}
+        </a>
+    {% endfor %}
+</div>
+
+{% if selectedTopic and articles %}
+    <h2>Recent Articles in {{ topics[selectedTopic].name }}</h2>
+    <div class="articles-list">
+        {% for article in articles %}
+            <div class="article-item">
+                <h3><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></h3>
+                <p>{{ article.summary|slice(0, 150) }}{% if article.summary|length > 150 %}...{% endif %}</p>
+                <small>Published: {{ article.createdAt|date('Y-m-d H:i') }}</small>
+            </div>
+        {% endfor %}
+    </div>
+{% elseif selectedTopic %}
+    <p>No articles found for this topic.</p>
+{% endif %}
+{% endblock %}

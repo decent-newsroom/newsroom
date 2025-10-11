@@ -42,4 +42,13 @@
     {% endfor %}
     </tbody>
 </table>
+
+<h2>Most Frequent Tags</h2>
+<ul>
+    {% for tag in tagCounts %}
+        <li>{{ tag.key }} ({{ tag.doc_count }})</li>
+    {% else %}
+        <li>No tags found.</li>
+    {% endfor %}
+</ul>
 {% endblock %}

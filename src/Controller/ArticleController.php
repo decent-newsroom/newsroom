@@ -9,6 +9,7 @@ use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
+use FOS\ElasticaBundle\Finder\PaginatedFinderInterface;
 use League\CommonMark\Exception\CommonMarkException;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
@@ -17,6 +18,7 @@ use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -354,6 +356,70 @@ class ArticleController  extends AbstractController
         }
 
         return $data;
+    }
+
+    #[Route('/topics', name: 'topics')]
+    public function topics(
+        Request $request,
+        #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder
+    ): Response {
+        $topics = [
+            'bitcoin-crypto' => [
+                'name' => 'Bitcoin & Crypto',
+                'tags' => ['bitcoin', 'bitkoin', 'lightning', 'decentralization', 'freedom', 'privacy', 'sovereignty']
+            ],
+            'nostr' => [
+                'name' => 'Nostr',
+                'tags' => ['nostr', 'grownostr']
+            ],
+            'christianity' => [
+                'name' => 'Christianity',
+                'tags' => ['jesus', 'christian', 'christianity', 'bible', 'trustjesus', 'biblestr']
+            ],
+            'travel' => [
+                'name' => 'Travel',
+                'tags' => ['travel', 'europe']
+            ],
+            'photography' => [
+                'name' => 'Photography',
+                'tags' => ['photography']
+            ],
+            'ai' => [
+                'name' => 'AI',
+                'tags' => ['ai']
+            ],
+            'philosophy' => [
+                'name' => 'Philosophy',
+                'tags' => ['philosophy']
+            ],
+            'art' => [
+                'name' => 'Art',
+                'tags' => ['art']
+            ]
+        ];
+
+        $selectedTopic = $request->query->get('topic');
+        $articles = [];
+        if ($selectedTopic && isset($topics[$selectedTopic])) {
+            $tags = $topics[$selectedTopic]['tags'];
+            $query = [
+                'size' => 10,
+                'sort' => [['createdAt' => ['order' => 'desc']]],
+                'query' => [
+                    'terms' => [
+                        'topics' => $tags
+                    ]
+                ]
+            ];
+            $results = $finder->find($query);
+            $articles = array_slice($results, 0, 10);
+        }
+
+        return $this->render('pages/topics.html.twig', [
+            'topics' => $topics,
+            'selectedTopic' => $selectedTopic,
+            'articles' => $articles,
+        ]);
     }
 
 }
