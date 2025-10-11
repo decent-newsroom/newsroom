@@ -1,7 +1,7 @@
 {% if article is defined %}
     <div class="card">
         <div class="metadata">
-            {% if not is_author_profile %}
+            {% if not is_author_profile and app.current_route != 'latest_articles' %}
                 {% set pubkey = article.pubkey %}
                 {% set user = authors_metadata[pubkey] ?? null %}
                 <p>by <twig:Molecules:UserFromNpub :user="user" :ident="pubkey" /></p>
