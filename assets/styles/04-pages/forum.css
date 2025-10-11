@@ -1,0 +1,135 @@
+/* Forum Styles - Old School Forum Look */
+
+.forum-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.forum-nav li {
+  margin: 0.5rem 0;
+}
+
+.forum-nav button {
+  cursor: pointer;
+  padding: 0.5rem;
+  font-weight: bold;
+  background: #e9e9e9;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  text-align: left;
+}
+
+.forum-nav button:hover {
+  background: #ddd;
+}
+
+.forum-nav .content {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-top: none;
+  background: #f9f9f9;
+}
+
+.forum-nav .content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.forum-nav .content ul li {
+  margin: 0.25rem 0;
+}
+
+.forum-nav .content ul li a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+  color: #333;
+}
+
+.forum-nav .content ul li a:hover {
+  background: #f0f0f0;
+}
+
+.subcategories-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.sub-card {
+  border: 1px solid var(--color-primary);
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sub-card h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.sub-card div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sub-card .count {
+    align-self: flex-end;
+    flex-shrink: 0;
+}
+
+.articles-list {
+  list-style: none;
+  padding: 0;
+}
+
+.article-item {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  margin: 1rem 0;
+  background: #fafafa;
+}
+
+.article-item h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.article-item p {
+  margin: 0.5rem 0;
+}
+
+.article-item small {
+  color: #666;
+}
+
+.nav-sub-card {
+  border: 1px solid #333;
+  background: #fff;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+}
+
+.nav-sub-card h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+}
+
+.nav-sub-card .tags {
+  flex: 1;
+}
+
+.nav-sub-card .count {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  align-self: flex-end;
+}

@@ -1,0 +1,13 @@
+<div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+    <h2 class="mb-4">Forum</h2>
+</div>
+{% for catKey, category in topics %}
+    <details class="mb-2">
+        <summary>{{ category.name }}</summary>
+        <ul class="list-unstyled ms-2">
+            {% for subKey, sub in category.subcategories %}
+                <li class="mt-2"><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></li>
+            {% endfor %}
+        </ul>
+    </details>
+{% endfor %}

@@ -1,12 +1,7 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--latest-articles">
-        <div class="container mt-5 mb-5">
-            <h1>Latest Articles</h1>
-            <p class="eyebrow">Fresh off the presses</p>
-        </div>
-    </section>
+    <twig:Atoms:PageHeading heading="Latest Articles" tagline="Fresh off the presses"/>
 
     <section class="w-container mb-5">
         {% if articles is empty %}
