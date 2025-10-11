@@ -66,6 +66,10 @@
     margin: 10px 0;
 }
 
+.header__logo {
+    margin-left: var(--spacing-3);
+}
+
 .header__image {
     position: relative;
     width: 100%;

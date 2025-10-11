@@ -82,6 +82,24 @@
 
         </div>
 
+        <twig:Organisms:CommentForm
+            :publish_url="path('comment_publish')"
+            :csrf_token="csrf_token('comment_publish')"
+            :root_context="{
+                tag: 'A',
+                value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+                relay: null,
+                pubkey: article.pubkey,
+                kind: 30023
+            }"
+            :parent_context="{
+                tag: 'a',
+                value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+                relay: null,
+                pubkey: article.pubkey,
+                kind: 30023
+            }" />
+
         <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
     </article>
 {% endblock %}

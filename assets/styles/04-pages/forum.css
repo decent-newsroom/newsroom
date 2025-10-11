@@ -60,21 +60,20 @@
   margin: 1rem 0;
 }
 
-@media (max-width: 960px) {
-    .subcategories-grid .tags {
-      justify-content: flex-start;
-    }
-
-    .subcategories-grid .tag {
-        padding: 0;
-        background-color: transparent;
-        color: var(--color-primary);
-    }
-
-    .subcategories-grid .tag:before {
-        content: '#';
-    }
+.subcategories-grid .tags {
+  justify-content: flex-start;
 }
+
+.subcategories-grid .tag {
+    padding: 0;
+    background-color: transparent;
+    color: var(--color-primary);
+}
+
+.subcategories-grid .tag:before {
+    content: '#';
+}
+
 
 .sub-card {
 border: 1px solid var(--color-primary);
