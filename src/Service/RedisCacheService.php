@@ -328,25 +328,25 @@ readonly class RedisCacheService
     /**
      * Get all media events for pagination (fetches large batch, caches, returns paginated)
      *
-     * @param string $npub The author's npub
+     * @param string $pubkey The author's pubkey
      * @param int $page Page number (1-based)
      * @param int $pageSize Number of items per page
      * @return array ['events' => array, 'hasMore' => bool, 'total' => int]
      */
-    public function getMediaEventsPaginated(string $npub, int $page = 1, int $pageSize = 60): array
+    public function getMediaEventsPaginated(string $pubkey, int $page = 1, int $pageSize = 60): array
     {
         // Cache key for all media events (not page-specific)
-        $cacheKey = 'media_all_' . $npub;
+        $cacheKey = 'media_all_' . $pubkey;
 
         try {
             // Fetch and cache all media events
-            $allMediaEvents = $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+            $allMediaEvents = $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(600); // 10 minutes cache
 
                 try {
                     // Fetch a large batch to account for deduplication
                     // Nostr relays are unstable, so we fetch more than we need
-                    $mediaEvents = $this->nostrClient->getAllMediaEventsForPubkey($npub, 200);
+                    $mediaEvents = $this->nostrClient->getAllMediaEventsForPubkey($pubkey, 200);
 
                     // Deduplicate by event ID
                     $uniqueEvents = [];
@@ -364,7 +364,7 @@ readonly class RedisCacheService
 
                     return $mediaEvents;
                 } catch (\Exception $e) {
-                    $this->logger->error('Error getting media events.', ['exception' => $e, 'npub' => $npub]);
+                    $this->logger->error('Error getting media events.', ['exception' => $e, 'pubkey' => $pubkey]);
                     return [];
                 }
             });

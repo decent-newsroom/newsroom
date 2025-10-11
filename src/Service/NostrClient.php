@@ -34,7 +34,7 @@ class NostrClient
         'wss://relay.primal.net',
         'wss://nos.lol',
         'wss://relay.snort.social',
-        'wss://nostr.land',
+        // 'wss://nostr.land', // requires auth that doesn't currently work!
         'wss://purplepag.es',
     ];
 
@@ -46,7 +46,8 @@ class NostrClient
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://nostr.land')); // public aggregator relay
+        $this->defaultRelaySet->addRelay(new Relay('wss://relay.damus.io')); // public aggregator relay
+        $this->defaultRelaySet->addRelay(new Relay('wss://relay.primal.net')); // public aggregator relay
     }
 
     /**

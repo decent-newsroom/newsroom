@@ -29,7 +29,7 @@ class AuthorController extends AbstractController
         $author = $redisCacheService->getMetadata($keyUtil->npubToHex($npub));
 
         // Use paginated cached media events - fetches 200 from relays, serves first 24
-        $paginatedData = $redisCacheService->getMediaEventsPaginated($npub, 1, 24);
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($keyUtil->npubToHex($npub), 1, 24);
         $mediaEvents = $paginatedData['events'];
 
         // Encode event IDs as note1... for each event
