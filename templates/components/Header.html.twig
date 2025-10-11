@@ -1,5 +1,8 @@
 <header class="header" data-controller="menu" {{ attributes }}>
     <div class="container">
+        <div class="mobile-toggles" data-controller="sidebar-toggle">
+            <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">☰</button>
+        </div>
         <div class="header__logo">
             <h1 class="brand"><a href="/">Decent Newsroom</a></h1>
         </div>

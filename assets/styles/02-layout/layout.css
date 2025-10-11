@@ -83,6 +83,10 @@ main {
     word-break: break-word;
 }
 
+main > section {
+    padding: 0 var(--spacing-2);
+}
+
 main.static {
     margin-left: auto;
     margin-right: auto;
@@ -156,11 +160,7 @@ aside header {
 
     main {
         margin-top: 60px;
-    }
-
-    section {
-        padding-left: 20px;
-        padding-right: 20px;
+        padding: 0;
     }
 
     nav header,
@@ -174,12 +174,9 @@ aside header {
 
     .mobile-toggles {
         display: flex;
-        justify-content: space-between;
-        gap: .5rem;
-        position: sticky;
-        top: 61px; /* below main header */
         z-index: 1050;
         padding: .5rem 0;
+        margin: 0 var(--spacing-2);
     }
 
     .mobile-toggles .toggle {

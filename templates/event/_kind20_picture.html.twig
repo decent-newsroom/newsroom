@@ -13,10 +13,6 @@
         {% set isEmbed = true %}
     {% endif %}
 
-    {% if title %}
-        <h2 class="picture-title">{{ title }}</h2>
-    {% endif %}
-
     {# Content warning #}
     {% set contentWarning = null %}
     {% for tag in event.tags %}
@@ -92,9 +88,6 @@
                     <a href="{{ path('nevent', {nevent: event.id|nEncode }) }}" aria-label="View standalone">
                 {% endif %}
                 <picture>
-                    {% for fallback in main.fallbacks %}
-                        <source srcset="{{ fallback }}" />
-                    {% endfor %}
                     <img src="{{ main.url }}"
                          alt="{{ main.altText|default('Picture') }}"
                          {% if main.dimensions %}data-dimensions="{{ main.dimensions }}"{% endif %}
@@ -102,6 +95,9 @@
                          class="picture-image main-image"
                          data-gallery-target="mainImage"
                          />
+                    {% for fallback in main.fallbacks %}
+                        <source srcset="{{ fallback }}" />
+                    {% endfor %}
                 </picture>
 
                 {% if images|length > 1 %}

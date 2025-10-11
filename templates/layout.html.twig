@@ -15,6 +15,9 @@
                         <a href="{{ path('latest_articles') }}">Latest articles</a>
                     </li>
                     <li>
+                        <a href="{{ path('forum') }}">Forum</a>
+                    </li>
+                    <li>
                         <a href="{{ path('media-discovery') }}">Multimedia</a>
                     </li>
                     <li>
@@ -40,10 +43,6 @@
             </nav>
         </div>
         <main>
-            <div class="mobile-toggles">
-                <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">☰</button>
-{#                <button class="toggle" aria-controls="rightNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">Right ☰</button>#}
-            </div>
             {% block body %}{% endblock %}
 
             {# Floating reading list quick add widget #}

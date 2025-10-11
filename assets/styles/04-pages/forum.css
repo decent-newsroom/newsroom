@@ -60,76 +60,92 @@
   margin: 1rem 0;
 }
 
+@media (max-width: 960px) {
+    .subcategories-grid .tags {
+      justify-content: flex-start;
+    }
+
+    .subcategories-grid .tag {
+        padding: 0;
+        background-color: transparent;
+        color: var(--color-primary);
+    }
+
+    .subcategories-grid .tag:before {
+        content: '#';
+    }
+}
+
 .sub-card {
-  border: 1px solid var(--color-primary);
-  background: #fff;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+border: 1px solid var(--color-primary);
+background: #fff;
+padding: 1rem;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
 }
 
 .sub-card h3 {
-  margin: 0 0 0.5rem 0;
+margin: 0 0 0.5rem 0;
 }
 
 .sub-card div {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+display: flex;
+justify-content: space-between;
+align-items: center;
 }
 
 .sub-card .count {
-    align-self: flex-end;
-    flex-shrink: 0;
+align-self: flex-end;
+flex-shrink: 0;
 }
 
 .articles-list {
-  list-style: none;
-  padding: 0;
+list-style: none;
+padding: 0;
 }
 
 .article-item {
-  border: 1px solid #ddd;
-  padding: 1rem;
-  margin: 1rem 0;
-  background: #fafafa;
+border: 1px solid #ddd;
+padding: 1rem;
+margin: 1rem 0;
+background: #fafafa;
 }
 
 .article-item h3 {
-  margin: 0 0 0.5rem 0;
+margin: 0 0 0.5rem 0;
 }
 
 .article-item p {
-  margin: 0.5rem 0;
+margin: 0.5rem 0;
 }
 
 .article-item small {
-  color: #666;
+color: #666;
 }
 
 .nav-sub-card {
-  border: 1px solid #333;
-  background: #fff;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+border: 1px solid #333;
+background: #fff;
+padding: 0.5rem;
+margin: 0.5rem 0;
+display: flex;
+flex-direction: column;
+box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
 }
 
 .nav-sub-card h4 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1rem;
+margin: 0 0 0.25rem 0;
+font-size: 1rem;
 }
 
 .nav-sub-card .tags {
-  flex: 1;
+flex: 1;
 }
 
 .nav-sub-card .count {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #333;
-  align-self: flex-end;
+font-size: 1.2rem;
+font-weight: bold;
+color: #333;
+align-self: flex-end;
 }

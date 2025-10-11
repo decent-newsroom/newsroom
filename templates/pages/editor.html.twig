@@ -15,7 +15,7 @@
     <div class="w-container">
         {% if not is_granted('ROLE_USER') %}
         <div class="notice info">
-            <p>Login is required to post articles.</p>
+            <p>A Nostr identity is required to post articles.</p>
         </div>
         {% endif %}
         <div {{ stimulus_controller('nostr-publish', {
