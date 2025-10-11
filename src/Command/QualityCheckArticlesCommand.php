@@ -58,6 +58,13 @@ class QualityCheckArticlesCommand extends Command
             return false;
         }
 
+        // Exclude articles with adult content tags
+        $adultTags = ['nsfw', 'adult', 'explicit', '18+', 'nsfl'];
+        $topics = $article->getTopics() ?? [];
+        if (array_intersect($topics, $adultTags)) {
+            return false;
+        }
+
         $content = $article->getContent();
 
         // No empty title
