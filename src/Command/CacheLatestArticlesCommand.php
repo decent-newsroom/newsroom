@@ -60,6 +60,10 @@ class CacheLatestArticlesCommand extends Command
             $collapse->setFieldname('slug');
             $query->setCollapse($collapse);
 
+            $collapse2 = new Collapse();
+            $collapse2->setFieldname('pubkey');
+            $query->setCollapse($collapse2);
+
             $articles = $this->finder->find($query);
 
             $cacheItem->set($articles);

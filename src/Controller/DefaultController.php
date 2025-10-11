@@ -88,6 +88,11 @@ class DefaultController extends AbstractController
             $collapse->setFieldname('slug');
             $query->setCollapse($collapse);
 
+            // Use collapse to deduplicate by author
+            $collapse2 = new Collapse();
+            $collapse2->setFieldname('pubkey');
+            $query->setCollapse($collapse2);
+
             $articles = $finder->find($query);
 
             $cacheItem->set($articles);
