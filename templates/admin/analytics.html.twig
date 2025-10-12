@@ -6,37 +6,71 @@
     <div class="analytics-container">
         <h1>Page Visit Analytics</h1>
 
-        <div class="analytics-card">
-            <h2>Total Visits</h2>
-            <ul class="analytics-stats">
-                <li><strong>Last 24 hours:</strong> {{ last24hCount }}</li>
-                <li><strong>Last 7 days:</strong> {{ last7dCount }}</li>
-            </ul>
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
+                <h2>Total Visits</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last 24 hours:</strong> {{ last24hCount }}</li>
+                    <li><strong>Last 7 days:</strong> {{ last7dCount }}</li>
+                    <li><strong>All time:</strong> {{ totalVisits }}</li>
+                </ul>
+            </div>
+
+            <div class="analytics-card">
+                <h2>Unique Visitors</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last 24 hours:</strong> {{ uniqueVisitors24h }}</li>
+                    <li><strong>Last 7 days:</strong> {{ uniqueVisitors7d }}</li>
+                    <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
+                </ul>
+                <p class="analytics-note">Tracked by session ID (includes both anonymous and logged-in visitors)</p>
+            </div>
+
+            <div class="analytics-card">
+                <h2>Engagement</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Avg. Visits/Session:</strong> {{ avgVisitsPerSession }}</li>
+                    <li><strong>Bounce Rate:</strong> {{ bounceRate }}%</li>
+                </ul>
+            </div>
         </div>
 
         <div class="analytics-card">
-            <h2>Unique Visitors</h2>
-            <ul class="analytics-stats">
-                <li><strong>Last 24 hours:</strong> {{ uniqueVisitors24h }}</li>
-                <li><strong>Last 7 days:</strong> {{ uniqueVisitors7d }}</li>
-                <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
-            </ul>
-            <p class="analytics-note">Tracked by session ID (includes both anonymous and logged-in visitors)</p>
+            <h2>Visits Per Day (Last 30 Days)</h2>
+            {% if visitsPerDay|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="text-right">Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in visitsPerDay %}
+                            <tr>
+                                <td>{{ stat.day|date('Y-m-d') }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No visit data for the last 30 days.</p>
+            {% endif %}
         </div>
 
         <div class="analytics-card">
-            <h2>Visit Count by Route (Last 7 Days)</h2>
-
-            {% if visitStats|length > 0 %}
+            <h2>Most Popular Routes (All Time)</h2>
+            {% if mostPopularRoutes|length > 0 %}
                 <table class="analytics-table">
                     <thead>
                         <tr>
                             <th>Route</th>
-                            <th class="text-right">#</th>
+                            <th class="text-right">Visits</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for stat in visitStats %}
+                        {% for stat in mostPopularRoutes %}
                             <tr>
                                 <td>{{ stat.route }}</td>
                                 <td class="text-right">{{ stat.count }}</td>
@@ -45,7 +79,58 @@
                     </tbody>
                 </table>
             {% else %}
-                <p>No visit data recorded in the last 7 days.</p>
+                <p>No route data available.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Recent Visits</h2>
+            {% if recentVisits|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Session ID</th>
+                            <th>Visited At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for visit in recentVisits %}
+                            <tr>
+                                <td>{{ visit.route }}</td>
+                                <td><code>{{ visit.sessionId|slice(0, 12) }}...</code></td>
+                                <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No recent visits recorded.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Visit Count by Route (Last 7 Days)</h2>
+            {% set filteredVisitStats = visitStats|filter(stat => stat.count >= 5) %}
+            {% if filteredVisitStats|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th class="text-right">#</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in filteredVisitStats %}
+                            <tr>
+                                <td>{{ stat.route }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No routes with 5 or more visits recorded in the last 7 days.</p>
             {% endif %}
         </div>
 
@@ -63,12 +148,14 @@
                     </thead>
                     <tbody>
                         {% for stat in sessionStats %}
+                            {% if stat.visitCount > 1 %}
                             <tr>
                                 <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
                                 <td class="text-right">{{ stat.visitCount }}</td>
                                 <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
                                 <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
                             </tr>
+                            {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>

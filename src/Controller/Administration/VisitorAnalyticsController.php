@@ -33,6 +33,14 @@ class VisitorAnalyticsController extends AbstractController
         // Session-based visit breakdown
         $sessionStats = $visitRepository->getVisitsBySession($last7d);
 
+        // New metrics for improved dashboard
+        $totalVisits = $visitRepository->getTotalVisits();
+        $avgVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
+        $bounceRate = $visitRepository->getBounceRate();
+        $visitsPerDay = $visitRepository->getVisitsPerDay(30);
+        $mostPopularRoutes = $visitRepository->getMostPopularRoutes(5);
+        $recentVisits = $visitRepository->getRecentVisits(10);
+
         return $this->render('admin/analytics.html.twig', [
             'visitStats' => $visitStats,
             'last24hCount' => $last24hCount,
@@ -41,6 +49,13 @@ class VisitorAnalyticsController extends AbstractController
             'uniqueVisitors7d' => $uniqueVisitors7d,
             'totalUniqueVisitors' => $totalUniqueVisitors,
             'sessionStats' => $sessionStats,
+            // New variables for dashboard
+            'totalVisits' => $totalVisits,
+            'avgVisitsPerSession' => $avgVisitsPerSession,
+            'bounceRate' => $bounceRate,
+            'visitsPerDay' => $visitsPerDay,
+            'mostPopularRoutes' => $mostPopularRoutes,
+            'recentVisits' => $recentVisits,
         ]);
     }
 }
