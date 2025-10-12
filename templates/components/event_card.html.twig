@@ -13,7 +13,7 @@
             <span class="event-date">{{ event.created_at|date('M j, Y H:i') }}</span>
         </div>
     </div>
-    <div class="event-content line-clamp-5">
+    <div class="event-content">
         {{ event.content|markdown_to_html|mentionify }}
     </div>
     <div class="event-footer">
@@ -23,8 +23,8 @@
 
 <style>
 .embedded-event-card {
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
+    border: none;
+    border-radius: 0;
     padding: 12px;
     margin: 8px 0;
     background: #f8f9fa;

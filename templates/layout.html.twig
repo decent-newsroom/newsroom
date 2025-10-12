@@ -39,6 +39,9 @@
                     </li>
                 </ul>
                 <twig:UserMenu />
+                <div class="container mt-2 mb-2 text-end">
+                    <a href="{{ path('feedback_form') }}" class="btn btn-outline-primary">Send Feedback</a>
+                </div>
                 {% block nav %}{% endblock %}
             </nav>
         </div>

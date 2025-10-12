@@ -23,6 +23,11 @@ export default class extends Controller {
       }
       const preview = JSON.parse(JSON.stringify(skeleton));
       preview.pubkey = pubkey;
+      // Update content from textarea if present
+      const textarea = this.element.querySelector('textarea');
+      if (textarea) {
+        preview.content = textarea.value;
+      }
       if (this.hasComputedPreviewTarget) {
         this.computedPreviewTarget.textContent = JSON.stringify(preview, null, 2);
       }
@@ -45,18 +50,22 @@ export default class extends Controller {
     try {
       const pubkey = await window.nostr.getPublicKey();
       const skeleton = JSON.parse(this.eventValue || '{}');
-
+      // Update content from textarea before signing
+      const textarea = this.element.querySelector('textarea');
+      if (textarea) {
+        skeleton.content = textarea.value;
+      }
       this.ensureCreatedAt(skeleton);
       this.ensureContent(skeleton);
       skeleton.pubkey = pubkey;
 
-      this.showStatus('Signing reading list…');
+      this.showStatus('Signing feedback…');
       const signed = await window.nostr.signEvent(skeleton);
 
       this.showStatus('Publishing…');
       await this.publishSigned(signed);
 
-      this.showSuccess('Published reading list successfully');
+      this.showSuccess('Published feedback successfully');
     } catch (e) {
       console.error(e);
       this.showError(e.message || 'Publish failed');
@@ -105,4 +114,3 @@ export default class extends Controller {
     }
   }
 }
-
