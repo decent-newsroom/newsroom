@@ -83,10 +83,6 @@ main {
     word-break: break-word;
 }
 
-main > section {
-    padding: 0 var(--spacing-2);
-}
-
 main.static {
     margin-left: auto;
     margin-right: auto;
@@ -160,7 +156,7 @@ aside header {
 
     main {
         margin-top: 60px;
-        padding: 0;
+        padding: 0 var(--spacing-3);
     }
 
     nav header,
@@ -273,3 +269,5 @@ p.measure {
     max-width: 65ch;
     margin: 1em auto;
 }
+
+section{ position: relative; padding: var(--section-spacing) var(--spacing-3); }

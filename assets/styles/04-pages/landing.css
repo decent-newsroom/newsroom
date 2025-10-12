@@ -11,7 +11,7 @@
 
 /* Hero split */
 .ln-hero{
-    margin-top: var(--spacing-8);
+    margin-top: var(--spacing-3);
     background: var(--color-bg);
     color: var(--color-text);
 }
@@ -20,13 +20,9 @@
 .frame{
     width: min(560px, 40vw);
     border-radius: 14px;
-    border: var(--border-hair);
     background: linear-gradient(180deg, color-mix(in oklab, var(--color-bg-light) 80%, var(--color-bg)), var(--color-bg));
     overflow: hidden;
 }
-
-/* Generic section shell */
-.ln-section{ position: relative; padding: var(--section-spacing) 0; }
 
 /* Split layout for features */
 .ln-split{
