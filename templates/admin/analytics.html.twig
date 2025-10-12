@@ -36,8 +36,46 @@
         </div>
 
         <div class="analytics-card">
+            <h2>Unique Visitors Per Day (Last 7 Days)</h2>
+            <canvas id="uniqueVisitorsPerDayChart"
+                    data-controller="unique-visitors-per-day-chart"
+                    data-unique-visitors-per-day-chart-labels-value='{{ uniqueVisitorsPerDay|map(stat => stat.day)|json_encode()|e('html_attr') }}'
+                    data-unique-visitors-per-day-chart-counts-value='{{ uniqueVisitorsPerDay|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                    height="80"></canvas>
+            <noscript>
+                <p><em>Enable JavaScript to see the unique visitors per day chart.</em></p>
+            </noscript>
+            <div style="margin-top:1em"></div>
+            <table class="analytics-table">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="text-right">Unique Visitors</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for stat in uniqueVisitorsPerDay %}
+                    <tr>
+                        <td>{{ stat.day }}</td>
+                        <td class="text-right">{{ stat.count }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="analytics-card">
             <h2>Visits Per Day (Last 30 Days)</h2>
             {% if visitsPerDay|length > 0 %}
+                <canvas id="visitsPerDayChart"
+                    data-controller="visits-per-day-chart"
+                    data-visits-per-day-chart-labels-value='{{ visitsPerDay|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
+                    data-visits-per-day-chart-counts-value='{{ visitsPerDay|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                    height="80"></canvas>
+                <noscript>
+                    <p><em>Enable JavaScript to see the visits per day chart.</em></p>
+                </noscript>
+                <div style="margin-top:1em"></div>
                 <table class="analytics-table">
                     <thead>
                         <tr>

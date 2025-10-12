@@ -41,6 +41,25 @@ class VisitorAnalyticsController extends AbstractController
         $mostPopularRoutes = $visitRepository->getMostPopularRoutes(5);
         $recentVisits = $visitRepository->getRecentVisits(10);
 
+        // Calculate unique visitors per day for the last 7 days
+        $uniqueVisitorsPerDay = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $day = (new \DateTimeImmutable("today"))->modify("-{$i} days");
+            $start = $day->setTime(0, 0, 0);
+            $end = $day->setTime(23, 59, 59);
+            $qb = $visitRepository->createQueryBuilder('v');
+            $qb->select('COUNT(DISTINCT v.sessionId)')
+                ->where('v.visitedAt BETWEEN :start AND :end')
+                ->andWhere('v.sessionId IS NOT NULL')
+                ->setParameter('start', $start)
+                ->setParameter('end', $end);
+            $count = (int) $qb->getQuery()->getSingleScalarResult();
+            $uniqueVisitorsPerDay[] = [
+                'day' => $day->format('Y-m-d'),
+                'count' => $count
+            ];
+        }
+
         return $this->render('admin/analytics.html.twig', [
             'visitStats' => $visitStats,
             'last24hCount' => $last24hCount,
@@ -56,6 +75,7 @@ class VisitorAnalyticsController extends AbstractController
             'visitsPerDay' => $visitsPerDay,
             'mostPopularRoutes' => $mostPopularRoutes,
             'recentVisits' => $recentVisits,
+            'uniqueVisitorsPerDay' => $uniqueVisitorsPerDay,
         ]);
     }
 }

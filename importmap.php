@@ -96,4 +96,10 @@ return [
     'nostr-tools/nip46' => [
         'version' => '2.17.0',
     ],
+    'chart.js/auto' => [
+        'version' => '4.5.0',
+    ],
+    '@kurkle/color' => [
+        'version' => '0.3.4',
+    ],
 ];
