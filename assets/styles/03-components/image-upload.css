@@ -34,7 +34,6 @@
 
 .iu-modal .modal-header {
     padding: var(--spacing-3);
-    border-bottom: 1px solid var(--color-border, #dee2e6);
     display: flex;
     justify-content: space-between;
     align-items: center;

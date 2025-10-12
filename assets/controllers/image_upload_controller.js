@@ -13,13 +13,13 @@ export default class extends Controller {
     }
 
     openDialog() {
-        this.dialogTarget.style.display = '';
+        this.dialogTarget.classList.add('active');
         this.errorTarget.textContent = '';
         this.progressTarget.style.display = 'none';
     }
 
     closeDialog() {
-        this.dialogTarget.style.display = 'none';
+        this.dialogTarget.classList.remove('active');
         this.errorTarget.textContent = '';
         this.progressTarget.style.display = 'none';
     }
