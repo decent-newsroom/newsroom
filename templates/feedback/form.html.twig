@@ -4,31 +4,33 @@
 {% block body %}
 <div class="w-container mt-5">
     <twig:Atoms:PageHeading heading="Feedback" tagline="Bug reports and feature requests welcome"/>
-  <form data-controller="nostr-single-sign" data-nostr-single-sign-event-value='{{ {
-    "kind": 24,
-    "tags": [...recipients|map(r => ["p", r]), ['client', 'Decent Newsroom']],
-    "content": ""
-  }|json_encode(constant('JSON_UNESCAPED_SLASHES')) }}'
-    data-nostr-single-sign-publish-url-value="/api/nostr/publish"
-    data-nostr-single-sign-csrf-token-value="{{ csrf_token('feedback') }}"
-    data-action="submit->nostr-single-sign#signAndPublish">
-      <div data-nostr-single-sign-target="status"></div>
-      <div class="mb-3">
-          <p>To:
-              {% for r in recipients %}
-                  <twig:Molecules:UserFromNpub :ident="r" />
-                  {% if not loop.last %}and {% endif %}
-              {% endfor %}
-          </p>
-        <label for="feedback-message" class="form-label">Your Message</label>
-        <textarea id="feedback-message" class="form-control" rows="5" required data-action="input->nostr-single-sign#preparePreview"></textarea>
-    </div>
-  <div class="actions">
-      <button type="submit" class="btn btn-primary" data-nostr-single-sign-target="publishButton">Send Feedback</button>
-  </div>
-    <h5 class="mt-4">Preview</h5>
-    <pre data-nostr-single-sign-target="computedPreview" class="bg-light p-2"></pre>
-  </form>
+    <section>
+        <form data-controller="nostr-single-sign" data-nostr-single-sign-event-value='{{ {
+            "kind": 24,
+            "tags": [...recipients|map(r => ["p", r]), ['client', 'Decent Newsroom']],
+            "content": ""
+        }|json_encode(constant('JSON_UNESCAPED_SLASHES')) }}'
+              data-nostr-single-sign-publish-url-value="/api/nostr/publish"
+              data-nostr-single-sign-csrf-token-value="{{ csrf_token('feedback') }}"
+              data-action="submit->nostr-single-sign#signAndPublish">
+            <div data-nostr-single-sign-target="status"></div>
+            <div class="mb-3">
+                <p>To:
+                    {% for r in recipients %}
+                        <twig:Molecules:UserFromNpub :ident="r" />
+                        {% if not loop.last %}and {% endif %}
+                    {% endfor %}
+                </p>
+                <label for="feedback-message" class="form-label">Your Message</label>
+                <textarea id="feedback-message" class="form-control" rows="5" required data-action="input->nostr-single-sign#preparePreview"></textarea>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary" data-nostr-single-sign-target="publishButton">Send Feedback</button>
+            </div>
+            <h5 class="mt-4">Preview</h5>
+            <pre data-nostr-single-sign-target="computedPreview" class="bg-light p-2"></pre>
+        </form>
+    </section>
 </div>
 {% endblock %}
 
