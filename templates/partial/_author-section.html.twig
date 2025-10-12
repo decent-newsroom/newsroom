@@ -1,0 +1,29 @@
+<section>
+    <h1><twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub></h1>
+    {% if author.bot is defined %}
+        <div class="tags">
+            <span class="tag">bot</span>
+        </div>
+    {% endif %}
+
+    {% if author.nip05 is defined %}
+        {% if author.nip05 is iterable %}
+            {% for nip05Value in author.nip05 %}
+                <twig:Atoms:Nip05Badge
+                    nip05="{{ nip05Value }}"
+                    :npub="npub"
+                />
+            {% endfor %}
+        {% else %}
+            <twig:Atoms:Nip05Badge
+                nip05="{{ author.nip05 }}"
+                :npub="npub"
+            />
+        {% endif %}
+    {% endif %}
+    <div class="mt-2">
+        {% if author.about is defined %}
+            {{ author.about|markdown_to_html|mentionify|linkify  }}
+        {% endif %}
+    </div>
+</section>

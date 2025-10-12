@@ -156,6 +156,10 @@ aside header {
 
     main {
         margin-top: 60px;
+        padding: 0;
+    }
+
+    article {
         padding: 0 var(--spacing-3);
     }
 

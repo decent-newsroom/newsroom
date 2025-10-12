@@ -1,152 +1,141 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <h1><twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub></h1>
-    {% if author.nip05 is defined %}
-        {% if author.nip05 is iterable %}
-            {% for nip05Value in author.nip05 %}
-                <twig:Atoms:Nip05Badge
-                    nip05="{{ nip05Value }}"
-                    :npub="npub"
-                />
-            {% endfor %}
-        {% else %}
-            <twig:Atoms:Nip05Badge
-                nip05="{{ author.nip05 }}"
-                :npub="npub"
-            />
-        {% endif %}
-    {% endif %}
 
-    <div class="profile-tabs">
-        <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link">Articles</a>
-        <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link">Media</a>
-        <a href="{{ path('author-about', {'npub': npub}) }}" class="tab-link active">About</a>
-    </div>
+    {% import 'partial/_author-section.html.twig', {author: author, npub: npub} %}
 
-    <div class="w-container mt-4">
-        <div class="profile-details">
-            <h2>Profile Information</h2>
+    <section>
+        <div class="profile-tabs">
+            <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link">Articles</a>
+            <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link">Media</a>
+            <a href="{{ path('author-about', {'npub': npub}) }}" class="tab-link active">About</a>
+        </div>
 
-            {% if author.about is defined %}
-                <div class="profile-field">
-                    <h3>About</h3>
-                    <div class="profile-value">
-                        {{ author.about|markdown_to_html|mentionify|linkify }}
-                    </div>
-                </div>
-            {% endif %}
+        <div class="w-container mt-4">
+            <div class="profile-details">
+                <h2>Profile Information</h2>
 
-            {% if author.banner is defined %}
-                <div class="profile-field">
-                    <h3>Banner</h3>
-                    <div class="profile-value">
-                        <img src="{{ author.banner }}" alt="Profile banner" style="max-width: 100%; height: auto;" onerror="this.style.display = 'none'" />
-                    </div>
-                </div>
-            {% endif %}
-
-            {% if author.website is defined %}
-                <div class="profile-field">
-                    <h3>Website</h3>
-                    <div class="profile-value">
-                        <a href="{{ author.website }}" target="_blank" rel="noopener noreferrer">{{ author.website }}</a>
-                    </div>
-                </div>
-            {% endif %}
-
-            {% if author.lud16 is defined %}
-                <div class="profile-field">
-                    <h3>Lightning Address{{ author.lud16 is iterable and author.lud16|length > 1 ? 'es' : '' }}</h3>
-                    <div class="profile-value">
-                        {% if author.lud16 is iterable %}
-                            {% for address in author.lud16 %}
-                                <div class="mb-1">
-                                    <code>{{ address }}</code>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <code>{{ author.lud16 }}</code>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-
-            {% if author.lud06 is defined %}
-                <div class="profile-field">
-                    <h3>LNURL{{ author.lud06 is iterable and author.lud06|length > 1 ? 's' : '' }}</h3>
-                    <div class="profile-value">
-                        {% if author.lud06 is iterable %}
-                            {% for lnurl in author.lud06 %}
-                                <div class="mb-1">
-                                    <code style="word-break: break-all;">{{ lnurl }}</code>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <code style="word-break: break-all;">{{ author.lud06 }}</code>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-
-            <div class="profile-field">
-                <h3>Public Key (hex)</h3>
-                <div class="profile-value">
-                    <code style="word-break: break-all;">{{ pubkey }}</code>
-                </div>
-            </div>
-
-            <div class="profile-field">
-                <h3>Public Key (npub)</h3>
-                <div class="profile-value">
-                    <code style="word-break: break-all;">{{ npub }}</code>
-                </div>
-            </div>
-
-            {# Display any additional fields that might be present #}
-            {% set standardFields = ['name', 'display_name', 'about', 'picture', 'banner', 'nip05', 'website', 'lud16', 'lud06', 'image'] %}
-            {% for key, value in author %}
-                {% if key not in standardFields and value is not empty %}
+                {% if author.about is defined %}
                     <div class="profile-field">
-                        <h3>{{ key|title }}</h3>
+                        <h3>About</h3>
                         <div class="profile-value">
-                            {% if value starts with 'http://' or value starts with 'https://' %}
-                                <a href="{{ value }}" target="_blank" rel="noopener noreferrer">{{ value }}</a>
+                            {{ author.about|markdown_to_html|mentionify|linkify }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if author.banner is defined %}
+                    <div class="profile-field">
+                        <h3>Banner</h3>
+                        <div class="profile-value">
+                            <img src="{{ author.banner }}" alt="Profile banner" style="max-width: 100%; height: auto;" onerror="this.style.display = 'none'" />
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if author.website is defined %}
+                    <div class="profile-field">
+                        <h3>Website</h3>
+                        <div class="profile-value">
+                            <a href="{{ author.website }}" target="_blank" rel="noopener noreferrer">{{ author.website }}</a>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if author.lud16 is defined %}
+                    <div class="profile-field">
+                        <h3>Lightning Address{{ author.lud16 is iterable and author.lud16|length > 1 ? 'es' : '' }}</h3>
+                        <div class="profile-value">
+                            {% if author.lud16 is iterable %}
+                                {% for address in author.lud16 %}
+                                    <div class="mb-1">
+                                        <code>{{ address }}</code>
+                                    </div>
+                                {% endfor %}
                             {% else %}
-                                {{ value }}
+                                <code>{{ author.lud16 }}</code>
                             {% endif %}
                         </div>
                     </div>
                 {% endif %}
-            {% endfor %}
-        </div>
 
-        {# Raw Event Debug Section #}
-        <div class="mt-6 p-4 bg-gray-100 rounded">
-            <details>
-                <summary class="cursor-pointer font-semibold text-lg mb-2">Raw Profile Event (Debug)</summary>
-                <div class="mt-2">
-                    <h4 class="font-semibold">Event ID:</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.id ?? 'N/A' }}</code></pre>
+                {% if author.lud06 is defined %}
+                    <div class="profile-field">
+                        <h3>LNURL{{ author.lud06 is iterable and author.lud06|length > 1 ? 's' : '' }}</h3>
+                        <div class="profile-value">
+                            {% if author.lud06 is iterable %}
+                                {% for lnurl in author.lud06 %}
+                                    <div class="mb-1">
+                                        <code style="word-break: break-all;">{{ lnurl }}</code>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <code style="word-break: break-all;">{{ author.lud06 }}</code>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
 
-                    <h4 class="font-semibold mt-3">Created At:</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.created_at ?? 'N/A' }} ({{ rawEvent.created_at is defined ? rawEvent.created_at|date('Y-m-d H:i:s') : 'N/A' }})</code></pre>
-
-                    <h4 class="font-semibold mt-3">Tags:</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.tags is defined ? rawEvent.tags|json_encode(constant('JSON_PRETTY_PRINT')) : '[]' }}</code></pre>
-
-                    <h4 class="font-semibold mt-3">Content (JSON):</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.content ?? '{}' }}</code></pre>
-
-                    <h4 class="font-semibold mt-3">Signature:</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto text-xs"><code>{{ rawEvent.sig ?? 'N/A' }}</code></pre>
-
-                    <h4 class="font-semibold mt-3">Full Event Object:</h4>
-                    <pre class="bg-white p-2 rounded overflow-x-auto text-xs"><code>{{ rawEvent|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                <div class="profile-field">
+                    <h3>Public Key (hex)</h3>
+                    <div class="profile-value">
+                        <code style="word-break: break-all;">{{ pubkey }}</code>
+                    </div>
                 </div>
-            </details>
+
+                <div class="profile-field">
+                    <h3>Public Key (npub)</h3>
+                    <div class="profile-value">
+                        <code style="word-break: break-all;">{{ npub }}</code>
+                    </div>
+                </div>
+
+                {# Display any additional fields that might be present #}
+                {% set standardFields = ['name', 'display_name', 'about', 'picture', 'banner', 'nip05', 'website', 'lud16', 'lud06', 'image'] %}
+                {% for key, value in author %}
+                    {% if key not in standardFields and value is not empty %}
+                        <div class="profile-field">
+                            <h3>{{ key|title }}</h3>
+                            <div class="profile-value">
+                                {% if value starts with 'http://' or value starts with 'https://' %}
+                                    <a href="{{ value }}" target="_blank" rel="noopener noreferrer">{{ value }}</a>
+                                {% else %}
+                                    {{ value }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            {# Raw Event Debug Section #}
+            <div class="mt-6 p-4 bg-gray-100 rounded">
+                <details>
+                    <summary class="cursor-pointer font-semibold text-lg mb-2">Raw Profile Event (Debug)</summary>
+                    <div class="mt-2">
+                        <h4 class="font-semibold">Event ID:</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.id ?? 'N/A' }}</code></pre>
+
+                        <h4 class="font-semibold mt-3">Created At:</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.created_at ?? 'N/A' }} ({{ rawEvent.created_at is defined ? rawEvent.created_at|date('Y-m-d H:i:s') : 'N/A' }})</code></pre>
+
+                        <h4 class="font-semibold mt-3">Tags:</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.tags is defined ? rawEvent.tags|json_encode(constant('JSON_PRETTY_PRINT')) : '[]' }}</code></pre>
+
+                        <h4 class="font-semibold mt-3">Content (JSON):</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto"><code>{{ rawEvent.content ?? '{}' }}</code></pre>
+
+                        <h4 class="font-semibold mt-3">Signature:</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto text-xs"><code>{{ rawEvent.sig ?? 'N/A' }}</code></pre>
+
+                        <h4 class="font-semibold mt-3">Full Event Object:</h4>
+                        <pre class="bg-white p-2 rounded overflow-x-auto text-xs"><code>{{ rawEvent|json_encode(constant('JSON_PRETTY_PRINT')) }}</code></pre>
+                    </div>
+                </details>
+            </div>
         </div>
-    </div>
+    </section>
+
 
     <style>
         .profile-details {
