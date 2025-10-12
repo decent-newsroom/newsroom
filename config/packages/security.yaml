@@ -17,6 +17,7 @@ security:
             logout:
                 path: /logout
             entry_point: App\Security\NostrAuthenticator
+            access_denied_handler: App\Security\CustomAccessDeniedHandler
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall

@@ -17,32 +17,32 @@ class VisitorAnalyticsController extends AbstractController
     public function index(VisitRepository $visitRepository): Response
     {
         // Counters for the last 24 hours and last 7 days
-        $last24h = new \DateTimeImmutable('-24 hours');
-        $last7d = new \DateTimeImmutable('-7 days');
+        $visitsLast24Hours = $visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
+        $visitsLast7Days = $visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
 
-        $visitStats = $visitRepository->getVisitCountByRoute($last7d);
+        // Visits by route for the last 7 days
+        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute(new \DateTimeImmutable('-7 days'));
 
-        $last24hCount = $visitRepository->countVisitsSince($last24h);
-        $last7dCount = $visitRepository->countVisitsSince($last7d);
-
-        // Unique session tracking
-        $uniqueVisitors24h = $visitRepository->countUniqueSessionsSince($last24h);
-        $uniqueVisitors7d = $visitRepository->countUniqueSessionsSince($last7d);
+        // Unique visitors
+        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-24 hours'));
+        $uniqueVisitorsLast7Days = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-7 days'));
         $totalUniqueVisitors = $visitRepository->countUniqueVisitors();
 
-        // Session-based visit breakdown
-        $sessionStats = $visitRepository->getVisitsBySession($last7d);
+        // Visits by session for the last 7 days
+        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession(new \DateTimeImmutable('-7 days'));
 
-        // New metrics for improved dashboard
+        // Summary metrics
         $totalVisits = $visitRepository->getTotalVisits();
-        $avgVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
+        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
         $bounceRate = $visitRepository->getBounceRate();
-        $visitsPerDay = $visitRepository->getVisitsPerDay(30);
-        $mostPopularRoutes = $visitRepository->getMostPopularRoutes(5);
-        $recentVisits = $visitRepository->getRecentVisits(10);
 
-        // Calculate unique visitors per day for the last 7 days
-        $uniqueVisitorsPerDay = [];
+        // Time series and top metrics
+        $dailyVisitCountsLast30Days = $visitRepository->getVisitsPerDay(30);
+        $topRoutesAllTime = $visitRepository->getMostPopularRoutes(5);
+        $recentVisitRecords = $visitRepository->getRecentVisits(10);
+
+        // Unique visitors per day for the last 7 days
+        $dailyUniqueVisitorCountsLast7Days = [];
         for ($i = 6; $i >= 0; $i--) {
             $day = (new \DateTimeImmutable("today"))->modify("-{$i} days");
             $start = $day->setTime(0, 0, 0);
@@ -54,28 +54,27 @@ class VisitorAnalyticsController extends AbstractController
                 ->setParameter('start', $start)
                 ->setParameter('end', $end);
             $count = (int) $qb->getQuery()->getSingleScalarResult();
-            $uniqueVisitorsPerDay[] = [
+            $dailyUniqueVisitorCountsLast7Days[] = [
                 'day' => $day->format('Y-m-d'),
                 'count' => $count
             ];
         }
 
         return $this->render('admin/analytics.html.twig', [
-            'visitStats' => $visitStats,
-            'last24hCount' => $last24hCount,
-            'last7dCount' => $last7dCount,
-            'uniqueVisitors24h' => $uniqueVisitors24h,
-            'uniqueVisitors7d' => $uniqueVisitors7d,
+            'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
+            'visitsLast24Hours' => $visitsLast24Hours,
+            'visitsLast7Days' => $visitsLast7Days,
+            'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
+            'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
             'totalUniqueVisitors' => $totalUniqueVisitors,
-            'sessionStats' => $sessionStats,
-            // New variables for dashboard
+            'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
             'totalVisits' => $totalVisits,
-            'avgVisitsPerSession' => $avgVisitsPerSession,
+            'averageVisitsPerSession' => $averageVisitsPerSession,
             'bounceRate' => $bounceRate,
-            'visitsPerDay' => $visitsPerDay,
-            'mostPopularRoutes' => $mostPopularRoutes,
-            'recentVisits' => $recentVisits,
-            'uniqueVisitorsPerDay' => $uniqueVisitorsPerDay,
+            'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
+            'topRoutesAllTime' => $topRoutesAllTime,
+            'recentVisitRecords' => $recentVisitRecords,
+            'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
         ]);
     }
 }

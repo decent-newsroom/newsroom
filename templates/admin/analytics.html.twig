@@ -10,8 +10,8 @@
             <div class="analytics-card">
                 <h2>Total Visits</h2>
                 <ul class="analytics-stats">
-                    <li><strong>Last 24 hours:</strong> {{ last24hCount }}</li>
-                    <li><strong>Last 7 days:</strong> {{ last7dCount }}</li>
+                    <li><strong>Last 24 hours:</strong> {{ visitsLast24Hours }}</li>
+                    <li><strong>Last 7 days:</strong> {{ visitsLast7Days }}</li>
                     <li><strong>All time:</strong> {{ totalVisits }}</li>
                 </ul>
             </div>
@@ -19,58 +19,58 @@
             <div class="analytics-card">
                 <h2>Unique Visitors</h2>
                 <ul class="analytics-stats">
-                    <li><strong>Last 24 hours:</strong> {{ uniqueVisitors24h }}</li>
-                    <li><strong>Last 7 days:</strong> {{ uniqueVisitors7d }}</li>
+                    <li><strong>Last 24 hours:</strong> {{ uniqueVisitorsLast24Hours }}</li>
+                    <li><strong>Last 7 days:</strong> {{ uniqueVisitorsLast7Days }}</li>
                     <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
                 </ul>
                 <p class="analytics-note">Tracked by session ID (includes both anonymous and logged-in visitors)</p>
             </div>
 
             <div class="analytics-card">
+                <h2>Unique Visitors Per Day (Last 7 Days)</h2>
+                <canvas id="uniqueVisitorsPerDayChart"
+                        data-controller="unique-visitors-per-day-chart"
+                        data-unique-visitors-per-day-chart-labels-value='{{ dailyUniqueVisitorCountsLast7Days|map(stat => stat.day)|json_encode()|e('html_attr') }}'
+                        data-unique-visitors-per-day-chart-counts-value='{{ dailyUniqueVisitorCountsLast7Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                        height="80"></canvas>
+                <noscript>
+                    <p><em>Enable JavaScript to see the unique visitors per day chart.</em></p>
+                </noscript>
+                <div style="margin-top:1em"></div>
+                <table class="analytics-table">
+                    <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th class="text-right">Unique Visitors</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for stat in dailyUniqueVisitorCountsLast7Days %}
+                        <tr>
+                            <td>{{ stat.day }}</td>
+                            <td class="text-right">{{ stat.count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="analytics-card">
                 <h2>Engagement</h2>
                 <ul class="analytics-stats">
-                    <li><strong>Avg. Visits/Session:</strong> {{ avgVisitsPerSession }}</li>
+                    <li><strong>Avg. Visits/Session:</strong> {{ averageVisitsPerSession }}</li>
                     <li><strong>Bounce Rate:</strong> {{ bounceRate }}%</li>
                 </ul>
             </div>
         </div>
 
         <div class="analytics-card">
-            <h2>Unique Visitors Per Day (Last 7 Days)</h2>
-            <canvas id="uniqueVisitorsPerDayChart"
-                    data-controller="unique-visitors-per-day-chart"
-                    data-unique-visitors-per-day-chart-labels-value='{{ uniqueVisitorsPerDay|map(stat => stat.day)|json_encode()|e('html_attr') }}'
-                    data-unique-visitors-per-day-chart-counts-value='{{ uniqueVisitorsPerDay|map(stat => stat.count)|json_encode()|e('html_attr') }}'
-                    height="80"></canvas>
-            <noscript>
-                <p><em>Enable JavaScript to see the unique visitors per day chart.</em></p>
-            </noscript>
-            <div style="margin-top:1em"></div>
-            <table class="analytics-table">
-                <thead>
-                <tr>
-                    <th>Date</th>
-                    <th class="text-right">Unique Visitors</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for stat in uniqueVisitorsPerDay %}
-                    <tr>
-                        <td>{{ stat.day }}</td>
-                        <td class="text-right">{{ stat.count }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="analytics-card">
             <h2>Visits Per Day (Last 30 Days)</h2>
-            {% if visitsPerDay|length > 0 %}
+            {% if dailyVisitCountsLast30Days|length > 0 %}
                 <canvas id="visitsPerDayChart"
                     data-controller="visits-per-day-chart"
-                    data-visits-per-day-chart-labels-value='{{ visitsPerDay|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
-                    data-visits-per-day-chart-counts-value='{{ visitsPerDay|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                    data-visits-per-day-chart-labels-value='{{ dailyVisitCountsLast30Days|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
+                    data-visits-per-day-chart-counts-value='{{ dailyVisitCountsLast30Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
                     height="80"></canvas>
                 <noscript>
                     <p><em>Enable JavaScript to see the visits per day chart.</em></p>
@@ -84,7 +84,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for stat in visitsPerDay %}
+                        {% for stat in dailyVisitCountsLast30Days %}
                             <tr>
                                 <td>{{ stat.day|date('Y-m-d') }}</td>
                                 <td class="text-right">{{ stat.count }}</td>
@@ -99,7 +99,7 @@
 
         <div class="analytics-card">
             <h2>Most Popular Routes (All Time)</h2>
-            {% if mostPopularRoutes|length > 0 %}
+            {% if topRoutesAllTime|length > 0 %}
                 <table class="analytics-table">
                     <thead>
                         <tr>
@@ -108,7 +108,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for stat in mostPopularRoutes %}
+                        {% for stat in topRoutesAllTime %}
                             <tr>
                                 <td>{{ stat.route }}</td>
                                 <td class="text-right">{{ stat.count }}</td>
@@ -123,7 +123,7 @@
 
         <div class="analytics-card">
             <h2>Recent Visits</h2>
-            {% if recentVisits|length > 0 %}
+            {% if recentVisitRecords|length > 0 %}
                 <table class="analytics-table">
                     <thead>
                         <tr>
@@ -133,7 +133,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for visit in recentVisits %}
+                        {% for visit in recentVisitRecords %}
                             <tr>
                                 <td>{{ visit.route }}</td>
                                 <td><code>{{ visit.sessionId|slice(0, 12) }}...</code></td>
@@ -149,8 +149,8 @@
 
         <div class="analytics-card">
             <h2>Visit Count by Route (Last 7 Days)</h2>
-            {% set filteredVisitStats = visitStats|filter(stat => stat.count >= 5) %}
-            {% if filteredVisitStats|length > 0 %}
+            {% set filteredRouteVisitCounts = routeVisitCountsLast7Days|filter(stat => stat.count >= 5) %}
+            {% if filteredRouteVisitCounts|length > 0 %}
                 <table class="analytics-table">
                     <thead>
                         <tr>
@@ -159,7 +159,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for stat in filteredVisitStats %}
+                        {% for stat in filteredRouteVisitCounts %}
                             <tr>
                                 <td>{{ stat.route }}</td>
                                 <td class="text-right">{{ stat.count }}</td>
@@ -174,7 +174,7 @@
 
         <div class="analytics-card">
             <h2>Visitor Sessions (Last 7 Days)</h2>
-            {% if sessionStats|length > 0 %}
+            {% if visitsBySessionLast7Days|length > 0 %}
                 <table class="analytics-table">
                     <thead>
                         <tr>
@@ -185,7 +185,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for stat in sessionStats %}
+                        {% for stat in visitsBySessionLast7Days %}
                             {% if stat.visitCount > 1 %}
                             <tr>
                                 <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
