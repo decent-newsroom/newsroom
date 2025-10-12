@@ -2,7 +2,7 @@
 
 {% block body %}
 
-    {% import 'partial/_author-section.html.twig', {author: author, npub: npub} %}
+    {% include 'partial/_author-section.html.twig' with {author: author, npub: npub} %}
 
     <section>
     <div class="profile-tabs">

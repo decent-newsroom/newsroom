@@ -1,6 +1,6 @@
 figure.media {
     margin: 0;
-    padding: var(--spacing-3) var(--spacing-3) 0 var(--spacing-3);
+    padding: var(--spacing-3);
     border: none;
     box-shadow: none;
     background-color: var(--color-bg-light);
