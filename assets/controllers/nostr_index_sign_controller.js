@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { getSigner } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
@@ -50,63 +51,53 @@ export default class extends Controller {
   async signAndPublish(event) {
     event.preventDefault();
 
-    if (!window.nostr) {
-      this.showError('Nostr extension not found');
+    let signer;
+    try {
+      signer = await getSigner();
+    } catch (e) {
+      this.showError('No Nostr signer available. Please connect Amber or install a Nostr signer extension.');
       return;
     }
     if (!this.publishUrlValue || !this.csrfTokenValue) {
       this.showError('Missing config');
       return;
     }
-
     this.publishButtonTarget.disabled = true;
     try {
-      const pubkey = await window.nostr.getPublicKey();
+      const pubkey = await signer.getPublicKey();
       const catSkeletons = JSON.parse(this.categoryEventsValue || '[]');
       const magSkeleton = JSON.parse(this.magazineEventValue || '{}');
-
       const categoryCoordinates = [];
-
       // 1) Publish each category index
       for (let i = 0; i < catSkeletons.length; i++) {
         const evt = catSkeletons[i];
         this.ensureCreatedAt(evt);
         this.ensureContent(evt);
         evt.pubkey = pubkey;
-
         const slug = this.extractSlug(evt.tags);
         if (!slug) throw new Error('Category missing slug (d tag)');
-
         this.showStatus(`Signing category ${i + 1}/${catSkeletons.length}…`);
-        const signed = await window.nostr.signEvent(evt);
-
+        const signed = await signer.signEvent(evt);
         this.showStatus(`Publishing category ${i + 1}/${catSkeletons.length}…`);
         await this.publishSigned(signed);
-
         // Coordinate for the category index (kind:pubkey:slug)
         const coord = `30040:${pubkey}:${slug}`;
         categoryCoordinates.push(coord);
       }
-
       // 2) Build magazine event with 'a' tags referencing cats
       this.showStatus('Preparing magazine index…');
       this.ensureCreatedAt(magSkeleton);
       this.ensureContent(magSkeleton);
       magSkeleton.pubkey = pubkey;
-
       // Remove any pre-existing 'a' to avoid duplicates, then add new ones
       magSkeleton.tags = (magSkeleton.tags || []).filter(t => t[0] !== 'a');
       categoryCoordinates.forEach(c => magSkeleton.tags.push(['a', c]));
-
       // 3) Sign and publish magazine
       this.showStatus('Signing magazine index…');
-      const signedMag = await window.nostr.signEvent(magSkeleton);
-
+      const signedMag = await signer.signEvent(magSkeleton);
       this.showStatus('Publishing magazine index…');
       await this.publishSigned(signedMag);
-
       this.showSuccess('Published magazine and categories successfully');
-
     } catch (e) {
       console.error(e);
       this.showError(e.message || 'Publish failed');
@@ -163,4 +154,3 @@ export default class extends Controller {
     }
   }
 }
-

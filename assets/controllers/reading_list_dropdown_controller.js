@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { getSigner } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['dropdown', 'status', 'menu'];
@@ -64,24 +65,24 @@ export default class extends Controller {
     const slug = event.currentTarget.dataset.slug;
     const title = event.currentTarget.dataset.title;
 
-    if (!window.nostr) {
-      this.showError('Nostr extension not found. Please install a Nostr signer extension.');
+    let signer;
+    try {
+      signer = await getSigner();
+    } catch (e) {
+      this.showError('No Nostr signer available. Please connect Amber or install a Nostr signer extension.');
       return;
     }
 
     try {
       this.showStatus(`Adding to "${title}"...`);
 
-      // Parse the existing lists data
+      // Build the event skeleton for the updated reading list
       const lists = JSON.parse(this.listsValue || '[]');
       const selectedList = lists.find(l => l.slug === slug);
-
       if (!selectedList) {
         this.showError('Reading list not found');
         return;
       }
-
-      // Check if article is already in the list
       if (selectedList.articles && selectedList.articles.includes(this.coordinateValue)) {
         this.showSuccess(`Already in "${title}"`);
         setTimeout(() => {
@@ -90,13 +91,11 @@ export default class extends Controller {
         }, 2000);
         return;
       }
-
-      // Build the event skeleton for the updated reading list
       const eventSkeleton = await this.buildReadingListEvent(selectedList);
 
       // Sign the event
       this.showStatus(`Signing update to "${title}"...`);
-      const signedEvent = await window.nostr.signEvent(eventSkeleton);
+      const signedEvent = await signer.signEvent(eventSkeleton);
 
       // Publish the event
       this.showStatus(`Publishing update...`);

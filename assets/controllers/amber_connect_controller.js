@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { getPublicKey,  SimplePool  } from 'nostr-tools';
 import { BunkerSigner } from "nostr-tools/nip46";
+import { setRemoteSignerSession, clearRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['qr', 'status'];
@@ -19,6 +20,7 @@ export default class extends Controller {
   disconnect() {
     try { this._signer?.close?.(); } catch (_) {}
     try { this._pool?.close?.([]); } catch (_) {}
+    clearRemoteSignerSession();
   }
 
   async _init() {
@@ -98,6 +100,13 @@ export default class extends Controller {
         headers: { 'Authorization': 'Nostr ' + btoa(JSON.stringify(signed)) }
       });
       if (resp.ok) {
+        // Persist remote signer session for reuse after reload
+        setRemoteSignerSession({
+          privkey: this._localSecretKey,
+          uri: this._uri,
+          relays: this._relays,
+          secret: this._secret
+        });
         this._setStatus('Authenticated. Reloading…');
         setTimeout(() => window.location.reload(), 500);
       } else {

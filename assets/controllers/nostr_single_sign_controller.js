@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { getSigner } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
@@ -18,9 +19,10 @@ export default class extends Controller {
     try {
       const skeleton = JSON.parse(this.eventValue || '{}');
       let pubkey = '<pubkey>';
-      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-        try { pubkey = await window.nostr.getPublicKey(); } catch (_) {}
-      }
+      try {
+        const signer = await getSigner();
+        pubkey = await signer.getPublicKey();
+      } catch (_) {}
       const preview = JSON.parse(JSON.stringify(skeleton));
       preview.pubkey = pubkey;
       // Update content from textarea if present
@@ -37,8 +39,11 @@ export default class extends Controller {
   async signAndPublish(event) {
     event.preventDefault();
 
-    if (!window.nostr) {
-      this.showError('Nostr extension not found');
+    let signer;
+    try {
+      signer = await getSigner();
+    } catch (e) {
+      this.showError('No Nostr signer available. Please connect Amber or install a Nostr signer extension.');
       return;
     }
     if (!this.publishUrlValue || !this.csrfTokenValue) {
@@ -48,7 +53,7 @@ export default class extends Controller {
 
     this.publishButtonTarget.disabled = true;
     try {
-      const pubkey = await window.nostr.getPublicKey();
+      const pubkey = await signer.getPublicKey();
       const skeleton = JSON.parse(this.eventValue || '{}');
       // Update content from textarea before signing
       const textarea = this.element.querySelector('textarea');
@@ -60,7 +65,7 @@ export default class extends Controller {
       skeleton.pubkey = pubkey;
 
       this.showStatus('Signing feedback…');
-      const signed = await window.nostr.signEvent(skeleton);
+      const signed = await signer.signEvent(skeleton);
 
       this.showStatus('Publishing…');
       await this.publishSigned(signed);

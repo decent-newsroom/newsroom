@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { getSigner } from './signer_manager.js';
 
 // NIP-22 Comment Publishing Controller
 // Usage: Attach to a form with data attributes for root/parent context
@@ -28,8 +29,11 @@ export default class extends Controller {
             this.showError('Missing CSRF token');
             return;
         }
-        if (!window.nostr) {
-            this.showError('Nostr extension not found');
+        let signer;
+        try {
+            signer = await getSigner();
+        } catch (e) {
+            this.showError('No Nostr signer available. Please connect Amber or install a Nostr signer extension.');
             return;
         }
 
@@ -52,10 +56,10 @@ export default class extends Controller {
             }
 
             // Create NIP-22 event
-            const nostrEvent = await this.createNip22Event(formData);
+            const nostrEvent = await this.createNip22Event(formData, signer);
 
-            this.showStatus('Requesting signature from Nostr extension...');
-            const signedEvent = await window.nostr.signEvent(nostrEvent);
+            this.showStatus('Requesting signature from Nostr signer...');
+            const signedEvent = await signer.signEvent(nostrEvent);
 
             this.showStatus('Publishing comment...');
             await this.sendToBackend(signedEvent, formData);
@@ -98,9 +102,9 @@ export default class extends Controller {
         return !(/[<>\*\_\`\[\]#]/.test(text));
     }
 
-    async createNip22Event({ content, root, parent }) {
+    async createNip22Event({ content, root, parent }, signer) {
         // Get user's public key
-        const pubkey = await window.nostr.getPublicKey();
+        const pubkey = await signer.getPublicKey();
         const created_at = Math.floor(Date.now() / 1000);
         // Build tags according to NIP-22
         const tags = [];
