@@ -12,16 +12,16 @@
                         <a href="{{ path('newsstand') }}">Newsstand</a>
                     </li>
                     <li>
-                        <a href="{{ path('latest_articles') }}">Latest articles</a>
+                        <a href="{{ path('latest_articles') }}">Latest</a>
                     </li>
                     <li>
-                        <a href="{{ path('forum') }}">Forum</a>
+                        <a href="{{ path('forum') }}">Topics</a>
                     </li>
                     <li>
                         <a href="{{ path('media-discovery') }}">Multimedia</a>
                     </li>
                     <li>
-                        <a href="{{ path('reading_list_index') }}">Reading Lists</a>
+                        <a href="{{ path('reading_list_index') }}">Lists</a>
                     </li>
                     {% if is_granted('ROLE_ADMIN') %}
                     <li>
@@ -32,7 +32,7 @@
                         <a href="{{ path('app_search_index') }}">{{ 'heading.search'|trans }}</a>
                     </li>
                     <li>
-                        <a href="{{ path('editor-create') }}">Write Article</a>
+                        <a href="{{ path('editor-create') }}">Write</a>
                     </li>
                     <li>
                         <a href="{{ path('home') }}">Overview</a>
