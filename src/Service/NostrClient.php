@@ -108,6 +108,7 @@ class NostrClient
     {
         $relaySet = $this->defaultRelaySet;
         $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
+        $relaySet->addRelay(new Relay('wss://purplepag.es')); // profile aggregator
         $this->logger->info('Getting metadata for pubkey ' . $pubkey );
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::METADATA],
@@ -129,45 +130,6 @@ class NostrClient
         // Sort by date and return newest
         usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
         return $events[0];
-    }
-
-    public function getNpubLongForm($npub): void
-    {
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([KindsEnum::LONGFORM]);
-        $filter->setAuthors([$npub]);
-        $filter->setSince(strtotime('-6 months')); // too much?
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        // if user is logged in, use their settings
-        /* @var  $user */
-        $user = $this->tokenStorage->getToken()?->getUser();
-        $relays = $this->defaultRelaySet;
-        if ($user && $user->getRelays()) {
-            $relays = new RelaySet();
-            foreach ($user->getRelays() as $relayArr) {
-                if ($relayArr[2] == 'write') {
-                    $relays->addRelay(new Relay($relayArr[1]));
-                }
-            }
-        }
-
-        $request = new Request($relays, $requestMessage);
-
-        $response = $request->send();
-        // response is an n-dimensional array, where n is the number of relays in the set
-        // check that response has events in the results
-        foreach ($response as $relayRes) {
-            $filtered = array_filter($relayRes, function ($item) {
-                return $item->type === 'EVENT';
-            });
-            if (count($filtered) > 0) {
-                $this->saveLongFormContent($filtered);
-            }
-        }
-        // TODO handle relays that require auth
     }
 
     public function publishEvent(Event $event, array $relays): array
@@ -321,6 +283,47 @@ class NostrClient
 
         // Return the first matching event
         return $events[0];
+    }
+
+    /**
+     * Get multiple events by their IDs
+     *
+     * @param array $eventIds Array of event IDs
+     * @param array $relays Optional array of relay URLs to query
+     * @return array Array of events indexed by ID
+     * @throws \Exception
+     */
+    public function getEventsByIds(array $eventIds, array $relays = []): array
+    {
+        if (empty($eventIds)) {
+            return [];
+        }
+
+        $this->logger->info('Getting events by IDs', ['event_ids' => $eventIds, 'relays' => $relays]);
+
+        // Use provided relays or default if empty
+        $relaySet = empty($relays) ? $this->defaultRelaySet : $this->createRelaySet($relays);
+
+        // Create request using the helper method
+        $request = $this->createNostrRequest(
+            kinds: [],
+            filters: ['ids' => $eventIds],
+            relaySet: $relaySet
+        );
+
+        // Process the response
+        $events = $this->processResponse($request->send(), function($event) {
+            $this->logger->debug('Received event', ['event' => $event]);
+            return $event;
+        });
+
+        // Index events by ID
+        $eventsMap = [];
+        foreach ($events as $event) {
+            $eventsMap[$event->id] = $event;
+        }
+
+        return $eventsMap;
     }
 
     /**

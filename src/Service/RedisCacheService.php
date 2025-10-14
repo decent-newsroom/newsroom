@@ -7,6 +7,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -55,7 +56,7 @@ readonly class RedisCacheService
                 $rawEvent = $this->fetchRawUserEvent($pubkey);
                 return $this->parseUserMetadata($rawEvent, $pubkey);
             });
-        } catch (InvalidArgumentException $e) {
+        } catch (Exception|InvalidArgumentException $e) {
             $this->logger->error('Error getting user data.', ['exception' => $e]);
         }
         // If content is still default, delete cache to retry next time
@@ -73,6 +74,7 @@ readonly class RedisCacheService
     /**
      * Fetch raw user event from Nostr client, with error fallback.
      * @param string $pubkey Hex-encoded public key
+     * @throws Exception
      */
     private function fetchRawUserEvent(string $pubkey): \stdClass
     {
@@ -80,12 +82,8 @@ readonly class RedisCacheService
             return $this->nostrClient->getPubkeyMetadata($pubkey);
         } catch (\Exception $e) {
             $this->logger->error('Error getting user data.', ['exception' => $e]);
-            $rawEvent = new \stdClass();
-            $rawEvent->content = json_encode([
-                'name' => substr($pubkey, 0, 8) . '…' . substr($pubkey, -4)
-            ]);
-            $rawEvent->tags = [];
-            return $rawEvent;
+            // Rethrow exception to be caught in getMetadata
+            throw $e;
         }
     }
 
@@ -129,43 +127,6 @@ readonly class RedisCacheService
             'tags' => json_encode($tags)
         ]);
         return $contentData;
-    }
-
-    /**
-     * Get metadata with raw event for debugging purposes.
-     *
-     * @param string $pubkey Hex-encoded public key
-     * @return array{metadata: \stdClass, rawEvent: \stdClass}
-     * @throws InvalidArgumentException
-     */
-    public function getMetadataWithRawEvent(string $pubkey): array
-    {
-        if (!NostrKeyUtil::isHexPubkey($pubkey)) {
-            throw new \InvalidArgumentException('getMetadataWithRawEvent expects hex pubkey');
-        }
-        $cacheKey = '0_with_raw_' . $pubkey;
-        try {
-            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
-                $item->expiresAfter(3600); // 1 hour, adjust as needed
-                $rawEvent = $this->fetchRawUserEvent($pubkey);
-                $contentData = $this->parseUserMetadata($rawEvent, $pubkey);
-                return [
-                    'metadata' => $contentData,
-                    'rawEvent' => $rawEvent
-                ];
-            });
-        } catch (InvalidArgumentException $e) {
-            $this->logger->error('Error getting user data with raw event.', ['exception' => $e]);
-            $content = new \stdClass();
-            $content->name = substr($pubkey, 0, 8) . '…' . substr($pubkey, -4);
-            $rawEvent = new \stdClass();
-            $rawEvent->content = json_encode($content);
-            $rawEvent->tags = [];
-            return [
-                'metadata' => $content,
-                'rawEvent' => $rawEvent
-            ];
-        }
     }
 
     /**

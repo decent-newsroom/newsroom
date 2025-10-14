@@ -8,9 +8,7 @@
     <div class="profile-tabs">
         <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link">Articles</a>
         <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link active">Media</a>
-        {% if is_granted('ROLE_ADMIN') %}
-            <a href="{{ path('author-about', {'npub': npub}) }}" class="tab-link">About</a>
-        {% endif %}    </div>
+      </div>
 
     <div class="w-container">
         {% if pictureEvents|length > 0 %}

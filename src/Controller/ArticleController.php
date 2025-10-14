@@ -97,12 +97,14 @@ class ArticleController  extends AbstractController
 
         $article = $articles[0];
 
-        $cacheKey = 'article_' . $article->getEventId();
-        $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
-            $cacheItem->set($converter->convertToHTML($article->getContent()));
-            $articlesCache->save($cacheItem);
-        }
+        $parsed = $converter->convertToHTML($article->getContent());
+
+//        $cacheKey = 'article_' . $article->getEventId();
+//        $cacheItem = $articlesCache->getItem($cacheKey);
+//        if (!$cacheItem->isHit()) {
+//            $cacheItem->set($converter->convertToHTML($article->getContent()));
+//            $articlesCache->save($cacheItem);
+//        }
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
@@ -126,7 +128,7 @@ class ArticleController  extends AbstractController
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
-            'content' => $cacheItem->get(),
+            'content' => $parsed, //$cacheItem->get(),
             'canEdit' => $canEdit,
             'canonical' => $canonical
         ]);
