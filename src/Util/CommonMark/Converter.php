@@ -2,6 +2,7 @@
 
 namespace App\Util\CommonMark;
 
+use App\Enum\KindsEnum;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
@@ -45,9 +46,6 @@ readonly class Converter
      */
     public function convertToHTML(string $markdown): string
     {
-        // Preprocess nostr: links for batching
-        $markdown = $this->preprocessNostrLinks($markdown);
-
         // Check if the article has more than three headings
         // Match all headings (from level 1 to 6)
         preg_match_all('/^#+\s.*$/m', $markdown, $matches);
@@ -68,7 +66,7 @@ readonly class Converter
             ],
             'embed' => [
                 'adapter' => new OscaroteroEmbedAdapter(), // See the "Adapter" documentation below
-                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm'],
+                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build'],
                 'fallback' => 'link'
             ],
         ];
@@ -92,16 +90,19 @@ readonly class Converter
         $converter = new MarkdownConverter($environment);
         $content = html_entity_decode($markdown);
 
-        return $converter->convert($content);
+        $html = $converter->convert($content);
+
+        // Process nostr links after conversion to avoid re-processing HTML
+        return $this->processNostrLinks($html);
     }
 
-    private function preprocessNostrLinks(string $markdown): string
+    private function processNostrLinks(string $content): string
     {
         // Find all nostr: links
-        preg_match_all('/nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\\s<>()\\[\\]{}"\'`.,;:!?]*/', $markdown, $matches);
+        preg_match_all('/nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\\s<>()\\[\\]{}"\'`.,;:!?]*/', $content, $matches);
 
         if (empty($matches[0])) {
-            return $markdown;
+            return $content;
         }
 
         $links = array_unique($matches[0]);
@@ -125,7 +126,7 @@ readonly class Converter
                     case 'nprofile':
                         /** @var NProfile $object */
                         $object = $decoded->data;
-                        $pubkeys[$object->pubkey] = $bechEncoded;
+                        $pubkeys[$object->pubkey] = $this->nostrKeyUtil->hexToNpub($object->pubkey);
                         break;
                     case 'note':
                         /** @var Note $object */
@@ -147,16 +148,6 @@ readonly class Converter
             }
         }
 
-        // Fetch metadata in batch (actually, getMetadata is cached, so just prepare)
-        $metadata = [];
-        foreach (array_keys($pubkeys) as $hex) {
-            try {
-                $metadata[$hex] = $this->redisCacheService->getMetadata($hex);
-            } catch (\Exception $e) {
-                $metadata[$hex] = null;
-            }
-        }
-
         // Fetch events in batch
         $events = [];
         if (!empty($eventIds)) {
@@ -164,6 +155,26 @@ readonly class Converter
                 $events = $this->nostrClient->getEventsByIds(array_keys($eventIds));
             } catch (\Exception $e) {
                 // If batch fails, events remain empty
+            }
+        }
+
+        // Collect pubkeys from events for metadata fetching
+        $eventPubkeys = [];
+        foreach ($events as $event) {
+            $eventPubkeys[$event->pubkey] = true;
+        }
+
+        // Fetch metadata in batch
+        $allHexes = array_unique(array_merge(array_keys($pubkeys), array_keys($eventPubkeys)));
+        $metadata = [];
+        try {
+            $fetchedMetadata = $this->redisCacheService->getMultipleMetadata($allHexes);
+            foreach ($allHexes as $hex) {
+                $metadata[$hex] = $fetchedMetadata[$hex] ?? null;
+            }
+        } catch (\Exception $e) {
+            foreach ($allHexes as $hex) {
+                $metadata[$hex] = null;
             }
         }
 
@@ -180,8 +191,8 @@ readonly class Converter
             }
         }
 
-        // Replace in markdown
-        return str_replace(array_keys($replacements), array_values($replacements), $markdown);
+        // Replace in content
+        return str_replace(array_keys($replacements), array_values($replacements), $content);
     }
 
     private function renderNostrLink(Bech32 $decoded, string $bechEncoded, array $metadata, array $events): string
@@ -190,14 +201,12 @@ readonly class Converter
             case 'npub':
                 $hex = $this->nostrKeyUtil->npubToHex($bechEncoded);
                 $profile = $metadata[$hex] ?? null;
-                if ($profile && isset($profile->name)) {
-                    return '<a href="/profile/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($profile->name) . '</a>';
-                } else {
-                    return '<a href="/profile/' . $bechEncoded . '" class="nostr-mention">@' . substr($bechEncoded, 5, 8) . '…</a>';
-                }
+                $label = $profile && isset($profile->name) ? $profile->name : $this->labelFromKey($bechEncoded);
+                return '<a href="/p/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
             case 'nprofile':
                 $object = $decoded->data;
-                return '<a href="/profile/' . $bechEncoded . '" class="nostr-mention">@' . substr($bechEncoded, 9, 8) . '…</a>';
+                $label = $this->labelFromKey($bechEncoded);
+                return '<a href="/p/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
             case 'note':
                 $object = $decoded->data;
                 $event = $events[$object->data] ?? null;
@@ -208,7 +217,7 @@ readonly class Converter
                     ]);
                     return $pictureCardHtml;
                 } else {
-                    return '<a href="/event/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
                 }
             case 'nevent':
                 $object = $decoded->data;
@@ -222,13 +231,24 @@ readonly class Converter
                     ]);
                     return $eventCardHtml;
                 } else {
-                    return '<a href="/event/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
                 }
             case 'naddr':
-                return '<a href="/event/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+                if ($decoded->kind === KindsEnum::LONGFORM->value) {
+                    return '<a href="/article/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+                } else {
+                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+                }
             default:
                 return $bechEncoded;
         }
+    }
+
+    private function labelFromKey(string $npub): string
+    {
+        $start = substr($npub, 0, 5);
+        $end = substr($npub, -5);
+        return $start . '...' . $end;
     }
 
 }

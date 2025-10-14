@@ -48,7 +48,8 @@ class NostrClient
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://aggr.nostr.land')); // aggregator relay, has AUTH
+        $this->defaultRelaySet->addRelay(new Relay('wss://nostr.land')); // aggregator relay, has AUTH
+        $this->defaultRelaySet->addRelay(new Relay('wss://relay.primal.net')); // profile aggregator
     }
 
     /**
@@ -107,7 +108,7 @@ class NostrClient
     public function getPubkeyMetadata($pubkey): \stdClass
     {
         $relaySet = $this->defaultRelaySet;
-        $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
+        // $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
         $relaySet->addRelay(new Relay('wss://purplepag.es')); // profile aggregator
         $this->logger->info('Getting metadata for pubkey ' . $pubkey );
         $request = $this->createNostrRequest(
@@ -476,8 +477,11 @@ class NostrClient
 
         // Create request using the helper method
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value],
-            filters: ['tag' => ['#a', [$coordinate]]],
+            kinds: [
+                KindsEnum::COMMENTS->value,
+                // KindsEnum::ZAP_RECEIPT->value  // Not yet
+            ],
+            filters: ['tag' => ['#A', [$coordinate]]], // #A means root event
             relaySet: $relaySet
         );
 
@@ -961,7 +965,7 @@ class NostrClient
             foreach ($relayRes as $item) {
                 try {
                     if (!is_object($item)) {
-                        $this->logger->warning('Invalid response item', [
+                        $this->logger->warning('Invalid response item from ' . $relayUrl , [
                             'relay' => $relayUrl,
                             'item' => $item
                         ]);
