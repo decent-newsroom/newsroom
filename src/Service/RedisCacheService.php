@@ -18,7 +18,7 @@ readonly class RedisCacheService
 {
     public function __construct(
         private NostrClient            $nostrClient,
-        private CacheItemPoolInterface $appCache,
+        private CacheItemPoolInterface $npubCache,
         private EntityManagerInterface $entityManager,
         private LoggerInterface        $logger
     ) {}
@@ -50,7 +50,7 @@ readonly class RedisCacheService
         $content->name = $defaultName;
 
         try {
-            $content = $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
+            $content = $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
                 $rawEvent = $this->fetchRawUserEvent($pubkey);
                 return $this->parseUserMetadata($rawEvent, $pubkey);
@@ -60,9 +60,9 @@ readonly class RedisCacheService
         }
         // If content is still default, delete cache to retry next time
         if (isset($content->name) && $content->name === $defaultName
-            && $this->appCache->hasItem($cacheKey)) {
+            && $this->npubCache->hasItem($cacheKey)) {
             try {
-                $this->appCache->deleteItem($cacheKey);
+                $this->npubCache->deleteItem($cacheKey);
             } catch (\Exception $e) {
                 $this->logger->error('Error deleting user cache item.', ['exception' => $e]);
             }
@@ -77,7 +77,7 @@ readonly class RedisCacheService
     private function fetchRawUserEvent(string $pubkey): \stdClass
     {
         try {
-            return $this->nostrClient->getNpubMetadata(NostrKeyUtil::hexToNpub($pubkey));
+            return $this->nostrClient->getPubkeyMetadata($pubkey);
         } catch (\Exception $e) {
             $this->logger->error('Error getting user data.', ['exception' => $e]);
             $rawEvent = new \stdClass();
@@ -145,7 +145,7 @@ readonly class RedisCacheService
         }
         $cacheKey = '0_with_raw_' . $pubkey;
         try {
-            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
+            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
                 $rawEvent = $this->fetchRawUserEvent($pubkey);
                 $contentData = $this->parseUserMetadata($rawEvent, $pubkey);
@@ -186,7 +186,7 @@ readonly class RedisCacheService
         $result = [];
         $cacheKeys = array_map(fn($pubkey) => $this->getUserCacheKey($pubkey), $pubkeys);
         $pubkeyMap = array_combine($cacheKeys, $pubkeys);
-        $items = $this->appCache->getItems($cacheKeys);
+        $items = $this->npubCache->getItems($cacheKeys);
         foreach ($items as $cacheKey => $item) {
             $pubkey = $pubkeyMap[$cacheKey];
             if ($item->isHit()) {
@@ -205,7 +205,7 @@ readonly class RedisCacheService
         $cacheKey = '10002_' . $npub;
 
         try {
-            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
                 $item->expiresAfter(3600); // 1 hour, adjust as needed
                 try {
                     $relays = $this->nostrClient->getNpubRelays($npub);
@@ -230,7 +230,7 @@ readonly class RedisCacheService
     {
         // redis cache lookup of magazine index by slug
         $key = 'magazine-index-' . $slug;
-        return $this->appCache->get($key, function (ItemInterface $item) use ($slug) {
+        return $this->npubCache->get($key, function (ItemInterface $item) use ($slug) {
             $item->expiresAfter(3600); // 1 hour
 
             $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
@@ -271,9 +271,9 @@ readonly class RedisCacheService
         // Insert the new article tag at the top
         array_unshift($index->tags, $articleTag);
         try {
-            $item = $this->appCache->getItem($key);
+            $item = $this->npubCache->getItem($key);
             $item->set($index);
-            $this->appCache->save($item);
+            $this->npubCache->save($item);
             return true;
         } catch (\Exception $e) {
             $this->logger->error('Error updating magazine index.', ['exception' => $e]);
@@ -292,7 +292,7 @@ readonly class RedisCacheService
     {
         $cacheKey = 'media_' . $npub . '_' . $limit;
         try {
-            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($npub, $limit) {
+            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($npub, $limit) {
                 $item->expiresAfter(600); // 10 minutes cache for media events
 
                 try {
@@ -340,7 +340,7 @@ readonly class RedisCacheService
 
         try {
             // Fetch and cache all media events
-            $allMediaEvents = $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
+            $allMediaEvents = $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
                 $item->expiresAfter(600); // 10 minutes cache
 
                 try {
@@ -411,7 +411,7 @@ readonly class RedisCacheService
         $cacheKey = 'event_' . $eventId . ($relays ? '_' . md5(json_encode($relays)) : '');
 
         try {
-            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($eventId, $relays) {
+            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($eventId, $relays) {
                 $item->expiresAfter(1800); // 30 minutes cache for events
 
                 try {
@@ -428,44 +428,16 @@ readonly class RedisCacheService
         }
     }
 
-    /**
-     * Get a parameterized replaceable event (naddr) with caching
-     *
-     * @param array $decodedData The decoded naddr data
-     * @return object|null The event object or null if not found
-     */
-    public function getNaddrEvent(array $decodedData): ?object
-    {
-        $cacheKey = 'naddr_' . $decodedData['kind'] . '_' . $decodedData['pubkey'] . '_' . $decodedData['identifier'] . '_' . md5(json_encode($decodedData['relays'] ?? []));
-
-        try {
-            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($decodedData) {
-                $item->expiresAfter(1800); // 30 minutes cache for naddr events
-
-                try {
-                    $event = $this->nostrClient->getEventByNaddr($decodedData);
-                    return $event;
-                } catch (\Exception $e) {
-                    $this->logger->error('Error getting naddr event.', ['exception' => $e, 'decodedData' => $decodedData]);
-                    return null;
-                }
-            });
-        } catch (InvalidArgumentException $e) {
-            $this->logger->error('Cache error getting naddr event.', ['exception' => $e, 'decodedData' => $decodedData]);
-            return null;
-        }
-    }
-
-    public function setMetadata(\swentel\nostr\Event\Event $event)
+    public function setMetadata(\swentel\nostr\Event\Event $event): void
     {
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($event->getPublicKey());
         $cacheKey = '0_' . $npub;
         try {
-            $item = $this->appCache->getItem($cacheKey);
+            $item = $this->npubCache->getItem($cacheKey);
             $item->set(json_decode($event->getContent()));
             $item->expiresAfter(3600); // 1 hour
-            $this->appCache->save($item);
+            $this->npubCache->save($item);
         } catch (\Exception $e) {
             $this->logger->error('Error setting user metadata.', ['exception' => $e]);
         }

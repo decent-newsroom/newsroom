@@ -104,27 +104,26 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getNpubMetadata($npub): \stdClass
+    public function getPubkeyMetadata($pubkey): \stdClass
     {
         $relaySet = $this->defaultRelaySet;
         $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
-        $this->logger->info('Getting metadata for npub', ['npub' => $npub]);
-        // Npubs are converted to hex for the request down the line
+        $this->logger->info('Getting metadata for pubkey ' . $pubkey );
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::METADATA],
-            filters: ['authors' => [$npub]],
+            filters: ['authors' => [$pubkey]],
             relaySet: $relaySet
         );
 
         $events = $this->processResponse($request->send(), function($received) {
-            $this->logger->info('Getting metadata for npub', ['item' => $received]);
+            $this->logger->info('Getting metadata for pubkey', ['item' => $received]);
             return $received;
         });
 
-        $this->logger->info('Getting metadata for npub', ['response' => $events]);
+        $this->logger->info('Getting metadata for pubkey', ['response' => $events]);
 
         if (empty($events)) {
-            throw new \Exception('No metadata found for npub: ' . $npub);
+            throw new \Exception('No metadata found for pubkey: ' . $pubkey);
         }
 
         // Sort by date and return newest
