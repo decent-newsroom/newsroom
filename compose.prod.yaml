@@ -1,19 +1,83 @@
-# Production environment override
 services:
   php:
     build:
       context: .
       target: frankenphp_prod
+    image: yourapp/php:prod
+    restart: unless-stopped
     environment:
+      # --- Symfony / App ---
+      APP_ENV: prod
       APP_SECRET: ${APP_SECRET}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8}
+      # trust your proxy/load balancer networks, adjust as needed
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-.+}
       SERVER_NAME: :80
+      # --- Mercure (Caddy module) ---
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
+      MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
+      MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
+      # --- Database URL (optional: prefer .env.prod) ---
+      # DATABASE_URL: ${DATABASE_URL}
     ports:
-      # HTTP
       - target: 80
         published: 80
         protocol: tcp
+      # Uncomment if you terminate TLS here (otherwise put TLS on your edge proxy)
+      # - target: 443
+      #   published: 443
+      #   protocol: tcp
+    volumes:
+      # Caddy state (TLS certs, etc.). Safe to persist.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      database:
+        condition: service_healthy
+
   worker:
-    volumes: []
+    build:
+      context: .
+      target: frankenphp_prod       # use the prod stage so vendor/ is baked in
+    image: yourapp/worker:prod
+    working_dir: /app
+    entrypoint: ["php"]
+    command:
+      - bin/console
+      - messenger:consume
+      - -vv
+      - --memory-limit=256M
+      - --keepalive
+      - "10"
+      - async
+    restart: unless-stopped
+    depends_on:
+      php:
+        condition: service_started
+      database:
+        condition: service_healthy
+    ports: []
+    expose: []
+    volumes: []                     # IMPORTANT: no bind mount in prod
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB:-app} -U ${POSTGRES_USER:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  caddy_data:
+  caddy_config:
+  database_data:
