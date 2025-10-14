@@ -15,3 +15,5 @@ services:
       - target: 80
         published: 80
         protocol: tcp
+  worker:
+    volumes: []
