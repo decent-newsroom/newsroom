@@ -5,16 +5,17 @@ services:
         context: .
         dockerfile: Dockerfile
     environment:
-      APP_ENV: ${APP_ENV:-dev}
-      SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      # Run "composer require symfony/orm-pack" to install and configure Doctrine ORM
-      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-15}&charset=${POSTGRES_CHARSET:-utf8}
-      # Run "composer require symfony/mercure-bundle" to install and configure the Mercure integration
-      MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
-      MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://${SERVER_NAME:-localhost}/.well-known/mercure}
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+        APP_ENV: ${APP_ENV:-dev}
+        SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
+        MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
+        MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
+        # Removed overrides for JWT keys to use values from .env
+        # Run "composer require symfony/orm-pack" to install and configure Doctrine ORM
+        DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}
+        # Run "composer require symfony/mercure-bundle" to install and configure the Mercure integration
+        MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
+        MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://${SERVER_NAME:-localhost}/.well-known/mercure}
+        MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -62,6 +63,30 @@ services:
       - .:/var/www/html
     depends_on:
       - php
+
+  worker:
+      build:
+          context: .
+          dockerfile: Dockerfile
+      working_dir: /app
+      entrypoint: ["php"]  # run PHP CLI, not Caddy/FrankenPHP
+      command:
+          - bin/console
+          - messenger:consume
+          - -vv
+          - --memory-limit=256M
+          - --keepalive
+          - "10"
+          - async
+      restart: unless-stopped
+      depends_on:
+          - php
+          - database
+      # IMPORTANT: ensure it does NOT bind ports or mount caddy volumes
+      ports: []
+      expose: []
+      volumes:
+          - .:/app
 
 volumes:
   caddy_data:

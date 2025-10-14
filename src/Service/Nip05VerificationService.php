@@ -12,7 +12,7 @@ readonly class Nip05VerificationService
     private const REQUEST_TIMEOUT = 5; // 5 seconds
 
     public function __construct(
-        private CacheInterface $redisCache,
+        private CacheInterface  $appCache,
         private LoggerInterface $logger
     ) {
     }
@@ -39,7 +39,7 @@ readonly class Nip05VerificationService
         $cacheKey = 'nip05_' . md5($nip05);
 
         try {
-            return $this->redisCache->get($cacheKey, function (ItemInterface $item) use ($localPart, $domain, $pubkeyHex, $nip05) {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($localPart, $domain, $pubkeyHex, $nip05) {
                 $item->expiresAfter(self::CACHE_TTL);
 
                 $wellKnownUrl = "https://{$domain}/.well-known/nostr.json?name=" . urlencode(strtolower($localPart));

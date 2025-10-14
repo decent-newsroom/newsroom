@@ -20,10 +20,10 @@ class MagazineAdminController extends AbstractController
 {
     #[Route('/admin/magazines', name: 'admin_magazines')]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(RedisClient $redis, CacheInterface $redisCache, EntityManagerInterface $em): Response
+    public function index(RedisClient $redis, CacheInterface $appCache, EntityManagerInterface $em): Response
     {
         // Optimized database-first approach
-        $magazines = $this->getMagazinesFromDatabase($em, $redis, $redisCache);
+        $magazines = $this->getMagazinesFromDatabase($em, $redis, $appCache);
 
         return $this->render('admin/magazines.html.twig', [
             'magazines' => $magazines,

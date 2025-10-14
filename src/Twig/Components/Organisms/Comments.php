@@ -2,12 +2,14 @@
 
 namespace App\Twig\Components\Organisms;
 
+use App\Message\FetchCommentsMessage;
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent]
+#[AsTwigComponent()]
 final class Comments
 {
     public array $list = [];
@@ -16,13 +18,17 @@ final class Comments
     public array $zapAmounts = [];
     public array $zappers = [];
     public array $authorsMetadata = [];
+    public bool $loading = true;
+
+    private MessageBusInterface $bus;
 
     public function __construct(
         private readonly NostrClient $nostrClient,
         private readonly NostrLinkParser $nostrLinkParser,
-        private readonly RedisCacheService $redisCacheService
-
+        private readonly RedisCacheService $redisCacheService,
+        MessageBusInterface $bus
     ) {
+        $this->bus = $bus;
     }
 
     /**
@@ -30,25 +36,11 @@ final class Comments
      */
     public function mount($current): void
     {
-        // Fetch comments
-        $this->list = $this->nostrClient->getComments($current);
-        // sort list by created_at descending
-        usort($this->list, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
-        // Parse Nostr links in comments but don't fetch previews
-        $this->parseNostrLinks();
-        // Parse Zaps to get amounts and zappers from receipts
-        $this->parseZaps();
-        // Collect all unique pubkeys for batch metadata fetching
-        $pubkeys = [];
-        foreach ($this->list as $comment) {
-            if ($comment->kind != 9735) {
-                $pubkeys[] = $comment->pubkey;
-            } elseif (isset($this->zappers[$comment->id])) {
-                $pubkeys[] = $this->zappers[$comment->id];
-            }
-        }
-        $pubkeys = array_unique($pubkeys);
-        $this->authorsMetadata = $this->redisCacheService->getMultipleMetadata($pubkeys);
+        // Instead of fetching comments directly, dispatch async message
+        $this->loading = true;
+        $this->list = [];
+        $this->bus->dispatch(new FetchCommentsMessage($current));
+        // The actual comments will be loaded via Mercure on the frontend
     }
 
     /**

@@ -23,6 +23,7 @@
     {% block javascripts %}
         {% block importmap %}{{ importmap('app') }}{% endblock %}
     {% endblock %}
+    <meta name="mercure-hub" content="{{ mercure_public_hub_url }}" />
 </head>
 <body data-controller="service-worker visit-analytics" data-visit-analytics-path-value="{{ app.request.pathInfo }}">
 

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Util\NostrPhp;
 
+use Psr\Log\LoggerInterface;
+use swentel\nostr\Key\Key;
 use swentel\nostr\Message\AuthMessage;
 use swentel\nostr\Message\CloseMessage;
 use swentel\nostr\MessageInterface;
@@ -22,6 +24,7 @@ use WebSocket\Message\Text;
  */
 final class TweakedRequest implements RequestInterface
 {
+    private $nsec;
     private RelaySet $relays;
     private string $payload;
     private array $responses = [];
@@ -29,7 +32,7 @@ final class TweakedRequest implements RequestInterface
     /** Optional: when set, CLOSE & disconnect immediately once this id arrives */
     private ?string $stopOnEventId = null;
 
-    public function __construct(Relay|RelaySet $relay, MessageInterface $message)
+    public function __construct(Relay|RelaySet $relay, MessageInterface $message, private readonly LoggerInterface $logger)
     {
         if ($relay instanceof RelaySet) {
             $this->relays = $relay;
@@ -39,6 +42,10 @@ final class TweakedRequest implements RequestInterface
             $this->relays = $set;
         }
         $this->payload = $message->generate();
+
+        // Create an ephemeral key for NIP-42 auth
+        $key = new Key();
+        $this->nsec = $key->generatePrivateKey();
     }
 
     public function stopOnEventId(?string $hexId): self
@@ -51,7 +58,6 @@ final class TweakedRequest implements RequestInterface
     public function send(): array
     {
         $result = [];
-
         foreach ($this->relays->getRelays() as $relay) {
             $this->responses = []; // reset per relay
             try {
@@ -125,6 +131,15 @@ final class TweakedRequest implements RequestInterface
                         $client->text($this->payload);
                         // continue loop
                     }
+
+                    // NIP-42: handle AUTH challenge for subscriptions
+                    if ($relayResponse->type === 'AUTH') {
+                        $raw = json_decode($resp->getContent(), true);
+                        $_SESSION['challenge'] = $raw[1] ?? '';
+                        $this->logger->warning('Received AUTH challenge from relay: ' . $relay->getUrl());
+                        $this->performAuth($relay, $client);
+                        // continue loop, relay should now respond to the subscription
+                    }
                 }
 
                 // Save what we got for this relay
@@ -150,16 +165,14 @@ final class TweakedRequest implements RequestInterface
     /** Very lightweight NIP-42 auth flow: sign challenge and send AUTH + resume. */
     private function performAuth(Relay $relay, WsClient $client): void
     {
-        // NOTE: This reuses the vendor types, but uses a dummy secret. You should inject your real sec key.
         if (!isset($_SESSION['challenge'])) {
             return;
         }
         try {
             $authEvent = new AuthEvent($relay->getUrl(), $_SESSION['challenge']);
-            $sec = '0000000000000000000000000000000000000000000000000000000000000001'; // TODO inject your real sec
-            (new Sign())->signEvent($authEvent, $sec);
-
+            (new Sign())->signEvent($authEvent, $this->nsec);
             $authMsg = new AuthMessage($authEvent);
+            $this->logger->warning('Sending NIP-42 AUTH to relay: ' . $relay->getUrl());
             $client->text($authMsg->generate());
         } catch (\Throwable) {
             // ignore and continue; some relays won’t require it

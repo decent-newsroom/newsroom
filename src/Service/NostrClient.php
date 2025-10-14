@@ -9,6 +9,7 @@ use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use nostriphant\NIP19\Data;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Filter\Filter;
@@ -30,24 +31,24 @@ class NostrClient
      */
     private const REPUTABLE_RELAYS = [
         'wss://theforest.nostr1.com',
-        'wss://relay.damus.io',
-        'wss://relay.primal.net',
+        'wss://nostr.land',
+        'wss://purplepag.es',
         'wss://nos.lol',
         'wss://relay.snort.social',
-        // 'wss://nostr.land', // requires auth that doesn't currently work!
-        'wss://purplepag.es',
+        'wss://relay.damus.io',
+        'wss://relay.primal.net',
     ];
 
     public function __construct(private readonly EntityManagerInterface $entityManager,
                                 private readonly ManagerRegistry        $managerRegistry,
                                 private readonly ArticleFactory         $articleFactory,
                                 private readonly TokenStorageInterface  $tokenStorage,
-                                private readonly LoggerInterface        $logger)
+                                private readonly LoggerInterface        $logger,
+                                private readonly CacheItemPoolInterface $npubCache)
     {
         $this->defaultRelaySet = new RelaySet();
         $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://relay.damus.io')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://relay.primal.net')); // public aggregator relay
+        $this->defaultRelaySet->addRelay(new Relay('wss://aggr.nostr.land')); // aggregator relay, has AUTH
     }
 
     /**
@@ -397,6 +398,17 @@ class NostrClient
      */
     public function getNpubRelays($npub): array
     {
+        $cacheKey = 'npub_relays_' . $npub;
+        try {
+            $cachedItem = $this->npubCache->getItem($cacheKey);
+            if ($cachedItem->isHit()) {
+                $this->logger->debug('Using cached relays for npub', ['npub' => $npub]);
+                return $cachedItem->get();
+            }
+        } catch (\Exception $e) {
+            $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
+        }
+
         // Get relays
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::RELAY_LIST],
@@ -419,9 +431,21 @@ class NostrClient
             }
         }
         // Remove duplicates, localhost and any non-wss relays
-        return array_filter(array_unique($relays), function ($relay) {
+        $relays = array_filter(array_unique($relays), function ($relay) {
             return str_starts_with($relay, 'wss:') && !str_contains($relay, 'localhost');
         });
+
+        // Cache the result
+        try {
+            $cachedItem = $this->npubCache->getItem($cacheKey);
+            $cachedItem->set($relays);
+            $cachedItem->expiresAfter(3600); // 1 hour
+            $this->npubCache->save($cachedItem);
+        } catch (\Exception $e) {
+            $this->logger->warning('Cache save error', ['error' => $e->getMessage()]);
+        }
+
+        return $relays;
     }
 
     /**
@@ -899,8 +923,14 @@ class NostrClient
             }
         }
 
+        $this->logger->info('Relay set for request', ['relays' => $relaySet ? $relaySet->getRelays() : 'default']);
+
         $requestMessage = new RequestMessage($subscription->getId(), [$filter]);
-        return (new TweakedRequest($relaySet ?? $this->defaultRelaySet, $requestMessage))->stopOnEventId($stopGap);
+        return (new TweakedRequest(
+            $relaySet ?? $this->defaultRelaySet,
+            $requestMessage,
+            $this->logger
+        ))->stopOnEventId($stopGap);
     }
 
     private function processResponse(array $response, callable $eventHandler): array
@@ -943,7 +973,7 @@ class NostrClient
                             }
                             break;
                         case 'AUTH':
-                            $this->logger->warning('Relay requires authentication', [
+                            $this->logger->info('Relay required authentication (handled during request)', [
                                 'relay' => $relayUrl,
                                 'response' => $item
                             ]);

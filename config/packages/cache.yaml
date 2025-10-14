@@ -20,3 +20,7 @@ framework:
                 adapter: cache.adapter.redis
                 provider: Redis
                 default_lifetime: 3600
+            npub.cache:
+                adapter: cache.adapter.redis
+                provider: Redis
+                default_lifetime: 3600

@@ -12,7 +12,7 @@ framework:
 
         routing:
             # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            'App\Message\FetchCommentsMessage': async
 
 # when@test:
 #    framework:

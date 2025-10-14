@@ -189,11 +189,11 @@ class MagazineWizardController extends AbstractController
 
     #[Route('/api/index/publish', name: 'api-index-publish', methods: ['POST'])]
     public function publishIndexEvent(
-        Request $request,
-        CacheItemPoolInterface $redisCache,
+        Request                   $request,
+        CacheItemPoolInterface    $appCache,
         CsrfTokenManagerInterface $csrfTokenManager,
-        RedisClient $redis,
-        EntityManagerInterface $entityManager
+        RedisClient               $redis,
+        EntityManagerInterface    $entityManager
     ): JsonResponse {
         // Verify CSRF token
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
@@ -237,9 +237,9 @@ class MagazineWizardController extends AbstractController
         // Save to Redis under magazine-<slug>
         try {
             $key = 'magazine-' . $slug;
-            $item = $redisCache->getItem($key);
+            $item = $appCache->getItem($key);
             $item->set($eventObj);
-            $redisCache->save($item);
+            $appCache->save($item);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => 'Redis error'], 500);
         }
@@ -278,13 +278,13 @@ class MagazineWizardController extends AbstractController
 
     #[Route('/api/nzine-index/publish', name: 'api-nzine-index-publish', methods: ['POST'])]
     public function publishNzineIndexEvent(
-        Request $request,
+        Request                   $request,
         CsrfTokenManagerInterface $csrfTokenManager,
-        NzineRepository $nzineRepository,
-        EncryptionService $encryptionService,
-        CacheItemPoolInterface $redisCache,
-        RedisClient $redis,
-        EntityManagerInterface $entityManager
+        NzineRepository           $nzineRepository,
+        EncryptionService         $encryptionService,
+        CacheItemPoolInterface    $appCache,
+        RedisClient               $redis,
+        EntityManagerInterface    $entityManager
     ): JsonResponse {
         // Verify CSRF token
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
@@ -347,9 +347,9 @@ class MagazineWizardController extends AbstractController
 
                 // Save to Redis
                 $cacheKey = 'magazine-' . $slug;
-                $item = $redisCache->getItem($cacheKey);
+                $item = $appCache->getItem($cacheKey);
                 $item->set($catEvent);
-                $redisCache->save($item);
+                $appCache->save($item);
 
                 // Save to database
                 $eventEntity = new \App\Entity\Event();
@@ -396,9 +396,9 @@ class MagazineWizardController extends AbstractController
 
             // Save magazine to Redis
             $cacheKey = 'magazine-' . $magSlug;
-            $item = $redisCache->getItem($cacheKey);
+            $item = $appCache->getItem($cacheKey);
             $item->set($magEvent);
-            $redisCache->save($item);
+            $appCache->save($item);
 
             // Save magazine to database
             $magEventEntity = new \App\Entity\Event();
