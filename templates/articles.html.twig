@@ -1,0 +1,6 @@
+{% for article in articles %}
+    {% if article.slug is not empty and article.title is not empty %}
+        <twig:Molecules:Card :article="article" :is_author_profile="true"></twig:Molecules:Card>
+    {% endif %}
+{% endfor %}
+

@@ -4,18 +4,29 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Article;
+use App\Message\FetchAuthorArticlesMessage;
+use App\Repository\ArticleRepository;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\NostrKeyUtil;
+use Doctrine\ORM\EntityManagerInterface;
+use Elastica\Query\BoolQuery;
+use Elastica\Collapse;
+use Elastica\Query\Term;
 use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
+use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class AuthorController extends AbstractController
 {
@@ -108,40 +119,43 @@ class AuthorController extends AbstractController
 
     /**
      * @throws Exception
+     * @throws ExceptionInterface
+     * @throws InvalidArgumentException
      */
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
-    public function index($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService, FinderInterface $finder): Response
+    public function index($npub, RedisCacheService $redisCacheService, FinderInterface $finder,
+                          MessageBusInterface $messageBus): Response
     {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
 
         $author = $redisCacheService->getMetadata($pubkey);
-        // Retrieve long-form content for the author
-        try {
-            $list = $nostrClient->getLongFormContentForPubkey($npub);
-        } catch (Exception $e) {
-            $list = [];
-        }
-        // Also look for articles in the Elastica index
-        $query = new Terms('pubkey', [$pubkey]);
-        $list = array_merge($list, $finder->find($query, 25));
 
-        // Sort articles by date
-        usort($list, function ($a, $b) {
-            return $b->getCreatedAt() <=> $a->getCreatedAt();
-        });
+        // Get articles using Elasticsearch with collapse on slug
+        $boolQuery = new BoolQuery();
+        $boolQuery->addMust(new Term(['pubkey' => $pubkey]));
+        $query = new \Elastica\Query($boolQuery);
+        $query->setSort(['createdAt' => ['order' => 'desc']]);
+        $collapse = new Collapse();
+        $collapse->setFieldname('slug');
+        $query->setCollapse($collapse);
+        $articles = $finder->find($query);
 
-        $articles = [];
-        // Deduplicate by slugs
-        foreach ($list as $item) {
-            if (!key_exists((string) $item->getSlug(), $articles)) {
-                $articles[(string) $item->getSlug()] = $item;
-            }
+        // Get latest createdAt for dispatching fetch message
+        if (!empty($articles)) {
+            $latest = $articles[0]->getCreatedAt()->getTimestamp();
+            // Dispatch async message to fetch new articles since latest + 1
+            $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
+        } else {
+            // No articles, fetch all
+            $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, 0));
         }
+
 
         return $this->render('pages/author.html.twig', [
             'author' => $author,
             'npub' => $npub,
+            'pubkey' => $pubkey,
             'articles' => $articles,
             'is_author_profile' => true,
         ]);
@@ -156,5 +170,19 @@ class AuthorController extends AbstractController
         $keys = new Key();
         $npub = $keys->convertPublicKeyToBech32($pubkey);
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);
+    }
+
+    #[Route('/articles/render', name: 'render_articles', methods: ['POST'], options: ['csrf_protection' => false])]
+    public function renderArticles(Request $request, SerializerInterface $serializer): Response
+    {
+
+        $data = json_decode($request->getContent(), true);
+        $articlesJson = json_encode($data['articles'] ?? []);
+        $articles = $serializer->deserialize($articlesJson, Article::class.'[]', 'json');
+
+        // Render the articles using the template
+        return $this->render('articles.html.twig', [
+            'articles' => $articles
+        ]);
     }
 }

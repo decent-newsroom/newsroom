@@ -13,7 +13,7 @@
             {% endif %}
         </div>
 
-        <div class="w-container">
+        <div class="w-container" data-controller="author-articles" data-author-articles-pubkey-value="{{ pubkey }}" data-author-articles-hub-url-value="{{ mercure_public_hub_url }}">
             {% if articles|length > 0 %}
                 <twig:Organisms:CardList :list="articles" class="article-list"></twig:Organisms:CardList>
             {% else %}

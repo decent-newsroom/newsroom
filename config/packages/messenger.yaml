@@ -13,6 +13,7 @@ framework:
         routing:
             # Route your messages to the transports
             'App\Message\FetchCommentsMessage': async
+            'App\Message\FetchAuthorArticlesMessage': async
 
 # when@test:
 #    framework:

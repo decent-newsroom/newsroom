@@ -527,7 +527,7 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getLongFormContentForPubkey(string $ident): array
+    public function getLongFormContentForPubkey(string $ident, ?int $since = null): array
     {
         // Add user relays to the default set
         $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
@@ -538,12 +538,17 @@ class NostrClient
         }
 
         // Create request using the helper method
+        $filters = [
+            'authors' => [$ident],
+            'limit' => 20 // default limit
+        ];
+        if ($since !== null && $since > 0) {
+            $filters['since'] = $since;
+        }
+
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::LONGFORM],
-            filters: [
-                'authors' => [$ident],
-                'limit' => 10
-            ],
+            filters: $filters,
             relaySet: $relaySet
         );
 
