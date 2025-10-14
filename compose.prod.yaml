@@ -22,7 +22,7 @@ services:
       # DATABASE_URL: ${DATABASE_URL}
     ports:
       - target: 80
-        published: 80
+        published: 8080
         protocol: tcp
       # Uncomment if you terminate TLS here (otherwise put TLS on your edge proxy)
       # - target: 443
