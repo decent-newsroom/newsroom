@@ -31,13 +31,13 @@ export default class extends Controller {
     }
   };
 
-  handleInteraction(event) {
+  handleInteraction = (event) => {
     const link = event.target.closest("a");
     if (link && !link.hasAttribute("data-no-progress") &&
         !event.ctrlKey && !event.metaKey && !event.shiftKey) {
       this.start();
     }
-  }
+  };
 
   start() {
     this.barTarget.style.width = "0";
