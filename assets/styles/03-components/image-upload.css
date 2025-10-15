@@ -23,7 +23,6 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: var(--color-bg, #fff);
-    border-radius: 0.5rem;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
     max-width: 90%;
     width: 500px;

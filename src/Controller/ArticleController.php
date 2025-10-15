@@ -160,11 +160,19 @@ class ArticleController  extends AbstractController
             $article = array_shift($articles);
         }
 
-        if ($article->getPubkey() === null) {
-            $user = $this->getUser();
+        $recentArticles = [];
+        $drafts = [];
+
+        $user = $this->getUser();
+        if (!!$user) {
             $key = new Key();
-            if (!!$user) {
-                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+            $recentArticles = $entityManager->getRepository(Article::class)
+                ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC'], 5);
+            $drafts = $entityManager->getRepository(Article::class)
+                ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
+
+            if ($article->getPubkey() === null) {
                 $article->setPubkey($currentPubkey);
             }
         }
@@ -176,6 +184,8 @@ class ArticleController  extends AbstractController
         return $this->render('pages/editor.html.twig', [
             'article' => $article,
             'form' => $form->createView(),
+            'recentArticles' => $recentArticles,
+            'drafts' => $drafts,
         ]);
     }
 

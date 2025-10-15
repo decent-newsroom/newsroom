@@ -13,75 +13,112 @@
 
 {% block body %}
     <div class="w-container">
-        {% if not is_granted('ROLE_USER') %}
-        <div class="notice info">
-            <p>A Nostr identity is required to post articles.</p>
-        </div>
-        {% endif %}
-        <div {{ stimulus_controller('nostr-publish', {
-            publishUrl: path('api-article-publish'),
-            csrfToken: csrf_token('nostr_publish')
+        <section>
+            {% if not is_granted('ROLE_USER') %}
+                <div class="notice info mb-4">
+                    <p>A Nostr identity is required to post articles.</p>
+                </div>
+            {% endif %}
+            <div {{ stimulus_controller('nostr-publish', {
+                publishUrl: path('api-article-publish'),
+                csrfToken: csrf_token('nostr_publish')
             }) }} data-nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
 
-            <!-- Status messages -->
-            <div data-nostr-publish-target="status"></div>
+                <!-- Status messages -->
+                <div data-nostr-publish-target="status"></div>
 
-            {{ form_start(form) }}
+                {{ form_start(form) }}
 
-            {{ form_row(form.title) }}
-            {{ form_row(form.summary) }}
-            {{ form_row(form.content) }}
-            {{ form_row(form.image) }}
+                {{ form_row(form.title) }}
+                {{ form_row(form.summary) }}
+                {{ form_row(form.content) }}
+                {{ form_row(form.image) }}
 
-            <div class="actions" data-controller="image-upload">
-              <button type="button"
-                      class="btn btn-secondary"
-                      data-action="click->image-upload#openDialog">
-                Upload Image
-              </button>
+                <div class="actions" data-controller="image-upload">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-action="click->image-upload#openDialog">
+                        Upload Image
+                    </button>
 
-              <div data-image-upload-target="dialog" class="iu-dialog">
-                  <div class="iu-backdrop" data-action="click->image-upload#closeDialog"></div>
-                  <div class="iu-modal">
-                      <div class="modal-header">
-                          <h5>Upload Image</h5>
-                          <button type="button" class="close" data-action="click->image-upload#closeDialog">&times;</button>
-                      </div>
-                      <div class="modal-body">
-                          <div>
-                              <label for="upload-provider">Upload to</label>
-                              <select id="upload-provider" data-image-upload-target="provider">
-                                  <option value="sovbit">files.sovbit.host</option>
-                                  <option value="nostrbuild">nostr.build</option>
-                                  <option value="nostrcheck">nostrcheck.me</option>
-                              </select>
-                          </div>
+                    <div data-image-upload-target="dialog" class="iu-dialog">
+                        <div class="iu-backdrop" data-action="click->image-upload#closeDialog"></div>
+                        <div class="iu-modal">
+                            <div class="modal-header">
+                                <h5>Upload Image</h5>
+                                <button type="button" class="close" data-action="click->image-upload#closeDialog">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div>
+                                    <label for="upload-provider">Upload to</label>
+                                    <select id="upload-provider" data-image-upload-target="provider">
+                                        <option value="sovbit">files.sovbit.host</option>
+                                        <option value="nostrbuild">nostr.build</option>
+                                        <option value="nostrcheck">nostrcheck.me</option>
+                                    </select>
+                                </div>
 
-                          <div data-image-upload-target="dropArea" class="upload-area">
-                              <span>Drag &amp; drop or click to select an image</span>
-                              <input type="file" accept="image/*" data-image-upload-target="fileInput">
-                          </div>
+                                <div data-image-upload-target="dropArea" class="upload-area">
+                                    <span>Drag &amp; drop or click to select an image</span>
+                                    <input type="file" accept="image/*" data-image-upload-target="fileInput">
+                                </div>
 
-                          <div data-image-upload-target="progress" class="upload-progress"></div>
-                          <div data-image-upload-target="error" class="upload-error"></div>
-                      </div>
-                  </div>
-                 </div>
+                                <div data-image-upload-target="progress" class="upload-progress"></div>
+                                <div data-image-upload-target="error" class="upload-error"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                {{ form_row(form.topics) }}
+
+                <div class="actions">
+                    <button type="button"
+                            class="btn btn-primary"
+                            data-nostr-publish-target="publishButton"
+                            data-action="click->nostr-publish#publish">
+                        Publish
+                    </button>
+                </div>
+
+                {{ form_end(form) }}
             </div>
-
-
-            {{ form_row(form.topics) }}
-
-            <div class="actions">
-                <button type="button"
-                        class="btn btn-primary"
-                        data-nostr-publish-target="publishButton"
-                        data-action="click->nostr-publish#publish">
-                    Publish
-                </button>
-            </div>
-
-            {{ form_end(form) }}
-        </div>
+        </section>
     </div>
+{% endblock %}
+
+{%  block aside %}
+    {# Show recent articles and drafts to load for editing #}
+    {% if is_granted('ROLE_USER') %}
+        <div class="w-container">
+            <section>
+                <h2>Recent Revisions</h2>
+                <ul class="list-unstyled">
+                    {% for recent in recentArticles %}
+                        <li class="mb-2">
+                            <a href="{{ path('editor-edit-slug', {slug: recent.slug}) }}">
+                                {{ recent.title }} ({{ recent.publishedAt|date('Y-m-d') }})
+                            </a>
+                        </li>
+                    {% else %}
+                        <li>No recent articles found.</li>
+                    {% endfor %}
+                </ul>
+
+                <h2>Drafts</h2>
+                <ul class="list-unstyled">
+                    {% for draft in drafts %}
+                        <li>
+                            <a href="{{ path('editor-edit-slug', {slug: draft.slug}) }}">
+                                {{ draft.title }} ({{ draft.updatedAt|date('Y-m-d') }})
+                            </a>
+                        </li>
+                    {% else %}
+                        <li>No drafts found.</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </div>
+    {% endif %}
 {% endblock %}

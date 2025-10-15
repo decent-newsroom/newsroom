@@ -328,7 +328,7 @@ class Article
         return $this->eventStatus === EventStatusEnum::PREVIEW;
     }
 
-    public function getRaw()
+    public function getRaw(): ?array
     {
         return $this->raw;
     }

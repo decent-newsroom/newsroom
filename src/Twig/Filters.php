@@ -4,8 +4,16 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Entity\Article;
+use App\Entity\Event as EventEntity;
 use BitWasp\Bech32\Exception\Bech32Exception;
+use Exception;
+use swentel\nostr\Event\Event;
 use swentel\nostr\Nip19\Nip19Helper;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Serializer;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -18,6 +26,7 @@ class Filters extends AbstractExtension
             new TwigFilter('linkify', [$this, 'linkify'], ['is_safe' => ['html']]),
             new TwigFilter('mentionify', [$this, 'mentionify'], ['is_safe' => ['html']]),
             new TwigFilter('nEncode', [$this, 'nEncode']),
+            new TwigFilter('naddrEncode', [$this, 'naddrEncode']),
         ];
     }
 
@@ -69,6 +78,21 @@ class Filters extends AbstractExtension
             return $nip19->encodeNote($eventId);
         } catch (Bech32Exception) {
             return $eventId; // Return original if encoding fails
+        }
+    }
+
+    /**
+     * @throws Bech32Exception
+     * @throws Exception
+     */
+    public function naddrEncode(Article $article): string
+    {
+        $nip19 = new Nip19Helper();
+        if ($article->getRaw() !== null) {
+            $event = Event::fromVerified((object)$article->getRaw() ?? '');
+            return $nip19->encodeAddr($event, $article->getSlug(), $article->getKind()->value);
+        } else {
+            return $nip19->encodeNote($article->getEventId());
         }
     }
 }

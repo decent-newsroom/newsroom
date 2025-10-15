@@ -16,68 +16,58 @@
         <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
     {% endif %}
 
-    <div class="article-actions">
-        {% if canEdit %}
-            <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
-        {% endif %}
-
-        {% if app.user %}
-            <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
-        {% endif %}
-
-        {% if is_granted('ROLE_ADMIN') %}
-            <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
-                Copy coordinates
-            </button>
-        {% endif %}
-
-        <!-- Share Button Dropdown -->
-        {% if feature_flag_share_btn %}
-        <div class="dropdown share-dropdown" style="display:inline-block;position:relative;">
-            <button class="btn btn-secondary" id="shareBtn" type="button" aria-haspopup="true" aria-expanded="false">
-                Share
-            </button>
-            <div class="dropdown-menu" id="shareDropdown" style="display:none;position:absolute;z-index:1000;min-width:200px;background:#fff;border:1px solid #ccc;padding:0.5em 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                <button class="dropdown-item" type="button" onclick="copyShareLink('{{ canonical|e('js') }}', this)">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
-                    </svg>
-                    Share Newsroom Link
-                </button>
-{#                <button class="dropdown-item" type="button" onclick="copyShareLink('30023:{{ article.pubkey }}:{{ article.slug }}', this)">#}
-{#                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">#}
-{#                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />#}
-{#                    </svg>#}
-{#                    Share naddr#}
-{#                </button>#}
-            </div>
-        </div>
-        <script>
-            // Share dropdown toggle
-            document.addEventListener('DOMContentLoaded', function() {
-                var btn = document.getElementById('shareBtn');
-                var menu = document.getElementById('shareDropdown');
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-                });
-                document.addEventListener('click', function() {
-                    menu.style.display = 'none';
-                });
-            });
-            // Copy to clipboard with feedback
-            function copyShareLink(text, el) {
-                navigator.clipboard.writeText(text).then(function() {
-                    var orig = el.innerHTML;
-                    el.innerHTML = 'Copied!';
-                    setTimeout(function() { el.innerHTML = orig; }, 1200);
-                });
-            }
-        </script>
-        {% endif %}
-    </div>
-
     <article class="w-container">
+        <div class="article-actions">
+            <div data-controller="share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
+                <button data-share-dropdown-target="button"
+                        class="btn btn-secondary"
+                        id="shareBtn"
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        data-action="click->share-dropdown#toggle">
+                    Share
+                </button>
+                <div data-share-dropdown-target="menu"
+                     class="dropdown-menu"
+                     id="shareDropdown"
+                     style="display:none;position:absolute;z-index:1000;min-width:200px;background:#fff;border:1px solid #ccc;padding:0.5em 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    <button class="dropdown-item"
+                            type="button"
+                            data-action="click->share-dropdown#copy"
+                            data-copy="{{ canonical|e('js') }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
+                        </svg>
+                        Newsroom Link
+                    </button>
+                    <button class="dropdown-item"
+                            type="button"
+                            data-action="click->share-dropdown#copy"
+                            data-copy="{{ article|naddrEncode }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
+                        </svg>
+                        Naddr
+                    </button>
+                </div>
+            </div>
+            {% if canEdit %}
+                <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
+            {% endif %}
+
+            {% if app.user %}
+                <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
+            {% endif %}
+
+            {% if is_granted('ROLE_ADMIN') %}
+                <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
+                    Copy coordinates
+                </button>
+            {% endif %}
+        </div>
+
+
         <div class="card">
             <div class="card-header">
                 <h1 class="card-title">{{ article.title }}</h1>
