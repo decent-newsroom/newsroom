@@ -1,7 +1,7 @@
 <div {{ attributes }}>
     <form data-action="live#action:prevent" data-live-action-param="addMultiple">
         <div class="mb-3">
-            <label class="form-label">
+            <label class="form-label d-flex">
                 <strong>Paste article naddresses or coordinates</strong>
                 <small class="d-block text-muted">One per line. Supports both formats:</small>
                 <small class="d-block text-muted">• naddr1... (or nostr:naddr1...)</small>
@@ -14,7 +14,9 @@
                 data-model="norender|input"
             >{{ input }}</textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Add to Reading List</button>
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">Add to Reading List</button>
+        </div>
     </form>
 
     {% if error %}

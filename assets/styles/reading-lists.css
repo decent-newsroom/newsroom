@@ -117,3 +117,7 @@
 .workflow-status-card .badge:hover {
     transform: scale(1.05);
 }
+
+#aCollection li>div {
+    width: 100%;
+}

@@ -40,10 +40,15 @@ class ReadingListWizardController extends AbstractController
     }
 
     #[Route('/reading-list/wizard/articles', name: 'read_wizard_articles')]
-    public function articles(Request $request): Response
+    public function articles(Request $request, ReadingListManager $readingListManager): Response
     {
         $draft = $this->getDraft($request);
-        if (!$draft) {
+
+        $loadSlug = $request->query->get('load');
+        if ($loadSlug) {
+            $draft = $readingListManager->loadPublishedListIntoDraft($loadSlug);
+            $this->saveDraft($request, $draft);
+        } elseif (!$draft) {
             return $this->redirectToRoute('read_wizard_setup');
         }
 
@@ -61,6 +66,11 @@ class ReadingListWizardController extends AbstractController
             if (!$draft->slug) {
                 $draft->slug = $this->slugifyWithRandom($draft->title);
             }
+            // If draft articles is still empty, remove the empty string we added
+            if (count($draft->articles) === 1 && $draft->articles[0] === '') {
+                $draft->articles = [];
+            }
+
             $this->saveDraft($request, $draft);
             return $this->redirectToRoute('read_wizard_review');
         }

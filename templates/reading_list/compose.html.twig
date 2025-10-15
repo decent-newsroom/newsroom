@@ -15,61 +15,18 @@
             </div>
         {% endif %}
 
-        <div class="row g-4">
-            {# Left sidebar - Reading List Preview #}
-            <div class="col-lg-4">
-                <div class="sticky-top" style="top: 20px;">
-                    <twig:ReadingListDraftComponent />
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Add Articles</h5>
+                    <p class="text-muted small">Paste article links below (one per line)</p>
+                    <twig:ReadingListQuickInputComponent />
                 </div>
             </div>
 
-            {# Main content - Simple tabbed interface #}
-            <div class="col-lg-8">
-                {# List Selector #}
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <twig:ReadingListSelectorComponent />
-                    </div>
-                </div>
-
-                {# Tabbed content #}
-                <ul class="nav nav-tabs mb-3" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste" type="button" role="tab">
-                            📋 Paste Links
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="search-tab" data-bs-toggle="tab" data-bs-target="#search" type="button" role="tab">
-                            🔍 Search
-                        </button>
-                    </li>
-                </ul>
-
-                <div class="tab-content">
-                    {# Paste tab #}
-                    <div class="tab-pane fade show active" id="paste" role="tabpanel">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Quick Add Articles</h5>
-                                <p class="text-muted small">Paste article links below (one per line)</p>
-                                <twig:ReadingListQuickInputComponent />
-                            </div>
-                        </div>
-                    </div>
-
-                    {# Search tab #}
-                    <div class="tab-pane fade" id="search" role="tabpanel">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">Search & Add Articles</h5>
-                                <p class="text-muted small">Find articles and add them to your list</p>
-                                <twig:SearchComponent :selectMode="true" currentRoute="compose" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
+{% endblock %}
+
+{% block aside %}
+    {# Future sidebar content can go here #}
+    <twig:ReadingListDraftComponent />
 {% endblock %}

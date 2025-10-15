@@ -15,12 +15,14 @@
     {{ stimulus_controller('form-collection') }}
     data-form-collection-index-value="{{ form.articles|length > 0 ? form.articles|last.vars.name + 1 : 0 }}"
     data-form-collection-prototype-value="{{ form_widget(form.articles.vars.prototype)|e('html_attr') }}">
-    <ul class="d-flex gap-2 list-unstyled" {{ stimulus_target('form-collection', 'collectionContainer') }}>
-      {% for item in form.articles %}
-        <li class="d-flex flex-row">{{ form_row(item) }}</li>
-      {% endfor %}
-    </ul>
-    <button type="button" class="btn btn-secondary mt-2" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add article</button>
+        <ul id="aCollection" class="d-flex gap-2 list-unstyled" {{ stimulus_target('form-collection', 'collectionContainer') }}>
+          {% for item in form.articles %}
+            <li class="d-flex flex-row">{{ form_row(item) }}</li>
+          {% endfor %}
+        </ul>
+        <div class="actions">
+          <button type="button" class="btn btn-secondary mt-2" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add article</button>
+        </div>
   </div>
 
   <div class="mt-3 d-flex flex-row gap-2 actions">

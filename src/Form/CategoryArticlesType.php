@@ -24,6 +24,7 @@ class CategoryArticlesType extends AbstractType
             ->add('articles', CollectionType::class, [
                 'entry_type' => TextType::class,
                 'entry_options' => [
+                    'required' => false,
                     'attr' => [
                         'placeholder' => '30023:pubkey:slug'
                     ],

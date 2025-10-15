@@ -4,7 +4,10 @@
   <h1>Review & Sign Reading List</h1>
 
   <div class="notice info">
-    <p>Review your reading list. When ready, click Sign & Publish. Your NIP-07 extension will be used to sign the event.</p>
+      {% if not is_granted('ROLE_USER') %}
+        <p>A Nostr identity is required so publish the list.</p>
+      {% endif %}
+    <p>Review your reading list. When ready, click Sign & Publish. Your NIP-07 extension or signer will be used to sign the event.</p>
   </div>
 
   <section class="mb-4">
@@ -18,25 +21,20 @@
 
     {% if draft.articles is defined and draft.articles|length %}
       <div class="mt-2">
-        <strong>Articles:</strong>
-        <ul>
-          {% for a in draft.articles %}
-            <li><code>{{ a }}</code></li>
-          {% endfor %}
-        </ul>
+        <strong>Articles: {{ draft.articles|length }}</strong>
+          {% if draft.articles|length > 0 %}
+            <ul>
+              {% for a in draft.articles %}
+                <li><code>{{ a }}</code></li>
+              {% endfor %}
+            </ul>
+            {% else %}
+                <div class="mt-2"><small>No articles yet.</small></div>
+            {% endif %}
       </div>
     {% else %}
       <div class="mt-2"><small>No articles yet.</small></div>
     {% endif %}
-  </section>
-
-  <section class="mb-4">
-    <details>
-      <summary>Show event preview (JSON)</summary>
-      <div class="mt-2">
-        <pre class="small">{{ eventJson }}</pre>
-      </div>
-    </details>
   </section>
 
   <div
@@ -46,17 +44,15 @@
       csrfToken: csrfToken
     }) }}
   >
-    <section class="mb-3">
-      <h3>Final event (with your pubkey)</h3>
-      <pre class="small" data-nostr-single-sign-target="computedPreview"></pre>
-    </section>
-
     <div class="d-flex flex-row gap-2">
       <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
       <button class="btn btn-primary" data-nostr-single-sign-target="publishButton" data-action="click->nostr-single-sign#signAndPublish">Sign & Publish</button>
     </div>
-
-    <div class="mt-3" data-nostr-single-sign-target="status"></div>
+      <div class="mt-3" data-nostr-single-sign-target="status"></div>
+      <section class="mb-3">
+        <h3>Event preview</h3>
+        <pre class="small" data-nostr-single-sign-target="computedPreview"></pre>
+    </section>
   </div>
 {% endblock %}
 
