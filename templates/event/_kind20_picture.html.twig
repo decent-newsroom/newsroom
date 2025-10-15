@@ -47,7 +47,7 @@
     {% if hashtags|length > 0 %}
         <div class="tags">
             {% for hashtag in hashtags %}
-                <span class="tag">#{{ hashtag }}</span>
+                <a href="{{ path('forum_tag', {'tag': tag}) }}" class="tag">#{{ hashtag }}</a>
             {% endfor %}
         </div>
     {% endif %}
