@@ -3,6 +3,31 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="Topics" tagline="Explore your interests"/>
 
+{% if userInterests %}
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-5">
+            <h2>Your Interests</h2>
+        </div>
+    </section>
+<div class="subcategories-grid">
+    {% for catKey, category in userInterests %}
+        {% for subKey, sub in category.subcategories %}
+            <div class="sub-card">
+                <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
+                <div class="d-flex flex-row">
+                    <div class="tags m-0">
+                        {% for tag in sub.tags %}
+                            <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                    <div class="count">{{ sub.count|default(0) }}</div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+
 {% for catKey, category in topics %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">

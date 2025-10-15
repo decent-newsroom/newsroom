@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\User;
+use App\Service\NostrClient;
 use App\Util\ForumTopics;
+use App\Util\NostrKeyUtil;
 use Elastica\Aggregation\Filters as FiltersAgg;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
@@ -25,7 +28,8 @@ class ForumController extends AbstractController
     public function index(
         #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
         CacheInterface $cache,
-        Request $request
+        Request $request,
+        NostrClient $nostrClient
     ): Response {
         // Optional: small cache so we don’t hammer ES on every page view
         //$categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($index) {
@@ -36,8 +40,40 @@ class ForumController extends AbstractController
         //    return $this->hydrateCategoryCounts(self::TOPICS, $counts);
         //});
         $categoriesWithCounts = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+
+        $userInterests = null;
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!!$user) {
+            try {
+                $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
+                $interests = $nostrClient->getUserInterests($pubkey);
+                if (!empty($interests)) {
+                    $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+                    // Filter to only include subcategories that have tags in interests
+                    foreach ($userInterests as $catKey => $cat) {
+                        $subs = [];
+                        foreach ($cat['subcategories'] as $subKey => $sub) {
+                            $subTags = array_map('strtolower', $sub['tags']);
+                            if (array_intersect($subTags, $interests)) {
+                                $subs[$subKey] = $sub;
+                            }
+                        }
+                        if (!empty($subs)) {
+                            $userInterests[$catKey]['subcategories'] = $subs;
+                        } else {
+                            unset($userInterests[$catKey]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // Ignore errors, just don't show user interests
+            }
+        }
+
         return $this->render('forum/index.html.twig', [
             'topics' => $categoriesWithCounts,
+            'userInterests' => $userInterests,
         ]);
     }
 

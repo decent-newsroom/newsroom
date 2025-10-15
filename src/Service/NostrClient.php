@@ -1072,4 +1072,38 @@ class NostrClient
             return null;
         }
     }
+
+    /**
+     * Fetch the latest interest list (kind 10015) for a pubkey and return the 't' tags.
+     */
+    public function getUserInterests(string $pubkey): array
+    {
+        $request = $this->createNostrRequest(
+            kinds: [10015],
+            filters: ['authors' => [$pubkey]],
+            relaySet: $this->defaultRelaySet
+        );
+
+        $events = $this->processResponse($request->send(), function($received) use ($pubkey) {
+            $this->logger->info('Getting interests for pubkey', ['pubkey' => $pubkey, 'item' => $received]);
+            return $received;
+        });
+
+        if (empty($events)) {
+            return [];
+        }
+
+        // Sort by created_at descending and take the latest
+        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
+        $latest = $events[0];
+
+        $tTags = [];
+        foreach ($latest->tags as $tag) {
+            if (is_array($tag) && isset($tag[0]) && $tag[0] === 't' && isset($tag[1])) {
+                $tTags[] = strtolower(trim($tag[1]));
+            }
+        }
+
+        return $tTags;
+    }
 }

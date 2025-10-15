@@ -11,6 +11,7 @@ enum KindsEnum: int
     case REPOST = 6; // Only wraps kind 1, NIP-18, will not implement
     case GENERIC_REPOST = 16; // Generic repost, original kind signalled in a "k" tag, NIP-18
     case FILE_METADATA = 1063; // NIP-94
+    case INTERESTS = 10015; // NIP-51
     case COMMENTS = 1111;
     case HTTP_AUTH = 27235; // NIP-98, HTTP Auth
     case CURATION_SET = 30004; // NIP-51
