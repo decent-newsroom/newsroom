@@ -115,6 +115,8 @@
             {% include 'event/_kind22_video.html.twig' %}
         {% elseif event.kind == 1450 %}
             {% include 'event/_kind1450_tabular.html.twig' %}
+        {% elseif event.kind == 10015 %}
+            {% include 'event/_kind10015_tags.html.twig' %}
         {% else %}
             {# Regular event content for non-picture and non-video events #}
             <div class="event-content">
@@ -178,4 +180,3 @@
     </pre>
 </div>
 {% endblock %}
-

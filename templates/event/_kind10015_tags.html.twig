@@ -1,0 +1,17 @@
+{% set tags = [] %}
+{% for tag in event.tags %}
+    {% if tag[0] == 't' %}
+        {% set tags = tags|merge([tag[1]]) %}
+    {% endif %}
+{% endfor %}
+
+{% if tags %}
+<div class="tag-cloud">
+    <h3>Interests</h3>
+    <div class="tags">
+        {% for tag in tags %}
+            <a href="{{ path('forum_tag', {'tag': tag}) }}" class="tag">{{ tag }}</a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
