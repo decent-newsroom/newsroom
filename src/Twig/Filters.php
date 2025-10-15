@@ -9,6 +9,7 @@ use App\Entity\Event as EventEntity;
 use BitWasp\Bech32\Exception\Bech32Exception;
 use Exception;
 use swentel\nostr\Event\Event;
+use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
@@ -27,6 +28,7 @@ class Filters extends AbstractExtension
             new TwigFilter('mentionify', [$this, 'mentionify'], ['is_safe' => ['html']]),
             new TwigFilter('nEncode', [$this, 'nEncode']),
             new TwigFilter('naddrEncode', [$this, 'naddrEncode']),
+            new TwigFilter('toNpub', [$this, 'toNpub']),
         ];
     }
 
@@ -94,5 +96,11 @@ class Filters extends AbstractExtension
         } else {
             return $nip19->encodeNote($article->getEventId());
         }
+    }
+
+    public function toNpub(string $hexPubKey): string
+    {
+        $key = new Key();
+        return $key->convertPublicKeyToBech32($hexPubKey);
     }
 }

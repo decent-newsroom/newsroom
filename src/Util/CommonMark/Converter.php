@@ -66,7 +66,7 @@ readonly class Converter
             ],
             'embed' => [
                 'adapter' => new OscaroteroEmbedAdapter(), // See the "Adapter" documentation below
-                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build'],
+                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build', 'video.nostr.build'], // If null, all domains are allowed
                 'fallback' => 'link'
             ],
         ];

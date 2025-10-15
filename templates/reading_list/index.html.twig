@@ -25,9 +25,9 @@
                 <div class="d-flex flex-row gap-2">
                   <a class="btn btn-sm btn-primary" href="{{ path('reading_list_compose') }}">Open Composer</a>
                   {% if item.slug %}
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('reading-list', { slug: item.slug, pubkey: item.pubkey }) }}">View</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">View</a>
                     <span data-controller="copy-to-clipboard">
-                      <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug, pubkey: item.pubkey })) }}</span>
+                      <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub })) }}</span>
                       <button class="btn btn-sm btn-secondary"
                               data-copy-to-clipboard-target="copyButton"
                               data-action="click->copy-to-clipboard#copyToClipboard">Copy link</button>

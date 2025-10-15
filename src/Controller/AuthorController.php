@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Article;
+use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Message\FetchAuthorArticlesMessage;
-use App\Repository\ArticleRepository;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\NostrKeyUtil;
@@ -14,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Query\BoolQuery;
 use Elastica\Collapse;
 use Elastica\Query\Term;
-use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,8 +31,86 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class AuthorController extends AbstractController
 {
+
     /**
+     * Lists
      * @throws Exception
+     */
+    #[Route('/p/{npub}/list/{slug}', name: 'reading-list')]
+    public function readingList($npub, $slug,
+                                EntityManagerInterface $em,
+                                NostrKeyUtil $keyUtil,
+                                LoggerInterface $logger): Response
+    {
+        // Convert npub to hex pubkey
+        $pubkey = $keyUtil->npubToHex($npub);
+        $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
+
+        // Find reading list by pubkey+slug, kind 30040 directly from database
+        $repo = $em->getRepository(Event::class);
+        $lists = $repo->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX], ['created_at' => 'DESC']);
+        // Filter by slug
+        $list = null;
+        foreach ($lists as $ev) {
+            if (!$ev instanceof Event) continue;
+
+            $eventSlug = $ev->getSlug();
+
+            if ($eventSlug === $slug) {
+                $list = $ev;
+                break; // Found the latest one
+            }
+        }
+
+        if (!$list) {
+            throw $this->createNotFoundException('Reading list not found');
+        }
+
+        // fetch articles listed in the list's a tags
+        $coordinates = []; // Store full coordinates (kind:author:slug)
+        // Extract category metadata and article coordinates
+        foreach ($list->getTags() as $tag) {
+            if ($tag[0] === 'a') {
+                $coordinates[] = $tag[1]; // Store the full coordinate
+            }
+        }
+
+        $articles = [];
+        if (count($coordinates) > 0) {
+            $articleRepo = $em->getRepository(Article::class);
+
+            // Query database directly for each coordinate
+            foreach ($coordinates as $coord) {
+                $parts = explode(':', $coord, 3);
+                if (count($parts) === 3) {
+                    [$kind, $author, $articleSlug] = $parts;
+
+                    // Find the most recent event matching this coordinate
+                    $events = $articleRepo->findBy([
+                        'slug' => $articleSlug,
+                        'pubkey' => $author
+                    ], ['createdAt' => 'DESC']);
+
+                    // Filter by slug and get the latest
+                    foreach ($events as $event) {
+                        if ($event->getSlug() === $articleSlug) {
+                            $articles[] = $event;
+                            break; // Take the first match (most recent if ordered)
+                        }
+                    }
+                }
+            }
+        }
+
+        return $this->render('pages/list.html.twig', [
+            'list' => $list,
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * Multimedia
+     * @throws Exception|InvalidArgumentException
      */
     #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
     public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService, NostrKeyUtil $keyUtil): Response
@@ -61,6 +140,7 @@ class AuthorController extends AbstractController
 
     /**
      * AJAX endpoint to load more media events
+     * @throws Exception
      */
     #[Route('/p/{npub}/media/load-more', name: 'author-media-load-more', requirements: ['npub' => '^npub1.*'])]
     public function mediaLoadMore($npub, Request $request, RedisCacheService $redisCacheService): Response
@@ -95,6 +175,7 @@ class AuthorController extends AbstractController
     }
 
     /**
+     * Author profile and articles
      * @throws Exception
      * @throws ExceptionInterface
      * @throws InvalidArgumentException
@@ -139,6 +220,7 @@ class AuthorController extends AbstractController
     }
 
     /**
+     * Redirect from /p/{pubkey} to /p/{npub}
      * @throws Exception
      */
     #[Route('/p/{pubkey}', name: 'author-redirect')]
@@ -149,7 +231,13 @@ class AuthorController extends AbstractController
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);
     }
 
-    #[Route('/articles/render', name: 'render_articles', methods: ['POST'], options: ['csrf_protection' => false])]
+    /**
+     * AJAX endpoint to render articles from JSON input
+     * @param Request $request
+     * @param SerializerInterface $serializer
+     * @return Response
+     */
+    #[Route('/articles/render', name: 'render_articles', options: ['csrf_protection' => false], methods: ['POST'])]
     public function renderArticles(Request $request, SerializerInterface $serializer): Response
     {
 

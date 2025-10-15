@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -101,78 +102,6 @@ class ReadingListController extends AbstractController
 
         return $this->render('reading_list/compose.html.twig', [
             'addedArticle' => $addedArticle,
-        ]);
-    }
-
-    /**
-     *
-     */
-    #[Route('/p/{pubkey}/list/{slug}', name: 'reading-list')]
-    public function readingList($pubkey, $slug,
-                                EntityManagerInterface $em,
-                                LoggerInterface $logger): Response
-    {
-        $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
-
-        // Find reading list by pubkey+slug, kind 30040 directly from database
-        $repo = $em->getRepository(Event::class);
-        $lists = $repo->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX], ['created_at' => 'DESC']);
-        // Filter by slug
-        $list = null;
-        foreach ($lists as $ev) {
-            if (!$ev instanceof Event) continue;
-
-            $eventSlug = $ev->getSlug();
-
-            if ($eventSlug === $slug) {
-                $list = $ev;
-                break; // Found the latest one
-            }
-        }
-
-        if (!$list) {
-            throw $this->createNotFoundException('Reading list not found');
-        }
-
-        // fetch articles listed in the list's a tags
-        $coordinates = []; // Store full coordinates (kind:author:slug)
-        // Extract category metadata and article coordinates
-        foreach ($list->getTags() as $tag) {
-            if ($tag[0] === 'a') {
-                $coordinates[] = $tag[1]; // Store the full coordinate
-            }
-        }
-
-        $articles = [];
-        if (count($coordinates) > 0) {
-            $articleRepo = $em->getRepository(Article::class);
-
-            // Query database directly for each coordinate
-            foreach ($coordinates as $coord) {
-                $parts = explode(':', $coord, 3);
-                if (count($parts) === 3) {
-                    [$kind, $author, $articleSlug] = $parts;
-
-                    // Find the most recent event matching this coordinate
-                    $events = $articleRepo->findBy([
-                        'slug' => $articleSlug,
-                        'pubkey' => $author
-                    ], ['createdAt' => 'DESC']);
-
-                    // Filter by slug and get the latest
-                    foreach ($events as $event) {
-                        if ($event->getSlug() === $articleSlug) {
-                            $articles[] = $event;
-                            break; // Take the first match (most recent if ordered)
-                        }
-                    }
-                }
-            }
-        }
-
-        return $this->render('pages/list.html.twig', [
-            'list' => $list,
-            'articles' => $articles,
         ]);
     }
 }
