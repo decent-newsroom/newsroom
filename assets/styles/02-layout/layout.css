@@ -20,7 +20,7 @@ body {
     margin: 0 auto;
     flex-grow: 1;
     display: grid;
-    grid-template-columns: 200px auto 200px;
+    grid-template-columns: 240px auto 350px;
 }
 
 nav, aside {

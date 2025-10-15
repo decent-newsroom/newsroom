@@ -31,7 +31,7 @@
                 <div data-share-dropdown-target="menu"
                      class="dropdown-menu"
                      id="shareDropdown"
-                     style="display:none;position:absolute;z-index:1000;min-width:200px;background:#fff;border:1px solid #ccc;padding:0.5em 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                     style="display:none;position:absolute;z-index:1000;min-width:200px;">
                     <button class="dropdown-item"
                             type="button"
                             data-action="click->share-dropdown#copy"
@@ -58,12 +58,6 @@
 
             {% if app.user %}
                 <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
-            {% endif %}
-
-            {% if is_granted('ROLE_ADMIN') %}
-                <button class="btn btn-primary" onclick="navigator.clipboard.writeText('30023:{{ article.pubkey }}:{{ article.slug }}')">
-                    Copy coordinates
-                </button>
             {% endif %}
         </div>
 

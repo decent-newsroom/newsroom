@@ -169,6 +169,15 @@ class ArticleController  extends AbstractController
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
             $recentArticles = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC'], 5);
+            // Collapse by slug, keep only latest revision
+            $recentArticles = array_reduce($recentArticles, function ($carry, $item) {
+                if (!isset($carry[$item->getSlug()])) {
+                    $carry[$item->getSlug()] = $item;
+                }
+                return $carry;
+            });
+            $recentArticles = array_values($recentArticles);
+            // get drafts
             $drafts = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
 

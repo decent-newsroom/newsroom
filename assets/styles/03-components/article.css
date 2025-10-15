@@ -79,7 +79,7 @@ blockquote p {
 .heading-permalink {
     float: left;
     padding-right: 0;
-    margin-left: calc(var(--spacing-5) * -1);
+    margin-left: calc(var(--spacing-4) * -1);
     line-height: 1.2;
     color: var(--color-secondary);
 }

@@ -157,6 +157,30 @@ export default class extends Controller {
       imageTooltip.edit(prefill);
     });
 
+
+    // Nostr highlights
+    // Match common bech32 nostr URIs
+    const NOSTR_GLOBAL = /\bnostr:(?:note1|npub1|nprofile1|nevent1|naddr1|nrelay1|nsec1)[a-z0-9]+/gi;
+
+    function highlightAll() {
+      const text = quill.getText();                // includes trailing \n
+      // Clear JUST the background attribute; leaves bold/italics/etc intact
+      quill.formatText(0, text.length, { background: false }, 'api');
+
+      for (const m of text.matchAll(NOSTR_GLOBAL)) {
+        quill.formatText(m.index, m[0].length, { background:  'rgba(168, 85, 247, 0.18)' }, 'api');
+      }
+    }
+
+    // 1) First load
+    highlightAll();
+
+    // 2) Keep it fresh on edits/paste
+    quill.on('text-change', (delta, oldDelta, source) => {
+      if (source === 'user') highlightAll();
+    });
+
+
     // Keep your hidden field synced as HTML
     const sync = () => { if (target) target.value = quill.root.innerHTML; };
     quill.on('text-change', sync);
