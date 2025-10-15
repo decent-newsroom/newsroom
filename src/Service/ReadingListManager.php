@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use function Webmozart\Assert\Tests\StaticAnalysis\startsWith;
 
 /**
  * Service for managing reading list drafts and published lists
@@ -24,7 +25,7 @@ class ReadingListManager
     ) {}
 
     /**
-     * Get all published reading lists for the current user
+     * Get all published reading lists and categories for the current user
      * @return array<array{id: int, title: string, summary: ?string, slug: string, createdAt: \DateTimeInterface, pubkey: string, articleCount: int}>
      */
     public function getUserReadingLists(): array
@@ -50,7 +51,8 @@ class ReadingListManager
         foreach ($events as $ev) {
             if (!$ev instanceof Event) continue;
             $tags = $ev->getTags();
-            $isReadingList = false;
+            $isIndex = false;
+            $isMagazine = false;
             $title = null;
             $slug = null;
             $summary = null;
@@ -58,8 +60,8 @@ class ReadingListManager
 
             foreach ($tags as $t) {
                 if (is_array($t)) {
-                    if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') {
-                        $isReadingList = true;
+                    if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'magazine'])) {
+                        $isIndex = true;
                     }
                     if (($t[0] ?? null) === 'title') {
                         $title = (string)$t[1];
@@ -71,12 +73,18 @@ class ReadingListManager
                         $slug = (string)$t[1];
                     }
                     if (($t[0] ?? null) === 'a') {
-                        $articleCount++;
+                        // Look for kind 30023 articles only
+                        if (isset($t[1]) && str_starts_with($t[1],'30023')) {
+                            $articleCount++;
+                        }
+                        if (isset($t[1]) && str_starts_with($t[1],'30040')) {
+                            $isMagazine = true;
+                        }
                     }
                 }
             }
 
-            if ($isReadingList) {
+            if ($isIndex && !$isMagazine) {
                 // Collapse by slug: keep only newest per slug
                 $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
                 if (isset($seenSlugs[$slug ?? $keySlug])) {
@@ -163,7 +171,7 @@ class ReadingListManager
                     if (($t[0] ?? null) === 'd') {
                         $eventSlug = (string)$t[1];
                     }
-                    if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') {
+                    if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'category'])) {
                         $isReadingList = true;
                     }
                 }
@@ -285,7 +293,7 @@ class ReadingListManager
                 if (($t[0] ?? null) === 'd') {
                     $eventSlug = (string)$t[1];
                 }
-                if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') {
+                if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'category'])) {
                     $isReadingList = true;
                 }
                 if (($t[0] ?? null) === 'a') {
