@@ -149,6 +149,16 @@ aside header {
 }
 
 /* Responsive adjustments */
+@media (max-width: 1200px) {
+    .layout {
+        grid-template-columns: 240px auto;
+    }
+    aside {
+        display: none; /* Hide the sidebars on small screens */
+    }
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .layout {
         grid-template-columns: auto;

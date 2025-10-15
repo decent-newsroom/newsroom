@@ -18,6 +18,9 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class ReadingListController extends AbstractController
 {
+    /**
+     * Display the user's reading lists.
+     */
     #[Route('/reading-list', name: 'reading_list_index')]
     public function index(EntityManagerInterface $em): Response
     {

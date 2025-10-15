@@ -1,7 +1,7 @@
 <div {{ attributes }}>
     {% if nzines is not empty %}
     {% for item in nzines %}
-        <div class="card">
+        <div class="card p-3 ln-section--reader">
             <div class="card-body text-center">
                 <h2 class="card-title">
                     <a href="{{ path('magazine-index', {mag: item.slug}) }}">
@@ -35,7 +35,6 @@
                 {% endif %}
             </div>
         </div>
-        <br>
     {% endfor %}
     {% else %}
     <p><small>No magazines yet.</small></p>

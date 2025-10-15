@@ -33,7 +33,55 @@ class AuthorController extends AbstractController
 {
 
     /**
-     * Lists
+     * Reading List Index
+     */
+    #[Route('/p/{npub}/lists', name: 'author-reading-lists')]
+    public function readingLists($npub,
+                                EntityManagerInterface $em,
+                                NostrKeyUtil $keyUtil,
+                                LoggerInterface $logger): Response
+    {
+        // Convert npub to hex pubkey
+        $pubkey = $keyUtil->npubToHex($npub);
+        $logger->info(sprintf('Reading list: pubkey=%s', $pubkey));
+        // Find reading lists by pubkey, kind 30040 directly from database
+        $repo = $em->getRepository(Event::class);
+        $lists = $repo->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX], ['created_at' => 'DESC']);
+        // Filter to ensure they have a 'type:reading-list' tag
+        $filteredLists     = [];
+        $seenSlugs        = [];
+        foreach ($lists as $ev) {
+            if (!$ev instanceof Event) continue;
+            $tags = $ev->getTags();
+            $isReadingList = false;
+            $title = null; $slug = null; $summary = null;
+            foreach ($tags as $t) {
+                if (is_array($t)) {
+                    if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') { $isReadingList = true; }
+                    if (($t[0] ?? null) === 'title') { $title = (string)$t[1]; }
+                    if (($t[0] ?? null) === 'summary') { $summary = (string)$t[1]; }
+                    if (($t[0] ?? null) === 'd') { $slug = (string)$t[1]; }
+                }
+            }
+            if ($isReadingList) {
+                // Collapse by slug: keep only newest per slug
+                $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
+                if (isset($seenSlugs[$slug ?? $keySlug])) {
+                    continue;
+                }
+                $seenSlugs[$slug ?? $keySlug] = true;
+                $filteredLists[] = $ev;
+            }
+        }
+
+        return $this->render('profile/author-lists.html.twig', [
+            'lists' => $filteredLists,
+            'npub' => $npub,
+        ]);
+    }
+
+    /**
+     * List
      * @throws Exception
      */
     #[Route('/p/{npub}/list/{slug}', name: 'reading-list')]
@@ -128,7 +176,7 @@ class AuthorController extends AbstractController
             $event->noteId = $nip19->encodeNote($event->id);
         }
 
-        return $this->render('pages/author-media.html.twig', [
+        return $this->render('profile/author-media.html.twig', [
             'author' => $author,
             'npub' => $npub,
             'pictureEvents' => $mediaEvents,
@@ -210,7 +258,7 @@ class AuthorController extends AbstractController
         }
 
 
-        return $this->render('pages/author.html.twig', [
+        return $this->render('profile/author.html.twig', [
             'author' => $author,
             'npub' => $npub,
             'pubkey' => $pubkey,

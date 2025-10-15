@@ -1,0 +1,16 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+
+    {% include 'partial/_author-section.html.twig' with {author: author, npub: npub} %}
+
+<section>
+    <div class="profile-tabs">
+        <a href="{{ path('author-profile', {'npub': npub}) }}" class="tab-link">Articles</a>
+        <a href="{{ path('author-reading-lists', {'npub': npub}) }}" class="tab-link">Reading Lists</a>
+        <a href="{{ path('author-media', {'npub': npub}) }}" class="tab-link active">Media</a>
+    </div>
+
+
+
+</section>

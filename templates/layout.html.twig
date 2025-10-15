@@ -21,13 +21,8 @@
                         <a href="{{ path('media-discovery') }}">Multimedia</a>
                     </li>
                     <li>
-                        <a href="{{ path('reading_list_index') }}">Lists</a>
+                        <a href="{{ path('lists') }}">Lists</a>
                     </li>
-                    {% if is_granted('ROLE_ADMIN') %}
-                    <li>
-                        <a href="{{ path('nzine_list') }}">My NZines</a>
-                    </li>
-                    {% endif %}
                     <li>
                         <a href="{{ path('app_search_index') }}">{{ 'heading.search'|trans }}</a>
                     </li>
