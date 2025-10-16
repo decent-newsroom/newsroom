@@ -123,26 +123,41 @@ export default class extends Controller {
     // Build tags array
     const tags = [];
     tags.push(['d', listData.slug]);
-    tags.push(['type', 'reading-list']);
     tags.push(['title', listData.title]);
 
     if (listData.summary) {
       tags.push(['summary', listData.summary]);
     }
 
+    // Find type tag and duplicate that (there should only be one)
+    if (listData.eventJson) {
+      const existingTags = JSON.parse(listData.eventJson);
+      const typeTag = existingTags.find(t => t[0] === 'type');
+      tags.push(typeTag || ['type', 'reading_list']);
+    }
+
     // Add existing articles (avoid duplicates)
     const articleSet = new Set();
-    if (listData.articles && Array.isArray(listData.articles)) {
+
+    // Add the new article first
+    if (this.coordinateValue) {
+      articleSet.add(this.coordinateValue);
+    }
+
+    if (listData.eventJson) {
+      const existingTags = JSON.parse(listData.eventJson);
+      const existingA = existingTags.filter(t => t[0] === 'a').map(t => t[1]);
+      existingA.forEach(coord => {
+        if (coord && typeof coord === 'string') {
+          articleSet.add(coord);
+        }
+      });
+    } else if (listData.articles && Array.isArray(listData.articles)) {
       listData.articles.forEach(coord => {
         if (coord && typeof coord === 'string') {
           articleSet.add(coord);
         }
       });
-    }
-
-    // Add the new article
-    if (this.coordinateValue) {
-      articleSet.add(this.coordinateValue);
     }
 
     // Convert set to tags

@@ -316,7 +316,7 @@ class DefaultController extends AbstractController
     /**
      * @throws InvalidArgumentException
      */
-    #[Route('/mag/{mag}/cat/{cat}/d/{slug}', name: 'magazine-category-article')]
+    #[Route('/mag/{mag}/cat/{cat}/d/{slug}', name: 'magazine-category-article', requirements: ['slug' => '.+'])]
     public function magArticle($mag, $cat, $slug,
                                RedisCacheService $redisCacheService,
                                CacheItemPoolInterface $articlesCache,
