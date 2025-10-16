@@ -48,7 +48,7 @@ class CacheLatestArticlesCommand extends Command
             $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed 𝚋𝚘𝚝 (Just annoying)
         ];
 
-        if (!$cacheItem->isHit()) {
+        // if (!$cacheItem->isHit()) {
             $boolQuery = new BoolQuery();
             $boolQuery->addMustNot(new Terms('pubkey', $excludedPubkeys));
 
@@ -70,9 +70,9 @@ class CacheLatestArticlesCommand extends Command
             $cacheItem->expiresAfter(3600); // Cache for 1 hour
             $this->articlesCache->save($cacheItem);
             $output->writeln('<info>Cached ' . count($articles) . ' articles.</info>');
-        } else {
-            $output->writeln('<comment>Cache already exists for key: ' . $cacheKey . '</comment>');
-        }
+//        } else {
+//            $output->writeln('<comment>Cache already exists for key: ' . $cacheKey . '</comment>');
+//        }
 
         return Command::SUCCESS;
     }
