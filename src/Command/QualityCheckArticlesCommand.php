@@ -73,7 +73,8 @@ class QualityCheckArticlesCommand extends Command
         }
 
         // Do not index stacker news reposts
-        if (str_contains($content, 'originally posted at https://stacker.news')) {
+        // Filter out articles that end with stacker.news link
+        if (preg_match('/https:\/\/stacker\.news\/items\/\d+$/', $content)) {
             return false;
         }
 
