@@ -27,11 +27,44 @@ article {
 .article-main ul,
 .article-main ol,
 .article-main blockquote,
-.article-main table {
+.article-main table,
+#editor .ql-editor p,
+#editor .ql-editor ul,
+#editor .ql-editor ol,
+#editor .ql-editor blockquote,
+#editor .ql-editor table {
     font-family: var(--main-body-font), serif;
     color: var(--color-text-mid);
     font-size: 1.4rem;
     line-height: 1.75;
+}
+
+#editor .ql-editor p,
+#editor .ql-editor ul,
+#editor .ql-editor ol,
+#editor .ql-editor blockquote,
+#editor .ql-editor table {
+    font-family: var(--main-body-font), serif;
+    color: var(--color-text-mid);
+    font-size: 1.4rem;
+    line-height: 1.5;
+}
+
+#editor .ql-editor li {
+    line-height: 1.4;
+}
+
+#editor .ql-editor p,
+#editor .ql-editor ul,
+#editor .ql-editor ol {
+    margin-bottom: var(--spacing-3);
+}
+
+#editor .ql-editor h1,
+#editor .ql-editor h2,
+#editor .ql-editor h3 {
+    margin-top: var(--spacing-4);
+    margin-bottom: var(--spacing-3);
 }
 
 .article-main table {
