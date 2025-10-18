@@ -72,6 +72,16 @@
 
 
                 {{ form_row(form.topics) }}
+                {{ form_row(form.clientTag, {
+                    'row_attr': {'class': 'mb-3 form-check'},
+                    'label_attr': {'class': 'form-check-label'},
+                    'attr': {'class': 'form-check-input'}
+                }) }}
+                {{ form_row(form.isDraft, {
+                    'row_attr': {'class': 'mb-3 form-check'},
+                    'label_attr': {'class': 'form-check-label'},
+                    'attr': {'class': 'form-check-input'}
+                }) }}
 
                 <div class="actions">
                     <button type="button"

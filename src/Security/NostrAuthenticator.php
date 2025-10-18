@@ -37,7 +37,9 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
      */
     public function supports(Request $request): ?bool
     {
-        return $request->headers->has('Authorization') &&
+        // Only support requests with /login route
+        $isLogin = $request->getPathInfo() === '/login';
+        return $isLogin && $request->headers->has('Authorization') &&
                str_starts_with($request->headers->get('Authorization', ''), self::NOSTR_AUTH_SCHEME);
     }
 

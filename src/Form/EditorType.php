@@ -9,6 +9,7 @@ use App\Form\DataTransformer\CommaSeparatedToJsonTransformer;
 use App\Form\DataTransformer\HtmlToMdTransformer;
 use App\Form\Type\QuillType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
@@ -40,7 +41,17 @@ class EditorType extends AbstractType
                 'required' => false,
                 'sanitize_html' => true,
                 'help' => 'Separate tags with commas, skip #',
-                'attr' => ['placeholder' => 'Add tags', 'class' => 'form-control']]);
+                'attr' => ['placeholder' => 'Add tags', 'class' => 'form-control']])
+            ->add('clientTag', CheckboxType::class, [
+                'label'    => 'Add client tag to article (Decent Newsroom)',
+                'required' => false,
+                'mapped'   => false,
+            ])
+            ->add('isDraft', CheckboxType::class, [
+                'label'    => 'Save as draft',
+                'required' => false,
+                'mapped'   => false,
+            ]);
 
         // Apply the custom transformer
         $builder->get('topics')

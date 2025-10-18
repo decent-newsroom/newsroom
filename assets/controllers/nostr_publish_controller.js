@@ -89,6 +89,8 @@ export default class extends Controller {
         const summary = formData.get('editor[summary]') || '';
         const image = formData.get('editor[image]') || '';
         const topicsString = formData.get('editor[topics]') || '';
+        const isDraft = formData.get('editor[isDraft]') === '1';
+        const addClientTag = formData.get('editor[clientTag]') === '1';
 
         // Parse topics
         const topics = topicsString.split(',')
@@ -106,7 +108,9 @@ export default class extends Controller {
             content,
             image,
             topics,
-            slug
+            slug,
+            isDraft,
+            addClientTag
         };
     }
 
@@ -119,8 +123,12 @@ export default class extends Controller {
             ['d', formData.slug],
             ['title', formData.title],
             ['published_at', Math.floor(Date.now() / 1000).toString()],
-            ['client', 'Decent Newsroom']
         ];
+
+        let kind = 30023; // Default kind for long-form content
+        if (formData.isDraft) {
+            kind = 30024; // Draft kind
+        }
 
         if (formData.summary) {
             tags.push(['summary', formData.summary]);
@@ -135,9 +143,13 @@ export default class extends Controller {
             tags.push(['t', topic.replace('#', '')]);
         });
 
+        if (formData.addClientTag) {
+          tags.push(['client', 'Decent Newsroom']);
+        }
+
         // Create the Nostr event (NIP-23 long-form content)
         const event = {
-            kind: 30023, // Long-form content kind
+            kind: kind, // Long-form content kind
             created_at: Math.floor(Date.now() / 1000),
             tags: tags,
             content: formData.content,

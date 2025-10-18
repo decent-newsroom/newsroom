@@ -99,3 +99,21 @@ fieldset {
 form ul.list-unstyled li > div > label {
     display: none;
 }
+
+form > div.form-check {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: var(--spacing-2);
+}
+
+form .form-check-input[type="checkbox"] {
+    margin-right: var(--spacing-2);
+    width: auto;
+}
+
+form .form-check-label {
+    margin: 0;
+    font-weight: normal;
+}
