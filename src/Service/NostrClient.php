@@ -533,7 +533,7 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getLongFormContentForPubkey(string $ident, ?int $since = null): array
+    public function getLongFormContentForPubkey(string $ident, ?int $since = null, ?int $kind = KindsEnum::LONGFORM->value ): array
     {
         // Add user relays to the default set
         $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
@@ -553,7 +553,7 @@ class NostrClient
         }
 
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::LONGFORM],
+            kinds: [$kind],
             filters: $filters,
             relaySet: $relaySet
         );

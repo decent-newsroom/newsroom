@@ -138,7 +138,7 @@ class ArticleController  extends AbstractController
      */
     #[Route('/article-editor/create', name: 'editor-create')]
     #[Route('/article-editor/edit/{slug}', name: 'editor-edit-slug')]
-    public function newArticle(Request $request, EntityManagerInterface $entityManager, $slug = null): Response
+    public function newArticle(Request $request, NostrClient $nostrClient, EntityManagerInterface $entityManager, $slug = null): Response
     {
         if (!$slug) {
             $article = new Article();
@@ -178,6 +178,11 @@ class ArticleController  extends AbstractController
             });
             $recentArticles = array_values($recentArticles);
             // get drafts
+            // look for drafts on relays first, grab latest 5 from there
+            // one week ago
+            $since = new \DateTime();
+            $aWeekAgo = $since->sub(new \DateInterval('P1D'))->getTimestamp();
+            $nostrClient->getLongFormContentForPubkey($currentPubkey, $aWeekAgo, KindsEnum::LONGFORM_DRAFT->value);
             $drafts = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
 
