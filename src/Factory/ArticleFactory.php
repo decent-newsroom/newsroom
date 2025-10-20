@@ -51,7 +51,9 @@ class ArticleFactory
                     $entity->setImage($tag[1]);
                     break;
                 case 'published_at':
-                    $entity->setPublishedAt(\DateTimeImmutable::createFromFormat('U', (string)$tag[1]));
+                    if ($time = \DateTimeImmutable::createFromFormat('U', (string)$tag[1])) {
+                        $entity->setPublishedAt($time);
+                    }
                     break;
                 case 't':
                     $entity->addTopic($tag[1]);
