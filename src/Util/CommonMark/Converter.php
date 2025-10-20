@@ -204,9 +204,11 @@ readonly class Converter
                 $label = $profile && isset($profile->name) ? $profile->name : $this->labelFromKey($bechEncoded);
                 return '<a href="/p/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
             case 'nprofile':
+                /** @var NProfile $object */
                 $object = $decoded->data;
-                $label = $this->labelFromKey($bechEncoded);
-                return '<a href="/p/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
+                $npub = $this->nostrKeyUtil->npubToHex($object->pubkey);
+                $label = $this->labelFromKey($npub);
+                return '<a href="/p/' . $npub . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
             case 'note':
                 $object = $decoded->data;
                 $event = $events[$object->data] ?? null;
