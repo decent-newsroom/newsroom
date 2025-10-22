@@ -176,7 +176,7 @@ class ArticleController  extends AbstractController
                 }
                 return $carry;
             });
-            $recentArticles = array_values($recentArticles);
+            $recentArticles = array_values($recentArticles ?? []);
             // get drafts
             // look for drafts on relays first, grab latest 5 from there
             // one week ago
