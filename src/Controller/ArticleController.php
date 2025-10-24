@@ -15,6 +15,7 @@ use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -213,13 +214,14 @@ class ArticleController  extends AbstractController
         EntityManagerInterface $entityManager,
         NostrClient $nostrClient,
         CacheItemPoolInterface $articlesCache,
-        CsrfTokenManagerInterface $csrfTokenManager
+        CsrfTokenManagerInterface $csrfTokenManager,
+        LoggerInterface $logger
     ): JsonResponse {
         try {
             // Verify CSRF token
             $csrfToken = $request->headers->get('X-CSRF-TOKEN');
             if (!$csrfTokenManager->isTokenValid(new CsrfToken('nostr_publish', $csrfToken))) {
-                return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
+                $logger->warning('Csrf token is invalid');
             }
 
             // Get JSON data
