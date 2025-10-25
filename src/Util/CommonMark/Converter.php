@@ -236,7 +236,9 @@ readonly class Converter
                     return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
                 }
             case 'naddr':
-                if ($decoded->kind === KindsEnum::LONGFORM->value) {
+                /** @var NAddr $object */
+                $object = $decoded->data;
+                if ($object->kind === KindsEnum::LONGFORM->value) {
                     return '<a href="/article/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
                 } else {
                     return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
