@@ -138,7 +138,7 @@
     {% if hashtags|length > 0 %}
         <div class="video-hashtags">
             {% for hashtag in hashtags %}
-                <span class="hashtag">#{{ hashtag }}</span>
+                <a href="{{ path('forum_tag', {'tag': hashtag}) }}" class="tag">#{{ hashtag }}</a>
             {% endfor %}
         </div>
     {% endif %}
