@@ -15,8 +15,8 @@ class ArticleFactory
 {
     public function createFromLongFormContentEvent($source): Article
     {
-        if ($source->kind !== KindsEnum::LONGFORM->value ||
-            $source->kind !== KindsEnum::LONGFORM_DRAFT->value) {
+        if (!($source->kind === KindsEnum::LONGFORM->value ||
+            $source->kind === KindsEnum::LONGFORM_DRAFT->value)) {
             throw new InvalidArgumentException('Source event kind should be 30023 or 30024');
         }
 
