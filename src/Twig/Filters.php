@@ -92,6 +92,9 @@ class Filters extends AbstractExtension
         $nip19 = new Nip19Helper();
         if ($article->getRaw() !== null) {
             $event = Event::fromVerified((object)$article->getRaw());
+            if ($event === null) {
+                return $nip19->encodeNote($article->getEventId());
+            }
             return $nip19->encodeAddr($event, $article->getSlug(), $article->getKind()->value);
         } else {
             return $nip19->encodeNote($article->getEventId());
