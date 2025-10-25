@@ -82,11 +82,9 @@ services:
       depends_on:
           - php
           - database
-      # IMPORTANT: ensure it does NOT bind ports or mount caddy volumes
-      ports: []
-      expose: []
-      volumes:
-          - .:/app
+      environment:
+            APP_ENV: prod
+            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
 
 volumes:
   caddy_data:
