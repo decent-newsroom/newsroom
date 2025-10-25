@@ -47,10 +47,10 @@ class ForumController extends AbstractController
         $user = $this->getUser();
         if (!!$user) {
             try {
-                $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
+                $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
                 $interests = $nostrClient->getUserInterests($pubkey);
                 if (!empty($interests)) {
-                    $counts = $this->fetchTagCounts($index, array_keys($interests)); // ['tag' => count]
+                    $counts = $this->fetchTagCounts($index, array_values($interests)); // ['tag' => count]
                     $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
                     // Filter to only include subcategories that have tags in interests
                     foreach ($userInterests as $catKey => $cat) {
@@ -66,6 +66,20 @@ class ForumController extends AbstractController
                         } else {
                             unset($userInterests[$catKey]);
                         }
+                    }
+                    // All user interest combined
+                    $userInterests['interests'] = [
+                        'name' => 'Interests',
+                        'subcategories' => [],
+                    ];
+                    $userInterests['interests']['subcategories']['all'] = [
+                        'name' => 'All Interests',
+                        'tags' => [],
+                        'count' => 0,
+                    ];
+                    foreach ($interests as $tag) {
+                        $userInterests['interests']['subcategories']['all']['tags'][] = $tag;
+                        $userInterests['interests']['subcategories']['all']['count'] += $counts[strtolower($tag)] ?? 0;
                     }
                 }
             } catch (\Exception $e) {
@@ -84,17 +98,38 @@ class ForumController extends AbstractController
         string $key,
         #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
         #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
+        NostrClient $nostrClient,
         Request $request
     ): Response {
         // key format: "{category}-{subcategory}"
         $key = strtolower(trim($key));
         [$cat, $sub] = array_pad(explode('-', $key, 2), 2, null);
 
-        if (!$cat || !$sub || !isset(ForumTopics::TOPICS[$cat]['subcategories'][$sub])) {
+        if ($cat === 'interests' && $sub === 'all') {
+            // Special case for "All Interests" pseudo-topic
+            $allTags = []; // will be filled below
+            /** @var User $user */
+            $user = $this->getUser();
+            if (!!$user) {
+                try {
+                    $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $interests = $nostrClient->getUserInterests($pubkey);
+                    if (!empty($interests)) {
+                        $allTags = array_map('strtolower', array_values($interests));
+                    }
+                } catch (\Exception $e) {
+                    // Ignore errors, just show empty topic
+                }
+            }
+            $topic = [
+                'name' => 'All Interests',
+                'tags' => $allTags,
+            ];
+        } else if (!$cat || !$sub || !isset(ForumTopics::TOPICS[$cat]['subcategories'][$sub])) {
             throw $this->createNotFoundException('Topic not found');
+        } else {
+            $topic = ForumTopics::TOPICS[$cat]['subcategories'][$sub];
         }
-
-        $topic = ForumTopics::TOPICS[$cat]['subcategories'][$sub];
 
         // Count each tag in this subcategory in one shot
         $tags = array_map('strval', $topic['tags']);
