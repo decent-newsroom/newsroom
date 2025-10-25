@@ -9,10 +9,6 @@ const PRECACHE_ASSETS = [
   '/',
   '/assets/app.js',
   '/assets/bootstrap.js',
-  '/assets/styles/app.css',
-  '/assets/styles/theme.css',
-  '/assets/styles/layout.css',
-  '/assets/styles/fonts.css',
   '/assets/icons/favicon.ico',
   '/assets/icons/web-app-manifest-192x192.png',
   '/assets/icons/web-app-manifest-512x512.png'
