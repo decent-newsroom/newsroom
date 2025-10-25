@@ -6,7 +6,6 @@ use App\Enum\KindsEnum;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
-use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Exception\CommonMarkException;
@@ -30,229 +29,340 @@ use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
 use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
-use nostriphant\NIP19\Data\NPub;
 
-readonly class Converter
+final readonly class Converter
 {
+    /** Match any nostr:* bech link (used for batching) */
+    private const RE_ALL_NOSTR = '~nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\s<>()\[\]{}"\'`.,;:!?]*~i';
+
+    /** Replace anchors with href="nostr:..." while preserving inner text */
+    private const RE_NOSTR_ANCHOR = '~<a\b(?<attrs>[^>]*?)\bhref=(["\'])(?<nostr>nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^"\']*)\2(?<attrs2>[^>]*)>(?<inner>.*?)</a>~is';
+
+    /** Bare-text nostr links, defensive against href immediate prefix */
+    private const RE_BARE_NOSTR = '~(?<!href=")(?<!href=\')nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\s<>()\[\]{}"\'`.,;:!?]*~i';
+
     public function __construct(
         private RedisCacheService $redisCacheService,
         private NostrClient $nostrClient,
         private TwigEnvironment $twig,
         private NostrKeyUtil $nostrKeyUtil
-    ){}
+    ) {}
 
     /**
      * @throws CommonMarkException
      */
     public function convertToHTML(string $markdown): string
     {
-        // Check if the article has more than three headings
-        // Match all headings (from level 1 to 6)
-        preg_match_all('/^#+\s.*$/m', $markdown, $matches);
-        $headingsCount = count($matches[0]);
+        $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
-        // Configure the Environment with all the CommonMark parsers/renderers
         $config = [
-            'table_of_contents' => [
-                'min_heading_level' => 1,
-                'max_heading_level' => 2,
-            ],
-            'heading_permalink' => [
-                'symbol' => '§',
-            ],
-            'autolink' => [
-                'allowed_protocols' => ['https'], // defaults to ['https', 'http', 'ftp']
-                'default_protocol' => 'https', // defaults to 'http'
-            ],
-            'embed' => [
-                'adapter' => new OscaroteroEmbedAdapter(), // See the "Adapter" documentation below
-                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build', 'video.nostr.build'], // If null, all domains are allowed
-                'fallback' => 'link'
+            'table_of_contents' => ['min_heading_level' => 1, 'max_heading_level' => 2],
+            'heading_permalink' => ['symbol' => '§'],
+            'autolink'          => ['allowed_protocols' => ['https'], 'default_protocol' => 'https'],
+            'embed'             => [
+                'adapter'         => new OscaroteroEmbedAdapter(),
+                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build', 'video.nostr.build'],
+                'fallback'        => 'link',
             ],
         ];
-        $environment = new Environment($config);
-        // Add the extensions
-        $environment->addExtension(new CommonMarkCoreExtension());
-        $environment->addExtension(new FootnoteExtension());
-        $environment->addExtension(new TableExtension());
-        $environment->addExtension(new StrikethroughExtension());
-        $environment->addExtension(new SmartPunctExtension());
-        $environment->addExtension(new EmbedExtension());
-        $environment->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
-        $environment->addExtension(new RawImageLinkExtension());
-        $environment->addExtension(new AutolinkExtension());
+
+        $env = new Environment($config);
+        $env->addExtension(new CommonMarkCoreExtension());
+        $env->addExtension(new FootnoteExtension());
+        $env->addExtension(new TableExtension());
+        $env->addExtension(new StrikethroughExtension());
+        $env->addExtension(new SmartPunctExtension());
+        $env->addExtension(new EmbedExtension());
+        $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+        $env->addExtension(new RawImageLinkExtension());
+        $env->addExtension(new AutolinkExtension());
+
         if ($headingsCount > 3) {
-            $environment->addExtension(new HeadingPermalinkExtension());
-            $environment->addExtension(new TableOfContentsExtension());
+            $env->addExtension(new HeadingPermalinkExtension());
+            $env->addExtension(new TableOfContentsExtension());
         }
 
-        // Instantiate the converter engine and start converting some Markdown!
-        $converter = new MarkdownConverter($environment);
-        $content = html_entity_decode($markdown);
+        $converter = new MarkdownConverter($env);
+        $html = (string) $converter->convert(html_entity_decode($markdown));
 
-        $html = $converter->convert($content);
-
-        // Process nostr links after conversion to avoid re-processing HTML
         return $this->processNostrLinks($html);
     }
 
     private function processNostrLinks(string $content): string
     {
-        // Find all nostr: links
-        preg_match_all('/nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\\s<>()\\[\\]{}"\'`.,;:!?]*/', $content, $matches);
-
-        if (empty($matches[0])) {
+        // 1) Collect all nostr refs for batching (anchors + bare text)
+        preg_match_all(self::RE_ALL_NOSTR, $content, $mAll);
+        if (empty($mAll[0])) {
             return $content;
         }
 
-        $links = array_unique($matches[0]);
-        $replacements = [];
+        $uniqueLinks = array_values(array_unique($mAll[0]));
+        [$eventIds, $pubkeyHexes] = $this->collectBatchKeys($uniqueLinks);
 
-        // Collect data for batching
-        $pubkeys = [];
-        $eventIds = [];
+        // 2) Batch fetch events (map: id => event)
+        $eventsById = $this->fetchEventsById($eventIds, $pubkeyHexes);
 
-        foreach ($links as $link) {
-            $bechEncoded = substr($link, 6); // Remove "nostr:"
-            try {
-                $decoded = new Bech32($bechEncoded);
-                switch ($decoded->type) {
-                    case 'npub':
-                        /** @var NPub $object */
-                        $object = $decoded->data;
-                        $hex = $this->nostrKeyUtil->npubToHex($bechEncoded);
-                        $pubkeys[$hex] = $bechEncoded;
-                        break;
-                    case 'nprofile':
-                        /** @var NProfile $object */
-                        $object = $decoded->data;
-                        $pubkeys[$object->pubkey] = $this->nostrKeyUtil->hexToNpub($object->pubkey);
-                        break;
-                    case 'note':
-                        /** @var Note $object */
-                        $object = $decoded->data;
-                        $eventIds[$object->data] = $bechEncoded;
-                        break;
-                    case 'nevent':
-                        /** @var NEvent $object */
-                        $object = $decoded->data;
-                        $eventIds[$object->id] = $bechEncoded;
-                        break;
-                    case 'naddr':
-                        // For naddr, we might need to fetch the event, but for now, handle as simple link
-                        break;
-                }
-            } catch (\Exception $e) {
-                // Invalid link, skip
-                continue;
-            }
-        }
+        // 3) Batch fetch metadata (map: hex => profile)
+        $metadataByHex = $this->fetchMetadataByHex(array_keys($pubkeyHexes));
 
-        // Fetch events in batch
-        $events = [];
-        if (!empty($eventIds)) {
-            try {
-                $events = $this->nostrClient->getEventsByIds(array_keys($eventIds));
-            } catch (\Exception $e) {
-                // If batch fails, events remain empty
-            }
-        }
+        // 4) Replace anchors (inline by default, card if data-embed or class)
+        $content = $this->replaceNostrAnchors($content, $eventsById, $metadataByHex);
 
-        // Collect pubkeys from events for metadata fetching
-        $eventPubkeys = [];
-        foreach ($events as $event) {
-            $eventPubkeys[$event->pubkey] = true;
-        }
+        // 5) Replace bare text only in text nodes
+        $content = $this->replaceBareTextNostr($content, $eventsById, $metadataByHex);
 
-        // Fetch metadata in batch
-        $allHexes = array_unique(array_merge(array_keys($pubkeys), array_keys($eventPubkeys)));
-        $metadata = [];
-        try {
-            $fetchedMetadata = $this->redisCacheService->getMultipleMetadata($allHexes);
-            foreach ($allHexes as $hex) {
-                $metadata[$hex] = $fetchedMetadata[$hex] ?? null;
-            }
-        } catch (\Exception $e) {
-            foreach ($allHexes as $hex) {
-                $metadata[$hex] = null;
-            }
-        }
-
-        // Now, render each link
-        foreach ($links as $link) {
-            $bechEncoded = substr($link, 6);
-            try {
-                $decoded = new Bech32($bechEncoded);
-                $html = $this->renderNostrLink($decoded, $bechEncoded, $metadata, $events);
-                $replacements[$link] = $html;
-            } catch (\Exception $e) {
-                // Keep original link if error
-                $replacements[$link] = $link;
-            }
-        }
-
-        // Replace in content
-        return str_replace(array_keys($replacements), array_values($replacements), $content);
+        return $content;
     }
 
-    private function renderNostrLink(Bech32 $decoded, string $bechEncoded, array $metadata, array $events): string
+    /** @return array{0: array<string,int>, 1: array<string,int>} [$eventIds, $pubkeyHexes] */
+    private function collectBatchKeys(array $links): array
     {
+        $eventIds = [];    // id => 1
+        $pubkeyHexes = []; // hex => 1
+
+        foreach ($links as $link) {
+            $bech = substr($link, 6);
+            try {
+                $decoded = new Bech32($bech);
+                switch ($decoded->type) {
+                    case 'npub':
+                        $hex = $this->nostrKeyUtil->npubToHex($bech);
+                        $pubkeyHexes[$hex] = 1;
+                        break;
+                    case 'nprofile':
+                        /** @var NProfile $obj */
+                        $obj = $decoded->data;
+                        $pubkeyHexes[$obj->pubkey] = 1;
+                        break;
+                    case 'note':
+                        /** @var Note $obj */
+                        $obj = $decoded->data;
+                        $eventIds[$obj->data] = 1;
+                        break;
+                    case 'nevent':
+                        /** @var NEvent $obj */
+                        $obj = $decoded->data;
+                        $eventIds[$obj->id] = 1;
+                        break;
+                    case 'naddr':
+                        // no prefetch for now
+                        break;
+                }
+            } catch (\Throwable) {
+                // skip invalid
+            }
+        }
+
+        return [$eventIds, $pubkeyHexes];
+    }
+
+    /** @param array<string,int> $eventIds  @param array<string,int> $pubkeyHexes  @return array<string,object> */
+    private function fetchEventsById(array $eventIds, array &$pubkeyHexes): array
+    {
+        $eventsById = [];
+        if (empty($eventIds)) {
+            return $eventsById;
+        }
+
+        try {
+            $list = $this->nostrClient->getEventsByIds(array_keys($eventIds));
+            foreach ($list as $event) {
+                // expect $event->id and $event->pubkey
+                if (!empty($event->id)) {
+                    $eventsById[$event->id] = $event;
+                }
+                if (!empty($event->pubkey)) {
+                    $pubkeyHexes[$event->pubkey] = 1;
+                }
+            }
+        } catch (\Throwable) {
+            // swallow; fall back to simple links
+        }
+
+        return $eventsById;
+    }
+
+    /** @param string[] $hexes  @return array<string, mixed|null> */
+    private function fetchMetadataByHex(array $hexes): array
+    {
+        if (empty($hexes)) {
+            return [];
+        }
+
+        $byHex = [];
+        try {
+            $fetched = $this->redisCacheService->getMultipleMetadata($hexes);
+            foreach ($hexes as $hex) {
+                $byHex[$hex] = $fetched[$hex] ?? null;
+            }
+        } catch (\Throwable) {
+            foreach ($hexes as $hex) {
+                $byHex[$hex] = null;
+            }
+        }
+
+        return $byHex;
+    }
+
+    /** Replace <a href="nostr:...">…</a> with inline links by default (card if opted in) */
+    private function replaceNostrAnchors(string $content, array $eventsById, array $metadataByHex): string
+    {
+        return preg_replace_callback(self::RE_NOSTR_ANCHOR, function ($m) use ($eventsById, $metadataByHex) {
+            $nostrUrl = $m['nostr'];
+            $bech     = substr($nostrUrl, 6);
+            $attrsAll = trim(($m['attrs'] ?? '') . ' ' . ($m['attrs2'] ?? ''));
+            $inner    = $m['inner'];
+
+            // Inline by default for anchors
+            $preferInline = true;
+
+            // Opt-in to card if data-embed="1" or class contains "nostr-card" or "embed"
+            if (preg_match('~\bdata-embed\s*=\s*("1"|\'1\'|1)\b~i', $attrsAll) ||
+                preg_match('~\bclass\s*=\s*("|\')[^"\']*\b(nostr-card|embed)\b[^"\']*\1~i', $attrsAll)) {
+                $preferInline = false;
+            }
+
+            try {
+                $decoded = new Bech32($bech);
+                return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, $inner, $preferInline);
+            } catch (\Throwable) {
+                return $m[0]; // keep original anchor on error
+            }
+        }, $content);
+    }
+
+    /** Replace bare-text nostr links in text nodes only */
+    private function replaceBareTextNostr(string $content, array $eventsById, array $metadataByHex): string
+    {
+        $parts = preg_split('~(<[^>]+>)~', $content, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return $content;
+        }
+
+        foreach ($parts as $i => $part) {
+            // Skip tags and empties
+            if ($part === '' || $part[0] === '<') {
+                continue;
+            }
+
+            $parts[$i] = preg_replace_callback(self::RE_BARE_NOSTR, function ($mm) use ($eventsById, $metadataByHex) {
+                $nostrUrl = $mm[0];
+                $bech     = substr($nostrUrl, 6);
+                try {
+                    $decoded = new Bech32($bech);
+                    // Bare text can render cards (preferInline = false)
+                    return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, null, false);
+                } catch (\Throwable) {
+                    return $nostrUrl;
+                }
+            }, $part);
+        }
+
+        return implode('', $parts);
+    }
+
+    /**
+     * Renders a single nostr reference to HTML.
+     * - $eventsById: event.id => event
+     * - $metadataByHex: authorHex => profile
+     * - $displayText: preserve original anchor text if provided
+     * - $preferInline: true for inline <a>, false to allow cards
+     */
+    private function renderNostrLink(
+        Bech32 $decoded,
+        string $bechEncoded,
+        array $metadataByHex,
+        array $eventsById,
+        ?string $displayText = null,
+        bool $preferInline = false
+    ): string {
         switch ($decoded->type) {
-            case 'npub':
-                $hex = $this->nostrKeyUtil->npubToHex($bechEncoded);
-                $profile = $metadata[$hex] ?? null;
-                $label = $profile && isset($profile->name) ? $profile->name : $this->labelFromKey($bechEncoded);
-                return '<a href="/p/' . $bechEncoded . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
-            case 'nprofile':
-                /** @var NProfile $object */
-                $object = $decoded->data;
-                $npub = $this->nostrKeyUtil->npubToHex($object->pubkey);
-                $label = $this->labelFromKey($npub);
-                return '<a href="/p/' . $npub . '" class="nostr-mention">@' . htmlspecialchars($label) . '</a>';
-            case 'note':
-                $object = $decoded->data;
-                $event = $events[$object->data] ?? null;
-                if ($event && $event->kind === 20) {
-                    $pictureCardHtml = $this->twig->render('/event/_kind20_picture.html.twig', [
+            case 'npub': {
+                $hex     = $this->nostrKeyUtil->npubToHex($bechEncoded);
+                $profile = $metadataByHex[$hex] ?? null;
+                $label   = $displayText !== null && $displayText !== ''
+                    ? $displayText
+                    : (($profile->name ?? null) ?: $this->labelFromKey($bechEncoded));
+
+                return '<a href="/p/' . $this->e($bechEncoded) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
+            }
+
+            case 'nprofile': {
+                /** @var NProfile $obj */
+                $obj     = $decoded->data;
+                $hex     = $obj->pubkey;
+                $npub    = $this->nostrKeyUtil->hexToNpub($hex);
+                $profile = $metadataByHex[$hex] ?? null;
+                $label   = $displayText !== null && $displayText !== ''
+                    ? $displayText
+                    : (($profile->name ?? null) ?: $this->labelFromKey($npub));
+
+                return '<a href="/p/' . $this->e($npub) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
+            }
+
+            case 'note': {
+                /** @var Note $obj */
+                $obj   = $decoded->data;
+                $event = $eventsById[$obj->data] ?? null;
+
+                // Card only if allowed and kind 20 (picture)
+                if (!$preferInline && $event && (int) $event->kind === 20) {
+                    return $this->twig->render('/event/_kind20_picture.html.twig', [
                         'event' => $event,
-                        'embed' => true
+                        'embed' => true,
                     ]);
-                    return $pictureCardHtml;
-                } else {
-                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
                 }
-            case 'nevent':
-                $object = $decoded->data;
-                $event = $events[$object->id] ?? null;
-                if ($event) {
-                    $authorMetadata = $metadata[$event->pubkey] ?? null;
-                    $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
-                        'event' => $event,
-                        'author' => $authorMetadata,
-                        'nevent' => $bechEncoded
-                    ]);
-                    return $eventCardHtml;
-                } else {
-                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+
+                $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+                return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+            }
+
+            case 'nevent': {
+                /** @var NEvent $obj */
+                $obj   = $decoded->data;
+                $event = $eventsById[$obj->id] ?? null;
+
+                // Inline if requested (anchors) or if we don’t have event data
+                if ($preferInline || !$event) {
+                    $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+                    return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
-            case 'naddr':
-                /** @var NAddr $object */
-                $object = $decoded->data;
-                if ($object->kind === KindsEnum::LONGFORM->value) {
-                    return '<a href="/article/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
-                } else {
-                    return '<a href="/e/' . $bechEncoded . '" class="nostr-link">' . $bechEncoded . '</a>';
+
+                // Otherwise render a rich card
+                $authorMeta = $metadataByHex[$event->pubkey] ?? null;
+                return $this->twig->render('components/event_card.html.twig', [
+                    'event'  => $event,
+                    'author' => $authorMeta,
+                    'nevent' => $bechEncoded,
+                ]);
+            }
+
+            case 'naddr': {
+                /** @var NAddr $obj */
+                $obj  = $decoded->data;
+                $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+
+                if ((int) $obj->kind === (int) KindsEnum::LONGFORM->value) {
+                    return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
+
+                return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+            }
+
             default:
-                return $bechEncoded;
+                return $this->e($bechEncoded);
         }
     }
 
     private function labelFromKey(string $npub): string
     {
         $start = substr($npub, 0, 5);
-        $end = substr($npub, -5);
+        $end   = substr($npub, -5);
         return $start . '...' . $end;
     }
 
+    private function e(string $s): string
+    {
+        return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    }
 }
