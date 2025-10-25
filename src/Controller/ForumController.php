@@ -9,6 +9,7 @@ use App\Service\NostrClient;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Elastica\Aggregation\Filters as FiltersAgg;
+use Elastica\Collapse;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\Term;
@@ -21,6 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class ForumController extends AbstractController
 {
@@ -32,14 +34,13 @@ class ForumController extends AbstractController
         NostrClient $nostrClient
     ): Response {
         // Optional: small cache so we don’t hammer ES on every page view
-        //$categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($index) {
-        //    $item->expiresAfter(30); // 30s is a nice compromise for “live enough”
+        $categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($index) {
+            $item->expiresAfter(30); // 30s is a nice compromise for “live enough”
             $allTags = $this->flattenAllTags(ForumTopics::TOPICS); // ['tag' => true, ...]
             $counts = $this->fetchTagCounts($index, array_keys($allTags)); // ['tag' => count]
 
-        //    return $this->hydrateCategoryCounts(self::TOPICS, $counts);
-        //});
-        $categoriesWithCounts = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+            return $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+        });
 
         $userInterests = null;
         /** @var User $user */
@@ -49,6 +50,7 @@ class ForumController extends AbstractController
                 $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
                 $interests = $nostrClient->getUserInterests($pubkey);
                 if (!empty($interests)) {
+                    $counts = $this->fetchTagCounts($index, array_keys($interests)); // ['tag' => count]
                     $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
                     // Filter to only include subcategories that have tags in interests
                     foreach ($userInterests as $catKey => $cat) {
@@ -105,6 +107,9 @@ class ForumController extends AbstractController
         $query = new Query($bool);
         $query->setSize(20);
         $query->setSort(['createdAt' => ['order' => 'desc']]);
+        $collapse = new Collapse();
+        $collapse->setFieldname('slug');
+        $query->setCollapse($collapse);
 
         /** @var Pagerfanta $pager */
         $pager = $finder->findPaginated($query);
