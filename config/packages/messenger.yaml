@@ -4,7 +4,13 @@ framework:
         # failure_transport: failed
 
         transports:
-            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: app:%env(APP_ENV)%:messenger:async   # dev/prod get different keys
+                    group: app
+                    delete_after_ack: true
+                    redeliver_timeout: 600
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             # async: '%env(MESSENGER_TRANSPORT_DSN)%'
             # failed: 'doctrine://default?queue_name=failed'
