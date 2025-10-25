@@ -175,8 +175,10 @@
 
     </div>
 
+    {% if is_granted('ROLE_ADMIN') %}
     <pre>
         {{ event|json_encode(constant('JSON_PRETTY_PRINT')) }}
     </pre>
+    {% endif %}
 </div>
 {% endblock %}
