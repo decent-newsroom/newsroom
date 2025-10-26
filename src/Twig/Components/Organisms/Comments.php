@@ -20,7 +20,7 @@ final class Comments
 
     // Writable prop the browser can set
     #[LiveProp(writable: true)]
-    public string $payloadJson ; // { comments, profiles, ... }
+    public string $payloadJson = ' '; // { comments, profiles, ... }
 
     // Live input
     #[LiveProp(writable: false)]
