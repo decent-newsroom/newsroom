@@ -14,12 +14,13 @@ import { Controller } from "@hotwired/stimulus";
  */
 export default class extends Controller {
   static values = {
-    coordinate: String, // e.g. "nevent1..." or your coordinate id
+    coordinate: String,
   };
 
   static targets = ["list", "loading"];
 
   connect() {
+    console.log("[comments-mercure] Connecting to Mercure for comments at", this.coordinateValue);
     this._debounceId = null;
     this._opened = false;
 
@@ -54,7 +55,8 @@ export default class extends Controller {
       // Keep the UI usable even if Mercure hiccups
       this._hideLoading();
     };
-    this.eventSource.onmessage = () => {
+    this.eventSource.onmessage = (e) => {
+      console.log('Mercure MSG', e.data);
       // We ignore the payload; Mercure is just a signal to re-render the live component
       this._debouncedRefresh();
     };
