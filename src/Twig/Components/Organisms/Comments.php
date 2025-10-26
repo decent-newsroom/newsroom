@@ -60,7 +60,7 @@ final class Comments
     #[LiveAction]
     public function loadComments(#[LiveArg] string $payload): array
     {
-        $data = json_decode($payload);
+        $data = json_decode($payload,true);
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
         $this->list            = $data['comments'];
