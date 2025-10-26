@@ -10,9 +10,6 @@ export default class extends Controller {
     this.component = await getComponent(this.element);
     console.log("[comments_mercure] connected to Live Component:", this.component);
 
-    // Initial render from cache so UI isn’t empty
-    await this.component.render();
-
     // Subscribe to Mercure and re-render on each ping
     const hubUrl = window.MercureHubUrl || document.querySelector('meta[name="mercure-hub"]')?.content;
     if (!hubUrl) return;
@@ -24,7 +21,6 @@ export default class extends Controller {
     this.es.onmessage = async (msg) => {
       this.component.set('payloadJson', msg.data);
       this.component.action('loadComments', { 'payload': msg.data });
-      await this.component.render();
     };
   }
 

@@ -60,11 +60,16 @@ final class Comments
     #[LiveAction]
     public function loadComments(#[LiveArg] string $payload): void
     {
-        $data = json_decode($payload);
+        $data = json_decode($payload, true);
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
         $this->list            = $data->comments;
-        $this->authorsMetadata = (array)$data->profiles ?? [];
+        if (empty($this->list)) {
+            $this->loading = false;
+            return;
+        }
+
+        $this->authorsMetadata = $data->profiles ?? [];
 
         $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
         $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
@@ -78,7 +83,7 @@ final class Comments
     private function parseNostrLinks(): void
     {
         foreach ($this->list as $comment) {
-            $content = $comment->content ?? '';
+            $content = $comment['content'] ?? '';
             if (empty($content)) {
                 continue;
             }
@@ -103,11 +108,11 @@ final class Comments
     {
         foreach ($this->list as $comment) {
             // check if kind is 9735 to get zaps
-            if ($comment->kind !== 9735) {
+            if ($comment['kind'] !== 9735) {
                 continue;
             }
 
-            $tags = $comment->tags ?? [];
+            $tags = $comment['tags'] ?? [];
             if (empty($tags) || !is_array($tags)) {
                 continue;
             }
