@@ -20,7 +20,7 @@ final class Comments
 
     // Writable prop the browser can set
     #[LiveProp(writable: true)]
-    public string $payload; // { comments, profiles, ... }
+    public string $payloadJson ; // { comments, profiles, ... }
 
     // Live input
     #[LiveProp(writable: false)]
@@ -60,21 +60,19 @@ final class Comments
     /** Expose a view model to the template; keeps all parsing server-side */
     public function getPayload(): array
     {
-        if (!empty($this->payload)) {
-            $payload = json_decode($this->payload);
-        } else {
-            $payload = $this->redisCacheService->getCommentsPayload($this->current) ?? [
+        $data = $this->payloadJson !== ''
+            ? (json_decode($this->payloadJson, true) ?: [])
+            : $this->redisCacheService->getCommentsPayload($this->current) ?? [
                 'comments'      => [],
                 'profiles'      => [],
                 'zappers'       => [],
                 'zapAmounts'    => [],
                 'commentLinks'  => [],
             ];
-        }
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
-        $this->list            = $payload['comments'];
-        $this->authorsMetadata = $payload['profiles'] ?? [];
+        $this->list            = $data['comments'];
+        $this->authorsMetadata = $data['profiles'] ?? [];
 
         $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
         $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
