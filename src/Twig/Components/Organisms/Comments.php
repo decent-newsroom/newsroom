@@ -3,44 +3,81 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Message\FetchCommentsMessage;
-use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
+use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
+use Symfony\UX\LiveComponent\Attribute\LiveProp;
+use Symfony\UX\LiveComponent\DefaultActionTrait;
 
-#[AsTwigComponent()]
+#[AsLiveComponent]
 final class Comments
 {
+    use DefaultActionTrait;
+
+    // Live input
+    #[LiveProp(writable: false)]
+    public string $current;
+
+    // same fields you used before (the template will read from the payload)
     public array $list = [];
     public array $commentLinks = [];
     public array $processedContent = [];
     public array $zapAmounts = [];
     public array $zappers = [];
     public array $authorsMetadata = [];
-    public bool $loading = true;
-
-    private MessageBusInterface $bus;
+    public bool  $loading = true;
 
     public function __construct(
-        private readonly NostrClient $nostrClient,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisCacheService $redisCacheService,
-        MessageBusInterface $bus
-    ) {
-        $this->bus = $bus;
-    }
+        private readonly MessageBusInterface $bus,
+    ) {}
 
     /**
-     * @throws \Exception
+     * Mount the component with the current coordinate
      */
-    public function mount($current): void
+    public function mount(string $current): void
     {
-        // Instead of fetching comments directly, dispatch async message
+        $this->current = $current;
         $this->loading = true;
-        $this->list = [];
-        $this->bus->dispatch(new FetchCommentsMessage($current));
-        // The actual comments will be loaded via Mercure on the frontend
+
+        // Kick off (async) fetch to populate cache + publish Mercure
+        try {
+            $this->bus->dispatch(new FetchCommentsMessage($current));
+        } catch (ExceptionInterface) {
+            // Doing nothing for now
+        }
+    }
+
+    /** Expose a view model to the template; keeps all parsing server-side */
+    public function getPayload(): array
+    {
+        // Uses the helper we added earlier: getCommentsPayload($coordinate)
+        $payload = $this->redisCacheService->getCommentsPayload($this->current) ?? [
+            'comments'      => [],
+            'profiles'      => [],
+            'zappers'       => [],
+            'zapAmounts'    => [],
+            'commentLinks'  => [],
+        ];
+
+        // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
+        $this->list            = $payload['comments'];
+        $this->authorsMetadata = $payload['profiles'] ?? [];
+
+        $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
+        $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
+
+        return [
+            'list'            => $this->list,
+            'authorsMetadata' => $this->authorsMetadata,
+            'zappers'         => $this->zappers,
+            'zapAmounts'      => $this->zapAmounts,
+            'commentLinks'    => $this->commentLinks,
+            'loading'         => false,
+        ];
     }
 
     /**
@@ -100,7 +137,7 @@ final class Comments
             $amountSats = null;
 
             $amountMsatStr = $this->findTagValue($description->tags, 'amount');
-            if ($amountMsatStr !== null && is_numeric($amountMsatStr)) {
+            if (is_numeric($amountMsatStr)) {
                 // amount in millisats per NIP-57
                 $msats = (int) $amountMsatStr;
                 if ($msats > 0) {

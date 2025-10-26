@@ -1,9 +1,11 @@
-<div class="comments"
-     data-controller="comments-mercure"
-     data-comments-mercure-coordinate-value="{{ current }}"
-     data-comments-mercure-target="root"
-     id="comments-{{ current|e('html_attr') }}"
-     data-comments-coordinate="{{ current }}">
+<div
+    {{ attributes }}
+    class="comments"
+    data-controller="comments-mercure"
+    data-comments-mercure-coordinate-value="{{ current }}"
+    data-comments-mercure-target="root"
+    id="comments-{{ current|e('html_attr') }}"
+    data-comments-coordinate="{{ current }}">
     {% if loading %}
         <div class="comments-loading" data-comments-mercure-target="loading">Loading comments…</div>
     {% endif %}

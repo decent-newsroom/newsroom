@@ -46,7 +46,7 @@ class EditorType extends AbstractType
                 'required' => false,
                 'sanitize_html' => true,
                 'help' => 'Separate tags with commas, skip #',
-                'attr' => ['placeholder' => 'Add tags', 'class' => 'form-control']])
+                'attr' => ['placeholder' => 'philosophy, nature, economics', 'class' => 'form-control']])
             ->add('clientTag', CheckboxType::class, [
                 'label'    => 'Add client tag to article (Decent Newsroom)',
                 'required' => false,
