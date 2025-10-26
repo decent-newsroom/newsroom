@@ -25,7 +25,7 @@ class EditorType extends AbstractType
                 'required' => false,
                 'help' => 'Leave empty to auto-generate from title. When editing an existing article, changing the slug will fork the article.',
                 'sanitize_html' => true,
-                'attr' => ['placeholder' => 'awesome-article-slug', 'class' => 'form-control']
+                'attr' => ['placeholder' => 'decent-article-slug', 'class' => 'form-control']
             ])
             ->add('title', TextType::class, [
                 'required' => true,
