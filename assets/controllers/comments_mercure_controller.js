@@ -7,57 +7,53 @@ export default class extends Controller {
   connect() {
     this._debounceId = null;
     this._liveRoot   = this._findLiveRoot();
+    this._liveReady  = false;
+    this._queue      = []; // buffer Mercure payloads until live connects
 
-    // If the live controller isn't ready yet, wait for it.
-    if (!this._getLiveController()) {
+    // 1) Wait for Live to connect (or mark ready if already connected)
+    const live = this._getLiveController();
+    if (live) {
+      this._liveReady = true;
+    } else if (this._liveRoot) {
       this._onLiveConnect = () => {
-        // Once live connects, do an initial render to paint cached HTML
-        this._renderLiveComponent();
+        this._liveReady = true;
+        this._flushQueue();
       };
-      this._liveRoot?.addEventListener('live:connect', this._onLiveConnect, { once: true });
-    } else {
-      // Live controller already attached -> initial render now
-      this._renderLiveComponent();
+      this._liveRoot.addEventListener('live:connect', this._onLiveConnect, { once: true });
     }
 
-    // Subscribe to Mercure updates
+    // Optional: initial render to paint cached HTML
+    this._renderWhenReady();
+
+    // 2) Subscribe to Mercure
     const hubUrl = window.MercureHubUrl || document.querySelector('meta[name="mercure-hub"]')?.content;
-    if (!hubUrl) {
-      console.warn("[comments-mercure] Missing Mercure hub URL meta");
-      this._hideLoading();
-      return;
-    }
+    if (!hubUrl) return;
 
     const topic = `/comments/${this.coordinateValue}`;
-    const url   = new URL(hubUrl);
-    url.searchParams.append("topic", topic);
+    const url   = new URL(hubUrl); url.searchParams.append("topic", topic);
 
     this.eventSource = new EventSource(url.toString());
-    this.eventSource.onopen    = () => this._debouncedRefresh(50);
-    this.eventSource.onerror   = (e) => console.warn("[comments-mercure] EventSource error", e);
     this.eventSource.onmessage = (event) => {
-      console.log("[comments-mercure] Received update", event.data);
-      const live = this._getLiveController();
-      if (!live) return;
-
-      // Send the Mercure payload to the component
-      // LiveComponent will re-render after the action resolves
-      live.action('ingest', { payload: event.data });
+      // buffer if live not ready yet
+      if (!this._liveReady) {
+        this._queue.push(event.data);
+        return;
+      }
+      this._ingest(event.data);
     };
   }
 
   disconnect() {
-    if (this.eventSource) { try { this.eventSource.close(); } catch {} }
-    if (this._debounceId)  { clearTimeout(this._debounceId); }
+    if (this.eventSource) try { this.eventSource.close(); } catch {}
+    if (this._debounceId) clearTimeout(this._debounceId);
     if (this._liveRoot && this._onLiveConnect) {
       this._liveRoot.removeEventListener('live:connect', this._onLiveConnect);
     }
   }
 
-  // ---- private helpers -----------------------------------------------------
+  // ---- private -------------------------------------------------------------
 
   _findLiveRoot() {
-    // Works for both modern ("live") and older namespaced identifiers
     return this.element.closest(
       '[data-controller~="live"]'
     );
@@ -68,34 +64,32 @@ export default class extends Controller {
     return this.application.getControllerForElementAndIdentifier(this._liveRoot, 'live');
   }
 
-  _debouncedRefresh(delay = 150) {
-    if (this._debounceId) clearTimeout(this._debounceId);
-    this._debounceId = setTimeout(() => this._renderLiveComponent(), delay);
+  _renderWhenReady() {
+    // If you also want an initial refresh from server/cache, you can do:
+    const tryRender = () => {
+      const live = this._getLiveController();
+      if (!live || typeof live.render !== 'function') return setTimeout(tryRender, 50);
+      live.render();
+    };
+    tryRender();
   }
 
-  _renderLiveComponent() {
+  _flushQueue() {
+    while (this._queue.length) {
+      const data = this._queue.shift();
+      this._ingest(data);
+    }
+  }
+
+  _ingest(payload) {
     const live = this._getLiveController();
-    if (!live || typeof live.render !== 'function') {
-      // Live not ready yet—try again very soon (and don't spam logs)
-      setTimeout(() => this._renderLiveComponent(), 50);
-      return;
+    if (!live || typeof live.action !== 'function') {
+      // if still not ready, re-buffer and retry soon
+      this._queue.unshift(payload);
+      return setTimeout(() => this._flushQueue(), 50);
     }
-
-    this._showLoading();
-    const p = live.render();
-    if (p && typeof p.finally === 'function') {
-      p.finally(() => this._hideLoading());
-    } else {
-      setTimeout(() => this._hideLoading(), 0);
-    }
-  }
-
-  _showLoading() {
-    if (this.hasLoadingTarget) this.loadingTarget.style.display = "";
-    if (this.hasListTarget)    this.listTarget.style.opacity = "0.6";
-  }
-  _hideLoading() {
-    if (this.hasLoadingTarget) this.loadingTarget.style.display = "none";
-    if (this.hasListTarget)    this.listTarget.style.opacity = "";
+    // Call your LiveAction; it will mutate props and re-render server-side
+    // NOTE: payload must be a string; if you have an object, pass JSON.stringify(obj)
+    live.action('ingest', { payload });
   }
 }
