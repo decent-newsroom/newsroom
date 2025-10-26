@@ -7,9 +7,9 @@ framework:
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
-                    stream: '%env(APP_ENV)%:messenger:async'   # dev/prod get different keys
-                    group: '%env(APP_ENV)%'
-                    consumer: 'consumer-%env(APP_ENV)%'
+                    stream: '%kernel.environment%:messenger:async'   # dev/prod get different keys
+                    group: '%kernel.environment%'
+                    consumer: 'consumer-%kernel.environment%'
                     delete_after_ack: false
                     delete_after_reject: false
                     stream_max_entries: 50000
