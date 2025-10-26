@@ -26,7 +26,7 @@ final class Comments
     #[LiveProp(writable: false)]
     public string $current;
 
-    // same fields you used before (the template will read from the payload)
+    #[LiveProp]
     public array $list = [];
     public array $commentLinks = [];
     public array $processedContent = [];
@@ -60,11 +60,11 @@ final class Comments
     #[LiveAction]
     public function loadComments(#[LiveArg] string $payload): void
     {
-        $data = json_decode($payload,true);
+        $data = json_decode($payload);
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
-        $this->list            = $data['comments'];
-        $this->authorsMetadata = $data['profiles'] ?? [];
+        $this->list            = $data->comments;
+        $this->authorsMetadata = $data->profiles ?? [];
 
         $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
         $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
