@@ -31,6 +31,6 @@ export default class extends Controller {
 
     // Set value and dispatch an 'input' event so Live updates & re-renders
     input.value = jsonString;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
