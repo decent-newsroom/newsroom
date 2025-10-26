@@ -34,12 +34,12 @@ export default class extends Controller {
 
     this.eventSource = new EventSource(url.toString());
     this.eventSource.onmessage = (event) => {
-      // buffer if live not ready yet
-      if (!this._liveReady) {
-        this._queue.push(event.data);
-        return;
+      const data = JSON.parse(event.data); // { comments, profiles, ... }
+      const live = this._getLiveController();
+      if (live) {
+        live.set('payload', data); // <- updates the writable LiveProp
+        live.render();             // <- asks server to re-render
       }
-      this._ingest(event.data);
     };
   }
 
@@ -55,13 +55,15 @@ export default class extends Controller {
 
   _findLiveRoot() {
     return this.element.closest(
-      '[data-controller~="live"]'
+      '[data-controller~="live"],' +
+      '[data-controller~="symfony--ux-live-component--live"]'
     );
   }
 
   _getLiveController() {
     if (!this._liveRoot) return null;
-    return this.application.getControllerForElementAndIdentifier(this._liveRoot, 'live');
+    return this.application.getControllerForElementAndIdentifier(this._liveRoot, 'live')
+      || this.application.getControllerForElementAndIdentifier(this._liveRoot, 'symfony--ux-live-component--live');
   }
 
   _renderWhenReady() {

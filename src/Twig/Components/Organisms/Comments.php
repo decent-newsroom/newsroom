@@ -18,6 +18,10 @@ final class Comments
 {
     use DefaultActionTrait;
 
+    // Writable prop the browser can set
+    #[LiveProp(writable: true)]
+    public array $payload = []; // { comments, profiles, ... }
+
     // Live input
     #[LiveProp(writable: false)]
     public string $current;
@@ -53,34 +57,19 @@ final class Comments
         }
     }
 
-    #[LiveAction]
-    public function ingest(#[LiveArg('payload')] string $json): void
-    {
-        $data = json_decode($json, true) ?: [];
-
-        // Validate/normalize as needed
-        $this->list            = $data['comments'] ?? [];
-        $this->authorsMetadata = $data['profiles'] ?? [];
-
-        // If you send these in the event:
-        $this->zappers         = $data['zappers']       ?? [];
-        $this->zapAmounts      = $data['zapAmounts']    ?? [];
-        $this->commentLinks    = $data['commentLinks']  ?? [];
-
-        $this->loading = false;
-    }
-
     /** Expose a view model to the template; keeps all parsing server-side */
     public function getPayload(): array
     {
-        // Uses the helper we added earlier: getCommentsPayload($coordinate)
-        $payload = $this->redisCacheService->getCommentsPayload($this->current) ?? [
-            'comments'      => [],
-            'profiles'      => [],
-            'zappers'       => [],
-            'zapAmounts'    => [],
-            'commentLinks'  => [],
-        ];
+        $payload = $this->payload;
+        if (!$payload) {
+            $payload = $this->redisCacheService->getCommentsPayload($this->current) ?? [
+                'comments'      => [],
+                'profiles'      => [],
+                'zappers'       => [],
+                'zapAmounts'    => [],
+                'commentLinks'  => [],
+            ];
+        }
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
         $this->list            = $payload['comments'];
