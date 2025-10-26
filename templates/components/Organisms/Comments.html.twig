@@ -1,11 +1,9 @@
-{% set existing = attributes.all()['data-controller'] ?? '' %}
-{% set merged   = (existing ? existing ~ ' ' : '') ~ 'comments-mercure' %}
-
 <div
-    {{ attributes.add('data-controller', merged) }}
-    data-comments-mercure-coordinate-value="{{ current }}"
-    data-comments-mercure-target="loading"
-    data-comments-mercure-target="list"
+    {{ attributes
+        .add(stimulus_controller('comments-mercure', { coordinate: current }))
+        .add(stimulus_target('comments-mercure', 'loading'))
+        .add(stimulus_target('comments-mercure', 'list'))
+    }}
     id="comments-{{ current|e('html_attr') }}"
     class="comments"
 >
