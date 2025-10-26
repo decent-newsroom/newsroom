@@ -63,8 +63,8 @@ final class Comments
         $data = json_decode($payload);
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
-        $this->list            = $data->comments;
-        $this->authorsMetadata = $data->profiles ?? [];
+        $this->list            = (array)$data->comments;
+        $this->authorsMetadata = (array)$data->profiles ?? [];
 
         $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
         $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
