@@ -458,7 +458,7 @@ class NostrClient
      * @return array Array of comment events
      * @throws \Exception
      */
-    public function getComments(string $coordinate): array
+    public function getComments(string $coordinate, ?int $since = null): array
     {
         $this->logger->info('Getting comments for coordinate', ['coordinate' => $coordinate]);
 
@@ -475,13 +475,21 @@ class NostrClient
         // Turn into a relaySet
         $relaySet = $this->createRelaySet($authorRelays);
 
+        // filters
+        $filters = [
+            'tag' => ['#A', [$coordinate]], // #A means root event
+        ];
+        if (is_int($since) && $since > 0) {
+            $filters['since'] = $since;
+        }
+
         // Create request using the helper method
         $request = $this->createNostrRequest(
             kinds: [
                 KindsEnum::COMMENTS->value,
                 // KindsEnum::ZAP_RECEIPT->value  // Not yet
             ],
-            filters: ['tag' => ['#A', [$coordinate]]], // #A means root event
+            filters: $filters,
             relaySet: $relaySet
         );
 

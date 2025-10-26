@@ -404,4 +404,40 @@ readonly class RedisCacheService
         }
     }
 
+    private function commentsKey(string $coordinate): string
+    {
+        return 'comments_' . $coordinate;
+    }
+
+    /** Return cached comments payload or null */
+    public function getCommentsPayload(string $coordinate): ?array
+    {
+        $key = $this->commentsKey($coordinate);
+        try {
+            $item = $this->npubCache->getItem($key);
+            if ($item->isHit()) {
+                $val = $item->get();
+                return is_array($val) ? $val : null;
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Comments cache get failed', ['e' => $e->getMessage(), 'coord' => $coordinate]);
+        }
+        return null;
+    }
+
+    /** Save payload with TTL (seconds) */
+    public function setCommentsPayload(string $coordinate, array $payload, int $ttl): void
+    {
+        $key = $this->commentsKey($coordinate);
+        try {
+            $item = $this->npubCache->getItem($key);
+            $item->set($payload);
+            $item->expiresAfter($ttl);
+            $this->npubCache->save($item);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Comments cache set failed', ['e' => $e->getMessage(), 'coord' => $coordinate]);
+        }
+    }
+
+
 }
