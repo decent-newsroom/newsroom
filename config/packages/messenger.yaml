@@ -11,6 +11,7 @@ framework:
                     group: '%env(APP_ENV)%'
                     consumer: 'consumer-%env(APP_ENV)%'
                     delete_after_ack: false
+                    delete_after_reject: false
                     stream_max_entries: 50000
                     redeliver_timeout: 600
             # https://symfony.com/doc/current/messenger.html#transport-configuration
