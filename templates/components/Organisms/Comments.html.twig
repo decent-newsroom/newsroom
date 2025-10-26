@@ -1,18 +1,21 @@
 <div
     {{ attributes }}
-    class="comments"
-    data-controller="comments_mercure"
-    data-comments-mercure-coordinate-value="{{ current }}"
-    data-comments-mercure-target="root"
-    id="comments-{{ current|e('html_attr') }}"
     data-comments-coordinate="{{ current }}">
-    {% if loading %}
-        <div class="comments-loading" data-comments-mercure-target="loading">Loading comments…</div>
-    {% endif %}
-    <div class="comments" data-comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
-        {% for item in list %}
-            <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
-                <div class="metadata">
+
+    <div
+        class="comments"
+        data-controller="comments-mercure"
+        data-comments-mercure-coordinate-value="{{ current }}"
+        data-comments-mercure-target="root"
+        id="comments-{{ current|e('html_attr') }}">
+
+        {% if loading %}
+            <div class="comments-loading" data-comments-mercure-target="loading">Loading comments…</div>
+        {% endif %}
+        <div class="comments-list" data-comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
+            {% for item in list %}
+                <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
+                    <div class="metadata">
                         {% if item.kind != '9735' %}
                             <twig:Molecules:UserFromNpub ident="{{ item.pubkey }}" :user="authorsMetadata[item.pubkey]" />
                         {% elseif zappers[item.id] %}
@@ -20,37 +23,39 @@
                         {% else %}
                             <p><em>Unknown</em></p>
                         {% endif %}
-                    <small>{{ item.created_at|date('F j Y') }}</small>
-                </div>
+                        <small>{{ item.created_at|date('F j Y') }}</small>
+                    </div>
 
-                <div class="card-body">
-                    {% if item.kind is defined and item.kind == '9735' %}
-                        <div class="zap-amount">
-                            {% if zapAmounts[item.id] is defined %}
-                                <strong>{{ zapAmounts[item.id] }} sat</strong>
-                            {% else %}
-                                <em>Zap</em>
-                            {% endif %}
+                    <div class="card-body">
+                        {% if item.kind is defined and item.kind == '9735' %}
+                            <div class="zap-amount">
+                                {% if zapAmounts[item.id] is defined %}
+                                    <strong>{{ zapAmounts[item.id] }} sat</strong>
+                                {% else %}
+                                    <em>Zap</em>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        <twig:Atoms:Content content="{{ item.content }}" />
+                    </div>
+
+                    {# Display Nostr link previews if links detected #}
+                    {% if commentLinks[item.id] is defined and commentLinks[item.id]|length > 0 %}
+                        <div class="card-footer nostr-previews mt-3">
+                            <div class="preview-container">
+                                {% for link in commentLinks[item.id] %}
+                                    <div>
+                                        <twig:Molecules:NostrPreview preview="{{ link }}" />
+                                    </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     {% endif %}
-                    <twig:Atoms:Content content="{{ item.content }}" />
                 </div>
+            {% else %}
+                <div class="no-comments">No comments yet.</div>
+            {% endfor %}
+        </div>
 
-                {# Display Nostr link previews if links detected #}
-                {% if commentLinks[item.id] is defined and commentLinks[item.id]|length > 0 %}
-                    <div class="card-footer nostr-previews mt-3">
-                        <div class="preview-container">
-                            {% for link in commentLinks[item.id] %}
-                                <div>
-                                    <twig:Molecules:NostrPreview preview="{{ link }}" />
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-        {% else %}
-            <div class="no-comments">No comments yet.</div>
-        {% endfor %}
     </div>
 </div>
