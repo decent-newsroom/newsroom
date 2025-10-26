@@ -60,7 +60,7 @@ final class Comments
     /** Expose a view model to the template; keeps all parsing server-side */
     public function getPayload(): array
     {
-        $data = $this->payloadJson !== ''
+        $data = !empty($this->payloadJson)
             ? (json_decode($this->payloadJson, true) ?: [])
             : $this->redisCacheService->getCommentsPayload($this->current) ?? [
                 'comments'      => [],

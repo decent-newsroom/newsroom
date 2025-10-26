@@ -27,8 +27,8 @@ export default class extends Controller {
     this.es = new EventSource(url.toString());
     this.es.onmessage = async (msg) => {
       this._showLoading();
-      this.component.set('payloadJson', JSON.stringify(msg.data));
-      await this.component.render(); // Live re-hydrates from your server/cache
+      this.component.set('payloadJson', msg.data);
+      await this.component.render();
     };
   }
 
