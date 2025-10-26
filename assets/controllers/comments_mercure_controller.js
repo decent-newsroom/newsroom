@@ -23,7 +23,7 @@ export default class extends Controller {
     this.es = new EventSource(url.toString());
     this.es.onmessage = async (msg) => {
       this.component.set('payloadJson', msg.data);
-      this.component.action('loadComments', { payload: msg.data });
+      this.component.action('loadComments', { 'payload': msg.data });
       await this.component.render();
     };
   }

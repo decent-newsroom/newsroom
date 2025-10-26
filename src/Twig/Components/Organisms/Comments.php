@@ -9,6 +9,7 @@ use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
+use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -57,7 +58,7 @@ final class Comments
     }
 
     #[LiveAction]
-    public function loadComments($payload): array
+    public function loadComments(#[LiveArg] string $payload): array
     {
         $data = json_decode($payload);
 
