@@ -58,7 +58,7 @@ final class Comments
     }
 
     #[LiveAction]
-    public function loadComments(#[LiveArg] string $payload): array
+    public function loadComments(#[LiveArg] string $payload): void
     {
         $data = json_decode($payload,true);
 
@@ -69,14 +69,7 @@ final class Comments
         $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
         $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
 
-        return [
-            'list'            => $this->list,
-            'authorsMetadata' => $this->authorsMetadata,
-            'zappers'         => $this->zappers,
-            'zapAmounts'      => $this->zapAmounts,
-            'commentLinks'    => $this->commentLinks,
-            'loading'         => false,
-        ];
+        $this->loading = false;
     }
 
     /**
