@@ -9,7 +9,6 @@ use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
-use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -57,18 +56,10 @@ final class Comments
         }
     }
 
-    /** Expose a view model to the template; keeps all parsing server-side */
-    public function getPayload(): array
+    #[LiveAction]
+    public function loadComments($payload): array
     {
-        $data = !empty($this->payloadJson)
-            ? (json_decode($this->payloadJson, true) ?: [])
-            : $this->redisCacheService->getCommentsPayload($this->current) ?? [
-                'comments'      => [],
-                'profiles'      => [],
-                'zappers'       => [],
-                'zapAmounts'    => [],
-                'commentLinks'  => [],
-            ];
+        $data = json_decode($payload);
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
         $this->list            = $data['comments'];

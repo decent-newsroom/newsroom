@@ -8,13 +8,9 @@ export default class extends Controller {
   async connect() {
     // this.element IS the Live root now
     this.component = await getComponent(this.element);
-
-    // Optional: hook for spinner polish
-    this.component.on('render:started', () => this._showLoading());
-    this.component.on('render:finished', () => this._hideLoading());
+    console.log("[comments_mercure] connected to Live Component:", this.component);
 
     // Initial render from cache so UI isn’t empty
-    this._showLoading();
     await this.component.render();
 
     // Subscribe to Mercure and re-render on each ping
@@ -26,22 +22,13 @@ export default class extends Controller {
 
     this.es = new EventSource(url.toString());
     this.es.onmessage = async (msg) => {
-      this._showLoading();
       this.component.set('payloadJson', msg.data);
+      this.component.action('loadComments', { arg1: msg.data });
       await this.component.render();
     };
   }
 
   disconnect() {
     try { this.es?.close(); } catch {}
-  }
-
-  _showLoading() {
-    if (this.hasLoadingTarget) this.loadingTarget.style.display = '';
-    if (this.hasListTarget)    this.listTarget.style.opacity = '0.6';
-  }
-  _hideLoading() {
-    if (this.hasLoadingTarget) this.loadingTarget.style.display = 'none';
-    if (this.hasListTarget)    this.listTarget.style.opacity = '';
   }
 }
