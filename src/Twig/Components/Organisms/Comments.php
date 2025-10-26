@@ -8,6 +8,8 @@ use App\Service\RedisCacheService;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
+use Symfony\UX\LiveComponent\Attribute\LiveAction;
+use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -49,6 +51,23 @@ final class Comments
         } catch (ExceptionInterface) {
             // Doing nothing for now
         }
+    }
+
+    #[LiveAction]
+    public function ingest(#[LiveArg('payload')] string $json): void
+    {
+        $data = json_decode($json, true) ?: [];
+
+        // Validate/normalize as needed
+        $this->list            = $data['comments'] ?? [];
+        $this->authorsMetadata = $data['profiles'] ?? [];
+
+        // If you send these in the event:
+        $this->zappers         = $data['zappers']       ?? [];
+        $this->zapAmounts      = $data['zapAmounts']    ?? [];
+        $this->commentLinks    = $data['commentLinks']  ?? [];
+
+        $this->loading = false;
     }
 
     /** Expose a view model to the template; keeps all parsing server-side */

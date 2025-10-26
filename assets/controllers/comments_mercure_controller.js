@@ -7,7 +7,6 @@ export default class extends Controller {
   connect() {
     this._debounceId = null;
     this._liveRoot   = this._findLiveRoot();
-    console.log(this._liveRoot);
 
     // If the live controller isn't ready yet, wait for it.
     if (!this._getLiveController()) {
@@ -36,7 +35,15 @@ export default class extends Controller {
     this.eventSource = new EventSource(url.toString());
     this.eventSource.onopen    = () => this._debouncedRefresh(50);
     this.eventSource.onerror   = (e) => console.warn("[comments-mercure] EventSource error", e);
-    this.eventSource.onmessage = () => this._debouncedRefresh();
+    this.eventSource.onmessage = (event) => {
+      console.log("[comments-mercure] Received update", event.data);
+      const live = this._getLiveController();
+      if (!live) return;
+
+      // Send the Mercure payload to the component
+      // LiveComponent will re-render after the action resolves
+      live.action('ingest', { payload: event.data });
+    };
   }
 
   disconnect() {
@@ -58,11 +65,7 @@ export default class extends Controller {
 
   _getLiveController() {
     if (!this._liveRoot) return null;
-    // Try both identifiers
-    return (
-      this.application.getControllerForElementAndIdentifier(this._liveRoot, 'live') ||
-      this.application.getControllerForElementAndIdentifier(this._liveRoot, 'symfony--ux-live-component--live')
-    );
+    return this.application.getControllerForElementAndIdentifier(this._liveRoot, 'live');
   }
 
   _debouncedRefresh(delay = 150) {
