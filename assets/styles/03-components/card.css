@@ -72,6 +72,7 @@ h2.card-title {
     flex-direction: column;
     background-color: var(--color-bg-light);
     padding: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
 }
 
 .card.comment.zap-comment {
