@@ -10,7 +10,8 @@ framework:
                     stream: '%env(APP_ENV)%:messenger:async'   # dev/prod get different keys
                     group: '%env(APP_ENV)%'
                     consumer: 'consumer-%env(APP_ENV)%'
-                    delete_after_ack: true
+                    delete_after_ack: false
+                    stream_max_entries: 50000
                     redeliver_timeout: 600
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             # async: '%env(MESSENGER_TRANSPORT_DSN)%'
