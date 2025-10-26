@@ -20,7 +20,7 @@ final class Comments
 
     // Writable prop the browser can set
     #[LiveProp(writable: true)]
-    public array $payload = []; // { comments, profiles, ... }
+    public string $payload; // { comments, profiles, ... }
 
     // Live input
     #[LiveProp(writable: false)]
@@ -60,8 +60,9 @@ final class Comments
     /** Expose a view model to the template; keeps all parsing server-side */
     public function getPayload(): array
     {
-        $payload = $this->payload;
-        if (!$payload) {
+        if (!empty($this->payload)) {
+            $payload = json_decode($this->payload);
+        } else {
             $payload = $this->redisCacheService->getCommentsPayload($this->current) ?? [
                 'comments'      => [],
                 'profiles'      => [],

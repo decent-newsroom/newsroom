@@ -37,7 +37,7 @@ export default class extends Controller {
       const data = JSON.parse(event.data); // { comments, profiles, ... }
       const live = this._getLiveController();
       if (live) {
-        live.set('payload', data); // <- updates the writable LiveProp
+        live.set('payload', JSON.stringify(data)); // <- updates the writable LiveProp
         live.render();             // <- asks server to re-render
       }
     };
