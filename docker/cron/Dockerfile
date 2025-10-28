@@ -24,10 +24,14 @@ WORKDIR /var/www/html
 # Copy cron and script
 COPY crontab /etc/cron.d/app-cron
 COPY index_articles.sh /index_articles.sh
+COPY article_discovery.sh /article_discovery.sh
+COPY media_discovery.sh /media_discovery.sh
 
 # Set permissions
 RUN chmod 0644 /etc/cron.d/app-cron && \
-    chmod +x /index_articles.sh
+    chmod +x /index_articles.sh && \
+    chmod +x /article_discovery.sh && \
+    chmod +x /media_discovery.sh
 
 # Apply cron job
 RUN crontab /etc/cron.d/app-cron
