@@ -2,11 +2,11 @@
 set -e
 export PATH="/usr/local/bin:/usr/bin:/bin"
 
-LOG_PREFIX="[media_discovery.sh]"
+LOG_PREFIX="[article_discovery.sh]"
 TIMESTAMP() { date '+%Y-%m-%d %H:%M:%S'; }
 
 # Log start
-echo "$(TIMESTAMP) $LOG_PREFIX STARTING media discovery cache update" >&2
+echo "$(TIMESTAMP) $LOG_PREFIX STARTING article discovery cache update" >&2
 
 # Run Symfony command
 php /var/www/html/bin/console app:cache_latest_articles
