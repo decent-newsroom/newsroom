@@ -48,6 +48,8 @@ class CacheLatestArticlesCommand extends Command
             $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed 𝚋𝚘𝚝 (Just annoying)
             $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
             $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs, job offers feed
+            $key->convertToHex('npub1sztw66ap7gdrwyaag7js8m3h0vxw9uv8k0j68t5sngjmsjgpqx9sm9wyaq'), // Now Playing bot
+
         ];
 
         // if (!$cacheItem->isHit()) {
