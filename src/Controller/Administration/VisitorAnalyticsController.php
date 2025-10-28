@@ -20,6 +20,9 @@ class VisitorAnalyticsController extends AbstractController
         $visitsLast24Hours = $visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
         $visitsLast7Days = $visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
 
+        // Most read articles in the last 24 hrs
+        $topArticlesLast24Hours = $visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
+
         // Visits by route for the last 7 days
         $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute(new \DateTimeImmutable('-7 days'));
 
@@ -75,6 +78,7 @@ class VisitorAnalyticsController extends AbstractController
             'topRoutesAllTime' => $topRoutesAllTime,
             'recentVisitRecords' => $recentVisitRecords,
             'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
+            'topArticlesLast24Hours' => $topArticlesLast24Hours,
         ]);
     }
 }

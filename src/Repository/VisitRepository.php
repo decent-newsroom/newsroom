@@ -204,4 +204,23 @@ class VisitRepository extends ServiceEntityRepository
         }
         return round(($singleVisitSessions / $totalSessions) * 100, 2);
     }
+
+    /**
+     * Returns the top N most visited articles since a given datetime.
+     * Only considers routes matching /article/d/{slug}.
+     * Returns array: [ 'route' => string, 'count' => int ]
+     */
+    public function getMostVisitedArticlesSince(\DateTimeImmutable $since, int $limit = 5): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.route, COUNT(v.id) as count')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.route LIKE :articlePath')
+            ->setParameter('since', $since, \Doctrine\DBAL\Types\Types::DATETIME_IMMUTABLE)
+            ->setParameter('articlePath', '/article/d/%')
+            ->groupBy('v.route')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+        return $qb->getQuery()->getResult();
+    }
 }

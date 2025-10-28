@@ -65,6 +65,30 @@
         </div>
 
         <div class="analytics-card">
+            <h2>Top 5 Visited Articles (Last 24 Hours)</h2>
+            {% if topArticlesLast24Hours|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                    <tr>
+                        <th>Article Path</th>
+                        <th class="text-right">Visits</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for stat in topArticlesLast24Hours %}
+                        <tr>
+                            <td><a href="{{ stat.route }}" target="_blank">{{ stat.route }}</a></td>
+                            <td class="text-right">{{ stat.count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No article visits recorded in the last 24 hours.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
             <h2>Visits Per Day (Last 30 Days)</h2>
             {% if dailyVisitCountsLast30Days|length > 0 %}
                 <canvas id="visitsPerDayChart"
