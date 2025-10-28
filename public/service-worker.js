@@ -140,6 +140,12 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome-extension and other non-http requests
   if (!url.protocol.startsWith('http')) return;
 
+  // Exception: Never cache article-editor/edit/{slug}
+  if (/\/article-editor\/edit\/[^/]+$/.test(url.pathname)) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Find matching cache strategy
   const strategy = findCacheStrategy(request.url);
 
