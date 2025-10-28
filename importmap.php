@@ -102,4 +102,14 @@ return [
     '@kurkle/color' => [
         'version' => '0.3.4',
     ],
+    'katex' => [
+        'version' => '0.16.25',
+    ],
+    'katex/dist/contrib/auto-render.mjs' => [
+        'version' => '0.16.25',
+    ],
+    'katex/dist/katex.min.css' => [
+        'version' => '0.16.25',
+        'type' => 'css',
+    ],
 ];

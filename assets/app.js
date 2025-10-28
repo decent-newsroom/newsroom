@@ -48,3 +48,22 @@ import './styles/04-pages/forum.css';
 import './styles/05-utilities/utilities.css';
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
+
+import 'katex/dist/katex.min.css';
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.querySelector('.article-main'); // the container you render $html into
+  if (!root) return;
+
+  renderMathInElement(root, {
+    // Delimiters: inline $…$, display $$…$$ and the LaTeX \(…\)/\[…\] forms
+    delimiters: [
+      { left: '$$', right: '$$', display: true },
+      { left: '$',  right: '$',  display: false },
+      { left: '\\(', right: '\\)', display: false },
+      { left: '\\[', right: '\\]', display: true },
+    ],
+    throwOnError: false, // don’t explode on unknown commands
+  });
+});
