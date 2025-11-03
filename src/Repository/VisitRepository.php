@@ -223,4 +223,40 @@ class VisitRepository extends ServiceEntityRepository
             ->setMaxResults($limit);
         return $qb->getQuery()->getResult();
     }
+
+    /**
+     * Returns the number of times the article publish API was called since a given datetime.
+     */
+    public function countArticlePublishSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.route = :route')
+            ->andWhere('v.visitedAt >= :since')
+            ->setParameter('route', '/api/article/publish')
+            ->setParameter('since', $since, \Doctrine\DBAL\Types\Types::DATETIME_IMMUTABLE);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns article publish statistics for different time periods.
+     */
+    public function getArticlePublishStats(): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.route = :route')
+            ->setParameter('route', '/api/article/publish');
+
+        $allTime = (int) $qb->getQuery()->getSingleScalarResult();
+
+        return [
+            'last_hour' => $this->countArticlePublishSince(new \DateTimeImmutable('-1 hour')),
+            'last_24_hours' => $this->countArticlePublishSince(new \DateTimeImmutable('-24 hours')),
+            'last_7_days' => $this->countArticlePublishSince(new \DateTimeImmutable('-7 days')),
+            'last_30_days' => $this->countArticlePublishSince(new \DateTimeImmutable('-30 days')),
+            'all_time' => $allTime,
+        ];
+    }
 }

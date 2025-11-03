@@ -40,10 +40,15 @@ class VisitTrackingListener
         $request = $event->getRequest();
         $route = $request->getPathInfo();
 
+        // Exception: Always track article publish API calls
+        $isArticlePublish = str_starts_with($route, '/api/article/publish');
+
         // Skip tracking for excluded routes (API, profiler, assets, etc.)
-        foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
-            if (str_starts_with($route, $excludedRoute)) {
-                return;
+        if (!$isArticlePublish) {
+            foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
+                if (str_starts_with($route, $excludedRoute)) {
+                    return;
+                }
             }
         }
 

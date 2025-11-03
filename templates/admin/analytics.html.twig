@@ -8,6 +8,20 @@
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
+                <h2>Article Publish Activity</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last hour:</strong> {{ articlePublishStats.last_hour|number_format }}</li>
+                    <li><strong>Last 24 hours:</strong> {{ articlePublishStats.last_24_hours|number_format  }}</li>
+                    <li><strong>Last 7 days:</strong> {{ articlePublishStats.last_7_days|number_format  }}</li>
+                    <li><strong>Last 30 days:</strong> {{ articlePublishStats.last_30_days|number_format  }}</li>
+                    <li><strong>All time:</strong> {{ articlePublishStats.all_time|number_format  }}</li>
+                </ul>
+                <p class="analytics-note">Number of times articles were published via the API endpoint</p>
+            </div>
+        </div>
+
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
                 <h2>Total Visits</h2>
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ visitsLast24Hours }}</li>
