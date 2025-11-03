@@ -44,22 +44,31 @@ class NostrClient
                                 private readonly ArticleFactory         $articleFactory,
                                 private readonly TokenStorageInterface  $tokenStorage,
                                 private readonly LoggerInterface        $logger,
-                                private readonly CacheItemPoolInterface $npubCache)
+                                private readonly CacheItemPoolInterface $npubCache,
+                                private readonly NostrRelayPool         $relayPool)
     {
+        // Initialize default relay set using the relay pool to avoid duplicate connections
+        $defaultRelayUrls = [
+            'wss://theforest.nostr1.com',
+            'wss://nostr.land',
+            'wss://relay.primal.net'
+        ];
         $this->defaultRelaySet = new RelaySet();
-        $this->defaultRelaySet->addRelay(new Relay('wss://theforest.nostr1.com')); // public aggregator relay
-        $this->defaultRelaySet->addRelay(new Relay('wss://nostr.land')); // aggregator relay, has AUTH
-        $this->defaultRelaySet->addRelay(new Relay('wss://relay.primal.net')); // profile aggregator
+        foreach ($defaultRelayUrls as $url) {
+            $this->defaultRelaySet->addRelay($this->relayPool->getRelay($url));
+        }
     }
 
     /**
-     * Creates a RelaySet from a list of relay URLs
+     * Creates a RelaySet from a list of relay URLs using the connection pool
      */
     private function createRelaySet(array $relayUrls): RelaySet
     {
-        $relaySet = $this->defaultRelaySet;
+        $relaySet = new RelaySet();
         foreach ($relayUrls as $relayUrl) {
-            $relaySet->addRelay(new Relay($relayUrl));
+            // Use the pool to get persistent relay connections
+            $relay = $this->relayPool->getRelay($relayUrl);
+            $relaySet->addRelay($relay);
         }
         return $relaySet;
     }
@@ -107,9 +116,15 @@ class NostrClient
      */
     public function getPubkeyMetadata($pubkey): \stdClass
     {
-        $relaySet = $this->defaultRelaySet;
-        // $relaySet->addRelay(new Relay('wss://profiles.nostr1.com')); // profile aggregator
-        $relaySet->addRelay(new Relay('wss://purplepag.es')); // profile aggregator
+        // Use relay pool for all relays including purplepag.es
+        $relayUrls = [
+            'wss://theforest.nostr1.com',
+            'wss://nostr.land',
+            'wss://relay.primal.net',
+            'wss://purplepag.es'
+        ];
+        $relaySet = $this->createRelaySet($relayUrls);
+
         $this->logger->info('Getting metadata for pubkey ' . $pubkey );
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::METADATA],
@@ -142,11 +157,8 @@ class NostrClient
             $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 5);
         }
 
-        $relaySet = new RelaySet();
-        foreach ($relays as $relayWss) {
-            $relay = new Relay($relayWss);
-            $relaySet->addRelay($relay);
-        }
+        // Use relay pool instead of creating new Relay instances
+        $relaySet = $this->createRelaySet($relays);
         $relaySet->setMessage($eventMessage);
         // TODO handle responses appropriately
         return $relaySet->send();
@@ -470,32 +482,38 @@ class NostrClient
         $kind = (int)$parts[0];
         $pubkey = $parts[1];
         $identifier = end($parts);
+
         // Get relays for the author
         $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
-        // Turn into a relaySet
-        $relaySet = $this->createRelaySet($authorRelays);
 
-        // filters
-        $filters = [
-            'tag' => ['#A', [$coordinate]], // #A means root event
-        ];
+        // Build the request message
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+        $filter = new Filter();
+        $filter->setKinds([
+            KindsEnum::COMMENTS->value,
+            // KindsEnum::ZAP_RECEIPT->value  // Not yet
+        ]);
+        $filter->setTag('#A', [$coordinate]);
+
         if (is_int($since) && $since > 0) {
-            $filters['since'] = $since;
+            $filter->setSince($since);
         }
 
-        // Create request using the helper method
-        $request = $this->createNostrRequest(
-            kinds: [
-                KindsEnum::COMMENTS->value,
-                // KindsEnum::ZAP_RECEIPT->value  // Not yet
-            ],
-            filters: $filters,
-            relaySet: $relaySet
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+
+        // Use the relay pool to send the request
+        // Pass subscription ID so the pool can send CLOSE message after receiving responses
+        $responses = $this->relayPool->sendToRelays(
+            $authorRelays,
+            fn() => $requestMessage,
+            30, // timeout in seconds
+            $subscriptionId // close subscription after receiving responses
         );
 
         // Process the response and deduplicate by eventId
         $uniqueEvents = [];
-        $this->processResponse($request->send(), function($event) use (&$uniqueEvents, $pubkey) {
+        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
             $this->logger->debug('Received comment event', ['event_id' => $event->id]);
             $uniqueEvents[$event->id] = $event;
             return null;
@@ -725,9 +743,9 @@ class NostrClient
     public function getMediaEventsByHashtags(array $hashtags): array
     {
         $allEvents = [];
-        $relayset = new RelaySet();
-        $relayset->addRelay(new Relay('wss://theforest.nostr1.com'));
-        $relayset->addRelay(new Relay('wss://relay.nostr.band'));
+        // Use relay pool for media relays
+        $relayUrls = ['wss://theforest.nostr1.com', 'wss://relay.nostr.band'];
+        $relayset = $this->createRelaySet($relayUrls);
 
         // Fetch events for each hashtag
         foreach ($hashtags as $hashtag) {

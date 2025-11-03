@@ -84,19 +84,21 @@ final class Comments
     {
         foreach ($this->list as $comment) {
             $content = $comment['content'] ?? '';
-            if (empty($content)) {
+            $commentId = $comment['id'] ?? null;
+
+            if (empty($content) || empty($commentId)) {
                 continue;
             }
 
             // Store the original content
-            $this->processedContent[$comment->id] = $content;
+            $this->processedContent[$commentId] = $content;
 
             // Parse the content for Nostr links
             $links = $this->nostrLinkParser->parseLinks($content);
 
             if (!empty($links)) {
                 // Save the links for the client-side to fetch
-                $this->commentLinks[$comment->id] = $links;
+                $this->commentLinks[$commentId] = $links;
             }
         }
     }
@@ -106,9 +108,16 @@ final class Comments
      */
     public function parseZaps(): void
     {
-        foreach ($this->list as $comment) {
+        // Use reference (&$comment) so changes to content are saved back to $this->list
+        foreach ($this->list as &$comment) {
+            $commentId = $comment['id'] ?? null;
+
+            if (empty($commentId)) {
+                continue;
+            }
+
             // check if kind is 9735 to get zaps
-            if ($comment['kind'] !== 9735) {
+            if (($comment['kind'] ?? null) !== 9735) {
                 continue;
             }
 
@@ -125,15 +134,15 @@ final class Comments
             }
             $description = json_decode($descriptionJson);
 
-            // 2) If description has content, add it to the comment
+            // 2) If description has content, add it to the comment (now this actually saves!)
             if (!empty($description->content)) {
-                $comment->content = $description->content;
+                $comment['content'] = $description->content;
             }
 
             // 3) Get amount: prefer explicit 'amount' tag (msat), fallback to BOLT11 invoice parsing
             $amountSats = null;
 
-            $amountMsatStr = $this->findTagValue($description->tags, 'amount');
+            $amountMsatStr = $this->findTagValue($description->tags ?? [], 'amount');
             if (is_numeric($amountMsatStr)) {
                 // amount in millisats per NIP-57
                 $msats = (int) $amountMsatStr;
@@ -149,11 +158,13 @@ final class Comments
                 }
             }
 
-            $this->zappers[$comment->id] = $this->findTagValue($tags, 'P');
+            $this->zappers[$commentId] = $this->findTagValue($tags, 'P');
             if ($amountSats !== null && $amountSats > 0) {
-                $this->zapAmounts[$comment->id] = $amountSats;
+                $this->zapAmounts[$commentId] = $amountSats;
             }
         }
+        // Unset reference to avoid accidental modification later
+        unset($comment);
     }
 
     // --- Helpers ---
