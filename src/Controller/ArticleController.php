@@ -34,6 +34,7 @@ class ArticleController  extends AbstractController
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, $naddr)
     {
+        set_time_limit(120); // 2 minutes
         $decoded = new Bech32($naddr);
 
         if ($decoded->type !== 'naddr') {
