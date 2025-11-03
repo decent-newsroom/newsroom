@@ -118,7 +118,8 @@ blockquote p {
     font-weight: bold;
 }
 
-.embedded-content iframe {
+.embedded-content iframe,
+.embedded-content video {
     width: 100%;
     height: auto;
     aspect-ratio: 16/9;
