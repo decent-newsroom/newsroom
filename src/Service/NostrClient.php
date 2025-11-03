@@ -939,6 +939,62 @@ class NostrClient
         return $articlesMap;
     }
 
+    /**
+     * Get article highlights (NIP-84) - kind 9802 events that reference articles
+     * @throws \Exception
+     */
+    public function getArticleHighlights(int $limit = 50): array
+    {
+        $this->logger->info('Fetching article highlights from default relays');
+
+        // Use relay pool to send request
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+        $filter = new Filter();
+        $filter->setKinds([9802]); // NIP-84 highlights
+        $filter->setLimit($limit);
+        $filter->setSince(strtotime('-7 days')); // Last 7 days
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+
+        // Get default relay URLs
+        $relayUrls = $this->relayPool->getDefaultRelays();
+
+        // Use the relay pool to send the request
+        $responses = $this->relayPool->sendToRelays(
+            $relayUrls,
+            fn() => $requestMessage,
+            30,
+            $subscriptionId
+        );
+
+        // Process the response and deduplicate by eventId
+        $uniqueEvents = [];
+        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
+            // Filter to only include highlights that reference articles
+            $hasArticleRef = false;
+            foreach ($event->tags ?? [] as $tag) {
+                if (is_array($tag) && count($tag) >= 2) {
+                    if (in_array($tag[0], ['a', 'A'])) {
+                        // Check if it references a kind 30023 (article)
+                        if (str_starts_with($tag[1] ?? '', '30023:')) {
+                            $hasArticleRef = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($hasArticleRef) {
+                $this->logger->debug('Received article highlight event', ['event_id' => $event->id]);
+                $uniqueEvents[$event->id] = $event;
+            }
+            return null;
+        });
+
+        return array_values($uniqueEvents);
+    }
+
     private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null, $stopGap = null ): TweakedRequest
     {
         $subscription = new Subscription();

@@ -5,16 +5,11 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Article;
-use App\Entity\Event as EventEntity;
 use BitWasp\Bech32\Exception\Bech32Exception;
 use Exception;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
-use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
-use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
-use Symfony\Component\Serializer\Serializer;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 

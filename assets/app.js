@@ -43,6 +43,7 @@ import './styles/04-pages/admin.css';
 import './styles/04-pages/analytics.css';
 import './styles/04-pages/author-media.css';
 import './styles/04-pages/forum.css';
+import './styles/04-pages/highlights.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

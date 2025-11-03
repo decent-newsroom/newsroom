@@ -1,0 +1,98 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <twig:Atoms:PageHeading
+        heading="Article Highlights"
+        tagline="Noteworthy passages highlighted by the community"
+    />
+
+    <div class="highlights-container w-container">
+        {% if error is defined %}
+            <div class="error-message">
+                <p>{{ error }}</p>
+            </div>
+        {% endif %}
+
+        {% if highlights|length > 0 %}
+            <div class="highlights-stats hidden">
+                <span><strong>{{ total }}</strong> highlights found</span>
+                <span>From the last 7 days</span>
+            </div>
+
+            <div class="highlights-grid">
+                {% for highlight in highlights %}
+                    <div class="highlight-card">
+                        <div class="highlight-header">
+                            <div class="highlight-author">
+                                {% if highlight.pubkey %}
+                                    <twig:Molecules:UserFromNpub
+                                        ident="{{ highlight.pubkey }}"
+                                        :compact="true"
+                                    />
+                                {% else %}
+                                    <span>Anonymous</span>
+                                {% endif %}
+                            </div>
+                            <div class="highlight-date">
+                                {{ highlight.created_at|date('M j, Y') }}
+                            </div>
+                        </div>
+
+                        <div class="highlight-content">
+                            {% if highlight.context %}
+                                {# Render markdown to HTML first, then wrap highlight substring in a span. #}
+                                {% set htmlContext = highlight.context|markdown_to_html %}
+                                {% if highlight.content in highlight.context %}
+                                    {% set wrapper = '<span class="highlight-mark">' ~ highlight.content ~ '</span>' %}
+                                    {# Replace occurrences in rendered HTML and output raw HTML #}
+                                    {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
+                                    {{ rendered|raw }}
+                                {% else %}
+                                    <div class="context-text">{{ htmlContext|raw }}</div>
+                                    <div><span class="highlight-mark">{{ highlight.content }}</span></div>
+                                {% endif %}
+                            {% else %}
+                                <span class="highlight-mark">{{ highlight.content }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="highlight-footer">
+                            {% if highlight.naddr is defined and highlight.naddr %}
+                                {# Use naddr to link to article so it gets fetched from relays #}
+                                <a href="{{ path('article-naddr', {naddr: highlight.naddr}) }}"
+                                   class="article-reference">
+                                    {% if highlight.article_title %}
+                                        {{ highlight.article_title }}
+                                    {% else %}
+                                        View original article
+                                    {% endif %}
+                                </a>
+                            {% elseif highlight.article_ref %}
+                                {# Fallback: show article reference but no link if naddr generation failed #}
+                                <span class="article-reference" style="opacity: 0.6; cursor: default;">
+                                    {% if highlight.article_title %}
+                                        {{ highlight.article_title }}
+                                    {% else %}
+                                        Article reference: {{ highlight.article_ref }}
+                                    {% endif %}
+                                </span>
+                            {% elseif highlight.url %}
+                                <a href="{{ highlight.url }}"
+                                   class="article-reference"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    View source
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-highlights">
+                <p>No highlights found. Check back later!</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
