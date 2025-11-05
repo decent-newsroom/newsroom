@@ -160,8 +160,17 @@ class NostrClient
         // Use relay pool instead of creating new Relay instances
         $relaySet = $this->createRelaySet($relays);
         $relaySet->setMessage($eventMessage);
-        // TODO handle responses appropriately
-        return $relaySet->send();
+        try {
+            $this->logger->info('Publishing event to relays', [
+                'event_id' => $event->getId(),
+                'relays' => $relays
+            ]);
+            return $relaySet->send();
+        } catch (\Exception $e) {
+            $this->logger->error('Error logging publish event', [
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
