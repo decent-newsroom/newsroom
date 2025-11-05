@@ -54,17 +54,32 @@ import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // multiple possible containers for math rendering; loop over options
   const root = document.querySelector('.article-main'); // the container you render $html into
-  if (!root) return;
+  const summaries = document.querySelectorAll('.lede'); // article summaries
 
-  renderMathInElement(root, {
-    // Delimiters: inline $…$, display $$…$$ and the LaTeX \(…\)/\[…\] forms
-    delimiters: [
-      { left: '$$', right: '$$', display: true },
-      { left: '$',  right: '$',  display: false },
-      { left: '\\(', right: '\\)', display: false },
-      { left: '\\[', right: '\\]', display: true },
-    ],
-    throwOnError: false, // don’t explode on unknown commands
-  });
+  if (summaries) {
+    summaries.forEach((summary) => {
+      renderMathInElement(summary, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$',  right: '$',  display: false },
+        ],
+        throwOnError: false, // don’t explode on unknown commands
+      });
+    });
+  }
+
+  if (root) {
+    renderMathInElement(root, {
+      // Delimiters: inline $…$, display $$…$$ and the LaTeX \(…\)/\[…\] forms
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$',  right: '$',  display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true },
+      ],
+      throwOnError: false, // don’t explode on unknown commands
+    });
+  }
 });
