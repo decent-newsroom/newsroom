@@ -87,6 +87,27 @@
                 {{ form_row(form.advancedMetadata) }}
 
                 <div class="actions">
+                    <div class="mb-2">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                data-nostr-publish-target="jsonToggle"
+                                data-action="click->nostr-publish#toggleJsonPreview">
+                            Show raw event JSON
+                        </button>
+                    </div>
+
+                    <div class="json-preview mb-3" data-nostr-publish-target="jsonContainer" hidden>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="mb-0" for="raw-json">Raw Nostr event (editable)</label>
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="click->nostr-publish#regenerateJsonPreview">Rebuild from form</button>
+                                <span class="text-muted" data-nostr-publish-target="jsonDirtyHint" style="display:none">modified</span>
+                            </div>
+                        </div>
+                        <textarea id="raw-json" data-nostr-publish-target="jsonTextarea" data-action="input->nostr-publish#onJsonInput" class="form-control" rows="12" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
+                        <small class="text-muted d-block mt-1">Edits here override the form when publishing. Keep required fields: kind, created_at, tags, content, pubkey.</small>
+                    </div>
+
                     <button type="button"
                             class="btn btn-primary"
                             data-nostr-publish-target="publishButton"

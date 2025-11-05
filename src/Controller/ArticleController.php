@@ -240,12 +240,6 @@ class ArticleController  extends AbstractController
         NostrEventParser $eventParser
     ): JsonResponse {
         try {
-            // Verify CSRF token
-            $csrfToken = $request->headers->get('X-CSRF-TOKEN');
-            if (!$csrfTokenManager->isTokenValid(new CsrfToken('nostr_publish', $csrfToken))) {
-                $logger->warning('Csrf token is invalid');
-            }
-
             // Get JSON data
             $data = json_decode($request->getContent(), true);
             if (!$data || !isset($data['event'])) {
@@ -268,20 +262,7 @@ class ArticleController  extends AbstractController
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            // Check if user is authenticated and matches the event pubkey
-            $user = $this->getUser();
-            if (!$user) {
-                return new JsonResponse(['error' => 'User not authenticated'], 401);
-            }
-
             $formData = $data['formData'] ?? [];
-
-            $key = new Key();
-            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-
-            if ($signedEvent['pubkey'] !== $currentPubkey) {
-                return new JsonResponse(['error' => 'Event pubkey does not match authenticated user'], 403);
-            }
 
             // Extract article data from the signed event
             $articleData = $this->extractArticleDataFromEvent($signedEvent, $formData);
@@ -289,7 +270,7 @@ class ArticleController  extends AbstractController
 
             // Create new article
             $article = new Article();
-            $article->setPubkey($currentPubkey);
+            $article->setPubkey($signedEvent['pubkey']);
             $article->setKind(KindsEnum::LONGFORM);
             $article->setEventId($signedEvent['id']);
             $article->setSlug($articleData['slug']);

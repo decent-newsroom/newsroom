@@ -82,7 +82,7 @@ function validateAdvancedMetadata(metadata) {
 }
 
 export default class extends Controller {
-  static targets = ['form', 'publishButton', 'status'];
+  static targets = ['form', 'publishButton', 'status', 'jsonContainer', 'jsonTextarea', 'jsonToggle', 'jsonDirtyHint'];
   static values = {
     publishUrl: String,
     csrfToken: String
@@ -95,6 +95,47 @@ export default class extends Controller {
       console.debug('[nostr-publish] has csrfToken:', Boolean(this.csrfTokenValue));
       console.debug('[nostr-publish] existing slug:', (this.element.dataset.slug || '(none)'));
     } catch (_) {}
+
+    // Track whether JSON has been manually edited
+    this.jsonEdited = false;
+  }
+
+  // Toggle JSON preview visibility. If opening and empty, generate from form.
+  toggleJsonPreview() {
+    if (!this.hasJsonContainerTarget) return;
+    const wasHidden = this.jsonContainerTarget.hasAttribute('hidden');
+    if (wasHidden) {
+      // opening
+      if (!this.jsonEdited && (!this.hasJsonTextareaTarget || !this.jsonTextareaTarget.value.trim())) {
+        this.regenerateJsonPreview();
+      }
+      this.jsonContainerTarget.removeAttribute('hidden');
+      if (this.hasJsonToggleTarget) this.jsonToggleTarget.textContent = 'Hide raw event JSON';
+    } else {
+      // closing, keep content as-is
+      this.jsonContainerTarget.setAttribute('hidden', '');
+      if (this.hasJsonToggleTarget) this.jsonToggleTarget.textContent = 'Show raw event JSON';
+    }
+  }
+
+  // Rebuild JSON from form data (clears edited flag)
+  async regenerateJsonPreview() {
+    try {
+      const formData = this.collectFormData();
+      const nostrEvent = await this.createNostrEvent(formData);
+      const pretty = JSON.stringify(nostrEvent, null, 2);
+      if (this.hasJsonTextareaTarget) this.jsonTextareaTarget.value = pretty;
+      this.jsonEdited = false;
+      if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = 'none';
+    } catch (e) {
+      this.showError('Could not build event JSON: ' + (e?.message || e));
+    }
+  }
+
+  // Mark JSON as edited on user input
+  onJsonInput() {
+    this.jsonEdited = true;
+    if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = '';
   }
 
   async publish(event) {
@@ -118,16 +159,34 @@ export default class extends Controller {
     this.showStatus('Preparing article for signing...');
 
     try {
-      // Collect form data
+      // Collect form data (always, for fallback and backend extras)
       const formData = this.collectFormData();
 
-      // Validate required fields
-      if (!formData.title || !formData.content) {
-        throw new Error('Title and content are required');
+      // Validate required fields if no JSON override
+      if (!this.jsonEdited) {
+        if (!formData.title || !formData.content) {
+          throw new Error('Title and content are required');
+        }
       }
 
-      // Create Nostr event
-      const nostrEvent = await this.createNostrEvent(formData);
+      // Create or use overridden Nostr event
+      let nostrEvent;
+      if (this.jsonEdited && this.hasJsonTextareaTarget && this.jsonTextareaTarget.value.trim()) {
+        try {
+          const parsed = JSON.parse(this.jsonTextareaTarget.value);
+          // Ensure required fields exist; supplement from form when missing
+          nostrEvent = this.applyEventDefaults(parsed, formData);
+        } catch (e) {
+          throw new Error('Invalid JSON in raw event area: ' + (e?.message || e));
+        }
+      } else {
+        nostrEvent = await this.createNostrEvent(formData);
+      }
+
+      // Ensure pubkey present before signing
+      if (!nostrEvent.pubkey) {
+        try { nostrEvent.pubkey = await window.nostr.getPublicKey(); } catch (_) {}
+      }
 
       this.showStatus('Requesting signature from Nostr extension...');
 
@@ -152,6 +211,52 @@ export default class extends Controller {
     } finally {
       this.publishButtonTarget.disabled = false;
     }
+  }
+
+  // If a user provided a partial or custom event, make sure required keys exist
+  applyEventDefaults(event, formData) {
+    const now = Math.floor(Date.now() / 1000);
+    const corrected = { ...event };
+
+    // Ensure tags/content/kind/created_at/pubkey exist; tags default includes d/title/summary/image/topics
+    if (!Array.isArray(corrected.tags)) corrected.tags = [];
+
+    // Supplement missing core fields from form
+    if (typeof corrected.kind !== 'number') corrected.kind = formData.isDraft ? 30024 : 30023;
+    if (typeof corrected.created_at !== 'number') corrected.created_at = now;
+    if (typeof corrected.content !== 'string') corrected.content = formData.content || '';
+
+    // pubkey must be from the user's extension for signature to pass; attempt to fill
+    if (!corrected.pubkey) corrected.pubkey = undefined; // will be filled by createNostrEvent path if used
+
+    // Guarantee a d tag (slug)
+    const hasD = corrected.tags.some(t => Array.isArray(t) && t[0] === 'd');
+    if (!hasD && formData.slug) corrected.tags.push(['d', formData.slug]);
+
+    // Ensure title/summary/image/topics exist if absent
+    const ensureTag = (name, value) => {
+      if (!value) return;
+      const exists = corrected.tags.some(t => Array.isArray(t) && t[0] === name);
+      if (!exists) corrected.tags.push([name, value]);
+    };
+    ensureTag('title', formData.title);
+    ensureTag('summary', formData.summary);
+    ensureTag('image', formData.image);
+    for (const t of formData.topics || []) {
+      const exists = corrected.tags.some(tag => Array.isArray(tag) && tag[0] === 't' && tag[1] === t.replace('#', ''));
+      if (!exists) corrected.tags.push(['t', t.replace('#', '')]);
+    }
+
+    // Advanced tags from form, but don't duplicate existing tags by name
+    if (formData.advancedMetadata) {
+      const adv = buildAdvancedTags(formData.advancedMetadata);
+      for (const tag of adv) {
+        const exists = corrected.tags.some(t => Array.isArray(t) && t[0] === tag[0]);
+        if (!exists) corrected.tags.push(tag);
+      }
+    }
+
+    return corrected;
   }
 
   collectFormData() {
@@ -246,8 +351,13 @@ export default class extends Controller {
   }
 
   async createNostrEvent(formData) {
-    // Get user's public key
-    const pubkey = await window.nostr.getPublicKey();
+    // Get user's public key if available (preview can work without it)
+    let pubkey = '';
+    try {
+      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+        pubkey = await window.nostr.getPublicKey();
+      }
+    } catch (_) {}
 
     // Validate advanced metadata if present
     if (formData.advancedMetadata && formData.advancedMetadata.zapSplits.length > 0) {
@@ -293,7 +403,7 @@ export default class extends Controller {
     }
 
     // Create the Nostr event (NIP-23 long-form content)
-    const event = {
+    return {
       kind: kind,
       created_at: Math.floor(Date.now() / 1000),
       tags: tags,
@@ -301,7 +411,6 @@ export default class extends Controller {
       pubkey: pubkey
     };
 
-    return event;
   }
 
   async sendToBackend(signedEvent, formData) {
