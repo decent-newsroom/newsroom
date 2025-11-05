@@ -6,6 +6,13 @@
         </div>
     {% endif %}
 
+    {% if author.lud16 is defined and author.lud16 %}
+        <twig:Molecules:ZapButton
+            recipientPubkey="{{ pubkey }}"
+            recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+        />
+    {% endif %}
+
     {% if author.nip05 is defined %}
         {% if author.nip05 is iterable %}
             {% for nip05Value in author.nip05 %}

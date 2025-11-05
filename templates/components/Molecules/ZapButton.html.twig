@@ -1,0 +1,153 @@
+<div {{ attributes.defaults({class: 'zap-button-component'}) }}>
+    {# Zap Button - always visible #}
+    <button
+        type="button"
+        class="btn btn-sm btn-outline-warning zap-trigger"
+        data-action="live#action"
+        data-live-action-param="openDialog"
+        title="Send a zap"
+    >
+        ⚡ Zap
+    </button>
+
+    {# Modal Dialog #}
+    {% if this.open %}
+        <div class="zap-modal-overlay" data-action="click->live#action" data-live-action-param="closeDialog">
+            <div class="zap-modal-content card shadow-lg" onclick="event.stopPropagation()">
+                <div class="card-body">
+                    {# Header #}
+                    <div class="d-flex flex-row justify-content-between align-items-center mb-3">
+                        <h5 class="m-0">⚡ Send Zap</h5>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-action="live#action"
+                            data-live-action-param="closeDialog"
+                        >Close</button>
+                    </div>
+
+                    {# Phase: Input #}
+                    {% if this.phase == 'input' %}
+                        <form data-action="submit->live#action:prevent" data-live-action-param="createInvoice">
+                            <div class="mb-3">
+                                <label for="zap-amount" class="form-label">Amount (sats)</label>
+                                <input
+                                    type="number"
+                                    id="zap-amount"
+                                    class="form-control"
+                                    min="1"
+                                    step="1"
+                                    data-model="debounce(300)|amount"
+                                    value="{{ amount }}"
+                                    required
+                                    autofocus
+                                />
+                                <small class="form-text text-muted">Suggested: 21, 210, 2100 sats</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="zap-comment" class="form-label">Note (optional)</label>
+                                <textarea
+                                    id="zap-comment"
+                                    class="form-control"
+                                    rows="2"
+                                    data-model="norender|comment"
+                                    placeholder="Add a message..."
+                                >{{ comment }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-warning w-100">
+                                ⚡ Create Invoice
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {# Phase: Loading #}
+                    {% if this.phase == 'loading' %}
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-warning mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted">Creating invoice...</p>
+                        </div>
+                    {% endif %}
+
+                    {# Phase: Invoice #}
+                    {% if this.phase == 'invoice' %}
+                        <div class="zap-invoice">
+                            <div class="text-center mb-3">
+                                <p class="text-success mb-2">✓ Invoice ready!</p>
+                                <p class="text-muted small">Scan with your Lightning wallet</p>
+                            </div>
+
+                            {# QR Code #}
+                            <div class="qr-container text-center mb-3">
+                                {{ qrSvg|raw }}
+                            </div>
+
+                            {# BOLT11 Invoice String #}
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">BOLT11 Invoice:</label>
+                                <div class="input-group input-group-sm">
+                                    <input
+                                        type="text"
+                                        class="form-control font-monospace small"
+                                        value="{{ bolt11 }}"
+                                        readonly
+                                        onclick="this.select()"
+                                    />
+                                    <button
+                                        class="btn btn-outline-secondary"
+                                        type="button"
+                                        onclick="navigator.clipboard.writeText('{{ bolt11|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                            </div>
+
+                            {# Lightning URI Link #}
+                            <div class="text-center mb-3">
+                                <a
+                                    href="lightning:{{ bolt11|upper }}"
+                                    class="btn btn-warning w-100"
+                                >
+                                    ⚡ Open in Wallet
+                                </a>
+                                <small class="form-text text-muted d-block mt-2">
+                                    Or scan the QR code above
+                                </small>
+                            </div>
+
+                            {# Back button #}
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary w-100"
+                                data-action="live#action"
+                                data-live-action-param="openDialog"
+                            >
+                                ← Create Another Zap
+                            </button>
+                        </div>
+                    {% endif %}
+
+                    {# Phase: Error #}
+                    {% if this.phase == 'error' %}
+                        <div class="alert alert-danger mb-3">
+                            <strong>Error:</strong> {{ error }}
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-outline-primary w-100"
+                            data-action="live#action"
+                            data-live-action-param="openDialog"
+                        >
+                            ← Try Again
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+

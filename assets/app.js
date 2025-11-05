@@ -36,6 +36,7 @@ import './styles/03-components/picture-event.css';
 import './styles/03-components/video-event.css';
 import './styles/03-components/search.css';
 import './styles/03-components/image-upload.css';
+import './styles/03-components/zaps.css';
 
 // 04 - Page-specific styles
 import './styles/04-pages/landing.css';
