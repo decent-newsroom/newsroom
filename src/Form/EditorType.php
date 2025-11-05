@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Form;
 
+use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
 use App\Form\DataTransformer\CommaSeparatedToJsonTransformer;
 use App\Form\DataTransformer\HtmlToMdTransformer;
@@ -55,7 +56,11 @@ class EditorType extends AbstractType
             ->add('isDraft', CheckboxType::class, [
                 'label'    => 'Save as draft',
                 'required' => false,
-                'mapped'   => false,
+            ])
+            ->add('advancedMetadata', AdvancedMetadataType::class, [
+                'label' => 'Advanced metadata',
+                'required' => false,
+                'mapped' => false,
             ]);
 
         // Apply the custom transformer

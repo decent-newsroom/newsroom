@@ -79,6 +79,9 @@ class Article
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     private ?int $ratingPositive = null;
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $advancedMetadata = null;
+
     public function getId(): null|int|string
     {
         return $this->id;
@@ -336,5 +339,16 @@ class Article
     public function setRaw($raw): void
     {
         $this->raw = $raw;
+    }
+
+    public function getAdvancedMetadata(): ?array
+    {
+        return $this->advancedMetadata;
+    }
+
+    public function setAdvancedMetadata(?array $advancedMetadata): static
+    {
+        $this->advancedMetadata = $advancedMetadata;
+        return $this;
     }
 }

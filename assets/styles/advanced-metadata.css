@@ -1,0 +1,150 @@
+/* Advanced Metadata Styles */
+
+.advanced-metadata-section details {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.advanced-metadata-section summary {
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    margin: -1rem -1rem 0 -1rem;
+    padding: 1rem;
+}
+
+.advanced-metadata-section summary:hover {
+    background-color: #e9ecef;
+}
+
+.advanced-metadata-section details[open] summary {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.zap-split-item {
+    background-color: #ffffff;
+    transition: box-shadow 0.2s;
+}
+
+.zap-split-item:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.zap-share-display {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.375rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 1rem 0;
+}
+
+.upload-area:hover {
+    border-color: #0d6efd;
+    background-color: #f8f9fa;
+}
+
+.upload-area input[type="file"] {
+    display: none;
+}
+
+.iu-dialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1050;
+}
+
+.iu-dialog.active {
+    display: block;
+}
+
+.iu-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.iu-modal {
+    position: relative;
+    max-width: 500px;
+    margin: 3rem auto;
+    background-color: white;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    z-index: 1051;
+}
+
+.modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header .close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.modal-body {
+    padding: 1rem;
+}
+
+.upload-progress,
+.upload-error {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+}
+
+.upload-progress {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.upload-error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Form validation styles */
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.form-control.is-valid {
+    border-color: #28a745;
+}
+
+.invalid-feedback {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+

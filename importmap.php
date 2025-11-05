@@ -112,4 +112,7 @@ return [
         'version' => '0.16.25',
         'type' => 'css',
     ],
+    'katex/dist/katex.min.js' => [
+        'version' => '0.16.25',
+    ],
 ];

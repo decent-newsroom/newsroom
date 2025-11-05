@@ -1,14 +1,15 @@
 {% extends 'layout.html.twig' %}
 
-{% form_theme form _self %}
+{% form_theme form _self 'pages/_advanced_metadata.html.twig' %}
 
 {% block quill_widget %}
     <div {{ stimulus_controller('quill') }} class="quill" data-id="{{ id }}" >
         <div id="editor">
             {{ value|raw }}
         </div>
+        <input type="hidden" name="editor[content_md]" data-quill-target="markdown">
+        <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
-    <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
 {% endblock %}
 
 {% block body %}
@@ -82,6 +83,8 @@
                     'label_attr': {'class': 'form-check-label'},
                     'attr': {'class': 'form-check-input'}
                 }) }}
+
+                {{ form_row(form.advancedMetadata) }}
 
                 <div class="actions">
                     <button type="button"

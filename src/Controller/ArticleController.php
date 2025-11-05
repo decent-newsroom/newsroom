@@ -2,10 +2,13 @@
 
 namespace App\Controller;
 
+use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Form\EditorType;
 use App\Service\NostrClient;
+use App\Service\Nostr\NostrEventBuilder;
+use App\Service\Nostr\NostrEventParser;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -139,8 +142,16 @@ class ArticleController  extends AbstractController
      */
     #[Route('/article-editor/create', name: 'editor-create')]
     #[Route('/article-editor/edit/{slug}', name: 'editor-edit-slug')]
-    public function newArticle(Request $request, NostrClient $nostrClient, EntityManagerInterface $entityManager, $slug = null): Response
+    public function newArticle(
+        Request $request,
+        NostrClient $nostrClient,
+        EntityManagerInterface $entityManager,
+        NostrEventParser $eventParser,
+        $slug = null
+    ): Response
     {
+        $advancedMetadata = null;
+
         if (!$slug) {
             $article = new Article();
             $article->setKind(KindsEnum::LONGFORM);
@@ -159,6 +170,11 @@ class ArticleController  extends AbstractController
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
             $article = array_shift($articles);
+            // Parse advanced metadata from the raw event if available
+            if ($article->getRaw()) {
+                $tags = $article->getRaw()['tags'] ?? [];
+                $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
+            }
         }
 
         $recentArticles = [];
@@ -193,6 +209,11 @@ class ArticleController  extends AbstractController
         }
 
         $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
+        // Populate advanced metadata form data
+        if ($advancedMetadata) {
+            $form->get('advancedMetadata')->setData($advancedMetadata);
+        }
+
         $form->handleRequest($request);
 
         // load template with content editor
@@ -215,7 +236,8 @@ class ArticleController  extends AbstractController
         NostrClient $nostrClient,
         CacheItemPoolInterface $articlesCache,
         CsrfTokenManagerInterface $csrfTokenManager,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        NostrEventParser $eventParser
     ): JsonResponse {
         try {
             // Verify CSRF token
@@ -280,6 +302,23 @@ class ArticleController  extends AbstractController
             $article->setRaw($signedEvent);
             $article->setCreatedAt(new \DateTimeImmutable('@' . $signedEvent['created_at']));
             $article->setPublishedAt(new \DateTimeImmutable());
+
+            // Parse and store advanced metadata
+            $advancedMetadata = $eventParser->parseAdvancedMetadata($signedEvent['tags']);
+            $article->setAdvancedMetadata([
+                'doNotRepublish' => $advancedMetadata->doNotRepublish,
+                'license' => $advancedMetadata->getLicenseValue(),
+                'zapSplits' => array_map(function($split) {
+                    return [
+                        'recipient' => $split->recipient,
+                        'relay' => $split->relay,
+                        'weight' => $split->weight,
+                    ];
+                }, $advancedMetadata->zapSplits),
+                'contentWarning' => $advancedMetadata->contentWarning,
+                'expirationTimestamp' => $advancedMetadata->expirationTimestamp,
+                'isProtected' => $advancedMetadata->isProtected,
+            ]);
 
             // Save to database
             $entityManager->persist($article);
