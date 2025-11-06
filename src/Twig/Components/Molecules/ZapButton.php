@@ -34,6 +34,13 @@ final class ZapButton
     #[LiveProp]
     public ?string $recipientLud06 = null;
 
+    /**
+     * Zap splits configuration
+     * Array of ['recipient' => hex pubkey, 'relay' => url, 'weight' => int]
+     */
+    #[LiveProp]
+    public array $zapSplits = [];
+
     // UI state props (internal)
     #[LiveProp(writable: true)]
     public bool $open = false;
@@ -156,7 +163,8 @@ final class ZapButton
                 amountMillisats: $amountMillisats,
                 lnurl: $lnurlInfo->bech32 ?? ($this->recipientLud16 ?? $this->recipientLud06 ?? ''),
                 comment: $this->comment,
-                relays: [] // Optional: could add user's preferred relays
+                relays: [], // Optional: could add user's preferred relays
+                zapSplits: $this->zapSplits
             );
 
             // URL-encode the zap request for the callback

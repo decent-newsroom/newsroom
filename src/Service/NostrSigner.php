@@ -59,6 +59,7 @@ class NostrSigner
      * @param string $lnurl The LNURL or callback URL
      * @param string $comment Optional comment/note
      * @param array $relays Optional list of relays
+     * @param array $zapSplits Optional zap splits configuration [['recipient' => hex, 'relay' => url, 'weight' => int]]
      * @return string JSON-encoded signed zap request
      */
     public function buildZapRequest(
@@ -66,7 +67,8 @@ class NostrSigner
         int $amountMillisats,
         string $lnurl,
         string $comment = '',
-        array $relays = []
+        array $relays = [],
+        array $zapSplits = []
     ): string {
         $tags = [
             ['p', $recipientPubkey],
@@ -77,6 +79,25 @@ class NostrSigner
         // Add relays if provided
         foreach ($relays as $relay) {
             $tags[] = ['relays', $relay];
+        }
+
+        // Add zap splits if provided (NIP-57)
+        foreach ($zapSplits as $split) {
+            $zapTag = ['zap', $split['recipient']];
+
+            // Add relay if specified
+            if (!empty($split['relay'])) {
+                $zapTag[] = $split['relay'];
+            } else {
+                $zapTag[] = ''; // placeholder for relay position
+            }
+
+            // Add weight if specified
+            if (!empty($split['weight'])) {
+                $zapTag[] = (string) $split['weight'];
+            }
+
+            $tags[] = $zapTag;
         }
 
         return $this->signEphemeral(9734, $tags, $comment);
