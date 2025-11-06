@@ -9,24 +9,22 @@ use App\Repository\VisitRepository;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Bundle\SecurityBundle\Security;
 
 #[AsEventListener(event: KernelEvents::REQUEST, method: 'onKernelRequest', priority: 0)]
 class VisitTrackingListener
 {
     private const EXCLUDED_ROUTES = [
-        '/api/',
         '/_profiler',
         '/_wdt',
         '/service-worker.js',
+        '/manifest.webmanifest',
         '/robots.txt',
         '/assets/',
         '/icons/',
     ];
 
     public function __construct(
-        private readonly VisitRepository $visitRepository,
-        private readonly Security $security,
+        private readonly VisitRepository $visitRepository
     ) {
     }
 
@@ -40,15 +38,9 @@ class VisitTrackingListener
         $request = $event->getRequest();
         $route = $request->getPathInfo();
 
-        // Exception: Always track article publish API calls
-        $isArticlePublish = str_starts_with($route, '/api/article/publish');
-
-        // Skip tracking for excluded routes (API, profiler, assets, etc.)
-        if (!$isArticlePublish) {
-            foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
-                if (str_starts_with($route, $excludedRoute)) {
-                    return;
-                }
+        foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
+            if (str_starts_with($route, $excludedRoute)) {
+                return;
             }
         }
 
