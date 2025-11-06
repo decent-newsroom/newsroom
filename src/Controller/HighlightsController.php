@@ -139,7 +139,16 @@ class HighlightsController extends AbstractController
         // Sort by created_at descending (newest first)
         usort($processed, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
 
-        return $processed;
+        // Deduplicate highlights by article_ref, keeping the latest
+        $uniqueHighlights = [];
+        foreach ($processed as $highlight) {
+            $ref = $highlight['article_ref'];
+            if (!isset($uniqueHighlights[$ref])) {
+                $uniqueHighlights[$ref] = $highlight;
+            }
+        }
+
+        return $uniqueHighlights;
     }
 
     /**
