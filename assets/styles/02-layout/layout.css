@@ -285,3 +285,8 @@ p.measure {
 }
 
 section{ position: relative; padding: var(--section-spacing) var(--spacing-3); }
+
+.katex-display>.katex {
+    line-height: 2;
+    white-space: normal !important;
+}

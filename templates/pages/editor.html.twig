@@ -25,9 +25,6 @@
                 csrfToken: csrf_token('nostr_publish')
             }) }} data-nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
 
-                <!-- Status messages -->
-                <div data-nostr-publish-target="status"></div>
-
                 {{ form_start(form) }}
                 {{ form_row(form.slug) }}
                 {{ form_row(form.title) }}
@@ -107,6 +104,9 @@
                         <textarea id="raw-json" data-nostr-publish-target="jsonTextarea" data-action="input->nostr-publish#onJsonInput" class="form-control" rows="12" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
                         <small class="text-muted d-block mt-1">Edits here override the form when publishing. Keep required fields: kind, created_at, tags, content, pubkey.</small>
                     </div>
+
+                    <!-- Status messages -->
+                    <div data-nostr-publish-target="status"></div>
 
                     <button type="button"
                             class="btn btn-primary"

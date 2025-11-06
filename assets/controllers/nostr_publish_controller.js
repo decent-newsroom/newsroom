@@ -482,7 +482,7 @@ export default class extends Controller {
 
     // Escape "_" inside display math $$...$$ and inline math $...$
     markdown = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (m, g1) => `$$${g1.replace(/_/g, (u, i, s) => (i>0 && s[i-1]==='\\') ? '\\_' : '\\_')}$$`);
-    markdown = markdown.replace(/$([^$]*?)$/g, (m, g1) => `$${g1.replace(/_/g, (u, i, s) => (i>0 && s[i-1]==='\\') ? '\\_' : '\\_')}$`);
+    markdown = markdown.replace(/\$([^$]*?)\$/g, (m, g1) => `$${g1.replace(/_/g, (u, i, s) => (i>0 && s[i-1]==='\\') ? '\\_' : '\\_')}$`);
 
     // Clean up HTML entities and remaining tags
     markdown = markdown.replace(/&nbsp;/g, ' ');

@@ -42,7 +42,37 @@
                                     required
                                     autofocus
                                 />
-                                <small class="form-text text-muted">Suggested: 21, 210, 2100 sats</small>
+                                <div class="d-flex flex-row gap-2 mt-2">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        onclick="document.getElementById('zap-amount').value = 21; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
+                                    >
+                                        21
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        onclick="document.getElementById('zap-amount').value = 100; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
+                                    >
+                                        100
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        onclick="document.getElementById('zap-amount').value = 1000; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
+                                    >
+                                        1000
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        onclick="document.getElementById('zap-amount').value = 21000; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
+                                    >
+                                        21k
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">Click a suggested amount or enter custom value</small>
                             </div>
 
                             <div class="mb-3">
