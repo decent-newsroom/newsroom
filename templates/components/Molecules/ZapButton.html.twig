@@ -2,7 +2,7 @@
     {# Zap Button - always visible #}
     <button
         type="button"
-        class="btn btn-sm btn-outline-warning zap-trigger"
+        class="btn btn-outline-warning zap-trigger {{ btnClass|default('') }}"
         data-action="live#action"
         data-live-action-param="openDialog"
         title="Send a zap"
@@ -28,6 +28,23 @@
 
                     {# Phase: Input #}
                     {% if this.phase == 'input' %}
+                        {# Display zap splits information if configured #}
+                        {% if this.zapSplits|length > 0 %}
+                            <div class="alert alert-info mb-3">
+                                <strong>⚡ Split Payment</strong>
+                                <p class="mb-1 small">This zap will be split between {{ this.zapSplits|length + 1 }} recipients:</p>
+                                <ul class="mb-0 small">
+                                    <li>Primary recipient</li>
+                                    {% for split in this.zapSplits %}
+                                        <li>
+                                            {{ split.recipient|slice(0, 8) }}...{{ split.recipient|slice(-8) }}
+                                            {% if split.weight %}(weight: {{ split.weight }}){% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
                         <form data-action="submit->live#action:prevent" data-live-action-param="createInvoice">
                             <div class="mb-3">
                                 <label for="zap-amount" class="form-label">Amount (sats)</label>

@@ -8,6 +8,8 @@
 
     {% if author.lud16 is defined and author.lud16 %}
         <twig:Molecules:ZapButton
+            class="mt-2 mb-2"
+            btnClass="btn-sm"
             recipientPubkey="{{ pubkey }}"
             recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
         />

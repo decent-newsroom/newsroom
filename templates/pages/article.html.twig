@@ -59,6 +59,21 @@
             {% if app.user %}
                 <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
             {% endif %}
+
+            {# Zap Button with split payment support #}
+            {% set zapSplits = article.advancedMetadata.zapSplits|default([]) %}
+            <twig:Molecules:ZapButton
+                recipientPubkey="{{ article.pubkey }}"
+                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+                :zapSplits="zapSplits" />
+
+            {# Display split payment indicator #}
+            {% if zapSplits|length > 0 %}
+                <small class="text-muted ms-2">
+                    <em>(Split between {{ zapSplits|length + 1 }} recipients)</em>
+                </small>
+            {% endif %}
+
         </div>
 
 
