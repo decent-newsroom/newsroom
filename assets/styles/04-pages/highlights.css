@@ -99,6 +99,39 @@
     margin-bottom: 1.5rem;
 }
 
+/* Article inline highlights */
+.article-highlight {
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    padding: 0.1em 0;
+    transition: all 0.3s ease;
+    cursor: help;
+}
+
+.article-highlight.visible {
+    background: linear-gradient(to bottom,
+        rgba(255, 237, 74, 0.3) 0%,
+        rgba(255, 237, 74, 0.5) 100%);
+    border-bottom: 2px solid rgba(255, 200, 0, 0.6);
+}
+
+.article-highlight.visible:hover {
+    background: linear-gradient(to bottom,
+        rgba(255, 237, 74, 0.5) 0%,
+        rgba(255, 237, 74, 0.7) 100%);
+    border-bottom-color: rgba(255, 200, 0, 0.8);
+}
+
+/* Toggle button active state */
+.btn[aria-pressed="true"] {
+    background-color: rgba(255, 237, 74, 0.3);
+    border-color: rgba(255, 200, 0, 0.6);
+}
+
+.btn[aria-pressed="true"]:hover {
+    background-color: rgba(255, 237, 74, 0.5);
+}
+
 @media (max-width: 768px) {
     .highlights-grid {
         column-count: 1;

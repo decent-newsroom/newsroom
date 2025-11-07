@@ -1004,6 +1004,47 @@ class NostrClient
         return array_values($uniqueEvents);
     }
 
+    /**
+     * Get highlights for a specific article
+     * @throws \Exception
+     */
+    public function getHighlightsForArticle(string $articleCoordinate, int $limit = 100): array
+    {
+        $this->logger->info('Fetching highlights for article', ['coordinate' => $articleCoordinate]);
+
+        // Use relay pool to send request
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+        $filter = new Filter();
+        $filter->setKinds([9802]); // NIP-84 highlights
+        $filter->setLimit($limit);
+        // Add tag filter for the specific article coordinate
+        $filter->setTags(['a' => [$articleCoordinate]]);
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+
+        // Get default relay URLs
+        $relayUrls = $this->relayPool->getDefaultRelays();
+
+        // Use the relay pool to send the request
+        $responses = $this->relayPool->sendToRelays(
+            $relayUrls,
+            fn() => $requestMessage,
+            30,
+            $subscriptionId
+        );
+
+        // Process the response and deduplicate by eventId
+        $uniqueEvents = [];
+        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
+            $this->logger->debug('Received highlight event for article', ['event_id' => $event->id]);
+            $uniqueEvents[$event->id] = $event;
+            return null;
+        });
+
+        return array_values($uniqueEvents);
+    }
+
     private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null, $stopGap = null ): TweakedRequest
     {
         $subscription = new Subscription();

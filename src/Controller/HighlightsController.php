@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\HighlightService;
 use App\Service\NostrClient;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class HighlightsController extends AbstractController
 
     public function __construct(
         private readonly NostrClient $nostrClient,
+        private readonly HighlightService $highlightService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -38,7 +40,10 @@ class HighlightsController extends AbstractController
                     // Fetch highlights that reference articles (kind 30023)
                     $events = $this->nostrClient->getArticleHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
 
-                    // Process and enrich the highlights
+                    // Save raw events to database first (group by article)
+                    $this->saveHighlightsToDatabase($events);
+
+                    // Process and enrich the highlights for display
                     return $this->processHighlights($events);
                 } catch (\Exception $e) {
                     $this->logger->error('Failed to fetch highlights', [
@@ -63,6 +68,52 @@ class HighlightsController extends AbstractController
                 'total' => 0,
                 'error' => 'Unable to load highlights at this time. Please try again later.',
             ]);
+        }
+    }
+
+    /**
+     * Save highlights to database grouped by article coordinate
+     */
+    private function saveHighlightsToDatabase(array $events): void
+    {
+        // Group events by article coordinate
+        $eventsByArticle = [];
+
+        foreach ($events as $event) {
+            // Extract article coordinate from tags
+            foreach ($event->tags ?? [] as $tag) {
+                if (!is_array($tag) || count($tag) < 2) {
+                    continue;
+                }
+
+                if (in_array($tag[0], ['a', 'A'])) {
+                    $coordinate = $tag[1] ?? null;
+                    if ($coordinate && str_starts_with($coordinate, '30023:')) {
+                        if (!isset($eventsByArticle[$coordinate])) {
+                            $eventsByArticle[$coordinate] = [];
+                        }
+                        $eventsByArticle[$coordinate][] = $event;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Save each article's highlights to database
+        foreach ($eventsByArticle as $coordinate => $articleEvents) {
+            try {
+                $this->highlightService->saveEventsToDatabase($coordinate, $articleEvents);
+
+                $this->logger->debug('Saved highlights to database', [
+                    'coordinate' => $coordinate,
+                    'count' => count($articleEvents)
+                ]);
+            } catch (\Exception $e) {
+                $this->logger->warning('Failed to save highlights to database', [
+                    'coordinate' => $coordinate,
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
     }
 

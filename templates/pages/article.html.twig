@@ -16,7 +16,7 @@
         <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
     {% endif %}
 
-    <article class="w-container">
+    <article class="w-container" data-controller="highlights-toggle">
         <div class="article-actions">
             <div data-controller="share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
                 <button data-share-dropdown-target="button"
@@ -74,6 +74,21 @@
                 </small>
             {% endif %}
 
+            {# Highlights toggle button #}
+            {% if highlights is defined and highlights|length > 0 %}
+                <button data-highlights-toggle-target="button"
+                        data-action="click->highlights-toggle#toggle"
+                        class="btn btn-secondary"
+                        type="button"
+                        aria-pressed="false"
+                        title="Toggle highlights">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Highlights ({{ highlights|length }})
+                </button>
+            {% endif %}
+
         </div>
 
 
@@ -94,7 +109,7 @@
                         {% else %}
                             <small>
     {#                            <twig:ux:icon name="heroicons:pencil" class="icon" /> #}
-                                {{ article.createdAt|date('F j, Y') }}</small><br>
+                                {{ article.createdAt|date('F j, Y') }}</small>
                         {% endif %}
                     </span>
                 </div>
@@ -111,7 +126,10 @@
                 </div>
             {% endif %}
 
-            <div class="article-main">
+            <div class="article-main"
+                 {% if highlights is defined and highlights|length > 0 %}
+                 data-highlights="{{ highlights|json_encode|e('html_attr') }}"
+                 {% endif %}>
                 {{ content|raw }}
             </div>
 

@@ -6,6 +6,7 @@ use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Form\EditorType;
+use App\Service\HighlightService;
 use App\Service\NostrClient;
 use App\Service\Nostr\NostrEventBuilder;
 use App\Service\Nostr\NostrEventParser;
@@ -72,7 +73,8 @@ class ArticleController  extends AbstractController
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
         CacheItemPoolInterface $articlesCache,
-        Converter $converter
+        Converter $converter,
+        HighlightService $highlightService
     ): Response
     {
 
@@ -126,13 +128,27 @@ class ArticleController  extends AbstractController
 
         $canonical = $this->generateUrl('article-slug', ['slug' => $article->getSlug()], 0);
 
+        // Fetch highlights using the caching service
+        $highlights = [];
+        try {
+            $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            error_log('ArticleController: Looking for highlights with coordinate: ' . $articleCoordinate);
+            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+            error_log('ArticleController: Found ' . count($highlights) . ' highlights');
+        } catch (\Exception $e) {
+            // Log but don't fail the page if highlights can't be fetched
+            // Highlights are optional enhancement
+            error_log('ArticleController: Failed to fetch highlights: ' . $e->getMessage());
+        }
+
         return $this->render('pages/article.html.twig', [
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
             'content' => $cacheItem->get(),
             'canEdit' => $canEdit,
-            'canonical' => $canonical
+            'canonical' => $canonical,
+            'highlights' => $highlights
         ]);
     }
 
