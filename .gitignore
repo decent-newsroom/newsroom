@@ -22,3 +22,8 @@
 
 ###> publication ###
 /publication/
+
+###> strfry relay ###
+/infra/strfry/data/
+###< strfry relay ###
+

@@ -1,0 +1,263 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Administration{% endblock %}
+
+{% block layout %}
+<div class="relay-admin">
+    <style>
+        .relay-admin {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .relay-header {
+            margin-bottom: 2rem;
+        }
+        .relay-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .status-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-indicator.healthy { background: #22c55e; }
+        .status-indicator.warning { background: #f59e0b; }
+        .status-indicator.error { background: #ef4444; }
+        .status-indicator.unknown { background: #6b7280; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            font-weight: 500;
+            color: #666;
+        }
+        .stat-value {
+            color: #333;
+            font-family: monospace;
+        }
+
+        .events-section {
+            margin-top: 2rem;
+        }
+        .event-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .event-kind {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .event-content {
+            color: #4b5563;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .logs-section {
+            margin-top: 2rem;
+        }
+        .logs-container {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fbbf24;
+        }
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+    </style>
+
+    <div class="relay-header">
+        <h1>🛰️ Relay Administration</h1>
+        <p>Monitor and manage your local Nostr relay</p>
+    </div>
+
+    {# Status Overview #}
+    <div class="status-grid">
+        {# Container Status #}
+        <div class="status-card">
+            <h2>Container Status</h2>
+
+            <div class="stat-row">
+                <span class="stat-label">strfry Relay</span>
+                <span class="stat-value">
+                    {% if container_status.strfry.status == 'running' %}
+                        <span class="status-indicator healthy"></span> Running
+                    {% else %}
+                        <span class="status-indicator error"></span> {{ container_status.strfry.status|default('Not Running') }}
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Ingest Service</span>
+                <span class="stat-value">
+                    {% if container_status.ingest.status == 'running' %}
+                        <span class="status-indicator healthy"></span> Running
+                    {% else %}
+                        <span class="status-indicator warning"></span> {{ container_status.ingest.status|default('Not Running') }}
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Port 7777</span>
+                <span class="stat-value">
+                    {% if connectivity.port_accessible %}
+                        <span class="status-indicator healthy"></span> Accessible
+                    {% else %}
+                        <span class="status-indicator error"></span> Not Accessible
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        {# Database Statistics #}
+        <div class="status-card">
+            <h2>Database Statistics</h2>
+
+            {% if stats.error is defined %}
+                <div class="alert alert-error">{{ stats.error }}</div>
+            {% elseif stats.relay_accessible %}
+                <div class="stat-row">
+                    <span class="stat-label">Relay Status</span>
+                    <span class="stat-value"><span class="status-indicator healthy"></span> Accessible & Running</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Events</span>
+                    <span class="stat-value">{{ stats.total_events }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Database Size</span>
+                    <span class="stat-value">{{ stats.database_size }}</span>
+                </div>
+                {% if stats.total_events == 0 %}
+                <div class="alert alert-warning" style="margin-top: 1rem;">
+                    No events found. Run prime to populate the relay.
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-error">
+                    Relay not accessible
+                </div>
+            {% endif %}
+        </div>
+
+        {# Configuration #}
+        <div class="status-card">
+            <h2>Configuration</h2>
+
+            <div class="stat-row">
+                <span class="stat-label">Relay URL</span>
+                <span class="stat-value">{{ config.relay_url }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">External Access</span>
+                <span class="stat-value">{{ config.relay_external }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Sync Window</span>
+                <span class="stat-value">{{ config.days_articles }} days (articles)</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Thread Window</span>
+                <span class="stat-value">{{ config.days_threads }} days (threads)</span>
+            </div>
+        </div>
+    </div>
+
+    {# Recent Events #}
+    {% if recent_events|length > 0 %}
+    <div class="events-section">
+        <div class="status-card">
+            <h2>Recent Events (Last 5)</h2>
+
+            {% for event in recent_events %}
+                <div class="event-card">
+                    <div class="event-header">
+                        <span>
+                            <span class="event-kind">Kind {{ event.kind }}</span>
+                            ID: {{ event.id[:16] }}...
+                        </span>
+                        <span>{{ event.created_at|date('Y-m-d H:i') }}</span>
+                    </div>
+                    {% if event.content %}
+                        <div class="event-content">
+                            {{ event.content[:200] }}{% if event.content|length > 200 %}...{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

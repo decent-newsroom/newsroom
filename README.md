@@ -69,3 +69,31 @@ To save the encryption key:
 ```bash
 docker-compose exec php bin/console secrets:set APP_ENCRYPTION_KEY
 ```
+
+### Nostr Relay
+
+The project includes a private read-only Nostr relay (powered by strfry) that acts as a local cache for long-form articles and related events. This improves performance and reduces dependency on public relays.
+
+**Quick Start:**
+
+```bash
+# Start the relay
+make relay-up
+
+# Run initial backfill
+make relay-prime
+
+# Test it
+make relay-test
+```
+
+For detailed documentation, see [documentation/relay.md](documentation/relay.md).
+
+**Key Features:**
+- Read-only cache (denies client writes)
+- Automatic periodic sync from upstream relays
+- Caches long-form articles (NIP-23), reactions, zaps, highlights, and more
+- WebSocket endpoint exposed via Caddy
+- Easy backup/restore with `make relay-export` / `make relay-import`
+
+

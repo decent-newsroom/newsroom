@@ -45,14 +45,27 @@ class NostrClient
                                 private readonly TokenStorageInterface  $tokenStorage,
                                 private readonly LoggerInterface        $logger,
                                 private readonly CacheItemPoolInterface $npubCache,
-                                private readonly NostrRelayPool         $relayPool)
+                                private readonly NostrRelayPool         $relayPool,
+                                private readonly ?string                $nostrDefaultRelay = null)
     {
         // Initialize default relay set using the relay pool to avoid duplicate connections
-        $defaultRelayUrls = [
-            'wss://theforest.nostr1.com',
-            'wss://nostr.land',
-            'wss://relay.primal.net'
-        ];
+        // Prefer local relay if configured, otherwise use public relays
+        $defaultRelayUrls = [];
+
+        if ($this->nostrDefaultRelay) {
+            // Use configured default relay (typically local strfry instance)
+            $defaultRelayUrls = [$this->nostrDefaultRelay];
+            $this->logger->info('Using configured default Nostr relay', ['relay' => $this->nostrDefaultRelay]);
+        } else {
+            // Fallback to public relays
+            $defaultRelayUrls = [
+                'wss://theforest.nostr1.com',
+                'wss://nostr.land',
+                'wss://relay.primal.net'
+            ];
+            $this->logger->info('Using public Nostr relays (no default relay configured)');
+        }
+
         $this->defaultRelaySet = new RelaySet();
         foreach ($defaultRelayUrls as $url) {
             $this->defaultRelaySet->addRelay($this->relayPool->getRelay($url));

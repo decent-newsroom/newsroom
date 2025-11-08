@@ -16,6 +16,8 @@ services:
         MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
         MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:-https://${SERVER_NAME:-localhost}/.well-known/mercure}
         MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+        # Nostr relay configuration
+        NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -85,6 +87,52 @@ services:
       environment:
             APP_ENV: prod
             DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
+            NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-}
+
+###> strfry relay ###
+  strfry:
+    image: dockurr/strfry:latest
+    container_name: newsroom-strfry
+    restart: unless-stopped
+    environment:
+      - RELAY_NAME=Decent Newsroom Read-Cache Relay
+      - RELAY_DESCRIPTION=Read-only cache relay for Decent Newsroom
+      - RELAY_WRITE_POLICY=/app/write-policy.sh
+    volumes:
+      - ./infra/strfry/write-policy.sh:/app/write-policy.sh:ro
+      - strfry_data:/app/strfry-db
+    ports:
+      - "7777:7777"  # Expose for local testing (ws://localhost:7777)
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/7777' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - default
+
+  ingest:
+    build:
+      context: ./infra/cron
+      dockerfile: Dockerfile
+    container_name: newsroom-ingest
+    restart: unless-stopped
+    command: ["/usr/local/bin/supercronic", "/etc/cron/crontab"]
+    volumes:
+      - ./infra/cron/crontab:/etc/cron/crontab:ro
+      - ./bin:/app/bin:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      strfry:
+        condition: service_healthy
+    environment:
+      - UPSTREAMS=${RELAY_UPSTREAMS:-wss://relay.snort.social wss://relay.damus.io wss://relay.nostr.band}
+      - DAYS_ARTICLES=${RELAY_DAYS_ARTICLES:-7}
+      - DAYS_THREADS=${RELAY_DAYS_THREADS:-3}
+    networks:
+      - default
+###< strfry relay ###
 
 volumes:
   caddy_data:
@@ -95,3 +143,8 @@ volumes:
 ###> doctrine/doctrine-bundle ###
   database_data:
 ###< doctrine/doctrine-bundle ###
+
+###> strfry relay ###
+  strfry_data:
+###< strfry relay ###
+

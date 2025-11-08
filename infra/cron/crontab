@@ -1,0 +1,6 @@
+# Relay ingest crontab - syncs events from upstream relays every 10 minutes
+# Format: minute hour day month weekday command
+
+# Run ingest every 10 minutes
+*/10 * * * * /app/bin/relay/ingest.sh >> /var/log/relay-ingest.log 2>&1
+

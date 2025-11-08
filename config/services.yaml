@@ -6,12 +6,15 @@
 parameters:
     encryption_key: '%env(APP_ENCRYPTION_KEY)%'
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
+    nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
 
 services:
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            $nostrDefaultRelay: '%nostr_default_relay%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

@@ -6,6 +6,15 @@ frankenphp {
 
 {$CADDY_EXTRA_CONFIG}
 
+# Nostr relay WebSocket proxy
+{$RELAY_DOMAIN:relay.localhost} {
+	log {
+		format json
+	}
+	encode zstd gzip
+	reverse_proxy strfry:7777
+}
+
 {$SERVER_NAME:localhost} {
 	log {
 		{$CADDY_SERVER_LOG_OPTIONS}
