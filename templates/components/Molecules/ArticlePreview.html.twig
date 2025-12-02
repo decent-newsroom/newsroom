@@ -1,0 +1,34 @@
+<div class="nostr-article-preview card">
+    <div class="card-body">
+        {% if article.image %}
+            <div class="article-preview-image">
+                <img src="{{ article.image }}" alt="{{ article.title }}" class="img-fluid rounded">
+            </div>
+        {% endif %}
+        <div class="article-preview-meta d-flex flex-row justify-content-between align-items-center px-2">
+            <div class="author-info">
+                <twig:Molecules:UserFromNpub
+                    ident="{{ article.pubkey }}"
+                    :compact="true"
+                />
+            </div>
+
+            <div class="article-date text-muted small">
+                {{ article.createdAt|date('M j, Y') }}
+            </div>
+        </div>
+
+        <div class="px-2">
+            <h5 class="card-title">
+                <a href="{{ path('author-article-slug', {npub: npub, slug: article.slug}) }}" class="text-decoration-none">
+                    {{ article.title }}
+                </a>
+            </h5>
+
+            {% if article.summary %}
+                <p class="card-text text-muted small line-clamp-3">{{ article.summary }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+

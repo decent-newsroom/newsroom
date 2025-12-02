@@ -4,26 +4,27 @@
  */
 
 button, .btn, a.btn {
-    background-color: var(--color-primary);
+    background: var(--color-primary);
     color: var(--color-text-contrast);
     border: 2px solid var(--color-primary);
-    padding: var(--button-padding-y) var(--button-padding-x);
-    text-transform: uppercase;
-    font-weight: bold;
+    padding: 0.75em 1.5em;
+    font-family: var(--font-family), sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     cursor: pointer;
-    transition: background-color 0.3s ease, color 0.3s ease;
-    border-radius: 0;  /* Sharp edges */
 }
 
-button:hover, .btn:hover {
-    background-color: var(--color-bg);
-    color: var(--color-primary);
-}
-
-button:active, .btn:active {
-    background-color: var(--color-primary);
+button:hover, .btn:hover, a.btn:hover {
+    background: var(--color-accent);
     color: var(--color-text);
-    border-color: var(--color-text);
+    border: 2px solid var(--color-accent);
+}
+
+button:active, .btn:active, a.btn:active {
+    background: var(--color-primary);
+    border: 2px solid var(--color-primary);
 }
 
 a.btn, a.btn:hover, a.btn:active {

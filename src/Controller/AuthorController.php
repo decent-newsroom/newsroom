@@ -161,13 +161,13 @@ class AuthorController extends AbstractController
      * @throws Exception|InvalidArgumentException
      */
     #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
-    public function media($npub, NostrClient $nostrClient, RedisCacheService $redisCacheService, NostrKeyUtil $keyUtil): Response
+    public function media($npub, RedisCacheService $redisCacheService, NostrKeyUtil $keyUtil): Response
     {
-
-        $author = $redisCacheService->getMetadata($keyUtil->npubToHex($npub));
+        $pubkey = $keyUtil->npubToHex($npub);
+        $author = $redisCacheService->getMetadata($pubkey);
 
         // Use paginated cached media events - fetches 200 from relays, serves first 24
-        $paginatedData = $redisCacheService->getMediaEventsPaginated($keyUtil->npubToHex($npub), 1, 24);
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, 1, 24);
         $mediaEvents = $paginatedData['events'];
 
         // Encode event IDs as note1... for each event
@@ -179,6 +179,7 @@ class AuthorController extends AbstractController
         return $this->render('profile/author-media.html.twig', [
             'author' => $author,
             'npub' => $npub,
+            'pubkey' => $pubkey,
             'pictureEvents' => $mediaEvents,
             'hasMore' => $paginatedData['hasMore'],
             'total' => $paginatedData['total'],
@@ -229,6 +230,7 @@ class AuthorController extends AbstractController
      * @throws InvalidArgumentException
      */
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
+    #[Route('/p/{npub}/articles', name: 'author-articles', requirements: ['npub' => '^npub1.*'])]
     public function index($npub, RedisCacheService $redisCacheService, FinderInterface $finder,
                           MessageBusInterface $messageBus): Response
     {

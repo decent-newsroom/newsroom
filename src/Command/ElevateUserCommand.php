@@ -26,7 +26,7 @@ class ElevateUserCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('arg1', InputArgument::REQUIRED, 'User npub')
+            ->addArgument('arg1', InputArgument::REQUIRED, 'User pubkey')
             ->addArgument('arg2', InputArgument::REQUIRED, 'Role to set');
     }
 

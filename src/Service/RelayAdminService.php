@@ -80,7 +80,7 @@ class RelayAdminService
 
             // Create filter for recent events (kind 30023 - articles)
             $filter = new Filter();
-            $filter->setKinds([30023, 1, 7, 0]); // Articles, notes, reactions, profiles
+            $filter->setKinds([30023, 9802]); // Articles, highlights
             $filter->setLimit($limit);
 
             // Create and send request
@@ -153,11 +153,9 @@ class RelayAdminService
     public function getContainerStatus(): array
     {
         $strfryStatus = $this->checkServiceHealth('strfry', 7777);
-        $ingestStatus = ['status' => 'unknown', 'health' => 'Cannot check from inside container'];
 
         return [
             'strfry' => $strfryStatus,
-            'ingest' => $ingestStatus,
         ];
     }
 

@@ -57,8 +57,13 @@
                         </div>
 
                         <div class="highlight-footer">
-                            {% if highlight.naddr is defined and highlight.naddr %}
-                                {# Use naddr to link to article so it gets fetched from relays #}
+                            {% if highlight.preview is defined and highlight.preview %}
+                                {# Show article preview using NostrPreview component #}
+                                <div class="article-preview">
+                                    <twig:Molecules:NostrPreview :preview="highlight.preview" />
+                                </div>
+                            {% elseif highlight.naddr is defined and highlight.naddr %}
+                                {# Fallback: Use naddr to link to article so it gets fetched from relays #}
                                 <a href="{{ path('article-naddr', {naddr: highlight.naddr}) }}"
                                    class="article-reference">
                                     {% if highlight.article_title %}

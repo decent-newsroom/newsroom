@@ -2,139 +2,13 @@
 
 {% block title %}Relay Administration{% endblock %}
 
-{% block layout %}
-<div class="relay-admin">
-    <style>
-        .relay-admin {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .relay-header {
-            margin-bottom: 2rem;
-        }
-        .relay-header h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .status-card {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .status-card h2 {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            color: #333;
-        }
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        .status-indicator.healthy { background: #22c55e; }
-        .status-indicator.warning { background: #f59e0b; }
-        .status-indicator.error { background: #ef4444; }
-        .status-indicator.unknown { background: #6b7280; }
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay"
+    tagline="local Nostr relay"
+/>
 
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .stat-row:last-child {
-            border-bottom: none;
-        }
-        .stat-label {
-            font-weight: 500;
-            color: #666;
-        }
-        .stat-value {
-            color: #333;
-            font-family: monospace;
-        }
-
-        .events-section {
-            margin-top: 2rem;
-        }
-        .event-card {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            font-family: monospace;
-            font-size: 0.85rem;
-        }
-        .event-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        .event-kind {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        .event-content {
-            color: #4b5563;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .logs-section {
-            margin-top: 2rem;
-        }
-        .logs-container {
-            background: #1f2937;
-            color: #e5e7eb;
-            padding: 1rem;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 0.85rem;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .alert {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-        }
-        .alert-warning {
-            background: #fef3c7;
-            color: #92400e;
-            border: 1px solid #fbbf24;
-        }
-        .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-        .alert-error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-    </style>
-
-    <div class="relay-header">
-        <h1>🛰️ Relay Administration</h1>
-        <p>Monitor and manage your local Nostr relay</p>
-    </div>
+<div class="w-container">
 
     {# Status Overview #}
     <div class="status-grid">
@@ -149,17 +23,6 @@
                         <span class="status-indicator healthy"></span> Running
                     {% else %}
                         <span class="status-indicator error"></span> {{ container_status.strfry.status|default('Not Running') }}
-                    {% endif %}
-                </span>
-            </div>
-
-            <div class="stat-row">
-                <span class="stat-label">Ingest Service</span>
-                <span class="stat-value">
-                    {% if container_status.ingest.status == 'running' %}
-                        <span class="status-indicator healthy"></span> Running
-                    {% else %}
-                        <span class="status-indicator warning"></span> {{ container_status.ingest.status|default('Not Running') }}
                     {% endif %}
                 </span>
             </div>

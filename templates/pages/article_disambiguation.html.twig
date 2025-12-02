@@ -1,0 +1,24 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+  <h1>Disambiguation: Multiple Articles for "{{ slug }}"</h1>
+  <p>There are multiple articles with the slug <strong>{{ slug }}</strong>. Please select the author:</p>
+  <ul>
+    {% for author, article in authors|zip(articles) %}
+      <li>
+        <a href="{{ path('author-article-slug', { npub: author.npub, slug: slug }) }}">
+          Author: {{ author.npub }}
+        </a>
+        <span>Published: {{ article.createdAt|date('Y-m-d H:i') }}</span>
+        {% if article.title %} - <strong>{{ article.title }}</strong>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+
+{% block aside %}
+  <div class="aside-box">
+    <h3>What is this?</h3>
+    <p>This page lists all articles with the same slug. Click an author to view their version.</p>
+  </div>
+{% endblock %}

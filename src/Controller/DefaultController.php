@@ -408,4 +408,120 @@ class DefaultController extends AbstractController
             return new Response('<div class="alert alert-warning">Unable to load OG preview for ' . htmlspecialchars($url) . '</div>', 200);
         }
     }
+
+    /**
+     * Nostr Preview endpoint for Nostr identifiers (naddr, nevent, note, npub, nprofile)
+     */
+    #[Route('/preview/', name: 'nostr_preview', methods: ['POST'])]
+    public function nostrPreview(RequestStack $requestStack, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    {
+        $request = $requestStack->getCurrentRequest();
+        $data = json_decode($request->getContent(), true);
+
+        $identifier = $data['identifier'] ?? null;
+        $type = $data['type'] ?? null;
+        $decoded = $data['decoded'] ?? null;
+
+        if (!$identifier || !$type) {
+            return new Response('<div class="alert alert-warning">Invalid preview request.</div>', 400);
+        }
+
+        // If decoded is a JSON string, decode it to array
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, true);
+        }
+
+        // Ensure decoded is an array
+        if (!is_array($decoded)) {
+            $logger->error('Decoded data is not an array', [
+                'decoded' => $decoded,
+                'type' => gettype($decoded)
+            ]);
+            return new Response('<div class="alert alert-warning">Invalid preview data format.</div>', 400);
+        }
+
+        try {
+            // Handle different Nostr identifier types
+            switch ($type) {
+                case 'naddr':
+                    return $this->handleNaddrPreview($decoded, $entityManager, $logger);
+                case 'nevent':
+                case 'note':
+                    return $this->handleEventPreview($decoded, $entityManager, $logger);
+                case 'npub':
+                case 'nprofile':
+                    return $this->handleProfilePreview($decoded, $entityManager, $logger);
+                default:
+                    return new Response('<div class="alert alert-warning">Unsupported preview type: ' . htmlspecialchars($type) . '</div>', 200);
+            }
+        } catch (\Exception $e) {
+            $logger->error('Error generating Nostr preview', [
+                'identifier' => $identifier,
+                'type' => $type,
+                'error' => $e->getMessage()
+            ]);
+            return new Response('<div class="alert alert-warning">Unable to load preview.</div>', 200);
+        }
+    }
+
+    private function handleNaddrPreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    {
+        $kind = $decoded['kind'] ?? null;
+        $pubkey = $decoded['pubkey'] ?? null;
+        $identifier = $decoded['identifier'] ?? null;
+
+        if ($kind === KindsEnum::LONGFORM->value) {
+            // Try to find article in database
+            $repository = $entityManager->getRepository(Article::class);
+            $article = $repository->findOneBy(['slug' => $identifier, 'pubkey' => $pubkey]);
+
+            if ($article) {
+                $key = new Key();
+                $npub = $key->convertPublicKeyToBech32($article->getPubkey());
+
+                return $this->render('components/Molecules/ArticlePreview.html.twig', [
+                    'article' => $article,
+                    'npub' => $npub
+                ]);
+            }
+
+            // Article not in database yet - show a link to fetch it
+            // We need to construct the naddr from the decoded data
+            try {
+                $relays = $decoded['relays'] ?? [];
+                $naddr = \nostriphant\NIP19\Bech32::naddr(
+                    kind: (int)$kind,
+                    pubkey: $pubkey,
+                    identifier: $identifier,
+                    relays: $relays
+                );
+
+                return new Response(
+                    '<div class="alert alert-info">
+                        <strong>Article Preview</strong><br>
+                        This article hasn\'t been fetched yet.
+                        <a href="' . $this->generateUrl('article-naddr', ['naddr' => (string)$naddr]) . '" class="alert-link">Click here to view it</a>
+                    </div>',
+                    200
+                );
+            } catch (\Exception $e) {
+                $logger->error('Failed to generate naddr for preview', ['error' => $e->getMessage()]);
+                return new Response('<div class="alert alert-warning">Unable to generate article link.</div>', 200);
+            }
+        }
+
+        return new Response('<div class="alert alert-info">Preview for kind ' . $kind . ' not yet supported.</div>', 200);
+    }
+
+    private function handleEventPreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    {
+        // For now, just show a basic preview
+        return new Response('<div class="alert alert-info">Event preview coming soon.</div>', 200);
+    }
+
+    private function handleProfilePreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    {
+        // For now, just show a basic preview
+        return new Response('<div class="alert alert-info">Profile preview coming soon.</div>', 200);
+    }
 }

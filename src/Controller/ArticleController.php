@@ -36,7 +36,7 @@ class ArticleController  extends AbstractController
      * @throws \Exception
      */
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
-    public function naddr(NostrClient $nostrClient, $naddr)
+    public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
     {
         set_time_limit(120); // 2 minutes
         $decoded = new Bech32($naddr);
@@ -57,18 +57,53 @@ class ArticleController  extends AbstractController
         }
 
         $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
-        if ($slug) {
+        // It's important to actually find the article
+        // Check if anything is in the database now
+        $repository = $em->getRepository(Article::class);
+        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
+        // If found, redirect to the article page
+        if ($slug && $article) {
             return $this->redirectToRoute('article-slug', ['slug' => $slug]);
         }
 
-        throw new \Exception('No article.');
+        throw new \Exception('No article found.');
     }
 
-    /**
-     * @throws InvalidArgumentException|CommonMarkException
-     */
+
     #[Route('/article/d/{slug}', name: 'article-slug', requirements: ['slug' => '.+'])]
-    public function article(
+    public function disambiguation($slug, EntityManagerInterface $entityManager): Response
+    {
+        $slug = urldecode($slug);
+        $repository = $entityManager->getRepository(Article::class);
+        $articles = $repository->findBy(['slug' => $slug]);
+        $count = count($articles);
+        if ($count === 0) {
+            throw $this->createNotFoundException('No articles found for this slug');
+        }
+        if ($count === 1) {
+            $key = new Key();
+            $npub = $key->convertPublicKeyToBech32($articles[0]->getPubkey());
+            return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
+        }
+        $authors = [];
+        $key = new Key();
+        foreach ($articles as $article) {
+            $authors[] = [
+                'npub' => $key->convertPublicKeyToBech32($article->getPubkey()),
+                'pubkey' => $article->getPubkey(),
+                'createdAt' => $article->getCreatedAt(),
+            ];
+        }
+        return $this->render('pages/article_disambiguation.html.twig', [
+            'slug' => $slug,
+            'authors' => $authors,
+            'articles' => $articles
+        ]);
+    }
+
+    #[Route('/p/{npub}/article/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'])]
+    public function authorArticle(
+        $npub,
         $slug,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
@@ -77,44 +112,23 @@ class ArticleController  extends AbstractController
         HighlightService $highlightService
     ): Response
     {
-
-        set_time_limit(300); // 5 minutes
+        set_time_limit(300);
         ini_set('max_execution_time', '300');
-
-        $article = null;
-        // check if an item with same eventId already exists in the db
-        $repository = $entityManager->getRepository(Article::class);
-        // slug might be url encoded, decode it
         $slug = urldecode($slug);
-        $articles = $repository->findBy(['slug' => $slug]);
-
-        $revisions = count($articles);
-
-        if ($revisions === 0) {
+        $key = new Key();
+        $pubkey = $key->convertToHex($npub);
+        $repository = $entityManager->getRepository(Article::class);
+        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey]);
+        if (!$article) {
             throw $this->createNotFoundException('The article could not be found');
         }
-
-        if ($revisions > 1) {
-            // sort articles by created at date
-            usort($articles, function ($a, $b) {
-                return $b->getCreatedAt() <=> $a->getCreatedAt();
-            });
-        }
-
-        $article = $articles[0];
-
         $cacheKey = 'article_' . $article->getEventId();
         $cacheItem = $articlesCache->getItem($cacheKey);
         if (!$cacheItem->isHit()) {
             $cacheItem->set($converter->convertToHTML($article->getContent()));
             $articlesCache->save($cacheItem);
         }
-
-        $key = new Key();
-        $npub = $key->convertPublicKeyToBech32($article->getPubkey());
         $author = $redisCacheService->getMetadata($article->getPubkey());
-
-        // determine whether the logged-in user is the author
         $canEdit = false;
         $user = $this->getUser();
         if ($user) {
@@ -125,22 +139,12 @@ class ArticleController  extends AbstractController
                 $canEdit = false;
             }
         }
-
-        $canonical = $this->generateUrl('article-slug', ['slug' => $article->getSlug()], 0);
-
-        // Fetch highlights using the caching service
+        $canonical = $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $article->getSlug()], 0);
         $highlights = [];
         try {
             $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-            error_log('ArticleController: Looking for highlights with coordinate: ' . $articleCoordinate);
             $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
-            error_log('ArticleController: Found ' . count($highlights) . ' highlights');
-        } catch (\Exception $e) {
-            // Log but don't fail the page if highlights can't be fetched
-            // Highlights are optional enhancement
-            error_log('ArticleController: Failed to fetch highlights: ' . $e->getMessage());
-        }
-
+        } catch (\Exception $e) {}
         return $this->render('pages/article.html.twig', [
             'article' => $article,
             'author' => $author,

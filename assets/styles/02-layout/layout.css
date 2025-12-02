@@ -290,3 +290,9 @@ section{ position: relative; padding: var(--section-spacing) var(--spacing-3); }
     line-height: 2;
     white-space: normal !important;
 }
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--color-text-mid);
+    font-weight: bold;
+}

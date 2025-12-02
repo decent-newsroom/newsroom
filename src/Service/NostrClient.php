@@ -102,7 +102,7 @@ class NostrClient
             $authorRelays = [];
         }
         if (empty($authorRelays)) {
-            return [self::REPUTABLE_RELAYS[0]]; // Default to theforest if no author relays
+            return self::REPUTABLE_RELAYS; // Default to theforest if no author relays
         }
 
         $reputableAuthorRelays = [];
@@ -205,17 +205,21 @@ class NostrClient
         }
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
-        $request = new Request($this->defaultRelaySet, $requestMessage);
+        // Create relay set from all reputable relays on record
+        $relaySet = $this->createRelaySet(self::REPUTABLE_RELAYS);
 
-        $response = $request->send();
-        // response is an n-dimensional array, where n is the number of relays in the set
-        // check that response has events in the results
-        foreach ($response as $relayRes) {
-            $filtered = array_filter($relayRes, function ($item) {
-                return $item->type === 'EVENT';
-            });
-            if (count($filtered) > 0) {
-                $this->saveLongFormContent($filtered);
+        $request = new Request($relaySet, $requestMessage);
+
+        // Process the response
+        $events = $this->processResponse($request->send(), function($event) {
+            return $event;
+        });
+
+        if (!empty($events)) {
+            foreach ($events as $event) {
+                $article = $this->articleFactory->createFromLongFormContentEvent($event);
+                // check if event with same eventId already in DB
+                $this->saveEachArticleToTheDatabase($article);
             }
         }
     }
@@ -437,6 +441,7 @@ class NostrClient
     {
         $cacheKey = 'npub_relays_' . $npub;
         try {
+            // $this->npubCache->deleteItem($cacheKey);
             $cachedItem = $this->npubCache->getItem($cacheKey);
             if ($cachedItem->isHit()) {
                 $this->logger->debug('Using cached relays for npub', ['npub' => $npub]);
@@ -448,7 +453,7 @@ class NostrClient
 
         // Get relays
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::RELAY_LIST],
+            kinds: [KindsEnum::RELAY_LIST->value],
             filters: ['authors' => [$npub]],
             relaySet: $this->defaultRelaySet
         );
@@ -967,7 +972,7 @@ class NostrClient
      */
     public function getArticleHighlights(int $limit = 50): array
     {
-        $this->logger->info('Fetching article highlights from default relays');
+        $this->logger->info('Fetching article highlights from default relay');
 
         // Use relay pool to send request
         $subscription = new Subscription();
@@ -979,10 +984,12 @@ class NostrClient
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
-        // Get default relay URLs
-        $relayUrls = $this->relayPool->getDefaultRelays();
+        // Use only the configured default relay
+        $relayUrls = $this->nostrDefaultRelay
+            ? [$this->nostrDefaultRelay]
+            : [($this->relayPool->getDefaultRelays()[0] ?? null)];
+        $relayUrls = array_filter($relayUrls); // Remove nulls if fallback fails
 
-        // Use the relay pool to send the request
         $responses = $this->relayPool->sendToRelays(
             $relayUrls,
             fn() => $requestMessage,
@@ -1032,7 +1039,7 @@ class NostrClient
         $filter->setKinds([9802]); // NIP-84 highlights
         $filter->setLimit($limit);
         // Add tag filter for the specific article coordinate
-        $filter->setTags(['a' => [$articleCoordinate]]);
+        $filter->setTags(['#a' => [$articleCoordinate]]);
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
@@ -1078,7 +1085,6 @@ class NostrClient
                 }
             }
         }
-
         $this->logger->info('Relay set for request', ['relays' => $relaySet ? $relaySet->getRelays() : 'default']);
 
         $requestMessage = new RequestMessage($subscription->getId(), [$filter]);

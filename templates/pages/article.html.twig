@@ -62,6 +62,7 @@
 
             {# Zap Button with split payment support #}
             {% set zapSplits = article.advancedMetadata.zapSplits|default([]) %}
+            {% if zapSplits|length > 0 %}
             <twig:Molecules:ZapButton
                 recipientPubkey="{{ article.pubkey }}"
                 recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
@@ -73,6 +74,7 @@
                     <em>(Split between {{ zapSplits|length + 1 }} recipients)</em>
                 </small>
             {% endif %}
+            {% endif %}
 
             {# Highlights toggle button #}
             {% if highlights is defined and highlights|length > 0 %}
@@ -82,9 +84,6 @@
                         type="button"
                         aria-pressed="false"
                         title="Toggle highlights">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
                     Highlights ({{ highlights|length }})
                 </button>
             {% endif %}

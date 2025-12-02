@@ -24,6 +24,6 @@
 /publication/
 
 ###> strfry relay ###
-/infra/strfry/data/
+/docker/strfry/data/
 ###< strfry relay ###
 

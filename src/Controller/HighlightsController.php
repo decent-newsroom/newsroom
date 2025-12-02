@@ -23,6 +23,7 @@ class HighlightsController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly HighlightService $highlightService,
         private readonly LoggerInterface $logger,
+        private readonly \App\Service\NostrLinkParser $nostrLinkParser,
     ) {}
 
     #[Route('/highlights', name: 'highlights')]
@@ -31,7 +32,7 @@ class HighlightsController extends AbstractController
         try {
             // Cache key for highlights
             $cacheKey = 'global_article_highlights';
-            // $cache->delete($cacheKey);
+            $cache->delete($cacheKey);
             // Get highlights from cache or fetch fresh
             $highlights = $cache->get($cacheKey, function (ItemInterface $item) {
                 $item->expiresAfter(self::CACHE_TTL);
@@ -41,7 +42,7 @@ class HighlightsController extends AbstractController
                     $events = $this->nostrClient->getArticleHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
 
                     // Save raw events to database first (group by article)
-                    $this->saveHighlightsToDatabase($events);
+                    //$this->saveHighlightsToDatabase($events);
 
                     // Process and enrich the highlights for display
                     return $this->processHighlights($events);
@@ -183,6 +184,12 @@ class HighlightsController extends AbstractController
             if ($highlight['article_ref'] && str_starts_with($highlight['article_ref'], '30023:')) {
                 // Generate naddr from the coordinate
                 $highlight['naddr'] = $this->generateNaddr($highlight['article_ref'], $relayHints);
+
+                // Parse naddr to create preview data for NostrPreview component
+                if ($highlight['naddr']) {
+                    $highlight['preview'] = $this->createPreviewData($highlight['naddr']);
+                }
+
                 $processed[] = $highlight;
             }
         }
@@ -230,6 +237,29 @@ class HighlightsController extends AbstractController
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to generate naddr', [
                 'coordinate' => $coordinate,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Create preview data structure for NostrPreview component
+     */
+    private function createPreviewData(string $naddr): ?array
+    {
+        try {
+            // Use NostrLinkParser to parse the naddr identifier
+            $links = $this->nostrLinkParser->parseLinks("nostr:$naddr");
+
+            if (!empty($links)) {
+                return $links[0];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            $this->logger->debug('Failed to create preview data', [
+                'naddr' => $naddr,
                 'error' => $e->getMessage()
             ]);
             return null;

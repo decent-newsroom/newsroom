@@ -25,7 +25,7 @@ class RelayAdminController extends AbstractController
         $config = $this->relayAdminService->getConfiguration();
         $containerStatus = $this->relayAdminService->getContainerStatus();
         $connectivity = $this->relayAdminService->testConnectivity();
-        $recentEvents = $this->relayAdminService->getRecentEvents(5);
+        $recentEvents = $this->relayAdminService->getRecentEvents(50);
 
         return $this->render('admin/relay/index.html.twig', [
             'stats' => $stats,

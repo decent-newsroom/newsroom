@@ -20,10 +20,8 @@
     --brand-font: 'Lobster', serif; /* A classic, refined branding font */
     --brand-color: white;
 
+    --color-accent-strong: #E1B574;  /* warm goldenrod (strong accent) */
     --color-accent: #8FCB7E;           /* fresh moss (main accent) */
-    --color-accent-strong: #B98BDC;    /* lilac pop for headings/CTAs */
-    --color-accent-teal: #78C8BD;      /* teal for tags/pills */
-    --color-accent-warm: #E1B574;      /* warm highlight (badges/notes) */
     --color-accent-600: #7FBF70;
     --color-accent-500: #8FCB7E;
     --color-accent-400: #A5D692;

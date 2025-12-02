@@ -56,7 +56,7 @@
     background: color-mix(in oklab, var(--color-primary) 18%, var(--color-bg));
 }
 .ln-section--unfold{
-    background: color-mix(in oklab, var(--color-accent-warm) 60%, var(--color-bg));
+    background: color-mix(in oklab, var(--color-accent-strong) 60%, var(--color-bg));
 }
 
 

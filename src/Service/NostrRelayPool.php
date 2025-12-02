@@ -5,6 +5,7 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Relay\Relay;
 use swentel\nostr\RelayResponse\RelayResponse;
+use WebSocket\Exception\Exception;
 
 /**
  * Manages persistent WebSocket connections to Nostr relays
@@ -21,6 +22,13 @@ class NostrRelayPool
     /** @var array<string, int> Track last connection time */
     private array $lastConnected = [];
 
+    /** @var array<string> */
+    private array $defaultRelays = [
+        'wss://theforest.nostr1.com',
+        'wss://nostr.land',
+        'wss://relay.primal.net',
+    ];
+
     private const MAX_RETRIES = 3;
     private const RETRY_DELAY = 5; // seconds
     private const CONNECTION_TIMEOUT = 30; // seconds
@@ -28,12 +36,15 @@ class NostrRelayPool
 
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly array $defaultRelays = [
-            'wss://theforest.nostr1.com',
-            'wss://nostr.land',
-            'wss://relay.primal.net',
-        ]
-    ) {}
+        private readonly string $nostrDefaultRelay,
+        array $defaultRelays = []
+    ) {
+        $relayList = $defaultRelays ?: $this->defaultRelays;
+        if ($this->nostrDefaultRelay && !in_array($this->nostrDefaultRelay, $relayList, true)) {
+            array_unshift($relayList, $this->nostrDefaultRelay);
+        }
+        $this->defaultRelays = $relayList;
+    }
 
     /**
      * Normalize relay URL to ensure consistency
@@ -77,7 +88,7 @@ class NostrRelayPool
     }
 
     /**
-     * Get multiple relay connections
+     * Get multiple relay connections, prioritizing default relay
      *
      * @param array $relayUrls
      * @return array<Relay>
@@ -85,7 +96,27 @@ class NostrRelayPool
     public function getRelays(array $relayUrls): array
     {
         $relays = [];
-        foreach ($relayUrls as $url) {
+        $defaultRelay = $this->defaultRelays[0] ?? null;
+        $relayUrlsNormalized = array_map([$this, 'normalizeRelayUrl'], $relayUrls);
+        $defaultRelayNormalized = $defaultRelay ? $this->normalizeRelayUrl($defaultRelay) : null;
+
+        // Try default relay first if present in requested URLs
+        if ($defaultRelayNormalized && in_array($defaultRelayNormalized, $relayUrlsNormalized, true)) {
+            try {
+                $relays[] = $this->getRelay($defaultRelayNormalized);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Default relay unavailable, falling back to others', [
+                    'relay' => $defaultRelayNormalized,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Add other relays except the default
+        foreach ($relayUrlsNormalized as $url) {
+            if ($url === $defaultRelayNormalized) {
+                continue;
+            }
             try {
                 $relays[] = $this->getRelay($url);
             } catch (\Throwable $e) {
@@ -99,7 +130,7 @@ class NostrRelayPool
     }
 
     /**
-     * Send a request to multiple relays and collect responses
+     * Send a request to multiple relays and collect responses, prioritizing default relay
      *
      * @param array $relayUrls Array of relay URLs to query
      * @param callable $messageBuilder Function that builds the message to send
@@ -198,14 +229,17 @@ class NostrRelayPool
                 // Update last connected time on successful send
                 $this->lastConnected[$relay->getUrl()] = time();
 
-            } catch (\WebSocket\TimeoutException $e) {
-                // Timeout is normal - relay has sent all events
-                $this->logger->debug('Relay timeout (normal - all events received)', [
-                    'relay' => $relay->getUrl()
-                ]);
-                $responses[$relay->getUrl()] = $relayResponses;
-                $this->lastConnected[$relay->getUrl()] = time();
-
+            } catch (Exception $e) {
+                // If this is a timeout, treat as normal; otherwise, rethrow or handle
+                if (stripos($e->getMessage(), 'timeout') !== false) {
+                    $this->logger->debug('Relay timeout (normal - all events received)', [
+                        'relay' => $relay->getUrl()
+                    ]);
+                    $responses[$relay->getUrl()] = $relayResponses;
+                    $this->lastConnected[$relay->getUrl()] = time();
+                } else {
+                    throw $e;
+                }
             } catch (\Throwable $e) {
                 $this->logger->error('Error sending to relay', [
                     'relay' => $relay->getUrl(),
@@ -307,4 +341,3 @@ class NostrRelayPool
         return $this->defaultRelays;
     }
 }
-
