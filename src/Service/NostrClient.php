@@ -129,13 +129,13 @@ class NostrClient
      */
     public function getPubkeyMetadata($pubkey): \stdClass
     {
-        // Use relay pool for all relays including purplepag.es
-        $relayUrls = [
+        // Use relay pool for all relays including purplepag.es, with local relay prioritized
+        $relayUrls = $this->relayPool->ensureLocalRelayInList([
             'wss://theforest.nostr1.com',
             'wss://nostr.land',
             'wss://relay.primal.net',
             'wss://purplepag.es'
-        ];
+        ]);
         $relaySet = $this->createRelaySet($relayUrls);
 
         $this->logger->info('Getting metadata for pubkey ' . $pubkey );
@@ -168,6 +168,9 @@ class NostrClient
         if (empty($relays)) {
             $key = new Key();
             $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 5);
+        } else {
+            // Ensure local relay is included when publishing
+            $relays = $this->relayPool->ensureLocalRelayInList($relays);
         }
 
         // Use relay pool instead of creating new Relay instances
@@ -206,8 +209,9 @@ class NostrClient
         }
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
-        // Create relay set from all reputable relays on record
-        $relaySet = $this->createRelaySet(self::REPUTABLE_RELAYS);
+        // Create relay set from all reputable relays on record, with local relay prioritized
+        $relayUrls = $this->relayPool->ensureLocalRelayInList(self::REPUTABLE_RELAYS);
+        $relaySet = $this->createRelaySet($relayUrls);
 
         $request = new Request($relaySet, $requestMessage);
 
@@ -281,6 +285,9 @@ class NostrClient
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
+        // Ensure local relay is included in the relay list
+        $relays = $this->relayPool->ensureLocalRelayInList($relays);
+
         // Merge relays with reputable ones
         $allRelays = array_unique(array_merge($relays, self::REPUTABLE_RELAYS));
         // Loop over reputable relays and bail as soon as you get a valid event back
@@ -340,6 +347,11 @@ class NostrClient
         }
 
         $this->logger->info('Getting events by IDs', ['event_ids' => $eventIds, 'relays' => $relays]);
+
+        // Ensure local relay is included
+        if (!empty($relays)) {
+            $relays = $this->relayPool->ensureLocalRelayInList($relays);
+        }
 
         // Use provided relays or default if empty
         $relaySet = empty($relays) ? $this->defaultRelaySet : $this->createRelaySet($relays);
@@ -578,7 +590,7 @@ class NostrClient
         $parts = explode(':', $coordinate, 3);
         $pubkey = $parts[1];
 
-        // Get author's relays for better chances of finding zaps
+        // Get author's relays for better chances of finding zaps (includes local relay)
         $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
         $relaySet = $this->createRelaySet($authorRelays);
 

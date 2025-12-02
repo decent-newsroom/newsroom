@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Service\RedisCacheService;
+use App\Util\NostrKeyUtil;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -23,13 +25,20 @@ class CacheLatestArticlesCommand extends Command
     private FinderInterface $finder;
     private CacheItemPoolInterface $articlesCache;
     private ParameterBagInterface $params;
+    private RedisCacheService $redisCacheService;
 
-    public function __construct(FinderInterface $finder, CacheItemPoolInterface $articlesCache, ParameterBagInterface $params)
+    public function __construct(
+        FinderInterface $finder,
+        CacheItemPoolInterface $articlesCache,
+        ParameterBagInterface $params,
+        RedisCacheService $redisCacheService
+    )
     {
         parent::__construct();
         $this->finder = $finder;
         $this->articlesCache = $articlesCache;
         $this->params = $params;
+        $this->redisCacheService = $redisCacheService;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -70,10 +79,34 @@ class CacheLatestArticlesCommand extends Command
 
             $articles = $this->finder->find($query);
 
+            // Pre-fetch and cache author metadata for all articles
+            $authorPubkeys = [];
+            foreach ($articles as $article) {
+                // Debug: check what type of object we have
+                if ($article instanceof \App\Entity\Article) {
+                    $pubkey = $article->getPubkey();
+                    if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
+                        $authorPubkeys[] = $pubkey;
+                    }
+                } elseif (is_object($article)) {
+                    // Elastica result object
+                    if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                        $authorPubkeys[] = $article->pubkey;
+                    } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
+                        $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+                    }
+                }
+            }
+            $authorPubkeys = array_unique($authorPubkeys);
+
+            $output->writeln('<comment>Pre-fetching metadata for ' . count($authorPubkeys) . ' authors...</comment>');
+            $authorsMetadata = $this->redisCacheService->getMultipleMetadata($authorPubkeys);
+            $output->writeln('<comment>Fetched ' . count($authorsMetadata) . ' author profiles.</comment>');
+
             $cacheItem->set($articles);
             $cacheItem->expiresAfter(3600); // Cache for 1 hour
             $this->articlesCache->save($cacheItem);
-            $output->writeln('<info>Cached ' . count($articles) . ' articles.</info>');
+            $output->writeln('<info>Cached ' . count($articles) . ' articles with author metadata.</info>');
 //        } else {
 //            $output->writeln('<comment>Cache already exists for key: ' . $cacheKey . '</comment>');
 //        }

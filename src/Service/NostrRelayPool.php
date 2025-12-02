@@ -23,7 +23,10 @@ class NostrRelayPool
     private array $lastConnected = [];
 
     /** @var array<string> */
-    private array $defaultRelays = [
+    private array $defaultRelays = [];
+
+    /** @var array<string> Default public relays to fall back to */
+    private const PUBLIC_RELAYS = [
         'wss://theforest.nostr1.com',
         'wss://nostr.land',
         'wss://relay.primal.net',
@@ -39,11 +42,39 @@ class NostrRelayPool
         private readonly string $nostrDefaultRelay,
         array $defaultRelays = []
     ) {
-        $relayList = $defaultRelays ?: $this->defaultRelays;
-        if ($this->nostrDefaultRelay && !in_array($this->nostrDefaultRelay, $relayList, true)) {
-            array_unshift($relayList, $this->nostrDefaultRelay);
+        // Build relay list: prioritize local relay, then custom relays, then public relays
+        $relayList = [];
+
+        // Add local relay first if configured
+        if ($this->nostrDefaultRelay) {
+            $relayList[] = $this->nostrDefaultRelay;
+            $this->logger->info('NostrRelayPool: Local relay configured as primary', [
+                'relay' => $this->nostrDefaultRelay
+            ]);
         }
+
+        // Add custom relays (excluding local relay if already added)
+        if (!empty($defaultRelays)) {
+            foreach ($defaultRelays as $relay) {
+                if (!in_array($relay, $relayList, true)) {
+                    $relayList[] = $relay;
+                }
+            }
+        } else {
+            // Use public relays as fallback
+            foreach (self::PUBLIC_RELAYS as $relay) {
+                if (!in_array($relay, $relayList, true)) {
+                    $relayList[] = $relay;
+                }
+            }
+        }
+
         $this->defaultRelays = $relayList;
+
+        $this->logger->info('NostrRelayPool initialized with relay priority', [
+            'relay_count' => count($this->defaultRelays),
+            'relays' => $this->defaultRelays
+        ]);
     }
 
     /**
@@ -88,7 +119,7 @@ class NostrRelayPool
     }
 
     /**
-     * Get multiple relay connections, prioritizing default relay
+     * Get multiple relay connections, prioritizing local relay (primary default relay)
      *
      * @param array $relayUrls
      * @return array<Relay>
@@ -96,26 +127,26 @@ class NostrRelayPool
     public function getRelays(array $relayUrls): array
     {
         $relays = [];
-        $defaultRelay = $this->defaultRelays[0] ?? null;
+        $localRelay = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
         $relayUrlsNormalized = array_map([$this, 'normalizeRelayUrl'], $relayUrls);
-        $defaultRelayNormalized = $defaultRelay ? $this->normalizeRelayUrl($defaultRelay) : null;
 
-        // Try default relay first if present in requested URLs
-        if ($defaultRelayNormalized && in_array($defaultRelayNormalized, $relayUrlsNormalized, true)) {
+        // Always try local relay first if configured, regardless of whether it's in the requested URLs
+        if ($localRelay) {
             try {
-                $relays[] = $this->getRelay($defaultRelayNormalized);
+                $relays[] = $this->getRelay($localRelay);
+                $this->logger->debug('Using local relay (priority)', ['relay' => $localRelay]);
             } catch (\Throwable $e) {
-                $this->logger->warning('Default relay unavailable, falling back to others', [
-                    'relay' => $defaultRelayNormalized,
+                $this->logger->warning('Local relay unavailable, falling back to others', [
+                    'relay' => $localRelay,
                     'error' => $e->getMessage()
                 ]);
             }
         }
 
-        // Add other relays except the default
+        // Add other relays except the local relay
         foreach ($relayUrlsNormalized as $url) {
-            if ($url === $defaultRelayNormalized) {
-                continue;
+            if ($url === $localRelay) {
+                continue; // Skip local relay as we already added it
             }
             try {
                 $relays[] = $this->getRelay($url);
@@ -126,6 +157,7 @@ class NostrRelayPool
                 ]);
             }
         }
+
         return $relays;
     }
 
@@ -339,5 +371,38 @@ class NostrRelayPool
     public function getDefaultRelays(): array
     {
         return $this->defaultRelays;
+    }
+
+    /**
+     * Get local relay URL if configured
+     */
+    public function getLocalRelay(): ?string
+    {
+        return $this->nostrDefaultRelay ?: null;
+    }
+
+    /**
+     * Ensure local relay is included in a list of relay URLs
+     * Adds local relay at the beginning if configured and not already in the list
+     */
+    public function ensureLocalRelayInList(array $relayUrls): array
+    {
+        if (!$this->nostrDefaultRelay) {
+            return $relayUrls;
+        }
+
+        $normalizedLocal = $this->normalizeRelayUrl($this->nostrDefaultRelay);
+        $normalizedUrls = array_map([$this, 'normalizeRelayUrl'], $relayUrls);
+
+        // If local relay not in list, add it at the beginning
+        if (!in_array($normalizedLocal, $normalizedUrls, true)) {
+            array_unshift($relayUrls, $this->nostrDefaultRelay);
+            $this->logger->debug('Added local relay to relay list', [
+                'local_relay' => $this->nostrDefaultRelay,
+                'total_relays' => count($relayUrls)
+            ]);
+        }
+
+        return $relayUrls;
     }
 }

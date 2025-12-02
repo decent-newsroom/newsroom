@@ -26,10 +26,35 @@ class NostrRelayPoolStatsCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $stats = $this->relayPool->getStats();
+        $localRelay = $this->relayPool->getLocalRelay();
+        $defaultRelays = $this->relayPool->getDefaultRelays();
 
         $io->title('Nostr Relay Pool Statistics');
 
-        $io->section('Overview');
+        $io->section('Configuration');
+        $io->table(
+            ['Setting', 'Value'],
+            [
+                ['Local Relay', $localRelay ?: '(not configured)'],
+                ['Default Relays', count($defaultRelays)],
+            ]
+        );
+
+        if (!empty($defaultRelays)) {
+            $io->section('Default Relay List (Priority Order)');
+            $rows = [];
+            foreach ($defaultRelays as $index => $relay) {
+                $isLocal = $localRelay && $relay === $localRelay;
+                $rows[] = [
+                    $index + 1,
+                    $relay,
+                    $isLocal ? '✓ Local' : 'Public'
+                ];
+            }
+            $io->table(['Priority', 'Relay URL', 'Type'], $rows);
+        }
+
+        $io->section('Connection Pool');
         $io->table(
             ['Metric', 'Value'],
             [

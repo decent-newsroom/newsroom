@@ -61,28 +61,28 @@ class DefaultController extends AbstractController
         CacheItemPoolInterface $articlesCache
     ): Response
     {
-        set_time_limit(300);
-        ini_set('max_execution_time', '300');
-
         $env = $this->getParameter('kernel.environment');
         // Reuse previous latest list cache key to show same set as old 'latest'
         $cacheKey = 'latest_articles_list_' . $env;
         $cacheItem = $articlesCache->getItem($cacheKey);
 
-        $key = new Key();
-        $excludedPubkeys = [
-            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
-            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
-            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
-            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
-            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
-            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
-            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
-            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
-        ];
-
         if (!$cacheItem->isHit()) {
             // Fallback: run query now if command hasn't populated cache yet
+            set_time_limit(300);
+            ini_set('max_execution_time', '300');
+
+            $key = new Key();
+            $excludedPubkeys = [
+                $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
+                $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
+                $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
+                $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
+                $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
+                $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
+                $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
+                $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
+            ];
+
             $boolQuery = new BoolQuery();
             $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
             $query = new Query($boolQuery);
@@ -99,12 +99,22 @@ class DefaultController extends AbstractController
 
         $articles = $cacheItem->get();
 
+        // Fetch author metadata - this is now much faster because
+        // metadata is pre-cached by the CacheLatestArticlesCommand
         $authorPubkeys = [];
         foreach ($articles as $article) {
-            if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                $authorPubkeys[] = $article->pubkey;
-            } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
-                $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+            if ($article instanceof \App\Entity\Article) {
+                $pubkey = $article->getPubkey();
+                if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
+                    $authorPubkeys[] = $pubkey;
+                }
+            } elseif (is_object($article)) {
+                // Elastica result object fallback
+                if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                    $authorPubkeys[] = $article->pubkey;
+                } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
+                    $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+                }
             }
         }
         $authorPubkeys = array_unique($authorPubkeys);
