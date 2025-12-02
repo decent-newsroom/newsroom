@@ -183,6 +183,7 @@ class NostrClient
             $this->logger->error('Error logging publish event', [
                 'error' => $e->getMessage()
             ]);
+            return [];
         }
     }
 
@@ -812,17 +813,31 @@ class NostrClient
     public function getMediaEventsByHashtags(array $hashtags): array
     {
         $allEvents = [];
-        // Use relay pool for media relays
-        $relayUrls = ['wss://theforest.nostr1.com', 'wss://relay.nostr.band'];
-        $relayset = $this->createRelaySet($relayUrls);
+
+        // Prefer local relay if configured
+        if ($this->nostrDefaultRelay) {
+            $this->logger->info('Using local relay for media discovery hashtag fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'hashtags' => $hashtags,
+            ]);
+            $relayset = $this->createRelaySet([$this->nostrDefaultRelay]);
+        } else {
+            // Fallback to known public media-friendly relays
+            $relayUrls = ['wss://theforest.nostr1.com', 'wss://relay.nostr.band'];
+            $this->logger->info('Using public relays for media discovery hashtag fetch', [
+                'relays' => $relayUrls,
+                'hashtags' => $hashtags,
+            ]);
+            $relayset = $this->createRelaySet($relayUrls);
+        }
 
         // Fetch events for each hashtag
         foreach ($hashtags as $hashtag) {
             $request = $this->createNostrRequest(
-                kinds: [20], // NIP-68 Pictures, later maybe NIP-71 Videos
+                kinds: [20], // NIP-68 Pictures; consider expanding to 21/22 later
                 filters: [
                     'tag' => ['#t', [$hashtag]],
-                    'limit' => 100 // Fetch 100 per hashtag
+                    'limit' => 100 // Fetch up to 100 per hashtag
                 ],
                 relaySet: $relayset
             );
