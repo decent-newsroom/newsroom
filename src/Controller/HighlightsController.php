@@ -124,6 +124,7 @@ class HighlightsController extends AbstractController
     private function processHighlights(array $events): array
     {
         $processed = [];
+        $pubkeys = [];
 
         foreach ($events as $event) {
             $highlight = [
@@ -138,7 +139,12 @@ class HighlightsController extends AbstractController
                 'context' => null,
                 'url' => null,
                 'naddr' => null,
+                'profile' => null,
             ];
+
+            if ($highlight['pubkey']) {
+                $pubkeys[] = $highlight['pubkey'];
+            }
 
             $relayHints = [];
 
@@ -194,15 +200,50 @@ class HighlightsController extends AbstractController
             }
         }
 
-        // Sort by created_at descending (newest first)
+        // Sort & dedupe by article_ref
         usort($processed, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
-
-        // Deduplicate highlights by article_ref, keeping the latest
         $uniqueHighlights = [];
         foreach ($processed as $highlight) {
             $ref = $highlight['article_ref'];
             if (!isset($uniqueHighlights[$ref])) {
                 $uniqueHighlights[$ref] = $highlight;
+            }
+        }
+
+        // Batch fetch metadata for all pubkeys (local relay first, fallback to reputable relays for missing)
+        $uniquePubkeys = array_values(array_unique(array_filter($pubkeys, fn($p) => is_string($p) && strlen($p) === 64)));
+        if (!empty($uniquePubkeys)) {
+            try {
+                $metadataMap = $this->nostrClient->getMetadataForPubkeys($uniquePubkeys, true); // map pubkey => event
+                foreach ($uniqueHighlights as &$highlight) {
+                    $pubkey = $highlight['pubkey'];
+                    if ($pubkey && isset($metadataMap[$pubkey])) {
+                        $metaEvent = $metadataMap[$pubkey];
+                        // Parse metadata JSON content
+                        $profile = null;
+                        if (isset($metaEvent->content)) {
+                            $decoded = json_decode($metaEvent->content, true);
+                            if (is_array($decoded)) {
+                                $profile = [
+                                    'name' => $decoded['name'] ?? ($decoded['display_name'] ?? null),
+                                    'display_name' => $decoded['display_name'] ?? null,
+                                    'picture' => $decoded['picture'] ?? null,
+                                    'banner' => $decoded['banner'] ?? null,
+                                    'about' => $decoded['about'] ?? null,
+                                    'website' => $decoded['website'] ?? null,
+                                    'nip05' => $decoded['nip05'] ?? null,
+                                ];
+                            }
+                        }
+                        $highlight['profile'] = $profile;
+                    }
+                }
+                unset($highlight);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed batch metadata enrichment for highlights', [
+                    'error' => $e->getMessage(),
+                    'pubkeys_count' => count($uniquePubkeys)
+                ]);
             }
         }
 

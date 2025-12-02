@@ -510,8 +510,21 @@ class NostrClient
         $pubkey = $parts[1];
         $identifier = end($parts);
 
-        // Get relays for the author
-        $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $authorRelays = [$this->nostrDefaultRelay];
+            $this->logger->info('Using local relay for comments fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'coordinate' => $coordinate
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
+            $this->logger->info('Using author relays for comments fetch', [
+                'coordinate' => $coordinate,
+                'relay_count' => count($authorRelays)
+            ]);
+        }
 
         // Build the request message
         $subscription = new Subscription();
@@ -588,12 +601,21 @@ class NostrClient
      */
     public function getLongFormContentForPubkey(string $ident, ?int $since = null, ?int $kind = KindsEnum::LONGFORM->value ): array
     {
-        // Add user relays to the default set
-        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-        // Create a RelaySet from the author's relays
-        $relaySet = $this->defaultRelaySet;
-        if (!empty($authorRelays)) {
-            $relaySet = $this->createRelaySet($authorRelays);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Using local relay for article fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'pubkey' => $ident
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $this->logger->info('Using author relays for article fetch', [
+                'pubkey' => $ident,
+                'relay_count' => count($authorRelays)
+            ]);
         }
 
         // Create request using the helper method
@@ -626,12 +648,17 @@ class NostrClient
      */
     public function getPictureEventsForPubkey(string $ident, int $limit = 20): array
     {
-        // Add user relays to the default set
-        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-        // Create a RelaySet from the author's relays
-        $relaySet = $this->defaultRelaySet;
-        if (!empty($authorRelays)) {
-            $relaySet = $this->createRelaySet($authorRelays);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Using local relay for picture events fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'pubkey' => $ident
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 20 (picture events)
@@ -656,12 +683,17 @@ class NostrClient
      */
     public function getVideoShortsForPubkey(string $ident, int $limit = 20): array
     {
-        // Add user relays to the default set
-        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-        // Create a RelaySet from the author's relays
-        $relaySet = $this->defaultRelaySet;
-        if (!empty($authorRelays)) {
-            $relaySet = $this->createRelaySet($authorRelays);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Using local relay for video shorts fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'pubkey' => $ident
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 22 (short video events)
@@ -686,12 +718,17 @@ class NostrClient
      */
     public function getNormalVideosForPubkey(string $ident, int $limit = 20): array
     {
-        // Add user relays to the default set
-        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-        // Create a RelaySet from the author's relays
-        $relaySet = $this->defaultRelaySet;
-        if (!empty($authorRelays)) {
-            $relaySet = $this->createRelaySet($authorRelays);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Using local relay for normal videos fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'pubkey' => $ident
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 21 (normal video events)
@@ -717,12 +754,17 @@ class NostrClient
      */
     public function getAllMediaEventsForPubkey(string $ident, int $limit = 30): array
     {
-        // Add user relays to the default set
-        $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-        // Create a RelaySet from the author's relays
-        $relaySet = $this->defaultRelaySet;
-        if (!empty($authorRelays)) {
-            $relaySet = $this->createRelaySet($authorRelays);
+        // Use local relay only if configured, otherwise use author relays
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Using local relay for all media events fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'pubkey' => $ident
+            ]);
+        } else {
+            // Fallback to author relays when no local relay is configured
+            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
+            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
         }
 
         // Create request for all media kinds (20, 21, 22) in ONE request
@@ -1032,21 +1074,37 @@ class NostrClient
     {
         $this->logger->info('Fetching highlights for article', ['coordinate' => $articleCoordinate]);
 
-        // Use relay pool to send request
         $subscription = new Subscription();
         $subscriptionId = $subscription->setId();
         $filter = new Filter();
         $filter->setKinds([9802]); // NIP-84 highlights
         $filter->setLimit($limit);
-        // Add tag filter for the specific article coordinate
         $filter->setTags(['#a' => [$articleCoordinate]]);
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
-        // Get default relay URLs
-        $relayUrls = $this->relayPool->getDefaultRelays();
+        // Prefer ONLY the local relay if configured
+        if ($this->nostrDefaultRelay) {
+            $relayUrls = [$this->nostrDefaultRelay];
+            $this->logger->info('Using local relay for highlights fetch', [
+                'relay' => $this->nostrDefaultRelay,
+                'coordinate' => $articleCoordinate
+            ]);
+        } else {
+            // Fallback – use first default relay only (keep narrow to avoid huge queries)
+            $defaultRelays = $this->relayPool->getDefaultRelays();
+            $relayUrls = empty($defaultRelays) ? [] : [$defaultRelays[0]];
+            $this->logger->info('Using fallback public relay for highlights fetch', [
+                'coordinate' => $articleCoordinate,
+                'relay' => $relayUrls[0] ?? 'none'
+            ]);
+        }
 
-        // Use the relay pool to send the request
+        if (empty($relayUrls)) {
+            $this->logger->warning('No relays available for highlights fetch', ['coordinate' => $articleCoordinate]);
+            return [];
+        }
+
         $responses = $this->relayPool->sendToRelays(
             $relayUrls,
             fn() => $requestMessage,
@@ -1054,7 +1112,6 @@ class NostrClient
             $subscriptionId
         );
 
-        // Process the response and deduplicate by eventId
         $uniqueEvents = [];
         $this->processResponse($responses, function($event) use (&$uniqueEvents) {
             $this->logger->debug('Received highlight event for article', ['event_id' => $event->id]);
@@ -1256,5 +1313,111 @@ class NostrClient
         }
 
         return $tTags;
+    }
+
+    /**
+     * Batch fetch metadata for multiple pubkeys
+     * Queries local relay first, then fallback to reputable relays for any missing metadata.
+     *
+     * @param array $pubkeys Array of pubkeys (hex-encoded) to fetch metadata for
+     * @param bool $fallback Whether to fallback to reputable relays if metadata is missing from local relay
+     * @return array Map of pubkey => metadata event
+     * @throws \Exception
+     */
+    public function getMetadataForPubkeys(array $pubkeys, bool $fallback = true): array
+    {
+        // Deduplicate & sanitize
+        $pubkeys = array_values(array_unique(array_filter($pubkeys, fn($p) => is_string($p) && strlen($p) === 64)));
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $this->logger->info('Batch fetching metadata', [
+            'count' => count($pubkeys),
+            'fallback' => $fallback,
+        ]);
+
+        $results = [];
+        $missing = $pubkeys;
+
+        // Helper to process events list and keep newest per pubkey
+        $process = function(array $events) use (&$results, &$missing) {
+            foreach ($events as $event) {
+                $pubkey = $event->pubkey ?? null;
+                if (!$pubkey) { continue; }
+                // Keep only newest
+                if (!isset($results[$pubkey]) || ($event->created_at ?? 0) > ($results[$pubkey]->created_at ?? 0)) {
+                    $results[$pubkey] = $event;
+                }
+            }
+            // Update missing list
+            $missing = array_values(array_diff($missing, array_keys($results)));
+        };
+
+        // First pass: local relay only
+        try {
+            if ($this->nostrDefaultRelay) {
+                $relaySet = $this->createRelaySet([$this->nostrDefaultRelay]);
+                $request = $this->createNostrRequest(
+                    kinds: [KindsEnum::METADATA->value],
+                    filters: [ 'authors' => $missing, 'limit' => count($missing) ],
+                    relaySet: $relaySet
+                );
+                $events = $this->processResponse($request->send(), fn($e) => $e);
+                $process($events);
+                $this->logger->info('Local relay metadata fetch complete', [
+                    'found' => count($results),
+                    'remaining' => count($missing)
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Local relay batch metadata fetch failed', ['error' => $e->getMessage()]);
+        }
+
+        // Fallback pass: reputable relays (group remaining into chunks to reduce payload size)
+        if ($fallback && !empty($missing)) {
+            $chunks = array_chunk($missing, 50); // chunk size adjustable
+            foreach ($chunks as $chunk) {
+                if (empty($chunk)) { continue; }
+                try {
+                    $relaySet = $this->createRelaySet(self::REPUTABLE_RELAYS);
+                    $request = $this->createNostrRequest(
+                        kinds: [KindsEnum::METADATA->value],
+                        filters: [ 'authors' => $chunk, 'limit' => count($chunk) ],
+                        relaySet: $relaySet
+                    );
+                    $events = $this->processResponse($request->send(), fn($e) => $e);
+                    $process($events);
+                    $this->logger->info('Fallback metadata chunk fetched', [
+                        'chunk_size' => count($chunk),
+                        'found_total' => count($results),
+                        'remaining' => count($missing)
+                    ]);
+                    if (empty($missing)) { break; }
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Fallback metadata chunk failed', [
+                        'error' => $e->getMessage(),
+                        'chunk_size' => count($chunk)
+                    ]);
+                }
+            }
+        }
+
+        // Optional: cache individual metadata events
+        foreach ($results as $pubkey => $event) {
+            try {
+                $cacheKey = 'pubkey_meta_' . $pubkey;
+                $cachedItem = $this->npubCache->getItem($cacheKey);
+                if (!$cachedItem->isHit() || ($event->created_at ?? 0) > ($cachedItem->get()->created_at ?? 0)) {
+                    $cachedItem->set($event);
+                    $cachedItem->expiresAfter(3600); // 1 hour TTL
+                    $this->npubCache->save($cachedItem);
+                }
+            } catch (\Throwable $e) {
+                // Non-critical
+            }
+        }
+
+        return $results; // map pubkey => metadata event
     }
 }
