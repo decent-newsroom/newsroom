@@ -5,7 +5,7 @@ framework:
 
     # Note that the session will be started ONLY if you read or write from it.
     session:
-        handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
+        handler_id: App\Session\GracefulSessionHandler
         cookie_secure: auto
         cookie_samesite: lax
         cookie_lifetime: 2678400 # integer, lifetime in seconds, 0 means 'valid for the length of the browser session'

@@ -1,7 +1,9 @@
 <div {{ attributes }}>
         {% if interactive %}
-        <form data-live-action-param="search"
-              data-action="live#action:prevent">
+        <form
+            class="mb-5"
+            data-live-action-param="search"
+            data-action="live#action:prevent">
             <label class="search">
                 <input type="search"
                        placeholder="{{ 'text.search'|trans }}"
@@ -10,27 +12,20 @@
                        data-controller="search-broadcast"
                        data-action="input->search-broadcast#onInput"
                 />
-                <button type="submit"
-                {% if not is_granted('IS_AUTHENTICATED_FULLY') %}disabled{% endif %}
-                ><twig:ux:icon name="iconoir:search" class="icon" /></button>
+                <button type="submit"><twig:ux:icon name="iconoir:search" class="icon" /></button>
             </label>
             {% if is_granted('IS_AUTHENTICATED_FULLY') %}
             <div class="search-credits">
+                {% set count = credits > 0 ? credits : 0 %}
                 <small class="help-text">
-                    <em>{{ 'credit.balance'|trans({'%count%': credits, 'count': credits}) }}</em>
+                    <em>{{ 'credit.balance'|trans({'%count%': count, 'count': count}) }}</em>
                 </small>
             </div>
             {% endif %}
         </form>
 
-        {% if not is_granted('IS_AUTHENTICATED_FULLY') %}
-            <div class="notice info mb-5">
-                <p>Log in to search articles.</p>
-            </div>
-        {% endif %}
 
-
-        {% if is_granted('IS_AUTHENTICATED_FULLY') and credits == 0 %}
+        {% if is_granted('IS_AUTHENTICATED_FULLY') and not credits > 0 %}
             <div class="mb-5">
                 <twig:GetCreditsComponent />
             </div>
@@ -80,6 +75,15 @@
                 </div>
             {% else %}
                 <twig:Organisms:CardList :list="this.results" class="article-list" />
+
+                {# Show message to anonymous users about limited results #}
+                {% if not is_granted('IS_AUTHENTICATED_FULLY') and this.results is not empty %}
+                    <div class="notice info mt-4">
+                        <p><strong>Showing limited results (5 articles)</strong></p>
+                        <p>Sign in to see more results and unlock full search capabilities!</p>
+                        <a href="{{ path('app_login') }}" class="btn btn-primary btn-sm mt-2">Sign In</a>
+                    </div>
+                {% endif %}
             {% endif %}
         {% elseif this.query is not empty %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>

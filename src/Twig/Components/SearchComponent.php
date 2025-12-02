@@ -65,12 +65,16 @@ final class SearchComponent
     {
     }
 
-    public function mount($currentRoute = 'search'): void
+    public function mount($query = '', $currentRoute = 'search'): void
     {
         $this->currentRoute = $currentRoute;
+        $this->query = $query;
         $token = $this->tokenStorage->getToken();
         $this->npub = $token?->getUserIdentifier();
 
+        $this->logger->info('SearchComponent mount called with query: "' . $this->query . '"');
+
+        // Credits are only relevant for authenticated users, but search works for everyone
         if ($this->npub !== null) {
             try {
                 $this->credits = $this->creditsManager->getBalance($this->npub);
@@ -81,8 +85,29 @@ final class SearchComponent
             }
         }
 
-        // Restore search results from session if available and no query provided
-        if (empty($this->query) && $this->currentRoute == 'search') {
+        // If a query is provided (from URL or prop), perform the search automatically
+        if (!empty($this->query)) {
+            $this->logger->info('Query detected in mount, triggering search for: ' . $this->query);
+            // Clear cache if this is a different query than what's cached
+            $session = $this->requestStack->getSession();
+            if ($session->has(self::SESSION_QUERY_KEY)) {
+                $cachedQuery = $session->get(self::SESSION_QUERY_KEY);
+                if ($cachedQuery !== $this->query) {
+                    $this->clearSearchCache();
+                    $this->logger->info('Cleared cache for different query. Old: ' . $cachedQuery . ', New: ' . $this->query);
+                }
+            }
+
+            try {
+                $this->search();
+            } catch (InvalidArgumentException $e) {
+                $this->logger->error('Search error on mount: ' . $e->getMessage());
+            }
+            return;
+        }
+
+        // Otherwise, restore search results from session if available
+        if ($this->currentRoute == 'search') {
             $session = $this->requestStack->getSession();
             if ($session->has(self::SESSION_QUERY_KEY)) {
                 $this->query = $session->get(self::SESSION_QUERY_KEY);
@@ -102,8 +127,9 @@ final class SearchComponent
     {
         $token = $this->tokenStorage->getToken();
         $this->npub = $token?->getUserIdentifier();
+        $isAuthenticated = $this->npub !== null;
 
-        $this->logger->info("Query: {$this->query}, npub: {$this->npub}");
+        $this->logger->info("Query: {$this->query}, npub: " . ($this->npub ?? 'anonymous'));
 
         if (empty($this->query)) {
             $this->results = [];
@@ -112,13 +138,16 @@ final class SearchComponent
             return;
         }
 
-        try {
-            $this->credits = $this->creditsManager->getBalance($this->npub);
-        } catch (InvalidArgumentException $e) {
-            $this->credits = $this->creditsManager->resetBalance($this->npub);
+        // Update credits for authenticated users
+        if ($isAuthenticated) {
+            try {
+                $this->credits = $this->creditsManager->getBalance($this->npub);
+            } catch (InvalidArgumentException $e) {
+                $this->credits = $this->creditsManager->resetBalance($this->npub);
+            }
         }
 
-        // Check if the same query exists in session
+        // Check if the same query exists in session (works for both auth and anon)
         $session = $this->requestStack->getSession();
         if ($session->has(self::SESSION_QUERY_KEY) &&
             $session->get(self::SESSION_QUERY_KEY) === $this->query) {
@@ -129,19 +158,21 @@ final class SearchComponent
             return;
         }
 
-        if (!$this->creditsManager->canAfford($this->npub, 1)) {
-            $this->results = [];
-            $this->authors = [];
-            return;
-        }
-
         try {
             $this->results = [];
-            $this->creditsManager->spendCredits($this->npub, 1, 'search');
-            $this->credits--;
 
-            // Perform optimized single search query
-            $this->results = $this->performOptimizedSearch($this->query);
+            // Only spend credits if user is authenticated
+            if ($isAuthenticated && $this->creditsManager->canAfford($this->npub, 1)) {
+                $this->creditsManager->spendCredits($this->npub, 1, 'search');
+                $this->credits--;
+            }
+
+            // Set result limits: 5 for anonymous, 12 for authenticated users
+            $maxResults = $isAuthenticated ? 12 : 5;
+            $this->logger->info('Search limit: ' . $maxResults . ' results for ' . ($isAuthenticated ? 'authenticated' : 'anonymous') . ' user');
+
+            // Perform optimized single search query with appropriate limit
+            $this->results = $this->performOptimizedSearch($this->query, $maxResults);
             $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
             $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
 
@@ -179,8 +210,10 @@ final class SearchComponent
 
     /**
      * Perform optimized single search query
+     * @param string $query The search query
+     * @param int|null $maxResults Maximum number of results (null for default)
      */
-    private function performOptimizedSearch(string $query): array
+    private function performOptimizedSearch(string $query, ?int $maxResults = null): array
     {
         $mainQuery = new Query();
         $boolQuery = new BoolQuery();
@@ -219,10 +252,11 @@ final class SearchComponent
             'createdAt' => ['order' => 'desc']
         ]);
 
-        // Pagination
-        $offset = ($this->page - 1) * $this->resultsPerPage;
+        // Pagination - use maxResults if provided, otherwise use default resultsPerPage
+        $effectiveResultsPerPage = $maxResults ?? $this->resultsPerPage;
+        $offset = ($this->page - 1) * $effectiveResultsPerPage;
         $mainQuery->setFrom($offset);
-        $mainQuery->setSize($this->resultsPerPage);
+        $mainQuery->setSize($effectiveResultsPerPage);
 
         // Execute the search
         $results = $this->finder->find($mainQuery);

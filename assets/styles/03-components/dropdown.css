@@ -48,6 +48,7 @@
     display: block;
 }
 
+button.dropdown-item,
 .dropdown-item {
     display: block;
     width: 100%;
@@ -64,6 +65,8 @@
     transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 
+button.dropdown-item:hover,
+button.dropdown-item:focus,
 .dropdown-item:hover,
 .dropdown-item:focus {
     color: var(--color-text);
@@ -71,14 +74,15 @@
     text-decoration: none;
 }
 
+button.dropdown-item:active,
 .dropdown-item:active {
     color: var(--color-text-contrast);
     background-color: var(--color-primary);
     text-decoration: none;
 }
 
-.dropdown-item.disabled,
-.dropdown-item:disabled {
+button.dropdown-item.disabled,
+button.dropdown-item:disabled {
     color: var(--color-text-mid);
     pointer-events: none;
     background-color: transparent;

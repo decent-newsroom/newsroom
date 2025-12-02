@@ -53,19 +53,30 @@ services:
     Redis:
         # you can also use \RedisArray, \RedisCluster, \Relay\Relay or \Predis\Client classes
         class: Redis
+        lazy: true
         calls:
             - connect:
                 - '%env(REDIS_HOST)%'
             - auth:
                 - '%env(REDIS_PASSWORD)%'
     
+    # Native file session handler for fallback
+    Symfony\Component\HttpFoundation\Session\Storage\Handler\NativeFileSessionHandler: ~
+
+    # Graceful session handler that falls back to files on Redis outage
+    App\Session\GracefulSessionHandler:
+        arguments:
+            - '@Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler'
+            - '@Symfony\Component\HttpFoundation\Session\Storage\Handler\NativeFileSessionHandler'
+            - '@logger'
+
     App\Provider\ArticleProvider:
         tags:
             - { name: fos_elastica.pager_provider, index: articles, type: article }
 
     App\EventListener\PopulateListener:
         tags:
-            - { name: kernel.event_listener, event: 'FOS\ElasticaBundle\Event\PostIndexPopulateEvent', method: 'postIndexPopulate' }
+            - { name: kernel.event_listener, event: 'FOS\\ElasticaBundle\\Event\\PostIndexPopulateEvent', method: 'postIndexPopulate' }
     
     App\Command\IndexArticlesCommand:
         arguments:

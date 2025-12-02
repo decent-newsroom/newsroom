@@ -1137,6 +1137,75 @@ class NostrClient
         return array_values($uniqueEvents);
     }
 
+    public function getLatestLongFormArticles(int $limit = 50, ?int $since = null): array
+    {
+        // Prefer ONLY the local relay if configured; otherwise use the default relay set
+        if ($this->nostrDefaultRelay) {
+            $relaySet = $this->createRelaySet([$this->nostrDefaultRelay]);
+            $this->logger->info('Fetching latest long-form articles from local relay', [
+                'relay' => $this->nostrDefaultRelay,
+                'limit' => $limit,
+                'since' => $since
+            ]);
+        } else {
+            $relaySet = $this->defaultRelaySet;
+            $this->logger->info('Fetching latest long-form articles from default relay set (no local relay configured)', [
+                'limit' => $limit,
+                'since' => $since
+            ]);
+        }
+
+        $filters = [ 'limit' => $limit ];
+        if ($since !== null && $since > 0) {
+            $filters['since'] = $since;
+        }
+
+        try {
+            $request = $this->createNostrRequest(
+                kinds: [KindsEnum::LONGFORM->value],
+                filters: $filters,
+                relaySet: $relaySet
+            );
+
+            $events = $this->processResponse($request->send(), function($event) {
+                try {
+                    $article = $this->articleFactory->createFromLongFormContentEvent($event);
+                    // Persist newest revision if not saved yet
+                    $this->saveEachArticleToTheDatabase($article);
+                    return $article;
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed converting event to Article', [
+                        'error' => $e->getMessage(),
+                        'event_id' => $event->id ?? null
+                    ]);
+                    return null;
+                }
+            });
+        } catch (\Throwable $e) {
+            $this->logger->error('Error fetching latest long-form articles', [ 'error' => $e->getMessage() ]);
+            return [];
+        }
+
+        // Filter out nulls
+        $articles = array_filter($events, fn($a) => $a instanceof Article);
+
+        // Deduplicate by slug keeping latest createdAt
+        $bySlug = [];
+        foreach ($articles as $article) {
+            $slug = $article->getSlug();
+            if ($slug === '') { continue; }
+            if (!isset($bySlug[$slug]) || $article->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                $bySlug[$slug] = $article;
+            }
+        }
+
+        // Sort descending by createdAt
+        $deduped = array_values($bySlug);
+        usort($deduped, fn($a, $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
+
+        return $deduped;
+    }
+
     private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null, $stopGap = null ): TweakedRequest
     {
         $subscription = new Subscription();
@@ -1425,7 +1494,7 @@ class NostrClient
                 $cachedItem = $this->npubCache->getItem($cacheKey);
                 if (!$cachedItem->isHit() || ($event->created_at ?? 0) > ($cachedItem->get()->created_at ?? 0)) {
                     $cachedItem->set($event);
-                    $cachedItem->expiresAfter(3600); // 1 hour TTL
+                    $cachedItem->expiresAfter(84000); // 24 hours
                     $this->npubCache->save($cachedItem);
                 }
             } catch (\Throwable $e) {

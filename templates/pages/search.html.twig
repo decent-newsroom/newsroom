@@ -4,14 +4,11 @@
 {% endblock %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand mb-5">
-        <div class="container mb-5 mt-5">
-            <h1>Discover</h1>
-            <p class="eyebrow">hidden gems</p>
-        </div>
-    </section>
+    <twig:Atoms:PageHeading
+        heading="Discover"
+        tagline="hidden gems" />
     <section>
-        <twig:SearchComponent />
+        <twig:SearchComponent :query="initialQuery" />
     </section>
 {% endblock %}
 

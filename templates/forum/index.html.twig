@@ -31,7 +31,9 @@
 {% for catKey, category in topics %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">
-            <h2>{{ category.name }}</h2>
+            <h2>
+                <a href="{{ path('forum_main_topic', { topic: catKey }) }}">{{ category.name }}</a>
+            </h2>
         </div>
     </section>
 <div class="subcategories-grid">

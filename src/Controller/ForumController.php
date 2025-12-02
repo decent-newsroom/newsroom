@@ -93,6 +93,67 @@ class ForumController extends AbstractController
         ]);
     }
 
+    #[Route('/forum/main/{topic}', name: 'forum_main_topic')]
+    public function mainTopic(
+        string $topic,
+        #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
+        #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
+        Request $request
+    ): Response {
+        $catKey = strtolower(trim($topic));
+        if (!isset(ForumTopics::TOPICS[$catKey])) {
+            throw $this->createNotFoundException('Main topic not found');
+        }
+
+        $category = ForumTopics::TOPICS[$catKey];
+        // Collect all tags from all subcategories under this main topic
+        $tags = [];
+        foreach ($category['subcategories'] as $sub) {
+            foreach ($sub['tags'] as $t) { $tags[] = (string)$t; }
+        }
+        $tags = array_values(array_unique(array_map('strtolower', array_map('trim', $tags))));
+
+        // Count each tag in this main topic in one shot
+        $tagCounts = $this->fetchTagCounts($index, $tags);
+
+        // Fetch articles for the main topic (OR across all tags), collapse by slug
+        $bool = new BoolQuery();
+        if (!empty($tags)) {
+            $bool->addFilter(new Terms('topics', $tags));
+        }
+        $query = new Query($bool);
+        $query->setSize(20);
+        $query->setSort(['createdAt' => ['order' => 'desc']]);
+        $collapse = new Collapse();
+        $collapse->setFieldname('slug');
+        $query->setCollapse($collapse);
+
+        /** @var Pagerfanta $pager */
+        $pager = $finder->findPaginated($query);
+        $pager->setMaxPerPage(20);
+        $pager->setCurrentPage(max(1, (int)$request->query->get('page', 1)));
+        $articles = iterator_to_array($pager->getCurrentPageResults());
+
+        // Latest threads under this main topic scope
+        $page    = max(1, (int)$request->query->get('page', 1));
+        $perPage = 20;
+        $threads = $this->fetchThreads($index, [$tags]);
+        $threadsPage = array_slice($threads, ($page-1)*$perPage, $perPage);
+
+        return $this->render('forum/main_topic.html.twig', [
+            'categoryKey' => $catKey,
+            'category' => [ 'name' => $category['name'] ?? ucfirst($catKey) ],
+            'tags' => $tagCounts,
+            'threads' => $threadsPage,
+            'total' => count($threads),
+            'page' => $page,
+            'perPage' => $perPage,
+            'topics' => $this->getHydratedTopics($index),
+            'articles' => $articles,
+            'pager' => $pager,
+        ]);
+    }
+
     #[Route('/forum/topic/{key}', name: 'forum_topic')]
     public function topic(
         string $key,

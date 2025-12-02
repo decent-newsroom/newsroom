@@ -131,7 +131,7 @@ readonly class RedisCacheService
 
     /**
      * Fetch metadata for multiple pubkeys at once using Redis getItems.
-     * Falls back to getMetadata for cache misses.
+     * Batch fetches missing pubkeys from Nostr relays (local relay first, then public fallback).
      *
      * @param string[] $pubkeys Array of hex pubkeys
      * @return array<string, \stdClass> Map of pubkey => metadata
@@ -154,10 +154,58 @@ readonly class RedisCacheService
                 $result[$pubkey] = $item->get();
             }
         }
+
+        // Batch fetch missing pubkeys using NostrClient (local relay first, fallback to public)
         $missedPubkeys = array_diff($pubkeys, array_keys($result));
-        foreach ($missedPubkeys as $pubkey) {
-            $result[$pubkey] = $this->getMetadata($pubkey);
+        if (!empty($missedPubkeys)) {
+            try {
+                $batchMetadata = $this->nostrClient->getMetadataForPubkeys(array_values($missedPubkeys), true);
+
+                foreach ($missedPubkeys as $pubkey) {
+                    if (isset($batchMetadata[$pubkey])) {
+                        // Parse and cache the metadata
+                        $parsed = $this->parseUserMetadata($batchMetadata[$pubkey], $pubkey);
+                        $result[$pubkey] = $parsed;
+
+                        // Store in cache for future use
+                        try {
+                            $cacheKey = $this->getUserCacheKey($pubkey);
+                            $item = $this->npubCache->getItem($cacheKey);
+                            $item->set($parsed);
+                            $item->expiresAfter(3600); // 1 hour
+                            $this->npubCache->save($item);
+                        } catch (\Throwable $e) {
+                            $this->logger->warning('Failed to cache batch-fetched metadata', [
+                                'pubkey' => $pubkey,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    } else {
+                        // Fallback to default metadata if not found
+                        $npub = NostrKeyUtil::hexToNpub($pubkey);
+                        $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
+                        $content = new \stdClass();
+                        $content->name = $defaultName;
+                        $result[$pubkey] = $content;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->error('Batch metadata fetch failed, using defaults', [
+                    'error' => $e->getMessage(),
+                    'pubkeys_count' => count($missedPubkeys)
+                ]);
+
+                // Fallback: create default metadata for all missed pubkeys
+                foreach ($missedPubkeys as $pubkey) {
+                    $npub = NostrKeyUtil::hexToNpub($pubkey);
+                    $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
+                    $content = new \stdClass();
+                    $content->name = $defaultName;
+                    $result[$pubkey] = $content;
+                }
+            }
         }
+
         return $result;
     }
 

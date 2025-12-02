@@ -7,8 +7,10 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
+use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
@@ -50,61 +52,53 @@ class DefaultController extends AbstractController
     }
 
     /**
-     * @throws Exception
+     * @throws Exception|InvalidArgumentException
      */
-    #[Route('/latest-articles', name: 'latest_articles')]
-    public function latestArticles(FinderInterface $finder,
-                                   RedisCacheService $redisCacheService,
-                                   CacheItemPoolInterface $articlesCache): Response
+    #[Route('/discover', name: 'discover')]
+    public function discover(
+        FinderInterface $finder,
+        RedisCacheService $redisCacheService,
+        CacheItemPoolInterface $articlesCache
+    ): Response
     {
-        set_time_limit(300); // 5 minutes
+        set_time_limit(300);
         ini_set('max_execution_time', '300');
 
         $env = $this->getParameter('kernel.environment');
-        $cacheKey = 'latest_articles_list_' . $env ; // Use env to differentiate cache between environments
+        // Reuse previous latest list cache key to show same set as old 'latest'
+        $cacheKey = 'latest_articles_list_' . $env;
         $cacheItem = $articlesCache->getItem($cacheKey);
 
         $key = new Key();
         $excludedPubkeys = [
-            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
-            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
-            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
-            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
-            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz (Just annoying)
-            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed 𝚋𝚘𝚝 (Just annoying)
-            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
-            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs, job offers feed
+            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
+            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
+            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
+            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
+            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
+            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
+            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
+            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
         ];
 
         if (!$cacheItem->isHit()) {
-            // Query all articles and sort by created_at descending
+            // Fallback: run query now if command hasn't populated cache yet
             $boolQuery = new BoolQuery();
             $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
-
             $query = new Query($boolQuery);
-            $query->setSize(30);
+            $query->setSize(50);
             $query->setSort(['createdAt' => ['order' => 'desc']]);
-
-            // Use collapse to deduplicate by slug field
-            $collapse = new Collapse();
-            $collapse->setFieldname('slug');
-            $query->setCollapse($collapse);
-
-            // Use collapse to deduplicate by author
-            $collapse2 = new Collapse();
-            $collapse2->setFieldname('pubkey');
-            $query->setCollapse($collapse2);
-
+            $collapseSlug = new Collapse();
+            $collapseSlug->setFieldname('slug');
+            $query->setCollapse($collapseSlug);
             $articles = $finder->find($query);
-
             $cacheItem->set($articles);
-            $cacheItem->expiresAfter(3600); // Cache for 1 hour
+            $cacheItem->expiresAfter(3600); // 1 hour to match command cache duration
             $articlesCache->save($cacheItem);
         }
 
         $articles = $cacheItem->get();
 
-        // Collect all unique author pubkeys from articles
         $authorPubkeys = [];
         foreach ($articles as $article) {
             if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
@@ -114,8 +108,68 @@ class DefaultController extends AbstractController
             }
         }
         $authorPubkeys = array_unique($authorPubkeys);
+        $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
 
-        // Fetch all author metadata in one batch using pubkeys
+        // Build main topics key => display name map from ForumTopics constant
+        $mainTopicsMap = [];
+        foreach (ForumTopics::TOPICS as $key => $data) {
+            $name = $data['name'] ?? ucfirst($key);
+            $mainTopicsMap[$key] = $name;
+        }
+
+        return $this->render('pages/discover.html.twig', [
+            'articles' => $articles,
+            'authorsMetadata' => $authorsMetadata,
+            'mainTopicsMap' => $mainTopicsMap,
+        ]);
+    }
+
+    /**
+     * @throws Exception
+     */
+    #[Route('/latest-articles', name: 'latest_articles')]
+    public function latestArticles(
+        RedisCacheService $redisCacheService,
+        NostrClient $nostrClient
+    ): Response
+    {
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', '300');
+
+        // Direct feed: always fetch fresh from relay, no caching
+        $key = new Key();
+        $excludedPubkeys = [
+            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
+            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
+            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
+            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
+            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz (Just annoying)
+            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed bot
+            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
+            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs
+        ];
+
+        // Fetch raw latest articles (limit 50) directly from relay
+        $articles = $nostrClient->getLatestLongFormArticles(50);
+
+        // Filter out excluded pubkeys
+        $articles = array_filter($articles, function($article) use ($excludedPubkeys) {
+            if (method_exists($article, 'getPubkey')) {
+                return !in_array($article->getPubkey(), $excludedPubkeys, true);
+            }
+            return true;
+        });
+
+        // Collect author pubkeys for metadata
+        $authorPubkeys = [];
+        foreach ($articles as $article) {
+            if (method_exists($article, 'getPubkey')) {
+                $authorPubkeys[] = $article->getPubkey();
+            } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                $authorPubkeys[] = $article->pubkey;
+            }
+        }
+        $authorPubkeys = array_unique($authorPubkeys);
         $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
 
         return $this->render('pages/latest-articles.html.twig', [

@@ -6,25 +6,21 @@
 button, .btn, a.btn {
     background: var(--color-primary);
     color: var(--color-text-contrast);
-    border: 2px solid var(--color-primary);
+    border: 1px solid var(--color-primary);
     padding: 0.75em 1.5em;
     font-family: var(--font-family), sans-serif;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     cursor: pointer;
 }
 
 button:hover, .btn:hover, a.btn:hover {
     background: var(--color-accent);
     color: var(--color-text);
-    border: 2px solid var(--color-accent);
+    border: 1px solid var(--color-accent);
 }
 
 button:active, .btn:active, a.btn:active {
     background: var(--color-primary);
-    border: 2px solid var(--color-primary);
+    border: 1px solid var(--color-primary);
 }
 
 a.btn, a.btn:hover, a.btn:active {
@@ -41,7 +37,7 @@ a.btn, a.btn:hover, a.btn:active {
 }
 
 .btn.btn-accent:hover {
-    border: 2px solid var(--color-secondary);
+    border: 1px solid var(--color-secondary);
     color: var(--color-secondary);
     text-decoration: none;
 }
@@ -49,13 +45,13 @@ a.btn, a.btn:hover, a.btn:active {
 .btn.btn-secondary {
     color: var(--color-text);
     background-color: transparent;
-    border: 2px solid var(--color-secondary);
+    border: 1px solid var(--color-secondary);
     text-decoration: none;
 }
 
 .btn.btn-secondary:hover {
     background-color: var(--color-secondary);
     color: var(--color-text-contrast);
-    border: 2px solid var(--color-secondary);
+    border: 1px solid var(--color-secondary);
     text-decoration: none;
 }

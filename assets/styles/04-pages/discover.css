@@ -1,0 +1,125 @@
+/* Discover Page Styles */
+
+/* Discover Search Form */
+.discover-search-form {
+    max-width: 100%;
+}
+
+.discover-search-form .search {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+}
+
+.discover-search-form input[type="search"] {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s;
+}
+
+.discover-search-form input[type="search"]:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+}
+
+.discover-search-form button[type="submit"] {
+    padding: 0.75rem 1.5rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.discover-search-form button[type="submit"] .icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.discover-section .section-heading {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.discover-section .section-subheading {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #666);
+    margin-bottom: 1.5rem;
+}
+
+.discover-section .section-header {
+    border-bottom: 2px solid var(--border-color, #e0e0e0);
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+/* Discover Sidebar */
+.discover-sidebar {
+    position: sticky;
+    top: 2rem;
+}
+
+.discover-sidebar .sidebar-section {
+    background: var(--card-bg, #f8f9fa);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.discover-sidebar h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.discover-sidebar ul li {
+    margin-bottom: 0.75rem;
+}
+
+.discover-sidebar ul li a {
+    color: var(--text-primary, #1a1a1a);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.discover-sidebar ul li a:hover {
+    color: var(--primary-color, #007bff);
+}
+
+/* Highlights Preview Grid */
+#highlights-preview .highlights-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+    #highlights-preview .highlights-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .discover-section .section-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .discover-section .section-header .btn {
+        margin-top: 1rem;
+    }
+
+    .discover-search-form .search {
+        flex-direction: column;
+    }
+
+    .discover-search-form button[type="submit"] {
+        width: 100%;
+        justify-content: center;
+    }
+}
+

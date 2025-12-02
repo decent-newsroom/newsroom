@@ -21,7 +21,7 @@ class MediaDiscoveryController extends AbstractController
         'travel' => ['travel', 'traveling', 'wanderlust', 'adventure', 'explore', 'city', 'vacation', 'trip'],
     ];
 
-    #[Route('/discover', name: 'media-discovery')]
+    #[Route('/multimedia', name: 'media-discovery')]
     public function discover(CacheInterface $cache): Response
     {
         // Defaulting to all, might do topics later

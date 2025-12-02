@@ -1,0 +1,57 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    {# Search Section #}
+    <section class="w-container">
+        <div class="discover-section">
+            <form action="{{ path('app_search_index') }}" method="get" class="discover-search-form">
+                <label class="search">
+                    <input type="search"
+                           name="q"
+                           placeholder="Search for articles..."
+                           class="form-control"
+                           required
+                    />
+                    <button type="submit" class="btn btn-primary">
+                        <twig:ux:icon name="iconoir:search" class="icon" /> Search
+                    </button>
+                </label>
+            </form>
+        </div>
+    </section>
+
+    {# Main Topics (visible on small screens when sidebar is hidden) #}
+    <section class="w-container d-md-none mb-3">
+        <div class="discover-section topics-strip">
+            {% if mainTopicsMap is defined and mainTopicsMap is not empty %}
+                <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
+                    <a href="{{ path('forum') }}"
+                       class="btn btn-outline-primary btn-sm"
+                    >All</a>
+                    {% for key, name in mainTopicsMap %}
+                        <a href="{{ path('forum_main_topic', { topic: key }) }}"
+                           class="btn btn-outline-primary btn-sm">
+                            {{ name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="w-container">
+        <div class="discover-section">
+            {% if articles is empty %}
+                <div class="alert alert-info">
+                    No articles found.
+                </div>
+            {% else %}
+                <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <twig:Atoms:ForumAside />
+{% endblock %}
