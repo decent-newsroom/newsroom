@@ -60,15 +60,6 @@ services:
             - auth:
                 - '%env(REDIS_PASSWORD)%'
     
-    # Native file session handler for fallback
-    Symfony\Component\HttpFoundation\Session\Storage\Handler\NativeFileSessionHandler: ~
-
-    # Graceful session handler that falls back to files on Redis outage
-    App\Session\GracefulSessionHandler:
-        arguments:
-            - '@Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler'
-            - '@Symfony\Component\HttpFoundation\Session\Storage\Handler\NativeFileSessionHandler'
-            - '@logger'
 
     App\Provider\ArticleProvider:
         tags:
