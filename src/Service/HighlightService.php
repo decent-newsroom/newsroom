@@ -77,7 +77,7 @@ class HighlightService
             'count' => count($highlights)
         ]);
 
-        return array_map(function (Highlight $highlight) {
+        $mappedHighlights = array_map(function (Highlight $highlight) {
             return [
                 'content' => $highlight->getContent(),
                 'created_at' => $highlight->getCreatedAt(),
@@ -85,6 +85,28 @@ class HighlightService
                 'context' => $highlight->getContext(),
             ];
         }, $highlights);
+
+        // Deduplicate highlights based on content and pubkey
+        // Keep the most recent highlight for each content+pubkey combination
+        $deduplicated = [];
+        $seen = [];
+
+        foreach ($mappedHighlights as $highlight) {
+            $key = md5($highlight['content'] . '|' . $highlight['pubkey']);
+
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $deduplicated[] = $highlight;
+            }
+        }
+
+        $this->logger->info('Deduplicated highlights', [
+            'coordinate' => $articleCoordinate,
+            'original_count' => count($mappedHighlights),
+            'deduplicated_count' => count($deduplicated)
+        ]);
+
+        return $deduplicated;
     }
 
     /**
