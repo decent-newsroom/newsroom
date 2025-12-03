@@ -4,7 +4,8 @@
   <h1>Disambiguation: Multiple Articles for "{{ slug }}"</h1>
   <p>There are multiple articles with the slug <strong>{{ slug }}</strong>. Please select the author:</p>
   <ul>
-    {% for author, article in authors|zip(articles) %}
+    {% for article in articles %}
+      {% set author = authors[loop.index0] %}
       <li>
         <a href="{{ path('author-article-slug', { npub: author.npub, slug: slug }) }}">
           Author: {{ author.npub }}
