@@ -75,29 +75,50 @@ class ArticleController  extends AbstractController
     {
         $slug = urldecode($slug);
         $repository = $entityManager->getRepository(Article::class);
-        $articles = $repository->findBy(['slug' => $slug]);
+        $articles = $repository->findBy(['slug' => $slug], ['createdAt' => 'DESC']);
         $count = count($articles);
         if ($count === 0) {
             throw $this->createNotFoundException('No articles found for this slug');
         }
-        if ($count === 1) {
+
+        // Group articles by author (pubkey)
+        $articlesByAuthor = [];
+        foreach ($articles as $article) {
+            $pubkey = $article->getPubkey();
+            if (!isset($articlesByAuthor[$pubkey])) {
+                $articlesByAuthor[$pubkey] = [];
+            }
+            $articlesByAuthor[$pubkey][] = $article;
+        }
+
+        $uniqueAuthors = count($articlesByAuthor);
+
+        // If only one author, redirect to their most recent article (already sorted by createdAt DESC)
+        if ($uniqueAuthors === 1) {
             $key = new Key();
             $npub = $key->convertPublicKeyToBech32($articles[0]->getPubkey());
             return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
         }
+
+        // Multiple authors: show disambiguation page with one article per author (most recent)
         $authors = [];
         $key = new Key();
-        foreach ($articles as $article) {
+        $uniqueArticles = [];
+        foreach ($articlesByAuthor as $pubkey => $authorArticles) {
+            // Get the most recent article for this author (first in array due to DESC sort)
+            $mostRecentArticle = $authorArticles[0];
+            $uniqueArticles[] = $mostRecentArticle;
             $authors[] = [
-                'npub' => $key->convertPublicKeyToBech32($article->getPubkey()),
-                'pubkey' => $article->getPubkey(),
-                'createdAt' => $article->getCreatedAt(),
+                'npub' => $key->convertPublicKeyToBech32($pubkey),
+                'pubkey' => $pubkey,
+                'createdAt' => $mostRecentArticle->getCreatedAt(),
             ];
         }
+
         return $this->render('pages/article_disambiguation.html.twig', [
             'slug' => $slug,
             'authors' => $authors,
-            'articles' => $articles
+            'articles' => $uniqueArticles
         ]);
     }
 
