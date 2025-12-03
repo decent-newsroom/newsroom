@@ -826,23 +826,6 @@ class NostrClient
     {
         $allEvents = [];
 
-        // Prefer local relay if configured
-        if ($this->nostrDefaultRelay) {
-            $this->logger->info('Using local relay for media discovery hashtag fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'hashtags' => $hashtags,
-            ]);
-            $relayset = $this->createRelaySet([$this->nostrDefaultRelay]);
-        } else {
-            // Fallback to known public media-friendly relays
-            $relayUrls = ['wss://theforest.nostr1.com', 'wss://relay.nostr.band'];
-            $this->logger->info('Using public relays for media discovery hashtag fetch', [
-                'relays' => $relayUrls,
-                'hashtags' => $hashtags,
-            ]);
-            $relayset = $this->createRelaySet($relayUrls);
-        }
-
         // Fetch events for each hashtag
         foreach ($hashtags as $hashtag) {
             $request = $this->createNostrRequest(
@@ -851,7 +834,7 @@ class NostrClient
                     'tag' => ['#t', [$hashtag]],
                     'limit' => 100 // Fetch up to 100 per hashtag
                 ],
-                relaySet: $relayset
+                relaySet: $this->createRelaySet(static::REPUTABLE_RELAYS)
             );
 
             $events = $this->processResponse($request->send(), function($event) {

@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(
@@ -35,6 +36,7 @@ class CacheMediaDiscoveryCommand extends Command
         private readonly NostrClient $nostrClient,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
+        private readonly ParameterBagInterface $params,
     ) {
         parent::__construct();
     }
@@ -61,7 +63,8 @@ class CacheMediaDiscoveryCommand extends Command
                 $allHashtags = array_merge($allHashtags, self::TOPIC_HASHTAGS[$topic]);
             }
 
-            $cacheKey = 'media_discovery_events_all';
+            $env = $this->params->get('kernel.environment');
+            $cacheKey = 'media_discovery_events_all_' . $env;
 
             if ($force) {
                 $io->info('Force refresh enabled - deleting existing cache');

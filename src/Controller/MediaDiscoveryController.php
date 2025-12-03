@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -22,7 +23,7 @@ class MediaDiscoveryController extends AbstractController
     ];
 
     #[Route('/multimedia', name: 'media-discovery')]
-    public function discover(CacheInterface $cache): Response
+    public function discover(CacheInterface $cache, ParameterBagInterface $params): Response
     {
         // Defaulting to all, might do topics later
         try {
@@ -33,7 +34,8 @@ class MediaDiscoveryController extends AbstractController
             }
 
             // Cache key for all media events
-            $cacheKey = 'media_discovery_events_all';
+            $env = $params->get('kernel.environment');
+            $cacheKey = 'media_discovery_events_all_' . $env;
 
             // Read from cache only - the cache is populated by the CacheMediaDiscoveryCommand
             $allCachedEvents = $cache->get($cacheKey, function () {
