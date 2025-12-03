@@ -827,14 +827,14 @@ class NostrClient
         $allEvents = [];
 
         // Fetch events for each hashtag
-        foreach ($hashtags as $hashtag) {
+
             $request = $this->createNostrRequest(
                 kinds: [20], // NIP-68 Pictures; consider expanding to 21/22 later
                 filters: [
-                    'tag' => ['#t', [$hashtag]],
-                    'limit' => 100 // Fetch up to 100 per hashtag
+                    'tag' => ['#t', $hashtags],
+                    'limit' => 500 // Fetch up to 100 per hashtag
                 ],
-                relaySet: $this->createRelaySet(static::REPUTABLE_RELAYS)
+                relaySet: $this->createRelaySet(['wss://theforest.nostr1.com'])
             );
 
             $events = $this->processResponse($request->send(), function($event) {
@@ -842,7 +842,7 @@ class NostrClient
             });
 
             $allEvents = array_merge($allEvents, $events);
-        }
+
 
         return $allEvents;
     }

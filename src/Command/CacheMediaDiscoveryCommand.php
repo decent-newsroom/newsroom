@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\NostrClient;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -64,7 +65,7 @@ class CacheMediaDiscoveryCommand extends Command
             }
 
             $env = $this->params->get('kernel.environment');
-            $cacheKey = 'media_discovery_events_all_' . $env;
+            $cacheKey = 'media_discovery_events_all_prod';
 
             if ($force) {
                 $io->info('Force refresh enabled - deleting existing cache');
@@ -97,6 +98,22 @@ class CacheMediaDiscoveryCommand extends Command
                 // Filter out NSFW content
                 $mediaEvents = $this->filterNSFW($mediaEvents);
                 $io->comment(sprintf('After NSFW filter: %d events', count($mediaEvents)));
+
+                $keyUtil = new NostrKeyUtil();
+                // Filter out npubs in blocklist
+                $blocked = [
+                    $keyUtil->npubToHex('npub1prxnwedta6z2sv8atavcsd3hl8f8s8c9acc3syw6myfug92q07us5429qj'),
+                    $keyUtil->npubToHex('npub1jpc8h8fwdrsw5r3e7huahktd6npxzz9prq9t4dgcv9djdq8ggwhqd4xrcs'),
+                ];
+
+                $mediaEvents = array_filter($mediaEvents, function($event) use ($blocked, $io) {
+                    $io->comment($event->pubkey);
+
+                    return !in_array($event->pubkey, $blocked);
+                });
+
+                $io->comment(sprintf('After blocklist filter: %d events', count($mediaEvents)));
+
 
                 // Encode event IDs as note1... for each event
                 $nip19 = new Nip19Helper();
