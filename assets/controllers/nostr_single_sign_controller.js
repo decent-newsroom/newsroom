@@ -38,22 +38,30 @@ export default class extends Controller {
 
   async signAndPublish(event) {
     event.preventDefault();
+    console.log('[nostr_single_sign] Sign and publish triggered');
 
     let signer;
     try {
+      this.showStatus('Connecting to signer...');
       signer = await getSigner();
+      console.log('[nostr_single_sign] Signer obtained successfully');
     } catch (e) {
-      this.showError('No Nostr signer available. Please connect Amber or install a Nostr signer extension.');
+      console.error('[nostr_single_sign] Failed to get signer:', e);
+      this.showError(`No Nostr signer available: ${e.message}. Please connect Amber or install a Nostr signer extension.`);
       return;
     }
     if (!this.publishUrlValue || !this.csrfTokenValue) {
+      console.error('[nostr_single_sign] Missing config', { publishUrl: this.publishUrlValue, csrf: !!this.csrfTokenValue });
       this.showError('Missing config');
       return;
     }
 
     this.publishButtonTarget.disabled = true;
     try {
+      this.showStatus('Getting public key...');
       const pubkey = await signer.getPublicKey();
+      console.log('[nostr_single_sign] Public key obtained:', pubkey);
+
       const skeleton = JSON.parse(this.eventValue || '{}');
       // Update content from textarea before signing
       const textarea = this.element.querySelector('textarea');
@@ -64,15 +72,23 @@ export default class extends Controller {
       this.ensureContent(skeleton);
       skeleton.pubkey = pubkey;
 
-      this.showStatus('Signing feedback…');
+      this.showStatus('Signing event…');
+      console.log('[nostr_single_sign] Signing event:', skeleton);
       const signed = await signer.signEvent(skeleton);
+      console.log('[nostr_single_sign] Event signed successfully');
 
       this.showStatus('Publishing…');
       await this.publishSigned(signed);
+      console.log('[nostr_single_sign] Event published successfully');
 
-      this.showSuccess('Published feedback successfully');
+      this.showSuccess('Published successfully! Redirecting...');
+
+      // Redirect to reading list index after successful publish
+      setTimeout(() => {
+        window.location.href = '/reading-list';
+      }, 1500);
     } catch (e) {
-      console.error(e);
+      console.error('[nostr_single_sign] Error during sign/publish:', e);
       this.showError(e.message || 'Publish failed');
     } finally {
       this.publishButtonTarget.disabled = false;

@@ -14,10 +14,17 @@ export async function getSigner() {
   if (session) {
     if (remoteSigner) return remoteSigner;
     if (remoteSignerPromise) return remoteSignerPromise;
-    remoteSignerPromise = createRemoteSigner(session).then(signer => {
-      remoteSigner = signer;
-      return signer;
-    });
+
+    remoteSignerPromise = createRemoteSigner(session)
+      .then(signer => {
+        remoteSigner = signer;
+        return signer;
+      })
+      .catch(error => {
+        // Reset promise on failure so next call can retry
+        remoteSignerPromise = null;
+        throw error;
+      });
     return remoteSignerPromise;
   }
   // Fallback to browser extension
@@ -53,6 +60,26 @@ export function getRemoteSignerSession() {
 
 async function createRemoteSigner(session) {
   remoteSignerPool = new SimplePool();
-  return await BunkerSigner.fromURI(session.privkey, session.uri, { pool: remoteSignerPool });
+
+  // Add timeout to prevent hanging indefinitely
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Remote signer connection timeout')), 10000);
+  });
+
+  try {
+    return await Promise.race([
+      BunkerSigner.fromURI(session.privkey, session.uri, { pool: remoteSignerPool }),
+      timeoutPromise
+    ]);
+  } catch (error) {
+    // Clean up on error
+    if (remoteSignerPool) {
+      try { remoteSignerPool.close?.([]); } catch (_) {}
+      remoteSignerPool = null;
+    }
+    remoteSigner = null;
+    remoteSignerPromise = null;
+    throw error;
+  }
 }
 
