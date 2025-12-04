@@ -6,6 +6,8 @@ namespace App\Controller;
 
 use App\Service\HighlightService;
 use App\Service\NostrClient;
+use App\Service\NostrLinkParser;
+use App\Service\RedisViewStore;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,16 +25,58 @@ class HighlightsController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly HighlightService $highlightService,
         private readonly LoggerInterface $logger,
-        private readonly \App\Service\NostrLinkParser $nostrLinkParser,
+        private readonly NostrLinkParser $nostrLinkParser,
+        private readonly RedisViewStore $viewStore,
     ) {}
 
     #[Route('/highlights', name: 'highlights')]
     public function index(CacheInterface $cache): Response
     {
         try {
+            // Fast path: Try Redis views first (single GET)
+            $cachedView = $this->viewStore->fetchLatestHighlights();
+
+            if ($cachedView !== null) {
+                // Use Redis view - extract highlights data
+                $highlights = [];
+
+                foreach ($cachedView as $baseObject) {
+                    if (isset($baseObject['highlight']) && isset($baseObject['article'])) {
+                        // Transform Redis view format to legacy highlight format
+                        $highlight = [
+                            'id' => $baseObject['highlight']['eventId'] ?? null,
+                            'content' => $baseObject['highlight']['content'] ?? '',
+                            'created_at' => isset($baseObject['highlight']['createdAt'])
+                                ? strtotime($baseObject['highlight']['createdAt'])
+                                : time(),
+                            'pubkey' => $baseObject['highlight']['pubkey'] ?? null,
+                            'context' => $baseObject['highlight']['context'] ?? null,
+                            'article_ref' => $baseObject['article']['eventId'] ?? null,
+                            'article_title' => $baseObject['article']['title'] ?? null,
+                            'article_author' => $baseObject['article']['pubkey'] ?? null,
+                            'article_slug' => $baseObject['article']['slug'] ?? null,
+                            'profile' => $baseObject['author'] ?? null, // Highlight author profile
+                            'article_author_profile' => $baseObject['profiles'][$baseObject['article']['pubkey']] ?? null,
+                        ];
+
+                        $highlights[] = $highlight;
+                    }
+                }
+
+                $this->logger->info('Loaded highlights from Redis view', ['count' => count($highlights)]);
+
+                return $this->render('pages/highlights.html.twig', [
+                    'highlights' => $highlights,
+                    'total' => count($highlights),
+                    'from_redis_view' => true,
+                ]);
+            }
+
+            // Fallback path: Use old cache system if Redis view not available
+            $this->logger->debug('Redis view not found, falling back to Nostr relay fetch');
+
             // Cache key for highlights
             $cacheKey = 'global_article_highlights';
-            $cache->delete($cacheKey);
             // Get highlights from cache or fetch fresh
             $highlights = $cache->get($cacheKey, function (ItemInterface $item) {
                 $item->expiresAfter(self::CACHE_TTL);
@@ -40,9 +84,6 @@ class HighlightsController extends AbstractController
                 try {
                     // Fetch highlights that reference articles (kind 30023)
                     $events = $this->nostrClient->getArticleHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
-
-                    // Save raw events to database first (group by article)
-                    //$this->saveHighlightsToDatabase($events);
 
                     // Process and enrich the highlights for display
                     return $this->processHighlights($events);
@@ -57,6 +98,7 @@ class HighlightsController extends AbstractController
             return $this->render('pages/highlights.html.twig', [
                 'highlights' => $highlights,
                 'total' => count($highlights),
+                'from_redis_view' => false,
             ]);
 
         } catch (\Exception $e) {

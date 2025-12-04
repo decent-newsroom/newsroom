@@ -1,3 +1,19 @@
-0 */6 * * * /index_articles.sh >> /var/log/cron.log 2>&1
-2 */2 * * * /media_discovery.sh >> /var/log/cron.log 2>&1
-0 */2 * * * /article_discovery.sh >> /var/log/cron.log 2>&1
+# Article Processing Cron Jobs
+# ========================================
+
+# Post-process articles (QA, indexing, mark as indexed)
+# Runs every 5 minutes to process articles ingested by hydration worker
+*/5 * * * * /var/www/html/docker/cron/post_process_articles.sh >> /var/log/cron-post-process.log 2>&1
+
+# Backfill historical articles
+# Runs once daily at 2 AM for historical data
+0 2 * * * /var/www/html/docker/cron/index_articles.sh >> /var/log/cron-backfill.log 2>&1
+
+# Cache latest articles for Redis views
+# Runs every 15 minutes to keep cache fresh
+*/15 * * * * php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
+
+# Cache latest highlights for Redis views
+# Runs every 30 minutes
+*/30 * * * * php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
+

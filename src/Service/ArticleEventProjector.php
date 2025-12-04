@@ -13,6 +13,8 @@ use Psr\Log\LoggerInterface;
  * Projects Nostr article events into the database
  * Handles the conversion from event format to Article entity and persistence
  * Also processes markdown content to HTML for performance optimization
+ *
+ * Note: Post-processing (QA, indexing) is handled by cron job running articles:post-process
  */
 class ArticleEventProjector
 {
@@ -21,7 +23,7 @@ class ArticleEventProjector
         private readonly EntityManagerInterface $entityManager,
         private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
-        private readonly Converter $converter
+        private readonly Converter $converter,
     ) {
     }
 
@@ -82,6 +84,10 @@ class ArticleEventProjector
                     'event_id' => $article->getEventId(),
                     'db_id' => $article->getId()
                 ]);
+
+                // Note: Post-processing (QA, indexing) will be handled by cron job
+                // See: docker/cron/post_process_articles.sh (runs every 5 minutes)
+
             } else {
                 $this->logger->debug('Article already exists in database, skipping', [
                     'event_id' => $article->getEventId(),

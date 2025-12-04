@@ -136,7 +136,7 @@
             <hr class="divider" />
             <div class="tags">
                 {% for tag in article.topics %}
-                    <a href="{{ path('forum_tag', {'tag': tag}) }}" class="tag">#{{ tag }}</a>
+                    <a href="{{ path('forum_tag', {'tag': tag|url_encode}) }}" class="tag">#{{ tag }}</a>
                 {% endfor %}
             </div>
             {% endif %}
