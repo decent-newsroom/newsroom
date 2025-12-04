@@ -94,5 +94,74 @@ class HighlightRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    /**
+     * Get latest highlights across all articles
+     * @param int $limit Maximum number of highlights to return
+     * @return array<Highlight>
+     */
+    public function findLatest(int $limit = 50): array
+    {
+        return $this->createQueryBuilder('h')
+            ->orderBy('h.createdAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Get latest highlights with their corresponding articles
+     * Uses a join or separate query to efficiently fetch both
+     * @param int $limit Maximum number of highlights to return
+     * @return array<array{highlight: Highlight, article: ?\App\Entity\Article}>
+     */
+    public function findLatestWithArticles(int $limit = 50): array
+    {
+        // First get the highlights
+        $highlights = $this->findLatest($limit);
+
+        // Extract article coordinates and fetch corresponding articles
+        $coordinates = array_unique(array_map(
+            fn(Highlight $h) => $h->getArticleCoordinate(),
+            $highlights
+        ));
+
+        // Query articles by their coordinates
+        $articles = [];
+        if (!empty($coordinates)) {
+            $em = $this->getEntityManager();
+            $articleRepo = $em->getRepository(\App\Entity\Article::class);
+
+            // Build article coordinate map (kind:pubkey:identifier format)
+            foreach ($coordinates as $coordinate) {
+                // Parse coordinate: 30023:pubkey:identifier
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) === 3) {
+                    [, $pubkey, $identifier] = $parts;
+
+                    // Find article by pubkey and slug (identifier)
+                    $article = $articleRepo->findOneBy([
+                        'pubkey' => $pubkey,
+                        'slug' => $identifier,
+                    ]);
+
+                    if ($article) {
+                        $articles[$coordinate] = $article;
+                    }
+                }
+            }
+        }
+
+        // Combine highlights with their articles
+        $result = [];
+        foreach ($highlights as $highlight) {
+            $result[] = [
+                'highlight' => $highlight,
+                'article' => $articles[$highlight->getArticleCoordinate()] ?? null,
+            ];
+        }
+
+        return $result;
+    }
 }
 

@@ -89,6 +89,26 @@ services:
             DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
             NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-}
 
+  article_hydration_worker:
+      build:
+          context: .
+          dockerfile: Dockerfile
+      working_dir: /app
+      entrypoint: ["php"]  # run PHP CLI, not Caddy/FrankenPHP
+      command:
+          - bin/console
+          - articles:subscribe-local-relay
+          - -vv
+      restart: unless-stopped
+      depends_on:
+          - php
+          - database
+          - strfry
+      environment:
+            APP_ENV: prod
+            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
+            NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
+
 ###> strfry relay ###
   strfry:
     image: dockurr/strfry:latest

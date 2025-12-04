@@ -128,8 +128,8 @@ class ArticleController  extends AbstractController
         $slug,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
-        CacheItemPoolInterface $articlesCache,
         Converter $converter,
+        LoggerInterface $logger,
         HighlightService $highlightService
     ): Response
     {
@@ -143,12 +143,23 @@ class ArticleController  extends AbstractController
         if (!$article) {
             throw $this->createNotFoundException('The article could not be found');
         }
-        $cacheKey = 'article_' . $article->getEventId();
-        $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
-            $cacheItem->set($converter->convertToHTML($article->getContent()));
-            $articlesCache->save($cacheItem);
+
+        // Use cached processedHtml from database if available
+        $htmlContent = $article->getProcessedHtml();
+        $logger->info('Article content retrieval', [
+            'article_id' => $article->getId(),
+            'slug' => $article->getSlug(),
+            'pubkey' => $article->getPubkey(),
+            'has_cached_html' => $htmlContent !== null
+        ]);
+
+        if (!$htmlContent) {
+            // Fall back to converting on-the-fly and save for future requests
+            $htmlContent = $converter->convertToHTML($article->getContent());
+            $article->setProcessedHtml($htmlContent);
+            $entityManager->flush();
         }
+
         $author = $redisCacheService->getMetadata($article->getPubkey());
         $canEdit = false;
         $user = $this->getUser();
@@ -170,7 +181,7 @@ class ArticleController  extends AbstractController
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
-            'content' => $cacheItem->get(),
+            'content' => $htmlContent,
             'canEdit' => $canEdit,
             'canonical' => $canonical,
             'highlights' => $highlights

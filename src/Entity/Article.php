@@ -36,6 +36,10 @@ class Article
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $content = null;
 
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $processedHtml = null;
+
     #[ORM\Column(nullable: true, enumType: KindsEnum::class)]
     private ?KindsEnum $kind = null;
 
@@ -126,6 +130,18 @@ class Article
     public function setContent(?string $content): static
     {
         $this->content = $content;
+
+        return $this;
+    }
+
+    public function getProcessedHtml(): ?string
+    {
+        return $this->processedHtml;
+    }
+
+    public function setProcessedHtml(?string $processedHtml): static
+    {
+        $this->processedHtml = $processedHtml;
 
         return $this;
     }

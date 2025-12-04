@@ -232,26 +232,67 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
     #[Route('/p/{npub}/articles', name: 'author-articles', requirements: ['npub' => '^npub1.*'])]
     public function index($npub, RedisCacheService $redisCacheService, FinderInterface $finder,
-                          MessageBusInterface $messageBus): Response
+                          MessageBusInterface $messageBus, RedisViewStore $viewStore,
+                          RedisViewFactory $viewFactory): Response
     {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
 
         $author = $redisCacheService->getMetadata($pubkey);
 
-        // Get articles using Elasticsearch with collapse on slug
-        $boolQuery = new BoolQuery();
-        $boolQuery->addMust(new Term(['pubkey' => $pubkey]));
-        $query = new \Elastica\Query($boolQuery);
-        $query->setSort(['createdAt' => ['order' => 'desc']]);
-        $collapse = new Collapse();
-        $collapse->setFieldname('slug');
-        $query->setCollapse($collapse);
-        $articles = $finder->find($query);
+        // Try to get cached view first
+        $cachedArticles = $viewStore->fetchUserArticles($pubkey);
+        $fromCache = false;
+
+        if ($cachedArticles !== null) {
+            // Redis view data already matches template - just extract articles
+            $articles = [];
+            foreach ($cachedArticles as $baseObject) {
+                if (isset($baseObject['article'])) {
+                    $articles[] = (object) $baseObject['article'];
+                }
+            }
+            $fromCache = true;
+        } else {
+            // Cache miss - query from Elasticsearch
+            $boolQuery = new BoolQuery();
+            $boolQuery->addMust(new Term(['pubkey' => $pubkey]));
+            $query = new \Elastica\Query($boolQuery);
+            $query->setSort(['createdAt' => ['order' => 'desc']]);
+            $collapse = new Collapse();
+            $collapse->setFieldname('slug');
+            $query->setCollapse($collapse);
+            $articles = $finder->find($query);
+
+            // Build and cache Redis views for next time
+            if (!empty($articles)) {
+                try {
+                    $baseObjects = [];
+                    foreach ($articles as $article) {
+                        if ($article instanceof Article) {
+                            $baseObjects[] = $viewFactory->articleBaseObject($article, $author);
+                        }
+                    }
+                    if (!empty($baseObjects)) {
+                        $viewStore->storeUserArticles($pubkey, $baseObjects);
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail the request
+                    error_log('Failed to cache user articles view: ' . $e->getMessage());
+                }
+            }
+        }
 
         // Get latest createdAt for dispatching fetch message
         if (!empty($articles)) {
-            $latest = $articles[0]->getCreatedAt()->getTimestamp();
+            // Handle both Article entities and cached arrays
+            if (is_array($articles[0])) {
+                $latest = isset($articles[0]['article']['publishedAt'])
+                    ? strtotime($articles[0]['article']['publishedAt'])
+                    : time();
+            } else {
+                $latest = $articles[0]->getCreatedAt()->getTimestamp();
+            }
             // Dispatch async message to fetch new articles since latest + 1
             $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
         } else {
@@ -266,6 +307,7 @@ class AuthorController extends AbstractController
             'pubkey' => $pubkey,
             'articles' => $articles,
             'is_author_profile' => true,
+            'from_cache' => $fromCache,
         ]);
     }
 

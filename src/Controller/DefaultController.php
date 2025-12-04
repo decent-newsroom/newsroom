@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
+use App\Service\RedisViewStore;
 use App\Util\CommonMark\Converter;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
@@ -32,7 +33,6 @@ use Psr\Log\LoggerInterface;
 
 class DefaultController extends AbstractController
 {
-
     /**
      * @throws Exception
      */
@@ -58,67 +58,89 @@ class DefaultController extends AbstractController
     public function discover(
         FinderInterface $finder,
         RedisCacheService $redisCacheService,
+        RedisViewStore $viewStore,
         CacheItemPoolInterface $articlesCache
     ): Response
     {
-        $env = $this->getParameter('kernel.environment');
-        // Reuse previous latest list cache key to show same set as old 'latest'
-        $cacheKey = 'latest_articles_list_' . $env;
-        $cacheItem = $articlesCache->getItem($cacheKey);
+        // Fast path: Try to get from Redis views first (single GET)
+        $cachedView = $viewStore->fetchLatestArticles();
+        $fromCache = false;
 
-        if (!$cacheItem->isHit()) {
-            // Fallback: run query now if command hasn't populated cache yet
-            set_time_limit(300);
-            ini_set('max_execution_time', '300');
+        if ($cachedView !== null) {
+            // Redis view data already matches template expectations!
+            // Just extract articles and profiles - NO MAPPING NEEDED
+            $articles = [];
+            $authorsMetadata = [];
 
-            $key = new Key();
-            $excludedPubkeys = [
-                $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
-                $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
-                $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
-                $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
-                $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
-                $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
-                $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
-                $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
-            ];
-
-            $boolQuery = new BoolQuery();
-            $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
-            $query = new Query($boolQuery);
-            $query->setSize(50);
-            $query->setSort(['createdAt' => ['order' => 'desc']]);
-            $collapseSlug = new Collapse();
-            $collapseSlug->setFieldname('slug');
-            $query->setCollapse($collapseSlug);
-            $articles = $finder->find($query);
-            $cacheItem->set($articles);
-            $cacheItem->expiresAfter(3600); // 1 hour to match command cache duration
-            $articlesCache->save($cacheItem);
-        }
-
-        $articles = $cacheItem->get();
-
-        // Fetch author metadata - this is now much faster because
-        // metadata is pre-cached by the CacheLatestArticlesCommand
-        $authorPubkeys = [];
-        foreach ($articles as $article) {
-            if ($article instanceof \App\Entity\Article) {
-                $pubkey = $article->getPubkey();
-                if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
-                    $authorPubkeys[] = $pubkey;
+            foreach ($cachedView as $baseObject) {
+                if (isset($baseObject['article'])) {
+                    $articles[] = (object) $baseObject['article']; // Cast to object for template
                 }
-            } elseif (is_object($article)) {
-                // Elastica result object fallback
-                if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                    $authorPubkeys[] = $article->pubkey;
-                } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
-                    $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+                if (isset($baseObject['profiles'])) {
+                    foreach ($baseObject['profiles'] as $pubkey => $profile) {
+                        $authorsMetadata[$pubkey] = (object) $profile; // Cast to object for template
+                    }
                 }
             }
+            $fromCache = true;
+        } else {
+            // Fallback path: Use old cache system if Redis view not available
+            $env = $this->getParameter('kernel.environment');
+            $cacheKey = 'latest_articles_list_' . $env;
+            $cacheItem = $articlesCache->getItem($cacheKey);
+
+            if (!$cacheItem->isHit()) {
+                // Fallback: run query now if command hasn't populated cache yet
+                set_time_limit(300);
+                ini_set('max_execution_time', '300');
+
+                $key = new Key();
+                $excludedPubkeys = [
+                    $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
+                    $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
+                    $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
+                    $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
+                    $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
+                    $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
+                    $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
+                    $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
+                ];
+
+                $boolQuery = new BoolQuery();
+                $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+                $query = new Query($boolQuery);
+                $query->setSize(50);
+                $query->setSort(['createdAt' => ['order' => 'desc']]);
+                $collapseSlug = new Collapse();
+                $collapseSlug->setFieldname('slug');
+                $query->setCollapse($collapseSlug);
+                $articles = $finder->find($query);
+                $cacheItem->set($articles);
+                $cacheItem->expiresAfter(3600);
+                $articlesCache->save($cacheItem);
+            } else {
+                $articles = $cacheItem->get();
+            }
+
+            // Fetch author metadata for fallback path
+            $authorPubkeys = [];
+            foreach ($articles as $article) {
+                if ($article instanceof \App\Entity\Article) {
+                    $pubkey = $article->getPubkey();
+                    if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
+                        $authorPubkeys[] = $pubkey;
+                    }
+                } elseif (is_object($article)) {
+                    if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                        $authorPubkeys[] = $article->pubkey;
+                    } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
+                        $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
+                    }
+                }
+            }
+            $authorPubkeys = array_unique($authorPubkeys);
+            $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
         }
-        $authorPubkeys = array_unique($authorPubkeys);
-        $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
 
         // Build main topics key => display name map from ForumTopics constant
         $mainTopicsMap = [];
@@ -131,6 +153,7 @@ class DefaultController extends AbstractController
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadata,
             'mainTopicsMap' => $mainTopicsMap,
+            'from_redis_view' => $fromCache,
         ]);
     }
 
@@ -140,52 +163,85 @@ class DefaultController extends AbstractController
     #[Route('/latest-articles', name: 'latest_articles')]
     public function latestArticles(
         RedisCacheService $redisCacheService,
-        NostrClient $nostrClient
+        NostrClient $nostrClient,
+        RedisViewStore $viewStore
     ): Response
     {
-        set_time_limit(300); // 5 minutes
-        ini_set('max_execution_time', '300');
-
-        // Direct feed: always fetch fresh from relay, no caching
+        // Define excluded pubkeys (needed for template)
         $key = new Key();
         $excludedPubkeys = [
             $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
             $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
             $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
             $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
-            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz (Just annoying)
-            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace - feed bot
+            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz
+            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace
             $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
             $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs
         ];
 
-        // Fetch raw latest articles (limit 50) directly from relay
-        $articles = $nostrClient->getLatestLongFormArticles(50);
+        // Fast path: Try Redis cache first (single GET - super fast!)
+        $cachedView = $viewStore->fetchLatestArticles();
 
-        // Filter out excluded pubkeys
-        $articles = array_filter($articles, function($article) use ($excludedPubkeys) {
-            if (method_exists($article, 'getPubkey')) {
-                return !in_array($article->getPubkey(), $excludedPubkeys, true);
+        if ($cachedView !== null) {
+            // Use cached articles - already filtered and with metadata
+            $articles = [];
+            $authorsMetadata = [];
+
+            foreach ($cachedView as $baseObject) {
+                if (isset($baseObject['article'])) {
+                    $articles[] = (object) $baseObject['article'];
+                }
+                if (isset($baseObject['profiles'])) {
+                    foreach ($baseObject['profiles'] as $pubkey => $profile) {
+                        $authorsMetadata[$pubkey] = (object) $profile;
+                    }
+                }
             }
-            return true;
-        });
 
-        // Collect author pubkeys for metadata
-        $authorPubkeys = [];
-        foreach ($articles as $article) {
-            if (method_exists($article, 'getPubkey')) {
-                $authorPubkeys[] = $article->getPubkey();
-            } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                $authorPubkeys[] = $article->pubkey;
+            $fromCache = true;
+        } else {
+            // Cache miss: Fetch fresh from relay (slower but ensures we have data)
+            set_time_limit(300);
+            ini_set('max_execution_time', '300');
+
+
+            try {
+                // Fetch fresh from relay
+                $articles = $nostrClient->getLatestLongFormArticles(50);
+
+                // Filter out excluded pubkeys
+                $articles = array_filter($articles, function($article) use ($excludedPubkeys) {
+                    if (method_exists($article, 'getPubkey')) {
+                        return !in_array($article->getPubkey(), $excludedPubkeys, true);
+                    }
+                    return true;
+                });
+
+                // Collect author pubkeys for metadata
+                $authorPubkeys = [];
+                foreach ($articles as $article) {
+                    if (method_exists($article, 'getPubkey')) {
+                        $authorPubkeys[] = $article->getPubkey();
+                    } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                        $authorPubkeys[] = $article->pubkey;
+                    }
+                }
+                $authorPubkeys = array_unique($authorPubkeys);
+                $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
+                $fromCache = false;
+            } catch (\Exception $e) {
+                // Relay fetch failed and no cache available
+                throw $e;
             }
         }
-        $authorPubkeys = array_unique($authorPubkeys);
-        $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
 
         return $this->render('pages/latest-articles.html.twig', [
             'articles' => $articles,
             'newsBots' => array_slice($excludedPubkeys, 0, 4),
-            'authorsMetadata' => $authorsMetadata
+            'authorsMetadata' => $authorsMetadata,
+            'from_redis_view' => $fromCache ?? false,
         ]);
     }
 

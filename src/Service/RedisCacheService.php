@@ -15,14 +15,24 @@ use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\ItemInterface;
 
-readonly class RedisCacheService
+class RedisCacheService
 {
+    private ?RedisViewStore $viewStore = null;
+
     public function __construct(
-        private NostrClient            $nostrClient,
-        private CacheItemPoolInterface $npubCache,
-        private EntityManagerInterface $entityManager,
-        private LoggerInterface        $logger
+        private readonly NostrClient            $nostrClient,
+        private readonly CacheItemPoolInterface $npubCache,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly LoggerInterface        $logger
     ) {}
+
+    /**
+     * Inject RedisViewStore (using setter to avoid circular dependency)
+     */
+    public function setViewStore(RedisViewStore $viewStore): void
+    {
+        $this->viewStore = $viewStore;
+    }
 
     /**
      * Generate the cache key for user metadata (hex pubkey only).
@@ -487,5 +497,35 @@ readonly class RedisCacheService
         }
     }
 
+    /**
+     * Invalidate Redis views that contain this profile
+     * Called when profile metadata (kind 0) is updated
+     *
+     * @param string $pubkey Hex pubkey whose profile was updated
+     */
+    public function invalidateProfileViews(string $pubkey): void
+    {
+        if ($this->viewStore === null) {
+            return; // ViewStore not injected, skip invalidation
+        }
+
+        try {
+            // Invalidate user's articles view
+            $this->viewStore->invalidateUserArticles($pubkey);
+
+            // For now, we invalidate all latest views since we don't track which profiles are in them
+            // In future, this could be more selective
+            $this->viewStore->invalidateAll();
+
+            $this->logger->debug('Invalidated Redis views for profile update', [
+                'pubkey' => $pubkey,
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to invalidate Redis views', [
+                'pubkey' => $pubkey,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
 
 }
