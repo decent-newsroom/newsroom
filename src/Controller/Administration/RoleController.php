@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Entity\User;
+use App\Enum\RolesEnum;
 use App\Form\RoleType;
 use App\Repository\UserEntityRepository;
 use App\Service\RedisCacheService;
@@ -143,7 +144,7 @@ class RoleController extends AbstractController
             // Create user if not exists
             $user = new User();
             $user->setNpub($npub);
-            $user->setRoles([User::ROLE_FEATURED_WRITER]);
+            $user->setRoles([RolesEnum::FEATURED_WRITER]);
             $em->persist($user);
             $this->addFlash('success', 'Created new user and added as featured writer');
         } else {
@@ -151,7 +152,7 @@ class RoleController extends AbstractController
                 $this->addFlash('warning', 'User is already a featured writer');
                 return $this->redirectToRoute('admin_roles');
             }
-            $user->addRole(User::ROLE_FEATURED_WRITER);
+            $user->addRole(RolesEnum::FEATURED_WRITER->value);
             $this->addFlash('success', 'User added as featured writer');
         }
 
@@ -170,7 +171,7 @@ class RoleController extends AbstractController
             return $this->redirectToRoute('admin_roles');
         }
 
-        $user->removeRole(User::ROLE_FEATURED_WRITER);
+        $user->removeRole(RolesEnum::FEATURED_WRITER->value);
         $em->flush();
 
         $this->addFlash('success', 'User removed from featured writers');

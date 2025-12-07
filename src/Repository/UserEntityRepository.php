@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\User;
+use App\Enum\RolesEnum;
 use App\Util\NostrKeyUtil;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
@@ -38,7 +39,7 @@ class UserEntityRepository extends ServiceEntityRepository
     {
         $conn = $this->entityManager->getConnection();
         $sql = 'SELECT id FROM app_user WHERE roles::text LIKE :role';
-        $result = $conn->executeQuery($sql, ['role' => '%' . User::ROLE_FEATURED_WRITER . '%']);
+        $result = $conn->executeQuery($sql, ['role' => '%' . RolesEnum::FEATURED_WRITER->value . '%']);
 
         $ids = $result->fetchFirstColumn();
         if (empty($ids)) {
@@ -64,7 +65,7 @@ class UserEntityRepository extends ServiceEntityRepository
 
         // Get featured writer IDs and their npubs
         $sql = 'SELECT id, npub FROM app_user WHERE roles::text LIKE :role';
-        $result = $conn->executeQuery($sql, ['role' => '%' . User::ROLE_FEATURED_WRITER . '%']);
+        $result = $conn->executeQuery($sql, ['role' => '%' . RolesEnum::FEATURED_WRITER->value . '%']);
         $featuredUsers = $result->fetchAllAssociative();
 
         if (empty($featuredUsers)) {

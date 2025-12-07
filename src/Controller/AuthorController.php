@@ -8,15 +8,12 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorArticlesMessage;
-use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
+use App\Service\Search\ArticleSearchInterface;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
-use Elastica\Query\BoolQuery;
-use Elastica\Collapse;
-use Elastica\Query\Term;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\InvalidArgumentException;
@@ -235,7 +232,7 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}/articles', name: 'author-articles', requirements: ['npub' => '^npub1.*'])]
     public function index($npub, RedisCacheService $redisCacheService, FinderInterface $finder,
                           MessageBusInterface $messageBus, RedisViewStore $viewStore,
-                          RedisViewFactory $viewFactory): Response
+                          RedisViewFactory $viewFactory, ArticleSearchInterface $articleSearch): Response
     {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
