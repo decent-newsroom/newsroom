@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Service\NostrClient;
+use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Elastica\Aggregation\Filters as FiltersAgg;

@@ -7,6 +7,7 @@ parameters:
     encryption_key: '%env(APP_ENCRYPTION_KEY)%'
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
+    elasticsearch_enabled: '%env(ELASTICSEARCH_ENABLED)%'
 
 services:
     # default configuration for services in *this* file
@@ -79,3 +80,22 @@ services:
     
     App\Util\NostrPhp\TweakedRequest: ~
     swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'
+
+    # Search services - Elasticsearch implementation
+    App\Service\Search\ElasticsearchArticleSearch:
+        arguments:
+            $finder: '@fos_elastica.finder.articles'
+            $enabled: '%elasticsearch_enabled%'
+
+    # Search services - Database implementation
+    App\Service\Search\DatabaseArticleSearch: ~
+
+    # Search service factory
+    App\Service\Search\ArticleSearchFactory:
+        arguments:
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
+
+    # Main search service - uses Elasticsearch if enabled, otherwise database
+    App\Service\Search\ArticleSearchInterface:
+        factory: ['@App\Service\Search\ArticleSearchFactory', 'create']
+

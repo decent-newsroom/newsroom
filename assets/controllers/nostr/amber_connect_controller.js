@@ -73,7 +73,9 @@ export default class extends Controller {
   async _createSigner() {
     this._pool = new SimplePool();
     this._setStatus('Waiting for remote signer…');
-    // fromURI resolves only after remote bunker connects & authorizes (handshake done inside nostr-tools)
+    // INITIAL CONNECTION: fromURI() waits for Amber to accept connection (NIP-46 connect handshake)
+    // After this succeeds, the session (privkey, uri, relays, secret) is persisted to localStorage
+    // Subsequent calls to BunkerSigner.fromURI() with same credentials should work without waiting for approval
     this._signer = await BunkerSigner.fromURI(this._localSecretKey, this._uri, { pool: this._pool });
   }
 
@@ -101,6 +103,7 @@ export default class extends Controller {
       });
       if (resp.ok) {
         // Persist remote signer session for reuse after reload
+        // Note: Reconnection with Amber may require user approval each time
         setRemoteSignerSession({
           privkey: this._localSecretKey,
           uri: this._uri,

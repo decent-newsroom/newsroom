@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getSigner } from './signer_manager.js';
+import { getSigner } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
   static targets = ['dropdown', 'status', 'menu'];

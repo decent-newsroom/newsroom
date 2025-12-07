@@ -1,13 +1,13 @@
-<header class="header" data-controller="menu" {{ attributes }}>
+<header class="header" data-controller="ui--menu" {{ attributes }}>
     <div class="container">
-        <div class="mobile-toggles" data-controller="sidebar-toggle">
-            <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->sidebar-toggle#toggle">☰</button>
+        <div class="mobile-toggles" data-controller="ui--sidebar-toggle">
+            <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->ui--sidebar-toggle#toggle">☰</button>
         </div>
         <div class="header__logo">
             <h1 class="brand"><a href="/">Decent Newsroom</a></h1>
         </div>
     </div>
-    <div data-controller="progress-bar">
-        <div id="progress-bar" data-progress-bar-target="bar"></div>
+    <div data-controller="ui--progress-bar">
+        <div id="progress-bar" data-ui--progress-bar-target="bar"></div>
     </div>
 </header>

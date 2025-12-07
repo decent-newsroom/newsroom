@@ -9,9 +9,9 @@
     <div class="alert alert-success">You are already authenticated.</div>
   {% else %}
     <div class="card">
-      <div class="card-body" data-controller="login">
+      <div class="card-body" data-controller="utility--login">
         <p class="text-muted small mb-3">Use your Nostr credentials to authenticate.</p>
-        <button class="btn btn--primary" data-action="click->login#loginAct">Login with Extension</button>
+        <button class="btn btn--primary" data-action="click->utility--login#loginAct">Login with Extension</button>
         <a class="btn btn--primary" href="{{ path('app_login_signer') }}">Login with a remote signer</a>
       </div>
     </div>

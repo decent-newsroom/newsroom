@@ -13,10 +13,10 @@
 
     <div class="w-container">
         {% if pictureEvents|length > 0 %}
-            <div data-controller="media-loader"
-                 data-media-loader-npub-value="{{ npub }}"
-                 data-media-loader-total-value="{{ total }}">
-                <div class="masonry-grid" data-media-loader-target="grid">
+            <div data-controller="media--media-loader"
+                 data-media--media-loader-npub-value="{{ npub }}"
+                 data-media--media-loader-total-value="{{ total }}">
+                <div class="masonry-grid" data-media--media-loader-target="grid">
                     {% for event in pictureEvents %}
                         <div class="masonry-item">
                             {# Extract title #}

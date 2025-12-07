@@ -106,9 +106,9 @@
             <h2>Visits Per Day (Last 30 Days)</h2>
             {% if dailyVisitCountsLast30Days|length > 0 %}
                 <canvas id="visitsPerDayChart"
-                    data-controller="visits-per-day-chart"
-                    data-visits-per-day-chart-labels-value='{{ dailyVisitCountsLast30Days|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
-                    data-visits-per-day-chart-counts-value='{{ dailyVisitCountsLast30Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                    data-controller="analytics--visits-per-day-chart"
+                    data-analytics--visits-per-day-chart-labels-value='{{ dailyVisitCountsLast30Days|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
+                    data-analytics--visits-per-day-chart-counts-value='{{ dailyVisitCountsLast30Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
                     height="80"></canvas>
                 <noscript>
                     <p><em>Enable JavaScript to see the visits per day chart.</em></p>

@@ -35,11 +35,11 @@
                     <span class="btn btn-sm btn-outline-secondary disabled" title="Publish the NZine first">View</span>
                   {% endif %}
                   {% if nzine.npub %}
-                    <span data-controller="copy-to-clipboard">
-                      <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ nzine.npub }}</span>
+                    <span data-controller="utility--copy-to-clipboard">
+                      <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ nzine.npub }}</span>
                       <button class="btn btn-sm btn-secondary"
-                              data-copy-to-clipboard-target="copyButton"
-                              data-action="click->copy-to-clipboard#copyToClipboard"
+                              data-utility--copy-to-clipboard-target="copyButton"
+                              data-action="click->utility--copy-to-clipboard#copyToClipboard"
                               title="Copy npub">Copy npub</button>
                     </span>
                   {% endif %}

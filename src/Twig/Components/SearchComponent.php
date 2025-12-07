@@ -215,51 +215,12 @@ final class SearchComponent
      */
     private function performOptimizedSearch(string $query, ?int $maxResults = null): array
     {
-        $mainQuery = new Query();
-        $boolQuery = new BoolQuery();
-
-        // Add phrase match for exact matches (high boost)
-        $phraseMatch = new Query\MatchPhrase();
-        $phraseMatch->setField('search_combined', [
-            'query' => $query,
-            'boost' => 10
-        ]);
-        $boolQuery->addShould($phraseMatch);
-
-        // Main multi-match query with optimized settings
-        $multiMatch = new MultiMatch();
-        $multiMatch->setQuery($query);
-        $multiMatch->setFields(['search_combined']);
-        $multiMatch->setFuzziness('AUTO');
-        $boolQuery->addMust($multiMatch);
-
-        // Exclude specific patterns
-        $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
-
-        $mainQuery->setQuery($boolQuery);
-
-        // Simplified collapse - no inner_hits for better performance
-        $mainQuery->setParam('collapse', [
-            'field' => 'slug'
-        ]);
-
-        // Lower minimum score for better recall
-        $mainQuery->setMinScore(0.25);
-
-        // Sort by score first, then date
-        $mainQuery->setSort([
-            '_score' => ['order' => 'desc'],
-            'createdAt' => ['order' => 'desc']
-        ]);
-
         // Pagination - use maxResults if provided, otherwise use default resultsPerPage
         $effectiveResultsPerPage = $maxResults ?? $this->resultsPerPage;
         $offset = ($this->page - 1) * $effectiveResultsPerPage;
-        $mainQuery->setFrom($offset);
-        $mainQuery->setSize($effectiveResultsPerPage);
 
-        // Execute the search
-        $results = $this->finder->find($mainQuery);
+        // Execute the search using the configured search service
+        $results = $this->articleSearch->search($query, $effectiveResultsPerPage, $offset);
         $this->logger->info('Search results count: ' . count($results));
 
         return $results;

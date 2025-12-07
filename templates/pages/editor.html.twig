@@ -3,11 +3,11 @@
 {% form_theme form _self 'pages/_advanced_metadata.html.twig' %}
 
 {% block quill_widget %}
-    <div {{ stimulus_controller('quill') }} class="quill" data-id="{{ id }}" >
+    <div {{ stimulus_controller('publishing--quill') }} class="quill" data-id="{{ id }}" >
         <div id="editor">
             {{ value|raw }}
         </div>
-        <input type="hidden" name="editor[content_md]" data-quill-target="markdown">
+        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown">
         <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
 {% endblock %}
@@ -20,10 +20,10 @@
                     <p>A Nostr identity is required to post articles.</p>
                 </div>
             {% endif %}
-            <div {{ stimulus_controller('nostr-publish', {
+            <div {{ stimulus_controller('nostr--nostr-publish', {
                 publishUrl: path('api-article-publish'),
                 csrfToken: csrf_token('nostr_publish')
-            }) }} data-nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
+            }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
 
                 {{ form_start(form) }}
                 {{ form_row(form.slug) }}
@@ -32,37 +32,37 @@
                 {{ form_row(form.content) }}
                 {{ form_row(form.image) }}
 
-                <div class="actions" data-controller="image-upload">
+                <div class="actions" data-controller="publishing--image-upload">
                     <button type="button"
                             class="btn btn-secondary"
-                            data-action="click->image-upload#openDialog">
+                            data-action="click->publishing--image-upload#openDialog">
                         Upload Image
                     </button>
 
-                    <div data-image-upload-target="dialog" class="iu-dialog">
-                        <div class="iu-backdrop" data-action="click->image-upload#closeDialog"></div>
+                    <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+                        <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
                         <div class="iu-modal">
                             <div class="modal-header">
                                 <h5>Upload Image</h5>
-                                <button type="button" class="close" data-action="click->image-upload#closeDialog">&times;</button>
+                                <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
                             </div>
                             <div class="modal-body">
                                 <div>
                                     <label for="upload-provider">Upload to</label>
-                                    <select id="upload-provider" data-image-upload-target="provider">
+                                    <select id="upload-provider" data-publishing--image-upload-target="provider">
                                         <option value="sovbit">files.sovbit.host</option>
                                         <option value="nostrbuild">nostr.build</option>
                                         <option value="nostrcheck">nostrcheck.me</option>
                                     </select>
                                 </div>
 
-                                <div data-image-upload-target="dropArea" class="upload-area">
+                                <div data-publishing--image-upload-target="dropArea" class="upload-area">
                                     <span>Drag &amp; drop or click to select an image</span>
-                                    <input type="file" accept="image/*" data-image-upload-target="fileInput">
+                                    <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
                                 </div>
 
-                                <div data-image-upload-target="progress" class="upload-progress"></div>
-                                <div data-image-upload-target="error" class="upload-error"></div>
+                                <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                                <div data-publishing--image-upload-target="error" class="upload-error"></div>
                             </div>
                         </div>
                     </div>
@@ -87,31 +87,31 @@
                     <div class="mb-2">
                         <button type="button"
                                 class="btn btn-outline-secondary btn-sm"
-                                data-nostr-publish-target="jsonToggle"
-                                data-action="click->nostr-publish#toggleJsonPreview">
+                                data-nostr--nostr-publish-target="jsonToggle"
+                                data-action="click->nostr--nostr-publish#toggleJsonPreview">
                             Show raw event JSON
                         </button>
                     </div>
 
-                    <div class="json-preview mb-3" data-nostr-publish-target="jsonContainer" hidden>
+                    <div class="json-preview mb-3" data-nostr--nostr-publish-target="jsonContainer" hidden>
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="mb-0" for="raw-json">Raw Nostr event (editable)</label>
                             <div>
-                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="click->nostr-publish#regenerateJsonPreview">Rebuild from form</button>
-                                <span class="text-muted" data-nostr-publish-target="jsonDirtyHint" style="display:none">modified</span>
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="click->nostr--nostr-publish#regenerateJsonPreview">Rebuild from form</button>
+                                <span class="text-muted" data-nostr--nostr-publish-target="jsonDirtyHint" style="display:none">modified</span>
                             </div>
                         </div>
-                        <textarea id="raw-json" data-nostr-publish-target="jsonTextarea" data-action="input->nostr-publish#onJsonInput" class="form-control" rows="12" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
+                        <textarea id="raw-json" data-nostr--nostr-publish-target="jsonTextarea" data-action="input->nostr--nostr-publish#onJsonInput" class="form-control" rows="12" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
                         <small class="text-muted d-block mt-1">Edits here override the form when publishing. Keep required fields: kind, created_at, tags, content, pubkey.</small>
                     </div>
 
                     <!-- Status messages -->
-                    <div data-nostr-publish-target="status"></div>
+                    <div data-nostr--nostr-publish-target="status"></div>
 
                     <button type="button"
                             class="btn btn-primary"
-                            data-nostr-publish-target="publishButton"
-                            data-action="click->nostr-publish#publish">
+                            data-nostr--nostr-publish-target="publishButton"
+                            data-action="click->nostr--nostr-publish#publish">
                         Publish
                     </button>
                 </div>

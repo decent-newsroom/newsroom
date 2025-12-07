@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Service\RedisCacheService;
+use App\Service\Search\ArticleSearchInterface;
 use Elastica\Query;
 use FOS\ElasticaBundle\Finder\PaginatedFinderInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

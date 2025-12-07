@@ -67,10 +67,7 @@ final class FeaturedList
             }
         }
 
-        $termsQuery = new Terms('slug', array_values($slugs));
-        $query = new Query($termsQuery);
-        $query->setSize(200); // Set size to exceed the number of articles we expect
-        $articles = $this->finder->find($query);
+        $articles = $this->articleSearch->findBySlugs(array_values($slugs), 200);
 
         // Create a map of slug => item
         $slugMap = [];

@@ -65,7 +65,7 @@
     {% endfor %}
 
     {% if images|length > 0 %}
-    <div class="gallery-view" data-controller="gallery">
+    <div class="gallery-view" data-controller="ui--gallery">
         <div class="main-image-wrapper">
             {% set main = images[0] %}
             <figure class="media">
@@ -78,7 +78,7 @@
                          {% if main.dimensions %}data-dimensions="{{ main.dimensions }}"{% endif %}
                          {% if main.blurhash %}data-blurhash="{{ main.blurhash }}"{% endif %}
                          class="picture-image main-image"
-                         data-gallery-target="mainImage"
+                         data-ui--gallery-target="mainImage"
                          />
                     {% for fallback in main.fallbacks %}
                         <source srcset="{{ fallback }}" />
@@ -86,14 +86,14 @@
                 </picture>
 
                 {% if images|length > 1 %}
-                    <div class="thumbnails" data-gallery-target="thumbnails">
+                    <div class="thumbnails" data-ui--gallery-target="thumbnails">
                         {% for img in images %}
                             <img src="{{ img.url }}"
                                  alt="{{ img.altText|default('Picture') }}"
                                  class="thumbnail{% if loop.first %} selected{% endif %}"
-                                 data-gallery-target="thumbnail"
-                                 data-action="click->gallery#switch"
-                                 data-gallery-index="{{ loop.index0 }}"
+                                 data-ui--gallery-target="thumbnail"
+                                 data-action="click->ui--gallery#switch"
+                                 data-ui--gallery-index="{{ loop.index0 }}"
                                  {% if img.dimensions %}data-dimensions="{{ img.dimensions }}"{% endif %}
                                 {% if img.blurhash %}data-blurhash="{{ img.blurhash }}"{% endif %}
                             />

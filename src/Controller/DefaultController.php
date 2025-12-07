@@ -24,8 +24,6 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Tests\Compiler\K;
-use Symfony\Component\HttpFoundation\ParameterBag;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -335,21 +333,15 @@ class DefaultController extends AbstractController
         }
 
         if (!empty($coordinates)) {
-            // Extract slugs for elasticsearch query
+            // Extract slugs for query
             $slugs = array_map(function($coordinate) {
                 $parts = explode(':', $coordinate, 3);
                 return end($parts);
             }, $coordinates);
             $slugs = array_filter($slugs); // Remove empty values
 
-            // First filter to only include articles with the slugs we want
-            $termsQuery = new Terms('slug', array_values($slugs));
-
-            // Create a Query object to set the size parameter
-            $query = new Query($termsQuery);
-            $query->setSize(200); // Set size to exceed the number of articles we expect
-
-            $articles = $finder->find($query);
+            // Use the search service to find articles by slugs
+            $articles = $articleSearch->findBySlugs(array_values($slugs), 200);
 
             // Create a map of slug => item to remove duplicates
             $slugMap = [];

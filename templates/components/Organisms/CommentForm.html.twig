@@ -1,11 +1,11 @@
-<form data-controller="nostr-comment"
-      data-nostr-comment-publish-url-value="{{ publish_url }}"
-      data-nostr-comment-csrf-token-value="{{ csrf_token }}"
-      data-nostr-comment-root="{{ root_context|json_encode|e('html_attr') }}"
-      data-nostr-comment-parent="{{ parent_context|json_encode|e('html_attr') }}"
-      data-action="submit->nostr-comment#publish"
+<form data-controller="nostr--nostr-comment"
+      data-nostr--nostr-comment-publish-url-value="{{ publish_url }}"
+      data-nostr--nostr-comment-csrf-token-value="{{ csrf_token }}"
+      data-nostr--nostr-comment-root="{{ root_context|json_encode|e('html_attr') }}"
+      data-nostr--nostr-comment-parent="{{ parent_context|json_encode|e('html_attr') }}"
+      data-action="submit->nostr--nostr-comment#publish"
       class="nip22-comment-form">
-    <div data-nostr-comment-target="status"></div>
+    <div data-nostr--nostr-comment-target="status"></div>
     <div class="mb-2">
         <label for="comment_content_{{ form_id }}" class="form-label hidden">Comment</label>
         <textarea id="comment_content_{{ form_id }}" name="comment[content]" class="form-control" rows="3" required placeholder="Write your comment"></textarea>
@@ -13,6 +13,6 @@
     <input type="hidden" name="comment[root]" value='{{ root_context|json_encode|e('html_attr') }}'>
     <input type="hidden" name="comment[parent]" value='{{ parent_context|json_encode|e('html_attr') }}'>
     <div class="actions">
-        <button type="submit" data-nostr-comment-target="publishButton" class="btn btn-primary mt-2">Publish Comment</button>
+        <button type="submit" data-nostr--nostr-comment-target="publishButton" class="btn btn-primary mt-2">Publish Comment</button>
     </div>
 </form>

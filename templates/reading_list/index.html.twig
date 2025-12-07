@@ -26,11 +26,11 @@
                   <a class="btn btn-sm btn-primary" href="{{ path('read_wizard_articles', {'load': item.slug}) }}">Open Composer</a>
                   {% if item.slug %}
                     <a class="btn btn-sm btn-outline-primary" href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">View</a>
-                    <span data-controller="copy-to-clipboard">
-                      <span class="hidden" data-copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub })) }}</span>
+                    <span data-controller="utility--copy-to-clipboard">
+                      <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub })) }}</span>
                       <button class="btn btn-sm btn-secondary"
-                              data-copy-to-clipboard-target="copyButton"
-                              data-action="click->copy-to-clipboard#copyToClipboard">Copy link</button>
+                              data-utility--copy-to-clipboard-target="copyButton"
+                              data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy link</button>
                     </span>
                   {% endif %}
                 </div>

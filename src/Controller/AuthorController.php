@@ -10,6 +10,8 @@ use App\Enum\KindsEnum;
 use App\Message\FetchAuthorArticlesMessage;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
+use App\Service\RedisViewStore;
+use App\ReadModel\RedisView\RedisViewFactory;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Query\BoolQuery;
@@ -254,15 +256,8 @@ class AuthorController extends AbstractController
             }
             $fromCache = true;
         } else {
-            // Cache miss - query from Elasticsearch
-            $boolQuery = new BoolQuery();
-            $boolQuery->addMust(new Term(['pubkey' => $pubkey]));
-            $query = new \Elastica\Query($boolQuery);
-            $query->setSort(['createdAt' => ['order' => 'desc']]);
-            $collapse = new Collapse();
-            $collapse->setFieldname('slug');
-            $query->setCollapse($collapse);
-            $articles = $finder->find($query);
+            // Cache miss - query using search service
+            $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
 
             // Build and cache Redis views for next time
             if (!empty($articles)) {

@@ -31,14 +31,14 @@
 
 {% block layout %}{% endblock %}
 
-<div data-controller="install-prompt">
+<div data-controller="utility--install-prompt">
     <div
         class="install-prompt-box hidden"
-        data-install-prompt-target="promptBox"
+        data-utility--install-prompt-target="promptBox"
     >
         <p>Install this app on your device for quick access?</p>
-        <button data-action="click->install-prompt#install">Yes, install</button>
-        <button data-action="click->install-prompt#dismiss">No thanks</button>
+        <button data-action="click->utility--install-prompt#install">Yes, install</button>
+        <button data-action="click->utility--install-prompt#dismiss">No thanks</button>
     </div>
 </div>
 

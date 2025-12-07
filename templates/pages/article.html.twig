@@ -16,25 +16,25 @@
         <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
     {% endif %}
 
-    <article class="w-container" data-controller="highlights-toggle">
+    <article class="w-container" data-controller="ui--highlights-toggle">
         <div class="article-actions">
-            <div data-controller="share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
-                <button data-share-dropdown-target="button"
+            <div data-controller="utility--share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
+                <button data-utility--share-dropdown-target="button"
                         class="btn btn-secondary"
                         id="shareBtn"
                         type="button"
                         aria-haspopup="true"
                         aria-expanded="false"
-                        data-action="click->share-dropdown#toggle">
+                        data-action="click->utility--share-dropdown#toggle">
                     Share
                 </button>
-                <div data-share-dropdown-target="menu"
+                <div data-utility--share-dropdown-target="menu"
                      class="dropdown-menu"
                      id="shareDropdown"
                      style="display:none;position:absolute;z-index:1000;min-width:200px;">
                     <button class="dropdown-item"
                             type="button"
-                            data-action="click->share-dropdown#copy"
+                            data-action="click->utility--share-dropdown#copy"
                             data-copy="{{ canonical|e('js') }}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
@@ -43,7 +43,7 @@
                     </button>
                     <button class="dropdown-item"
                             type="button"
-                            data-action="click->share-dropdown#copy"
+                            data-action="click->utility--share-dropdown#copy"
                             data-copy="{{ article|naddrEncode }}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
@@ -136,7 +136,9 @@
             <hr class="divider" />
             <div class="tags">
                 {% for tag in article.topics %}
+                    {% if tag is not empty %}
                     <a href="{{ path('forum_tag', {'tag': tag|url_encode}) }}" class="tag">#{{ tag }}</a>
+                    {% endif %}
                 {% endfor %}
             </div>
             {% endif %}

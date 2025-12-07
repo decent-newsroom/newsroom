@@ -234,6 +234,20 @@ class NostrClient
      */
     public function getLongFormFromNaddr($slug, $relayList, $author, $kind): void
     {
+        $this->logger->info('Getting long form from ' . $slug, [
+            'relay_list' => $relayList,
+            'author' => $author,
+            'kind' => $kind
+        ]);
+
+        $topAuthorRelays = $this->getTopReputableRelaysForAuthor($author);
+        $authorRelaySet = $this->createRelaySet($topAuthorRelays);
+        $this->logger->info('Author relays for long form fetch', [
+            'author' => $author,
+            'from_event' => $this->getNpubRelays($author),
+            'relays' => $topAuthorRelays
+        ]);
+
         if (empty($relayList)) {
             $topAuthorRelays = $this->getTopReputableRelaysForAuthor($author);
             $authorRelaySet = $this->createRelaySet($topAuthorRelays);
@@ -464,11 +478,14 @@ class NostrClient
             $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
         }
 
+        $relays = new RelaySet();
+        $relays->createFromUrls(self::REPUTABLE_RELAYS);
+
         // Get relays
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::RELAY_LIST->value],
             filters: ['authors' => [$npub]],
-            relaySet: $this->defaultRelaySet
+            relaySet: $relays
         );
         $response = $this->processResponse($request->send(), function($received) {
             return $received;

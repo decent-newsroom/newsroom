@@ -55,7 +55,7 @@
 
 {% block layout %}
     <main>
-        <div class="cache-management" data-controller="service-worker">
+        <div class="cache-management" data-controller="utility--service-worker">
             <h1>Cache Management</h1>
 
             <div class="cache-info">
@@ -68,49 +68,49 @@
                 </ul>
             </div>
 
-            <div class="cache-status" data-service-worker-target="status">
+            <div class="cache-status" data-utility--service-worker-target="status">
                 Loading cache status...
             </div>
 
             <div class="cache-actions">
                 <button
                     class="cache-action-btn"
-                    data-action="click->service-worker#displayCacheInfoAction"
+                    data-action="click->utility--service-worker#displayCacheInfoAction"
                 >
                     Show Cache Status
                 </button>
 
                 <button
                     class="cache-action-btn"
-                    data-action="click->service-worker#preloadCriticalAssetsAction"
+                    data-action="click->utility--service-worker#preloadCriticalAssetsAction"
                 >
                     Preload Critical Assets
                 </button>
 
                 <button
                     class="cache-action-btn"
-                    data-action="click->service-worker#refreshCacheAction"
+                    data-action="click->utility--service-worker#refreshCacheAction"
                 >
                     Refresh All Caches
                 </button>
 
                 <button
                     class="cache-action-btn"
-                    data-action="click->service-worker#clearAssetsCacheAction"
+                    data-action="click->utility--service-worker#clearAssetsCacheAction"
                 >
                     Clear Assets Cache
                 </button>
 
                 <button
                     class="cache-action-btn"
-                    data-action="click->service-worker#clearStaticCacheAction"
+                    data-action="click->utility--service-worker#clearStaticCacheAction"
                 >
                     Clear Static Cache
                 </button>
 
                 <button
                     class="cache-action-btn danger"
-                    data-action="click->service-worker#clearCacheAction"
+                    data-action="click->utility--service-worker#clearCacheAction"
                 >
                     Clear All Caches
                 </button>

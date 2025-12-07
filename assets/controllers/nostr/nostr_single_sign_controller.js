@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getSigner } from './signer_manager.js';
+import { getSigner, getRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
@@ -19,10 +19,21 @@ export default class extends Controller {
     try {
       const skeleton = JSON.parse(this.eventValue || '{}');
       let pubkey = '<pubkey>';
-      try {
-        const signer = await getSigner();
-        pubkey = await signer.getPublicKey();
-      } catch (_) {}
+
+      // Only try to get pubkey if extension is available
+      // Don't attempt remote signer connection during preview (it would timeout)
+      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+        try {
+          pubkey = await window.nostr.getPublicKey();
+        } catch (_) {}
+      } else {
+        // If remote signer session exists, show placeholder
+        const session = getRemoteSignerSession();
+        if (session) {
+          pubkey = '<will be obtained from remote signer>';
+        }
+      }
+
       const preview = JSON.parse(JSON.stringify(skeleton));
       preview.pubkey = pubkey;
       // Update content from textarea if present
@@ -40,16 +51,33 @@ export default class extends Controller {
     event.preventDefault();
     console.log('[nostr_single_sign] Sign and publish triggered');
 
+    const session = getRemoteSignerSession();
+    console.log('[nostr_single_sign] Remote signer session:', session);
+
     let signer;
     try {
       this.showStatus('Connecting to signer...');
+      console.log('[nostr_single_sign] Calling getSigner()...');
+
+      // getSigner() handles caching and reuses existing connection if available
       signer = await getSigner();
       console.log('[nostr_single_sign] Signer obtained successfully');
+
+      // Verify connection works
+      const testPubkey = await signer.getPublicKey();
+      console.log('[nostr_single_sign] Signer verified, pubkey:', testPubkey);
+
     } catch (e) {
       console.error('[nostr_single_sign] Failed to get signer:', e);
-      this.showError(`No Nostr signer available: ${e.message}. Please connect Amber or install a Nostr signer extension.`);
+      const session = getRemoteSignerSession();
+      if (session && e.message.includes('unavailable')) {
+        this.showError('Amber connection lost. Please use a Nostr browser extension (like nos2x or Alby) to sign, or reconnect Amber from the login page.');
+      } else {
+        this.showError(`No Nostr signer available: ${e.message}. Please connect Amber or install a Nostr signer extension.`);
+      }
       return;
     }
+
     if (!this.publishUrlValue || !this.csrfTokenValue) {
       console.error('[nostr_single_sign] Missing config', { publishUrl: this.publishUrlValue, csrf: !!this.csrfTokenValue });
       this.showError('Missing config');
@@ -58,12 +86,12 @@ export default class extends Controller {
 
     this.publishButtonTarget.disabled = true;
     try {
-      this.showStatus('Getting public key...');
+      this.showStatus('Preparing event...');
       const pubkey = await signer.getPublicKey();
       console.log('[nostr_single_sign] Public key obtained:', pubkey);
 
       const skeleton = JSON.parse(this.eventValue || '{}');
-      // Update content from textarea before signing
+      // Update content from textarea if present
       const textarea = this.element.querySelector('textarea');
       if (textarea) {
         skeleton.content = textarea.value;
@@ -72,10 +100,10 @@ export default class extends Controller {
       this.ensureContent(skeleton);
       skeleton.pubkey = pubkey;
 
-      this.showStatus('Signing event…');
+      this.showStatus('Sending event to signer for signature...');
       console.log('[nostr_single_sign] Signing event:', skeleton);
       const signed = await signer.signEvent(skeleton);
-      console.log('[nostr_single_sign] Event signed successfully');
+      console.log('[nostr_single_sign] Event signed successfully:', signed);
 
       this.showStatus('Publishing…');
       await this.publishSigned(signed);

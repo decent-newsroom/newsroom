@@ -16,11 +16,11 @@
             <td><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></td>
             <td>{{ article.summary|slice(0, 100) }}{% if article.summary|length > 100 %}...{% endif %}</td>
             <td>
-                <span data-controller="copy-to-clipboard">
-                    <span class="hidden" data-copy-to-clipboard-target="textToCopy">30023:{{ article.pubkey }}:{{ article.slug }}</span>
+                <span data-controller="utility--copy-to-clipboard">
+                    <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">30023:{{ article.pubkey }}:{{ article.slug }}</span>
                     <button type="button"
-                            data-copy-to-clipboard-target="copyButton"
-                            data-action="click->copy-to-clipboard#copyToClipboard">Copy to Clipboard</button>
+                            data-utility--copy-to-clipboard-target="copyButton"
+                            data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy to Clipboard</button>
                 </span>
 
                 <form method="post" action="{{ path('admin_article_add_to_index') }}">
