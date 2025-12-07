@@ -7,4 +7,5 @@ enum RolesEnum: string
     case USER = 'ROLE_USER';
     case ADMIN = 'ROLE_ADMIN';
     case EDITOR = 'ROLE_EDITOR';
+    case FEATURED_WRITER = 'ROLE_FEATURED_WRITER';
 }

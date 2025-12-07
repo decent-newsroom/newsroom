@@ -102,6 +102,89 @@
     }
 }
 
+/* Featured Writers Section */
+.featured-writers {
+    margin-bottom: var(--spacing-2);
+}
+
+.featured-writers-list {
+    margin: 0;
+    padding: 0;
+}
+
+.featured-writer-item {
+    margin-bottom: 0.75rem;
+}
+
+.featured-writer-item:last-child {
+    margin-bottom: 0;
+}
+
+.featured-writer-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-primary, #1a1a1a);
+    transition: background-color 0.2s;
+}
+
+.featured-writer-link:hover {
+    background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+    text-decoration: none;
+}
+
+.featured-writer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.featured-writer-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--placeholder-bg, #e0e0e0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.featured-writer-avatar-placeholder .icon {
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary, #666);
+}
+
+.featured-writer-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
+
+.featured-writer-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary, #1a1a1a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.featured-writer-nip05 {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #666);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .discover-section .section-header {

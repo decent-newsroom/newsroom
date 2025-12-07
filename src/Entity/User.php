@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -51,6 +52,17 @@ class User implements UserInterface, EquatableInterface
         }
 
         return $this;
+    }
+
+    public function removeRole(string $role): self
+    {
+        $this->roles = array_filter($this->roles, fn($r) => $r !== $role);
+        return $this;
+    }
+
+    public function isFeaturedWriter(): bool
+    {
+        return in_array(RolesEnum::FEATURED_WRITER, $this->roles, true);
     }
 
     public function getId(): ?int

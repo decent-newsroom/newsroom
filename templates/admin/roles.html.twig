@@ -9,18 +9,130 @@
             {{ message }}
         </div>
     {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">
+            {{ message }}
+        </div>
+    {% endfor %}
+    {% for message in app.flashes('warning') %}
+        <div class="alert alert-warning">
+            {{ message }}
+        </div>
+    {% endfor %}
 
     {% if app.user %}
-        <div>
-            {{ app.user.userIdentifier }}<br>
-            {% for role in app.user.roles %}
-                {{ role }}<br>
-            {% endfor %}
+        <div class="mb-4">
+            <h3>Your Roles</h3>
+            <p>{{ app.user.userIdentifier }}</p>
+            <ul>
+                {% for role in app.user.roles %}
+                    <li>
+                        {{ role }}
+                        {% if role != 'ROLE_ADMIN' and role != 'ROLE_USER' %}
+                            <form action="{{ path('admin_roles_remove') }}"
+                                  method="post"
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Remove {{ role }} from yourself?');">
+                                <input type="hidden" name="role" value="{{ role }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Remove</button>
+                            </form>
+                        {% endif %}
+                        {% if role is not same as('ROLE_ADMIN') and role is not same as('ROLE_USER') and not (role starts with 'ROLE_') %}
+                            <span class="badge bg-warning text-dark ms-2">Invalid</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
         </div>
     {% endif %}
 
     {# Form for adding a new role #}
-    {{ form_start(form) }}
-    {{ form_widget(form) }}
+    <div class="mb-5">
+        <h3>Add Role to Yourself</h3>
+        {{ form_start(form) }}
+        {{ form_widget(form) }}
+        {{ form_end(form) }}
+    </div>
+
+    {# Featured Writers Management #}
+    <div class="featured-writers-admin">
+        <h2>Featured Writers</h2>
+        <p class="text-muted">Users with ROLE_FEATURED_WRITER appear in the sidebar across the site.</p>
+        <small class="text-muted">Enter an npub to add as featured writer. User will be created if they don't exist.</small>
+
+        {# Add new featured writer form #}
+        <form action="{{ path('admin_featured_writers_add') }}" method="post" class="mb-4">
+            <div>
+                <div>
+                    <input type="text"
+                           name="npub"
+                           class="form-control"
+                           placeholder="npub1..."
+                           required
+                           pattern="npub1.*"
+                           title="Must be a valid npub starting with npub1">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">Add Featured Writer</button>
+                </div>
+            </div>
+        </form>
+
+        {# List of featured writers #}
+        {% if featuredWriters is defined and featuredWriters|length > 0 %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>Name</th>
+                        <th>Npub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for writer in featuredWriters %}
+                        <tr>
+                            <td>
+                                {% if writer.metadata.picture is defined and writer.metadata.picture %}
+                                    <img src="{{ writer.metadata.picture }}"
+                                         alt="Avatar"
+                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                {% else %}
+                                    <span style="width: 40px; height: 40px; border-radius: 50%; background: #e0e0e0; display: inline-flex; align-items: center; justify-content: center;">
+                                        <twig:ux:icon name="iconoir:user" style="width: 20px; height: 20px;" />
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if writer.metadata %}
+                                    <a href="{{ path('author-profile', { npub: writer.npub }) }}">
+                                        <twig:Atoms:NameOrNpub :author="writer.metadata" :npub="writer.npub" />
+                                    </a>
+                                {% else %}
+                                    {{ writer.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code style="font-size: 0.8rem;">{{ writer.npub|shortenNpub }}</code>
+                            </td>
+                            <td>
+                                <form action="{{ path('admin_featured_writers_remove', { id: writer.user.id }) }}"
+                                      method="post"
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Remove this user from featured writers?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-info">
+                No featured writers yet. Add one using the form above or with the command:<br>
+                <code>php bin/console user:elevate npub1... ROLE_FEATURED_WRITER</code>
+            </div>
+        {% endif %}
+    </div>
 
 {% endblock %}

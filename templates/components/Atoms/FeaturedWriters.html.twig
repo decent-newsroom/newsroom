@@ -1,0 +1,47 @@
+{% if writers is not empty %}
+<div class="featured-writers">
+    <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+        <h2 class="mb-4">
+            <a href="{{ path('forum') }}">Writers</a>
+        </h2>
+    </div>
+    <ul class="featured-writers-list list-unstyled">
+        {% for writer in writers %}
+            <li class="featured-writer-item">
+                <a href="{{ path('author-profile', { npub: writer.npub }) }}" class="featured-writer-link">
+                    {% if writer.metadata.picture is defined and writer.metadata.picture %}
+                        <img src="{{ writer.metadata.picture }}"
+                             alt="{{ writer.metadata.display_name ?? writer.metadata.name ?? 'Writer' }}"
+                             class="featured-writer-avatar"
+                             loading="lazy"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                        />
+                        <span class="featured-writer-avatar-placeholder" style="display: none;">
+                            <twig:ux:icon name="iconoir:user" class="icon" />
+                        </span>
+                    {% else %}
+                        <span class="featured-writer-avatar-placeholder">
+                            <twig:ux:icon name="iconoir:user" class="icon" />
+                        </span>
+                    {% endif %}
+                    <span class="featured-writer-info">
+                        <span class="featured-writer-name">
+                            <twig:Atoms:NameOrNpub :author="writer.metadata" :npub="writer.npub" />
+                        </span>
+                        {% if writer.metadata.nip05 is defined and writer.metadata.nip05 %}
+                            <span class="featured-writer-nip05">
+                                {% if writer.metadata.nip05 is iterable %}
+                                    {{ writer.metadata.nip05|first }}
+                                {% else %}
+                                    {{ writer.metadata.nip05 }}
+                                {% endif %}
+                            </span>
+                        {% endif %}
+                    </span>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
