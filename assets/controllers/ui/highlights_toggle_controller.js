@@ -49,7 +49,7 @@ export default class extends Controller {
                     range.setEnd(textNode, startIndex + searchText.length);
                     const mark = document.createElement('mark');
                     mark.className = 'article-highlight';
-                    mark.setAttribute('data-highlights-toggle-target', 'highlight');
+                    mark.setAttribute('data-ui--highlights-toggle-target', 'highlight');
                     mark.setAttribute('title', 'Highlighted by others (' + new Date(highlight.created_at * 1000).toLocaleDateString() + ')');
                     try {
                         range.surroundContents(mark);
