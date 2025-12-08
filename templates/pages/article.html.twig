@@ -35,7 +35,7 @@
                     <button class="dropdown-item"
                             type="button"
                             data-action="click->utility--share-dropdown#copy"
-                            data-copy="{{ canonical|e('js') }}">
+                            data-copy="{{ canonical|e('html_attr') }}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
                         </svg>
@@ -78,8 +78,8 @@
 
             {# Highlights toggle button #}
             {% if highlights is defined and highlights|length > 0 %}
-                <button data-highlights-toggle-target="button"
-                        data-action="click->highlights-toggle#toggle"
+                <button data-ui--highlights-toggle-target="button"
+                        data-action="click->ui--highlights-toggle#toggle"
                         class="btn btn-secondary"
                         type="button"
                         aria-pressed="false"
