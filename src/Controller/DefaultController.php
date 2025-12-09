@@ -11,6 +11,7 @@ use App\Service\MutedPubkeysService;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
+use App\Service\Search\ArticleSearchInterface;
 use App\Util\CommonMark\Converter;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
@@ -23,6 +24,7 @@ use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
+use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -276,7 +278,8 @@ class DefaultController extends AbstractController
     public function magCategory($mag, $slug, EntityManagerInterface $entityManager,
                                 RedisCacheService $redisCacheService,
                                 FinderInterface $finder,
-                                LoggerInterface $logger): Response
+                                LoggerInterface $logger,
+                                ArticleSearchInterface $articleSearch): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
