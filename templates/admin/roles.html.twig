@@ -135,4 +135,85 @@
         {% endif %}
     </div>
 
+    {# Muted Users Management #}
+    <div class="muted-users-admin mt-5">
+        <h2>Muted Users</h2>
+        <p class="text-muted">Users with ROLE_MUTED are excluded from article listings (discover, latest articles).</p>
+
+        {# Add new muted user form #}
+        <form action="{{ path('admin_muted_users_add') }}" method="post" class="mb-4">
+            <div>
+                <div>
+                    <input type="text"
+                           name="npub"
+                           class="form-control"
+                           placeholder="npub1..."
+                           required
+                           pattern="npub1.*"
+                           title="Must be a valid npub starting with npub1">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">Add Muted User</button>
+                </div>
+            </div>
+            <small class="text-muted">Enter an npub to mute. User will be created if they don't exist.</small>
+        </form>
+
+        {# List of muted users #}
+        {% if mutedUsers is defined and mutedUsers|length > 0 %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>Name</th>
+                        <th>Npub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for muted in mutedUsers %}
+                        <tr>
+                            <td>
+                                {% if muted.metadata.picture is defined and muted.metadata.picture %}
+                                    <img src="{{ muted.metadata.picture }}"
+                                         alt="Avatar"
+                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                {% else %}
+                                    <span style="width: 40px; height: 40px; border-radius: 50%; background: #e0e0e0; display: inline-flex; align-items: center; justify-content: center;">
+                                        <twig:ux:icon name="iconoir:user" style="width: 20px; height: 20px;" />
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if muted.metadata %}
+                                    <a href="{{ path('author-profile', { npub: muted.npub }) }}">
+                                        <twig:Atoms:NameOrNpub :author="muted.metadata" :npub="muted.npub" />
+                                    </a>
+                                {% else %}
+                                    {{ muted.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code style="font-size: 0.8rem;">{{ muted.npub|shortenNpub }}</code>
+                            </td>
+                            <td>
+                                <form action="{{ path('admin_muted_users_remove', { id: muted.user.id }) }}"
+                                      method="post"
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Remove this user from muted list?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Unmute</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-info">
+                No muted users yet. Add one using the form above or with the command:<br>
+                <code>php bin/console user:elevate npub1... ROLE_MUTED</code>
+            </div>
+        {% endif %}
+    </div>
+
 {% endblock %}
