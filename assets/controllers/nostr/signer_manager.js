@@ -3,15 +3,17 @@ import { SimplePool } from 'nostr-tools';
 import { BunkerSigner } from 'nostr-tools/nip46';
 
 const REMOTE_SIGNER_KEY = 'amber_remote_signer';
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
 
 let remoteSigner = null;
 let remoteSignerPromise = null;
 let remoteSignerPool = null;
 
-export async function getSigner(_retrying = 0) {
+export async function getSigner(retryCount = 0) {
   // If remote signer session is active, use it
   const session = getRemoteSignerSession();
-  console.log('[signer_manager] getSigner called, session exists:', !!session);
+  console.log('[signer_manager] getSigner called, session exists:', !!session, 'retry:', retryCount);
   if (session) {
     if (remoteSigner) {
       console.log('[signer_manager] Returning cached remote signer');
@@ -22,27 +24,28 @@ export async function getSigner(_retrying = 0) {
       return remoteSignerPromise;
     }
 
-    console.log('[signer_manager] Recreating BunkerSigner from stored session (no connect needed)...');
-    // According to nostr-tools docs: BunkerSigner.fromURI() returns immediately
-    // After initial connect() during login, we can reuse the signer without reconnecting
+    console.log('[signer_manager] Recreating BunkerSigner from stored session...');
     remoteSignerPromise = createRemoteSignerFromSession(session)
       .then(signer => {
         remoteSigner = signer;
         console.log('[signer_manager] Remote signer successfully recreated and cached');
         return signer;
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error('[signer_manager] Remote signer creation failed:', error);
         remoteSignerPromise = null;
-        // Clear stale session
-        console.log('[signer_manager] Clearing stale remote signer session');
-        clearRemoteSignerSession();
-        // Fallback to browser extension if available
-        if (window.nostr && typeof window.nostr.signEvent === 'function') {
-          console.log('[signer_manager] Falling back to browser extension');
-          return window.nostr;
+
+        // Retry connection instead of clearing session
+        if (retryCount < MAX_RETRIES) {
+          console.log(`[signer_manager] Retrying connection (${retryCount + 1}/${MAX_RETRIES}) in ${RETRY_DELAY_MS}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+          return getSigner(retryCount + 1);
         }
-        throw new Error('Remote signer unavailable. Please reconnect Amber or use a browser extension.');
+
+        // After all retries failed, throw error but DON'T clear session
+        // User can manually retry or reconnect
+        console.error('[signer_manager] All connection attempts failed. Remote signer may be offline.');
+        throw new Error('Remote signer connection failed after ' + MAX_RETRIES + ' attempts. Please ensure Amber is running and try again.');
       });
     return remoteSignerPromise;
   }
@@ -59,7 +62,13 @@ export function setRemoteSignerSession(session) {
   localStorage.setItem(REMOTE_SIGNER_KEY, JSON.stringify(session));
 }
 
+/**
+ * Clear the remote signer session from localStorage and close connections
+ * WARNING: Only call this on explicit logout - NOT on page navigation/disconnect
+ * The whole point of session persistence is to survive page reloads
+ */
 export function clearRemoteSignerSession() {
+  console.log('[signer_manager] Clearing remote signer session');
   localStorage.removeItem(REMOTE_SIGNER_KEY);
   remoteSigner = null;
   remoteSignerPromise = null;
@@ -80,29 +89,59 @@ export function getRemoteSignerSession() {
 }
 
 // Create BunkerSigner from stored session
-// According to nostr-tools: fromURI() returns immediately, no waiting for handshake
-// The connect() was already done during initial login, so we can use the signer right away
+// Uses fromBunker() for reconnection with stored BunkerPointer
+// Falls back to fromURI() for legacy sessions
 async function createRemoteSignerFromSession(session) {
   console.log('[signer_manager] ===== Recreating BunkerSigner from session =====');
-  console.log('[signer_manager] Session URI:', session.uri);
-  console.log('[signer_manager] Session relays:', session.relays);
 
   // Reuse existing pool if available, otherwise create new one
   if (!remoteSignerPool) {
-    console.log('[signer_manager] Creating new SimplePool for relays:', session.relays);
+    console.log('[signer_manager] Creating new SimplePool');
     remoteSignerPool = new SimplePool();
   } else {
     console.log('[signer_manager] Reusing existing SimplePool');
   }
 
   try {
-    console.log('[signer_manager] Creating BunkerSigner from stored session...');
-    // fromURI returns a Promise - await it to get the signer
-    const signer = await BunkerSigner.fromURI(session.privkey, session.uri, { pool: remoteSignerPool });
-    console.log('[signer_manager] ✅ BunkerSigner created! Testing with getPublicKey...');
+    let signer;
+
+    // NEW PATTERN: Use fromBunker() with stored BunkerPointer (preferred)
+    if (session.bunkerPointer) {
+      console.log('[signer_manager] Using fromBunker() with stored BunkerPointer');
+      console.log('[signer_manager] BunkerPointer pubkey:', session.bunkerPointer.pubkey);
+      console.log('[signer_manager] BunkerPointer relays:', session.bunkerPointer.relays);
+
+      // fromBunker() is for reconnecting to an already-authorized bunker
+      // It doesn't wait for a new connect message like fromURI() does
+      signer = BunkerSigner.fromBunker(
+        session.privkey,
+        session.bunkerPointer,
+        { pool: remoteSignerPool }
+      );
+
+      console.log('[signer_manager] ✅ BunkerSigner created from pointer!');
+    }
+    // LEGACY PATTERN: Fallback to fromURI() for old sessions (backward compatibility)
+    else if (session.uri) {
+      console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern (session has no bunkerPointer)');
+      console.log('[signer_manager] Session URI:', session.uri);
+      console.log('[signer_manager] Session relays:', session.relays);
+
+      // fromURI returns a Promise - await it to get the signer
+      signer = await BunkerSigner.fromURI(session.privkey, session.uri, { pool: remoteSignerPool });
+      console.log('[signer_manager] ✅ BunkerSigner created from URI!');
+
+      // With fromURI, we need to call connect()
+      console.log('[signer_manager] Calling connect() to establish relay connection...');
+      await signer.connect();
+      console.log('[signer_manager] ✅ Connected to remote signer!');
+    } else {
+      throw new Error('Session missing both bunkerPointer and uri');
+    }
 
     // Test the signer to make sure it works
     try {
+      console.log('[signer_manager] Testing signer with getPublicKey...');
       const pubkey = await signer.getPublicKey();
       console.log('[signer_manager] ✅ Signer verified! Pubkey:', pubkey);
       return signer;

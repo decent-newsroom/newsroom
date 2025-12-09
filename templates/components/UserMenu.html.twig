@@ -25,7 +25,9 @@
             </li>
             {% endif %}
             <li>
-                <a href="/logout" data-action="live#$render">{{ 'heading.logout'|trans }}</a>
+                <a href="/logout"
+                   data-controller="nostr--logout"
+                   data-action="click->nostr--logout#handleLogout live#$render">{{ 'heading.logout'|trans }}</a>
             </li>
         </ul>
     {% else %}

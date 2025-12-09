@@ -22,13 +22,13 @@
                     {% endfor %}
                 </p>
                 <label for="feedback-message" class="form-label">Your Message</label>
-                <textarea id="feedback-message" class="form-control" rows="5" required data-action="input->nostr-single-sign#preparePreview"></textarea>
+                <textarea id="feedback-message" class="form-control" rows="5" required data-action="input->nostr--nostr-single-sign#preparePreview"></textarea>
             </div>
             <div class="actions">
-                <button type="submit" class="btn btn-primary" data-nostr-single-sign-target="publishButton">Send Feedback</button>
+                <button type="submit" class="btn btn-primary" data-nostr--nostr-single-sign-target="publishButton">Send Feedback</button>
             </div>
             <h5 class="mt-4">Preview</h5>
-            <pre data-nostr-single-sign-target="computedPreview" class="bg-light p-2"></pre>
+            <pre data-nostr--nostr-single-sign-target="computedPreview" class="bg-light p-2"></pre>
         </form>
     </section>
 </div>

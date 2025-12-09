@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { getPublicKey,  SimplePool  } from 'nostr-tools';
 import { BunkerSigner } from "nostr-tools/nip46";
-import { setRemoteSignerSession, clearRemoteSignerSession } from './signer_manager.js';
+import { setRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['qr', 'status'];
@@ -20,7 +20,8 @@ export default class extends Controller {
   disconnect() {
     try { this._signer?.close?.(); } catch (_) {}
     try { this._pool?.close?.([]); } catch (_) {}
-    clearRemoteSignerSession();
+    // IMPORTANT: Don't clear session here - we want to reuse it after reload/navigation
+    // Session should only be cleared on explicit logout
   }
 
   async _init() {
@@ -103,9 +104,11 @@ export default class extends Controller {
       });
       if (resp.ok) {
         // Persist remote signer session for reuse after reload
-        // Note: Reconnection with Amber may require user approval each time
+        // Store the BunkerPointer (signer.bp) for proper reconnection using fromBunker()
         setRemoteSignerSession({
           privkey: this._localSecretKey,
+          bunkerPointer: this._signer.bp,  // BunkerPointer contains pubkey, relays, secret, perms
+          // Legacy fields for backward compatibility
           uri: this._uri,
           relays: this._relays,
           secret: this._secret

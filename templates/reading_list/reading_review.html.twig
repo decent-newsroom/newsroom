@@ -38,7 +38,7 @@
   </section>
 
   <div
-    {{ stimulus_controller('nostr-single-sign', {
+    {{ stimulus_controller('nostr--nostr-single-sign', {
       event: eventJson,
       publishUrl: path('api-index-publish'),
       csrfToken: csrfToken
@@ -46,12 +46,12 @@
   >
     <div class="d-flex flex-row gap-2">
       <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
-      <button class="btn btn-primary" data-nostr-single-sign-target="publishButton" data-action="click->nostr-single-sign#signAndPublish">Sign & Publish</button>
+      <button class="btn btn-primary" data-nostr--nostr-single-sign-target="publishButton" data-action="click->nostr--nostr-single-sign#signAndPublish">Sign & Publish</button>
     </div>
-      <div class="mt-3" data-nostr-single-sign-target="status"></div>
+      <div class="mt-3" data-nostr--nostr-single-sign-target="status"></div>
       <section class="mb-3">
         <h3>Event preview</h3>
-        <pre class="small" data-nostr-single-sign-target="computedPreview"></pre>
+        <pre class="small" data-nostr--nostr-single-sign-target="computedPreview"></pre>
     </section>
   </div>
 {% endblock %}
