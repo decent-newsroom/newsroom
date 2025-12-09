@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Enum\RolesEnum;
 use App\Form\RoleType;
 use App\Repository\UserEntityRepository;
+use App\Service\MutedPubkeysService;
 use App\Service\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,9 +29,14 @@ class RoleController extends AbstractController
         $featuredWriters = $userRepository->findFeaturedWriters();
         $featuredWritersData = $this->enrichUsersWithMetadata($featuredWriters, $redisCacheService);
 
+        // Get muted users for display
+        $mutedUsers = $userRepository->findMutedUsers();
+        $mutedUsersData = $this->enrichUsersWithMetadata($mutedUsers, $redisCacheService);
+
         return $this->render('admin/roles.html.twig', [
             'form' => $form->createView(),
             'featuredWriters' => $featuredWritersData,
+            'mutedUsers' => $mutedUsersData,
         ]);
     }
 
@@ -175,6 +181,63 @@ class RoleController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', 'User removed from featured writers');
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/muted-users/add', name: 'admin_muted_users_add', methods: ['POST'])]
+    public function addMutedUser(Request $request, UserEntityRepository $userRepository, EntityManagerInterface $em, MutedPubkeysService $mutedPubkeysService): Response
+    {
+        $npub = $request->request->get('npub');
+
+        if (!$npub || !str_starts_with($npub, 'npub1')) {
+            $this->addFlash('error', 'Invalid npub format');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user = $userRepository->findOneBy(['npub' => $npub]);
+
+        if (!$user) {
+            // Create user if not exists
+            $user = new User();
+            $user->setNpub($npub);
+            $user->setRoles([RolesEnum::MUTED->value]);
+            $em->persist($user);
+            $this->addFlash('success', 'Created new user and added to muted list');
+        } else {
+            if ($user->isMuted()) {
+                $this->addFlash('warning', 'User is already muted');
+                return $this->redirectToRoute('admin_roles');
+            }
+            $user->addRole(RolesEnum::MUTED->value);
+            $this->addFlash('success', 'User added to muted list');
+        }
+
+        $em->flush();
+
+        // Refresh the muted pubkeys cache
+        $mutedPubkeysService->refreshCache();
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/muted-users/remove/{id}', name: 'admin_muted_users_remove', methods: ['POST'])]
+    public function removeMutedUser(int $id, UserEntityRepository $userRepository, EntityManagerInterface $em, MutedPubkeysService $mutedPubkeysService): Response
+    {
+        $user = $userRepository->find($id);
+
+        if (!$user) {
+            $this->addFlash('error', 'User not found');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user->removeRole(RolesEnum::MUTED->value);
+        $em->flush();
+
+        // Refresh the muted pubkeys cache
+        $mutedPubkeysService->refreshCache();
+
+        $this->addFlash('success', 'User removed from muted list');
 
         return $this->redirectToRoute('admin_roles');
     }

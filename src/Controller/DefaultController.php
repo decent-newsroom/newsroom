@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Service\MutedPubkeysService;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
@@ -22,7 +23,6 @@ use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
-use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -57,7 +57,8 @@ class DefaultController extends AbstractController
         FinderInterface $finder,
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
-        CacheItemPoolInterface $articlesCache
+        CacheItemPoolInterface $articlesCache,
+        MutedPubkeysService $mutedPubkeysService
     ): Response
     {
         // Fast path: Try to get from Redis views first (single GET)
@@ -92,20 +93,13 @@ class DefaultController extends AbstractController
                 set_time_limit(300);
                 ini_set('max_execution_time', '300');
 
-                $key = new Key();
-                $excludedPubkeys = [
-                    $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'),
-                    $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'),
-                    $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'),
-                    $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'),
-                    $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'),
-                    $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'),
-                    $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'),
-                    $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'),
-                ];
+                // Get muted pubkeys from database/cache
+                $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
 
                 $boolQuery = new BoolQuery();
-                $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+                if (!empty($excludedPubkeys)) {
+                    $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+                }
                 $query = new Query($boolQuery);
                 $query->setSize(50);
                 $query->setSort(['createdAt' => ['order' => 'desc']]);
@@ -162,21 +156,12 @@ class DefaultController extends AbstractController
     public function latestArticles(
         RedisCacheService $redisCacheService,
         NostrClient $nostrClient,
-        RedisViewStore $viewStore
+        RedisViewStore $viewStore,
+        MutedPubkeysService $mutedPubkeysService
     ): Response
     {
-        // Define excluded pubkeys (needed for template)
-        $key = new Key();
-        $excludedPubkeys = [
-            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
-            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
-            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
-            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
-            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz
-            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace
-            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
-            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs
-        ];
+        // Get muted pubkeys from database/cache
+        $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
 
         // Fast path: Try Redis cache first (single GET - super fast!)
         $cachedView = $viewStore->fetchLatestArticles();

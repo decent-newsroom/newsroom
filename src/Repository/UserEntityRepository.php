@@ -147,4 +147,47 @@ class UserEntityRepository extends ServiceEntityRepository
 
         return $sortedUsers;
     }
+
+    /**
+     * Find all users with the ROLE_MUTED role
+     * @return User[]
+     * @throws Exception
+     */
+    public function findMutedUsers(): array
+    {
+        $conn = $this->entityManager->getConnection();
+        $sql = 'SELECT id FROM app_user WHERE roles::text LIKE :role';
+        $result = $conn->executeQuery($sql, ['role' => '%' . RolesEnum::MUTED->value . '%']);
+
+        $ids = $result->fetchFirstColumn();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Get hex pubkeys of all muted users
+     * @return string[]
+     * @throws Exception
+     */
+    public function getMutedPubkeys(): array
+    {
+        $mutedUsers = $this->findMutedUsers();
+        $pubkeys = [];
+
+        foreach ($mutedUsers as $user) {
+            $npub = $user->getNpub();
+            if (NostrKeyUtil::isNpub($npub)) {
+                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+            }
+        }
+
+        return $pubkeys;
+    }
 }
