@@ -190,4 +190,100 @@ class UserEntityRepository extends ServiceEntityRepository
 
         return $pubkeys;
     }
+
+    /**
+     * Search users by query string (searches displayName, name, nip05, about)
+     * @param string $query Search query
+     * @param int $limit Maximum number of results
+     * @param int $offset Offset for pagination
+     * @return User[]
+     */
+    public function searchByQuery(string $query, int $limit = 12, int $offset = 0): array
+    {
+        $searchTerm = '%' . strtolower($query) . '%';
+
+        return $this->createQueryBuilder('u')
+            ->where('LOWER(u.displayName) LIKE :query')
+            ->orWhere('LOWER(u.name) LIKE :query')
+            ->orWhere('LOWER(u.nip05) LIKE :query')
+            ->orWhere('LOWER(u.about) LIKE :query')
+            ->orWhere('LOWER(u.npub) LIKE :query')
+            ->setParameter('query', $searchTerm)
+            ->setMaxResults($limit)
+            ->setFirstResult($offset)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Find users by npubs
+     * @param array $npubs Array of npub identifiers
+     * @param int $limit Maximum number of results
+     * @return User[]
+     */
+    public function findByNpubs(array $npubs, int $limit = 200): array
+    {
+        if (empty($npubs)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.npub IN (:npubs)')
+            ->setParameter('npubs', $npubs)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Find users by role with optional search query
+     * @param string $role Role to filter by
+     * @param string|null $query Optional search query
+     * @param int $limit Maximum number of results
+     * @param int $offset Offset for pagination
+     * @return User[]
+     * @throws Exception
+     */
+    public function findByRoleWithQuery(string $role, ?string $query = null, int $limit = 12, int $offset = 0): array
+    {
+        $conn = $this->entityManager->getConnection();
+
+        if ($query === null || trim($query) === '') {
+            // Just filter by role
+            $sql = 'SELECT id FROM app_user WHERE roles::text LIKE :role LIMIT :limit OFFSET :offset';
+            $result = $conn->executeQuery($sql, [
+                'role' => '%' . $role . '%',
+                'limit' => $limit,
+                'offset' => $offset
+            ]);
+        } else {
+            // Filter by role and search query
+            $searchTerm = '%' . strtolower($query) . '%';
+            $sql = 'SELECT id FROM app_user
+                    WHERE roles::text LIKE :role
+                    AND (LOWER(display_name) LIKE :query
+                         OR LOWER(name) LIKE :query
+                         OR LOWER(nip05) LIKE :query
+                         OR LOWER(about) LIKE :query
+                         OR LOWER(npub) LIKE :query)
+                    LIMIT :limit OFFSET :offset';
+            $result = $conn->executeQuery($sql, [
+                'role' => '%' . $role . '%',
+                'query' => $searchTerm,
+                'limit' => $limit,
+                'offset' => $offset
+            ]);
+        }
+
+        $ids = $result->fetchFirstColumn();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
 }

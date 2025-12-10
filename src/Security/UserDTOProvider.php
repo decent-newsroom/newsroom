@@ -4,6 +4,7 @@ namespace App\Security;
 
 use App\Entity\User;
 use App\Service\RedisCacheService;
+use App\Service\UserMetadataSyncService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -19,9 +20,10 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 readonly class UserDTOProvider implements UserProviderInterface
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private RedisCacheService      $redisCacheService,
-        private LoggerInterface        $logger
+        private EntityManagerInterface    $entityManager,
+        private RedisCacheService         $redisCacheService,
+        private UserMetadataSyncService   $metadataSyncService,
+        private LoggerInterface           $logger
     )
     {
     }
@@ -49,6 +51,10 @@ readonly class UserDTOProvider implements UserProviderInterface
         }
         $metadata = $this->redisCacheService->getMetadata($pubkey);
         $freshUser->setMetadata($metadata);
+
+        // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
+        $this->metadataSyncService->syncUser($freshUser);
+
         return $freshUser;
     }
 
@@ -91,6 +97,9 @@ readonly class UserDTOProvider implements UserProviderInterface
         $metadata = $this->redisCacheService->getMetadata($pubkey);
         $user->setMetadata($metadata);
         $this->logger->debug('User metadata set.', ['metadata' => json_encode($user->getMetadata())]);
+
+        // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
+        $this->metadataSyncService->syncUser($user);
 
         return $user;
     }

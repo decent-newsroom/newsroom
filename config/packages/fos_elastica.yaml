@@ -71,3 +71,62 @@ fos_elastica:
                 provider: ~
                 listener: ~
                 finder: ~
+        users:
+            index_name: '%env(ELASTICSEARCH_USER_INDEX_NAME)%'
+            settings:
+                index:
+                    refresh_interval: "5s"
+                    number_of_shards: 1
+                    number_of_replicas: 0
+                    queries:
+                        cache:
+                            enabled: true
+                    max_result_window: 10000
+                analysis:
+                    analyzer:
+                        custom_analyzer:
+                            type: custom
+                            tokenizer: standard
+                            filter: [ lowercase, snowball, asciifolding ]
+            properties:
+                npub:
+                    type: keyword
+                    doc_values: true
+                displayName:
+                    type: text
+                    analyzer: custom_analyzer
+                    term_vector: with_positions_offsets
+                    copy_to: search_combined
+                name:
+                    type: text
+                    analyzer: custom_analyzer
+                    term_vector: with_positions_offsets
+                    copy_to: search_combined
+                nip05:
+                    type: keyword
+                    copy_to: search_combined
+                about:
+                    type: text
+                    analyzer: custom_analyzer
+                    norms: false
+                    copy_to: search_combined
+                website:
+                    type: keyword
+                picture:
+                    type: keyword
+                banner:
+                    type: keyword
+                lud16:
+                    type: keyword
+                roles:
+                    type: keyword
+                search_combined:
+                    type: text
+                    analyzer: standard
+            persistence:
+                driver: orm
+                model: App\Entity\User
+                provider:
+                    service: App\Provider\UserProvider
+                listener: ~
+                finder: ~

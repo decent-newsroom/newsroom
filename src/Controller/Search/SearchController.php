@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Search;
 
 use App\Util\ForumTopics;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class SearchController extends AbstractController
 {
-    #[Route('/search')]
+    #[Route('/search', name: 'app_search_index')]
     public function index(Request $request): Response
     {
         $query = $request->query->get('q', '');

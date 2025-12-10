@@ -4,7 +4,7 @@ namespace App\Twig\Components;
 
 use App\Credits\Service\CreditsManager;
 use App\Service\RedisCacheService;
-use FOS\ElasticaBundle\Finder\FinderInterface;
+use App\Service\Search\ArticleSearchInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -16,9 +16,6 @@ use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 use Symfony\UX\LiveComponent\ComponentToolsTrait;
 use Symfony\Contracts\Cache\CacheInterface;
-use Elastica\Query;
-use Elastica\Query\BoolQuery;
-use Elastica\Query\MultiMatch;
 
 #[AsLiveComponent]
 final class SearchComponent
@@ -54,7 +51,7 @@ final class SearchComponent
     private const SESSION_QUERY_KEY = 'last_search_query';
 
     public function __construct(
-        private readonly FinderInterface $finder,
+        private readonly ArticleSearchInterface $articleSearch,
         private readonly CreditsManager $creditsManager,
         private readonly TokenStorageInterface $tokenStorage,
         private readonly LoggerInterface $logger,

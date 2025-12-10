@@ -66,6 +66,10 @@ services:
         tags:
             - { name: fos_elastica.pager_provider, index: articles, type: article }
 
+    App\Provider\UserProvider:
+        tags:
+            - { name: fos_elastica.pager_provider, index: users, type: user }
+
     App\EventListener\PopulateListener:
         tags:
             - { name: kernel.event_listener, event: 'FOS\\ElasticaBundle\\Event\\PostIndexPopulateEvent', method: 'postIndexPopulate' }
@@ -73,6 +77,11 @@ services:
     App\Command\IndexArticlesCommand:
         arguments:
             $itemPersister: '@fos_elastica.object_persister.articles'
+
+    App\EventListener\UserElasticsearchIndexListener:
+        arguments:
+            $userPersister: '@fos_elastica.object_persister.users'
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
                 
     App\Command\NostrEventFromYamlDefinitionCommand:
         arguments:
@@ -98,4 +107,22 @@ services:
     # Main search service - uses Elasticsearch if enabled, otherwise database
     App\Service\Search\ArticleSearchInterface:
         factory: ['@App\Service\Search\ArticleSearchFactory', 'create']
+
+    # User Search services - Elasticsearch implementation
+    App\Service\Search\ElasticsearchUserSearch:
+        arguments:
+            $finder: '@fos_elastica.finder.users'
+            $enabled: '%elasticsearch_enabled%'
+
+    # User Search services - Database implementation
+    App\Service\Search\DatabaseUserSearch: ~
+
+    # User Search service factory
+    App\Service\Search\UserSearchFactory:
+        arguments:
+            $elasticsearchEnabled: '%elasticsearch_enabled%'
+
+    # Main user search service - uses Elasticsearch if enabled, otherwise database
+    App\Service\Search\UserSearchInterface:
+        factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
