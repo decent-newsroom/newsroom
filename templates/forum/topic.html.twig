@@ -5,11 +5,7 @@
 
     <div class="articles-list">
         {% for article in articles %}
-            <div class="article-item">
-                <h3><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></h3>
-                <p>{{ article.summary|slice(0, 200) }}{% if article.summary|length > 200 %}...{% endif %}</p>
-                <small>Published: {{ article.createdAt|date('Y-m-d H:i') }}</small>
-            </div>
+            <twig:Molecules:ArticlePreview :article="article"  npub="{{ article.pubkey|toNpub }}" />
         {% endfor %}
     </div>
     {% if articles is empty %}
