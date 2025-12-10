@@ -141,6 +141,7 @@ class ReadingListWizardController extends AbstractController
         $tags[] = ['type', 'reading-list'];
         if ($draft->title) { $tags[] = ['title', $draft->title]; }
         if ($draft->summary) { $tags[] = ['summary', $draft->summary]; }
+        if ($draft->image) { $tags[] = ['image', $draft->image]; }
         foreach ($draft->tags as $t) { $tags[] = ['t', $t]; }
         foreach ($draft->articles as $a) {
             if (is_string($a) && $a !== '') { $tags[] = ['a', $a]; }

@@ -190,6 +190,7 @@ class ReadingListManager
                     match ($tagName) {
                         'title' => $draft->title = (string)$tagValue,
                         'summary' => $draft->summary = (string)$tagValue,
+                        'image' => $draft->image = (string)$tagValue,
                         't' => $draft->tags[] = (string)$tagValue,
                         'a' => $draft->articles[] = (string)$tagValue,
                         default => null,

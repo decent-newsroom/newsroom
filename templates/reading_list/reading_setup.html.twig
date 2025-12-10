@@ -6,6 +6,44 @@
   {{ form_start(form) }}
   {{ form_row(form.title, {label: 'Title'}) }}
   {{ form_row(form.summary) }}
+  {{ form_row(form.image) }}
+
+  <div class="actions" data-controller="publishing--image-upload">
+    <button type="button"
+            class="btn btn-secondary"
+            data-action="click->publishing--image-upload#openDialog">
+      Upload Image
+    </button>
+
+    <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+      <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+      <div class="iu-modal">
+        <div class="modal-header">
+          <h5>Upload Image</h5>
+          <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label for="upload-provider">Upload to</label>
+            <select id="upload-provider" data-publishing--image-upload-target="provider">
+              <option value="sovbit">files.sovbit.host</option>
+              <option value="nostrbuild">nostr.build</option>
+              <option value="nostrcheck">nostrcheck.me</option>
+            </select>
+          </div>
+
+          <div data-publishing--image-upload-target="dropArea" class="upload-area">
+            <span>Drag &amp; drop or click to select an image</span>
+            <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+          </div>
+
+          <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+          <div data-publishing--image-upload-target="error" class="upload-error"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {{ form_row(form.tags) }}
 
   <div class="mt-3 d-flex flex-row gap-2 actions">

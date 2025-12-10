@@ -7,6 +7,7 @@ namespace App\Form;
 use App\Dto\CategoryDraft;
 use App\Form\DataTransformer\CommaSeparatedToArrayTransformer;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -26,6 +27,11 @@ class CategoryType extends AbstractType
             ])
             ->add('summary', TextType::class, [
                 'label' => 'Summary',
+                'required' => false,
+                'empty_data' => '',
+            ])
+            ->add('image', TextType::class, [
+                'label' => 'Cover image URL',
                 'required' => false,
                 'empty_data' => '',
             ])

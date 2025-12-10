@@ -8,6 +8,7 @@ class CategoryDraft
 {
     public string $title = '';
     public string $summary = '';
+    public string $image = '';
     /** @var string[] */
     public array $tags = [];
     /** @var string[] article coordinates like kind:pubkey:slug */
