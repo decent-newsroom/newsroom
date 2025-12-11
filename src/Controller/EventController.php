@@ -94,11 +94,27 @@ class EventController extends AbstractController
 
             $authorMetadata = $redisCacheService->getMetadata($event->pubkey);
 
+            // Batch fetch profiles for follow pack events (kind 39089)
+            $followPackProfiles = [];
+            if (isset($event->kind) && $event->kind == 39089 && isset($event->tags)) {
+                $pubkeys = [];
+                foreach ($event->tags as $tag) {
+                    if (is_array($tag) && $tag[0] === 'p' && isset($tag[1])) {
+                        $pubkeys[] = $tag[1];
+                    }
+                }
+                if (!empty($pubkeys)) {
+                    $logger->info('Batch fetching follow pack profiles', ['count' => count($pubkeys)]);
+                    $followPackProfiles = $redisCacheService->getMultipleMetadata($pubkeys);
+                }
+            }
+
             // Render template with the event data and extracted Nostr links
             $response = $this->render('event/index.html.twig', [
                 'event' => $event,
                 'author' => $authorMetadata,
-                'nostrLinks' => $nostrLinks
+                'nostrLinks' => $nostrLinks,
+                'followPackProfiles' => $followPackProfiles
             ]);
 
             // Add HTTP caching headers for request-level caching

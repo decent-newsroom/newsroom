@@ -1412,6 +1412,62 @@ class NostrClient
     }
 
     /**
+     * Fetch user's follow list (kind 3 event) from relays
+     *
+     * @param string $pubkey Hex-encoded pubkey
+     * @return array Array of followed pubkeys extracted from 'p' tags, or empty array if not found
+     * @throws \Exception
+     */
+    public function getUserFollows(string $pubkey): array
+    {
+        $this->logger->info('Fetching follow list for pubkey', ['pubkey' => $pubkey]);
+
+        // Use relay pool with local relay prioritized
+        $relayUrls = $this->relayPool->ensureLocalRelayInList([
+            'wss://theforest.nostr1.com',
+            'wss://nostr.land',
+            'wss://relay.primal.net',
+            'wss://purplepag.es'
+        ]);
+        $relaySet = $this->createRelaySet($relayUrls);
+
+        $request = $this->createNostrRequest(
+            kinds: [KindsEnum::FOLLOWS->value],
+            filters: ['authors' => [$pubkey], 'limit' => 1],
+            relaySet: $relaySet
+        );
+
+        $events = $this->processResponse($request->send(), function($received) {
+            $this->logger->info('Received follow list event', ['event' => $received]);
+            return $received;
+        });
+
+        if (empty($events)) {
+            $this->logger->info('No follow list found for pubkey', ['pubkey' => $pubkey]);
+            return [];
+        }
+
+        // Sort by created_at descending and take the most recent
+        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
+        $latestFollowEvent = $events[0];
+
+        // Extract followed pubkeys from 'p' tags
+        $followedPubkeys = [];
+        foreach ($latestFollowEvent->tags as $tag) {
+            if (is_array($tag) && isset($tag[0]) && $tag[0] === 'p' && isset($tag[1])) {
+                $followedPubkeys[] = $tag[1];
+            }
+        }
+
+        $this->logger->info('Follow list fetched successfully', [
+            'pubkey' => $pubkey,
+            'follows_count' => count($followedPubkeys)
+        ]);
+
+        return $followedPubkeys;
+    }
+
+    /**
      * Batch fetch metadata for multiple pubkeys
      * Queries local relay first, then fallback to reputable relays for any missing metadata.
      *
