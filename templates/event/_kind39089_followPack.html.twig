@@ -1,0 +1,39 @@
+{% set peeps = [] %}
+{% set description = '' %}
+{% set cover = null %}
+{% for tag in event.tags %}
+    {% if tag[0] == 'description' %}
+        {% set description = tag[1] %}
+    {% endif %}
+    {% if tag[0] == 'image' %}
+        {% set cover = tag[1] %}
+    {% endif %}
+    {% if tag[0] == 'p' %}
+        {% set peeps = peeps|merge([tag[1]]) %}
+    {% endif %}
+{% endfor %}
+
+{% if not description is empty %}
+    <div class="event-description">
+        <p>{{ description }}</p>
+    </div>
+{% endif %}
+
+{% if cover %}
+    <div class="event-cover">
+        <img src="{{ cover }}" alt="Event Cover Image" />
+    </div>
+{% endif %}
+
+{% if peeps %}
+    <div class="tag-cloud">
+        <h3>People</h3>
+        <div class="tags">
+            {% for person in peeps %}
+               {# Use pre-fetched profile if available #}
+               {% set userProfile = followPackProfiles[person] ?? null %}
+               <twig:Molecules:UserFromNpub ident="{{ person }}" :user="userProfile" />
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}

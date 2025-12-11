@@ -117,6 +117,8 @@
             {% include 'event/_kind1450_tabular.html.twig' %}
         {% elseif event.kind == 10015 %}
             {% include 'event/_kind10015_tags.html.twig' %}
+        {% elseif event.kind == 39089 %}
+            {% include 'event/_kind39089_followPack.html.twig' %}
         {% else %}
             {# Regular event content for non-picture and non-video events #}
             <div class="event-content">

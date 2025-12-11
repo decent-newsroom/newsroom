@@ -1,0 +1,45 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-1">
+            <h1>Following</h1>
+            <p class="eyebrow">articles from people you follow</p>
+        </div>
+    </section>
+
+    <div class="w-container mb-5 mt-5">
+        {% if not isLoggedIn %}
+            <div class="alert alert-info">
+                <h4>Sign in to see articles from people you follow</h4>
+                <p class="mb-3">You need to be logged in to view articles from your follow list.</p>
+                <a href="{{ path('app_login') }}" class="btn btn-primary">Sign In</a>
+            </div>
+        {% elseif error is defined %}
+            <div class="alert alert-danger">
+                <h4>Error</h4>
+                <p class="mb-0">{{ error }}</p>
+            </div>
+        {% elseif followCount is defined and followCount == 0 %}
+            <div class="alert alert-info">
+                <h4>You're not following anyone yet</h4>
+                <p class="mb-0">Start following people on Nostr to see their articles here. Your follow list will be synced automatically.</p>
+            </div>
+        {% elseif articles is empty %}
+            <div class="alert alert-info">
+                <h4>No articles found</h4>
+                <p class="mb-0">The people you follow haven't published any articles yet, or they haven't been synced to this newsroom.</p>
+            </div>
+        {% else %}
+            <div class="discover-section">
+                <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block aside %}
+    <twig:Atoms:FeaturedWriters />
+    <twig:Atoms:ForumAside />
+{% endblock %}
+
