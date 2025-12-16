@@ -4,6 +4,8 @@ namespace App\Service;
 
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\ReadModel\RedisView\RedisBaseObject;
+use App\ReadModel\RedisView\RedisReadingListView;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -230,5 +232,43 @@ class RedisViewStore
     {
         return strlen($data) > 10240; // 10KB
     }
-}
 
+    /**
+     * Store all articles from user reading lists as RedisBaseObject[]
+     * @param string $pubkey
+     * @param RedisReadingListView[] $readingLists
+     */
+    public function storeUserReadingListArticles(string $pubkey, array $readingLists): void
+    {
+        $allArticles = [];
+        foreach ($readingLists as $list) {
+            foreach ($list->articles as $articleObj) {
+                if ($articleObj instanceof RedisBaseObject) {
+                    $allArticles[] = $articleObj;
+                }
+            }
+        }
+        $this->storeUserArticles($pubkey, $allArticles);
+    }
+
+    /**
+     * Build and cache user reading lists, returning the final view for the template.
+     * Handles all DB lookups and stores all articles as RedisBaseObject in Redis.
+     *
+     * @param EntityManagerInterface $em
+     * @param string $pubkey
+     * @return RedisReadingListView[]
+     */
+    public function buildAndCacheUserReadingLists(EntityManagerInterface $em, string $pubkey): array
+    {
+        $readingLists = $this->factory->buildUserReadingListsView($em, $pubkey);
+        $allArticles = [];
+        foreach ($readingLists as $list) {
+            foreach ($list->articles as $articleObj) {
+                $allArticles[] = $articleObj;
+            }
+        }
+        $this->storeUserArticles($pubkey . ':readinglists', $allArticles);
+        return $readingLists;
+    }
+}

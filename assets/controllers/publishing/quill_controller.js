@@ -142,6 +142,9 @@ export default class extends Controller {
 
     this.quill = new Quill(editorEl, options);
 
+    // Expose globally for preview functionality
+    window.appQuill = this.quill;
+
     // If there were formulas in the loaded HTML, we need to convert them to proper embeds
     if (hasFormulas) {
       this.convertFormulasToEmbeds();
@@ -320,6 +323,13 @@ export default class extends Controller {
     }
 
     this.quill.setContents(deltaOps, 'silent');
+  }
+
+  disconnect() {
+    // Clean up global reference
+    if (window.appQuill === this.quill) {
+      window.appQuill = null;
+    }
   }
 }
 

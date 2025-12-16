@@ -27,7 +27,9 @@
 </head>
 <body data-controller="service-worker visit-analytics" data-visit-analytics-path-value="{{ app.request.pathInfo }}">
 
-<twig:Header />
+{% block header %}
+    <twig:Header />
+{% endblock %}
 
 {% block layout %}{% endblock %}
 
@@ -42,9 +44,11 @@
     </div>
 </div>
 
+{% block footer %}
 <footer>
     <twig:Footer />
 </footer>
+{% endblock %}
 
 </body>
 </html>

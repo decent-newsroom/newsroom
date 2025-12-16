@@ -11,6 +11,7 @@ use App\Service\NostrClient;
 use App\Service\Nostr\NostrEventBuilder;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\RedisCacheService;
+use App\Service\RedisViewStore;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
@@ -24,8 +25,9 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use App\ReadModel\RedisView\RedisReadingListView;
+use App\ReadModel\RedisView\RedisBaseObject;
+use App\ReadModel\RedisView\RedisArticleView;
 
 class ArticleController  extends AbstractController
 {
@@ -196,6 +198,7 @@ class ArticleController  extends AbstractController
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
+        RedisViewStore $redisViewStore,
         $slug = null
     ): Response
     {
@@ -257,6 +260,12 @@ class ArticleController  extends AbstractController
             }
         }
 
+        $readingLists = [];
+        if ($user) {
+            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+            $readingLists = $redisViewStore->buildAndCacheUserReadingLists($entityManager, $currentPubkey);
+        }
+
         $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
         // Populate advanced metadata form data
         if ($advancedMetadata) {
@@ -266,11 +275,79 @@ class ArticleController  extends AbstractController
         $form->handleRequest($request);
 
         // load template with content editor
-        return $this->render('pages/editor.html.twig', [
+        return $this->render('editor/layout.html.twig', [
             'article' => $article,
             'form' => $form->createView(),
             'recentArticles' => $recentArticles,
             'drafts' => $drafts,
+            'readingLists' => $readingLists,
+        ]);
+    }
+
+    #[Route('/article-editor/preview/{npub}/{slug}', name: 'editor-preview-npub-slug')]
+    public function previewArticle(
+        $npub,
+        $slug,
+        EntityManagerInterface $entityManager,
+        NostrEventParser $eventParser,
+        RedisViewStore $redisViewStore,
+        Request $request,
+        NostrClient $nostrClient
+    ): Response {
+        // This route previews another user's article, but sidebar shows current user's lists for navigation.
+        $advancedMetadata = null;
+        $key = new Key();
+        $pubkey = $key->convertToHex($npub);
+        $slug = urldecode($slug);
+        $repository = $entityManager->getRepository(Article::class);
+        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey]);
+        if (!$article) {
+            throw $this->createNotFoundException('The article could not be found');
+        }
+        // Parse advanced metadata from the raw event if available
+        if ($article->getRaw()) {
+            $tags = $article->getRaw()['tags'] ?? [];
+            $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
+        }
+        $formAction = $this->generateUrl('editor-preview-npub-slug', ['npub' => $npub, 'slug' => $slug]);
+        $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
+        if ($advancedMetadata) {
+            $form->get('advancedMetadata')->setData($advancedMetadata);
+        }
+        $form->handleRequest($request);
+
+        // Load current user's recent articles, drafts, and reading lists for sidebar
+        $recentArticles = [];
+        $drafts = [];
+        $readingLists = [];
+        $user = $this->getUser();
+        if ($user) {
+            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+            $recentArticles = $entityManager->getRepository(Article::class)
+                ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC'], 5);
+            // Collapse by slug, keep only latest revision
+            $recentArticles = array_reduce($recentArticles, function ($carry, $item) {
+                if (!isset($carry[$item->getSlug()])) {
+                    $carry[$item->getSlug()] = $item;
+                }
+                return $carry;
+            });
+            $recentArticles = array_values($recentArticles ?? []);
+            // get drafts
+            $since = new \DateTime();
+            $aWeekAgo = $since->sub(new \DateInterval('P1D'))->getTimestamp();
+            $nostrClient->getLongFormContentForPubkey($currentPubkey, $aWeekAgo, KindsEnum::LONGFORM_DRAFT->value);
+            $drafts = $entityManager->getRepository(Article::class)
+                ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
+            $readingLists = $redisViewStore->buildAndCacheUserReadingLists($entityManager, $currentPubkey);
+        }
+
+        return $this->render('editor/layout.html.twig', [
+            'article' => $article,
+            'form' => $form->createView(),
+            'recentArticles' => $recentArticles,
+            'drafts' => $drafts,
+            'readingLists' => $readingLists,
         ]);
     }
 
@@ -284,7 +361,6 @@ class ArticleController  extends AbstractController
         EntityManagerInterface $entityManager,
         NostrClient $nostrClient,
         CacheItemPoolInterface $articlesCache,
-        CsrfTokenManagerInterface $csrfTokenManager,
         LoggerInterface $logger,
         NostrEventParser $eventParser
     ): JsonResponse {
@@ -452,6 +528,4 @@ class ArticleController  extends AbstractController
 
         return $data;
     }
-
-
 }

@@ -38,6 +38,9 @@ import './styles/03-components/search.css';
 import './styles/03-components/image-upload.css';
 import './styles/03-components/zaps.css';
 
+// Editor layout
+import './styles/editor-layout.css';
+
 // 04 - Page-specific styles
 import './styles/04-pages/landing.css';
 import './styles/04-pages/admin.css';

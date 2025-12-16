@@ -1,8 +1,5 @@
 {% block _editor_advancedMetadata_widget %}
     <div class="advanced-metadata-section" {{ stimulus_controller('advanced-metadata') }}>
-        <details class="mb-4">
-            <summary class="h5 cursor-pointer">Zap splits and content warning</summary>
-            <div class="mt-2 p-3 border rounded">
                 <div class="row hidden">
                     <div class="col-md-6">
                         {{ form_row(form.doNotRepublish) }}
@@ -108,8 +105,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </details>
     </div>
 {% endblock %}
 

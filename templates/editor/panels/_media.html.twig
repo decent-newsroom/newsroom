@@ -1,0 +1,58 @@
+<div
+    class="panel-section"
+    data-controller="publishing--image-upload"
+>
+    <h3>Media library</h3>
+    <p class="panel-help">
+        Upload images to use in your article.
+    </p>
+
+    <div class="mb-3">
+        <label for="upload-provider">Upload to</label>
+        <select id="upload-provider" class="form-select form-select-sm" data-publishing--image-upload-target="provider">
+            <option value="sovbit">files.sovbit.host</option>
+            <option value="nostrbuild">nostr.build</option>
+            <option value="nostrcheck">nostrcheck.me</option>
+        </select>
+    </div>
+
+    <button
+        type="button"
+        class="btn btn-sm btn-primary w-100 mb-3"
+        data-action="click->publishing--image-upload#openDialog">
+        Upload Image
+    </button>
+
+    <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+        <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+        <div class="iu-modal">
+            <div class="modal-header">
+                <h5>Upload Image</h5>
+                <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <label for="upload-provider-modal">Upload to</label>
+                    <select id="upload-provider-modal" class="form-select form-select-sm" data-publishing--image-upload-target="provider">
+                        <option value="sovbit">files.sovbit.host</option>
+                        <option value="nostrbuild">nostr.build</option>
+                        <option value="nostrcheck">nostrcheck.me</option>
+                    </select>
+                </div>
+
+                <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                    <span>Drag &amp; drop or click to select an image</span>
+                    <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+                </div>
+
+                <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                <div data-publishing--image-upload-target="error" class="upload-error"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-help">
+        <small>Tip: You can also paste images directly into the editor.</small>
+    </div>
+</div>
+

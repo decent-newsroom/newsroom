@@ -58,7 +58,7 @@ class EditorType extends AbstractType
                 'required' => false,
             ])
             ->add('advancedMetadata', AdvancedMetadataType::class, [
-                'label' => 'Advanced metadata',
+                'label' => false,
                 'required' => false,
                 'mapped' => false,
             ]);

@@ -84,15 +84,13 @@ function validateAdvancedMetadata(metadata) {
 export default class extends Controller {
   static targets = ['form', 'publishButton', 'status', 'jsonContainer', 'jsonTextarea', 'jsonToggle', 'jsonDirtyHint'];
   static values = {
-    publishUrl: String,
-    csrfToken: String
+    publishUrl: String
   };
 
   connect() {
     console.log('Nostr publish controller connected');
     try {
       console.debug('[nostr-publish] publishUrl:', this.publishUrlValue || '(none)');
-      console.debug('[nostr-publish] has csrfToken:', Boolean(this.csrfTokenValue));
       console.debug('[nostr-publish] existing slug:', (this.element.dataset.slug || '(none)'));
     } catch (_) {}
 
@@ -138,15 +136,13 @@ export default class extends Controller {
     if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = '';
   }
 
-  async publish(event) {
-    event.preventDefault();
+  async publish(event = null) {
+    if (event) {
+      event.preventDefault();
+    }
 
     if (!this.publishUrlValue) {
       this.showError('Publish URL is not configured');
-      return;
-    }
-    if (!this.csrfTokenValue) {
-      this.showError('Missing CSRF token');
       return;
     }
 
@@ -260,9 +256,16 @@ export default class extends Controller {
   }
 
   collectFormData() {
-    // Find the actual form element within our target
-    const form = this.formTarget.querySelector('form');
-    if (!form) throw new Error('Form element not found');
+    // Find the actual form element in the editor (it's not within our hidden container)
+    // Try multiple selectors to be robust
+    const form = document.querySelector('.editor-center-content form')
+              || document.querySelector('form[name="editor"]')
+              || document.querySelector('.editor-main form');
+
+    if (!form) {
+      console.error('Could not find form element. Available forms:', document.querySelectorAll('form'));
+      throw new Error('Form element not found');
+    }
 
     const fd = new FormData(form);
 
@@ -418,8 +421,7 @@ export default class extends Controller {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRF-TOKEN': this.csrfTokenValue
+        'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify({
         event: signedEvent,

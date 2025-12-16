@@ -1,0 +1,404 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Featured Writers - Decent Newsroom{% endblock %}
+
+{% block body %}
+<div class="featured-writers-page">
+    <div class="container">
+        <header class="page-header">
+            <h1>Featured Writers</h1>
+            <p class="subtitle">Discover our curated list of exceptional contributors</p>
+        </header>
+
+        {% if query %}
+            <div class="search-box">
+                <form action="{{ path('featured_writers_page') }}" method="get" class="search-form">
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            name="q"
+                            value="{{ query }}"
+                            placeholder="Search featured writers..."
+                            class="search-input"
+                        >
+                        <button type="submit" class="search-button">Search</button>
+                        <a href="{{ path('featured_writers_page') }}" class="clear-button">Clear</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="results-header">
+                <h2>Found {{ resultsCount }} featured writer{{ resultsCount != 1 ? 's' : '' }}</h2>
+            </div>
+        {% else %}
+            <div class="search-box">
+                <form action="{{ path('featured_writers_page') }}" method="get" class="search-form">
+                    <div class="input-group">
+                        <input
+                            type="text"
+                            name="q"
+                            placeholder="Filter featured writers..."
+                            class="search-input"
+                        >
+                        <button type="submit" class="search-button">Filter</button>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
+        {% if users|length > 0 %}
+            <div class="writers-grid">
+                {% for user in users %}
+                    <div class="writer-card">
+                        <div class="writer-header">
+                            <div class="writer-avatar">
+                                {% if user.picture %}
+                                    <img src="{{ user.picture }}" alt="{{ user.displayName ?? user.name ?? 'Writer' }}" loading="lazy">
+                                {% else %}
+                                    <div class="avatar-placeholder">
+                                        {{ (user.displayName ?? user.name ?? user.npub[:8])|slice(0, 2)|upper }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if user.banner %}
+                                <div class="writer-banner" style="background-image: url('{{ user.banner }}')"></div>
+                            {% endif %}
+                        </div>
+
+                        <div class="writer-content">
+                            <h3 class="writer-name">
+                                {{ user.displayName ?? user.name ?? 'Anonymous' }}
+                            </h3>
+
+                            {% if user.nip05 %}
+                                <p class="writer-nip05">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                    {{ user.nip05 }}
+                                </p>
+                            {% endif %}
+
+                            {% if user.about %}
+                                <p class="writer-about">
+                                    {{ user.about|length > 150 ? user.about|slice(0, 150) ~ '...' : user.about }}
+                                </p>
+                            {% endif %}
+
+                            <div class="writer-links">
+                                {% if user.website %}
+                                    <a href="{{ user.website }}" target="_blank" rel="noopener noreferrer" class="writer-link">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                        </svg>
+                                        Website
+                                    </a>
+                                {% endif %}
+                                {% if user.lud16 %}
+                                    <span class="writer-lightning" title="Lightning: {{ user.lud16 }}">
+                                        ⚡ Tips enabled
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="writer-npub" title="{{ user.npub }}">
+                                {{ user.npub[:16] }}...
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-results">
+                {% if query %}
+                    <p>No featured writers found matching "{{ query }}"</p>
+                    <a href="{{ path('featured_writers_page') }}" class="button">View All Featured Writers</a>
+                {% else %}
+                    <p>No featured writers yet</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="back-link">
+            <a href="{{ path('users_search_page') }}">← Back to User Search</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.featured-writers-page {
+    padding: 2rem 0;
+    min-height: 60vh;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.search-box {
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
+
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.search-button, .clear-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.search-button {
+    background: #667eea;
+    color: white;
+}
+
+.clear-button {
+    background: #6c757d;
+    color: white;
+}
+
+.results-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.writers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.writer-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.writer-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+}
+
+.writer-header {
+    position: relative;
+    height: 120px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.writer-banner {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+}
+
+.writer-avatar {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.writer-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.writer-content {
+    padding: 3rem 1.5rem 1.5rem;
+    text-align: center;
+}
+
+.writer-name {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.writer-nip05 {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #28a745;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    background: #e8f5e9;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+}
+
+.writer-about {
+    color: #555;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+    min-height: 60px;
+}
+
+.writer-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.writer-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.writer-link:hover {
+    text-decoration: underline;
+}
+
+.writer-lightning {
+    color: #ff9800;
+    font-size: 0.95rem;
+}
+
+.writer-npub {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #999;
+    background: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 8px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #666;
+}
+
+.no-results .button {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+}
+
+.back-link {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.back-link a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 1rem;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .writers-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+    }
+}
+
+[data-theme="dark"] .writer-card {
+    background: #2d3748;
+    border-color: #4a5568;
+}
+
+[data-theme="dark"] .writer-avatar {
+    border-color: #2d3748;
+}
+
+[data-theme="dark"] .writer-npub {
+    background: #1a202c;
+}
+
+[data-theme="dark"] .writer-nip05 {
+    background: rgba(40, 167, 69, 0.2);
+}
+
+[data-theme="dark"] .search-input {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: white;
+}
+</style>
+{% endblock %}
+

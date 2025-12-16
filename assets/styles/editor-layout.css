@@ -1,0 +1,782 @@
+@import "../vendor/prismjs/themes/prism.min.css"; /* Editor IDE-like layout styles */
+
+/* Main container - takes full viewport */
+main[data-controller="editor--layout"] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 100;
+    background: var(--background, #ffffff);
+    margin-top: 60px;
+    padding: 0;
+}
+
+/* Header - fixed at top */
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-2);
+    min-height: 60px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.editor-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.editor-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary, #111827);
+}
+
+.editor-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.editor-status {
+    font-size: 0.875rem;
+    padding-right: 0.5rem;
+}
+
+/* Main content area - fills remaining space */
+.editor-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 2.5fr) minmax(280px, 1fr);
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Center editor area */
+.editor-center {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color, #e5e7eb);
+    min-height: 0;
+    background: var(--background, #ffffff);
+}
+
+.editor-center-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface, #f9fafb);
+}
+
+.editor-tab {
+    padding: 0.625rem 1rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-secondary, #6b7280);
+    transition: all 0.2s ease;
+}
+
+.editor-tab:hover {
+    background: var(--hover, #f3f4f6);
+}
+
+.editor-tab.is-active {
+    border-bottom: 2px solid var(--primary, #2563eb);
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+    background: var(--background, #ffffff);
+}
+
+.editor-center-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+}
+
+.editor-center-content > form {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    margin: 0;
+}
+
+.editor-pane {
+    flex: 1;
+    overflow: hidden;
+    padding: 1rem;
+    min-height: 0;
+}
+
+.editor-pane.is-hidden {
+    display: none;
+}
+
+/* Markdown pane */
+.editor-pane--markdown {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    overflow: hidden;
+    height: 100%;
+}
+
+.markdown-editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.editor-pane--markdown .editor-title-input {
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.markdown-editor {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+    padding: 1rem;
+    line-height: 1.6;
+    resize: none;
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+}
+
+/* Editor specific styles */
+.editor-pane--edit {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.editor-title-input {
+    margin-bottom: 1rem;
+}
+
+.editor-title-field {
+    font-size: 1.5rem;
+    font-weight: 600;
+    border: none;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0;
+    padding: 0.5rem 0;
+}
+
+.editor-title-field:focus {
+    outline: none;
+    border-bottom-color: var(--primary, #2563eb);
+    box-shadow: none;
+}
+
+/* Quill editor in pane */
+.editor-pane--edit .quill {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.editor-pane--edit .ql-toolbar {
+    flex-shrink: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+}
+
+.editor-pane--edit .ql-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.editor-pane--edit #editor {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 300px;
+}
+
+/* Preview pane */
+.editor-pane--preview {
+    padding: 0;
+    margin: 0 !important;
+    overflow-y: auto;
+    background-color: var(--color-bg-light);
+}
+
+.preview-container {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    padding: 0 var(--spacing-2);
+}
+
+.preview-image-wrap {
+    width: 100%;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface, #f3f4f6);
+    overflow: hidden;
+    position: relative;
+}
+
+.preview-image {
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+    object-fit: cover;
+}
+
+.preview-image-placeholder {
+    width: 100%;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 1.1rem;
+    font-style: italic;
+}
+
+.preview-summary.placeholder {
+    color: #bbb;
+    font-style: italic;
+}
+
+#editor-preview {
+    line-height: 1.7;
+    color: var(--text-primary, #374151);
+    font-size: 1.08rem;
+    margin-top: 1.5rem;
+}
+
+#editor-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+/* Sidebar - fixed, with scrollable panels */
+.editor-sidebar {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+    max-width: 400px;
+    background: var(--surface, #f9fafb);
+    overflow: hidden;
+    margin-top: 0;
+    padding: 0;
+    max-height: unset;
+}
+
+.editor-sidebar-tabs {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface-dark, #f3f4f6);
+}
+
+.editor-sidebar-tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 0.625rem 0.5rem;
+    font-size: 0.75rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.editor-sidebar-tab:hover {
+    background: var(--hover, #e5e7eb);
+}
+
+.editor-sidebar-tab.is-active {
+    background: var(--surface, #f9fafb);
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.editor-sidebar-panels {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+}
+
+.editor-panel.is-hidden {
+    display: none;
+}
+
+/* Panel sections */
+.panel-section {
+    font-size: 0.875rem;
+}
+
+.panel-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary, #111827);
+}
+
+.panel-section h4 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    margin-top: 0.75rem;
+    color: var(--text-primary, #111827);
+}
+
+.panel-help {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.panel-section .form-control,
+.panel-section .form-select {
+    font-size: 0.875rem;
+}
+
+.panel-section .form-control-sm {
+    font-size: 0.8125rem;
+}
+
+.panel-subsection {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* Info groups for publishing panel */
+.info-group {
+    margin-bottom: 0.75rem;
+}
+
+.info-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.info-group .info-value {
+    font-size: 0.875rem;
+    color: var(--text-primary, #111827);
+}
+
+.info-group code {
+    font-size: 0.8125rem;
+    padding: 0.125rem 0.25rem;
+    background: var(--code-bg, #f3f4f6);
+    border-radius: 0.25rem;
+}
+
+/* Mobile action buttons - hidden on desktop */
+.editor-mobile-actions {
+    display: none;
+}
+
+/* Article list sidebar */
+.editor-articlelist-sidebar {
+    width: 260px;
+    min-width: 200px;
+    max-width: 320px;
+    background: var(--surface, #f9fafb);
+    border-right: 1px solid var(--border-color, #e5e7eb);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    position: static;
+}
+
+.articlelist-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 1rem 1.25rem 0.5rem 1.25rem;
+    color: var(--text-primary, #111827);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface-dark, #f3f4f6);
+}
+
+.articlelist-content {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 80%;
+}
+
+.articlelist-placeholder {
+    color: #bbb;
+    font-style: italic;
+    padding: 1.5rem 0;
+    text-align: center;
+}
+
+/* Filesystem-style reading list folders */
+.readinglist-fs {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.readinglist-folder {
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+}
+.readinglist-toggle {
+    background: none;
+    border: none;
+    color: var(--text-primary, #111827);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.25em 0;
+    width: 100%;
+    text-align: left;
+}
+.readinglist-folder details {
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+}
+.readinglist-folder summary {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    font-weight: 600;
+    font-size: 1rem;
+    outline: none;
+    list-style: none;
+    background: none;
+    border: none;
+    padding: 0.25em 0;
+}
+.readinglist-summary {
+    color: #888;
+    font-weight: 400;
+}
+.readinglist-folder .readinglist-articles {
+    margin-top: 0.25em;
+    padding-left: 0.5em;
+}
+.article-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.5em;
+    font-size: 0.95em;
+    vertical-align: middle;
+}
+.article-kind {
+    font-size: 0.85em;
+    font-weight: 700;
+    margin-left: 0.1em;
+    margin-right: 0.2em;
+}
+.readinglist-article {
+    margin-bottom: var(--spacing-2);
+    font-size: 0.97em;
+    margin-left: var(--spacing-2);
+}
+.readinglist-empty {
+    color: #bbb;
+    font-style: italic;
+    margin-left: 1.5em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .editor-main {
+        grid-template-columns: 180px minmax(0, 2fr) minmax(260px, 1fr);
+    }
+    .editor-articlelist-sidebar {
+        width: 180px;
+        min-width: 120px;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Disable fixed positioning on mobile */
+    main[data-controller="editor--layout"] {
+        position: static;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .editor-header {
+        position: static;
+    }
+
+    .editor-main {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: calc(100vh - 60px);
+    }
+
+    .editor-center {
+        overflow: visible;
+    }
+
+    .editor-center-content {
+        overflow: visible;
+    }
+
+    .editor-pane {
+        overflow: visible;
+    }
+
+    .editor-sidebar {
+        display: none !important;
+    }
+
+    .editor-articlelist-sidebar {
+        display: none !important;
+    }
+
+    /* Hide the mode tabs on mobile */
+    .editor-center-tabs {
+        display: none !important;
+    }
+
+    /* Force edit pane to always show, hide preview */
+    .editor-pane--edit {
+        display: flex !important;
+    }
+
+    .editor-pane--markdown,
+    .editor-pane--preview {
+        display: none !important;
+    }
+
+    /* Adjust header for mobile */
+    .editor-header {
+        padding: 0.75rem;
+        min-height: auto;
+    }
+
+    .editor-header-left {
+        flex: 1;
+    }
+
+    .editor-title {
+        font-size: 0.875rem;
+    }
+
+    /* Hide header action buttons on mobile */
+    .editor-header-right {
+        display: none !important;
+    }
+
+    /* Show mobile action buttons at bottom */
+    .editor-mobile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: var(--surface, #f9fafb);
+        border-top: 1px solid var(--border-color, #e5e7eb);
+        margin-top: auto;
+    }
+
+    .editor-mobile-actions .btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 1rem;
+        padding: 0.875rem 1rem;
+    }
+
+    /* Alternative: buttons at bottom of form */
+    .editor-center {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .editor-center-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .editor-center-content > form {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .editor-pane--edit {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding-bottom: 0;
+    }
+
+    /* Ensure Quill editor is properly sized on mobile */
+    .editor-pane--edit .ql-container {
+        min-height: 300px;
+        flex: 1;
+    }
+
+    .editor-title-field {
+        font-size: 1.25rem;
+    }
+
+    .editor-title-input {
+        flex-shrink: 0;
+    }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .editor-shell {
+    --background: #1f2937;
+    --surface: #111827;
+    --surface-dark: #0f172a;
+    --border-color: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --hover: #374151;
+    --primary: #3b82f6;
+    --code-bg: #374151;
+}
+
+/* JSON Panel Styles */
+.json-editor-container {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.json-textarea {
+    width: 100%;
+    min-height: 400px;
+    padding: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.375rem;
+    background: var(--background, #ffffff);
+    color: var(--text-primary, #111827);
+    resize: vertical;
+}
+
+.json-textarea:focus {
+    outline: none;
+    border-color: var(--primary, #2563eb);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.json-status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.json-status--success {
+    color: #059669;
+    background: #d1fae5;
+}
+
+.json-status--warning {
+    color: #d97706;
+    background: #fef3c7;
+}
+
+.json-status--error {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+[data-theme="dark"] .json-status--success {
+    color: #34d399;
+    background: #064e3b;
+}
+
+[data-theme="dark"] .json-status--warning {
+    color: #fbbf24;
+    background: #78350f;
+}
+
+[data-theme="dark"] .json-status--error {
+    color: #f87171;
+    background: #7f1d1d;
+}
+
+[data-theme="dark"] .json-textarea {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+/* Prism.js CSS for markdown syntax highlighting - asset-mapper import */
+
+.markdown-highlight {
+    background: #f5f2f0;
+    border-radius: 0.375rem;
+    font-size: 0.95rem;
+    padding: 1rem;
+    overflow-x: auto;
+    min-height: 300px;
+    max-height: 600px;
+    font-family: 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.markdown-highlight code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+    white-space: pre;
+    word-break: normal;
+    word-wrap: normal;
+    border: none;
+    box-shadow: none;
+    outline: none;
+}

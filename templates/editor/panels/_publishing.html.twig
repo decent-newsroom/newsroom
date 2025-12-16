@@ -1,0 +1,66 @@
+<div class="panel-section">
+    <h3>Publishing info</h3>
+
+    {% if article.id %}
+        <div class="info-group">
+            <label>Status</label>
+            <div class="info-value">
+                {% if article.isDraft %}
+                    <span class="badge bg-secondary">Draft</span>
+                {% else %}
+                    <span class="badge bg-success">Published</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if article.publishedAt %}
+        <div class="info-group">
+            <label>Published</label>
+            <div class="info-value">
+                {{ article.publishedAt|date('Y-m-d H:i') }}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if article.updatedAt %}
+        <div class="info-group">
+            <label>Last updated</label>
+            <div class="info-value">
+                {{ article.updatedAt|date('Y-m-d H:i') }}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if article.slug %}
+        <div class="info-group">
+            <label>Slug</label>
+            <div class="info-value">
+                <code>{{ article.slug }}</code>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <p class="text-muted">
+            This is a new article. Fill in the details and publish when ready.
+        </p>
+    {% endif %}
+
+    <div class="panel-subsection mt-3">
+        <h4>Quick actions</h4>
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary w-100 mb-2"
+            data-action="click->editor--layout#saveDraft"
+        >
+            Save draft
+        </button>
+        <button
+            type="button"
+            class="btn btn-sm btn-primary w-100"
+            data-action="click->editor--layout#publish"
+        >
+            Publish to Nostr
+        </button>
+    </div>
+</div>
+

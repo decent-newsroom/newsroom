@@ -1,0 +1,68 @@
+<div class="panel-section">
+    {{ form_row(form.slug, {
+        'label': 'Slug',
+        'help': 'URL-friendly identifier',
+        'attr': {'class': 'form-control form-control-sm'}
+    }) }}
+
+    {{ form_row(form.summary, {
+        'label': 'Summary',
+        'help': 'Brief description for previews',
+        'attr': {'class': 'form-control form-control-sm', 'rows': 3}
+    }) }}
+
+    {{ form_row(form.topics, {
+        'label': 'Tags',
+        'attr': {'class': 'form-control form-control-sm'}
+    }) }}
+
+    <div data-controller="publishing--image-upload">
+        {{ form_row(form.image, {
+            'label': 'Cover Image',
+            'help': 'Enter URL or upload an image',
+            'attr': {'class': 'form-control form-control-sm', 'data-publishing--image-upload-target': 'urlInput'}
+        }) }}
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-primary mt-1 w-100"
+            data-action="click->publishing--image-upload#openDialog">
+            Upload Image
+        </button>
+
+        <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+            <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+            <div class="iu-modal">
+                <div class="modal-header">
+                    <h5>Upload Cover Image</h5>
+                    <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="cover-upload-provider">Upload to</label>
+                        <select id="cover-upload-provider" class="form-select form-select-sm" data-publishing--image-upload-target="provider">
+                            <option value="sovbit">files.sovbit.host</option>
+                            <option value="nostrbuild">nostr.build</option>
+                            <option value="nostrcheck">nostrcheck.me</option>
+                        </select>
+                    </div>
+
+                    <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                        <span>Drag &amp; drop or click to select an image</span>
+                        <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+                    </div>
+
+                    <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                    <div data-publishing--image-upload-target="error" class="upload-error"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ form_row(form.clientTag, {
+        'label': 'Add client tag (Decent Newsroom)',
+        'row_attr': {'class': 'form-check d-flex flex-row'},
+        'label_attr': {'class': 'form-check-label'},
+        'attr': {'class': 'form-check-input'}
+    }) }}
+</div>

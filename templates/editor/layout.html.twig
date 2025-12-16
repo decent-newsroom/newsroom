@@ -1,0 +1,355 @@
+{# templates/editor/layout.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% form_theme form _self 'pages/_advanced_metadata.html.twig' %}
+
+{% block quill_widget %}
+    <div {{ stimulus_controller('publishing--quill') }} class="quill" data-id="{{ id }}" >
+        <div id="editor">
+            {{ value|raw }}
+        </div>
+        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown">
+        <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
+    </div>
+{% endblock %}
+
+{% block header %}
+    <header class="editor-header">
+        <div class="editor-header-left">
+            <a href="{{ path('home') }}" class="btn">← Back</a>
+            <div class="editor-title">
+                {{ article.title|default('New article') }}
+            </div>
+        </div>
+
+        <div class="editor-header-right">
+            {# Status indicator #}
+            <span class="editor-status text-muted" data-editor--layout-target="status">
+                {% if article.id %}Editing{% else %}New article{% endif %}
+            </span>
+            <button type="button" class="btn btn-secondary" data-action="editor--layout#saveDraft">
+                Save draft
+            </button>
+            <button type="button" class="btn btn-primary" data-action="editor--layout#publish">
+                Publish
+            </button>
+        </div>
+    </header>
+{% endblock %}
+
+{% block layout %}
+<main data-controller="editor--layout">
+    <div class="editor-main">
+        {# Insert the article list sidebar as the first grid column #}
+        <aside class="editor-articlelist-sidebar" data-controller="editor--articlelist-panels">
+            <div class="editor-sidebar-tabs">
+                <button
+                    type="button"
+                    class="editor-sidebar-tab is-active"
+                    data-editor--articlelist-panels-target="tab"
+                    data-panel="articles"
+                    data-action="editor--articlelist-panels#switch"
+                >
+                    Articles
+                </button>
+            </div>
+            <section class="editor-sidebar-panels">
+                <div
+                    class="editor-panel"
+                    data-editor--articlelist-panels-target="panel"
+                    data-panel="articles"
+                >
+                    <div class="articlelist-content" data-articlelist-target="list">
+                        {% if is_granted('ROLE_USER') %}
+                                {% if readingLists is defined and readingLists|length > 0 %}
+                                    {% for list in readingLists %}
+                                        <details class="mb-2">
+                                                <summary>
+                                                    {{ list.title|default('Untitled List') }}
+                                                    {% if list.summary is defined and list.summary %}
+                                                        <span class="readinglist-summary">&mdash; {{ list.summary }}</span>
+                                                    {% endif %}
+                                                </summary>
+                                                <ul class="list-unstyled">
+                                                    {% if list.articles|length > 0 %}
+                                                        {% for articleObj in list.articles %}
+                                                            {% set article = articleObj.article %}
+                                                            <li class="readinglist-article">
+                                                                <span class="article-icon" title="{{ article.kind == 30024 ? 'Draft' : 'Published' }}">
+                                                                    {% if article.kind == 30024 %}
+                                                                        <span style="color: orange; font-weight: bold;">●</span><span class="article-kind">D</span>
+                                                                    {% else %}
+                                                                        <span style="color: #22c55e; font-weight: bold;">●</span><span class="article-kind">A</span>
+                                                                    {% endif %}
+                                                                </span>
+                                                                <a href="{{ path('editor-preview-npub-slug', {npub: article.pubkey|toNpub , slug: article.slug}) }}">
+                                                                    {{ article.title|default(article.slug) }}
+                                                                </a>
+                                                                <span>by {{ articleObj.author.name }}</span>
+                                                            </li>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <li class="readinglist-empty">No articles in this list.</li>
+                                                    {% endif %}
+                                                </ul>
+                                            </details>
+                                    {% endfor %}
+                                {% endif %}
+                                <ul class="list-unstyled">
+                                    {% for recent in recentArticles %}
+                                        <li class="mb-2">
+                                            <span class="article-icon" title="Published">
+                                                <span style="color: #22c55e; font-weight: bold;">●</span><span class="article-kind">A</span>
+                                            </span>
+                                            <a href="{{ path('editor-edit-slug', {slug: recent.slug}) }}">
+                                                {{ recent.title }} ({{ recent.publishedAt|date('Y-m-d') }})
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li>No recent articles found.</li>
+                                    {% endfor %}
+                                </ul>
+                                <ul class="list-unstyled">
+                                    {% for draft in drafts %}
+                                        <li>
+                                            <span class="article-icon" title="Draft">
+                                                <span style="color: orange; font-weight: bold;">●</span><span class="article-kind">D</span>
+                                            </span>
+                                            <a href="{{ path('editor-edit-slug', {slug: draft.slug}) }}">
+                                                {{ draft.title }} ({{ draft.updatedAt|date('Y-m-d') }})
+                                            </a>
+                                        </li>
+                                    {% else %}
+                                        <li>No drafts found.</li>
+                                    {% endfor %}
+                                </ul>
+                        {% else %}
+                            <div class="articlelist-placeholder">Sign in to see your articles.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        </aside>
+        {# Center editor area (middle grid column) #}
+        <div class="editor-center">
+            <div class="editor-center-tabs">
+                <button
+                    type="button"
+                    class="editor-tab is-active"
+                    data-editor--layout-target="modeTab"
+                    data-mode="edit"
+                    data-action="editor--layout#switchMode"
+                >
+                    Editor
+                </button>
+                <button
+                    type="button"
+                    class="editor-tab"
+                    data-editor--layout-target="modeTab"
+                    data-mode="markdown"
+                    data-action="editor--layout#switchMode"
+                >
+                    Markdown
+                </button>
+                <button
+                    type="button"
+                    class="editor-tab"
+                    data-editor--layout-target="modeTab"
+                    data-mode="preview"
+                    data-action="editor--layout#switchMode"
+                >
+                    Preview
+                </button>
+            </div>
+
+            <div class="editor-center-content">
+                {{ form_start(form) }}
+
+                <div
+                    class="editor-pane editor-pane--edit"
+                    data-editor--layout-target="editPane"
+                >
+                    {# Title field at top of editor #}
+                    <div class="editor-title-input">
+                        {{ form_row(form.title, {
+                            'label': false,
+                            'attr': {'placeholder': 'Article title', 'class': 'form-control editor-title-field'}
+                        }) }}
+                    </div>
+
+                    {# QuillJS editor container #}
+                    {{ form_row(form.content, {'label': false}) }}
+
+                    {# Hidden field for draft status - controlled by Save Draft / Publish buttons #}
+                    <div style="display: none;">
+                        {{ form_widget(form.isDraft) }}
+                    </div>
+
+                    {# Mobile action buttons at bottom #}
+                    <div class="editor-mobile-actions">
+                        <button type="button" class="btn btn-secondary btn-lg" data-action="editor--layout#saveDraft">
+                            Save draft
+                        </button>
+                        <button type="button" class="btn btn-primary btn-lg" data-action="editor--layout#publish">
+                            Publish
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    class="editor-pane editor-pane--markdown is-hidden"
+                    data-editor--layout-target="markdownPane"
+                >
+                    {# Markdown editor #}
+                    <div class="markdown-editor-wrapper">
+                        <div class="editor-title-input">
+                            <input
+                                type="text"
+                                class="form-control editor-title-field"
+                                placeholder="Article title"
+                                data-editor--layout-target="markdownTitle"
+                                readonly
+                            />
+                        </div>
+                        <pre class="markdown-highlight"><code class="language-markdown" data-editor--layout-target="markdownCode"></code></pre>
+                    </div>
+                </div>
+
+                <div
+                    class="editor-pane editor-pane--preview is-hidden"
+                    data-editor--layout-target="previewPane"
+                >
+                    <div class="card preview-container">
+                        <div class="card-header">
+                            <h1 class="card-title preview-title" data-editor--layout-target="previewTitle">
+                                {{ article.title|default('Article title') }}
+                            </h1>
+                            <div class="byline">
+                                <span>
+                                    By <span class="preview-author" data-editor--layout-target="previewAuthor">...</span>
+                                </span>
+                                <span>
+                                    <small class="preview-date" data-editor--layout-target="previewDate">Date</small>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="lede preview-summary" data-editor--layout-target="previewSummary"></div>
+                            <div class="article__image preview-image-wrap">
+                                <img class="preview-image" data-editor--layout-target="previewImage" src="" alt="Cover image preview" style="display:none;"/>
+                                <div class="preview-image-placeholder" data-editor--layout-target="previewImagePlaceholder" style="display:none;">
+                                    <span>No cover image</span>
+                                </div>
+                            </div>
+                            <div class="article-main" data-editor--layout-target="previewBody">
+                                {# Filled by JS #}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {# Right sidebar (last grid column) #}
+        <aside class="editor-sidebar" data-controller="editor--panels">
+            <div class="editor-sidebar-tabs">
+                <button
+                    type="button"
+                    class="editor-sidebar-tab is-active"
+                    data-editor--panels-target="tab"
+                    data-panel="metadata"
+                    data-action="editor--panels#switch"
+                >
+                    Metadata
+                </button>
+                <button
+                    type="button"
+                    class="editor-sidebar-tab"
+                    data-editor--panels-target="tab"
+                    data-panel="advanced"
+                    data-action="editor--panels#switch"
+                >
+                    Advanced
+                </button>
+                {# Media tab temporarily hidden - will be redesigned later
+                <button
+                    type="button"
+                    class="editor-sidebar-tab"
+                    data-editor--panels-target="tab"
+                    data-panel="media"
+                    data-action="editor--panels#switch"
+                >
+                    Media
+                </button>
+                #}
+                <button
+                    type="button"
+                    class="editor-sidebar-tab"
+                    data-editor--panels-target="tab"
+                    data-panel="json"
+                    data-action="editor--panels#switch"
+                >
+                    Event JSON
+                </button>
+            </div>
+
+            <section class="editor-sidebar-panels">
+                <div
+                    class="editor-panel"
+                    data-editor--panels-target="panel"
+                    data-panel="metadata"
+                >
+                    {% include 'editor/panels/_metadata.html.twig' with { form: form } %}
+                </div>
+
+                <div
+                    class="editor-panel is-hidden"
+                    data-editor--panels-target="panel"
+                    data-panel="advanced"
+                >
+                    {% include 'editor/panels/_advanced.html.twig' with { form: form } %}
+                </div>
+
+                {# Media panel temporarily hidden - will be redesigned later
+                <div
+                    class="editor-panel is-hidden"
+                    data-editor--panels-target="panel"
+                    data-panel="media"
+                >
+                    {% include 'editor/panels/_media.html.twig' %}
+                </div>
+                #}
+
+                <div
+                    class="editor-panel is-hidden"
+                    data-editor--panels-target="panel"
+                    data-panel="json"
+                >
+                    {% include 'editor/panels/_json.html.twig' %}
+                </div>
+            </section>
+        </aside>
+
+        {{ form_end(form) }}
+    </div>
+
+    {# Hidden container for Nostr publishing #}
+    <div style="display: none;" {{ stimulus_controller('nostr--nostr-publish', {
+        publishUrl: path('api-article-publish')
+    }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
+        <div data-nostr--nostr-publish-target="status"></div>
+        <div data-nostr--nostr-publish-target="jsonContainer">
+            <textarea
+                style="display: none;"
+                data-nostr--nostr-publish-target="jsonTextarea"
+                data-action="input->nostr--nostr-publish#onJsonInput"
+            ></textarea>
+        </div>
+        <button style="display: none;" data-nostr--nostr-publish-target="jsonToggle"></button>
+        <span style="display: none;" data-nostr--nostr-publish-target="jsonDirtyHint"></span>
+        <button style="display: none;" data-nostr--nostr-publish-target="publishButton"></button>
+    </div>
+</main>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}

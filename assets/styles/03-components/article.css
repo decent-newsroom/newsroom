@@ -125,13 +125,6 @@ blockquote p {
     aspect-ratio: 16/9;
 }
 
-.ql-toolbar {
-    position: sticky;
-    top: 80px;
-    background-color: var(--color-bg);
-    z-index: 10;
-}
-
 .ql-snow .ql-tooltip.ql-image-tooltip {
     white-space: nowrap;
 }

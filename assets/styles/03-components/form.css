@@ -27,8 +27,11 @@ input, textarea, select {
     width: 100%;
 }
 
-input, textarea, select, .quill {
-    background-color: var(--color-bg);
+textarea {
+    max-width: initial;
+}
+
+input, textarea, select {
     color: var(--color-text);
     border: 1px solid var(--color-primary);
     border-radius: 0;  /* Sharp edges */

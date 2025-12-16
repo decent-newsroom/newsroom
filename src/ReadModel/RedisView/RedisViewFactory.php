@@ -3,8 +3,11 @@
 namespace App\ReadModel\RedisView;
 
 use App\Entity\Article;
+use App\Entity\Event;
 use App\Entity\Highlight;
+use App\Enum\KindsEnum;
 use App\Service\RedisCacheService;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -72,6 +75,7 @@ class RedisViewFactory
             contentHtml: $article->getProcessedHtml(),
             publishedAt: $article->getPublishedAt(),
             topics: $article->getTopics() ?? [],
+            kind: $article->getKind()->value,
         );
     }
 
@@ -254,6 +258,7 @@ class RedisViewFactory
             'contentHtml' => $view->contentHtml,
             'publishedAt' => $view->publishedAt?->format(\DateTimeInterface::ATOM),
             'topics' => $view->topics,
+            'kind' => $view->kind, // Add kind to normalization
         ];
     }
 
@@ -271,6 +276,7 @@ class RedisViewFactory
             contentHtml: $data['contentHtml'] ?? null,
             publishedAt: isset($data['publishedAt']) ? new \DateTimeImmutable($data['publishedAt']) : null,
             topics: $data['topics'] ?? [],
+            kind: $data['kind'] ?? null // Add kind to denormalization
         );
     }
 
@@ -297,5 +303,62 @@ class RedisViewFactory
             refs: $data['refs'] ?? [],
         );
     }
-}
 
+    /**
+     * Build the user's reading lists view (array of RedisReadingListView), collating articles.
+     * Handles all DB lookups and view construction.
+     *
+     * @param EntityManagerInterface $em
+     * @param string $pubkey
+     * @return RedisReadingListView[]
+     */
+    public function buildUserReadingListsView(EntityManagerInterface $em, string $pubkey): array
+    {
+        $readingListsRaw = $em->getRepository(Event::class)
+            ->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX->value], ['created_at' => 'DESC']) ?? [];
+        $readingListsRaw = array_reduce($readingListsRaw, function ($carry, $item) {
+            $slug = $item->getSlug();
+            if (!isset($carry[$slug])) {
+                $carry[$slug] = $item;
+            }
+            return $carry;
+        }, []);
+        $readingListsRaw = array_values($readingListsRaw);
+        $readingLists = [];
+        foreach ($readingListsRaw as $list) {
+            $tags = $list->getTags();
+            $articleSlugs = [];
+            foreach ($tags as $tag) {
+                if (is_array($tag) && $tag[0] === 'a' && isset($tag[1])) {
+                    // Slug from coordinate
+                    $parts = explode(':', $tag[1], 3);
+                    $articleSlugs[] = $parts[2];
+                }
+            }
+            $articles = [];
+            if ($articleSlugs) {
+                $dbArticles = $em->getRepository(Article::class)
+                    ->createQueryBuilder('a')
+                    ->where('a.slug IN (:slugs)')
+                    ->setParameter('slugs', $articleSlugs)
+                    ->getQuery()->getResult();
+                $dbArticlesBySlug = [];
+                foreach ($dbArticles as $a) {
+                    $dbArticlesBySlug[$a->getSlug()] = $a;
+                }
+                foreach ($articleSlugs as $slug) {
+                    $a = $dbArticlesBySlug[$slug] ?? null;
+                    if ($a) {
+                        $articles[] = $this->articleBaseObject($a);
+                    }
+                }
+            }
+            $readingLists[] = new RedisReadingListView(
+                $list->getTitle(),
+                $list->getSummary(),
+                $articles
+            );
+        }
+        return $readingLists;
+    }
+}

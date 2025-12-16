@@ -21,6 +21,6 @@ final class RedisArticleView
         public ?string $contentHtml = null,         // processedHtml for article detail pages
         public ?\DateTimeImmutable $publishedAt = null,
         public array $topics = [],                  // For topic filtering
+        public ?int $kind = null                    // Added: kind for template access
     ) {}
 }
-
