@@ -8,7 +8,7 @@
         <div id="editor">
             {{ value|raw }}
         </div>
-        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown">
+        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown" data-editor--markdown-sync-target="hidden">
         <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
 {% endblock %}
@@ -199,6 +199,7 @@
                 <div
                     class="editor-pane editor-pane--markdown is-hidden"
                     data-editor--layout-target="markdownPane"
+                    data-controller="editor--markdown-sync"
                 >
                     {# Markdown editor #}
                     <div class="markdown-editor-wrapper">
@@ -211,7 +212,7 @@
                                 readonly
                             />
                         </div>
-                        <pre class="markdown-highlight"><code class="language-markdown" data-editor--layout-target="markdownCode"></code></pre>
+                        <pre class="markdown-highlight"><code class="language-markdown" data-editor--layout-target="markdownCode" data-editor--markdown-sync-target="code"></code></pre>
                     </div>
                 </div>
 
@@ -352,4 +353,9 @@
 {% endblock %}
 
 {% block footer %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {# Removed inline script, now handled by Stimulus controller #}
 {% endblock %}

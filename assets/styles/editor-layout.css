@@ -113,7 +113,7 @@ main[data-controller="editor--layout"] {
 
 .editor-pane {
     flex: 1;
-    overflow: hidden;
+    overflow: auto;
     padding: 1rem;
     min-height: 0;
 }
@@ -127,7 +127,6 @@ main[data-controller="editor--layout"] {
     display: flex;
     flex-direction: column;
     padding: 1rem;
-    overflow: hidden;
     height: 100%;
 }
 
@@ -163,7 +162,6 @@ main[data-controller="editor--layout"] {
     flex-direction: column;
     min-height: 0;
     height: 100%;
-    overflow: hidden;
 }
 
 .editor-title-input {
@@ -755,13 +753,8 @@ main[data-controller="editor--layout"] {
 /* Prism.js CSS for markdown syntax highlighting - asset-mapper import */
 
 .markdown-highlight {
-    background: #f5f2f0;
-    border-radius: 0.375rem;
     font-size: 0.95rem;
     padding: 1rem;
-    overflow-x: auto;
-    min-height: 300px;
-    max-height: 600px;
     font-family: 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
     line-height: 1.6;
     margin: 0;
@@ -773,7 +766,6 @@ main[data-controller="editor--layout"] {
     padding: 0;
     font-size: inherit;
     font-family: inherit;
-    white-space: pre;
     word-break: normal;
     word-wrap: normal;
     border: none;
