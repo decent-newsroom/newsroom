@@ -6,13 +6,10 @@ namespace App\Controller;
 
 use App\Dto\CategoryDraft;
 use App\Dto\MagazineDraft;
-use App\Entity\Nzine;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineSetupType;
-use App\Repository\NzineRepository;
 use App\Service\EncryptionService;
-use App\Service\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use swentel\nostr\Event\Event;
@@ -26,7 +23,6 @@ use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use swentel\nostr\Key\Key;
 use Redis as RedisClient;
-use Symfony\Contracts\Cache\CacheInterface;
 
 class MagazineWizardController extends AbstractController
 {

@@ -26,33 +26,6 @@ framework:
                 edit:
                     from: published
                     to:   edited
-        nzine_workflow:
-            type: state_machine
-            marking_store:
-                type: method
-                property: state
-            supports:
-                - App\Entity\Nzine
-            initial_marking: draft
-            places:
-                - draft
-                - profile_created
-                - main_index_created
-                - nested_indices_created
-                - published
-            transitions:
-                create_profile:
-                    from: draft
-                    to: profile_created
-                create_main_index:
-                    from: profile_created
-                    to: main_index_created
-                create_nested_indices:
-                    from: main_index_created
-                    to: nested_indices_created
-                publish:
-                    from: nested_indices_created
-                    to: published
         reading_list_workflow:
             type: state_machine
             audit_trail:
