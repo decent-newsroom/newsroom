@@ -1,9 +1,4 @@
 <div class="panel-section" data-controller="editor--json-panel">
-    <h3>Raw Nostr Event</h3>
-    <p class="panel-help">
-        View and edit the raw Nostr event JSON. Changes here will override form values when publishing.
-    </p>
-
     <div class="mb-3">
         <button
             type="button"
@@ -15,7 +10,6 @@
     </div>
 
     <div class="json-editor-container">
-        <label for="json-editor-textarea" class="visually-hidden">Raw Nostr Event JSON</label>
         <textarea
             id="json-editor-textarea"
             class="json-textarea"
@@ -24,7 +18,7 @@
             data-action="input->nostr--nostr-publish#onJsonInput input->editor--json-panel#onJsonInput"
             rows="20"
             spellcheck="false"
-        ></textarea>
+        >{{ article.raw is defined and article.raw ? article.raw|json_encode(constant('JSON_PRETTY_PRINT')) : '' }}</textarea>
         <div class="json-status" data-editor--json-panel-target="status"></div>
     </div>
 
@@ -37,4 +31,3 @@
         </small>
     </div>
 </div>
-

@@ -55,8 +55,12 @@ import './styles/05-utilities/utilities.css';
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
 
+import Prism from 'prismjs';
+
 import 'katex/dist/katex.min.css';
 import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
+
+Prism.highlightAll();
 
 // Detect math blocks in text content while avoiding common currency patterns
 function hasRealMath(text) {

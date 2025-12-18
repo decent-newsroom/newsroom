@@ -115,4 +115,53 @@ return [
     'katex/dist/katex.min.js' => [
         'version' => '0.16.25',
     ],
+    'prism-react' => [
+        'version' => '1.0.2',
+    ],
+    'prism-redux' => [
+        'version' => '1.0.2',
+    ],
+    'react' => [
+        'version' => '15.5.4',
+    ],
+    'recompose' => [
+        'version' => '0.22.0',
+    ],
+    'object-assign' => [
+        'version' => '4.1.1',
+    ],
+    'fbjs/lib/invariant' => [
+        'version' => '0.8.12',
+    ],
+    'fbjs/lib/warning' => [
+        'version' => '0.8.12',
+    ],
+    'fbjs/lib/emptyFunction' => [
+        'version' => '0.8.12',
+    ],
+    'fbjs/lib/emptyObject' => [
+        'version' => '0.8.12',
+    ],
+    'prop-types/factory' => [
+        'version' => '15.5.7',
+    ],
+    'fbjs/lib/shallowEqual' => [
+        'version' => '0.8.8',
+    ],
+    'hoist-non-react-statics' => [
+        'version' => '1.2.0',
+    ],
+    'change-emitter' => [
+        'version' => '0.1.2',
+    ],
+    'symbol-observable' => [
+        'version' => '1.0.4',
+    ],
+    'prismjs' => [
+        'version' => '1.30.0',
+    ],
+    'prismjs/themes/prism.min.css' => [
+        'version' => '1.30.0',
+        'type' => 'css',
+    ],
 ];

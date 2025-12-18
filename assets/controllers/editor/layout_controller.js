@@ -3,7 +3,7 @@ import {Controller} from '@hotwired/stimulus';
 
 export default class extends Controller {
     static targets = [
-        'modeTab', 'editPane', 'markdownPane', 'previewPane',
+        'modeTab', 'editPane', 'markdownPane', 'jsonPane', 'previewPane',
         'previewBody', 'previewTitle',
         'previewSummary', 'previewImage', 'previewImagePlaceholder', 'previewAuthor', 'previewDate',
         'markdownEditor', 'markdownTitle', 'markdownCode', 'status'
@@ -24,6 +24,23 @@ export default class extends Controller {
             imageInput.addEventListener('input', () => this.updatePreview());
             imageInput.addEventListener('change', () => this.updatePreview());
         }
+
+        // If editing an existing article, load JSON event by default
+        if (this.element.dataset.articleId && this.hasJsonPaneTarget) {
+            // Find the JSON textarea in the pane and load the event
+            const jsonTextarea = this.jsonPaneTarget.querySelector('[data-editor--json-panel-target="jsonTextarea"]');
+            if (jsonTextarea && !jsonTextarea.value.trim()) {
+                // Try to get the Nostr publish controller's JSON
+                const nostrController = this.application.getControllerForElementAndIdentifier(
+                    this.element.querySelector('[data-controller*="nostr--nostr-publish"]'),
+                    'nostr--nostr-publish'
+                );
+                if (nostrController && nostrController.hasJsonTextareaTarget) {
+                    jsonTextarea.value = nostrController.jsonTextareaTarget.value;
+                    // Optionally, trigger formatting/validation if needed
+                }
+            }
+        }
     }
 
     switchMode(event) {
@@ -37,6 +54,7 @@ export default class extends Controller {
         // Toggle panes - hide all, then show the selected one
         this.editPaneTarget.classList.toggle('is-hidden', mode !== 'edit');
         this.markdownPaneTarget.classList.toggle('is-hidden', mode !== 'markdown');
+        this.jsonPaneTarget.classList.toggle('is-hidden', mode !== 'json');
         this.previewPaneTarget.classList.toggle('is-hidden', mode !== 'preview');
 
         // Update content when switching modes
@@ -44,6 +62,8 @@ export default class extends Controller {
             this.updateMarkdown();
         } else if (mode === 'preview') {
             this.updatePreview();
+        } else if (mode === 'json') {
+            // Optionally, trigger JSON formatting/validation
         }
     }
 

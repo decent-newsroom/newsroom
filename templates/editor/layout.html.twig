@@ -38,7 +38,7 @@
 {% endblock %}
 
 {% block layout %}
-<main data-controller="editor--layout">
+<main data-controller="editor--layout" data-article-id="{{ article.id|default('') }}">
     <div class="editor-main">
         {# Insert the article list sidebar as the first grid column #}
         <aside class="editor-articlelist-sidebar" data-controller="editor--articlelist-panels">
@@ -155,6 +155,15 @@
                     type="button"
                     class="editor-tab"
                     data-editor--layout-target="modeTab"
+                    data-mode="json"
+                    data-action="editor--layout#switchMode"
+                >
+                    JSON
+                </button>
+                <button
+                    type="button"
+                    class="editor-tab"
+                    data-editor--layout-target="modeTab"
                     data-mode="preview"
                     data-action="editor--layout#switchMode"
                 >
@@ -214,6 +223,13 @@
                         </div>
                         <pre class="markdown-highlight"><code class="language-markdown" data-editor--layout-target="markdownCode" data-editor--markdown-sync-target="code"></code></pre>
                     </div>
+                </div>
+
+                <div
+                    class="editor-pane editor-pane--json is-hidden"
+                    data-editor--layout-target="jsonPane"
+                >
+                    {% include 'editor/panels/_json.html.twig' %}
                 </div>
 
                 <div
@@ -282,15 +298,6 @@
                     Media
                 </button>
                 #}
-                <button
-                    type="button"
-                    class="editor-sidebar-tab"
-                    data-editor--panels-target="tab"
-                    data-panel="json"
-                    data-action="editor--panels#switch"
-                >
-                    Event JSON
-                </button>
             </div>
 
             <section class="editor-sidebar-panels">
@@ -319,14 +326,6 @@
                     {% include 'editor/panels/_media.html.twig' %}
                 </div>
                 #}
-
-                <div
-                    class="editor-panel is-hidden"
-                    data-editor--panels-target="panel"
-                    data-panel="json"
-                >
-                    {% include 'editor/panels/_json.html.twig' %}
-                </div>
             </section>
         </aside>
 
@@ -353,9 +352,4 @@
 {% endblock %}
 
 {% block footer %}
-{% endblock %}
-
-{% block javascripts %}
-    {{ parent() }}
-    {# Removed inline script, now handled by Stimulus controller #}
 {% endblock %}
