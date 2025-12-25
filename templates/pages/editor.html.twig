@@ -7,7 +7,7 @@
         <div id="editor">
             {{ value|raw }}
         </div>
-        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown">
+        <input type="hidden" name="editor[content]" data-publishing--quill-target="markdown">
         <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
 {% endblock %}

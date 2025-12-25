@@ -7,7 +7,6 @@ namespace App\Form;
 use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
 use App\Form\DataTransformer\CommaSeparatedToJsonTransformer;
-use App\Form\DataTransformer\HtmlToMdTransformer;
 use App\Form\Type\QuillType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -36,9 +35,17 @@ class EditorType extends AbstractType
                 'required' => false,
                 'sanitize_html' => true,
                 'attr' => ['class' => 'form-control']])
-            ->add('content', QuillType::class, [
+            ->add('content', TextareaType::class, [
                 'required' => true,
-                'attr' => ['placeholder' => 'Write content', 'class' => 'form-control']])
+                'label' => 'Markdown Content',
+                'attr' => ['placeholder' => 'Write Markdown content', 'class' => 'form-control editor-md-pane']
+            ])
+            ->add('content_html', QuillType::class, [
+                'required' => false,
+                'mapped' => false,
+                'label' => 'HTML Content (Quill)',
+                'attr' => ['placeholder' => 'Write content', 'class' => 'form-control editor-quill-pane']
+            ])
             ->add('image', UrlType::class, [
                 'required' => false,
                 'label' => 'Cover image URL',
@@ -66,9 +73,6 @@ class EditorType extends AbstractType
         // Apply the custom transformer
         $builder->get('topics')
             ->addModelTransformer(new CommaSeparatedToJsonTransformer());
-        $builder->get('content')
-            ->addModelTransformer(new HtmlToMdTransformer());
-
     }
 
     public function configureOptions(OptionsResolver $resolver): void
