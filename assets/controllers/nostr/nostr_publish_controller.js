@@ -125,6 +125,8 @@ export default class extends Controller {
       if (this.hasJsonTextareaTarget) this.jsonTextareaTarget.value = pretty;
       this.jsonEdited = false;
       if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = 'none';
+      // Dispatch event to notify others that JSON is ready
+      this.element.dispatchEvent(new CustomEvent('nostr-json-ready', { bubbles: true }));
     } catch (e) {
       this.showError('Could not build event JSON: ' + (e?.message || e));
     }
@@ -270,7 +272,7 @@ export default class extends Controller {
     const fd = new FormData(form);
 
     // Prefer the Markdown field populated by the Quill controller
-    const md = fd.get('editor[content_md]');
+    const md = fd.get('editor[content]');
     let html = fd.get('editor[content]') || fd.get('content') || '';
 
     // Final content: use MD if present, otherwise convert HTML -> MD
@@ -530,4 +532,3 @@ export default class extends Controller {
     }
   }
 }
-

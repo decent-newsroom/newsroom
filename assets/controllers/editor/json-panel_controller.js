@@ -7,8 +7,64 @@ export default class extends Controller {
         console.log('JSON panel controller connected');
         this.isDirty = false;
 
+        // Listen for the custom event from the Nostr publish controller
+        document.addEventListener('nostr-json-ready', this.handleNostrJsonReady.bind(this));
+
+        // Listen for changes in the markdown textarea
+        const md = this.getMarkdownTextarea();
+        if (md) {
+            md.addEventListener('input', this.handleMarkdownInput.bind(this));
+        }
+
         // Load initial JSON from the Nostr publish controller
         this.loadInitialJson();
+    }
+
+    disconnect() {
+        // Clean up event listener
+        document.removeEventListener('nostr-json-ready', this.handleNostrJsonReady.bind(this));
+        const md = this.getMarkdownTextarea();
+        if (md) {
+            md.removeEventListener('input', this.handleMarkdownInput.bind(this));
+        }
+    }
+
+    handleMarkdownInput() {
+        // When markdown changes, update the JSON content field and panel
+        this.updateJsonContentFromMarkdown();
+    }
+
+    updateJsonContentFromMarkdown() {
+        if (!this.hasJsonTextareaTarget) return;
+        let json;
+        try {
+            json = JSON.parse(this.jsonTextareaTarget.value);
+        } catch (e) {
+            return; // Don't update if JSON is invalid
+        }
+        const md = this.getMarkdownTextarea();
+        if (md) {
+            json.content = md.value;
+            this.jsonTextareaTarget.value = JSON.stringify(json, null, 2);
+            this.formatJson();
+        }
+    }
+
+    getMarkdownTextarea() {
+        // Try common selectors for the markdown textarea
+        return document.querySelector('#editor_content, textarea[name="editor[content]"]');
+    }
+
+    handleNostrJsonReady(event) {
+        const nostrController = this.getNostrPublishController();
+        if (nostrController && nostrController.hasJsonTextareaTarget && this.hasJsonTextareaTarget) {
+            this.jsonTextareaTarget.value = nostrController.jsonTextareaTarget.value;
+            this.updateJsonContentFromMarkdown();
+            this.formatJson();
+            this.isDirty = false;
+            this.updateDirtyHint();
+            this.showStatus('JSON updated', 'success');
+        }
     }
 
     loadInitialJson() {
@@ -19,6 +75,7 @@ export default class extends Controller {
                 const json = nostrController.jsonTextareaTarget.value;
                 if (json && this.hasJsonTextareaTarget) {
                     this.jsonTextareaTarget.value = json;
+                    this.updateJsonContentFromMarkdown();
                     this.formatJson();
                 }
             }
@@ -115,4 +172,3 @@ export default class extends Controller {
         );
     }
 }
-

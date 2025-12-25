@@ -8,7 +8,7 @@
         <div id="editor">
             {{ value|raw }}
         </div>
-        <input type="hidden" name="editor[content_md]" data-publishing--quill-target="markdown" data-editor--markdown-sync-target="hidden">
+        <input type="hidden" name="editor[content]" data-publishing--quill-target="markdown" data-editor--markdown-sync-target="hidden">
         <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
 {% endblock %}
@@ -186,8 +186,8 @@
                         }) }}
                     </div>
 
-                    {# QuillJS editor container #}
-                    {{ form_row(form.content, {'label': false}) }}
+                    {# QuillJS editor container, now using content_html #}
+                    {{ form_row(form.content_html, {'label': false}) }}
 
                     {# Hidden field for draft status - controlled by Save Draft / Publish buttons #}
                     <div style="display: none;">
@@ -210,7 +210,7 @@
                     data-editor--layout-target="markdownPane"
                     data-controller="editor--markdown-sync"
                 >
-                    {# Markdown editor #}
+                    {# Markdown editor - source of truth #}
                     <div class="markdown-editor-wrapper">
                         <div class="editor-title-input">
                             <input
@@ -221,7 +221,9 @@
                                 readonly
                             />
                         </div>
-                        <pre class="markdown-highlight"><code class="language-markdown" data-editor--layout-target="markdownCode" data-editor--markdown-sync-target="code"></code></pre>
+                        {{ form_row(form.content, {'label': false, 'attr': {'class': 'form-control editor-md-field', 'data-editor--markdown-sync-target': 'hidden'}}) }}
+                        <pre class="mt-2" data-editor--markdown-sync-target="code" style="display:none"></pre>
+                        {# JS should sync changes in content to content_html (Quill) #}
                     </div>
                 </div>
 

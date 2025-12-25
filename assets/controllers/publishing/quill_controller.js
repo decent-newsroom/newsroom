@@ -181,26 +181,28 @@ export default class extends Controller {
     this.quill.on('text-change', (delta, old, source) => {
       if (source === 'user') highlightAll();
       this.syncHiddenAsHtml();
+      // --- Quill → Markdown sync ---
+      if (this.hasMarkdownTarget) {
+        if (window.deltaToMarkdown) {
+          const md = window.deltaToMarkdown(this.quill.getContents());
+          this.markdownTarget.value = md;
+          // Trigger event for reactivity
+          this.markdownTarget.dispatchEvent(new Event('input', { bubbles: true }));
+          // Also trigger a custom event for layout controller
+          this.element.dispatchEvent(new CustomEvent('content:changed', { bubbles: true }));
+        }
+      }
     });
 
-    const sync = () => {
-      // HTML
-      if (this.hasHiddenTarget) this.hiddenTarget.value = this.quill.root.innerHTML;
-      // Markdown (from Delta)
-      if (this.hasMarkdownTarget) this.markdownTarget.value = deltaToMarkdown(this.quill.getContents());
+    // Expose a method to set Quill content from HTML
+    window.setQuillHtml = (html) => {
+      this.quill.root.innerHTML = html;
     };
 
-    // sync on load and on every edit
-    sync();
-    this.quill.on('text-change', (delta, oldDelta, source) => {
-      if (source === 'user') highlightAll();
-      sync();
-    });
-
-    // safety: also refresh MD/HTML right before a real submit (if any)
+    // safety: also refresh HTML right before a real submit (if any)
     const form = this.element.closest('form');
     if (form) {
-      form.addEventListener('submit', () => sync());
+      form.addEventListener('submit', () => this.syncHiddenAsHtml());
     }
   }
 
@@ -454,3 +456,7 @@ function deltaToMarkdown(delta) {
   out = out.replace(/\n{3,}/g, '\n\n');
   return out.trim();
 }
+
+// Make deltaToMarkdown globally available
+window.deltaToMarkdown = deltaToMarkdown;
+
