@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\RSS;
 
-use App\Entity\Nzine;
 use App\Enum\KindsEnum;
+use App\Service\EncryptionService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Sign\Sign;
@@ -24,28 +24,12 @@ class RssToNostrConverter
      * Convert an RSS item to a Nostr longform event (kind 30023)
      *
      * @param array $rssItem The RSS item data
-     * @param array|null $matchedCategory The matched nzine category (null if no match)
-     * @param Nzine $nzine The nzine entity
-     * @param string|null $categoryIndexEventId The event ID of the category index (for 'a' tag)
      * @return Event The created and signed Nostr event
      */
     public function convertToNostrEvent(
-        array $rssItem,
-        ?array $matchedCategory,
-        Nzine $nzine,
-        ?string $categoryIndexEventId = null
+        array $rssItem
     ): Event {
-        $bot = $nzine->getNzineBot();
-        if (!$bot) {
-            throw new \RuntimeException('Nzine bot not found');
-        }
-
-        $bot->setEncryptionService($this->encryptionService);
-        $privateKey = $bot->getNsec();
-
-        if (!$privateKey) {
-            throw new \RuntimeException('Bot private key not found');
-        }
+        $privateKey = 'your-private-key'; // Replace with actual private key retrieval logic
 
         // Create the event
         $event = new Event();
@@ -80,11 +64,6 @@ class RssToNostrConverter
             $event->addTag(['published_at', (string) $rssItem['pubDate']->getTimestamp()]);
         }
 
-        // Add category tag (t tag) - only if category matched
-        if ($matchedCategory && isset($matchedCategory['slug'])) {
-            $event->addTag(['t', $matchedCategory['slug']]);
-        }
-
         // Add source tag for original article URL
         if (!empty($rssItem['link'])) {
             $event->addTag(['source', $rssItem['link']]);
@@ -93,12 +72,6 @@ class RssToNostrConverter
         // Add reference to original URL (r tag for generic reference)
         if (!empty($rssItem['link'])) {
             $event->addTag(['r', $rssItem['link']]);
-        }
-
-        // Add reference to category index if provided and category matched
-        if ($categoryIndexEventId && $matchedCategory && isset($matchedCategory['slug'])) {
-            $npub = $nzine->getNpub();
-            $event->addTag(['a', KindsEnum::PUBLICATION_INDEX->value . ':' . $npub . ':' . $matchedCategory['slug']]);
         }
 
         // Add client tag to indicate source
@@ -111,7 +84,6 @@ class RssToNostrConverter
         $this->logger->info('Created Nostr event from RSS item', [
             'title' => $rssItem['title'],
             'slug' => $slug,
-            'category' => $matchedCategory['name'] ?? null,
         ]);
 
         return $event;
