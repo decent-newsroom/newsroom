@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block header %}
-    <header class="editor-header">
+    <header class="editor-header" data-controller="editor--header" data-editor--header-target="header">
         <div class="editor-header-left">
             <a href="{{ path('home') }}" class="btn">← Back</a>
             <div class="editor-title">
@@ -26,10 +26,10 @@
             <span class="editor-status text-muted" data-editor--layout-target="status">
                 {% if article.id %}Editing{% else %}New article{% endif %}
             </span>
-            <button type="button" class="btn btn-secondary" data-action="editor--layout#saveDraft">
+            <button type="button" class="btn btn-secondary" data-action="editor--header#saveDraft">
                 Save draft
             </button>
-            <button type="button" class="btn btn-primary" data-action="editor--layout#publish">
+            <button type="button" class="btn btn-primary" data-action="editor--header#publish">
                 Publish
             </button>
         </div>
@@ -265,6 +265,9 @@
                         </div>
                     </div>
                 </div>
+
+                <button type="submit" name="_action" value="save_draft" style="display:none;" data-editor--layout-target="saveDraftSubmit"></button>
+                <button type="submit" name="_action" value="publish" style="display:none;" data-editor--layout-target="publishSubmit"></button>
             </div>
         </div>
         {# Right sidebar (last grid column) #}

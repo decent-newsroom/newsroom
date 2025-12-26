@@ -92,6 +92,12 @@ export default class extends Controller {
         const nostrController = this.getNostrPublishController();
         if (nostrController && nostrController.hasJsonTextareaTarget && this.hasJsonTextareaTarget) {
             this.jsonTextareaTarget.value = nostrController.jsonTextareaTarget.value;
+            // Update CodeMirror document to match textarea
+            if (this.cmView) {
+                this.cmView.dispatch({
+                    changes: {from: 0, to: this.cmView.state.doc.length, insert: this.jsonTextareaTarget.value}
+                });
+            }
             this.updateJsonContentFromMarkdown();
             this.formatJson();
             this.isDirty = false;
@@ -108,6 +114,12 @@ export default class extends Controller {
                 const json = nostrController.jsonTextareaTarget.value;
                 if (json && this.hasJsonTextareaTarget) {
                     this.jsonTextareaTarget.value = json;
+                    // Update CodeMirror document to match textarea
+                    if (this.cmView) {
+                        this.cmView.dispatch({
+                            changes: {from: 0, to: this.cmView.state.doc.length, insert: this.jsonTextareaTarget.value}
+                        });
+                    }
                     this.updateJsonContentFromMarkdown();
                     this.formatJson();
                 }
@@ -124,6 +136,12 @@ export default class extends Controller {
             setTimeout(() => {
                 if (nostrController.hasJsonTextareaTarget && this.hasJsonTextareaTarget) {
                     this.jsonTextareaTarget.value = nostrController.jsonTextareaTarget.value;
+                    // Update CodeMirror document to match textarea
+                    if (this.cmView) {
+                        this.cmView.dispatch({
+                            changes: {from: 0, to: this.cmView.state.doc.length, insert: this.jsonTextareaTarget.value}
+                        });
+                    }
                     this.formatJson();
                     this.isDirty = false;
                     this.updateDirtyHint();

@@ -6,7 +6,8 @@ export default class extends Controller {
         'modeTab', 'editPane', 'markdownPane', 'jsonPane', 'previewPane',
         'previewBody', 'previewTitle',
         'previewSummary', 'previewImage', 'previewImagePlaceholder', 'previewAuthor', 'previewDate',
-        'markdownEditor', 'markdownTitle', 'markdownCode', 'status'
+        'markdownEditor', 'markdownTitle', 'markdownCode', 'status',
+        'saveDraftSubmit', 'publishSubmit'
     ];
 
     connect() {
@@ -214,12 +215,15 @@ export default class extends Controller {
     }
 
     saveDraft() {
-        console.log('Saving draft...');
+        // Only for mobile actions, not header
+        alert('[Editor] saveDraft called');
 
         // Mark as draft - set checkbox to true
         const draftCheckbox = this.element.querySelector('input[name*="[isDraft]"]');
         if (draftCheckbox) {
             draftCheckbox.checked = true;
+        } else {
+            console.warn('[Editor] Draft checkbox not found');
         }
 
         // Submit the form
@@ -227,16 +231,22 @@ export default class extends Controller {
         if (form) {
             this.updateStatus('Saving draft...');
             form.requestSubmit();
+            console.log('[Editor] Form submitted for draft');
+        } else {
+            console.error('[Editor] Form not found for saveDraft');
         }
     }
 
     publish() {
-        console.log('Publishing article...');
+        // Only for mobile actions, not header
+        alert('[Editor] publish called');
 
         // Mark as NOT draft - set checkbox to false
         const draftCheckbox = this.element.querySelector('input[name*="[isDraft]"]');
         if (draftCheckbox) {
             draftCheckbox.checked = false;
+        } else {
+            console.warn('[Editor] Draft checkbox not found');
         }
 
         // Find the Nostr publish controller and trigger publish
@@ -246,10 +256,19 @@ export default class extends Controller {
         );
 
         if (nostrController) {
+            console.log('[Editor] Nostr publish controller found, calling publish()');
             nostrController.publish();
         } else {
-            console.error('Nostr publish controller not found');
-            alert('Could not find publishing controller. Please try again.');
+            // Fallback: submit the form
+            const form = this.element.querySelector('form');
+            if (form) {
+                this.updateStatus('Publishing...');
+                form.requestSubmit();
+                console.log('[Editor] Form submitted for publish');
+            } else {
+                console.error('[Editor] Form not found for publish');
+                alert('Could not find publishing controller or form. Please try again.');
+            }
         }
     }
 

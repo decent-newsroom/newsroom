@@ -54,8 +54,8 @@ input:focus, textarea:focus, select:focus {
 
 .help-text {
     font-size: 0.8rem;
-    color: var(--color-text);
-    font-weight: lighter;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-1);
 }
 
 #editor_actions {
