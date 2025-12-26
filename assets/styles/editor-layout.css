@@ -109,6 +109,12 @@ main[data-controller="editor--layout"] {
     display: flex;
     min-height: 0;
     margin: 0;
+    max-width: 100%;
+}
+
+.cm-editor {
+    height: 100%;
+    max-width: 100%;
 }
 
 .editor-pane {
@@ -221,7 +227,7 @@ main[data-controller="editor--layout"] {
     padding: 0;
     margin: 0 !important;
     overflow-y: auto;
-    background-color: var(--color-bg-light);
+    background-color: var(--color-bg);
 }
 
 .preview-container {

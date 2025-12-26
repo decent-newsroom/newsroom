@@ -8,7 +8,6 @@
         <div id="editor">
             {{ value|raw }}
         </div>
-        <input type="hidden" name="editor[content]" data-publishing--quill-target="markdown" data-editor--markdown-sync-target="hidden">
         <input type="hidden" {{ block('widget_attributes') }} value="{{ value }}" />
     </div>
 {% endblock %}
@@ -210,7 +209,7 @@
                     data-editor--layout-target="markdownPane"
                     data-controller="editor--markdown-sync"
                 >
-                    {# Markdown editor - source of truth #}
+                    {# Markdown editor #}
                     <div class="markdown-editor-wrapper">
                         <div class="editor-title-input">
                             <input
@@ -221,8 +220,8 @@
                                 readonly
                             />
                         </div>
-                        {{ form_row(form.content, {'label': false, 'attr': {'class': 'form-control editor-md-field', 'data-editor--markdown-sync-target': 'hidden'}}) }}
-                        <pre class="mt-2" data-editor--markdown-sync-target="code" style="display:none"></pre>
+                        {{ form_row(form.content, {'label': false, 'attr': {'class': 'form-control editor-md-field'}}) }}
+                        <pre class="mt-2" style="display:none"></pre>
                         {# JS should sync changes in content to content_html (Quill) #}
                     </div>
                 </div>

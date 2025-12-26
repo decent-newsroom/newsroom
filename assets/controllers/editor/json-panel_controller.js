@@ -1,4 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
+import { EditorView, basicSetup } from 'codemirror';
+import { json } from '@codemirror/lang-json';
 
 export default class extends Controller {
     static targets = ['jsonTextarea', 'status', 'dirtyHint'];
@@ -18,6 +20,31 @@ export default class extends Controller {
 
         // Load initial JSON from the Nostr publish controller
         this.loadInitialJson();
+
+        this.textarea = this.jsonTextareaTarget;
+        // Only initialize CodeMirror if not already done
+        if (!this.textarea._codemirror) {
+            this.textarea.style.display = 'none';
+            this.cmParent = document.createElement('div');
+            this.textarea.parentNode.insertBefore(this.cmParent, this.textarea);
+            this.cmView = new EditorView({
+                doc: this.textarea.value,
+                extensions: [
+                  basicSetup, json(),
+                  EditorView.lineWrapping,
+                ],
+                parent: this.cmParent,
+                updateListener: (update) => {
+                    if (update.docChanged) {
+                        this.textarea.value = this.cmView.state.doc.toString();
+                        this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }
+            });
+            this.textarea._codemirror = this.cmView;
+        } else {
+            this.cmView = this.textarea._codemirror;
+        }
     }
 
     disconnect() {
@@ -27,6 +54,12 @@ export default class extends Controller {
         if (md) {
             md.removeEventListener('input', this.handleMarkdownInput.bind(this));
         }
+        if (this.cmView) this.cmView.destroy();
+        if (this.cmParent && this.cmParent.parentNode) {
+            this.cmParent.parentNode.removeChild(this.cmParent);
+        }
+        this.textarea.style.display = '';
+        this.textarea._codemirror = null;
     }
 
     handleMarkdownInput() {

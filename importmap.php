@@ -164,4 +164,82 @@ return [
         'version' => '1.30.0',
         'type' => 'css',
     ],
+    'codemirror' => [
+        'version' => '6.0.2',
+    ],
+    '@codemirror/lang-markdown' => [
+        'version' => '6.5.0',
+    ],
+    '@codemirror/theme-one-dark' => [
+        'version' => '6.1.3',
+    ],
+    '@codemirror/view' => [
+        'version' => '6.37.2',
+    ],
+    '@codemirror/state' => [
+        'version' => '6.5.2',
+    ],
+    '@codemirror/language' => [
+        'version' => '6.11.1',
+    ],
+    '@codemirror/commands' => [
+        'version' => '6.8.1',
+    ],
+    '@codemirror/search' => [
+        'version' => '6.5.11',
+    ],
+    '@codemirror/autocomplete' => [
+        'version' => '6.18.6',
+    ],
+    '@codemirror/lint' => [
+        'version' => '6.8.5',
+    ],
+    '@lezer/markdown' => [
+        'version' => '1.5.1',
+    ],
+    '@codemirror/lang-html' => [
+        'version' => '6.4.11',
+    ],
+    '@lezer/common' => [
+        'version' => '1.2.3',
+    ],
+    '@lezer/highlight' => [
+        'version' => '1.2.1',
+    ],
+    'style-mod' => [
+        'version' => '4.1.2',
+    ],
+    'w3c-keyname' => [
+        'version' => '2.2.8',
+    ],
+    'crelt' => [
+        'version' => '1.0.6',
+    ],
+    '@marijn/find-cluster-break' => [
+        'version' => '1.0.2',
+    ],
+    '@lezer/html' => [
+        'version' => '1.3.12',
+    ],
+    '@codemirror/lang-css' => [
+        'version' => '6.3.1',
+    ],
+    '@codemirror/lang-javascript' => [
+        'version' => '6.2.4',
+    ],
+    '@lezer/lr' => [
+        'version' => '1.4.2',
+    ],
+    '@lezer/css' => [
+        'version' => '1.1.9',
+    ],
+    '@lezer/javascript' => [
+        'version' => '1.5.1',
+    ],
+    '@codemirror/lang-json' => [
+        'version' => '6.0.2',
+    ],
+    '@lezer/json' => [
+        'version' => '1.0.3',
+    ],
 ];

@@ -45,6 +45,21 @@ export default class extends Controller {
         // Listen for content changes from Quill or Markdown
         this.element.addEventListener('content:changed', () => {
             this.updatePreview();
+            // Update Quill pane live
+            const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
+            if (markdownInput && window.appQuill) {
+                if (window.marked) {
+                    window.appQuill.root.innerHTML = window.marked.parse(markdownInput.value || '');
+                } else {
+                    fetch('/editor/markdown/preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify({ markdown: markdownInput.value || '' })
+                    })
+                    .then(resp => resp.ok ? resp.json() : { html: '' })
+                    .then(data => { window.appQuill.root.innerHTML = data.html || ''; });
+                }
+            }
             // If JSON pane is present, update it as well
             if (this.hasJsonPaneTarget) {
                 const jsonTextarea = this.jsonPaneTarget.querySelector('[data-editor--json-panel-target="jsonTextarea"]');
@@ -74,7 +89,7 @@ export default class extends Controller {
             this.updateMarkdown();
         } else if (mode === 'edit') {
             // Sync Markdown to Quill when switching to Quill pane
-            const markdownInput = this.element.querySelector('input[name="editor[content]"]');
+            const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
             if (markdownInput && window.appQuill) {
                 if (window.marked) {
                     window.appQuill.root.innerHTML = window.marked.parse(markdownInput.value || '');
@@ -104,7 +119,7 @@ export default class extends Controller {
         }
 
         // Get markdown from Quill controller
-        const markdownInput = this.element.querySelector('input[name="editor[content]"]');
+        const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
         const markdown = markdownInput ? markdownInput.value || '' : '';
 
         // Set code block content and highlight
@@ -123,7 +138,7 @@ export default class extends Controller {
         const titleInput = this.element.querySelector('input[name*="[title]"], input[name="editor[title]"]');
         const summaryInput = this.element.querySelector('textarea[name*="[summary]"], textarea[name="editor[summary]"]');
         const imageInput = this.element.querySelector('input[name*="[image]"], input[name="editor[image]"]');
-        const markdownInput = this.element.querySelector('input[name="editor[content]"]');
+        const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
         const authorInput = this.element.querySelector('input[name*="[author]"]');
         const dateInput = this.element.querySelector('input[name*="[publishedAt]"]') || this.element.querySelector('input[name*="[createdAt]"]');
 
