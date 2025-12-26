@@ -1,0 +1,17 @@
+{% if app.user %}
+    <div class="panel-section">
+        <h3>Relays</h3>
+        <p>Your article will be published to the following relays.</p>
+        <small>You'll be able to select a subset in the future.</small>
+        {% set relays = app.user.relays %}
+        {% if relays and relays|length > 0 %}
+            <ul>
+                {% for relay in relays %}
+                    <li>{{ relay }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No relays found.</p>
+        {% endif %}
+    </div>
+{% endif %}

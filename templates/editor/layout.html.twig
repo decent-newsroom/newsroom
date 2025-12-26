@@ -291,6 +291,15 @@
                 >
                     Advanced
                 </button>
+                <button
+                    type="button"
+                    class="editor-sidebar-tab"
+                    data-editor--panels-target="tab"
+                    data-panel="relays"
+                    data-action="editor--panels#switch"
+                >
+                    Relays
+                </button>
                 {# Media tab temporarily hidden - will be redesigned later
                 <button
                     type="button"
@@ -319,6 +328,14 @@
                     data-panel="advanced"
                 >
                     {% include 'editor/panels/_advanced.html.twig' with { form: form } %}
+                </div>
+
+                <div
+                    class="editor-panel"
+                    data-editor--panels-target="panel"
+                    data-panel="relays"
+                >
+                    {% include 'editor/panels/_relays.html.twig' with { form: form } %}
                 </div>
 
                 {# Media panel temporarily hidden - will be redesigned later

@@ -52,6 +52,10 @@ readonly class UserDTOProvider implements UserProviderInterface
         $metadata = $this->redisCacheService->getMetadata($pubkey);
         $freshUser->setMetadata($metadata);
 
+        // Fetch relays from RedisCacheService and set on user
+        $relays = $this->redisCacheService->getRelays($pubkey);
+        $freshUser->setRelays($relays);
+
         // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
         $this->metadataSyncService->syncUser($freshUser);
 
@@ -97,6 +101,10 @@ readonly class UserDTOProvider implements UserProviderInterface
         $metadata = $this->redisCacheService->getMetadata($pubkey);
         $user->setMetadata($metadata);
         $this->logger->debug('User metadata set.', ['metadata' => json_encode($user->getMetadata())]);
+
+        // Fetch relays from RedisCacheService and set on user
+        $relays = $this->redisCacheService->getRelays($pubkey);
+        $user->setRelays($relays);
 
         // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
         $this->metadataSyncService->syncUser($user);
