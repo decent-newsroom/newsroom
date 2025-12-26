@@ -46,20 +46,28 @@ export default class extends Controller {
             this.cmView = this.textarea._codemirror;
         }
 
-        // Restore from localStorage if available
-        const savedJson = localStorage.getItem('editorState');
-        if (savedJson) {
-            try {
-                JSON.parse(savedJson); // Validate JSON
-                this.jsonTextareaTarget.value = savedJson;
-                if (this.cmView) {
-                    this.cmView.dispatch({
-                        changes: {from: 0, to: this.cmView.state.doc.length, insert: savedJson}
-                    });
+        // Prompt to restore from localStorage if available and textarea is empty
+        if (this.jsonTextareaTarget.value.trim() === '') {
+            const savedJson = localStorage.getItem('editorState');
+            if (savedJson) {
+                let shouldRestore = window.confirm('A draft was found in your browser. Do you want to restore it?');
+                if (shouldRestore) {
+                    try {
+                        const parsedJson = JSON.parse(savedJson); // Validate JSON
+                        this.jsonTextareaTarget.value = savedJson;
+                        if (this.cmView) {
+                            this.cmView.dispatch({
+                                changes: {from: 0, to: this.cmView.state.doc.length, insert: savedJson}
+                            });
+                        }
+                        this.populateFormFieldsFromJson(parsedJson);
+                    } catch (e) {
+                        // Ignore corrupt JSON
+                        localStorage.removeItem('editorState');
+                    }
+                } else {
+                    localStorage.removeItem('editorState');
                 }
-            } catch (e) {
-                // Ignore corrupt JSON
-                localStorage.removeItem('editorState');
             }
         }
         // Periodic save every 10 seconds
@@ -89,12 +97,6 @@ export default class extends Controller {
         }
         this.textarea.style.display = '';
         this.textarea._codemirror = null;
-
-        // Clear periodic save interval
-        if (this._saveInterval) {
-            clearInterval(this._saveInterval);
-            this._saveInterval = null;
-        }
     }
 
     handleMarkdownInput() {
@@ -256,5 +258,27 @@ export default class extends Controller {
             element,
             'nostr--nostr-publish'
         );
+    }
+
+    // Populate form fields (markdown, title, etc.) from JSON
+    populateFormFieldsFromJson(json) {
+        // Markdown content
+        const md = this.getMarkdownTextarea();
+        if (md && json.content !== undefined) {
+            md.value = json.content;
+            md.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        // Title (example: input[name="editor[title]"])
+        const titleInput = document.querySelector('input[name="editor[title]"]');
+        if (titleInput && json.title !== undefined) {
+            titleInput.value = json.title;
+            titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        // Tags (example: input[name="editor[tags]"] or similar)
+        const tagsInput = document.querySelector('input[name="editor[tags]"]');
+        if (tagsInput && json.tags !== undefined && Array.isArray(json.tags)) {
+            tagsInput.value = json.tags.join(', ');
+            tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 }
