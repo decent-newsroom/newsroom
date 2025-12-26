@@ -7,7 +7,7 @@ export default class extends Controller {
         'previewBody', 'previewTitle',
         'previewSummary', 'previewImage', 'previewImagePlaceholder', 'previewAuthor', 'previewDate',
         'markdownEditor', 'markdownTitle', 'markdownCode', 'status',
-        'saveDraftSubmit', 'publishSubmit'
+        'saveDraftSubmit', 'publishSubmit', 'jsonCode'
     ];
 
     connect() {
@@ -26,26 +26,10 @@ export default class extends Controller {
             imageInput.addEventListener('change', () => this.updatePreview());
         }
 
-        // If editing an existing article, load JSON event by default
-        if (this.element.dataset.articleId && this.hasJsonPaneTarget) {
-            // Find the JSON textarea in the pane and load the event
-            const jsonTextarea = this.jsonPaneTarget.querySelector('[data-editor--json-panel-target="jsonTextarea"]');
-            if (jsonTextarea && !jsonTextarea.value.trim()) {
-                // Try to get the Nostr publish controller's JSON
-                const nostrController = this.application.getControllerForElementAndIdentifier(
-                    this.element.querySelector('[data-controller*="nostr--nostr-publish"]'),
-                    'nostr--nostr-publish'
-                );
-                if (nostrController && nostrController.hasJsonTextareaTarget) {
-                    jsonTextarea.value = nostrController.jsonTextareaTarget.value;
-                    // Optionally, trigger formatting/validation if needed
-                }
-            }
-        }
-
         // Listen for content changes from Quill or Markdown
         this.element.addEventListener('content:changed', () => {
             this.updatePreview();
+            this.updateJsonCode();
             // Update Quill pane live
             const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
             if (markdownInput && window.appQuill) {
@@ -59,13 +43,6 @@ export default class extends Controller {
                     })
                     .then(resp => resp.ok ? resp.json() : { html: '' })
                     .then(data => { window.appQuill.root.innerHTML = data.html || ''; });
-                }
-            }
-            // If JSON pane is present, update it as well
-            if (this.hasJsonPaneTarget) {
-                const jsonTextarea = this.jsonPaneTarget.querySelector('[data-editor--json-panel-target="jsonTextarea"]');
-                if (jsonTextarea && window.nostrPublishController && typeof window.nostrPublishController.regenerateJsonPreview === 'function') {
-                    window.nostrPublishController.regenerateJsonPreview();
                 }
             }
         });
@@ -108,8 +85,27 @@ export default class extends Controller {
         } else if (mode === 'preview') {
             this.updatePreview();
         } else if (mode === 'json') {
-            // Optionally, trigger JSON formatting/validation
+            this.updateJsonCode();
         }
+    }
+
+    updateJsonCode() {
+        // Fill the JSON code block with the latest JSON event and highlight
+        if (!this.hasJsonCodeTarget) return;
+        let json = '';
+        const nostrController = this.application.getControllerForElementAndIdentifier(
+            this.element.querySelector('[data-controller*="nostr--nostr-publish"]'),
+            'nostr--nostr-publish'
+        );
+        if (nostrController && nostrController.hasJsonTextareaTarget) {
+            json = nostrController.jsonTextareaTarget.value;
+        }
+        try {
+            json = JSON.stringify(JSON.parse(json), null, 2);
+        } catch (e) {
+            // If not valid JSON, show as-is
+        }
+        this.jsonCodeTarget.textContent = json || 'No JSON event available.';
     }
 
     updateMarkdown() {
@@ -255,7 +251,7 @@ export default class extends Controller {
             'nostr--nostr-publish'
         );
 
-        if (nostrController) {
+        if (nostrController && typeof nostrController.publish === 'function') {
             console.log('[Editor] Nostr publish controller found, calling publish()');
             nostrController.publish();
         } else {

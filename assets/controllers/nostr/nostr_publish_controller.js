@@ -211,16 +211,21 @@ export default class extends Controller {
     }
   }
 
-  // If a user provided a partial or custom event, make sure required keys exist
-  applyEventDefaults(event, formData) {
+  // If a user provided a partial or custom event, make sure required keys exist and supplement from form
+  applyEventDefaults(event, formData, options = {}) {
     const now = Math.floor(Date.now() / 1000);
     const corrected = { ...event };
 
     // Ensure tags/content/kind/created_at/pubkey exist; tags default includes d/title/summary/image/topics
     if (!Array.isArray(corrected.tags)) corrected.tags = [];
 
-    // Supplement missing core fields from form
-    if (typeof corrected.kind !== 'number') corrected.kind = formData.isDraft ? 30024 : 30023;
+    // Supplement missing core fields from form or options
+    // Kind: explicit option > formData.isDraft > event.kind
+    if (typeof options.kind === 'number') {
+      corrected.kind = options.kind;
+    } else if (typeof corrected.kind !== 'number') {
+      corrected.kind = formData.isDraft ? 30024 : 30023;
+    }
     if (typeof corrected.created_at !== 'number') corrected.created_at = now;
     if (typeof corrected.content !== 'string') corrected.content = formData.content || '';
 
@@ -228,31 +233,33 @@ export default class extends Controller {
     if (!corrected.pubkey) corrected.pubkey = undefined; // will be filled by createNostrEvent path if used
 
     // Guarantee a d tag (slug)
-    const hasD = corrected.tags.some(t => Array.isArray(t) && t[0] === 'd');
-    if (!hasD && formData.slug) corrected.tags.push(['d', formData.slug]);
-
-    // Ensure title/summary/image/topics exist if absent
-    const ensureTag = (name, value) => {
-      if (!value) return;
-      const exists = corrected.tags.some(t => Array.isArray(t) && t[0] === name);
-      if (!exists) corrected.tags.push([name, value]);
-    };
-    ensureTag('title', formData.title);
-    ensureTag('summary', formData.summary);
-    ensureTag('image', formData.image);
-    for (const t of formData.topics || []) {
-      const exists = corrected.tags.some(tag => Array.isArray(tag) && tag[0] === 't' && tag[1] === t.replace('#', ''));
-      if (!exists) corrected.tags.push(['t', t.replace('#', '')]);
+    const tagsMap = new Map();
+    for (const t of corrected.tags) {
+      if (Array.isArray(t) && t.length > 0) tagsMap.set(t[0], t);
     }
-
+    if (formData.slug) tagsMap.set('d', ['d', formData.slug]);
+    if (formData.title) tagsMap.set('title', ['title', formData.title]);
+    if (formData.summary) tagsMap.set('summary', ['summary', formData.summary]);
+    if (formData.image) tagsMap.set('image', ['image', formData.image]);
+    // Topics: allow multiple t tags
+    if (formData.topics && Array.isArray(formData.topics)) {
+      // Remove all existing t tags
+      for (const key of Array.from(tagsMap.keys())) {
+        if (key === 't') tagsMap.delete(key);
+      }
+      for (const topic of formData.topics) {
+        tagsMap.set(`t:${topic.replace('#','')}`, ['t', topic.replace('#','')]);
+      }
+    }
     // Advanced tags from form, but don't duplicate existing tags by name
     if (formData.advancedMetadata) {
       const adv = buildAdvancedTags(formData.advancedMetadata);
       for (const tag of adv) {
-        const exists = corrected.tags.some(t => Array.isArray(t) && t[0] === tag[0]);
-        if (!exists) corrected.tags.push(tag);
+        if (!tagsMap.has(tag[0])) tagsMap.set(tag[0], tag);
       }
     }
+    // Rebuild tags array
+    corrected.tags = Array.from(tagsMap.values());
 
     return corrected;
   }
@@ -271,14 +278,8 @@ export default class extends Controller {
 
     const fd = new FormData(form);
 
-    // Prefer the Markdown field populated by the Quill controller
-    const md = fd.get('editor[content]');
-    let html = fd.get('editor[content]') || fd.get('content') || '';
-
-    // Final content: use MD if present, otherwise convert HTML -> MD
-    const content = (typeof md === 'string' && md.length > 0)
-      ? md
-      : this.htmlToMarkdown(String(html));
+    // Only use the Markdown field
+    const content = fd.get('editor[content]') || '';
 
     const title = fd.get('editor[title]') || '';
     const summary = fd.get('editor[summary]') || '';
@@ -437,69 +438,6 @@ export default class extends Controller {
     }
 
     return await response.json();
-  }
-
-  htmlToMarkdown(html) {
-    // Basic HTML to Markdown conversion
-    let markdown = html;
-
-    // Convert headers
-    markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n');
-    markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n');
-    markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n');
-
-    // Convert formatting
-    markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-    markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-    markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-    markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-
-    // Convert links
-    markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
-
-    // Convert images
-    markdown = markdown.replace(/<img\b[^>]*>/gi, (imgTag) => {
-      const srcMatch = imgTag.match(/src=["']([^"']+)["']/i);
-      const altMatch = imgTag.match(/alt=["']([^"']*)["']/i);
-      const src = srcMatch ? srcMatch[1] : '';
-      const alt = altMatch ? altMatch[1] : '';
-      return src ? `![${alt}](${src})` : '';
-    });
-
-    // Convert lists
-    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, '$1\n');
-    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, '$1\n');
-    markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-
-    // Convert paragraphs
-    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-
-    // Convert line breaks
-    markdown = markdown.replace(/<br[^>]*>/gi, '\n');
-
-    // Convert blockquotes
-    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, '> $1\n\n');
-
-    // Convert code blocks
-    markdown = markdown.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gis, '```\n$1\n```\n\n');
-    markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
-
-    // Escape "_" inside display math $$...$$ and inline math $...$
-    markdown = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (m, g1) => `$$${g1.replace(/_/g, (u, i, s) => (i>0 && s[i-1]==='\\') ? '\\_' : '\\_')}$$`);
-    markdown = markdown.replace(/\$([^$]*?)\$/g, (m, g1) => `$${g1.replace(/_/g, (u, i, s) => (i>0 && s[i-1]==='\\') ? '\\_' : '\\_')}$`);
-
-    // Clean up HTML entities and remaining tags
-    markdown = markdown.replace(/&nbsp;/g, ' ');
-    markdown = markdown.replace(/&amp;/g, '&');
-    markdown = markdown.replace(/&lt;/g, '<');
-    markdown = markdown.replace(/&gt;/g, '>');
-    markdown = markdown.replace(/&quot;/g, '"');
-    markdown = markdown.replace(/<[^>]*>/g, '');
-
-    // Clean up extra whitespace
-    markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
-
-    return markdown;
   }
 
   generateSlug(title) {

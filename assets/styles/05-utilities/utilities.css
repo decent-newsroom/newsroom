@@ -28,7 +28,7 @@
 .d-block{display:block!important}
 .gap-0{gap:0!important}.gap-1{gap:.25rem!important}.gap-2{gap:.5rem!important}.gap-3{gap:1rem!important}.gap-4{gap:1.5rem!important}.gap-5{gap:3rem!important}
 
-.flex-row{flex-direction:row}
+.flex-row{flex-direction:row}.flex-row-reverse{flex-direction:row-reverse}
 .flex-wrap{flex-wrap: wrap}
 .justify-content-between{justify-content:space-between!important}
 .justify-content-center{justify-content:center!important}

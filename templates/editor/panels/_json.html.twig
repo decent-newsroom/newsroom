@@ -1,13 +1,13 @@
 <div class="panel-section" data-controller="editor--json-panel">
-    <div class="mb-3">
-        <button
-            type="button"
-            class="btn btn-sm btn-primary w-100"
-            data-action="click->editor--json-panel#regenerateJson"
-        >
-            Rebuild from form
-        </button>
-    </div>
+{#    <div class="mb-3">#}
+{#        <button#}
+{#            type="button"#}
+{#            class="btn btn-sm btn-primary w-100"#}
+{#            data-action="click->editor--json-panel#regenerateJson"#}
+{#        >#}
+{#            Rebuild from form#}
+{#        </button>#}
+{#    </div>#}
 
     <div class="json-editor-container">
         <textarea
@@ -15,19 +15,18 @@
             class="json-textarea"
             data-editor--json-panel-target="jsonTextarea"
             data-nostr--nostr-publish-target="jsonTextarea"
-            data-action="input->nostr--nostr-publish#onJsonInput input->editor--json-panel#onJsonInput"
             rows="20"
             spellcheck="false"
         >{{ article.raw is defined and article.raw ? article.raw|json_encode(constant('JSON_PRETTY_PRINT')) : '' }}</textarea>
         <div class="json-status" data-editor--json-panel-target="status"></div>
     </div>
 
-    <div class="panel-help mt-2">
-        <small>
-            <strong>Required fields:</strong> kind, created_at, tags, content, pubkey<br>
-            <span class="text-warning" data-editor--json-panel-target="dirtyHint" style="display:none">
-                ⚠️ JSON modified - will override form values
-            </span>
-        </small>
-    </div>
+{#    <div class="panel-help mt-2">#}
+{#        <small>#}
+{#            <strong>Required fields:</strong> kind, created_at, tags, content, pubkey<br>#}
+{#            <span class="text-warning" data-editor--json-panel-target="dirtyHint" style="display:none">#}
+{#                ⚠️ JSON modified - will override form values#}
+{#            </span>#}
+{#        </small>#}
+{#    </div>#}
 </div>

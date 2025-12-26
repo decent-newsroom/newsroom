@@ -45,6 +45,35 @@ export default class extends Controller {
         } else {
             this.cmView = this.textarea._codemirror;
         }
+
+        // Restore from localStorage if available
+        const savedJson = localStorage.getItem('editorState');
+        if (savedJson) {
+            try {
+                JSON.parse(savedJson); // Validate JSON
+                this.jsonTextareaTarget.value = savedJson;
+                if (this.cmView) {
+                    this.cmView.dispatch({
+                        changes: {from: 0, to: this.cmView.state.doc.length, insert: savedJson}
+                    });
+                }
+            } catch (e) {
+                // Ignore corrupt JSON
+                localStorage.removeItem('editorState');
+            }
+        }
+        // Periodic save every 10 seconds
+        this._saveInterval = setInterval(() => {
+            if (this.hasJsonTextareaTarget) {
+                const value = this.jsonTextareaTarget.value;
+                try {
+                    JSON.parse(value); // Only save valid JSON
+                    localStorage.setItem('editorState', value);
+                } catch (e) {
+                    // Do not save invalid JSON
+                }
+            }
+        }, 10000);
     }
 
     disconnect() {
@@ -60,6 +89,12 @@ export default class extends Controller {
         }
         this.textarea.style.display = '';
         this.textarea._codemirror = null;
+
+        // Clear periodic save interval
+        if (this._saveInterval) {
+            clearInterval(this._saveInterval);
+            this._saveInterval = null;
+        }
     }
 
     handleMarkdownInput() {

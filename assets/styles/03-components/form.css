@@ -21,7 +21,8 @@ label {
     clear: both;
 }
 
-input, textarea, select {
+input:not([type="checkbox"]):not([type="radio"]),
+textarea, select {
     display: block;
     clear: both;
     width: 100%;
