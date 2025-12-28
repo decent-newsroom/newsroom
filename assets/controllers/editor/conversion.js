@@ -1,43 +1,33 @@
+// assets/controllers/editor/conversion.js
+//
+// Canonical Delta <-> Markdown conversion for QuillJS.
+//
+// Canonical delta contract (enforced by markdownToDelta; assumed by deltaToMarkdown):
+// - Newlines are standalone ops: { insert: '\n', attributes?: { ...blockAttrs } }
+// - Block attrs live only on newline ops: header, blockquote, list, indent, code-block
+// - Inline attrs live on text ops: bold, italic, strike, code, link
+// - Text ops do not contain embedded '\n' (deltaToMarkdown tolerates splitting, but no block attrs from text ops)
+//
+// Markdown subset supported:
+// - #..###### headings
+// - > blockquote (single-line)
+// - ordered lists ("1. item") and bullet lists ("- item" or "* item") with indentation by leading spaces
+// - fenced code blocks ```
+// - inline: `code`, **bold**, *italic*, ~~strike~~, [label](url)
+//
+// Underline intentionally unsupported.
+
 import Delta from '../../vendor/quill-delta/quill-delta.index.js';
 
-/**
- * Optional: enforce canonical delta contract during development.
- * Enable by passing { strict: true } to deltaToMarkdown().
- */
-function assertCanonicalDelta(delta) {
-  if (!delta || !Array.isArray(delta.ops)) throw new Error('Invalid delta: missing ops array');
+// ---------------------------
+// Delta -> Markdown
+// ---------------------------
 
-  for (const op of delta.ops) {
-    // Embeds are allowed
-    if (op.insert && typeof op.insert === 'object') continue;
-
-    if (typeof op.insert === 'string') {
-      const isNewline = op.insert === '\n';
-
-      // Canonical rule: text ops must not contain embedded newlines
-      if (!isNewline && op.insert.includes('\n')) {
-        throw new Error('Non-canonical delta: text op contains embedded \\n');
-      }
-
-      // Canonical rule: block attrs must appear only on newline ops
-      if (!isNewline && op.attributes) {
-        const blockKeys = ['header', 'blockquote', 'list', 'indent', 'code-block'];
-        for (const k of blockKeys) {
-          if (k in op.attributes) {
-            throw new Error(`Non-canonical delta: block attr "${k}" found on text op`);
-          }
-        }
-      }
-    }
-  }
-}
-
-// --- Delta to Markdown (canonical) ---
 export function deltaToMarkdown(delta, opts = {}) {
   const options = {
-    strict: false,         // set true during dev to catch non-canonical deltas
+    strict: false, // if true, throw on non-canonical deltas
     fence: '```',
-    orderedListStyle: 'one', // 'one' or 'increment'
+    orderedListStyle: 'increment', // 'one' | 'increment'
     embedToMarkdown: (embed) => {
       if (!embed || typeof embed !== 'object') return '';
       if (embed.image) return `![](${String(embed.image)})`;
@@ -58,38 +48,6 @@ export function deltaToMarkdown(delta, opts = {}) {
   let inCodeBlock = false;
   let inList = null; // 'ordered' | 'bullet' | null
   let listCounter = 1;
-
-  const escapeText = (s) =>
-    String(s)
-      .replace(/\\/g, '\\\\')
-      .replace(/([*_`[\]~])/g, '\\$1');
-
-  const escapeLinkText = (s) =>
-    String(s).replace(/\\/g, '\\\\').replace(/([\[\]])/g, '\\$1');
-
-  const escapeLinkUrl = (s) => String(s).replace(/\s/g, '%20');
-
-  function renderInlineText(text, attrs = {}) {
-    if (!text) return '';
-
-    if (attrs.code) {
-      const t = String(text).replace(/`/g, '\\`');
-      return `\`${t}\``;
-    }
-
-    let out = escapeText(text);
-
-    if (attrs.link) {
-      out = `[${escapeLinkText(out)}](${escapeLinkUrl(attrs.link)})`;
-    }
-
-    // wrapper order is a choice; keep it stable
-    if (attrs.strike) out = `~~${out}~~`;
-    if (attrs.bold) out = `**${out}**`;
-    if (attrs.italic) out = `*${out}*`;
-
-    return out;
-  }
 
   const closeList = () => {
     if (inList) {
@@ -114,11 +72,44 @@ export function deltaToMarkdown(delta, opts = {}) {
     }
   };
 
-  function flushLine(attrs = {}) {
-    // code block line
+  const escapeText = (s) =>
+    String(s)
+      .replace(/\\/g, '\\\\')
+      .replace(/([*_`[\]~])/g, '\\$1');
+
+  const escapeLinkText = (s) =>
+    String(s).replace(/\\/g, '\\\\').replace(/([\[\]])/g, '\\$1');
+
+  const escapeLinkUrl = (s) => String(s).replace(/\s/g, '%20');
+
+  function renderInline(text, attrs = {}) {
+    if (!text) return '';
+
+    if (attrs.code) {
+      return `\`${String(text).replace(/`/g, '\\`')}\``;
+    }
+
+    let out = escapeText(text);
+
+    if (attrs.link) {
+      out = `[${escapeLinkText(out)}](${escapeLinkUrl(attrs.link)})`;
+    }
+
+    // Stable wrapper order
+    if (attrs.strike) out = `~~${out}~~`;
+    if (attrs.bold) out = `**${out}**`;
+    if (attrs.italic) out = `*${out}*`;
+
+    return out;
+  }
+
+  function flushLine(blockAttrs = {}) {
+    const attrs = blockAttrs || {};
+
+    // code-block line
     if (attrs['code-block']) {
       openFence();
-      md += `${line}\n`;  // raw
+      md += `${line}\n`; // raw content
       line = '';
       return;
     }
@@ -132,8 +123,10 @@ export function deltaToMarkdown(delta, opts = {}) {
     // list line
     if (attrs.list === 'ordered' || attrs.list === 'bullet') {
       const newType = attrs.list;
+
       if (inList && inList !== newType) md += '\n';
       if (!inList) listCounter = 1;
+
       inList = newType;
 
       const marker =
@@ -158,13 +151,13 @@ export function deltaToMarkdown(delta, opts = {}) {
 
     // header
     if (attrs.header) {
-      const level = Math.min(6, Math.max(1, Number(attrs.header) || 1));
+      const level = clampInt(attrs.header, 1, 6);
       md += `${'#'.repeat(level)} ${line}\n`;
       line = '';
       return;
     }
 
-    // normal / blank
+    // normal / blank line
     if (!line.length) {
       md += '\n';
       return;
@@ -175,14 +168,14 @@ export function deltaToMarkdown(delta, opts = {}) {
   }
 
   for (const op of delta.ops) {
-    // embeds
+    // embed
     if (op.insert && typeof op.insert === 'object') {
       const embedMd = options.embedToMarkdown(op.insert);
       if (embedMd) line += embedMd;
       continue;
     }
 
-    // newline
+    // newline (block attrs live here)
     if (op.insert === '\n') {
       flushLine(op.attributes || {});
       continue;
@@ -190,19 +183,15 @@ export function deltaToMarkdown(delta, opts = {}) {
 
     // text
     if (typeof op.insert === 'string') {
-      // If you truly enforce canonical, this is safe.
-      // If you want mild robustness without supporting "weird attrs",
-      // you can split embedded newlines but apply NO block attrs here:
+      // Tolerate embedded newlines (no block attrs here).
       if (op.insert.includes('\n')) {
-        // Non-canonical: split without block formatting support
         const parts = op.insert.split('\n');
         for (let p = 0; p < parts.length; p++) {
-          if (parts[p]) line += renderInlineText(parts[p], op.attributes || {});
+          if (parts[p]) line += inCodeBlock ? parts[p] : renderInline(parts[p], op.attributes || {});
           if (p < parts.length - 1) flushLine({});
         }
       } else {
-        if (inCodeBlock) line += op.insert; // raw inside fence
-        else line += renderInlineText(op.insert, op.attributes || {});
+        line += inCodeBlock ? op.insert : renderInline(op.insert, op.attributes || {});
       }
     }
   }
@@ -222,11 +211,38 @@ export function deltaToMarkdown(delta, opts = {}) {
   return md.replace(/[ \t]+\n/g, '\n').replace(/\s+$/, '');
 }
 
-// --- Markdown to Delta (canonical) ---
+function assertCanonicalDelta(delta) {
+  const blockKeys = ['header', 'blockquote', 'list', 'indent', 'code-block'];
+
+  for (const op of delta.ops) {
+    if (op.insert && typeof op.insert === 'object') continue;
+
+    if (typeof op.insert === 'string') {
+      const isNewline = op.insert === '\n';
+
+      if (!isNewline && op.insert.includes('\n')) {
+        throw new Error('Non-canonical delta: text op contains embedded \\n');
+      }
+
+      if (!isNewline && op.attributes) {
+        for (const k of blockKeys) {
+          if (k in op.attributes) {
+            throw new Error(`Non-canonical delta: block attr "${k}" found on text op`);
+          }
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------
+// Markdown -> Delta (canonical)
+// ---------------------------
+
 export function markdownToDelta(md, opts = {}) {
   const options = {
     fence: '```',
-    indentSize: 2, // spaces per indent level for lists
+    indentSize: 2, // leading spaces per list indent level
     ...opts,
   };
 
@@ -239,13 +255,13 @@ export function markdownToDelta(md, opts = {}) {
   for (const rawLine of lines) {
     const line = rawLine;
 
-    // code fence toggle
+    // fence toggle
     if (line.trim().startsWith(options.fence)) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
 
-    // code block content: emit per-line canonical Quill code-block
+    // code-block content: canonical Quill style (attrs on newline per line)
     if (inCodeBlock) {
       if (line.length) ops.push({ insert: line });
       ops.push({ insert: '\n', attributes: { 'code-block': true } });
@@ -268,7 +284,7 @@ export function markdownToDelta(md, opts = {}) {
       continue;
     }
 
-    // blockquote (canonical: attrs on newline)
+    // blockquote
     const quoteMatch = line.match(/^>\s?(.*)$/);
     if (quoteMatch) {
       const content = quoteMatch[1] ?? '';
@@ -277,11 +293,12 @@ export function markdownToDelta(md, opts = {}) {
       continue;
     }
 
-    // lists with indent
+    // list indent by leading spaces (tabs treated as 4 spaces)
     const leadingSpaces = (line.match(/^(\s*)/)?.[1] ?? '').replace(/\t/g, '    ').length;
     const indent = Math.floor(leadingSpaces / options.indentSize);
     const trimmed = line.trimStart();
 
+    // ordered list
     const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
     if (olMatch) {
       const content = olMatch[1] ?? '';
@@ -290,6 +307,7 @@ export function markdownToDelta(md, opts = {}) {
       continue;
     }
 
+    // bullet list
     const ulMatch = trimmed.match(/^[-*]\s+(.*)$/);
     if (ulMatch) {
       const content = ulMatch[1] ?? '';
@@ -304,13 +322,17 @@ export function markdownToDelta(md, opts = {}) {
   }
 
   // ensure trailing newline
-  if (ops.length === 0 || ops[ops.length - 1].insert !== '\n') ops.push({ insert: '\n' });
+  if (ops.length === 0 || ops[ops.length - 1].insert !== '\n') {
+    ops.push({ insert: '\n' });
+  }
 
   return new Delta(ops);
 }
 
-// Deterministic inline parser for your subset.
-// (This replaces regex-overlap issues in parseInlineOps.)
+// ---------------------------
+// Inline markdown parsing (subset)
+// ---------------------------
+
 function inlineMarkdownToOps(text) {
   const ops = [];
   let i = 0;
@@ -318,7 +340,7 @@ function inlineMarkdownToOps(text) {
   const pushText = (t) => { if (t) ops.push({ insert: t }); };
 
   while (i < text.length) {
-    // inline code
+    // inline code: `...`
     if (text[i] === '`') {
       const end = text.indexOf('`', i + 1);
       if (end !== -1) {
@@ -327,10 +349,10 @@ function inlineMarkdownToOps(text) {
         i = end + 1;
         continue;
       }
-      pushText('`'); i++; continue;
+      pushText('`'); i += 1; continue;
     }
 
-    // link
+    // link: [label](url)
     if (text[i] === '[') {
       const closeBracket = text.indexOf(']', i + 1);
       if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
@@ -343,10 +365,10 @@ function inlineMarkdownToOps(text) {
           continue;
         }
       }
-      pushText('['); i++; continue;
+      pushText('['); i += 1; continue;
     }
 
-    // bold
+    // bold: **...**
     if (text.startsWith('**', i)) {
       const end = text.indexOf('**', i + 2);
       if (end !== -1) {
@@ -355,10 +377,10 @@ function inlineMarkdownToOps(text) {
         i = end + 2;
         continue;
       }
-      pushText('*'); i++; continue;
+      pushText('*'); i += 1; continue;
     }
 
-    // strike
+    // strike: ~~...~~
     if (text.startsWith('~~', i)) {
       const end = text.indexOf('~~', i + 2);
       if (end !== -1) {
@@ -367,10 +389,10 @@ function inlineMarkdownToOps(text) {
         i = end + 2;
         continue;
       }
-      pushText('~'); i++; continue;
+      pushText('~'); i += 1; continue;
     }
 
-    // italic
+    // italic: *...*
     if (text[i] === '*') {
       const end = text.indexOf('*', i + 1);
       if (end !== -1) {
@@ -379,7 +401,7 @@ function inlineMarkdownToOps(text) {
         i = end + 1;
         continue;
       }
-      pushText('*'); i++; continue;
+      pushText('*'); i += 1; continue;
     }
 
     // plain run
@@ -399,4 +421,10 @@ function nextSpecialIndex(text, start) {
     if (idx !== -1 && idx < min) min = idx;
   }
   return min;
+}
+
+function clampInt(value, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, Math.trunc(n)));
 }

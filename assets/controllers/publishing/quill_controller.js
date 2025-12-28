@@ -184,8 +184,7 @@ export default class extends Controller {
       // --- Quill → Markdown sync ---
       if (this.hasMarkdownTarget) {
         if (window.deltaToMarkdown) {
-          const md = window.deltaToMarkdown(this.quill.getContents());
-          this.markdownTarget.value = md;
+          this.markdownTarget.value = window.deltaToMarkdown(this.quill.getContents());
           // Trigger event for reactivity
           this.markdownTarget.dispatchEvent(new Event('input', { bubbles: true }));
           // Also trigger a custom event for layout controller
