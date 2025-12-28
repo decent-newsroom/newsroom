@@ -1,5 +1,6 @@
 // assets/controllers/editor/layout_controller.js
 import {Controller} from '@hotwired/stimulus';
+import { deltaToMarkdown, markdownToDelta } from './conversion.js';
 
 export default class extends Controller {
     static targets = [
@@ -13,6 +14,18 @@ export default class extends Controller {
     connect() {
         console.log('Editor layout controller connected');
         this.autoSaveTimer = null;
+
+        // --- Editor State Object ---
+        // See documentation/Editor/Reactivity-and-state-management.md
+        this.state = {
+            active_source: 'md',   // Markdown is authoritative on load
+            content_delta: null,    // Quill Delta (object)
+            content_NMD: '',        // Markdown string
+            content_event_json: {}  // Derived event JSON
+        };
+        this.hydrateState();
+        this.updateMarkdownEditor();
+        this.updateQuillEditor();
 
         // Live preview for summary and image fields
         const summaryInput = this.element.querySelector('textarea[name*="[summary]"], textarea[name="editor[summary]"]');
@@ -30,24 +43,37 @@ export default class extends Controller {
         this.element.addEventListener('content:changed', () => {
             this.updatePreview();
             this.updateJsonCode();
-            // Update Quill pane live
-            const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
-            if (markdownInput && window.appQuill) {
-                if (window.marked) {
-                    window.appQuill.root.innerHTML = window.marked.parse(markdownInput.value || '');
-                } else {
-                    fetch('/editor/markdown/preview', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                        body: JSON.stringify({ markdown: markdownInput.value || '' })
-                    })
-                    .then(resp => resp.ok ? resp.json() : { html: '' })
-                    .then(data => { window.appQuill.root.innerHTML = data.html || ''; });
-                }
-            }
+            // Do NOT update Quill from Markdown here; only do so on explicit mode switch
         });
     }
 
+    hydrateState() {
+        // Always hydrate from Markdown (content_NMD) on load
+        // (Assume hidden field with ID: contentNMD or textarea[name="editor[content]"])
+        let nmd = '';
+        const nmdField = document.getElementById('contentNMD');
+        if (nmdField && nmdField.value) {
+            nmd = nmdField.value;
+        } else {
+            // Fallback: try textarea
+            const mdTextarea = this.element.querySelector('textarea[name="editor[content]"]');
+            if (mdTextarea) nmd = mdTextarea.value;
+        }
+        this.state.content_NMD = nmd;
+        this.state.content_delta = this.nmdToDelta(nmd);
+        this.state.active_source = 'md';
+    }
+
+    persistState() {
+        // Save state to localStorage and hidden fields
+        localStorage.setItem('editorState', JSON.stringify(this.state));
+        const deltaField = document.getElementById('contentDelta');
+        const nmdField = document.getElementById('contentNMD');
+        if (deltaField) deltaField.value = JSON.stringify(this.state.content_delta || {});
+        if (nmdField) nmdField.value = this.state.content_NMD || '';
+    }
+
+    // --- Tab Switching Logic ---
     switchMode(event) {
         const mode = event.currentTarget.dataset.mode;
 
@@ -63,30 +89,35 @@ export default class extends Controller {
         this.previewPaneTarget.classList.toggle('is-hidden', mode !== 'preview');
 
         // Update content when switching modes
-        if (mode === 'markdown') {
-            this.updateMarkdown();
+        if (mode === 'markdown' && this.state.active_source === 'quill') {
+            // Convert Delta to NMD
+            this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
+            this.state.active_source = 'md';
+            this.updateMarkdownEditor();
         } else if (mode === 'edit') {
-            // Sync Markdown to Quill when switching to Quill pane
+            // Always convert latest Markdown to Delta and update Quill
+            // (regardless of previous active_source)
+            // Get latest Markdown from textarea or CodeMirror
+            let nmd = '';
             const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
-            if (markdownInput && window.appQuill) {
-                if (window.marked) {
-                    window.appQuill.root.innerHTML = window.marked.parse(markdownInput.value || '');
-                } else {
-                    // Fallback: use backend endpoint
-                    fetch('/editor/markdown/preview', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                        body: JSON.stringify({ markdown: markdownInput.value || '' })
-                    })
-                    .then(resp => resp.ok ? resp.json() : { html: '' })
-                    .then(data => { window.appQuill.root.innerHTML = data.html || ''; });
-                }
+            if (markdownInput && markdownInput._codemirror) {
+                nmd = markdownInput._codemirror.state.doc.toString();
+            } else if (markdownInput) {
+                nmd = markdownInput.value;
+            } else {
+                nmd = this.state.content_NMD;
             }
+            this.state.content_NMD = nmd;
+            this.state.content_delta = this.nmdToDelta(nmd);
+            this.state.active_source = 'quill';
+            this.updateQuillEditor();
         } else if (mode === 'preview') {
             this.updatePreview();
         } else if (mode === 'json') {
             this.updateJsonCode();
         }
+        this.persistState();
+        this.emitContentChanged();
     }
 
     updateJsonCode() {
@@ -286,5 +317,58 @@ export default class extends Controller {
         if (this.autoSaveTimer) {
             clearTimeout(this.autoSaveTimer);
         }
+    }
+
+    // --- Content Update Handlers ---
+    onQuillChange(delta) {
+        this.state.content_delta = delta;
+        this.state.active_source = 'quill';
+        this.persistState();
+        this.emitContentChanged();
+    }
+    onMarkdownChange(nmd) {
+        this.state.content_NMD = nmd;
+        this.state.active_source = 'md';
+        this.persistState();
+        this.emitContentChanged();
+    }
+
+    // --- Editor Sync Helpers ---
+    updateMarkdownEditor() {
+        // Set Markdown editor value from state.content_NMD
+        const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
+        if (markdownInput) markdownInput.value = this.state.content_NMD || '';
+        // If using CodeMirror, update its doc as well
+        if (markdownInput && markdownInput._codemirror) {
+            markdownInput._codemirror.dispatch({
+                changes: { from: 0, to: markdownInput._codemirror.state.doc.length, insert: this.state.content_NMD || '' }
+            });
+        }
+    }
+    updateQuillEditor() {
+        // Set Quill editor value from state.content_delta
+        if (window.appQuill && this.state.content_delta) {
+            window.appQuill.setContents(this.state.content_delta);
+        }
+    }
+
+    // --- Conversion Stubs (implement via DNIR pipeline) ---
+    deltaToNMD(delta) {
+        // Use conversion pipeline
+        return deltaToMarkdown(delta);
+    }
+    nmdToDelta(nmd) {
+        // Use conversion pipeline
+        console.log('Converting NMD to Delta:', nmd);
+        console.log('Converted Delta:', markdownToDelta(nmd));
+        return markdownToDelta(nmd);
+    }
+
+    emitContentChanged() {
+        // Emit a custom event with the new state
+        this.element.dispatchEvent(new CustomEvent('content:changed', {
+            detail: { ...this.state },
+            bubbles: true
+        }));
     }
 }

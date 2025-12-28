@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Form;
 
-use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
 use App\Form\DataTransformer\CommaSeparatedToJsonTransformer;
 use App\Form\Type\QuillType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
@@ -68,6 +68,16 @@ class EditorType extends AbstractType
                 'label' => false,
                 'required' => false,
                 'mapped' => false,
+            ])
+            ->add('contentDelta', HiddenType::class, [
+                'required' => false,
+                'mapped' => false,
+                'attr' => ['type' => 'hidden'],
+            ])
+            ->add('contentNMD', HiddenType::class, [
+                'required' => false,
+                'mapped' => false,
+                'attr' => ['type' => 'hidden'],
             ]);
 
         // Apply the custom transformer

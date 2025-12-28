@@ -192,6 +192,14 @@ export default class extends Controller {
           this.element.dispatchEvent(new CustomEvent('content:changed', { bubbles: true }));
         }
       }
+      // --- Call layoutController.onQuillChange for state sync ---
+      const layoutController = this.application.getControllerForElementAndIdentifier(
+        this.element.closest('[data-controller~="editor--layout"]'),
+        'editor--layout'
+      );
+      if (layoutController && typeof layoutController.onQuillChange === 'function') {
+        layoutController.onQuillChange(this.quill.getContents());
+      }
     });
 
     // Expose a method to set Quill content from HTML

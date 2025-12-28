@@ -93,6 +93,9 @@
 
             <div class="editor-center-content">
                 {{ form_start(form) }}
+                {# Hidden fields for content delta and NMD #}
+                {{ form_widget(form.contentDelta) }}
+                {{ form_widget(form.contentNMD) }}
 
                 <div
                     class="editor-pane editor-pane--edit"
@@ -203,15 +206,15 @@
                 >
                     Metadata
                 </button>
-                <button
-                    type="button"
-                    class="editor-sidebar-tab"
-                    data-editor--panels-target="tab"
-                    data-panel="advanced"
-                    data-action="editor--panels#switch"
-                >
-                    Advanced
-                </button>
+{#                <button#}
+{#                    type="button"#}
+{#                    class="editor-sidebar-tab"#}
+{#                    data-editor--panels-target="tab"#}
+{#                    data-panel="advanced"#}
+{#                    data-action="editor--panels#switch"#}
+{#                >#}
+{#                    Advanced#}
+{#                </button>#}
                 <button
                     type="button"
                     class="editor-sidebar-tab"

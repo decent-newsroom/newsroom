@@ -35,6 +35,17 @@ export default class extends Controller {
     // Observe programmatic changes to the value attribute
     this.observer = new MutationObserver(() => this.updateMarkdown());
     this.observer.observe(this.textarea, { attributes: true, attributeFilter: ["value"] });
+
+    // --- Call layoutController.onMarkdownChange for state sync ---
+    this.textarea.addEventListener('input', () => {
+      const layoutController = this.application.getControllerForElementAndIdentifier(
+        this.element.closest('[data-controller~="editor--layout"]'),
+        'editor--layout'
+      );
+      if (layoutController && typeof layoutController.onMarkdownChange === 'function') {
+        layoutController.onMarkdownChange(this.textarea.value);
+      }
+    });
   }
 
   disconnect() {
@@ -50,28 +61,6 @@ export default class extends Controller {
   async updateMarkdown() {
     if (this.codePreview) {
       this.codePreview.textContent = this.textarea.value;
-    }
-    // Sync Markdown to Quill (content_html)
-    if (window.appQuill) {
-      let html = '';
-      if (window.marked) {
-        html = window.marked.parse(this.textarea.value || '');
-      } else {
-        // Fallback: use backend endpoint
-        try {
-          const resp = await fetch('/editor/markdown/preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ markdown: this.textarea.value || '' })
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            html = data.html || '';
-          }
-        } catch (e) { html = ''; }
-      }
-      // Set Quill content from HTML (replace contents)
-      window.appQuill.root.innerHTML = html;
     }
   }
 }
