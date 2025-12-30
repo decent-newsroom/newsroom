@@ -516,12 +516,24 @@ export default class extends Controller {
     if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-info">${message}</div>`;
     }
+    // Clear status after 3 seconds
+    setTimeout(() => {
+      if (this.hasStatusTarget) {
+        this.statusTarget.innerHTML = '';
+      }
+    }, 3000);
   }
 
   showSuccess(message) {
     if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-success">${message}</div>`;
     }
+    // Clear status after 3 seconds
+    setTimeout(() => {
+      if (this.hasStatusTarget) {
+        this.statusTarget.innerHTML = '';
+      }
+    }, 3000);
   }
 
   showError(message) {
