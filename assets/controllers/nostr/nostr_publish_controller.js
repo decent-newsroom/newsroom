@@ -1,4 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
+import { EditorView, basicSetup } from 'codemirror';
+import { json } from '@codemirror/lang-json';
 
 // Inline utility functions (simplified versions)
 function buildAdvancedTags(metadata) {
@@ -82,7 +84,9 @@ function validateAdvancedMetadata(metadata) {
 }
 
 export default class extends Controller {
-  static targets = ['form', 'publishButton', 'status', 'jsonContainer', 'jsonTextarea', 'jsonToggle', 'jsonDirtyHint'];
+  static targets = [
+        'form', 'publishButton', 'status', 'jsonContainer', 'jsonTextarea', 'jsonDirtyHint', 'jsonTimestamp'
+    ];
   static values = {
     publishUrl: String
   };
@@ -96,39 +100,90 @@ export default class extends Controller {
 
     // Track whether JSON has been manually edited
     this.jsonEdited = false;
-  }
 
-  // Toggle JSON preview visibility. If opening and empty, generate from form.
-  toggleJsonPreview() {
-    if (!this.hasJsonContainerTarget) return;
-    const wasHidden = this.jsonContainerTarget.hasAttribute('hidden');
-    if (wasHidden) {
-      // opening
-      if (!this.jsonEdited && (!this.hasJsonTextareaTarget || !this.jsonTextareaTarget.value.trim())) {
-        this.regenerateJsonPreview();
+    // Setup CodeMirror for JSON textarea (syntax highlighting)
+    if (this.hasJsonTextareaTarget) {
+      this.textarea = this.jsonTextareaTarget;
+      if (!this.textarea._codemirror) {
+        this.textarea.style.display = 'none';
+        this.cmParent = document.createElement('div');
+        this.textarea.parentNode.insertBefore(this.cmParent, this.textarea);
+        console.log('[nostr-publish] Initializing CodeMirror for JSON textarea', this.textarea.value);
+        this.cmView = new EditorView({
+          doc: this.textarea.value,
+          extensions: [
+            basicSetup, json(),
+            EditorView.lineWrapping,
+            EditorView.updateListener.of((v) => {
+              console.log('[nostr-publish] CodeMirror update (alt):', v);
+              if (v.docChanged) {
+                const newValue = this.cmView.state.doc.toString();
+                if (this.textarea.value !== newValue) {
+                  this.textarea.value = newValue;
+                  // Manually dispatch an input event to ensure listeners are triggered
+                  this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                  // Mark JSON as edited
+                  this.jsonEdited = true;
+                  if (this.hasJsonDirtyHintTarget) {
+                    this.jsonDirtyHintTarget.style.display = 'block';
+                  }
+                }
+              }
+            })
+          ],
+          parent: this.cmParent,
+          updateListener: (update) => {
+            console.log('[nostr-publish] CodeMirror update:', update);
+            if (update.docChanged) {
+              const newValue = this.cmView.state.doc.toString();
+              if (this.textarea.value !== newValue) {
+                this.textarea.value = newValue;
+                // Manually dispatch an input event to ensure listeners are triggered
+                this.textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                // Mark JSON as edited
+                this.jsonEdited = true;
+                if (this.hasJsonDirtyHintTarget) {
+                  this.jsonDirtyHintTarget.style.display = 'block';
+                }
+              }
+            }
+          }
+        });
+        this.textarea._codemirror = this.cmView;
+      } else {
+        this.cmView = this.textarea._codemirror;
       }
-      this.jsonContainerTarget.removeAttribute('hidden');
-      if (this.hasJsonToggleTarget) this.jsonToggleTarget.textContent = 'Hide raw event JSON';
-    } else {
-      // closing, keep content as-is
-      this.jsonContainerTarget.setAttribute('hidden', '');
-      if (this.hasJsonToggleTarget) this.jsonToggleTarget.textContent = 'Show raw event JSON';
     }
+
+    this.lastJsonGenerated = null;
   }
 
-  // Rebuild JSON from form data (clears edited flag)
   async regenerateJsonPreview() {
     try {
       const formData = this.collectFormData();
       const nostrEvent = await this.createNostrEvent(formData);
       const pretty = JSON.stringify(nostrEvent, null, 2);
-      if (this.hasJsonTextareaTarget) this.jsonTextareaTarget.value = pretty;
+      if (this.hasJsonTextareaTarget) {
+        this.jsonTextareaTarget.value = pretty;
+        if (this.cmView) {
+          this.cmView.dispatch({
+            changes: {from: 0, to: this.cmView.state.doc.length, insert: pretty}
+          });
+        }
+      }
       this.jsonEdited = false;
       if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = 'none';
-      // Dispatch event to notify others that JSON is ready
-      this.element.dispatchEvent(new CustomEvent('nostr-json-ready', { bubbles: true }));
+      this.lastJsonGenerated = new Date();
+      this.updateJsonTimestamp();
     } catch (e) {
       this.showError('Could not build event JSON: ' + (e?.message || e));
+    }
+  }
+
+  updateJsonTimestamp() {
+    if (this.hasJsonTimestampTarget && this.lastJsonGenerated) {
+      const ts = this.lastJsonGenerated;
+      this.jsonTimestampTarget.textContent = `Last generated: ${ts.toLocaleString()}`;
     }
   }
 
@@ -136,6 +191,16 @@ export default class extends Controller {
   onJsonInput() {
     this.jsonEdited = true;
     if (this.hasJsonDirtyHintTarget) this.jsonDirtyHintTarget.style.display = '';
+  }
+
+  getCurrentJson() {
+    if (this.cmView) {
+      return this.cmView.state.doc.toString();
+    }
+    if (this.hasJsonTextareaTarget) {
+      return this.jsonTextareaTarget.value;
+    }
+    return '';
   }
 
   async publish(event = null) {
@@ -157,28 +222,18 @@ export default class extends Controller {
     this.showStatus('Preparing article for signing...');
 
     try {
-      // Collect form data (always, for fallback and backend extras)
-      const formData = this.collectFormData();
-
-      // Validate required fields if no JSON override
-      if (!this.jsonEdited) {
-        if (!formData.title || !formData.content) {
-          throw new Error('Title and content are required');
-        }
-      }
-
-      // Create or use overridden Nostr event
+      // Use canonical CodeMirror JSON for publishing
       let nostrEvent;
-      if (this.jsonEdited && this.hasJsonTextareaTarget && this.jsonTextareaTarget.value.trim()) {
+      const jsonString = this.getCurrentJson();
+      if (jsonString.trim()) {
         try {
-          const parsed = JSON.parse(this.jsonTextareaTarget.value);
-          // Ensure required fields exist; supplement from form when missing
-          nostrEvent = this.applyEventDefaults(parsed, formData);
+          nostrEvent = JSON.parse(jsonString);
         } catch (e) {
           throw new Error('Invalid JSON in raw event area: ' + (e?.message || e));
         }
       } else {
-        nostrEvent = await this.createNostrEvent(formData);
+        // Fallback: regenerate from form data
+        nostrEvent = await this.createNostrEvent(this.collectFormData());
       }
 
       // Ensure pubkey present before signing
@@ -194,13 +249,13 @@ export default class extends Controller {
       this.showStatus('Publishing article...');
 
       // Send to backend
-      await this.sendToBackend(signedEvent, formData);
+      await this.sendToBackend(signedEvent, this.collectFormData());
 
       this.showSuccess('Article published successfully!');
 
       // Optionally redirect after successful publish
       setTimeout(() => {
-        window.location.href = `/article/d/${encodeURIComponent(formData.slug)}`;
+        window.location.href = `/article/d/${encodeURIComponent(nostrEvent.tags?.find(t => t[0] === 'd')?.[1] || '')}`;
       }, 2000);
 
     } catch (error) {
@@ -357,6 +412,11 @@ export default class extends Controller {
   }
 
   async createNostrEvent(formData) {
+    // TODO This logic needs to be updated to take care of three distinct cases:
+    // 1. user not logged in: generate event from form data with placeholder pubkey
+    // 2. user logged in with extension: get pubkey from extension and generate event
+    // 3. user logged in with signer: get pubkey from signer and generate event
+    // -----------------------------------------------------------------------------
     // Get user's public key if available (preview can work without it)
     let pubkey = '';
     try {

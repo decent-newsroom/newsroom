@@ -59,6 +59,7 @@ class EditorType extends AbstractType
                 'label'    => 'Add client tag to article (Decent Newsroom)',
                 'required' => false,
                 'mapped'   => false,
+                'data'    => true,
             ])
             ->add('isDraft', CheckboxType::class, [
                 'label'    => 'Save as draft',

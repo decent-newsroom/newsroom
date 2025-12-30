@@ -277,20 +277,12 @@
         {{ form_end(form) }}
     </div>
 
-    {# Hidden container for Nostr publishing #}
+    {# Hidden container for Nostr publishing (no JSON textarea, uses canonical panel) #}
     <div style="display: none;" {{ stimulus_controller('nostr--nostr-publish', {
-        publishUrl: path('api-article-publish')
+        publishUrl: path('api-article-publish'),
+        pubkey: app.user ? app.user.userIdentifier|toHex : '<pubkey>'
     }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
         <div data-nostr--nostr-publish-target="status"></div>
-        <div data-nostr--nostr-publish-target="jsonContainer">
-            <textarea
-                style="display: none;"
-                data-nostr--nostr-publish-target="jsonTextarea"
-                data-action="input->nostr--nostr-publish#onJsonInput"
-            ></textarea>
-        </div>
-        <button style="display: none;" data-nostr--nostr-publish-target="jsonToggle"></button>
-        <span style="display: none;" data-nostr--nostr-publish-target="jsonDirtyHint"></span>
         <button style="display: none;" data-nostr--nostr-publish-target="publishButton"></button>
     </div>
 </main>

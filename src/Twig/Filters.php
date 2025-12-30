@@ -24,6 +24,7 @@ class Filters extends AbstractExtension
             new TwigFilter('nEncode', [$this, 'nEncode']),
             new TwigFilter('naddrEncode', [$this, 'naddrEncode']),
             new TwigFilter('toNpub', [$this, 'toNpub']),
+            new TwigFilter('toHex', [$this, 'toHex']),
         ];
     }
 
@@ -100,5 +101,14 @@ class Filters extends AbstractExtension
     {
         $key = new Key();
         return $key->convertPublicKeyToBech32($hexPubKey);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function toHex(string $npub): string
+    {
+        $key = new Key();
+        return $key->convertToHex($npub);
     }
 }

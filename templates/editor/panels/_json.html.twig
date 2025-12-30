@@ -1,32 +1,35 @@
-<div class="panel-section" data-controller="editor--json-panel">
-{#    <div class="mb-3">#}
-{#        <button#}
-{#            type="button"#}
-{#            class="btn btn-sm btn-primary w-100"#}
-{#            data-action="click->editor--json-panel#regenerateJson"#}
-{#        >#}
-{#            Rebuild from form#}
-{#        </button>#}
-{#    </div>#}
+<div class="panel-section"
+     data-controller="nostr--nostr-publish"
+     data-nostr--nostr-publish-pubkey-value="{% if app.user %}{{ app.user.userIdentifier|toHex }}{% else %}&lt;pubkey&gt;{% endif %}">
+    <div class="mb-3 d-flex align-items-center justify-content-between">
+        <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            data-action="click->nostr--nostr-publish#regenerateJsonPreview"
+        >
+            Rebuild from form
+        </button>
+        <span class="ms-2 text-muted" data-nostr--nostr-publish-target="jsonTimestamp"></span>
+    </div>
 
-    <div class="json-editor-container">
+    <div class="json-editor-container" data-nostr--nostr-publish-target="jsonContainer">
         <textarea
             id="json-editor-textarea"
             class="json-textarea"
-            data-editor--json-panel-target="jsonTextarea"
             data-nostr--nostr-publish-target="jsonTextarea"
+            data-action="input->nostr--nostr-publish#onJsonInput"
             rows="20"
             spellcheck="false"
         >{{ article.raw is defined and article.raw ? article.raw|json_encode(constant('JSON_PRETTY_PRINT')) : '' }}</textarea>
-        <div class="json-status" data-editor--json-panel-target="status"></div>
+        <div class="json-status" data-nostr--nostr-publish-target="status"></div>
     </div>
 
-{#    <div class="panel-help mt-2">#}
-{#        <small>#}
-{#            <strong>Required fields:</strong> kind, created_at, tags, content, pubkey<br>#}
-{#            <span class="text-warning" data-editor--json-panel-target="dirtyHint" style="display:none">#}
-{#                ⚠️ JSON modified - will override form values#}
-{#            </span>#}
-{#        </small>#}
-{#    </div>#}
+    <div class="panel-help mt-2">
+        <small>
+            <strong>Required fields:</strong> kind, created_at, tags, content, pubkey<br>
+            <span class="text-warning" data-nostr--nostr-publish-target="jsonDirtyHint" style="display:none">
+                ⚠️ JSON modified - will override form values
+            </span>
+        </small>
+    </div>
 </div>

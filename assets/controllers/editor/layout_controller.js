@@ -1,4 +1,3 @@
-// assets/controllers/editor/layout_controller.js
 import {Controller} from '@hotwired/stimulus';
 import { deltaToMarkdown, markdownToDelta } from './conversion.js';
 
@@ -41,9 +40,7 @@ export default class extends Controller {
 
         // Listen for content changes from Quill or Markdown
         this.element.addEventListener('content:changed', () => {
-            this.updatePreview();
-            this.updateJsonCode();
-            // Do NOT update Quill from Markdown here; only do so on explicit mode switch
+            this.updatePreview().then(r => console.log('Preview updated after content change', r));
         });
     }
 
@@ -112,51 +109,12 @@ export default class extends Controller {
             this.state.active_source = 'quill';
             this.updateQuillEditor();
         } else if (mode === 'preview') {
-            this.updatePreview();
+            this.updatePreview().then(r => console.log('Preview updated', r));
         } else if (mode === 'json') {
-            this.updateJsonCode();
+            // Not doing anything here for now
         }
         this.persistState();
         this.emitContentChanged();
-    }
-
-    updateJsonCode() {
-        // Fill the JSON code block with the latest JSON event and highlight
-        if (!this.hasJsonCodeTarget) return;
-        let json = '';
-        const nostrController = this.application.getControllerForElementAndIdentifier(
-            this.element.querySelector('[data-controller*="nostr--nostr-publish"]'),
-            'nostr--nostr-publish'
-        );
-        if (nostrController && nostrController.hasJsonTextareaTarget) {
-            json = nostrController.jsonTextareaTarget.value;
-        }
-        try {
-            json = JSON.stringify(JSON.parse(json), null, 2);
-        } catch (e) {
-            // If not valid JSON, show as-is
-        }
-        this.jsonCodeTarget.textContent = json || 'No JSON event available.';
-    }
-
-    updateMarkdown() {
-        // Get title from form
-        const titleInput = this.element.querySelector('input[name*="[title]"]');
-        if (titleInput && this.hasMarkdownTitleTarget) {
-            this.markdownTitleTarget.value = titleInput.value || '';
-        }
-
-        // Get markdown from Quill controller
-        const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');
-        const markdown = markdownInput ? markdownInput.value || '' : '';
-
-        // Set code block content and highlight
-        if (this.hasMarkdownCodeTarget) {
-            this.markdownCodeTarget.textContent = markdown;
-            if (window.Prism && Prism.highlightElement) {
-                Prism.highlightElement(this.markdownCodeTarget);
-            }
-        }
     }
 
     async updatePreview() {
