@@ -145,8 +145,6 @@
                             />
                         </div>
                         {{ form_row(form.content, {'label': false, 'attr': {'class': 'form-control editor-md-field'}}) }}
-                        <pre class="mt-2" style="display:none"></pre>
-                        {# JS should sync changes in content to content_html (Quill) #}
                     </div>
                 </div>
 
@@ -189,9 +187,6 @@
                         </div>
                     </div>
                 </div>
-
-                <button type="submit" name="_action" value="save_draft" style="display:none;" data-editor--layout-target="saveDraftSubmit"></button>
-                <button type="submit" name="_action" value="publish" style="display:none;" data-editor--layout-target="publishSubmit"></button>
             </div>
         </div>
         {# Right sidebar (last grid column) #}
@@ -278,12 +273,17 @@
     </div>
 
     {# Hidden container for Nostr publishing (no JSON textarea, uses canonical panel) #}
-    <div style="display: none;" {{ stimulus_controller('nostr--nostr-publish', {
+    <div {{ stimulus_controller('nostr--nostr-publish', {
         publishUrl: path('api-article-publish'),
         pubkey: app.user ? app.user.userIdentifier|toHex : '<pubkey>'
     }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
-        <div data-nostr--nostr-publish-target="status"></div>
-        <button style="display: none;" data-nostr--nostr-publish-target="publishButton"></button>
+        <div data-nostr--nostr-publish-target="status"
+             style="position: fixed;top: 65px;right: 10px;"
+        ></div>
+        <button style="display: none;"
+                data-nostr--nostr-publish-target="publishButton"
+                data-action="nostr--nostr-publish#publish"
+        ></button>
     </div>
 </main>
 {% endblock %}
