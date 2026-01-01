@@ -8,7 +8,7 @@ framework:
         handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
         cookie_secure: auto
         cookie_samesite: lax
-        cookie_lifetime: 2678400 # integer, lifetime in seconds, 0 means 'valid for the length of the browser session'
+        cookie_lifetime: 0 # Session cookie will expire when the browser is closed
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['forwarded', 'x-forwarded-for', 'x-forwarded-proto']
     # trusted_proxies: '%env(TRUSTED_PROXIES)%'
