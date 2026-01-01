@@ -265,12 +265,6 @@ export default class extends Controller {
     }
   }
 
-  // Placeholder for the actual signer logic
-  async signWithSigner(event) {
-    // TODO: Implement the actual signer logic here
-    throw new Error('Signer signing flow is not yet implemented.');
-  }
-
   // If a user provided a partial or custom event, make sure required keys exist and supplement from form
   applyEventDefaults(event, formData, options = {}) {
     const now = Math.floor(Date.now() / 1000);

@@ -43,7 +43,28 @@ export default class extends Controller {
             this.updatePreview().then(r => console.log('Preview updated after content change', r));
         });
 
+        // Auto-sync content when Quill editor loses focus
+        this.setupQuillBlurSync();
+
         this.setupAuthModal();
+    }
+
+    setupQuillBlurSync() {
+        // Wait for Quill to be available and set up blur event
+        const setupBlurListener = () => {
+            if (window.appQuill && window.appQuill.root) {
+                this.quillBlurHandler = () => {
+                    console.log('[Editor] Quill lost focus, auto-syncing content');
+                    this.syncContentBeforePublish();
+                };
+                window.appQuill.root.addEventListener('blur', this.quillBlurHandler);
+                console.log('[Editor] Quill blur sync listener set up');
+            } else {
+                // Retry after a short delay if Quill isn't ready yet
+                setTimeout(setupBlurListener, 100);
+            }
+        };
+        setupBlurListener();
     }
 
     setupAuthModal() {
@@ -303,6 +324,10 @@ export default class extends Controller {
         if (this.autoSaveTimer) {
             clearTimeout(this.autoSaveTimer);
         }
+        // Clean up Quill blur listener
+        if (this.quillBlurHandler && window.appQuill && window.appQuill.root) {
+            window.appQuill.root.removeEventListener('blur', this.quillBlurHandler);
+        }
     }
 
     // --- Content Update Handlers ---
@@ -320,6 +345,15 @@ export default class extends Controller {
     }
 
     // --- Editor Sync Helpers ---
+    syncContentBeforePublish() {
+        // If the active source is Quill, convert delta to markdown and update the form field
+        if (this.state.active_source === 'quill' && this.state.content_delta) {
+            this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
+            this.updateMarkdownEditor();
+            console.log('[Editor] Synced Quill content to markdown');
+        }
+    }
+
     updateMarkdownEditor() {
         // Set Markdown editor value from state.content_NMD
         const markdownInput = this.element.querySelector('textarea[name="editor[content]"]');

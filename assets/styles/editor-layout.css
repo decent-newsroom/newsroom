@@ -1,7 +1,5 @@
-@import "../vendor/prismjs/themes/prism.min.css"; /* Editor IDE-like layout styles */
-
 /* Main container - takes full viewport */
-main[data-controller="editor--layout"] {
+main.editor-layout {
     position: fixed;
     top: 0;
     left: 0;
