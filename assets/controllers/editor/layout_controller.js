@@ -42,6 +42,34 @@ export default class extends Controller {
         this.element.addEventListener('content:changed', () => {
             this.updatePreview().then(r => console.log('Preview updated after content change', r));
         });
+
+        this.setupAuthModal();
+    }
+
+    setupAuthModal() {
+        this.authModal = document.getElementById('auth-choice-modal');
+        this.signerBtn = document.getElementById('proceed-with-signer');
+        this.extensionBtn = document.getElementById('proceed-with-extension');
+        this.isAnon = !window.appUser || !window.appUser.isAuthenticated; // You may need to set window.appUser in base.html.twig
+        if (this.signerBtn) {
+            this.signerBtn.addEventListener('click', () => {
+                this.hideAuthModal();
+                this.startPublishWith('signer');
+            });
+        }
+        if (this.extensionBtn) {
+            this.extensionBtn.addEventListener('click', () => {
+                this.hideAuthModal();
+                this.startPublishWith('extension');
+            });
+        }
+    }
+
+    showAuthModal() {
+        if (this.authModal) this.authModal.style.display = 'block';
+    }
+    hideAuthModal() {
+        if (this.authModal) this.authModal.style.display = 'none';
     }
 
     hydrateState() {
@@ -330,3 +358,4 @@ export default class extends Controller {
         }));
     }
 }
+

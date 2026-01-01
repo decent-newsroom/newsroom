@@ -5,14 +5,44 @@ export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
   static values = {
     event: String,
-    publishUrl: String,
-    csrfToken: String
+    publishUrl: String
   };
+
+  // Make targets optional for event-driven usage
+  get hasStatusTarget() {
+    return this.targets.has('status');
+  }
+  get hasPublishButtonTarget() {
+    return this.targets.has('publishButton');
+  }
+  get hasComputedPreviewTarget() {
+    return this.targets.has('computedPreview');
+  }
 
   async connect() {
     try {
       await this.preparePreview();
     } catch (_) {}
+    // Listen for nostr:sign event for editor handoff
+    this.handleSignEvent = this.handleSignEvent.bind(this);
+    (this.element.closest('.editor-layout') || document).addEventListener('nostr:sign', this.handleSignEvent);
+  }
+
+  disconnect() {
+    (this.element.closest('.editor-layout') || document).removeEventListener('nostr:sign', this.handleSignEvent);
+  }
+
+  handleSignEvent(e) {
+    const { nostrEvent, formData } = e.detail;
+    // Update eventValue for signing
+    this.showStatus('Event received for signing. Ready to sign and publish.');
+    this.eventValue = JSON.stringify(nostrEvent);
+    // Store formData for later use in publishing
+    this.handoffFormData = formData;
+    // Trigger signing
+    this.signAndPublish(new Event('submit')).then(r => {
+      this.showStatus('Signing process completed.');
+    });
   }
 
   async preparePreview() {
@@ -78,13 +108,15 @@ export default class extends Controller {
       return;
     }
 
-    if (!this.publishUrlValue || !this.csrfTokenValue) {
-      console.error('[nostr_single_sign] Missing config', { publishUrl: this.publishUrlValue, csrf: !!this.csrfTokenValue });
+    if (!this.publishUrlValue) {
+      console.error('[nostr_single_sign] Missing config', { publishUrl: this.publishUrlValue});
       this.showError('Missing config');
       return;
     }
 
-    this.publishButtonTarget.disabled = true;
+    if (this.hasPublishButtonTarget) {
+      this.publishButtonTarget.disabled = true;
+    }
     try {
       this.showStatus('Preparing event...');
       const pubkey = await signer.getPublicKey();
@@ -111,27 +143,36 @@ export default class extends Controller {
 
       this.showSuccess('Published successfully! Redirecting...');
 
-      // Redirect to reading list index after successful publish
-      setTimeout(() => {
-        window.location.href = '/reading-list';
-      }, 1500);
+      // Redirect to reading list index after successful publish (only for form-based usage)
+      if (this.hasPublishButtonTarget) {
+        setTimeout(() => {
+          window.location.href = '/reading-list';
+        }, 1500);
+      }
     } catch (e) {
       console.error('[nostr_single_sign] Error during sign/publish:', e);
       this.showError(e.message || 'Publish failed');
     } finally {
-      this.publishButtonTarget.disabled = false;
+      if (this.hasPublishButtonTarget) {
+        this.publishButtonTarget.disabled = false;
+      }
     }
   }
 
   async publishSigned(signedEvent) {
+    // Build request body - include formData if available (from editor handoff)
+    const body = { event: signedEvent };
+    if (this.handoffFormData) {
+      body.formData = this.handoffFormData;
+    }
+
     const res = await fetch(this.publishUrlValue, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': this.csrfTokenValue,
         'X-Requested-With': 'XMLHttpRequest'
       },
-      body: JSON.stringify({ event: signedEvent })
+      body: JSON.stringify(body)
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

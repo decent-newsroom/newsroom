@@ -35,6 +35,7 @@ export default class extends Controller {
     // Trigger click on the hidden Nostr publish button
     const publishButton = document.querySelector('[data-nostr--nostr-publish-target="publishButton"]');
     if (publishButton) {
+      console.log('[Header] Triggering publish button click');
       publishButton.click();
     } else {
       console.error('[Header] Hidden publish button not found');

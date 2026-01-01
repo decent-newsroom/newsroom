@@ -79,7 +79,20 @@ class EditorType extends AbstractType
                 'required' => false,
                 'mapped' => false,
                 'attr' => ['type' => 'hidden'],
-            ]);
+            ])
+            // user's pubkey
+            ->add('pubkey', HiddenType::class, [
+                'required' => false,
+                'mapped' => false,
+                'attr' => ['type' => 'hidden'],
+            ])
+            // log in method, can be extension or bunker
+            ->add('loginMethod', HiddenType::class, [
+                'required' => false,
+                'mapped' => false,
+                'attr' => ['type' => 'hidden'],
+            ])
+        ;
 
         // Apply the custom transformer
         $builder->get('topics')

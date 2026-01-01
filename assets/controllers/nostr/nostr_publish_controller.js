@@ -208,13 +208,10 @@ export default class extends Controller {
       event.preventDefault();
     }
 
+    console.log('[nostr-publish] Publish triggered');
+
     if (!this.publishUrlValue) {
       this.showError('Publish URL is not configured');
-      return;
-    }
-
-    if (!window.nostr) {
-      this.showError('Nostr extension not found');
       return;
     }
 
@@ -222,29 +219,31 @@ export default class extends Controller {
     this.showStatus('Preparing article for signing...');
 
     try {
-      // Use canonical CodeMirror JSON for publishing
-      let nostrEvent;
-      const jsonString = this.getCurrentJson();
-      if (jsonString.trim()) {
-        try {
-          nostrEvent = JSON.parse(jsonString);
-        } catch (e) {
-          throw new Error('Invalid JSON in raw event area: ' + (e?.message || e));
-        }
+      const formData = this.collectFormData();
+      let nostrEvent = await this.createNostrEvent(formData);
+
+      // Choose signing flow based on loginMethod
+      let signedEvent;
+      console.log('[nostr-publish] loginMethod:', formData.loginMethod);
+      if (formData.loginMethod === 'bunker') {
+        // Hand off to signer_manager via custom event
+        const handoffEvent = new CustomEvent('nostr:sign', {
+          detail: { nostrEvent, formData: formData },
+          bubbles: true,
+          cancelable: true
+        });
+        // Dispatch on the editor layout container or document
+        (this.element.closest('.editor-layout') || document).dispatchEvent(handoffEvent);
+        this.showStatus('Handed off to signer manager for signing.');
+        this.publishButtonTarget.disabled = false;
+        return;
       } else {
-        // Fallback: regenerate from form data
-        nostrEvent = await this.createNostrEvent(this.collectFormData());
+        // Get pubkey from extension and then signature
+        this.showStatus('Requesting pubkey from Nostr extension...');
+        nostrEvent.pubkey = await window.nostr.getPublicKey();
+        this.showStatus('Requesting signature from Nostr extension...');
+        signedEvent = await window.nostr.signEvent(nostrEvent);
       }
-
-      // Ensure pubkey present before signing
-      if (!nostrEvent.pubkey) {
-        try { nostrEvent.pubkey = await window.nostr.getPublicKey(); } catch (_) {}
-      }
-
-      this.showStatus('Requesting signature from Nostr extension...');
-
-      // Sign the event with Nostr extension
-      const signedEvent = await window.nostr.signEvent(nostrEvent);
 
       this.showStatus('Publishing article...');
 
@@ -264,6 +263,12 @@ export default class extends Controller {
     } finally {
       this.publishButtonTarget.disabled = false;
     }
+  }
+
+  // Placeholder for the actual signer logic
+  async signWithSigner(event) {
+    // TODO: Implement the actual signer logic here
+    throw new Error('Signer signing flow is not yet implemented.');
   }
 
   // If a user provided a partial or custom event, make sure required keys exist and supplement from form
@@ -335,13 +340,14 @@ export default class extends Controller {
 
     // Only use the Markdown field
     const content = fd.get('editor[content]') || '';
-
     const title = fd.get('editor[title]') || '';
     const summary = fd.get('editor[summary]') || '';
     const image = fd.get('editor[image]') || '';
     const topicsString = fd.get('editor[topics]') || '';
     const isDraft = fd.get('editor[isDraft]') === '1';
     const addClientTag = fd.get('editor[clientTag]') === '1';
+    const pubkey = fd.get('editor[pubkey]') || '';
+    const loginMethod = fd.get('editor[loginMethod]') || '';
 
     // Collect advanced metadata
     const advancedMetadata = this.collectAdvancedMetadata(fd);
@@ -366,6 +372,8 @@ export default class extends Controller {
       isDraft,
       addClientTag,
       advancedMetadata,
+      pubkey,
+      loginMethod
     };
   }
 
@@ -412,18 +420,13 @@ export default class extends Controller {
   }
 
   async createNostrEvent(formData) {
-    // TODO This logic needs to be updated to take care of three distinct cases:
-    // 1. user not logged in: generate event from form data with placeholder pubkey
-    // 2. user logged in with extension: get pubkey from extension and generate event
-    // 3. user logged in with signer: get pubkey from signer and generate event
-    // -----------------------------------------------------------------------------
-    // Get user's public key if available (preview can work without it)
-    let pubkey = '';
-    try {
-      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-        pubkey = await window.nostr.getPublicKey();
-      }
-    } catch (_) {}
+    // Use pubkey and loginMethod from formData only
+    let pubkey = formData.pubkey;
+
+    if (!pubkey) {
+      // Use placeholder
+      pubkey = '<pubkey>';
+    }
 
     // Validate advanced metadata if present
     if (formData.advancedMetadata && formData.advancedMetadata.zapSplits.length > 0) {
@@ -467,14 +470,13 @@ export default class extends Controller {
       const advancedTags = buildAdvancedTags(formData.advancedMetadata);
       tags.push(...advancedTags);
     }
-
-    // Create the Nostr event (NIP-23 long-form content)
+    // Return the event object, with pubkey and loginMethod for signing logic
     return {
       kind: kind,
       created_at: Math.floor(Date.now() / 1000),
       tags: tags,
       content: formData.content,
-      pubkey: pubkey
+      pubkey: pubkey,
     };
 
   }

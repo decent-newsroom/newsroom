@@ -42,8 +42,11 @@
 {% endblock %}
 
 {% block layout %}
-<main data-controller="editor--layout" data-article-id="{{ article.id|default('') }}">
+<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
     <div class="editor-main">
+        <div data-nostr--nostr-single-sign-target="status"
+             style="position: fixed;top: 65px;right: 10px;"
+        ></div>
         {# Insert the article list sidebar as the first grid column #}
         {% include 'editor/panels/_articlelist.html.twig' with {
             readingLists: readingLists is defined ? readingLists : [],
@@ -269,6 +272,8 @@
             </section>
         </aside>
 
+        {{ form_row(form.pubkey, {'value': app.user ? app.user.userIdentifier|toHex : ''}) }}
+        {{ form_row(form.loginMethod, {'value': app.session.get('nostr_sign_method', '')}) }}
         {{ form_end(form) }}
     </div>
 
@@ -284,6 +289,22 @@
                 data-nostr--nostr-publish-target="publishButton"
                 data-action="nostr--nostr-publish#publish"
         ></button>
+    </div>
+
+    {# Modal for anon user authentication choice #}
+    <div id="auth-choice-modal" class="modal" tabindex="-1" style="display:none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Choose Authentication Method</h5>
+                </div>
+                <div class="modal-body">
+                    <p>You need to sign in to publish. Please choose a method:</p>
+                    <button type="button" class="btn btn-accent" id="proceed-with-signer">Proceed with Signer</button>
+                    <button type="button" class="btn btn-accent" id="proceed-with-extension">Proceed with Extension</button>
+                </div>
+            </div>
+        </div>
     </div>
 </main>
 {% endblock %}
