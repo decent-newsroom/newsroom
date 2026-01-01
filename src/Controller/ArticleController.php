@@ -138,7 +138,7 @@ class ArticleController  extends AbstractController
         $key = new Key();
         $pubkey = $key->convertToHex($npub);
         $repository = $entityManager->getRepository(Article::class);
-        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey]);
+        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
         if (!$article) {
             throw $this->createNotFoundException('The article could not be found');
         }
