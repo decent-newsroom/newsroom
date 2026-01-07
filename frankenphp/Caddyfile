@@ -31,7 +31,7 @@ frankenphp {
 
 	mercure {
 		# Transport to use (default to Bolt)
-		transport {$MERCURE_TRANSPORT_URL:bolt:///data/mercure.db}
+		transport_url {$MERCURE_TRANSPORT_URL:bolt:///data/mercure.db}
 		# Publisher JWT key
 		publisher_jwt {env.MERCURE_JWT_SECRET} {env.MERCURE_PUBLISHER_JWT_ALG}
 		# Allow anonymous subscribers (double-check that it's what you want)
