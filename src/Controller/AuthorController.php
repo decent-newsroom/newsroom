@@ -30,6 +30,9 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class AuthorController extends AbstractController
 {
+    public function __construct(
+        private readonly LoggerInterface $logger
+    ) {}
 
     /**
      * Reading List Index
@@ -239,57 +242,45 @@ class AuthorController extends AbstractController
 
         $author = $redisCacheService->getMetadata($pubkey);
 
-        // Try to get cached view first
-        $cachedArticles = $viewStore->fetchUserArticles($pubkey);
-        $fromCache = false;
+        // Check if viewer is the author
+        $currentUser = $this->getUser();
+        $isOwnProfile = $currentUser && $currentUser->getUserIdentifier() === $npub;
 
-        if ($cachedArticles !== null) {
-            // Redis view data already matches template - just extract articles
-            $articles = [];
-            foreach ($cachedArticles as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    $articles[] = (object) $baseObject['article'];
-                }
-            }
-            $fromCache = true;
-        } else {
-            // Cache miss - query using search service
-            $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
+        // Query fresh Article entities (not cached view data)
+        // This ensures we have proper entities for filtering logic
+        $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
 
-            // Build and cache Redis views for next time
-            if (!empty($articles)) {
-                try {
-                    $baseObjects = [];
-                    foreach ($articles as $article) {
-                        if ($article instanceof Article) {
-                            $baseObjects[] = $viewFactory->articleBaseObject($article, $author);
+        // Filter and deduplicate articles at the entity level
+        $articles = $this->filterAndDeduplicateArticles($articles, $isOwnProfile);
+
+        // Build view objects for template from filtered entities
+        $viewData = [];
+        if (!empty($articles)) {
+            try {
+                foreach ($articles as $article) {
+                    if ($article instanceof Article) {
+                        $baseObject = $viewFactory->articleBaseObject($article, $author);
+                        $normalized = $viewFactory->normalizeBaseObject($baseObject);
+                        // Extract just the article data and convert to object
+                        // This matches what the template expects (same format as old cache code)
+                        if (isset($normalized['article'])) {
+                            $viewData[] = (object) $normalized['article'];
                         }
                     }
-                    if (!empty($baseObjects)) {
-                        $viewStore->storeUserArticles($pubkey, $baseObjects);
-                    }
-                } catch (\Exception $e) {
-                    // Log but don't fail the request
-                    error_log('Failed to cache user articles view: ' . $e->getMessage());
                 }
+            } catch (\Exception $e) {
+                $this->logger->error('Failed to build view objects', [
+                    'error' => $e->getMessage()
+                ]);
             }
         }
 
+        $fromCache = false;
+
         // Get latest createdAt for dispatching fetch message
         if (!empty($articles)) {
-            // Handle both Article entities and cached arrays
-            if (is_array($articles[0])) {
-                $latest = isset($articles[0]['article']['publishedAt'])
-                    ? strtotime($articles[0]['article']['publishedAt'])
-                    : time();
-            } else if ($articles[0] instanceof Article) {
-                // Article entity
-                $latest = $articles[0]->getCreatedAt()->getTimestamp();
-            } else {
-                // Fallback
-                // Something went wrong upstream, use current time
-                $latest = time();
-            }
+            // Articles are now guaranteed to be Article entities
+            $latest = $articles[0]->getCreatedAt()->getTimestamp();
             // Dispatch async message to fetch new articles since latest + 1
             $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
         } else {
@@ -297,16 +288,64 @@ class AuthorController extends AbstractController
             $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, 0));
         }
 
-
         return $this->render('profile/author.html.twig', [
             'author' => $author,
             'npub' => $npub,
             'pubkey' => $pubkey,
-            'articles' => $articles,
+            'articles' => $viewData, // Pass normalized view data to template
             'is_author_profile' => true,
             'from_cache' => $fromCache,
         ]);
     }
+
+    /**
+     * Filter and deduplicate articles:
+     * - Hide drafts (kind 30024) unless viewing own profile
+     * - Show only the latest version per slug
+     * - Only handles Article entities (not cached arrays)
+     */
+    private function filterAndDeduplicateArticles(array $articles, bool $isOwnProfile): array
+    {
+        $slugMap = [];
+
+        foreach ($articles as $article) {
+            // Only handle Article entities - no more mixed format handling
+            if (!$article instanceof Article) {
+                continue;
+            }
+
+            $kind = $article->getKind();
+            $slug = $article->getSlug();
+            $createdAt = $article->getCreatedAt();
+
+            // Skip drafts unless viewing own profile
+            if (!$isOwnProfile && $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                continue;
+            }
+
+            // Skip if no slug
+            if (!$slug) {
+                continue;
+            }
+
+            // Keep only the latest version per slug
+            if (!isset($slugMap[$slug]) || $createdAt > $slugMap[$slug]['createdAt']) {
+                $slugMap[$slug] = [
+                    'article' => $article,
+                    'createdAt' => $createdAt
+                ];
+            }
+        }
+
+        // Extract just the articles, sorted by creation date (newest first)
+        $filtered = array_column($slugMap, 'article');
+        usort($filtered, function($a, $b) {
+            return $b->getCreatedAt() <=> $a->getCreatedAt(); // Descending order
+        });
+
+        return $filtered;
+    }
+
 
     /**
      * Redirect from /p/{pubkey} to /p/{npub}
