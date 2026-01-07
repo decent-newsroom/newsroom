@@ -118,7 +118,7 @@ class NostrClient
             $authorRelays = array_filter($authorRelays, function ($relay) {
                 return str_starts_with($relay, 'wss:') && !str_contains($relay, 'localhost');
             });
-            return array_slice($authorRelays, 0, $limit);
+            return $limit != 0 ? array_slice($authorRelays, 0, $limit) : $authorRelays;
         }
 
         return $reputableAuthorRelays;
@@ -167,7 +167,7 @@ class NostrClient
         // If no relays, fetch relays for user then post to those
         if (empty($relays)) {
             $key = new Key();
-            $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 5);
+            $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 0);
         } else {
             // Ensure local relay is included when publishing
             $relays = $this->relayPool->ensureLocalRelayInList($relays);

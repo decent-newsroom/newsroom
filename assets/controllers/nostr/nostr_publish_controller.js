@@ -248,14 +248,19 @@ export default class extends Controller {
       this.showStatus('Publishing article...');
 
       // Send to backend
-      await this.sendToBackend(signedEvent, this.collectFormData());
+      const result = await this.sendToBackend(signedEvent, this.collectFormData());
 
-      this.showSuccess('Article published successfully!');
-
-      // Optionally redirect after successful publish
-      setTimeout(() => {
-        window.location.href = `/article/d/${encodeURIComponent(nostrEvent.tags?.find(t => t[0] === 'd')?.[1] || '')}`;
-      }, 2000);
+      // Show appropriate success message
+      if (result.isDraft) {
+        this.showSuccess('Draft saved successfully!');
+        // Stay on editor page for drafts - just show success message
+      } else {
+        this.showSuccess('Article published successfully!');
+        // Redirect to article page after short delay
+        setTimeout(() => {
+          window.location.href = `/article/d/${encodeURIComponent(result.slug || nostrEvent.tags?.find(t => t[0] === 'd')?.[1] || '')}`;
+        }, 2000);
+      }
 
     } catch (error) {
       console.error('Publishing error:', error);
@@ -493,7 +498,14 @@ export default class extends Controller {
       throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+
+    // Display relay results if available
+    if (result.relayResults) {
+      this.displayRelayResults(result.relayResults);
+    }
+
+    return result;
   }
 
   generateSlug(title) {
@@ -506,6 +518,81 @@ export default class extends Controller {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
+  }
+
+  displayRelayResults(relayResults) {
+    console.log('[nostr-publish] Relay results:', relayResults);
+
+    // Handle error case
+    if (relayResults.error) {
+      window.showToast(`Relay error: ${relayResults.error}`, 'warning', 6000);
+      return;
+    }
+
+    // Parse relay results from backend
+    if (!Array.isArray(relayResults) || relayResults.length === 0) {
+      window.showToast('Published to relays (status unknown)', 'info', 4000);
+      return;
+    }
+
+    // Count successes, failures, and unknowns
+    let successCount = 0;
+    let failureCount = 0;
+    let unknownCount = 0;
+    const failedRelays = [];
+    const unknownRelays = [];
+
+    relayResults.forEach((result) => {
+      const relayUrl = result.relay || 'Unknown relay';
+
+      if (result.success) {
+        successCount++;
+      } else if (result.type === 'auth') {
+        // AUTH responses are unknown status - not confirmed but not failed
+        unknownCount++;
+        unknownRelays.push(relayUrl);
+      } else {
+        // Other non-success responses are failures
+        failureCount++;
+        failedRelays.push(relayUrl);
+      }
+    });
+
+    // Show summary toast
+    if (successCount > 0 && failureCount === 0 && unknownCount === 0) {
+      // Perfect success
+      window.showToast(`✓ Published to ${successCount} relay${successCount > 1 ? 's' : ''}`, 'success', 5000);
+    } else if (successCount > 0 && unknownCount > 0 && failureCount === 0) {
+      // Success with some unknowns
+      window.showToast(`✓ Published to ${successCount} relay${successCount > 1 ? 's' : ''}, ${unknownCount} unknown`, 'success', 6000);
+      // Show details about unknowns
+      if (unknownRelays.length > 0) {
+        setTimeout(() => {
+          window.showToast(`Unknown status: ${unknownRelays.join(', ')}`, 'info', 8000);
+        }, 500);
+      }
+    } else if (successCount > 0 && failureCount > 0) {
+      // Mixed success and failure
+      const statusParts = [`${successCount} success`];
+      if (unknownCount > 0) statusParts.push(`${unknownCount} unknown`);
+      statusParts.push(`${failureCount} failed`);
+
+      window.showToast(`Published: ${statusParts.join(', ')}`, 'warning', 6000);
+      // Show details about failures
+      setTimeout(() => {
+        if (failedRelays.length > 0) {
+          window.showToast(`Failed: ${failedRelays.join(', ')}`, 'danger', 8000);
+        }
+        if (unknownRelays.length > 0) {
+          setTimeout(() => {
+            window.showToast(`Unknown: ${unknownRelays.join(', ')}`, 'info', 8000);
+          }, 500);
+        }
+      }, 500);
+    } else if (failureCount > 0 || unknownCount > 0) {
+      // No successes
+      window.showToast(`✗ Publishing uncertain (${unknownCount} unknown, ${failureCount} failed)`, 'warning', 8000);
+    }
   }
 
   showStatus(message) {

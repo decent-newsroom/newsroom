@@ -282,8 +282,13 @@ class AuthorController extends AbstractController
                 $latest = isset($articles[0]['article']['publishedAt'])
                     ? strtotime($articles[0]['article']['publishedAt'])
                     : time();
-            } else {
+            } else if ($articles[0] instanceof Article) {
+                // Article entity
                 $latest = $articles[0]->getCreatedAt()->getTimestamp();
+            } else {
+                // Fallback
+                // Something went wrong upstream, use current time
+                $latest = time();
             }
             // Dispatch async message to fetch new articles since latest + 1
             $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));

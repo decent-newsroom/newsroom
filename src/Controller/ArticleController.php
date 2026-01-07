@@ -2,13 +2,12 @@
 
 namespace App\Controller;
 
-use App\Dto\AdvancedMetadata;
 use App\Entity\Article;
+use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Form\EditorType;
 use App\Service\HighlightService;
 use App\Service\NostrClient;
-use App\Service\Nostr\NostrEventBuilder;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
@@ -25,9 +24,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\ReadModel\RedisView\RedisReadingListView;
-use App\ReadModel\RedisView\RedisBaseObject;
-use App\ReadModel\RedisView\RedisArticleView;
 
 class ArticleController  extends AbstractController
 {
@@ -434,19 +430,46 @@ class ArticleController  extends AbstractController
             $cacheKey = 'article_' . $article->getEventId();
             $articlesCache->delete($cacheKey);
 
+            /** @var User $user */
+            $user = $this->getUser();
+            $relays = [];
+            if ($user) {
+                $relays = $user->getRelays();
+            }
+
             // Publish to Nostr relays
+            $relayResults = [];
             try {
-                $nostrClient->publishEvent($eventObj, []);
+                $rawResults = $nostrClient->publishEvent($eventObj, $relays);
+                $logger->info('Published to Nostr relays', [
+                    'event_id' => $eventObj->getId(),
+                    'results' => $rawResults
+                ]);
+
+                // Transform relay results into a simpler format for frontend
+                $relayResults = $this->transformRelayResults($rawResults);
+
             } catch (\Exception $e) {
                 // Log error but don't fail the request - article is saved locally
-                error_log('Failed to publish to Nostr relays: ' . $e->getMessage());
+                $logger->error('Failed to publish to Nostr relays', [
+                    'error' => $e->getMessage(),
+                    'event_id' => $eventObj->getId()
+                ]);
+                $relayResults = [
+                    'error' => $e->getMessage()
+                ];
             }
+
+            // Determine if this is a draft or published article
+            $isDraft = ($signedEvent['kind'] === KindsEnum::LONGFORM_DRAFT->value);
 
             return new JsonResponse([
                 'success' => true,
-                'message' => 'Article published successfully',
+                'message' => $isDraft ? 'Draft saved successfully' : 'Article published successfully',
                 'articleId' => $article->getId(),
-                'slug' => $article->getSlug()
+                'slug' => $article->getSlug(),
+                'isDraft' => $isDraft,
+                'relayResults' => $relayResults
             ]);
 
         } catch (\Exception $e) {
@@ -454,6 +477,55 @@ class ArticleController  extends AbstractController
                 'error' => 'Publishing failed: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Transform relay response objects into a simple array format for frontend
+     */
+    private function transformRelayResults(array $rawResults): array
+    {
+        $results = [];
+
+        foreach ($rawResults as $relayUrl => $response) {
+            $result = [
+                'relay' => $relayUrl,
+                'success' => false,
+                'type' => 'unknown',
+                'message' => ''
+            ];
+
+            // Check if it's a RelayResponse object with accessible properties
+            if (is_object($response)) {
+                // RelayResponseOk - indicates successful publish
+                if (isset($response->type) && $response->type === 'OK') {
+                    $result['success'] = true;
+                    $result['type'] = 'ok';
+                    $result['message'] = $response->message ?? '';
+                }
+                // RelayResponseAuth - relay requires auth (not necessarily a failure)
+                elseif (isset($response->type) && $response->type === 'AUTH') {
+                    $result['success'] = false; // Not confirmed published
+                    $result['type'] = 'auth';
+                    $result['message'] = 'Authentication required';
+                }
+                // RelayResponseNotice - informational message
+                elseif (isset($response->type) && $response->type === 'NOTICE') {
+                    $result['success'] = false;
+                    $result['type'] = 'notice';
+                    $result['message'] = $response->message ?? '';
+                }
+                // Check isSuccess property if available
+                elseif (isset($response->isSuccess)) {
+                    $result['success'] = (bool)$response->isSuccess;
+                    $result['type'] = $response->type ?? 'unknown';
+                    $result['message'] = $response->message ?? '';
+                }
+            }
+
+            $results[] = $result;
+        }
+
+        return $results;
     }
 
     private function validateNostrEvent(array $event): void
