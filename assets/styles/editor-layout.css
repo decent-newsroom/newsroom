@@ -197,9 +197,10 @@ main.editor-layout {
 
 .editor-pane--edit .ql-toolbar {
     flex-shrink: 0;
-    border-left: none;
-    border-right: none;
-    border-top: none;
+    position: sticky;
+    top: -16px;
+    background: white;
+    z-index: 100;
 }
 
 .editor-pane--edit .ql-container {
@@ -217,7 +218,6 @@ main.editor-layout {
 .editor-pane--edit #editor {
     flex: 1;
     overflow-y: auto;
-    min-height: 300px;
 }
 
 /* Preview pane */
@@ -561,10 +561,6 @@ main.editor-layout {
     }
 
     .editor-center-content {
-        overflow: visible;
-    }
-
-    .editor-pane {
         overflow: visible;
     }
 

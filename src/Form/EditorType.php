@@ -43,8 +43,9 @@ class EditorType extends AbstractType
             ->add('content_html', QuillType::class, [
                 'required' => false,
                 'mapped' => false,
-                'label' => 'HTML Content (Quill)',
-                'attr' => ['placeholder' => 'Write content', 'class' => 'form-control editor-quill-pane']
+                'label' => false,
+                'attr' => ['placeholder' => 'Write content', 'class' => 'form-control editor-quill-pane'],
+                'row_attr' => ['class' => 'd-flex flex-grow']
             ])
             ->add('image', UrlType::class, [
                 'required' => false,

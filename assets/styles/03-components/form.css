@@ -83,7 +83,6 @@ input:focus, textarea:focus, select:focus {
 
 #editor {
     margin: 0;
-    min-height: 300px;
     font-size: 120%;
 }
 

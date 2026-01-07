@@ -51,7 +51,7 @@ export default class extends Controller {
           '<div class="ql-tooltip-editor">',
           '<input class="ql-image-src" type="text" placeholder="Image URL" />',
           '<input class="ql-image-alt" type="text" placeholder="Alt text" />',
-          '<a class="ql-action">Insert</a>',
+          '<a class="ql-action"></a>',
           '<a class="ql-cancel">Cancel</a>',
           '</div>',
         ].join('');
@@ -126,6 +126,21 @@ export default class extends Controller {
 
     const options = {
       theme: 'snow',
+      formats: [
+        'bold',
+        'strike',
+        'italic',
+        'link',
+        'blockquote',
+        'code-block',
+        'code',
+        'header',
+        'list',
+        'image',
+        'video',
+        'imageAlt',
+        'formula'
+      ],
       modules: {
         toolbar: toolbarOptions,
       },

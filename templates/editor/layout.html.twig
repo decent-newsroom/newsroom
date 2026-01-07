@@ -63,7 +63,7 @@
                     data-mode="edit"
                     data-action="editor--layout#switchMode"
                 >
-                    Editor
+                    Rich Text
                 </button>
                 <button
                     type="button"
@@ -77,6 +77,7 @@
                 <button
                     type="button"
                     class="editor-tab"
+                    style="margin-left: auto"
                     data-editor--layout-target="modeTab"
                     data-mode="json"
                     data-action="editor--layout#switchMode"
@@ -96,9 +97,10 @@
 
             <div class="editor-center-content">
                 {{ form_start(form) }}
+                {# Hidden field for draft status - controlled by Save Draft / Publish buttons #}
+                {{ form_widget(form.isDraft, {'attr': {'class': 'hidden'}}) }}
                 {# Hidden fields for content delta and NMD #}
                 {{ form_widget(form.contentDelta) }}
-                {{ form_widget(form.contentNMD) }}
 
                 <div
                     class="editor-pane editor-pane--edit"
@@ -115,10 +117,7 @@
                     {# QuillJS editor container, now using content_html #}
                     {{ form_row(form.content_html, {'label': false}) }}
 
-                    {# Hidden field for draft status - controlled by Save Draft / Publish buttons #}
-                    <div style="display: none;">
-                        {{ form_widget(form.isDraft) }}
-                    </div>
+
 
                     {# Mobile action buttons at bottom #}
                     <div class="editor-mobile-actions">
@@ -147,6 +146,7 @@
                                 readonly
                             />
                         </div>
+                        {{ form_widget(form.contentNMD) }}
                         {{ form_row(form.content, {'label': false, 'attr': {'class': 'form-control editor-md-field'}}) }}
                     </div>
                 </div>

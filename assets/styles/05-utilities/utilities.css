@@ -37,6 +37,8 @@
 .align-items-center{align-items:center!important}
 .align-items-start{align-items:flex-start!important}
 
+.flex-grow{flex-grow: 1}
+
 /* Lists */
 .list-unstyled{list-style:none;padding-left:0;margin:0}
 

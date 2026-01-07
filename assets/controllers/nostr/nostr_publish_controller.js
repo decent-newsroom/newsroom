@@ -536,5 +536,11 @@ export default class extends Controller {
     if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-danger">${message}</div>`;
     }
+    // Clear status after 10 seconds
+    setTimeout(() => {
+      if (this.hasStatusTarget) {
+        this.statusTarget.innerHTML = '';
+      }
+    }, 10000);
   }
 }
