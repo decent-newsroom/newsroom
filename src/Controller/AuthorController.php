@@ -246,43 +246,91 @@ class AuthorController extends AbstractController
         $currentUser = $this->getUser();
         $isOwnProfile = $currentUser && $currentUser->getUserIdentifier() === $npub;
 
-        // Query fresh Article entities (not cached view data)
-        // This ensures we have proper entities for filtering logic
-        $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
-
-        // Filter and deduplicate articles at the entity level
-        $articles = $this->filterAndDeduplicateArticles($articles, $isOwnProfile);
-
-        // Build view objects for template from filtered entities
+        // Try to get cached view first
+        $cachedArticles = $viewStore->fetchUserArticles($pubkey);
         $viewData = [];
-        if (!empty($articles)) {
-            try {
-                foreach ($articles as $article) {
-                    if ($article instanceof Article) {
-                        $baseObject = $viewFactory->articleBaseObject($article, $author);
-                        $normalized = $viewFactory->normalizeBaseObject($baseObject);
-                        // Extract just the article data and convert to object
-                        // This matches what the template expects (same format as old cache code)
-                        if (isset($normalized['article'])) {
-                            $viewData[] = (object) $normalized['article'];
-                        }
+        $fromCache = false;
+        $articles = []; // For message dispatching
+
+        if ($cachedArticles !== null) {
+            // Cache hit - extract and filter cached data
+            $fromCache = true;
+
+            foreach ($cachedArticles as $baseObject) {
+                if (isset($baseObject['article'])) {
+                    $articleData = $baseObject['article'];
+
+                    // Apply filtering to cached data
+                    $kind = $articleData['kind'] ?? null;
+                    $slug = $articleData['slug'] ?? null;
+
+                    // Skip drafts unless viewing own profile
+                    if (!$isOwnProfile && $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                        continue;
+                    }
+
+                    if ($slug) {
+                        $viewData[] = (object) $articleData;
                     }
                 }
-            } catch (\Exception $e) {
-                $this->logger->error('Failed to build view objects', [
-                    'error' => $e->getMessage()
-                ]);
+            }
+
+            // Deduplicate cached data by slug (keep latest)
+            $viewData = $this->deduplicateViewData($viewData);
+
+        } else {
+            // Cache miss - query entities
+            $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
+
+            // Filter and deduplicate articles at the entity level
+            $articles = $this->filterAndDeduplicateArticles($articles, $isOwnProfile);
+
+            // Build view objects for template from filtered entities
+            if (!empty($articles)) {
+                try {
+                    $baseObjects = [];
+                    foreach ($articles as $article) {
+                        if ($article instanceof Article) {
+                            $baseObject = $viewFactory->articleBaseObject($article, $author);
+                            $baseObjects[] = $baseObject;
+                            $normalized = $viewFactory->normalizeBaseObject($baseObject);
+
+                            // Extract just the article data and convert to object
+                            if (isset($normalized['article'])) {
+                                $viewData[] = (object) $normalized['article'];
+                            }
+                        }
+                    }
+
+                    // Cache the base objects for next time (unfiltered, filtering happens on read)
+                    if (!empty($baseObjects)) {
+                        $viewStore->storeUserArticles($pubkey, $baseObjects);
+                    }
+                } catch (\Exception $e) {
+                    $this->logger->error('Failed to build view objects', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
         }
 
-        $fromCache = false;
-
         // Get latest createdAt for dispatching fetch message
-        if (!empty($articles)) {
-            // Articles are now guaranteed to be Article entities
-            $latest = $articles[0]->getCreatedAt()->getTimestamp();
-            // Dispatch async message to fetch new articles since latest + 1
-            $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
+        if (!empty($viewData)) {
+            // Extract latest timestamp from view data (works for both cached and fresh)
+            $latest = 0;
+            foreach ($viewData as $item) {
+                $createdAt = $item->createdAt ?? null;
+                if ($createdAt) {
+                    $timestamp = is_string($createdAt) ? strtotime($createdAt) : $createdAt->getTimestamp();
+                    if ($timestamp > $latest) {
+                        $latest = $timestamp;
+                    }
+                }
+            }
+            if ($latest > 0) {
+                // Dispatch async message to fetch new articles since latest + 1
+                $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
+            }
         } else {
             // No articles, fetch all
             $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, 0));
@@ -344,6 +392,51 @@ class AuthorController extends AbstractController
         });
 
         return $filtered;
+    }
+
+    /**
+     * Deduplicate cached view data by slug (keep latest version)
+     * Handles objects with slug and createdAt properties
+     */
+    private function deduplicateViewData(array $viewData): array
+    {
+        $slugMap = [];
+
+        foreach ($viewData as $item) {
+            $slug = $item->slug ?? null;
+            $createdAt = $item->createdAt ?? null;
+
+            if (!$slug) {
+                continue;
+            }
+
+            // Parse createdAt to comparable format
+            if (is_string($createdAt)) {
+                $timestamp = strtotime($createdAt);
+            } else if ($createdAt instanceof \DateTimeInterface) {
+                $timestamp = $createdAt->getTimestamp();
+            } else {
+                $timestamp = 0;
+            }
+
+            // Keep only the latest version per slug
+            if (!isset($slugMap[$slug]) || $timestamp > $slugMap[$slug]['timestamp']) {
+                $slugMap[$slug] = [
+                    'item' => $item,
+                    'timestamp' => $timestamp
+                ];
+            }
+        }
+
+        // Extract items and sort by timestamp (newest first)
+        $deduplicated = array_column($slugMap, 'item');
+        usort($deduplicated, function($a, $b) {
+            $timeA = is_string($a->createdAt ?? '') ? strtotime($a->createdAt) : 0;
+            $timeB = is_string($b->createdAt ?? '') ? strtotime($b->createdAt) : 0;
+            return $timeB <=> $timeA; // Descending order
+        });
+
+        return $deduplicated;
     }
 
 
