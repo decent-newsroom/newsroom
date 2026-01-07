@@ -8,7 +8,12 @@
     {{ form_row(form.summary, {
         'label': 'Summary',
         'help': 'Brief description for previews',
-        'attr': {'class': 'form-control form-control-sm', 'rows': 3}
+        'attr': {
+            'class': 'form-control form-control-sm',
+            'rows': 3,
+            'data-controller': 'utility--autogrow-textarea',
+            'style': 'overflow: hidden; resize: none;'
+        }
     }) }}
 
     {{ form_row(form.topics, {
