@@ -51,8 +51,8 @@ class ArticleController  extends AbstractController
             throw new \Exception('Not a long form article');
         }
 
-        $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
-        // It's important to actually find the article
+        $found = $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
+
         // Check if anything is in the database now
         $repository = $em->getRepository(Article::class);
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
@@ -61,7 +61,16 @@ class ArticleController  extends AbstractController
             return $this->redirectToRoute('article-slug', ['slug' => $slug]);
         }
 
-        throw new \Exception('No article found.');
+        // Provide a more informative error message
+        if (!$found) {
+            throw new \Exception(sprintf(
+                'No article found for slug "%s" by author %s. The article may not exist or the relays may be offline.',
+                $slug,
+                substr($author, 0, 8) . '...'
+            ));
+        }
+
+        throw new \Exception('Article was retrieved from relays but could not be saved to the database.');
     }
 
 

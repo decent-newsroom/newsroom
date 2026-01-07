@@ -232,7 +232,7 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getLongFormFromNaddr($slug, $relayList, $author, $kind): void
+    public function getLongFormFromNaddr($slug, $relayList, $author, $kind): bool
     {
         $this->logger->info('Getting long form from ' . $slug, [
             'relay_list' => $relayList,
@@ -278,7 +278,58 @@ class NostrClient
                 $wrapper->type = 'EVENT';
                 $wrapper->event = $event;
                 $this->saveLongFormContent([$wrapper]);
+                return true;
             }
+
+            // If no events found in the initial relay set, try fallback with additional reputable relays
+            $this->logger->info('No events found in initial relay set, trying fallback with additional relays', [
+                'slug' => $slug,
+                'author' => $author
+            ]);
+
+            // Merge the initial relay list with all reputable relays for a comprehensive search
+            $fallbackRelays = empty($relayList)
+                ? self::REPUTABLE_RELAYS
+                : array_unique(array_merge($relayList, self::REPUTABLE_RELAYS));
+
+            $fallbackRelaySet = $this->createRelaySet($fallbackRelays);
+
+            $fallbackRequest = $this->createNostrRequest(
+                kinds: [$kind],
+                filters: [
+                    'authors' => [$author],
+                    'tag' => ['#d', [$slug]]
+                ],
+                relaySet: $fallbackRelaySet
+            );
+
+            $fallbackEvents = $this->processResponse($fallbackRequest->send(), function($event) {
+                return $event;
+            });
+
+            if (!empty($fallbackEvents)) {
+                $this->logger->info('Found event in fallback relay search', [
+                    'slug' => $slug,
+                    'author' => $author,
+                    'event_count' => count($fallbackEvents)
+                ]);
+
+                // Save only the first event (most recent)
+                $event = $fallbackEvents[0];
+                $wrapper = new \stdClass();
+                $wrapper->type = 'EVENT';
+                $wrapper->event = $event;
+                $this->saveLongFormContent([$wrapper]);
+                return true;
+            }
+
+            $this->logger->warning('No events found even after fallback relay search', [
+                'slug' => $slug,
+                'author' => $author,
+                'tried_relays' => $fallbackRelays
+            ]);
+
+            return false;
         } catch (\Exception $e) {
             $this->logger->error('Error querying relays', [
                 'error' => $e->getMessage()
