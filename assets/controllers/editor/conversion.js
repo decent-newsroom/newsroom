@@ -73,54 +73,12 @@ export function deltaToMarkdown(delta, opts = {}) {
   };
 
   const escapeText = (s) => {
-    // Escape special markdown characters, but don't double-escape already escaped ones
-    // We process character by character to handle existing escapes properly
-    let result = '';
-    const str = String(s);
-    for (let i = 0; i < str.length; i++) {
-      const char = str[i];
-      if (char === '\\') {
-        // Check if next char is something that could be escaped
-        const next = str[i + 1];
-        if (next && '\\*_`[]~'.includes(next)) {
-          // Already escaped, keep both backslash and next char
-          result += '\\' + next;
-          i++; // skip next char
-        } else {
-          // Lone backslash, escape it
-          result += '\\\\';
-        }
-      } else if ('*_`[]~'.includes(char)) {
-        // Special char that needs escaping
-        result += '\\' + char;
-      } else {
-        result += char;
-      }
-    }
-    return result;
+    // No escaping needed - markdown only interprets special chars in specific patterns
+    // Our parser is smart enough to handle unpaired/mismatched chars literally
+    return String(s);
   };
 
-  const escapeLinkText = (s) => {
-    let result = '';
-    const str = String(s);
-    for (let i = 0; i < str.length; i++) {
-      const char = str[i];
-      if (char === '\\') {
-        const next = str[i + 1];
-        if (next && '\\[]'.includes(next)) {
-          result += '\\' + next;
-          i++;
-        } else {
-          result += '\\\\';
-        }
-      } else if ('[]'.includes(char)) {
-        result += '\\' + char;
-      } else {
-        result += char;
-      }
-    }
-    return result;
-  };
+  const escapeLinkText = (s) => String(s);
 
   const escapeLinkUrl = (s) => String(s).replace(/\s/g, '%20');
 
@@ -128,22 +86,8 @@ export function deltaToMarkdown(delta, opts = {}) {
     if (!text) return '';
 
     if (attrs.code) {
-      let codeText = '';
-      const str = String(text);
-      for (let i = 0; i < str.length; i++) {
-        const char = str[i];
-        if (char === '\\' && i + 1 < str.length && str[i + 1] === '`') {
-          codeText += '\\`';
-          i++;
-        } else if (char === '`') {
-          codeText += '\\`';
-        } else if (char === '\\') {
-          codeText += '\\\\';
-        } else {
-          codeText += char;
-        }
-      }
-      return `\`${codeText}\``;
+      // Only need to escape backticks inside inline code
+      return `\`${String(text).replace(/`/g, '\\`')}\``;
     }
 
     let out = escapeText(text);
@@ -396,22 +340,7 @@ function inlineMarkdownToOps(text) {
 
   const pushText = (t) => { if (t) ops.push({ insert: t }); };
 
-  const unescapeText = (t) => t.replace(/\\([\\*_`[\]~])/g, '$1');
-
   while (i < text.length) {
-    // escaped character: \X
-    if (text[i] === '\\' && i + 1 < text.length) {
-      const next = text[i + 1];
-      if ('\\*_`[]~'.includes(next)) {
-        pushText(next);
-        i += 2;
-        continue;
-      }
-      // not a recognized escape, treat backslash literally
-      pushText('\\');
-      i += 1;
-      continue;
-    }
 
     // inline code: `...`
     if (text[i] === '`') {
@@ -431,7 +360,7 @@ function inlineMarkdownToOps(text) {
       if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
         const closeParen = text.indexOf(')', closeBracket + 2);
         if (closeParen !== -1) {
-          const label = unescapeText(text.slice(i + 1, closeBracket));
+          const label = text.slice(i + 1, closeBracket);
           const url = text.slice(closeBracket + 2, closeParen).replace(/%20/g, ' ');
           if (label) ops.push({ insert: label, attributes: { link: url } });
           i = closeParen + 1;
@@ -445,7 +374,7 @@ function inlineMarkdownToOps(text) {
     if (text.startsWith('**', i)) {
       const end = text.indexOf('**', i + 2);
       if (end !== -1) {
-        const content = unescapeText(text.slice(i + 2, end));
+        const content = text.slice(i + 2, end);
         if (content) ops.push({ insert: content, attributes: { bold: true } });
         i = end + 2;
         continue;
@@ -457,7 +386,7 @@ function inlineMarkdownToOps(text) {
     if (text.startsWith('~~', i)) {
       const end = text.indexOf('~~', i + 2);
       if (end !== -1) {
-        const content = unescapeText(text.slice(i + 2, end));
+        const content = text.slice(i + 2, end);
         if (content) ops.push({ insert: content, attributes: { strike: true } });
         i = end + 2;
         continue;
@@ -469,7 +398,7 @@ function inlineMarkdownToOps(text) {
     if (text[i] === '*') {
       const end = text.indexOf('*', i + 1);
       if (end !== -1) {
-        const content = unescapeText(text.slice(i + 1, end));
+        const content = text.slice(i + 1, end);
         if (content) ops.push({ insert: content, attributes: { italic: true } });
         i = end + 1;
         continue;
@@ -487,7 +416,7 @@ function inlineMarkdownToOps(text) {
 }
 
 function nextSpecialIndex(text, start) {
-  const specials = ['\\', '`', '[', '*', '~'];
+  const specials = ['`', '[', '*', '~'];
   let min = text.length;
   for (const ch of specials) {
     const idx = text.indexOf(ch, start);
