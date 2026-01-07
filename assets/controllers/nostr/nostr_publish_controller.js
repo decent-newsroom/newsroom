@@ -108,7 +108,7 @@ export default class extends Controller {
         this.textarea.style.display = 'none';
         this.cmParent = document.createElement('div');
         this.textarea.parentNode.insertBefore(this.cmParent, this.textarea);
-        console.log('[nostr-publish] Initializing CodeMirror for JSON textarea', this.textarea.value);
+        console.log('[nostr-publish] Initializing CodeMirror for JSON textarea');
         this.cmView = new EditorView({
           doc: this.textarea.value,
           extensions: [

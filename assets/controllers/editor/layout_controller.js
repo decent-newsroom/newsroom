@@ -27,11 +27,12 @@ export default class extends Controller {
         };
         this.hydrateState();
 
-        // Check for and restore state after login
-        this.restoreStateAfterLogin();
-
+        // Update both editors with hydrated state
         this.updateMarkdownEditor();
         this.updateQuillEditor();
+
+        // Check for and restore state after login
+        this.restoreStateAfterLogin();
 
         // Live preview for summary and image fields
         const summaryInput = this.element.querySelector('textarea[name*="[summary]"], textarea[name="editor[summary]"]');
@@ -109,7 +110,8 @@ export default class extends Controller {
         }
         this.state.content_NMD = nmd;
         this.state.content_delta = this.nmdToDelta(nmd);
-        this.state.active_source = 'md';
+        // Set active_source to 'quill' since we want rich text editor to be active first
+        this.state.active_source = 'quill';
     }
 
     persistState() {
@@ -450,9 +452,17 @@ export default class extends Controller {
     }
     updateQuillEditor() {
         // Set Quill editor value from state.content_delta
-        if (window.appQuill && this.state.content_delta) {
-            window.appQuill.setContents(this.state.content_delta);
-        }
+        const setQuillContent = () => {
+            if (window.appQuill && this.state.content_delta) {
+                console.log('[Editor] Updating Quill with delta:', this.state.content_delta);
+                window.appQuill.setContents(this.state.content_delta);
+            } else if (!window.appQuill) {
+                // Retry after a short delay if Quill isn't ready yet
+                console.log('[Editor] Quill not ready yet, retrying...');
+                setTimeout(setQuillContent, 100);
+            }
+        };
+        setQuillContent();
     }
 
     // --- Conversion Stubs (implement via DNIR pipeline) ---
