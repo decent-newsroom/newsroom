@@ -509,38 +509,45 @@ export default class extends Controller {
   }
 
   showStatus(message) {
-    if (this.hasStatusTarget) {
+    // Use toast system if available, otherwise fallback to status target
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'info', 3000);
+    } else if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-info">${message}</div>`;
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        if (this.hasStatusTarget) {
+          this.statusTarget.innerHTML = '';
+        }
+      }, 3000);
     }
-    // Clear status after 3 seconds
-    setTimeout(() => {
-      if (this.hasStatusTarget) {
-        this.statusTarget.innerHTML = '';
-      }
-    }, 3000);
   }
 
   showSuccess(message) {
-    if (this.hasStatusTarget) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'success', 3000);
+    } else if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-success">${message}</div>`;
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        if (this.hasStatusTarget) {
+          this.statusTarget.innerHTML = '';
+        }
+      }, 3000);
     }
-    // Clear status after 3 seconds
-    setTimeout(() => {
-      if (this.hasStatusTarget) {
-        this.statusTarget.innerHTML = '';
-      }
-    }, 3000);
   }
 
   showError(message) {
-    if (this.hasStatusTarget) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'danger', 10000);
+    } else if (this.hasStatusTarget) {
       this.statusTarget.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+      // Clear status after 10 seconds
+      setTimeout(() => {
+        if (this.hasStatusTarget) {
+          this.statusTarget.innerHTML = '';
+        }
+      }, 10000);
     }
-    // Clear status after 10 seconds
-    setTimeout(() => {
-      if (this.hasStatusTarget) {
-        this.statusTarget.innerHTML = '';
-      }
-    }, 10000);
   }
 }

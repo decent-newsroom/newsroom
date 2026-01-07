@@ -1,0 +1,116 @@
+/* Toast Notification Styles */
+
+.toast-container {
+    position: fixed;
+    top: 80px; /* Below the header */
+    right: 20px;
+    z-index: 9999;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+}
+
+.toast {
+    pointer-events: auto;
+    background: var(--color-bg-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    min-height: 48px;
+    border: 1px solid;
+    border-left: 4px solid;
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast--show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast--hide {
+    opacity: 0;
+    transform: translateX(400px);
+}
+
+/* Toast types - using theme colors */
+.toast--success {
+    border-color: var(--color-accent-600);
+    background-color: var(--color-bg-light);
+}
+
+.toast--danger,
+.toast--error {
+    border-color: #dc3545;
+    background-color: var(--color-bg-light);
+}
+
+.toast--warning {
+    border-color: var(--color-accent-strong);
+    background-color: var(--color-bg-light);
+}
+
+.toast--info {
+    border-color: var(--color-teal-500);
+    background-color: var(--color-bg-light);
+}
+
+.toast__content {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--color-text);
+}
+
+.toast__close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    line-height: 1;
+    color: currentColor;
+    opacity: 0.5;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+}
+
+.toast__close:hover {
+    opacity: 0.8;
+}
+
+.toast__close:focus {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    opacity: 1;
+}
+
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .toast-container {
+        top: 60px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+
+    .toast {
+        width: 100%;
+    }
+}
+
+/* Animation for stacking */
+.toast:not(:last-child) {
+    margin-bottom: 0;
+}
+

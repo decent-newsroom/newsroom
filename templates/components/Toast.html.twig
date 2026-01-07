@@ -1,0 +1,18 @@
+{#
+    Toast Notification Component
+
+    Include this once in your layout to enable toast notifications throughout your app.
+
+    Usage:
+    {% include 'components/Toast.html.twig' %}
+
+    Then from JavaScript:
+    window.showToast('Success!', 'success');
+    window.showToast('Error occurred', 'danger');
+    window.showToast('Processing...', 'info');
+    window.showToast('Warning!', 'warning');
+#}
+<div {{ stimulus_controller('utility--toast') }} class="toast-container" data-utility--toast-target="container">
+    {# Toast messages will be dynamically inserted here #}
+</div>
+

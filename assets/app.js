@@ -38,6 +38,9 @@ import './styles/03-components/search.css';
 import './styles/03-components/image-upload.css';
 import './styles/03-components/zaps.css';
 
+// Toast notifications
+import './styles/toast.css';
+
 // Editor layout
 import './styles/editor-layout.css';
 

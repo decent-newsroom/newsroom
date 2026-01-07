@@ -42,6 +42,9 @@
 {% endblock %}
 
 {% block layout %}
+{# Toast notification system #}
+{% include 'components/Toast.html.twig' %}
+
 <main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
     <div class="editor-main">
         <div data-nostr--nostr-single-sign-target="status"
