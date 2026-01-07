@@ -1,4 +1,5 @@
-<div {{ attributes.defaults(stimulus_controller('utility--login')) }}>
+<div {{ attributes }}>
+  <div data-controller="utility--login utility--signer-modal">
     {% if app.user %}
         <div class="notice info">
             <twig:Molecules:UserFromNpub ident="{{ app.user.npub }}" />
@@ -22,7 +23,7 @@
             <li>
                 <a href="/logout"
                    data-controller="nostr--logout"
-                   data-action="click->nostr--logout#handleLogout live#$render">{{ 'heading.logout'|trans }}</a>
+                   data-action="click->nostr--logout#handleLogout">{{ 'heading.logout'|trans }}</a>
             </li>
         </ul>
     {% else %}
@@ -36,14 +37,11 @@
                         <twig:Atoms:Button {{ ...stimulus_action('utility--login', 'loginAct') }} tag="a" variant="accent">Extension</twig:Atoms:Button>
                     </li>
                     <li>
-                        <twig:Atoms:Button href="{{ path('app_login_signer') }}" tag="a" variant="accent">Signer</twig:Atoms:Button>
+                        <twig:Atoms:Button {{ ...stimulus_action('utility--signer-modal', 'openDialog') }} tag="a" variant="accent">Signer</twig:Atoms:Button>
                     </li>
                 </ul>
         </div>
+        <twig:SignerModal />
     {% endif %}
-    <div>
-        <div class="spinner" data-loading>
-            <div class="lds-dual-ring"></div>
-        </div>
-    </div>
+  </div>
 </div>

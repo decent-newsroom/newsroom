@@ -14,6 +14,9 @@ export default class extends Controller {
         console.log('Editor layout controller connected');
         this.autoSaveTimer = null;
 
+        // Expose method globally so login controllers can save state before reload
+        window.saveEditorStateBeforeLogin = () => this.saveCompleteStateBeforeLogin();
+
         // --- Editor State Object ---
         // See documentation/Editor/Reactivity-and-state-management.md
         this.state = {
@@ -23,6 +26,10 @@ export default class extends Controller {
             content_event_json: {}  // Derived event JSON
         };
         this.hydrateState();
+
+        // Check for and restore state after login
+        this.restoreStateAfterLogin();
+
         this.updateMarkdownEditor();
         this.updateQuillEditor();
 
@@ -112,6 +119,87 @@ export default class extends Controller {
         const nmdField = document.getElementById('contentNMD');
         if (deltaField) deltaField.value = JSON.stringify(this.state.content_delta || {});
         if (nmdField) nmdField.value = this.state.content_NMD || '';
+    }
+
+    saveCompleteStateBeforeLogin() {
+        // Save all editor content and form fields before login/reload
+        console.log('[Editor] Saving complete editor state before login');
+
+        // Sync current content first
+        this.syncContentBeforePublish();
+
+        const stateToSave = {
+            timestamp: Date.now(),
+            editorState: this.state,
+            formData: {}
+        };
+
+        // Save all form fields
+        const form = this.element.querySelector('form');
+        if (form) {
+            const formData = new FormData(form);
+            for (const [key, value] of formData.entries()) {
+                stateToSave.formData[key] = value;
+            }
+        }
+
+        localStorage.setItem('editorStateBeforeLogin', JSON.stringify(stateToSave));
+        console.log('[Editor] State saved:', stateToSave);
+    }
+
+    restoreStateAfterLogin() {
+        // Check if there's a saved state from before login
+        const savedStateStr = localStorage.getItem('editorStateBeforeLogin');
+        if (!savedStateStr) {
+            console.log('[Editor] No saved state found');
+            return;
+        }
+
+        try {
+            const savedState = JSON.parse(savedStateStr);
+            const ageMinutes = (Date.now() - savedState.timestamp) / 1000 / 60;
+
+            // Only restore if saved within last 10 minutes
+            if (ageMinutes > 10) {
+                console.log('[Editor] Saved state too old, ignoring');
+                localStorage.removeItem('editorStateBeforeLogin');
+                return;
+            }
+
+            console.log('[Editor] Restoring state from before login:', savedState);
+
+            // Restore editor state
+            if (savedState.editorState) {
+                this.state = savedState.editorState;
+            }
+
+            // Restore form fields
+            if (savedState.formData) {
+                const form = this.element.querySelector('form');
+                if (form) {
+                    for (const [key, value] of Object.entries(savedState.formData)) {
+                        const field = form.elements[key];
+                        if (field) {
+                            if (field.type === 'checkbox') {
+                                field.checked = value === 'on' || value === '1' || value === true;
+                            } else {
+                                field.value = value;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Clear the saved state
+            localStorage.removeItem('editorStateBeforeLogin');
+
+            // Show notification
+            this.updateStatus('✓ Your work has been restored after login');
+
+        } catch (e) {
+            console.error('[Editor] Failed to restore state:', e);
+            localStorage.removeItem('editorStateBeforeLogin');
+        }
     }
 
     // --- Tab Switching Logic ---

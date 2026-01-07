@@ -1,12 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
-import { getComponent } from '@symfony/ux-live-component';
 
 export default class extends Controller {
   static targets = ['nostrError'];
 
-  async initialize() {
-    this.component = await getComponent(this.element);
-  }
   async loginAct(event) {
     if (!window.nostr) {
       if (this.hasNostrErrorTarget) {
@@ -45,8 +41,13 @@ export default class extends Controller {
       if (!response.ok) return false;
       return 'Authentication Successful';
     })
+
     if (!!result) {
-      this.component.render();
+      // Save editor state before reload (if in editor)
+      if (typeof window.saveEditorStateBeforeLogin === 'function') {
+        window.saveEditorStateBeforeLogin();
+      }
+      window.location.reload();
     }
   }
 }

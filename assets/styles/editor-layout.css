@@ -448,10 +448,7 @@ main.editor-layout {
 }
 
 .articlelist-placeholder {
-    color: #bbb;
-    font-style: italic;
     padding: 1.5rem 0;
-    text-align: center;
 }
 
 /* Filesystem-style reading list folders */

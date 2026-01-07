@@ -1,0 +1,25 @@
+<div data-utility--signer-modal-target="dialog" class="iu-dialog" style="display:none;">
+  <div class="iu-backdrop" data-action="click->utility--signer-modal#closeDialog"></div>
+  <div class="iu-modal">
+    <div class="modal-header">
+      <h5>Remote Signer Login</h5>
+      <button type="button" class="close" data-action="click->utility--signer-modal#closeDialog">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted mb-3">Scan the QR below with a NIP-46 compatible bunker signer to pair a remote signing session.</p>
+      <div class="row">
+        <div class="col-md-6 text-center mb-3">
+          <div data-utility--signer-modal-target="qr" class="mb-2"></div>
+        </div>
+        <div class="col-md-6">
+          <h6>Status</h6>
+          <div data-utility--signer-modal-target="status" class="small text-muted">Initializing…</div>
+          <hr>
+          <p class="small text-muted mb-1">After pairing, any page that uses window.nostr will automatically use this remote signer session.</p>
+          <p class="small text-muted">If pairing stalls, close and reopen this dialog to generate a new ephemeral key.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

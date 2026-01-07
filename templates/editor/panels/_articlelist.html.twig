@@ -81,7 +81,20 @@
                             {% endfor %}
                         </ul>
                 {% else %}
-                    <div class="articlelist-placeholder">Sign in to see your articles.</div>
+                    <div data-controller="utility--login utility--signer-modal">
+                        <div class="articlelist-placeholder">Sign in to see your articles.</div>
+
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <div data-utility--login-target="nostrError" class="nostr-error-message" style="display:none;color:#b00;margin-bottom:0.5em;"></div>
+                                <twig:Atoms:Button {{ ...stimulus_action('utility--login', 'loginAct') }} tag="a" variant="accent">Extension</twig:Atoms:Button>
+                            </li>
+                            <li>
+                                <twig:Atoms:Button {{ ...stimulus_action('utility--signer-modal', 'openDialog') }} tag="a" variant="accent">Signer</twig:Atoms:Button>
+                            </li>
+                        </ul>
+                        <twig:SignerModal />
+                    </div>
                 {% endif %}
             </div>
         </div>
