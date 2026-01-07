@@ -38,11 +38,6 @@ export default class extends Controller {
             imageInput.addEventListener('change', () => this.updatePreview());
         }
 
-        // Listen for content changes from Quill or Markdown
-        this.element.addEventListener('content:changed', () => {
-            this.updatePreview().then(r => console.log('Preview updated after content change', r));
-        });
-
         // Auto-sync content when Quill editor loses focus
         this.setupQuillBlurSync();
 
