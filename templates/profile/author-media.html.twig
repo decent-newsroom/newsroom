@@ -126,12 +126,12 @@
 
                 {% if hasMore %}
                     <div class="load-more-container">
-                        <button data-media-loader-target="button"
-                                data-action="click->media-loader#loadMore"
+                        <button data-media--media-loader-target="button"
+                                data-action="click->media--media-loader#loadMore"
                                 class="btn-load-more">
                             Load More
                         </button>
-                        <p data-media-loader-target="status" class="load-more-status">
+                        <p data-media--media-loader-target="status" class="load-more-status">
                             Showing {{ pictureEvents|length }} of {{ total }} media items
                         </p>
                     </div>

@@ -107,11 +107,11 @@
 
                         <a href="/e/{{ noteId }}" class="masonry-link">
                             {% if firstImageUrl %}
-                                <div class="masonry-image-container {% if aspectRatio %}has-dimensions{% endif %}" {% if aspectRatio %}style="padding-bottom: {{ aspectRatio }}%;"{% endif %} data-controller="image-loader">
+                                <div class="masonry-image-container {% if aspectRatio %}has-dimensions{% endif %}" {% if aspectRatio %}style="padding-bottom: {{ aspectRatio }}%;"{% endif %} data-controller="media--image-loader">
                                     <img data-src="{{ firstImageUrl }}"
                                          alt="{{ imageAlt|default(title|default(isVideo ? 'Video' : 'Picture')) }}"
                                          class="masonry-image"
-                                         data-image-loader-target="image"
+                                         data-media--image-loader-target="image"
                                          onerror="this.closest('.masonry-item').style.display='none'" />
                                     {% if isVideo %}
                                         <div class="video-overlay">
