@@ -1,16 +1,16 @@
 <div
     {{ attributes
-        .add(stimulus_controller('comments-mercure', { coordinate: current }))
-        .add(stimulus_target('comments-mercure', 'loading'))
-        .add(stimulus_target('comments-mercure', 'list'))
+        .add(stimulus_controller('content--comments-mercure', { coordinate: current }))
+        .add(stimulus_target('content--comments-mercure', 'loading'))
+        .add(stimulus_target('content--comments-mercure', 'list'))
     }}
     class="comments"
 >
 
     {% if loading %}
-        <div class="comments-loading" data-comments-mercure-target="loading">Loading comments…</div>
+        <div class="comments-loading" data-content--comments-mercure-target="loading">Loading comments…</div>
     {% endif %}
-    <div class="comments-list" data-comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
+    <div class="comments-list" data-content--comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
         {% for item in list %}
             <div class="card comment {% if item.kind is defined and item.kind == '9735' %}zap-comment{% endif %}">
                 <div class="metadata">
