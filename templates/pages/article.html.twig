@@ -234,21 +234,37 @@
                                 {{ highlight.created_at|date('M j') }}
                             </small>
                         </div>
-                        <div class="highlight-content-compact">
-                            {% if highlight.context %}
-                                {% set htmlContext = highlight.context|markdown_to_html %}
-                                {% if highlight.content in highlight.context %}
-                                    {% set wrapper = '<mark class="highlight-mark-compact">' ~ highlight.content ~ '</mark>' %}
-                                    {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
-                                    {{ rendered|raw }}
-                                {% else %}
-                                    <div class="context-text-compact">{{ htmlContext|raw }}</div>
-                                    <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
-                                {% endif %}
+
+                        {% if highlight.context %}
+                            {% set htmlContext = highlight.context|markdown_to_html %}
+                            {% if highlight.content in highlight.context %}
+                                {% set wrapper = '<mark class="highlight-mark-compact">' ~ highlight.content ~ '</mark>' %}
+                                {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
+                                {{ rendered|raw }}
                             {% else %}
+                                <div class="context-text-compact">{{ htmlContext|raw }}</div>
                                 <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
                             {% endif %}
-                        </div>
+                        {% else %}
+                            {% set charLimit = 450 %}
+                            {% set content = highlight.content %}
+                            {% if content|length > charLimit %}
+                                <div data-utility--show-more-target="preview">
+                                    {{ content|slice(0, charLimit) ~ '…' }}
+                                </div>
+                                <div data-utility--show-more-target="full" style="display:none;">
+                                    {{ content }}
+                                </div>
+                                <button type="button"
+                                        class="btn btn-link btn-sm p-0 mt-1"
+                                        data-utility--show-more-target="button"
+                                        data-action="utility--show-more#toggle">
+                                    Show more
+                                </button>
+                            {% else %}
+                                <mark class="highlight-mark-compact">{{ content }}</mark>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
