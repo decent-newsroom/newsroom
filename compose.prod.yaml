@@ -18,6 +18,9 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET}
       MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
       MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
+      # --- Nostr Relay ---
+      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.localhost}
+      NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       # --- Database URL (optional: prefer .env.prod) ---
       # DATABASE_URL: ${DATABASE_URL}
     ports:
@@ -35,6 +38,8 @@ services:
     depends_on:
       database:
         condition: service_healthy
+      strfry:
+        condition: service_started
 
   worker:
     build:
@@ -77,7 +82,26 @@ services:
       retries: 10
       start_period: 60s
 
+###> strfry relay ###
+  strfry:
+    image: dockurr/strfry:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - |
+        ./strfry relay /etc/strfry.conf &
+        ./strfry router /etc/router.conf &
+        wait
+    volumes:
+      - ./docker/strfry/strfry.conf:/etc/strfry.conf:ro
+      - ./docker/strfry/write-policy.sh:/app/write-policy.sh:ro
+      - ./docker/strfry/router.conf:/etc/router.conf:ro
+      - strfry_data:/var/lib/strfry
+###< strfry relay ###
+
 volumes:
   caddy_data:
   caddy_config:
   database_data:
+  strfry_data:
