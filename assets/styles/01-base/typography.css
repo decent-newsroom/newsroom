@@ -57,6 +57,10 @@ h1:not(.brand) > a:hover {
     font-weight: 500;
 }
 
+h1 .tag {
+    vertical-align: text-top;
+}
+
 h2 {
     font-size: 2.2rem;
 }
