@@ -2,10 +2,9 @@
 
 namespace App\Twig\Components\Organisms;
 
+use App\Service\Search\ArticleSearchInterface;
+use Doctrine\DBAL\Exception;
 use Doctrine\ORM\EntityManagerInterface;
-use Elastica\Query;
-use Elastica\Query\Terms;
-use FOS\ElasticaBundle\Finder\FinderInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
@@ -19,12 +18,12 @@ final class FeaturedList
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly FinderInterface $finder)
-    {
+        private readonly ArticleSearchInterface $articleSearch
+    ) {
     }
 
     /**
-     * @throws \Exception
+     * @throws \Exception|Exception
      */
     public function mount($category): void
     {
