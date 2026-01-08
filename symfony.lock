@@ -142,7 +142,7 @@
         }
     },
     "symfony/mercure-bundle": {
-        "version": "0.3",
+        "version": "0.4",
         "recipe": {
             "repo": "github.com/symfony/recipes",
             "branch": "main",
@@ -150,7 +150,7 @@
             "ref": "528285147494380298f8f991ee8c47abebaf79db"
         },
         "files": [
-            "./config/packages/mercure.yaml"
+            "config/packages/mercure.yaml"
         ]
     },
     "symfony/messenger": {
