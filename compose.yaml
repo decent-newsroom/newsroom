@@ -7,15 +7,16 @@ services:
     environment:
         APP_ENV: ${APP_ENV:-dev}
         SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
-        MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
-        MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
         # Run "composer require symfony/orm-pack" to install and configure Doctrine ORM
         DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}
         # Run "composer require symfony/mercure-bundle" to install and configure the Mercure integration
         MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
         MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+        MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
+        MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
         # Nostr relay configuration
-        NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-}
+        RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.localhost}
+        NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
