@@ -12,7 +12,8 @@ services:
       # trust your proxy/load balancer networks, adjust as needed
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:-.+}
-      SERVER_NAME: :80
+      # Set SERVER_NAME to your domain for automatic TLS, or :80 if behind a reverse proxy
+      SERVER_NAME: ${SERVER_NAME:-:80}
       # --- Mercure (Caddy module) ---
       MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -25,12 +26,16 @@ services:
       # DATABASE_URL: ${DATABASE_URL}
     ports:
       - target: 80
-        published: 8080
+        published: 80
         protocol: tcp
-      # Uncomment if you terminate TLS here (otherwise put TLS on your edge proxy)
-      # - target: 443
-      #   published: 443
-      #   protocol: tcp
+      # HTTPS port - required when Caddy handles TLS (SERVER_NAME is a domain, not :80)
+      - target: 443
+        published: 443
+        protocol: tcp
+      # HTTP/3 (QUIC) - optional but recommended for performance
+      - target: 443
+        published: 443
+        protocol: udp
     volumes:
       # Caddy state (TLS certs, etc.). Safe to persist.
       - caddy_data:/data
