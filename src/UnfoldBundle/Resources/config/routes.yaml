@@ -1,0 +1,11 @@
+# Unfold Bundle Routes
+# Mount these routes for subdomain-based site rendering
+
+unfold_site:
+    path: /{path}
+    controller: App\UnfoldBundle\Controller\SiteController
+    requirements:
+        path: '.*'
+    defaults:
+        path: ''
+

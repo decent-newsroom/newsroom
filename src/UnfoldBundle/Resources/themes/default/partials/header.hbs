@@ -1,0 +1,19 @@
+<header>
+    <div class="site-title">
+        {{#if @site.logo}}
+        <a href="/"><img src="{{@site.logo}}" alt="{{@site.title}}" height="40"></a>
+        {{else}}
+        <a href="/">{{@site.title}}</a>
+        {{/if}}
+    </div>
+    {{#if @site.description}}
+    <p class="site-description">{{@site.description}}</p>
+    {{/if}}
+    <nav>
+        <a href="/">Home</a>
+        {{#each @site.navigation}}
+        <a href="{{url}}">{{label}}</a>
+        {{/each}}
+    </nav>
+</header>
+

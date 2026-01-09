@@ -126,3 +126,28 @@ services:
     App\Service\Search\UserSearchInterface:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
+    # UnfoldBundle services
+    App\UnfoldBundle\Config\SiteConfigLoader:
+        arguments:
+            $unfoldCache: '@unfold.cache'
+
+    App\UnfoldBundle\Content\ContentProvider:
+        arguments:
+            $unfoldCache: '@unfold.cache'
+
+    App\UnfoldBundle\Http\HostResolver: ~
+    
+    App\UnfoldBundle\Http\RouteMatcher: ~
+    
+    App\UnfoldBundle\Theme\ContextBuilder: ~
+    
+    App\UnfoldBundle\Theme\HandlebarsRenderer:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\UnfoldBundle\Controller\SiteController:
+        tags: ['controller.service_arguments']
+
+    App\UnfoldBundle\Controller\UnfoldAdminController:
+        tags: ['controller.service_arguments']
+

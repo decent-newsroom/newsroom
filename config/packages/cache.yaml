@@ -25,3 +25,7 @@ framework:
                 adapter: cache.adapter.redis
                 provider: Redis
                 default_lifetime: 86400
+            unfold.cache:
+                adapter: cache.adapter.redis
+                provider: Redis
+                default_lifetime: 120

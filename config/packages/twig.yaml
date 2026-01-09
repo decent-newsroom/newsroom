@@ -1,5 +1,7 @@
 twig:
     file_name_pattern: '*.twig'
+    paths:
+        '%kernel.project_dir%/src/UnfoldBundle/Resources/views': Unfold
     globals:
         project_npub: 'npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'
         dev_npub: 'npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'
