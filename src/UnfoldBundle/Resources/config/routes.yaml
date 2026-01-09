@@ -1,6 +1,16 @@
 # Unfold Bundle Routes
 # Mount these routes for subdomain-based site rendering
 
+# Theme assets route - must come before catch-all
+unfold_theme_assets:
+    path: /assets/themes/{theme}/{path}
+    controller: App\UnfoldBundle\Controller\ThemeAssetController
+    requirements:
+        theme: '[a-zA-Z0-9_-]+'
+        path: '.+'
+    methods: [GET]
+
+# Main site controller - catch-all
 unfold_site:
     path: /{path}
     controller: App\UnfoldBundle\Controller\SiteController

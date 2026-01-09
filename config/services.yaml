@@ -148,6 +148,11 @@ services:
     App\UnfoldBundle\Controller\SiteController:
         tags: ['controller.service_arguments']
 
+    App\UnfoldBundle\Controller\ThemeAssetController:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+        tags: ['controller.service_arguments']
+
     App\UnfoldBundle\Controller\UnfoldAdminController:
         tags: ['controller.service_arguments']
 

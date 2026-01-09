@@ -2,6 +2,7 @@
 
 namespace App\UnfoldBundle\Theme;
 
+use LightnCandy\Flags;
 use LightnCandy\LightnCandy;
 use Psr\Log\LoggerInterface;
 
@@ -85,6 +86,9 @@ class HandlebarsRenderer
         if ($theme !== null) {
             $this->setTheme($theme);
         }
+
+        // Add asset path prefix to context for runtime use
+        $context['@assetPath'] = '/assets/themes/' . $this->currentTheme;
 
         $renderer = $this->getCompiledTemplate($templateName);
 
@@ -188,7 +192,7 @@ class HandlebarsRenderer
     /**
      * Compile template in memory (fallback)
      */
-    private function compileInMemory(string $templateFile): callable
+    private function compileInMemory(string $templateFile): \Closure
     {
         if (!file_exists($templateFile)) {
             // Return a basic fallback renderer
@@ -198,14 +202,19 @@ class HandlebarsRenderer
         $template = file_get_contents($templateFile);
 
         $phpCode = LightnCandy::compile($template, [
-            'flags' => LightnCandy::FLAG_HANDLEBARS
-                | LightnCandy::FLAG_ERROR_EXCEPTION
-                | LightnCandy::FLAG_RUNTIMEPARTIAL,
+            'flags' => Flags::FLAG_HANDLEBARS
+                | Flags::FLAG_ERROR_EXCEPTION
+                | Flags::FLAG_RUNTIMEPARTIAL,
             'partials' => $this->loadPartials(),
             'helpers' => $this->getHelpers(),
         ]);
 
-        return LightnCandy::prepare($phpCode);
+        $tmpFile = tempnam(sys_get_temp_dir(), 'lc_');
+        file_put_contents($tmpFile, '<?php return ' . $phpCode . ';');
+        $renderer = require $tmpFile;
+        unlink($tmpFile);
+
+        return $renderer;
     }
 
     /**
@@ -247,9 +256,11 @@ class HandlebarsRenderer
                 return '/' . ltrim($path, '/');
             },
 
-            // Asset URL helper
-            'asset' => function ($path) {
-                return '/themes/default/assets/' . ltrim($path, '/');
+            // Asset URL helper - uses @assetPath from runtime context
+            'asset' => function ($path, $options = null) {
+                // Get asset path from context (passed in render method)
+                $assetPath = $options['data']['root']['@assetPath'] ?? '/assets/themes/default';
+                return $assetPath . '/' . ltrim($path, '/');
             },
 
             // Truncate helper
