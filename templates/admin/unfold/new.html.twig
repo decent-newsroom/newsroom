@@ -1,0 +1,222 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}New Unfold Site - Admin{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
+            <li class="breadcrumb-item active">New Site</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">Create New Unfold Site</h1>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Site Configuration</h5>
+                </div>
+                <div class="card-body">
+                    {# Form to collect data for AppData event #}
+                    <form id="unfoldSiteForm">
+                        {# Step 1: Subdomain #}
+                        <div class="mb-4">
+                            <label for="subdomain" class="form-label">Subdomain <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text"
+                                       class="form-control"
+                                       id="subdomain"
+                                       name="subdomain"
+                                       placeholder="mymagazine"
+                                       pattern="[a-z0-9-]+"
+                                       required>
+                                <span class="input-group-text">.yourdomain.com</span>
+                            </div>
+                            <div class="form-text">Only lowercase letters, numbers, and hyphens allowed. This will also be used as the event identifier (d-tag).</div>
+                        </div>
+
+                        {# Step 2: Magazine naddr #}
+                        <div class="mb-4">
+                            <label for="magazine_naddr" class="form-label">Magazine naddr <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   class="form-control font-monospace"
+                                   id="magazine_naddr"
+                                   name="magazine_naddr"
+                                   placeholder="naddr1..."
+                                   required>
+                            <div class="form-text">
+                                The naddr of your root magazine event (kind 30040).
+                                You can find this in the magazine editor or by looking up your magazine event.
+                            </div>
+                        </div>
+
+                        {# Step 3: Theme Selection #}
+                        <div class="mb-4">
+                            <label for="theme" class="form-label">Theme</label>
+                            <select class="form-select" id="theme" name="theme">
+                                {% for t in themes %}
+                                <option value="{{ t }}" {{ t == 'casper' ? 'selected' : '' }}>{{ t|capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select the theme for rendering your magazine.</div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        {# Event Preview #}
+                        <div class="mb-4">
+                            <label class="form-label">AppData Event Preview</label>
+                            <pre id="eventPreview" class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;"></pre>
+                        </div>
+
+                        {# Sign and Publish using existing Stimulus controller #}
+                        <div {{ stimulus_controller('nostr--nostr-single-sign', {
+                            'event': '{}',
+                            'publishUrl': path('admin_unfold_publish'),
+                            'redirectUrl': path('admin_unfold_index')
+                        }) }} id="signerContainer">
+
+                            <div data-nostr--nostr-single-sign-target="status"></div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button"
+                                        class="btn btn-primary"
+                                        data-nostr--nostr-single-sign-target="publishButton"
+                                        data-action="click->nostr--nostr-single-sign#signAndPublish"
+                                        id="publishButton">
+                                    <i class="bi bi-pen"></i> Sign &amp; Publish
+                                </button>
+                                <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">Cancel</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Help</h6>
+                </div>
+                <div class="card-body small">
+                    <h6>What is an AppData event?</h6>
+                    <p>AppData (kind 30078) is a NIP-78 event that stores application-specific data on Nostr.
+                       Unfold uses it to link a magazine to a theme configuration.</p>
+
+                    <h6>Event Structure</h6>
+                    <pre class="bg-light p-2 small"><code>{
+  "kind": 30078,
+  "content": "Unfold App Config...",
+  "tags": [
+    ["d", "subdomain"],
+    ["a", "30040:pubkey:slug"],
+    ["theme", "casper"],
+    ["alt", "Unfold App Config"]
+  ]
+}</code></pre>
+
+                    <h6>Requirements</h6>
+                    <ul class="mb-0">
+                        <li>A Nostr signer (browser extension like nos2x or Alby)</li>
+                        <li>An existing magazine (kind 30040 event)</li>
+                        <li>A unique subdomain name</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subdomainInput = document.getElementById('subdomain');
+    const magazineInput = document.getElementById('magazine_naddr');
+    const themeSelect = document.getElementById('theme');
+    const previewEl = document.getElementById('eventPreview');
+    const signerContainer = document.getElementById('signerContainer');
+
+    function updateEventPreview() {
+        const subdomain = subdomainInput.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '') || 'my-site';
+        const magazineNaddr = magazineInput.value.trim();
+        const theme = themeSelect.value;
+
+        const event = {
+            kind: 30078,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+                ["d", subdomain],
+                ["a", magazineNaddr || "<magazine-naddr>"],
+                ["theme", theme],
+                ["alt", "Unfold App Config"]
+            ],
+            content: "Unfold App Config for '" + subdomain + "'"
+        };
+
+        previewEl.textContent = JSON.stringify(event, null, 2);
+
+        // Update the Stimulus controller's event value
+        signerContainer.dataset.nostrNostrSingleSignEventValue = JSON.stringify(event);
+
+        // Also store subdomain for the publish request
+        signerContainer.dataset.unfoldSubdomain = subdomain;
+    }
+
+    // Update preview on input changes
+    subdomainInput.addEventListener('input', updateEventPreview);
+    magazineInput.addEventListener('input', updateEventPreview);
+    themeSelect.addEventListener('change', updateEventPreview);
+
+    // Initial preview
+    updateEventPreview();
+
+    // Override the publish to include subdomain
+    const originalPublish = signerContainer.querySelector('[data-action*="signAndPublish"]');
+    if (originalPublish) {
+        originalPublish.addEventListener('click', function(e) {
+            // Validate form first
+            const subdomain = subdomainInput.value.trim();
+            const magazineNaddr = magazineInput.value.trim();
+
+            if (!subdomain) {
+                e.preventDefault();
+                e.stopPropagation();
+                alert('Please enter a subdomain.');
+                subdomainInput.focus();
+                return false;
+            }
+
+            if (!magazineNaddr || !magazineNaddr.startsWith('naddr')) {
+                e.preventDefault();
+                e.stopPropagation();
+                alert('Please enter a valid magazine naddr (should start with "naddr").');
+                magazineInput.focus();
+                return false;
+            }
+        }, true);
+    }
+});
+
+// Intercept the fetch to add subdomain to the request
+const originalFetch = window.fetch;
+window.fetch = function(url, options) {
+    if (url.includes('/admin/unfold/publish') && options && options.body) {
+        try {
+            const body = JSON.parse(options.body);
+            const signerContainer = document.getElementById('signerContainer');
+            if (signerContainer && signerContainer.dataset.unfoldSubdomain) {
+                body.subdomain = signerContainer.dataset.unfoldSubdomain;
+                options.body = JSON.stringify(body);
+            }
+        } catch (e) {
+            console.error('Failed to add subdomain to request:', e);
+        }
+    }
+    return originalFetch.apply(this, arguments);
+};
+</script>
+{% endblock %}
+

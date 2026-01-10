@@ -5,7 +5,8 @@ export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
   static values = {
     event: String,
-    publishUrl: String
+    publishUrl: String,
+    redirectUrl: String  // Optional: redirect URL after successful publish
   };
 
   // Make targets optional for event-driven usage
@@ -146,11 +147,12 @@ export default class extends Controller {
         this.showSuccess('Draft saved successfully!');
         // Stay on current page for drafts
       } else {
-        this.showSuccess('Published successfully! Redirecting...');
-        // Redirect to reading list or article page after successful publish
+        this.showSuccess(result.message || 'Published successfully! Redirecting...');
+        // Redirect: use URL from response, then from value, then default
         if (this.hasPublishButtonTarget) {
+          const redirectUrl = result.redirectUrl || this.redirectUrlValue || '/reading-list';
           setTimeout(() => {
-            window.location.href = '/reading-list';
+            window.location.href = redirectUrl;
           }, 1500);
         }
       }

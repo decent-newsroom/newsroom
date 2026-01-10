@@ -19,8 +19,12 @@ class ContextBuilder
      */
     public function buildHomeContext(SiteConfig $site, array $categories, array $posts): array
     {
+        $siteContext = $this->buildSiteContext($site, $categories);
         return [
-            '@site' => $this->buildSiteContext($site, $categories),
+            '@site' => $siteContext,
+            'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
+            '@custom' => $this->buildCustomContext(),
+            '@pageType' => 'home',
             'posts' => array_map([$this, 'buildPostListItemContext'], $posts),
             'pagination' => $this->buildPaginationContext(count($posts)),
         ];
@@ -38,8 +42,12 @@ class ContextBuilder
         CategoryData $category,
         array $posts
     ): array {
+        $siteContext = $this->buildSiteContext($site, $categories);
         return [
-            '@site' => $this->buildSiteContext($site, $categories),
+            '@site' => $siteContext,
+            'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
+            '@custom' => $this->buildCustomContext(),
+            '@pageType' => 'tag',
             'category' => [
                 'slug' => $category->slug,
                 'title' => $category->title,
@@ -57,8 +65,12 @@ class ContextBuilder
      */
     public function buildPostContext(SiteConfig $site, array $categories, PostData $post): array
     {
+        $siteContext = $this->buildSiteContext($site, $categories);
         return [
-            '@site' => $this->buildSiteContext($site, $categories),
+            '@site' => $siteContext,
+            'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
+            '@custom' => $this->buildCustomContext(),
+            '@pageType' => 'post',
             'post' => $this->buildSinglePostContext($post),
         ];
     }
@@ -82,6 +94,26 @@ class ContextBuilder
             'logo' => $site->logo,
             'url' => '/',
             'navigation' => $navigation,
+            'locale' => 'en',
+            'members_enabled' => false,
+        ];
+    }
+
+    /**
+     * Build @custom context (theme settings) with defaults
+     */
+    private function buildCustomContext(): array
+    {
+        return [
+            'navigation_layout' => 'Logo on the left',
+            'header_style' => 'Center aligned',
+            'feed_layout' => 'Classic',
+            'color_scheme' => 'Light',
+            'post_image_style' => 'Wide',
+            'title_font' => 'Modern sans-serif',
+            'body_font' => 'Modern sans-serif',
+            'show_publication_cover' => false,
+            'email_signup_text' => 'Sign up for more like this.',
         ];
     }
 

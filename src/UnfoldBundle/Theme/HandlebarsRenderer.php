@@ -127,7 +127,12 @@ class HandlebarsRenderer
 
         // Load the compiled template
         if (file_exists($cacheFile)) {
-            $this->compiledTemplates[$cacheKey] = require $cacheFile;
+            // Use static array to prevent re-declaring functions
+            static $loadedTemplates = [];
+            if (!isset($loadedTemplates[$cacheFile])) {
+                $loadedTemplates[$cacheFile] = require $cacheFile;
+            }
+            $this->compiledTemplates[$cacheKey] = $loadedTemplates[$cacheFile];
         } else {
             // Fallback: compile in memory
             $this->compiledTemplates[$cacheKey] = $this->compileInMemory($templateFile);
@@ -171,7 +176,8 @@ class HandlebarsRenderer
             'flags' => LightnCandy::FLAG_HANDLEBARS
                 | LightnCandy::FLAG_ERROR_EXCEPTION
                 | LightnCandy::FLAG_BESTPERFORMANCE
-                | LightnCandy::FLAG_RUNTIMEPARTIAL,
+                | LightnCandy::FLAG_RUNTIMEPARTIAL
+                | LightnCandy::FLAG_ADVARNAME,  // Support @site, @custom, etc.
             'partials' => $this->loadPartials(),
             'helpers' => $this->getHelpers(),
         ]);
@@ -182,8 +188,9 @@ class HandlebarsRenderer
             mkdir($cacheDir, 0755, true);
         }
 
-        // Wrap in a return statement for require
-        $phpCode = '<?php return ' . $phpCode . ';';
+        // LightnCandy output includes 'use' statements and 'return function...'
+        // so we just need to wrap it in <?php
+        $phpCode = '<?php ' . $phpCode;
         file_put_contents($cacheFile, $phpCode);
 
         $this->logger->debug('Compiled template', ['template' => $templateName]);
@@ -204,13 +211,15 @@ class HandlebarsRenderer
         $phpCode = LightnCandy::compile($template, [
             'flags' => Flags::FLAG_HANDLEBARS
                 | Flags::FLAG_ERROR_EXCEPTION
-                | Flags::FLAG_RUNTIMEPARTIAL,
+                | Flags::FLAG_RUNTIMEPARTIAL
+                | Flags::FLAG_ADVARNAME,  // Support @site, @custom, etc.
             'partials' => $this->loadPartials(),
             'helpers' => $this->getHelpers(),
         ]);
 
+        // Use temp file to evaluate the compiled code
         $tmpFile = tempnam(sys_get_temp_dir(), 'lc_');
-        file_put_contents($tmpFile, '<?php return ' . $phpCode . ';');
+        file_put_contents($tmpFile, '<?php ' . $phpCode);
         $renderer = require $tmpFile;
         unlink($tmpFile);
 
@@ -218,7 +227,7 @@ class HandlebarsRenderer
     }
 
     /**
-     * Load all partials from the theme
+     * Load all partials from the theme (including nested directories)
      */
     private function loadPartials(): array
     {
@@ -229,12 +238,34 @@ class HandlebarsRenderer
             return $partials;
         }
 
-        foreach (glob($partialsDir . '/*.hbs') as $file) {
-            $name = basename($file, '.hbs');
-            $partials[$name] = file_get_contents($file);
-        }
+        // Load partials recursively
+        $this->loadPartialsRecursive($partialsDir, '', $partials);
 
         return $partials;
+    }
+
+    /**
+     * Recursively load partials from directory
+     */
+    private function loadPartialsRecursive(string $dir, string $prefix, array &$partials): void
+    {
+        foreach (scandir($dir) as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $path = $dir . '/' . $item;
+
+            if (is_dir($path)) {
+                // Recurse into subdirectory
+                $newPrefix = $prefix ? $prefix . '/' . $item : $item;
+                $this->loadPartialsRecursive($path, $newPrefix, $partials);
+            } elseif (str_ends_with($item, '.hbs')) {
+                // Load partial file
+                $name = $prefix ? $prefix . '/' . basename($item, '.hbs') : basename($item, '.hbs');
+                $partials[$name] = file_get_contents($path);
+            }
+        }
     }
 
     /**
@@ -244,31 +275,255 @@ class HandlebarsRenderer
     {
         return [
             // Date formatting helper
-            'date' => function ($date, $format = 'F j, Y') {
+            'date' => function ($date, $options = null) {
+                $format = 'F j, Y';
+                if (is_array($options) && isset($options['hash']['format'])) {
+                    $format = $options['hash']['format'];
+                }
                 if (is_numeric($date)) {
                     return date($format, $date);
                 }
-                return date($format, strtotime($date));
+                return date($format, strtotime($date ?? 'now'));
             },
 
             // URL helper
             'url' => function ($path) {
-                return '/' . ltrim($path, '/');
+                return '/' . ltrim($path ?? '', '/');
             },
 
             // Asset URL helper - uses @assetPath from runtime context
             'asset' => function ($path, $options = null) {
-                // Get asset path from context (passed in render method)
                 $assetPath = $options['data']['root']['@assetPath'] ?? '/assets/themes/default';
-                return $assetPath . '/' . ltrim($path, '/');
+                return $assetPath . '/' . ltrim($path ?? '', '/');
             },
 
             // Truncate helper
             'truncate' => function ($text, $length = 100) {
-                if (strlen($text) <= $length) {
+                if (strlen($text ?? '') <= $length) {
                     return $text;
                 }
                 return substr($text, 0, $length) . '...';
+            },
+
+            // Ghost 'match' block helper - compares values
+            'match' => function ($val1, $operator = null, $val2 = null, $options = null) {
+                // Handle different argument patterns
+                if (is_array($operator) && isset($operator['fn'])) {
+                    // match value "string" - implicit equals
+                    $options = $operator;
+                    $val2 = $val1;
+                    $val1 = $options['hash']['value'] ?? '';
+                    $operator = '=';
+                } elseif (is_array($val2) && isset($val2['fn'])) {
+                    // match val1 val2 - implicit equals
+                    $options = $val2;
+                    $val2 = $operator;
+                    $operator = '=';
+                } elseif (is_array($options) && !isset($options['fn'])) {
+                    // Rearrange if options got mixed up
+                    $options = $val2;
+                    $val2 = $operator;
+                    $operator = '=';
+                }
+
+                $result = match ($operator) {
+                    '=', '==' => $val1 == $val2,
+                    '!=' => $val1 != $val2,
+                    '>' => $val1 > $val2,
+                    '<' => $val1 < $val2,
+                    '>=' => $val1 >= $val2,
+                    '<=' => $val1 <= $val2,
+                    default => $val1 == $operator, // implicit equals with second arg
+                };
+
+                if (is_array($options)) {
+                    if ($result && isset($options['fn'])) {
+                        return $options['fn']($options['data']['root'] ?? []);
+                    } elseif (!$result && isset($options['inverse'])) {
+                        return $options['inverse']($options['data']['root'] ?? []);
+                    }
+                }
+                return '';
+            },
+
+            // Ghost 'foreach' helper - iterate with @index, @first, @last
+            'foreach' => function ($items, $options = null) {
+                if (!is_array($items) || !is_array($options) || !isset($options['fn'])) {
+                    return '';
+                }
+
+                $result = '';
+                $count = count($items);
+                $index = 0;
+
+                foreach ($items as $key => $item) {
+                    $data = $options['data'] ?? [];
+                    $data['index'] = $index;
+                    $data['first'] = ($index === 0);
+                    $data['last'] = ($index === $count - 1);
+                    $data['key'] = $key;
+
+                    $itemContext = is_array($item) ? $item : ['this' => $item];
+                    $itemContext['@index'] = $index;
+                    $itemContext['@first'] = ($index === 0);
+                    $itemContext['@last'] = ($index === $count - 1);
+
+                    $result .= $options['fn']($itemContext, ['data' => $data]);
+                    $index++;
+                }
+
+                return $result;
+            },
+
+            // Ghost 'is' helper - check page type
+            'is' => function ($types, $options = null) {
+                if (!is_array($options) || !isset($options['fn'])) {
+                    return '';
+                }
+
+                $currentType = $options['data']['root']['@pageType'] ?? 'home';
+                $typeList = array_map('trim', explode(',', $types ?? ''));
+
+                if (in_array($currentType, $typeList)) {
+                    return $options['fn']($options['data']['root'] ?? []);
+                } elseif (isset($options['inverse'])) {
+                    return $options['inverse']($options['data']['root'] ?? []);
+                }
+                return '';
+            },
+
+            // Ghost 'has' helper - check for properties
+            'has' => function ($options = null) {
+                if (!is_array($options) || !isset($options['fn'])) {
+                    return '';
+                }
+
+                $hash = $options['hash'] ?? [];
+                $context = $options['data']['root'] ?? [];
+
+                // Check various conditions
+                $match = false;
+                if (isset($hash['index'])) {
+                    $currentIndex = $context['@index'] ?? 0;
+                    $indices = array_map('trim', explode(',', $hash['index']));
+                    $match = in_array((string)$currentIndex, $indices);
+                } elseif (isset($hash['visibility'])) {
+                    $match = false; // Default: no visibility restrictions
+                } else {
+                    $match = true; // Default true if no conditions
+                }
+
+                if ($match) {
+                    return $options['fn']($context);
+                } elseif (isset($options['inverse'])) {
+                    return $options['inverse']($context);
+                }
+                return '';
+            },
+
+            // Ghost 'get' helper - fetch data (returns empty for now)
+            'get' => function ($resource = null, $options = null) {
+                // This would need to fetch data from Nostr - return empty for now
+                return '';
+            },
+
+            // Ghost 'navigation' helper - render navigation
+            'navigation' => function ($options = null) {
+                if (!is_array($options)) {
+                    return '';
+                }
+
+                $type = $options['hash']['type'] ?? 'primary';
+                // Check both @site and site for LightnCandy compatibility
+                $navigation = $options['data']['root']['@site']['navigation']
+                    ?? $options['data']['root']['site']['navigation']
+                    ?? [];
+
+                $html = '';
+                foreach ($navigation as $item) {
+                    $html .= '<li class="nav-' . htmlspecialchars($item['slug'] ?? '') . '">';
+                    $html .= '<a href="' . htmlspecialchars($item['url'] ?? '') . '">';
+                    $html .= htmlspecialchars($item['label'] ?? '');
+                    $html .= '</a></li>';
+                }
+                // Return SafeString to prevent double-escaping
+                return new \LightnCandy\SafeString($html);
+            },
+
+            // Ghost 'ghost_head' helper - head meta/scripts
+            'ghost_head' => function ($options = null) {
+                return '<!-- ghost_head placeholder -->';
+            },
+
+            // Ghost 'ghost_foot' helper - footer scripts
+            'ghost_foot' => function ($options = null) {
+                return '<!-- ghost_foot placeholder -->';
+            },
+
+            // Ghost 'body_class' helper
+            'body_class' => function ($options = null) {
+                $pageType = $options['data']['root']['@pageType'] ?? 'home';
+                return $pageType . '-template';
+            },
+
+            // Ghost 'meta_title' helper
+            'meta_title' => function ($options = null) {
+                $site = $options['data']['root']['@site'] ?? [];
+                $post = $options['data']['root']['post'] ?? null;
+
+                if ($post) {
+                    return htmlspecialchars($post['title'] ?? '') . ' - ' . htmlspecialchars($site['title'] ?? '');
+                }
+                return htmlspecialchars($site['title'] ?? 'Unfold');
+            },
+
+            // Content helper - render post content
+            'content' => function ($options = null) {
+                $post = $options['data']['root']['post'] ?? [];
+                return $post['html'] ?? $post['content'] ?? '';
+            },
+
+            // Excerpt helper
+            'excerpt' => function ($options = null) {
+                $post = $options['data']['root']['post'] ?? [];
+                $words = $options['hash']['words'] ?? 50;
+                $text = $post['excerpt'] ?? $post['summary'] ?? '';
+
+                $wordArray = explode(' ', strip_tags($text));
+                if (count($wordArray) > $words) {
+                    $text = implode(' ', array_slice($wordArray, 0, $words)) . '...';
+                }
+                return $text;
+            },
+
+            // Plural helper
+            'plural' => function ($count, $options = null) {
+                if (!is_array($options)) {
+                    return '';
+                }
+                $singular = $options['hash']['singular'] ?? '';
+                $plural = $options['hash']['plural'] ?? $singular . 's';
+                return $count == 1 ? $singular : $plural;
+            },
+
+            // Reading time helper
+            'reading_time' => function ($options = null) {
+                $post = $options['data']['root']['post'] ?? [];
+                $content = $post['content'] ?? $post['html'] ?? '';
+                $words = str_word_count(strip_tags($content));
+                $minutes = max(1, ceil($words / 200));
+                return $minutes . ' min read';
+            },
+
+            // img_url helper - return image URL (passthrough for now)
+            'img_url' => function ($url, $options = null) {
+                return $url ?? '';
+            },
+
+            // concat helper
+            'concat' => function (...$args) {
+                $options = array_pop($args);
+                return implode('', array_filter($args, fn($a) => !is_array($a)));
             },
         ];
     }
