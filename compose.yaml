@@ -85,6 +85,7 @@ services:
             APP_ENV: prod
             DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
             NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-}
+            MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1}
 
   article_hydration_worker:
       build:
@@ -140,9 +141,3 @@ volumes:
 ###> strfry relay ###
   strfry_data:
 ###< strfry relay ###
-
-
-###> symfony/mercure-bundle ###
-  mercure_data:
-  mercure_config:
-###< symfony/mercure-bundle ###

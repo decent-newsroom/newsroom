@@ -26,6 +26,26 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		composer install --prefer-dist --no-progress --no-interaction
 	fi
 
+	# Compile AssetMapper assets (always run this, even without database)
+	echo '================================'
+	echo 'Compiling AssetMapper assets...'
+	echo '================================'
+	if [ -f "bin/console" ]; then
+		mkdir -p public/assets
+		if php bin/console asset-map:compile --no-interaction; then
+			echo '✅ Assets compiled successfully!'
+			ls -la public/assets/manifest.json 2>/dev/null || echo '⚠️  Warning: manifest.json not found after compilation'
+		else
+			echo '❌ Asset compilation failed!'
+			echo 'Checking if AssetMapper is installed...'
+			php bin/console list | grep asset-map || echo 'AssetMapper commands not available'
+		fi
+	else
+		echo '⚠️  bin/console not found, skipping asset compilation'
+	fi
+	echo '================================'
+
+
 	if grep -q ^DATABASE_URL= .env; then
 		echo 'Waiting for database to be ready...'
 		ATTEMPTS_LEFT_TO_REACH_DATABASE=60

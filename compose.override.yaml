@@ -30,3 +30,24 @@ services:
     ports:
       - "5432"
 ###< doctrine/doctrine-bundle ###
+
+###> Redis (local development) ###
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-r_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-r_password}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+###< Redis ###
+
+volumes:
+  redis_data:
+

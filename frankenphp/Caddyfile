@@ -7,7 +7,7 @@ frankenphp {
 {$CADDY_EXTRA_CONFIG}
 
 # Nostr relay WebSocket proxy
-{env.RELAY_DOMAIN:relay.localhost} {
+{$RELAY_DOMAIN:relay.localhost} {
 	log {
 		format json
 	}
