@@ -20,8 +20,8 @@ use Doctrine\ORM\Mapping as ORM;
 class Article
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column(length: 225)]
+    #[ORM\GeneratedValue(strategy: "IDENTITY")]
+    #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
