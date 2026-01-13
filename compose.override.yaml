@@ -48,6 +48,22 @@ services:
       start_period: 5s
 ###< Redis ###
 
+  worker:
+    environment:
+      APP_ENV: prod
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/messages}
+      MERCURE_PUBLIC_URL: https://php/.well-known/mercure # It's important to override this, using the service name
+    depends_on:
+      php:
+        condition: service_started
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
 volumes:
   redis_data:
 
