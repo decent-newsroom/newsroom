@@ -41,7 +41,7 @@ ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
 # Create entrypoint script to export environment variables for cron
 RUN echo '#!/bin/bash\n\
-printenv | grep -E "^(APP_|DATABASE_|REDIS_|NOSTR_|MESSENGER_)" >> /etc/environment\n\
+printenv | grep -E "^(APP_|DATABASE_|REDIS_|NOSTR_|MESSENGER_|ELASTICSEARCH_)" >> /etc/environment\n\
 echo "PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin" >> /etc/environment\n\
 cron -f' > /entrypoint.sh && chmod +x /entrypoint.sh
 

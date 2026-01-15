@@ -15,6 +15,12 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 # See: docker/cron/post_process_articles.sh (runs every few minutes)
 # ========================================
 
+# Skip if Elasticsearch is disabled
+if [ "${ELASTICSEARCH_ENABLED}" != "true" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Skipping article backfill (ELASTICSEARCH_ENABLED=${ELASTICSEARCH_ENABLED:-not set})"
+    exit 0
+fi
+
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting article backfill..."
 
 # Backfill: Fetch articles from last week (only needed for historical data)
