@@ -8,7 +8,8 @@ This guide covers everything you need to set up Decent Newsroom for both **local
 2. [Environment Variables Reference](#environment-variables-reference)
 3. [Production Deployment](#production-deployment)
 4. [Services Overview](#services-overview)
-5. [Troubleshooting](#troubleshooting)
+5. [Development Commands](#development-commands)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -288,13 +289,17 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d
 
 ---
 
-### Useful Commands
+## Development Commands
+
+All commands below should be run from the project root. They execute inside the PHP container.
+
+### General Container Commands
 
 ```bash
 # Enter PHP container shell
 docker compose exec php bash
 
-# Run Symfony console command
+# Run any Symfony console command
 docker compose exec php bin/console <command>
 
 # Clear Symfony cache
@@ -303,11 +308,80 @@ docker compose exec php bin/console cache:clear
 # View all running containers
 docker compose ps
 
-# Rebuild a single service
-docker compose build --no-cache php
-
 # View real-time logs for a service
 docker compose logs -f php
+```
+
+### Asset Management
+
+This project uses **Symfony AssetMapper** and **Stimulus** for JavaScript assets. There is no npm/webpack build step required.
+
+```bash
+# Add a new JavaScript package (instead of editing importmap.php directly)
+docker compose exec php bin/console importmap:require <package-name>
+# Example: Add Bootstrap
+docker compose exec php bin/console importmap:require bootstrap
+
+# Compile assets (run after changing JS files in assets/)
+docker compose exec php bin/console asset-map:compile
+
+# List all mapped assets
+docker compose exec php bin/console debug:asset-map
+
+# List Stimulus controllers
+docker compose exec php bin/console debug:stimulus
+```
+
+> **When to run `asset-map:compile`:**
+> - After modifying any JavaScript files in `assets/`
+> - After adding new Stimulus controllers
+> - After adding packages with `importmap:require`
+> - Before deploying to production
+
+### User Management
+
+```bash
+# Elevate a user to admin role
+docker compose exec php bin/console user:elevate <npub> ROLE_ADMIN
+
+# Example: Make yourself an admin
+docker compose exec php bin/console user:elevate npub1abc123... ROLE_ADMIN
+```
+
+**Available roles:**
+- `ROLE_USER` - Default role for all users, added in the background on login
+- `ROLE_ADMIN` - Full administrative access
+
+### Database Commands
+
+```bash
+# Run database migrations
+docker compose exec php bin/console doctrine:migrations:migrate
+
+# Generate a new migration after entity changes
+docker compose exec php bin/console doctrine:migrations:diff
+
+# View migration status
+docker compose exec php bin/console doctrine:migrations:status
+
+# Execute raw SQL query
+docker compose exec php bin/console doctrine:query:sql "SELECT * FROM users LIMIT 5"
+```
+
+### Debugging
+
+```bash
+# List all routes
+docker compose exec php bin/console debug:router
+
+# Show container services
+docker compose exec php bin/console debug:container
+
+# Show environment variables
+docker compose exec php bin/console debug:dotenv
+
+# Show event listeners
+docker compose exec php bin/console debug:event-dispatcher
 ```
 
 ### Getting Help

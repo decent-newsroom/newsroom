@@ -79,6 +79,33 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local u
 
 See [docs/SETUP.md](docs/SETUP.md) for complete production setup instructions.
 
+### Useful Commands
+
+```bash
+# When you change any Entity definitions, create a new migration for the changes
+docker compose exec php bin/console doctrine:migrations:diff 
+# Run database migrations
+docker compose exec php bin/console doctrine:migrations:migrate
+
+# Compile assets (after changing JS in assets/)
+docker compose exec php bin/console asset-map:compile
+
+# Make yourself an admin
+docker compose exec php bin/console user:elevate <your-npub> ROLE_ADMIN
+```
+
+### JavaScript Assets
+
+This project uses **Symfony AssetMapper** and **Stimulus** for JavaScript - no npm or webpack required. 
+
+```bash
+# Add a new JS package
+docker compose exec php bin/console importmap:require <package-name>
+
+# Compile assets (after changing JS in assets/)
+docker compose exec php bin/console asset-map:compile
+```
+
 ### Environment Variables
 
 The `.env.dist` file contains all configuration options with inline documentation:
