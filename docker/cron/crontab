@@ -11,9 +11,9 @@
 
 # Cache latest articles for Redis views
 # Runs every 15 minutes to keep cache fresh
-*/15 * * * * php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
+*/15 * * * * /usr/local/bin/php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
 
 # Cache latest highlights for Redis views
 # Runs every 30 minutes
-*/30 * * * * php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
+*/30 * * * * /usr/local/bin/php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
 

@@ -9,7 +9,7 @@ TIMESTAMP() { date '+%Y-%m-%d %H:%M:%S'; }
 echo "$(TIMESTAMP) $LOG_PREFIX STARTING article discovery cache update" >&2
 
 # Run Symfony command
-php /var/www/html/bin/console app:cache_latest_articles
+/usr/local/bin/php /var/www/html/bin/console app:cache_latest_articles
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then

@@ -15,7 +15,7 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting article backfill..."
 
 # Backfill: Fetch articles from last week (only needed for historical data)
-php /var/www/html/bin/console articles:get -- '-1 week' 'now'
+/usr/local/bin/php /var/www/html/bin/console articles:get -- '-1 week' 'now'
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Article backfill completed"
 

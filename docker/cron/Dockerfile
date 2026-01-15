@@ -36,5 +36,8 @@ RUN chmod 0644 /etc/cron.d/app-cron && \
 # Apply cron job
 RUN crontab /etc/cron.d/app-cron
 
+# Ensure PHP is in PATH for cron jobs
+ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+
 # Run cron in the foreground
 CMD ["cron", "-f"]

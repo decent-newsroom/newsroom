@@ -13,7 +13,7 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting article post-processing..."
 
 # Run post-processing commands (QA, index, mark as indexed)
-php /var/www/html/bin/console articles:post-process
+/usr/local/bin/php /var/www/html/bin/console articles:post-process
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Article post-processing completed"
 
