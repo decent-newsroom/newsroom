@@ -86,12 +86,12 @@ class Article
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $advancedMetadata = null;
 
-    public function getId(): null|int|string
+    public function getId(): null|int
     {
         return $this->id;
     }
 
-    public function setId(int|string $id): static
+    public function setId(int $id): static
     {
         $this->id = $id;
 

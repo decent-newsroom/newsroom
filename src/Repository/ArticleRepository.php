@@ -3,9 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Article;
-use App\Enum\IndexStatusEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 class ArticleRepository extends ServiceEntityRepository
@@ -13,6 +13,50 @@ class ArticleRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Article::class);
+    }
+
+    /**
+     * Find latest articles, grouped by slug (one per slug), excluding muted pubkeys
+     *
+     * @param int $limit
+     * @param array<string> $excludedPubkeys
+     * @return Article[]
+     */
+    public function findLatestArticles(int $limit = 50, array $excludedPubkeys = []): array
+    {
+        $qb = $this->createQueryBuilder('a');
+
+        $qb->where('a.publishedAt IS NOT NULL')
+            ->andWhere('a.slug IS NOT NULL')
+            ->andWhere('a.title IS NOT NULL')
+            ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
+            ->setParameter('slugPattern', '%/%')
+            ->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults($limit * 2); // Get more initially, will dedupe by slug
+
+        if (!empty($excludedPubkeys)) {
+            $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
+                ->setParameter('excludedPubkeys', $excludedPubkeys);
+        }
+
+        /** @var Article[] $allArticles */
+        $allArticles = $qb->getQuery()->getResult();
+
+        // Group by slug and keep the most recent version of each
+        $slugMap = [];
+        foreach ($allArticles as $article) {
+            $slug = $article->getSlug();
+            if (!isset($slugMap[$slug]) || $article->getCreatedAt() > $slugMap[$slug]->getCreatedAt()) {
+                $slugMap[$slug] = $article;
+            }
+        }
+
+        // Sort by createdAt DESC and limit
+        usort($slugMap, function($a, $b) {
+            return $b->getCreatedAt() <=> $a->getCreatedAt();
+        });
+
+        return array_slice(array_values($slugMap), 0, $limit);
     }
 
     /**
@@ -89,6 +133,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @param int $limit
      * @param int $offset
      * @return Article[]
+     * @throws Exception|\JsonException
      */
     public function findByTopics(array $topics, int $limit = 12, int $offset = 0): array
     {
@@ -96,24 +141,41 @@ class ArticleRepository extends ServiceEntityRepository
             return [];
         }
 
-        $qb = $this->createQueryBuilder('a');
+        $conn = $this->getEntityManager()->getConnection();
+        $wheres = [];
+        $params = [];
+        $types  = [];
 
-        // Use JSON contains for topics (PostgreSQL)
-        // Note: This assumes topics is stored as a JSON field
-        $orX = $qb->expr()->orX();
-        foreach ($topics as $index => $topic) {
-            $orX->add("JSONB_CONTAINS(a.topics, :topic$index) = true");
-            $qb->setParameter("topic$index", json_encode([$topic]));
+        foreach ($topics as $i => $t) {
+            $key = "needle_$i";
+            $wheres[] = "topics::jsonb @> :$key::jsonb";
+            $params[$key] = json_encode([$t], JSON_THROW_ON_ERROR);
+            $types[$key] = ParameterType::STRING;
         }
 
-        $qb->where($orX)
-            ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
-            ->setParameter('slugPattern', '%/%')
-            ->orderBy('a.createdAt', 'DESC')
-            ->setFirstResult($offset)
-            ->setMaxResults($limit);
+        $sql = 'SELECT id FROM article WHERE ' . implode(' OR ', $wheres);
 
-        return $qb->getQuery()->getResult();
+        $ids = $conn->fetchFirstColumn($sql, $params, $types);
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        // Fetch the actual Article entities by ID, preserving order
+        $qb = $this->createQueryBuilder('a');
+        $qb->where($qb->expr()->in('a.id', ':ids'))
+            ->setParameter('ids', $ids)
+            ->orderBy('a.createdAt', 'DESC');
+
+        $articles = $qb->getQuery()->getResult();
+
+        // Preserve the original order from the native query
+        $idOrder = array_flip($ids);
+        usort($articles, function ($a, $b) use ($idOrder) {
+            return ($idOrder[$a->getId()] ?? 0) <=> ($idOrder[$b->getId()] ?? 0);
+        });
+
+        return $articles;
     }
 
     /**

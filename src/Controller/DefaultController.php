@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\ArticleRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
@@ -19,7 +20,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Elastica\Collapse;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
-use Elastica\Query\Terms;
 use Exception;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -60,7 +60,8 @@ class DefaultController extends AbstractController
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         CacheItemPoolInterface $articlesCache,
-        MutedPubkeysService $mutedPubkeysService
+        MutedPubkeysService $mutedPubkeysService,
+        EntityManagerInterface $entityManager
     ): Response
     {
         // Fast path: Try to get from Redis views first (single GET)
@@ -90,30 +91,36 @@ class DefaultController extends AbstractController
             $cacheKey = 'latest_articles_list_' . $env;
             $cacheItem = $articlesCache->getItem($cacheKey);
 
-            if (!$cacheItem->isHit()) {
-                // Fallback: run query now if command hasn't populated cache yet
-                set_time_limit(300);
-                ini_set('max_execution_time', '300');
+            // Get muted pubkeys from database/cache
+            $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
 
-                // Get muted pubkeys from database/cache
-                $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+            // Check if Elasticsearch is enabled
+            $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
 
-                $boolQuery = new BoolQuery();
-                if (!empty($excludedPubkeys)) {
-                    $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+            if ($elasticsearchEnabled) {
+                try {
+                    $boolQuery = new BoolQuery();
+                    if (!empty($excludedPubkeys)) {
+                        $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
+                    }
+                    $query = new Query($boolQuery);
+                    $query->setSize(50);
+                    $query->setSort(['createdAt' => ['order' => 'desc']]);
+                    $collapseSlug = new Collapse();
+                    $collapseSlug->setFieldname('slug');
+                    $query->setCollapse($collapseSlug);
+                    $articles = $finder->find($query);
+                } catch (\Throwable $e) {
+                    // Elasticsearch error - fallback to database
+                    /** @var ArticleRepository $articleRepository */
+                    $articleRepository = $entityManager->getRepository(Article::class);
+                    $articles = $articleRepository->findLatestArticles(50, $excludedPubkeys);
                 }
-                $query = new Query($boolQuery);
-                $query->setSize(50);
-                $query->setSort(['createdAt' => ['order' => 'desc']]);
-                $collapseSlug = new Collapse();
-                $collapseSlug->setFieldname('slug');
-                $query->setCollapse($collapseSlug);
-                $articles = $finder->find($query);
-                $cacheItem->set($articles);
-                $cacheItem->expiresAfter(3600);
-                $articlesCache->save($cacheItem);
             } else {
-                $articles = $cacheItem->get();
+                // Use database when Elasticsearch is disabled
+                /** @var ArticleRepository $articleRepository */
+                $articleRepository = $entityManager->getRepository(Article::class);
+                $articles = $articleRepository->findLatestArticles(50, $excludedPubkeys);
             }
 
             // Fetch author metadata for fallback path
@@ -125,8 +132,8 @@ class DefaultController extends AbstractController
                         $authorPubkeys[] = $pubkey;
                     }
                 } elseif (is_object($article)) {
-                    if (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                        $authorPubkeys[] = $article->pubkey;
+                    if ($article->getPubkey() !== null && NostrKeyUtil::isHexPubkey($article->getPubkey())) {
+                        $authorPubkeys[] = $article->getPubkey();
                     } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
                         $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
                     }
@@ -152,7 +159,7 @@ class DefaultController extends AbstractController
     }
 
     /**
-     * @throws Exception
+     * @throws Exception|InvalidArgumentException
      */
     #[Route('/latest-articles', name: 'latest_articles')]
     public function latestArticles(

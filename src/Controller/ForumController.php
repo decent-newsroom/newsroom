@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Repository\ArticleRepository;
 use App\Service\NostrClient;
-use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Elastica\Aggregation\Filters as FiltersAgg;
@@ -34,11 +34,23 @@ class ForumController extends AbstractController
         Request $request,
         NostrClient $nostrClient
     ): Response {
-        // Optional: small cache so we don’t hammer ES on every page view
-        $categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($index) {
-            $item->expiresAfter(30); // 30s is a nice compromise for “live enough”
+        // Check if Elasticsearch is enabled
+        $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
+
+        // Optional: small cache so we don't hammer ES on every page view
+        $categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($index, $elasticsearchEnabled) {
+            $item->expiresAfter(30); // 30s is a nice compromise for "live enough"
             $allTags = $this->flattenAllTags(ForumTopics::TOPICS); // ['tag' => true, ...]
-            $counts = $this->fetchTagCounts($index, array_keys($allTags)); // ['tag' => count]
+
+            // Try to fetch counts if Elasticsearch is enabled
+            $counts = [];
+            if ($elasticsearchEnabled) {
+                try {
+                    $counts = $this->fetchTagCounts($index, array_keys($allTags)); // ['tag' => count]
+                } catch (\Throwable $e) {
+                    // Elasticsearch error - return empty counts
+                }
+            }
 
             return $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
         });
@@ -46,12 +58,18 @@ class ForumController extends AbstractController
         $userInterests = null;
         /** @var User $user */
         $user = $this->getUser();
-        if (!!$user) {
+        if (!!$user && $elasticsearchEnabled) {
             try {
                 $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
                 $interests = $nostrClient->getUserInterests($pubkey);
                 if (!empty($interests)) {
-                    $counts = $this->fetchTagCounts($index, array_values($interests)); // ['tag' => count]
+                    try {
+                        $counts = $this->fetchTagCounts($index, array_values($interests)); // ['tag' => count]
+                    } catch (\Throwable $e) {
+                        // Elasticsearch error - skip user interests
+                        $counts = [];
+                        $interests = [];
+                    }
                     $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
                     // Filter to only include subcategories that have tags in interests
                     foreach ($userInterests as $catKey => $cat) {
@@ -99,8 +117,12 @@ class ForumController extends AbstractController
         string $topic,
         #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
         #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
+        ArticleRepository $articleRepository,
         Request $request
     ): Response {
+        // Check if Elasticsearch is enabled
+        $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
+
         $catKey = strtolower(trim($topic));
         if (!isset(ForumTopics::TOPICS[$catKey])) {
             throw $this->createNotFoundException('Main topic not found');
@@ -115,31 +137,69 @@ class ForumController extends AbstractController
         $tags = array_values(array_unique(array_map('strtolower', array_map('trim', $tags))));
 
         // Count each tag in this main topic in one shot
-        $tagCounts = $this->fetchTagCounts($index, $tags);
+        $tagCounts = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $tagCounts = $this->fetchTagCounts($index, $tags);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty counts
+            }
+        }
 
         // Fetch articles for the main topic (OR across all tags), collapse by slug
-        $bool = new BoolQuery();
-        if (!empty($tags)) {
-            $bool->addFilter(new Terms('topics', $tags));
-        }
-        $query = new Query($bool);
-        $query->setSize(20);
-        $query->setSort(['createdAt' => ['order' => 'desc']]);
-        $collapse = new Collapse();
-        $collapse->setFieldname('slug');
-        $query->setCollapse($collapse);
+        $articles = [];
+        $pager = null;
+        if ($elasticsearchEnabled) {
+            try {
+                $bool = new BoolQuery();
+                if (!empty($tags)) {
+                    $bool->addFilter(new Terms('topics', $tags));
+                }
+                $query = new Query($bool);
+                $query->setSize(20);
+                $query->setSort(['createdAt' => ['order' => 'desc']]);
+                $collapse = new Collapse();
+                $collapse->setFieldname('slug');
+                $query->setCollapse($collapse);
 
-        /** @var Pagerfanta $pager */
-        $pager = $finder->findPaginated($query);
-        $pager->setMaxPerPage(20);
-        $pager->setCurrentPage(max(1, (int)$request->query->get('page', 1)));
-        $articles = iterator_to_array($pager->getCurrentPageResults());
+                /** @var Pagerfanta $pager */
+                $pager = $finder->findPaginated($query);
+                $pager->setMaxPerPage(20);
+                $pager->setCurrentPage(max(1, (int)$request->query->get('page', 1)));
+                $articles = iterator_to_array($pager->getCurrentPageResults());
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty articles
+            }
+        }
 
         // Latest threads under this main topic scope
         $page    = max(1, (int)$request->query->get('page', 1));
         $perPage = 20;
-        $threads = $this->fetchThreads($index, [$tags]);
+        $threads = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $threads = $this->fetchThreads($index, [$tags]);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty threads
+            }
+        } else {
+            // Fallback: fetch from DB directly
+            $threads = $this->fetchThreadsFromDb($articleRepository, [$tags]);
+        }
         $threadsPage = array_slice($threads, ($page-1)*$perPage, $perPage);
+
+        // Get hydrated topics
+        $topics = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $topics = $this->getHydratedTopics($index);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty topics
+                $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+            }
+        } else {
+            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+        }
 
         return $this->render('forum/main_topic.html.twig', [
             'categoryKey' => $catKey,
@@ -149,7 +209,7 @@ class ForumController extends AbstractController
             'total' => count($threads),
             'page' => $page,
             'perPage' => $perPage,
-            'topics' => $this->getHydratedTopics($index),
+            'topics' => $topics,
             'articles' => $articles,
             'pager' => $pager,
         ]);
@@ -161,8 +221,12 @@ class ForumController extends AbstractController
         #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
         #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
         NostrClient $nostrClient,
+        ArticleRepository $articleRepository,
         Request $request
     ): Response {
+        // Check if Elasticsearch is enabled
+        $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
+
         // key format: "{category}-{subcategory}"
         $key = strtolower(trim($key));
         [$cat, $sub] = array_pad(explode('-', $key, 2), 2, null);
@@ -195,45 +259,61 @@ class ForumController extends AbstractController
 
         // Count each tag in this subcategory in one shot
         $tags = array_map('strval', $topic['tags']);
-        $tagCounts = $this->fetchTagCounts($index, $tags);
+        $tagCounts = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $tagCounts = $this->fetchTagCounts($index, $tags);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty counts
+            }
+        }
 
         // Fetch articles for the topic
-        $bool = new BoolQuery();
-        $bool->addFilter(new Terms('topics', $tags));
+        $articles = [];
+        $pager = null;
+        if ($elasticsearchEnabled) {
+            try {
+                $bool = new BoolQuery();
+                $bool->addFilter(new Terms('topics', $tags));
 
-        $query = new Query($bool);
-        $query->setSize(20);
-        $query->setSort(['createdAt' => ['order' => 'desc']]);
-        $collapse = new Collapse();
-        $collapse->setFieldname('slug');
-        $query->setCollapse($collapse);
+                $query = new Query($bool);
+                $query->setSize(20);
+                $query->setSort(['createdAt' => ['order' => 'desc']]);
+                $collapse = new Collapse();
+                $collapse->setFieldname('slug');
+                $query->setCollapse($collapse);
 
-        /** @var Pagerfanta $pager */
-        $pager = $finder->findPaginated($query);
-        $pager->setMaxPerPage(20);
-        $pager->setCurrentPage(max(1, (int) $request->query->get('page', 1)));
-        $articles = iterator_to_array($pager->getCurrentPageResults());
+                /** @var Pagerfanta $pager */
+                $pager = $finder->findPaginated($query);
+                $pager->setMaxPerPage(20);
+                $pager->setCurrentPage(max(1, (int)$request->query->get('page', 1)));
+                $articles = iterator_to_array($pager->getCurrentPageResults());
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty articles
+            }
+        }
 
-        // (Optional) also show latest threads under this topic scope
-        $page    = max(1, (int) $request->query->get('page', 1));
-        $perPage = 20;
-        $threads = $this->fetchThreads($index, [$tags]); // OR scope: any tag in subcategory
-        $threadsPage = array_slice($threads, ($page-1)*$perPage, $perPage);
+        // Get hydrated topics
+        $topics = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $topics = $this->getHydratedTopics($index);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty topics
+                $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+            }
+        } else {
+            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+        }
 
         return $this->render('forum/topic.html.twig', [
             'categoryKey' => $cat,
             'subcategoryKey' => $sub,
-            'topic' => [
-                'name' => $topic['name'],
-                'tags' => $tags,
-            ],
-            'tags' => $tagCounts, // ['tag' => count]
-            'threads' => $threadsPage,
-            'total' => count($threads),
-            'page' => $page,
-            'perPage' => $perPage,
-            'topics' => $this->getHydratedTopics($index),
-            'articles' => $articles
+            'topic' => $topic,
+            'tags' => $tagCounts,
+            'articles' => $articles,
+            'pager' => $pager,
+            'topics' => $topics,
         ]);
     }
 
@@ -242,30 +322,82 @@ class ForumController extends AbstractController
         string $tag,
         #[Autowire(service: 'fos_elastica.finder.articles')] PaginatedFinderInterface $finder,
         #[Autowire(service: 'fos_elastica.index.articles')] \Elastica\Index $index,
+        ArticleRepository $articleRepository,
         Request $request
     ): Response {
+        // Check if Elasticsearch is enabled
+        $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
+
         $tag = strtolower(trim($tag));
 
-        $bool = new BoolQuery();
-        // Correct Term usage:
-        $bool->addFilter(new Term(['topics' => $tag]));
+        $articles = [];
+        $pager = null;
+        if ($elasticsearchEnabled) {
+            try {
+                $bool = new BoolQuery();
+                // Correct Term usage:
+                $bool->addFilter(new Term(['topics' => $tag]));
 
-        $query = new Query($bool);
-        $query->setSize(20);
+                $query = new Query($bool);
+                $query->setSize(20);
 
-        $query->setSort(['createdAt' => ['order' => 'desc']]);
+                $query->setSort(['createdAt' => ['order' => 'desc']]);
 
-        /** @var Pagerfanta $pager */
-        $pager = $finder->findPaginated($query);
-        $pager->setMaxPerPage(20);
-        $pager->setCurrentPage(max(1, (int) $request->query->get('page', 1)));
-        $articles = iterator_to_array($pager->getCurrentPageResults());
+                /** @var Pagerfanta $pager */
+                $pager = $finder->findPaginated($query);
+                $pager->setMaxPerPage(20);
+                $pager->setCurrentPage(max(1, (int) $request->query->get('page', 1)));
+                $articles = iterator_to_array($pager->getCurrentPageResults());
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty articles
+            }
+        } else {
+            // Fallback: fetch from DB directly
+            // Use the repository's findByTopics method
+            $articlesDb = $articleRepository->findByTopics([$tag], 200);
+
+            // Map to the same format as ES results
+            $articles = array_map(static function ($article) {
+                return [
+                    'id'           => $article->getId(),
+                    'slug'         => $article->getSlug(),
+                    'title'        => $article->getTitle() ?? '(untitled)',
+                    'summary'      => $article->getSummary(),
+                    'topics'       => $article->getTopics() ?? [],
+                    'createdAt'   => $article->getCreatedAt()?->format('c'),
+                ];
+            }, $articlesDb);
+
+            // Manual pagination
+            $page    = max(1, (int)$request->query->get('page', 1));
+            $perPage = 20;
+            $total   = count($articles);
+            $articles = array_slice($articles, ($page-1)*$perPage, $perPage);
+
+            // Create a simple Pagerfanta instance
+            $pager = new Pagerfanta(new \Pagerfanta\Adapter\ArrayAdapter($articlesDb));
+            $pager->setMaxPerPage($perPage);
+            $pager->setCurrentPage($page);
+        }
+
+        // Get hydrated topics
+        $topics = [];
+        if ($elasticsearchEnabled) {
+            try {
+                $topics = $this->getHydratedTopics($index);
+            } catch (\Throwable $e) {
+                // Elasticsearch error - return empty topics
+                $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+            }
+        } else {
+            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
+        }
 
         return $this->render('forum/tag.html.twig', [
             'tag' => $tag,
             'articles' => $articles,
             'pager' => $pager, // expose if you want numbered pagination links
-            'topics' => $this->getHydratedTopics($index),
+            'topics' => $topics,
         ]);
     }
 
@@ -390,5 +522,44 @@ class ForumController extends AbstractController
         $allTags = $this->flattenAllTags(ForumTopics::TOPICS);
         $counts = $this->fetchTagCounts($index, array_keys($allTags));
         return $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+    }
+
+    /**
+     * Alternative to fetchThreads that queries the database directly instead of Elasticsearch.
+     * Fetch latest threads for a given OR-scope of tag groups from the database.
+     *
+     * @param ArticleRepository $repository
+     * @param array<int,array<int,string>> $tagGroups  e.g. [ ['bitcoin','lightning'] ]
+     * @param int $size
+     * @return array<int,array<string,mixed>>
+     */
+    private function fetchThreadsFromDb(ArticleRepository $repository, array $tagGroups, int $size = 200): array
+    {
+        // Flatten all tags from groups
+        $flatTags = [];
+        foreach ($tagGroups as $g) {
+            foreach ($g as $t) {
+                $flatTags[] = strtolower($t);
+            }
+        }
+        $flatTags = array_values(array_unique($flatTags));
+
+        if (empty($flatTags)) {
+            return [];
+        }
+
+        // Use the repository's findByTopics method
+        $articles = $repository->findByTopics($flatTags, $size);
+
+        // Map to the same format as fetchThreads
+        return array_map(static function ($article) {
+            return [
+                'id'           => $article->getId(),
+                'title'        => $article->getTitle() ?? '(untitled)',
+                'excerpt'      => $article->getSummary(),
+                'topics'       => $article->getTopics() ?? [],
+                'created_at'   => $article->getCreatedAt()?->format('c'),
+            ];
+        }, $articles);
     }
 }
