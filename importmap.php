@@ -16,20 +16,35 @@ return [
         'path' => './assets/app.js',
         'entrypoint' => true,
     ],
-    '@hotwired/stimulus' => [
-        'version' => '3.2.2',
-    ],
     '@symfony/stimulus-bundle' => [
         'path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js',
     ],
     '@symfony/ux-live-component' => [
         'path' => './vendor/symfony/ux-live-component/assets/dist/live_controller.js',
     ],
+    '@noble/hashes/utils' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/sha256' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/hkdf' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/hmac' => [
+        'version' => '1.3.1',
+    ],
+    '@noble/hashes/crypto' => [
+        'version' => '1.3.1',
+    ],
+    '@hotwired/stimulus' => [
+        'version' => '3.2.2',
+    ],
     'quill' => [
         'version' => '2.0.3',
     ],
     'lodash-es' => [
-        'version' => '4.17.21',
+        'version' => '4.17.22',
     ],
     'parchment' => [
         'version' => '3.0.0',
@@ -58,62 +73,47 @@ return [
         'type' => 'css',
     ],
     'es-module-shims' => [
-        'version' => '2.0.10',
+        'version' => '2.8.0',
     ],
     'nostr-tools' => [
-        'version' => '2.17.0',
+        'version' => '2.19.4',
     ],
     '@noble/curves/secp256k1' => [
-        'version' => '1.2.0',
-    ],
-    '@noble/hashes/utils' => [
-        'version' => '1.3.1',
-    ],
-    '@noble/hashes/sha256' => [
-        'version' => '1.3.1',
+        'version' => '2.0.1',
     ],
     '@scure/base' => [
-        'version' => '1.1.1',
+        'version' => '2.0.0',
     ],
     '@noble/ciphers/aes' => [
-        'version' => '0.5.3',
+        'version' => '2.1.1',
     ],
     '@noble/ciphers/chacha' => [
-        'version' => '0.5.3',
+        'version' => '2.1.1',
     ],
     '@noble/ciphers/utils' => [
-        'version' => '0.5.3',
-    ],
-    '@noble/hashes/hkdf' => [
-        'version' => '1.3.1',
-    ],
-    '@noble/hashes/hmac' => [
-        'version' => '1.3.1',
-    ],
-    '@noble/hashes/crypto' => [
-        'version' => '1.3.1',
+        'version' => '2.1.1',
     ],
     'nostr-tools/nip46' => [
-        'version' => '2.17.0',
+        'version' => '2.19.4',
     ],
     'chart.js/auto' => [
-        'version' => '4.5.0',
+        'version' => '4.5.1',
     ],
     '@kurkle/color' => [
-        'version' => '0.3.4',
+        'version' => '0.4.0',
     ],
     'katex' => [
-        'version' => '0.16.25',
+        'version' => '0.16.27',
     ],
     'katex/dist/contrib/auto-render.mjs' => [
-        'version' => '0.16.25',
+        'version' => '0.16.27',
     ],
     'katex/dist/katex.min.css' => [
-        'version' => '0.16.25',
+        'version' => '0.16.27',
         'type' => 'css',
     ],
     'katex/dist/katex.min.js' => [
-        'version' => '0.16.25',
+        'version' => '0.16.27',
     ],
     'prism-react' => [
         'version' => '1.0.2',
@@ -122,40 +122,40 @@ return [
         'version' => '1.0.2',
     ],
     'react' => [
-        'version' => '15.5.4',
+        'version' => '19.2.3',
     ],
     'recompose' => [
-        'version' => '0.22.0',
+        'version' => '0.30.0',
     ],
     'object-assign' => [
         'version' => '4.1.1',
     ],
     'fbjs/lib/invariant' => [
-        'version' => '0.8.12',
+        'version' => '3.0.5',
     ],
     'fbjs/lib/warning' => [
-        'version' => '0.8.12',
+        'version' => '3.0.5',
     ],
     'fbjs/lib/emptyFunction' => [
-        'version' => '0.8.12',
+        'version' => '3.0.5',
     ],
     'fbjs/lib/emptyObject' => [
-        'version' => '0.8.12',
+        'version' => '3.0.5',
     ],
     'prop-types/factory' => [
-        'version' => '15.5.7',
+        'version' => '15.8.1',
     ],
     'fbjs/lib/shallowEqual' => [
-        'version' => '0.8.8',
+        'version' => '3.0.5',
     ],
     'hoist-non-react-statics' => [
-        'version' => '1.2.0',
+        'version' => '3.3.2',
     ],
     'change-emitter' => [
-        'version' => '0.1.2',
+        'version' => '0.1.6',
     ],
     'symbol-observable' => [
-        'version' => '1.0.4',
+        'version' => '4.0.0',
     ],
     'prismjs' => [
         'version' => '1.30.0',
@@ -174,40 +174,40 @@ return [
         'version' => '6.1.3',
     ],
     '@codemirror/view' => [
-        'version' => '6.37.2',
+        'version' => '6.39.11',
     ],
     '@codemirror/state' => [
-        'version' => '6.5.2',
+        'version' => '6.5.4',
     ],
     '@codemirror/language' => [
-        'version' => '6.11.1',
+        'version' => '6.12.1',
     ],
     '@codemirror/commands' => [
-        'version' => '6.8.1',
+        'version' => '6.10.1',
     ],
     '@codemirror/search' => [
-        'version' => '6.5.11',
+        'version' => '6.6.0',
     ],
     '@codemirror/autocomplete' => [
-        'version' => '6.18.6',
+        'version' => '6.20.0',
     ],
     '@codemirror/lint' => [
-        'version' => '6.8.5',
+        'version' => '6.9.2',
     ],
     '@lezer/markdown' => [
-        'version' => '1.5.1',
+        'version' => '1.6.3',
     ],
     '@codemirror/lang-html' => [
         'version' => '6.4.11',
     ],
     '@lezer/common' => [
-        'version' => '1.2.3',
+        'version' => '1.5.0',
     ],
     '@lezer/highlight' => [
-        'version' => '1.2.1',
+        'version' => '1.2.3',
     ],
     'style-mod' => [
-        'version' => '4.1.2',
+        'version' => '4.1.3',
     ],
     'w3c-keyname' => [
         'version' => '2.2.8',
@@ -219,7 +219,7 @@ return [
         'version' => '1.0.2',
     ],
     '@lezer/html' => [
-        'version' => '1.3.12',
+        'version' => '1.3.13',
     ],
     '@codemirror/lang-css' => [
         'version' => '6.3.1',
@@ -228,18 +228,42 @@ return [
         'version' => '6.2.4',
     ],
     '@lezer/lr' => [
-        'version' => '1.4.2',
+        'version' => '1.4.7',
     ],
     '@lezer/css' => [
-        'version' => '1.1.9',
+        'version' => '1.3.0',
     ],
     '@lezer/javascript' => [
-        'version' => '1.5.1',
+        'version' => '1.5.4',
     ],
     '@codemirror/lang-json' => [
         'version' => '6.0.2',
     ],
     '@lezer/json' => [
         'version' => '1.0.3',
+    ],
+    '@noble/hashes/sha2.js' => [
+        'version' => '2.0.1',
+    ],
+    '@noble/hashes/utils.js' => [
+        'version' => '2.0.1',
+    ],
+    '@noble/hashes/hmac.js' => [
+        'version' => '2.0.1',
+    ],
+    '@babel/runtime/helpers/esm/extends' => [
+        'version' => '7.0.0',
+    ],
+    '@babel/runtime/helpers/esm/inheritsLoose' => [
+        'version' => '7.0.0',
+    ],
+    'react-lifecycles-compat' => [
+        'version' => '3.0.4',
+    ],
+    '@babel/runtime/helpers/esm/objectWithoutPropertiesLoose' => [
+        'version' => '7.0.0',
+    ],
+    'react-is' => [
+        'version' => '16.12.0',
     ],
 ];
