@@ -7,7 +7,7 @@ parameters:
     encryption_key: '%env(APP_ENCRYPTION_KEY)%'
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
-    elasticsearch_enabled: '%env(ELASTICSEARCH_ENABLED)%'
+    elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
 
 services:
     # default configuration for services in *this* file
@@ -95,6 +95,7 @@ services:
         arguments:
             $finder: '@fos_elastica.finder.articles'
             $enabled: '%elasticsearch_enabled%'
+            $index: '@fos_elastica.index.articles'
 
     # Search services - Database implementation
     App\Service\Search\DatabaseArticleSearch: ~

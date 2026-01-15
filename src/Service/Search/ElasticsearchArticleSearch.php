@@ -3,6 +3,8 @@
 namespace App\Service\Search;
 
 use App\Entity\Article;
+use Elastica\Aggregation\Filters as FiltersAgg;
+use Elastica\Index;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MultiMatch;
@@ -15,7 +17,8 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
     public function __construct(
         private readonly FinderInterface $finder,
         private readonly LoggerInterface $logger,
-        private readonly bool $enabled = true
+        private readonly bool $enabled = true,
+        private readonly ?Index $index = null
     ) {
     }
 
@@ -148,6 +151,97 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             return $this->finder->find($mainQuery);
         } catch (\Exception $e) {
             $this->logger->error('Elasticsearch findByPubkey error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function findLatest(int $limit = 50, array $excludedPubkeys = []): array
+    {
+        if (!$this->enabled) {
+            return [];
+        }
+
+        try {
+            $boolQuery = new BoolQuery();
+
+            if (!empty($excludedPubkeys)) {
+                $boolQuery->addMustNot(new Terms('pubkey', $excludedPubkeys));
+            }
+
+            $mainQuery = new Query($boolQuery);
+            $mainQuery->setSize($limit);
+            $mainQuery->setSort(['createdAt' => ['order' => 'desc']]);
+
+            // Collapse on slug to get unique articles
+            $mainQuery->setParam('collapse', [
+                'field' => 'slug'
+            ]);
+
+            return $this->finder->find($mainQuery);
+        } catch (\Exception $e) {
+            $this->logger->error('Elasticsearch findLatest error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function findByTag(string $tag, int $limit = 20, int $offset = 0): array
+    {
+        if (!$this->enabled || empty($tag)) {
+            return [];
+        }
+
+        try {
+            $boolQuery = new BoolQuery();
+            $boolQuery->addFilter(new Query\Term(['topics' => strtolower(trim($tag))]));
+
+            $mainQuery = new Query($boolQuery);
+            $mainQuery->setSort(['createdAt' => ['order' => 'desc']]);
+            $mainQuery->setFrom($offset);
+            $mainQuery->setSize($limit);
+
+            // Collapse on slug to get unique articles
+            $mainQuery->setParam('collapse', [
+                'field' => 'slug'
+            ]);
+
+            return $this->finder->find($mainQuery);
+        } catch (\Exception $e) {
+            $this->logger->error('Elasticsearch findByTag error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function getTagCounts(array $tags): array
+    {
+        if (!$this->enabled || empty($tags) || $this->index === null) {
+            return [];
+        }
+
+        try {
+            $tags = array_values(array_unique(array_map('strtolower', array_map('trim', $tags))));
+
+            $query = new Query(new Query\MatchAll());
+            $filters = new FiltersAgg('tag_counts');
+
+            foreach ($tags as $tag) {
+                $boolQuery = new BoolQuery();
+                $boolQuery->addFilter(new Query\Term(['topics' => $tag]));
+                $filters->addFilter($boolQuery, $tag);
+            }
+
+            $query->addAggregation($filters);
+            $query->setSize(0);
+
+            $result = $this->index->search($query);
+            $agg = $result->getAggregation('tag_counts')['buckets'] ?? [];
+
+            $out = [];
+            foreach ($tags as $tag) {
+                $out[$tag] = isset($agg[$tag]['doc_count']) ? (int) $agg[$tag]['doc_count'] : 0;
+            }
+            return $out;
+        } catch (\Exception $e) {
+            $this->logger->error('Elasticsearch getTagCounts error: ' . $e->getMessage());
             return [];
         }
     }

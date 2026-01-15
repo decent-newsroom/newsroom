@@ -68,6 +68,44 @@ class DatabaseArticleSearch implements ArticleSearchInterface
         }
     }
 
+    public function findLatest(int $limit = 50, array $excludedPubkeys = []): array
+    {
+        try {
+            return $this->articleRepository->findLatestArticles($limit, $excludedPubkeys);
+        } catch (\Exception $e) {
+            $this->logger->error('Database findLatest error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function findByTag(string $tag, int $limit = 20, int $offset = 0): array
+    {
+        if (empty($tag)) {
+            return [];
+        }
+
+        try {
+            return $this->articleRepository->findByTopics([strtolower(trim($tag))], $limit, $offset);
+        } catch (\Exception $e) {
+            $this->logger->error('Database findByTag error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function getTagCounts(array $tags): array
+    {
+        if (empty($tags)) {
+            return [];
+        }
+
+        try {
+            return $this->articleRepository->getTagCounts($tags);
+        } catch (\Exception $e) {
+            $this->logger->error('Database getTagCounts error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
     public function isAvailable(): bool
     {
         return true; // Database is always available

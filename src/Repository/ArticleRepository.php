@@ -191,14 +191,45 @@ class ArticleRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('a');
 
         $qb->where('a.pubkey = :pubkey')
-            ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
+            // ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
             ->setParameter('pubkey', $pubkey)
-            ->setParameter('slugPattern', '%/%')
+            // ->setParameter('slugPattern', '%/%')
             ->orderBy('a.createdAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Get article counts grouped by tags
+     *
+     * @param array $tags Array of tags to count
+     * @return array<string, int> Tag => count mapping
+     * @throws Exception|\JsonException
+     */
+    public function getTagCounts(array $tags): array
+    {
+        if (empty($tags)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $counts = [];
+
+        // Normalize tags to lowercase
+        $tags = array_map('strtolower', array_map('trim', $tags));
+        $tags = array_values(array_unique($tags));
+
+        foreach ($tags as $tag) {
+            $sql = "SELECT COUNT(*) FROM article WHERE topics::jsonb @> :needle::jsonb";
+            $count = $conn->fetchOne($sql, [
+                'needle' => json_encode([$tag], JSON_THROW_ON_ERROR)
+            ]);
+            $counts[$tag] = (int) $count;
+        }
+
+        return $counts;
     }
 
     /**

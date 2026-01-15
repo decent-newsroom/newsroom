@@ -7,21 +7,17 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Repository\ArticleRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
+use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\CommonMark\Converter;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
-use Elastica\Collapse;
-use Elastica\Query;
-use Elastica\Query\BoolQuery;
 use Exception;
-use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use swentel\nostr\Key\Key;
@@ -56,12 +52,11 @@ class DefaultController extends AbstractController
      */
     #[Route('/discover', name: 'discover')]
     public function discover(
-        FinderInterface $finder,
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         CacheItemPoolInterface $articlesCache,
         MutedPubkeysService $mutedPubkeysService,
-        EntityManagerInterface $entityManager
+        ArticleSearchFactory $articleSearchFactory
     ): Response
     {
         // Fast path: Try to get from Redis views first (single GET)
@@ -86,42 +81,12 @@ class DefaultController extends AbstractController
             }
             $fromCache = true;
         } else {
-            // Fallback path: Use old cache system if Redis view not available
-            $env = $this->getParameter('kernel.environment');
-            $cacheKey = 'latest_articles_list_' . $env;
-            $cacheItem = $articlesCache->getItem($cacheKey);
-
-            // Get muted pubkeys from database/cache
+            // Fallback path: Use search service if Redis view not available
             $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
 
-            // Check if Elasticsearch is enabled
-            $elasticsearchEnabled = filter_var($this->getParameter('elasticsearch_enabled'), FILTER_VALIDATE_BOOLEAN);
-
-            if ($elasticsearchEnabled) {
-                try {
-                    $boolQuery = new BoolQuery();
-                    if (!empty($excludedPubkeys)) {
-                        $boolQuery->addMustNot(new Query\Terms('pubkey', $excludedPubkeys));
-                    }
-                    $query = new Query($boolQuery);
-                    $query->setSize(50);
-                    $query->setSort(['createdAt' => ['order' => 'desc']]);
-                    $collapseSlug = new Collapse();
-                    $collapseSlug->setFieldname('slug');
-                    $query->setCollapse($collapseSlug);
-                    $articles = $finder->find($query);
-                } catch (\Throwable $e) {
-                    // Elasticsearch error - fallback to database
-                    /** @var ArticleRepository $articleRepository */
-                    $articleRepository = $entityManager->getRepository(Article::class);
-                    $articles = $articleRepository->findLatestArticles(50, $excludedPubkeys);
-                }
-            } else {
-                // Use database when Elasticsearch is disabled
-                /** @var ArticleRepository $articleRepository */
-                $articleRepository = $entityManager->getRepository(Article::class);
-                $articles = $articleRepository->findLatestArticles(50, $excludedPubkeys);
-            }
+            // Use the search factory to get the appropriate search service
+            $articleSearch = $articleSearchFactory->create();
+            $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 
             // Fetch author metadata for fallback path
             $authorPubkeys = [];
@@ -284,7 +249,6 @@ class DefaultController extends AbstractController
     #[Route('/mag/{mag}/cat/{slug}', name: 'magazine-category')]
     public function magCategory($mag, $slug, EntityManagerInterface $entityManager,
                                 RedisCacheService $redisCacheService,
-                                FinderInterface $finder,
                                 LoggerInterface $logger,
                                 ArticleSearchInterface $articleSearch): Response
     {
