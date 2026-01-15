@@ -2,6 +2,9 @@
 set -e
 export PATH="/usr/local/bin:/usr/bin:/bin"
 
+# Source environment variables (includes APP_ENV, DATABASE_URL, etc.)
+[ -f /etc/environment ] && . /etc/environment
+
 LOG_PREFIX="[media_discovery.sh]"
 TIMESTAMP() { date '+%Y-%m-%d %H:%M:%S'; }
 

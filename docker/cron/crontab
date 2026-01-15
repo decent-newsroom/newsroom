@@ -1,5 +1,10 @@
 # Article Processing Cron Jobs
 # ========================================
+# Environment variables are passed via Docker environment
+# PATH is set to ensure PHP CLI is found
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 
 # Post-process articles (QA, indexing, mark as indexed)
 # Runs every 5 minutes to process articles ingested by hydration worker
@@ -11,9 +16,9 @@
 
 # Cache latest articles for Redis views
 # Runs every 15 minutes to keep cache fresh
-*/15 * * * * /usr/local/bin/php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
+*/15 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
 
 # Cache latest highlights for Redis views
 # Runs every 30 minutes
-*/30 * * * * /usr/local/bin/php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
+*/30 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
 

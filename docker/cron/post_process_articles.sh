@@ -2,6 +2,9 @@
 set -e
 export PATH="/usr/local/bin:/usr/bin:/bin"
 
+# Source environment variables (includes APP_ENV, DATABASE_URL, etc.)
+[ -f /etc/environment ] && . /etc/environment
+
 # ========================================
 # ARTICLE POST-PROCESSING CRON
 # ========================================
