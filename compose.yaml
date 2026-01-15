@@ -1,3 +1,26 @@
+# =============================================================================
+# Base Docker Compose Configuration
+# =============================================================================
+#
+# This file defines all services shared between development and production.
+# 
+# For local development:
+#   docker compose up -d
+#   (automatically uses compose.yaml + compose.override.yaml)
+#
+# For production:
+#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d
+#
+# Services:
+#   - php: FrankenPHP (Symfony app + Caddy web server + Mercure)
+#   - database: PostgreSQL database
+#   - worker: Symfony Messenger consumer (async job processing)
+#   - strfry: Nostr relay (article caching)
+#   - cron: Scheduled tasks
+#   - article_hydration_worker: Syncs articles from relay to database
+#
+# =============================================================================
+
 services:
   php:
     restart: unless-stopped
@@ -23,15 +46,15 @@ services:
     ports:
       # HTTP
       - target: 80
-        published: ${HTTP_PORT:-80}
+        published: ${HTTP_PORT:-8080}
         protocol: tcp
       # HTTPS
       - target: 443
-        published: ${HTTPS_PORT:-443}
+        published: ${HTTPS_PORT:-8443}
         protocol: tcp
       # HTTP/3
       - target: 443
-        published: ${HTTP3_PORT:-443}
+        published: ${HTTP3_PORT:-8443}
         protocol: udp
 
 # Mercure is installed as a Caddy module, prevent the Flex recipe from installing another service

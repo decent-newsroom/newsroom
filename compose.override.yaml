@@ -1,3 +1,20 @@
+# =============================================================================
+# Development Environment Override
+# =============================================================================
+#
+# This file is automatically loaded by Docker Compose when running:
+#   docker compose up -d
+#
+# It adds development-specific features:
+#   - Source code bind mounts (live reload)
+#   - Xdebug support
+#   - Development PHP settings
+#   - Redis service (included locally, may be external in production)
+#   - Exposed database port
+#
+# DO NOT use this file in production! Use compose.prod.yaml instead.
+# =============================================================================
+
 # Development environment override
 services:
   php:

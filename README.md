@@ -46,16 +46,45 @@ An integrated service that provides on-demand indexing and search.
 
 ## Setup
 
-### Clone the repository
+> 📚 **For detailed setup instructions, see [docs/SETUP.md](docs/SETUP.md)**
+
+### Quick Start (Local Development)
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/decent-newsroom/newsroom.git
 cd newsroom
+
+# 2. Create environment file
+cp .env.dist .env
+
+# 3. Build and start containers
+docker compose build
+docker compose up -d
+
+# 4. Access the application
+# https://localhost:8443 (accept the self-signed certificate warning)
 ```
 
-### Create the .env file
+### Production Deployment
 
-Copy the example file `.env.dist` and replace placeholders with your actual configuration.
+For production, you'll need to:
+1. Configure secure passwords and secrets
+2. Set your domain name for automatic TLS
+3. Use the production compose file
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d
+```
+
+See [docs/SETUP.md](docs/SETUP.md) for complete production setup instructions.
+
+### Environment Variables
+
+The `.env.dist` file contains all configuration options with inline documentation:
+- ✅ Variables safe to use with defaults
+- ⚠️ Variables to review for production  
+- 🔒 Variables that **must** be changed for production (security-sensitive)
 
 ### Nostr Relay
 
@@ -66,3 +95,11 @@ The project includes a private read-only Nostr relay (powered by strfry) that ac
 - Automatic periodic sync from upstream relays
 - Caches long-form articles (NIP-23), reactions, zaps, highlights, and more
 - WebSocket endpoint exposed via Caddy
+
+## Documentation
+
+- [Complete Setup Guide](docs/SETUP.md) - Local and production setup
+- [Production Deployment](docs/production.md) - Server preparation and deployment
+- [Relay Production Setup](docs/relay-production.md) - Nostr relay configuration
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+

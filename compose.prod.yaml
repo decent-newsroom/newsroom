@@ -1,3 +1,26 @@
+# =============================================================================
+# Production Docker Compose Configuration
+# =============================================================================
+#
+# This file contains production-specific overrides. Use together with compose.yaml:
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d
+#
+# Key differences from development:
+#   - Uses frankenphp_prod Docker target (optimized, no dev tools)
+#   - No source code bind mounts (code is baked into image)
+#   - Automatic TLS certificates via Let's Encrypt (when SERVER_NAME is a domain)
+#   - Healthchecks for service dependencies
+#
+# Required environment variables (set in .env.prod.local):
+#   - APP_SECRET: Unique secret for CSRF/cookies
+#   - SERVER_NAME: Your domain (e.g., yourdomain.com)
+#   - POSTGRES_PASSWORD: Strong database password
+#   - MERCURE_JWT_SECRET, MERCURE_PUBLISHER_JWT_KEY, MERCURE_SUBSCRIBER_JWT_KEY
+#   - RELAY_DOMAIN: Nostr relay subdomain (e.g., relay.yourdomain.com)
+#
+# =============================================================================
+
 services:
   php:
     build:
