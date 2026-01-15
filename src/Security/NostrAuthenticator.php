@@ -3,7 +3,7 @@
 namespace App\Security;
 
 use App\Entity\Event;
-use Mdanter\Ecc\Crypto\Signature\SchnorrSignature;
+use Mdanter\Ecc\Crypto\Signature\SchnorrSigner;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -209,7 +209,7 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
     private function validateSignature(Event $event): void
     {
         try {
-            $schnorr = new SchnorrSignature();
+            $schnorr = new SchnorrSigner();
             $isValid = $schnorr->verify($event->getPubkey(), $event->getSig(), $event->getId());
 
             if (!$isValid) {

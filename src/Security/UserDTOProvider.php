@@ -7,6 +7,7 @@ use App\Service\RedisCacheService;
 use App\Service\UserMetadataSyncService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -33,7 +34,7 @@ readonly class UserDTOProvider implements UserProviderInterface
      *
      * @param UserInterface $user The user to refresh.
      * @return UserInterface The refreshed user instance.
-     * @throws \InvalidArgumentException If the provided user is not an instance of User.
+     * @throws \InvalidArgumentException|InvalidArgumentException If the provided user is not an instance of User.
      */
     public function refreshUser(UserInterface $user): UserInterface
     {
