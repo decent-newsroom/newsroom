@@ -85,7 +85,7 @@ ENV FRANKENPHP_CONFIG="import worker.Caddyfile"
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/app.conf.d/
-COPY --link frankenphp/worker.Caddyfile /etc/caddy/worker.Caddyfile
+COPY --link frankenphp/worker.Caddyfile /etc/frankenphp/worker.Caddyfile
 
 # prevent the reinstallation of vendors at every changes in the source code
 COPY --link composer.* symfony.* ./
