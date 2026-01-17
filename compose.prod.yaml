@@ -69,31 +69,6 @@ services:
       strfry:
         condition: service_started
 
-  worker:
-    build:
-      context: .
-      target: frankenphp_prod       # use the prod stage so vendor/ is baked in
-    image: yourapp/worker:prod
-    working_dir: /app
-    entrypoint: ["php"]
-    command:
-      - bin/console
-      - messenger:consume
-      - -vv
-      - --memory-limit=256M
-      - --keepalive
-      - "10"
-      - async
-    restart: unless-stopped
-    depends_on:
-      php:
-        condition: service_started
-      database:
-        condition: service_healthy
-    ports: []
-    expose: []
-    volumes: []                     # IMPORTANT: no bind mount in prod
-
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
     restart: unless-stopped
