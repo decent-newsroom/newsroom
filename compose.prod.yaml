@@ -46,7 +46,7 @@ services:
       RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.localhost}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       # --- Database URL (optional: prefer .env.prod) ---
-      # DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL}
     ports:
       - target: 80
         published: 80
