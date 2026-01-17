@@ -1,5 +1,5 @@
 {% block _editor_advancedMetadata_widget %}
-    <div class="advanced-metadata-section" {{ stimulus_controller('advanced-metadata') }}>
+    <div class="advanced-metadata-section" {{ stimulus_controller('content--advanced-metadata') }}>
                 <div class="row hidden">
                     <div class="col-md-6">
                         {{ form_row(form.doNotRepublish) }}
@@ -7,8 +7,8 @@
                     <div class="col-md-6">
                         {{ form_row(form.license, {
                             'attr': {
-                                'data-advanced-metadata-target': 'licenseSelect',
-                                'data-action': 'change->advanced-metadata#licenseChanged'
+                                'data-content--advanced-metadata-target': 'licenseSelect',
+                                'data-action': 'change->content--advanced-metadata#licenseChanged'
                             }
                         }) }}
                     </div>
@@ -18,7 +18,7 @@
                     <div class="col-md-12">
                         {{ form_row(form.customLicense, {
                             'attr': {
-                                'data-advanced-metadata-target': 'customLicenseInput'
+                                'data-content--advanced-metadata-target': 'customLicenseInput'
                             }
                         }) }}
                     </div>
@@ -28,11 +28,11 @@
                 <h6>Zap Splits</h6>
                 <p class="text-muted small">Configure multiple recipients for zaps (tips). Weights determine the split ratio.</p>
 
-                <div data-advanced-metadata-target="zapSplitsContainer"
+                <div data-content--advanced-metadata-target="zapSplitsContainer"
                      data-prototype="{{ form_widget(form.zapSplits.vars.prototype)|e('html_attr') }}"
                      data-index="{{ form.zapSplits|length }}">
                     {% for zapSplit in form.zapSplits %}
-                        <div class="zap-split-item mb-3 p-3 border rounded" data-index="{{ loop.index0 }}">
+                        <div class="zap-split-item mb-3" data-index="{{ loop.index0 }}">
                             <div class="row">
                                 <div class="col-md-5">
                                     {{ form_row(zapSplit.recipient) }}
@@ -46,7 +46,7 @@
                             </div>
                             <button type="button"
                                     class="btn btn-sm btn-danger mt-2"
-                                    data-action="click->advanced-metadata#removeZapSplit"
+                                    data-action="click->content--advanced-metadata#removeZapSplit"
                                     data-index="{{ loop.index0 }}">
                                 Remove
                             </button>
@@ -57,24 +57,23 @@
                     {% endfor %}
                 </div>
 
-                <div class="mb-3">
+                <div class="d-flex gap-3 mb-3">
                     <button type="button"
                             class="btn btn-sm btn-secondary"
-                            data-advanced-metadata-target="addZapButton"
-                            data-action="click->advanced-metadata#addZapSplit">
+                            data-content--advanced-metadata-target="addZapButton"
+                            data-action="click->content--advanced-metadata#addZapSplit">
                         Add Zap Recipient
                     </button>
                     <button type="button"
                             class="btn btn-sm btn-outline-secondary"
-                            data-advanced-metadata-target="distributeEquallyButton"
-                            data-action="click->advanced-metadata#distributeEqually">
+                            data-content--advanced-metadata-target="distributeEquallyButton"
+                            data-action="click->content--advanced-metadata#distributeEqually">
                         Distribute Equally
                     </button>
                 </div>
 
-                <hr class="my-4">
 
-                <div class="row">
+                <div class="row hidden">
                     <div class="col-md-6">
                         {{ form_row(form.contentWarning) }}
                     </div>

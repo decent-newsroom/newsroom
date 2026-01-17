@@ -97,7 +97,7 @@ export default class extends Controller {
 
         // Create wrapper div
         const wrapper = document.createElement('div');
-        wrapper.classList.add('zap-split-item', 'mb-3', 'p-3', 'border', 'rounded');
+        wrapper.classList.add('zap-split-item', 'mb-3');
         wrapper.dataset.index = index.toString();
         wrapper.innerHTML = newForm;
 
@@ -106,7 +106,7 @@ export default class extends Controller {
         deleteBtn.type = 'button';
         deleteBtn.classList.add('btn', 'btn-sm', 'btn-danger', 'mt-2');
         deleteBtn.textContent = 'Remove';
-        deleteBtn.addEventListener('click', () => this.removeZapSplit(wrapper));
+        deleteBtn.setAttribute('data-action', 'click->content--advanced-metadata#removeZapSplit');
         wrapper.appendChild(deleteBtn);
 
         // Add share percentage display
@@ -129,9 +129,15 @@ export default class extends Controller {
     /**
      * Remove a zap split row
      */
-    removeZapSplit(wrapper) {
-        wrapper.remove();
-        this.updateZapShares();
+    removeZapSplit(event) {
+        event.preventDefault();
+
+        // Find the zap-split-item wrapper
+        const wrapper = event.target.closest('.zap-split-item');
+        if (wrapper) {
+            wrapper.remove();
+            this.updateZapShares();
+        }
     }
 
     /**

@@ -22,6 +22,10 @@
 
 ###> publication ###
 /publication/
+###< publication ###
+###> documentation ###
+/documentation/
+###< documentation ###
 
 ###> strfry relay ###
 /docker/strfry/data/

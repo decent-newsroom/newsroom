@@ -43,6 +43,7 @@ import './styles/toast.css';
 
 // Editor layout
 import './styles/editor-layout.css';
+import './styles/advanced-metadata.css';
 
 // 04 - Page-specific styles
 import './styles/04-pages/landing.css';

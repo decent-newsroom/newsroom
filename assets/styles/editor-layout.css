@@ -1,4 +1,9 @@
 /* Main container - takes full viewport */
+#editor-form {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
 main.editor-layout {
     position: fixed;
     top: 0;

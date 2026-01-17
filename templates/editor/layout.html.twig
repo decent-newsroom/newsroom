@@ -46,6 +46,7 @@
 {% include 'components/Toast.html.twig' %}
 
 <main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
+    {{ form_start(form, {'attr': {'id': 'editor-form'}}) }}
     <div class="editor-main">
         <div data-nostr--nostr-single-sign-target="status"
              style="position: fixed;top: 65px;right: 10px;"
@@ -99,7 +100,6 @@
             </div>
 
             <div class="editor-center-content">
-                {{ form_start(form) }}
                 {# Hidden field for draft status - controlled by Save Draft / Publish buttons #}
                 {{ form_widget(form.isDraft, {'attr': {'class': 'hidden'}}) }}
                 {# Hidden fields for content delta and NMD #}
@@ -207,15 +207,15 @@
                 >
                     Metadata
                 </button>
-{#                <button#}
-{#                    type="button"#}
-{#                    class="editor-sidebar-tab"#}
-{#                    data-editor--panels-target="tab"#}
-{#                    data-panel="advanced"#}
-{#                    data-action="editor--panels#switch"#}
-{#                >#}
-{#                    Advanced#}
-{#                </button>#}
+                <button
+                    type="button"
+                    class="editor-sidebar-tab"
+                    data-editor--panels-target="tab"
+                    data-panel="advanced"
+                    data-action="editor--panels#switch"
+                >
+                    Advanced
+                </button>
                 <button
                     type="button"
                     class="editor-sidebar-tab"
@@ -277,8 +277,8 @@
 
         {{ form_row(form.pubkey, {'value': app.user ? app.user.userIdentifier|toHex : ''}) }}
         {{ form_row(form.loginMethod, {'value': app.session.get('nostr_sign_method', '')}) }}
-        {{ form_end(form) }}
     </div>
+    {{ form_end(form) }}
 
     {# Hidden container for Nostr publishing (no JSON textarea, uses canonical panel) #}
     <div {{ stimulus_controller('nostr--nostr-publish', {

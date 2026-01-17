@@ -10,7 +10,7 @@ form {
     margin-bottom: var(--spacing-3);
 }
 
-form > div:not(.actions,.editor-pane) {
+form > div:not(.actions,.editor-main) {
     display: flex;
     flex-direction: column;
     margin-bottom: var(--spacing-4);

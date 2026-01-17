@@ -1,6 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { EditorView, basicSetup } from 'codemirror';
 import { json } from '@codemirror/lang-json';
+import { npubToHex } from '../../typescript/nostr-utils.ts';
 
 // Inline utility functions (simplified versions)
 function buildAdvancedTags(metadata) {
@@ -396,24 +397,36 @@ export default class extends Controller {
       }
     }
 
-    // Collect zap splits
-    let index = 0;
-    while (true) {
-      const recipient = fd.get(`editor[advancedMetadata][zapSplits][${index}][recipient]`);
-      if (!recipient) break;
-
-      const relay = fd.get(`editor[advancedMetadata][zapSplits][${index}][relay]`) || '';
-      const weightStr = fd.get(`editor[advancedMetadata][zapSplits][${index}][weight]`);
-      const weight = weightStr ? parseInt(weightStr, 10) : undefined;
-
-      metadata.zapSplits.push({
-        recipient: String(recipient),
-        relay: relay ? String(relay) : undefined,
-        weight: weight !== undefined && !isNaN(weight) ? weight : undefined,
-      });
-
-      index++;
+    // Collect zap splits - need to check all FormData keys
+    // Symfony CollectionType can use non-sequential indices
+    const zapSplitIndices = new Set();
+    for (const key of fd.keys()) {
+      const match = key.match(/^editor\[advancedMetadata]\[zapSplits]\[(\d+)]/);
+      if (match) {
+        zapSplitIndices.add(parseInt(match[1], 10));
+      }
     }
+    for (const index of Array.from(zapSplitIndices).sort((a, b) => a - b)) {
+      const recipientRaw = fd.get(`editor[advancedMetadata][zapSplits][${index}][recipient]`);
+      if (recipientRaw) {
+        const relay = fd.get(`editor[advancedMetadata][zapSplits][${index}][relay]`) || '';
+        const weightStr = fd.get(`editor[advancedMetadata][zapSplits][${index}][weight]`);
+        const weight = weightStr ? parseInt(weightStr, 10) : undefined;
+        // Always convert recipient to hex
+        const recipientHex = npubToHex(String(recipientRaw));
+        if (!recipientHex) {
+          console.warn(`Invalid zap split recipient at index ${index}:`, recipientRaw);
+          continue;
+        }
+        metadata.zapSplits.push({
+          recipient: recipientHex,
+          relay: relay ? String(relay) : undefined,
+          weight: weight !== undefined && !isNaN(weight) ? weight : undefined,
+        });
+      }
+    }
+
+    console.log('Collected advanced metadata:', metadata);
 
     return metadata;
   }

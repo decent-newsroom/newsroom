@@ -1,38 +1,4 @@
 /* Advanced Metadata Styles */
-
-.advanced-metadata-section details {
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 1rem;
-    background-color: #f8f9fa;
-}
-
-.advanced-metadata-section summary {
-    cursor: pointer;
-    user-select: none;
-    font-weight: 600;
-    margin: -1rem -1rem 0 -1rem;
-    padding: 1rem;
-}
-
-.advanced-metadata-section summary:hover {
-    background-color: #e9ecef;
-}
-
-.advanced-metadata-section details[open] summary {
-    border-bottom: 1px solid #dee2e6;
-    margin-bottom: 1rem;
-}
-
-.zap-split-item {
-    background-color: #ffffff;
-    transition: box-shadow 0.2s;
-}
-
-.zap-split-item:hover {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
 .zap-share-display {
     font-size: 0.875rem;
     font-weight: 600;
