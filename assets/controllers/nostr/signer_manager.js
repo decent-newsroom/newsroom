@@ -1,6 +1,7 @@
 // Shared signer manager for Nostr signers (remote and extension)
 import { SimplePool } from 'nostr-tools';
 import { BunkerSigner } from 'nostr-tools/nip46';
+import { hexToBytes } from 'nostr-tools/utils';
 
 const REMOTE_SIGNER_KEY = 'amber_remote_signer';
 const MAX_RETRIES = 3;
@@ -113,8 +114,9 @@ async function createRemoteSignerFromSession(session) {
 
       // fromBunker() is for reconnecting to an already-authorized bunker
       // It doesn't wait for a new connect message like fromURI() does
+      // Convert hex privkey to Uint8Array
       signer = BunkerSigner.fromBunker(
-        session.privkey,
+        hexToBytes(session.privkey),
         session.bunkerPointer,
         { pool: remoteSignerPool }
       );
@@ -128,7 +130,8 @@ async function createRemoteSignerFromSession(session) {
       console.log('[signer_manager] Session relays:', session.relays);
 
       // fromURI returns a Promise - await it to get the signer
-      signer = await BunkerSigner.fromURI(session.privkey, session.uri, { pool: remoteSignerPool });
+      // Convert hex privkey to Uint8Array
+      signer = await BunkerSigner.fromURI(hexToBytes(session.privkey), session.uri, { pool: remoteSignerPool });
       console.log('[signer_manager] ✅ BunkerSigner created from URI!');
 
       // With fromURI, we need to call connect()

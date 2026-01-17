@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { getPublicKey, SimplePool } from 'nostr-tools';
+import { hexToBytes } from 'nostr-tools/utils';
 import { BunkerSigner } from "nostr-tools/nip46";
 import { setRemoteSignerSession } from '../nostr/signer_manager.js';
 
@@ -8,6 +9,7 @@ export default class extends Controller {
 
   connect() {
     console.log('[signer-modal] controller connected');
+    this._localSecretKeyHex = null;
     this._localSecretKey = null;
     this._uri = null;
     this._relays = [];
@@ -49,7 +51,9 @@ export default class extends Controller {
       if (!res.ok) throw new Error('QR fetch failed');
       const data = await res.json();
 
-      this._localSecretKey = data.privkey;
+      // Store both formats: hex string for getPublicKey, Uint8Array for BunkerSigner
+      this._localSecretKeyHex = data.privkey;
+      this._localSecretKey = hexToBytes(data.privkey);
       this._uri = data.uri;
       this._relays = data.relays || [data.relay].filter(Boolean);
       this._secret = data.secret || null;
@@ -73,15 +77,20 @@ export default class extends Controller {
   _checkClientPubkeyIntegrity() {
     try {
       if (!this._localSecretKey || !this._uri) return;
+      console.log('[signer-modal] Checking pubkey integrity...');
       const derived = getPublicKey(this._localSecretKey);
+      console.log('[signer-modal] Derived pubkey:', derived);
       const m = this._uri.match(/^nostrconnect:\/\/([0-9a-fA-F]{64})/);
       if (!m) {
         console.warn('[signer-modal] URI missing/invalid pubkey segment');
         return;
       }
       const uriPk = m[1].toLowerCase();
+      console.log('[signer-modal] URI pubkey:', uriPk);
       if (uriPk !== derived.toLowerCase()) {
         console.warn('[signer-modal] Pubkey mismatch: derived != URI', { derived, uriPk });
+      } else {
+        console.log('[signer-modal] ✅ Pubkey integrity check passed');
       }
     } catch (e) {
       console.warn('[signer-modal] integrity check failed', e);
@@ -118,7 +127,7 @@ export default class extends Controller {
       });
       if (resp.ok) {
         setRemoteSignerSession({
-          privkey: this._localSecretKey,
+          privkey: this._localSecretKeyHex,
           bunkerPointer: this._signer.bp,
           uri: this._uri,
           relays: this._relays,

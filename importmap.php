@@ -266,4 +266,7 @@ return [
     'react-is' => [
         'version' => '16.12.0',
     ],
+    'nostr-tools/utils' => [
+        'version' => '2.19.4',
+    ],
 ];

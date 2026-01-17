@@ -14,7 +14,6 @@
     width: min(600px, 90vw);
     max-height: 85vh;
     overflow: auto;
-    padding: var(--spacing-3) var(--spacing-4);
     z-index: 1000;
 }
 
