@@ -113,7 +113,12 @@
                     <div class="editor-title-input">
                         {{ form_row(form.title, {
                             'label': false,
-                            'attr': {'placeholder': 'Article title', 'class': 'form-control editor-title-field'}
+                            'attr': {
+                                'placeholder': 'Article title',
+                                'class': 'form-control editor-title-field',
+                                'data-editor--layout-target': 'richTextTitle',
+                                'data-action': 'input->editor--layout#syncTitle'
+                            }
                         }) }}
                     </div>
 
@@ -146,7 +151,7 @@
                                 class="form-control editor-title-field"
                                 placeholder="Article title"
                                 data-editor--layout-target="markdownTitle"
-                                readonly
+                                data-action="input->editor--layout#syncTitle"
                             />
                         </div>
                         {{ form_widget(form.contentNMD) }}

@@ -6,7 +6,7 @@ export default class extends Controller {
         'modeTab', 'editPane', 'markdownPane', 'jsonPane', 'previewPane',
         'previewBody', 'previewTitle',
         'previewSummary', 'previewImage', 'previewImagePlaceholder', 'previewAuthor', 'previewDate',
-        'markdownEditor', 'markdownTitle', 'markdownCode', 'status',
+        'markdownEditor', 'richTextTitle', 'markdownTitle', 'markdownCode', 'status',
         'saveDraftSubmit', 'publishSubmit', 'jsonCode'
     ];
 
@@ -225,6 +225,8 @@ export default class extends Controller {
             this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
             this.state.active_source = 'md';
             this.updateMarkdownEditor();
+            // Sync title from rich text to markdown
+            this.syncTitleToMarkdown();
         } else if (mode === 'edit') {
             // Always convert latest Markdown to Delta and update Quill
             // (regardless of previous active_source)
@@ -242,6 +244,8 @@ export default class extends Controller {
             this.state.content_delta = this.nmdToDelta(nmd);
             this.state.active_source = 'quill';
             this.updateQuillEditor();
+            // Sync title from markdown to rich text
+            this.syncTitleToRichText();
         } else if (mode === 'preview') {
             this.updatePreview().then(r => console.log('Preview updated', r));
         } else if (mode === 'json') {
@@ -484,5 +488,31 @@ export default class extends Controller {
             bubbles: true
         }));
     }
-}
 
+    // --- Title Synchronization ---
+    syncTitle(event) {
+        // Called when either title input changes
+        const source = event.target;
+        if (source === this.richTextTitleTarget && this.hasMarkdownTitleTarget) {
+            // Sync from rich text to markdown
+            this.markdownTitleTarget.value = source.value;
+        } else if (source === this.markdownTitleTarget && this.hasRichTextTitleTarget) {
+            // Sync from markdown to rich text
+            this.richTextTitleTarget.value = source.value;
+        }
+    }
+
+    syncTitleToMarkdown() {
+        // Called when switching to markdown mode
+        if (this.hasRichTextTitleTarget && this.hasMarkdownTitleTarget) {
+            this.markdownTitleTarget.value = this.richTextTitleTarget.value;
+        }
+    }
+
+    syncTitleToRichText() {
+        // Called when switching to rich text mode
+        if (this.hasMarkdownTitleTarget && this.hasRichTextTitleTarget) {
+            this.richTextTitleTarget.value = this.markdownTitleTarget.value;
+        }
+    }
+}
