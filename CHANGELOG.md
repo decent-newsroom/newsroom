@@ -1,0 +1,33 @@
+# CHANGELOG
+
+## v0.0.4
+
+- Updated deployment and build, added documentation.
+- [Bug] Fixed Elasticsearch feature flag.
+- [Bug] Fixed article title sync in editor.
+
+
+## v0.0.3
+We know you have better things to do than waiting around for the page to load.
+
+- Refactored article editor.
+- Removed deprecated Nzine implementation.
+- Added a user profile index to Elasticsearch.
+- You can now include a cover image in reading lists.
+- Added a feature flag for Elasticsearch integration.
+- Implemented a new caching object to speed up page loads.
+- Extended article entity with parsed HTML content.
+- Added a worker for ingesting articles from the local relay.
+- [Bug] Fixed share links
+- [Bug] Fixed bunker signer
+
+## v0.0.2 
+Let's pretend we finally know what we are doing here.
+
+- Initial changelog created.
+- Local relay.
+
+## v0.0.1
+We won't go into detail here. Most of it was just learning the ropes.
+
+- Initial development setup with lots of wrong turns.
