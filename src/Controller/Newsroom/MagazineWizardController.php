@@ -2,31 +2,46 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Newsroom;
 
 use App\Dto\CategoryDraft;
 use App\Dto\MagazineDraft;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineSetupType;
-use App\Service\EncryptionService;
+use App\Message\ProjectMagazineMessage;
+use App\Service\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
-use swentel\nostr\Sign\Sign;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use swentel\nostr\Key\Key;
 use Redis as RedisClient;
 
+/**
+ * Magazine Wizard Controller
+ *
+ * Handles the multi-step creation and editing of magazines.
+ * Magazines are hierarchical structures: Magazine -> Categories -> Articles
+ * All represented as Nostr kind 30040 events with coordinate references.
+ */
 class MagazineWizardController extends AbstractController
 {
     private const SESSION_KEY = 'mag_wizard';
+
+    public function __construct(
+        private readonly MessageBusInterface $messageBus,
+    ) {
+    }
 
     #[Route('/magazine/wizard/setup', name: 'mag_wizard_setup')]
     public function setup(Request $request): Response
@@ -69,7 +84,7 @@ class MagazineWizardController extends AbstractController
 
         // Build a form as a collection of CategoryArticlesType
         $formBuilder = $this->createFormBuilder($draft);
-        $formBuilder->add('categories', \Symfony\Component\Form\Extension\Core\Type\CollectionType::class, [
+        $formBuilder->add('categories', CollectionType::class, [
             'entry_type' => CategoryArticlesType::class,
             'allow_add' => false,
             'allow_delete' => false,
@@ -89,21 +104,11 @@ class MagazineWizardController extends AbstractController
     }
 
     #[Route('/magazine/wizard/review', name: 'mag_wizard_review')]
-    public function review(Request $request, NzineRepository $nzineRepository): Response
+    public function review(Request $request): Response
     {
         $draft = $this->getDraft($request);
         if (!$draft) {
             return $this->redirectToRoute('mag_wizard_setup');
-        }
-
-        // Check if this slug belongs to an NZine (which has a bot)
-        $nzine = null;
-        $isNzineEdit = false;
-        if ($draft->slug) {
-            $nzine = $nzineRepository->findOneBy(['slug' => $draft->slug]);
-            if ($nzine && $nzine->getNzineBot()) {
-                $isNzineEdit = true;
-            }
         }
 
         // Build event skeletons (without pubkey/sig/id); created_at client can adjust
@@ -127,24 +132,14 @@ class MagazineWizardController extends AbstractController
         }
 
         // Determine current user's pubkey (hex) from their npub (user identifier)
-        // For NZine edits, use the NZine's npub instead
         $pubkeyHex = null;
-        if ($isNzineEdit && $nzine) {
+        $user = $this->getUser();
+        if ($user && method_exists($user, 'getUserIdentifier')) {
             try {
                 $key = new Key();
-                $pubkeyHex = $key->convertToHex($nzine->getNpub());
+                $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
             } catch (\Throwable $e) {
                 $pubkeyHex = null;
-            }
-        } else {
-            $user = $this->getUser();
-            if ($user && method_exists($user, 'getUserIdentifier')) {
-                try {
-                    $key = new Key();
-                    $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
-                } catch (\Throwable $e) {
-                    $pubkeyHex = null;
-                }
             }
         }
 
@@ -178,8 +173,6 @@ class MagazineWizardController extends AbstractController
             'categoryEventsJson' => json_encode($categoryEvents, JSON_UNESCAPED_SLASHES),
             'magazineEventJson' => json_encode($magazineEvent, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
-            'isNzineEdit' => $isNzineEdit,
-            'nzineSlug' => $isNzineEdit ? $draft->slug : null,
         ]);
     }
 
@@ -189,7 +182,9 @@ class MagazineWizardController extends AbstractController
         CacheItemPoolInterface    $appCache,
         CsrfTokenManagerInterface $csrfTokenManager,
         RedisClient               $redis,
-        EntityManagerInterface    $entityManager
+        EntityManagerInterface    $entityManager,
+        NostrClient               $nostrClient,
+        LoggerInterface           $logger
     ): JsonResponse {
         // Verify CSRF token
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
@@ -241,11 +236,12 @@ class MagazineWizardController extends AbstractController
         }
 
         // If the event is a top-level magazine index (references 30040 categories), record slug in a set for admin listing
+        $isTopLevelMagazine = false;
         try {
-            $isTopLevelMagazine = false;
             foreach ($signedEvent['tags'] as $tag) {
                 if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string)$tag[1], '30040:')) {
-                    $isTopLevelMagazine = true; break;
+                    $isTopLevelMagazine = true;
+                    break;
                 }
             }
             if ($isTopLevelMagazine) {
@@ -256,7 +252,6 @@ class MagazineWizardController extends AbstractController
         }
 
         // Save to persistence as Event entity
-        // Map swentel Event to Event entity, it's always a new event
         $event = new \App\Entity\Event();
         $event->setId($eventObj->getId());
         $event->setPubkey($eventObj->getPublicKey());
@@ -265,158 +260,42 @@ class MagazineWizardController extends AbstractController
         $event->setTags($eventObj->getTags());
         $event->setContent($eventObj->getContent());
         $event->setSig($eventObj->getSignature());
-        // Persist
         $entityManager->persist($event);
         $entityManager->flush();
 
-        return new JsonResponse(['ok' => true]);
-    }
-
-    #[Route('/api/nzine-index/publish', name: 'api-nzine-index-publish', methods: ['POST'])]
-    public function publishNzineIndexEvent(
-        Request                   $request,
-        CsrfTokenManagerInterface $csrfTokenManager,
-        NzineRepository           $nzineRepository,
-        EncryptionService         $encryptionService,
-        CacheItemPoolInterface    $appCache,
-        RedisClient               $redis,
-        EntityManagerInterface    $entityManager
-    ): JsonResponse {
-        // Verify CSRF token
-        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
-        if (!$csrfTokenManager->isTokenValid(new CsrfToken('nostr_publish', $csrfToken))) {
-            return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
-        }
-
-        $data = json_decode($request->getContent(), true);
-        if (!$data || !isset($data['nzineSlug']) || !isset($data['categoryEvents']) || !isset($data['magazineEvent'])) {
-            return new JsonResponse(['error' => 'Invalid request'], 400);
-        }
-
-        $nzineSlug = $data['nzineSlug'];
-        $categorySkeletons = $data['categoryEvents'];
-        $magazineSkeleton = $data['magazineEvent'];
-
-        // Load the NZine entity
-        $nzine = $nzineRepository->findOneBy(['slug' => $nzineSlug]);
-        if (!$nzine || !$nzine->getNzineBot()) {
-            return new JsonResponse(['error' => 'NZine not found or no bot configured'], 404);
-        }
-
-        // Get the bot's nsec for signing
-        $bot = $nzine->getNzineBot();
-        $bot->setEncryptionService($encryptionService);
-        $nsec = $bot->getNsec();
-        if (!$nsec) {
-            return new JsonResponse(['error' => 'Bot credentials not available'], 500);
-        }
-
-        $key = new Key();
-        $pubkeyHex = $key->getPublicKey($nsec);
-        $signer = new Sign();
-
-        $categoryCoordinates = [];
-
+        // Publish to author's relays (passing empty array lets NostrClient fetch author's relay list)
+        $relayResults = [];
         try {
-            // 1) Sign and publish each category event
-            foreach ($categorySkeletons as $catSkeleton) {
-                $catEvent = new Event();
-                $catEvent->setKind($catSkeleton['kind'] ?? 30040);
-                $catEvent->setCreatedAt($catSkeleton['created_at'] ?? time());
-                $catEvent->setTags($catSkeleton['tags'] ?? []);
-                $catEvent->setContent($catSkeleton['content'] ?? '');
+            $logger->info('Publishing magazine event to relays', [
+                'event_id' => $eventObj->getId(),
+                'slug' => $slug,
+            ]);
 
-                // Sign with bot's nsec
-                $signer->signEvent($catEvent, $nsec);
+            // Empty array = NostrClient will fetch author's preferred relays
+            $relayResults = $nostrClient->publishEvent($eventObj, []);
 
-                // Extract slug from d tag
-                $slug = null;
-                foreach ($catEvent->getTags() as $tag) {
-                    if (($tag[0] ?? null) === 'd' && isset($tag[1])) {
-                        $slug = $tag[1];
-                        break;
-                    }
-                }
-                if (!$slug) {
-                    return new JsonResponse(['error' => 'Category missing d tag'], 400);
-                }
-
-                // Save to Redis
-                $cacheKey = 'magazine-' . $slug;
-                $item = $appCache->getItem($cacheKey);
-                $item->set($catEvent);
-                $appCache->save($item);
-
-                // Save to database
-                $eventEntity = new \App\Entity\Event();
-                $eventEntity->setId($catEvent->getId());
-                $eventEntity->setPubkey($catEvent->getPublicKey());
-                $eventEntity->setCreatedAt($catEvent->getCreatedAt());
-                $eventEntity->setKind($catEvent->getKind());
-                $eventEntity->setTags($catEvent->getTags());
-                $eventEntity->setContent($catEvent->getContent());
-                $eventEntity->setSig($catEvent->getSignature());
-                $entityManager->persist($eventEntity);
-
-                // Build coordinate
-                $categoryCoordinates[] = sprintf('30040:%s:%s', $pubkeyHex, $slug);
-            }
-
-            // 2) Build and sign the magazine event with category references
-            $magEvent = new Event();
-            $magEvent->setKind($magazineSkeleton['kind'] ?? 30040);
-            $magEvent->setCreatedAt($magazineSkeleton['created_at'] ?? time());
-
-            // Remove any existing 'a' tags and add the new category coordinates
-            $magTags = array_filter($magazineSkeleton['tags'] ?? [], fn($t) => ($t[0] ?? null) !== 'a');
-            foreach ($categoryCoordinates as $coord) {
-                $magTags[] = ['a', $coord];
-            }
-            $magEvent->setTags($magTags);
-            $magEvent->setContent($magazineSkeleton['content'] ?? '');
-
-            // Sign with bot's nsec
-            $signer->signEvent($magEvent, $nsec);
-
-            // Extract magazine slug
-            $magSlug = null;
-            foreach ($magEvent->getTags() as $tag) {
-                if (($tag[0] ?? null) === 'd' && isset($tag[1])) {
-                    $magSlug = $tag[1];
-                    break;
-                }
-            }
-            if (!$magSlug) {
-                return new JsonResponse(['error' => 'Magazine missing d tag'], 400);
-            }
-
-            // Save magazine to Redis
-            $cacheKey = 'magazine-' . $magSlug;
-            $item = $appCache->getItem($cacheKey);
-            $item->set($magEvent);
-            $appCache->save($item);
-
-            // Save magazine to database
-            $magEventEntity = new \App\Entity\Event();
-            $magEventEntity->setId($magEvent->getId());
-            $magEventEntity->setPubkey($magEvent->getPublicKey());
-            $magEventEntity->setCreatedAt($magEvent->getCreatedAt());
-            $magEventEntity->setKind($magEvent->getKind());
-            $magEventEntity->setTags($magEvent->getTags());
-            $magEventEntity->setContent($magEvent->getContent());
-            $magEventEntity->setSig($magEvent->getSignature());
-            $entityManager->persist($magEventEntity);
-
-            // Record slug in Redis set for admin listing
-            $redis->sAdd('magazine_slugs', $magSlug);
-
-            $entityManager->flush();
-
-            return new JsonResponse(['ok' => true, 'message' => 'NZine magazine updated successfully']);
-
+            $logger->info('Magazine event published to relays', [
+                'event_id' => $eventObj->getId(),
+                'results' => $relayResults,
+            ]);
         } catch (\Throwable $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 500);
+            $logger->warning('Failed to publish magazine event to relays', [
+                'event_id' => $eventObj->getId(),
+                'error' => $e->getMessage(),
+            ]);
+            // Non-fatal: event is saved locally, relay publishing is best-effort
         }
+
+        // Dispatch projection message for top-level magazines
+        if ($isTopLevelMagazine) {
+            try {
+                $this->messageBus->dispatch(new ProjectMagazineMessage($slug));
+            } catch (\Throwable $e) {
+                // Non-fatal: projection will be picked up by cron if async dispatch fails
+            }
+        }
+
+        return new JsonResponse(['ok' => true]);
     }
 
     #[Route('/magazine/wizard/cancel', name: 'mag_wizard_cancel', methods: ['GET'])]
@@ -448,7 +327,7 @@ class MagazineWizardController extends AbstractController
 
         $tags = json_decode($magEventData['tags'], true);
 
-        $draft = new \App\Dto\MagazineDraft();
+        $draft = new MagazineDraft();
         $draft->slug = $slug;
         $draft->title = $this->getTagValue($tags, 'title') ?? '';
         $draft->summary = $this->getTagValue($tags, 'summary') ?? '';
@@ -473,7 +352,7 @@ class MagazineWizardController extends AbstractController
                 if ($catEventData === false) { continue; }
 
                 $ctags = json_decode($catEventData['tags'], true);
-                $cat = new \App\Dto\CategoryDraft();
+                $cat = new CategoryDraft();
                 $cat->slug = $catSlug;
                 $cat->title = $this->getTagValue($ctags, 'title') ?? '';
                 $cat->summary = $this->getTagValue($ctags, 'summary') ?? '';

@@ -1,6 +1,15 @@
 # CHANGELOG
 
+## v0.0.5
+
+- Publish magazines.
+- Added zap buttons to articles.
+- Show zaps as comments.
+- Make multimedia more resilient.
+- Actually implement comment publishing.
+
 ## v0.0.4
+Deployment used to be a remake of Minesweeper. Now it's more like Darts.
 
 - Updated deployment and build, added documentation.
 - [Bug] Fixed Elasticsearch feature flag.

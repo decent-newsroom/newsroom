@@ -3,15 +3,9 @@
 {% block body %}
   <h1>Review & Sign</h1>
 
-  {% if isNzineEdit %}
-  <div class="notice info">
-    <p>You are editing an NZine. Changes will be signed automatically using the NZine bot's credentials.</p>
-  </div>
-  {% else %}
   <div class="notice info">
     <p>Review the details below. When ready, click Sign & Publish. Your NIP-07 extension will be used to sign events.</p>
   </div>
-  {% endif %}
 
   <section class="mb-4">
     <h2>Magazine</h2>
@@ -68,26 +62,8 @@
     </details>
   </section>
 
-  {% if isNzineEdit %}
   <div
-    {{ stimulus_controller('nzine-magazine-publish', {
-      categoryEvents: categoryEventsJson,
-      magazineEvent: magazineEventJson,
-      publishUrl: path('api-nzine-index-publish'),
-      nzineSlug: nzineSlug,
-      csrfToken: csrfToken
-    }) }}
-  >
-    <div class="d-flex gap-2">
-      <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
-      <button class="btn btn-primary" data-nzine-magazine-publish-target="publishButton" data-action="click->nzine-magazine-publish#publish">Publish</button>
-    </div>
-
-    <div class="mt-3" data-nzine-magazine-publish-target="status"></div>
-  </div>
-  {% else %}
-  <div
-    {{ stimulus_controller('nostr-index-sign', {
+    {{ stimulus_controller('nostr--nostr-index-sign', {
       categoryEvents: categoryEventsJson,
       magazineEvent: magazineEventJson,
       publishUrl: path('api-index-publish'),
@@ -96,15 +72,14 @@
   >
     <section class="mb-3">
       <h3>Final magazine event (with category 'a' tags)</h3>
-      <pre class="small" data-nostr-index-sign-target="computedPreview"></pre>
+      <pre class="small" data-nostr--nostr-index-sign-target="computedPreview"></pre>
     </section>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-row gap-2 actions">
       <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
-      <button class="btn btn-primary" data-nostr-index-sign-target="publishButton" data-action="click->nostr-index-sign#signAndPublish">Sign & Publish</button>
+      <button class="btn btn-primary" data-nostr--nostr-index-sign-target="publishButton" data-action="click->nostr--nostr-index-sign#signAndPublish">Sign & Publish</button>
     </div>
 
-    <div class="mt-3" data-nostr-index-sign-target="status"></div>
+    <div class="mt-3" data-nostr--nostr-index-sign-target="status"></div>
   </div>
-  {% endif %}
 {% endblock %}

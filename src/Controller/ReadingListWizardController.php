@@ -13,6 +13,12 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * Reading List / Category Wizard Controller
+ *
+ * Handles creation and editing of reading lists (standalone) and categories (for magazines).
+ * Both use Nostr kind 30040 events with different 'type' tags.
+ */
 class ReadingListWizardController extends AbstractController
 {
     private const SESSION_KEY = 'read_wizard';
@@ -21,6 +27,12 @@ class ReadingListWizardController extends AbstractController
     public function setup(Request $request): Response
     {
         $draft = $this->getDraft($request) ?? new CategoryDraft();
+
+        // Check if this is being created as a magazine category
+        $asMagazineCategory = $request->query->getBoolean('category', false);
+        if ($asMagazineCategory) {
+            $request->getSession()->set('read_wizard_type', 'category');
+        }
 
         $form = $this->createForm(CategoryType::class, $draft);
         $form->handleRequest($request);
@@ -36,6 +48,7 @@ class ReadingListWizardController extends AbstractController
 
         return $this->render('reading_list/reading_setup.html.twig', [
             'form' => $form->createView(),
+            'isMagazineCategory' => $request->getSession()->get('read_wizard_type') === 'category',
         ]);
     }
 
@@ -83,11 +96,23 @@ class ReadingListWizardController extends AbstractController
     #[Route('/reading-list/add-article', name: 'read_wizard_add_article')]
     public function addArticle(Request $request, ReadingListManager $readingListManager): Response
     {
-        // Get the coordinate from the query parameter
+        // Get the coordinate from the query parameter (supports both coordinate and naddr)
         $coordinate = $request->query->get('coordinate');
+        $naddr = $request->query->get('naddr');
+
+        // Parse naddr if provided
+        if ($naddr && !$coordinate) {
+            $coordinate = $this->parseNaddr($naddr);
+        }
 
         if (!$coordinate) {
             $this->addFlash('error', 'No article coordinate provided.');
+            return $this->redirectToRoute('reading_list_compose');
+        }
+
+        // Validate coordinate format (kind:pubkey:slug)
+        if (!$this->isValidCoordinate($coordinate)) {
+            $this->addFlash('error', 'Invalid coordinate format. Expected: kind:pubkey:slug');
             return $this->redirectToRoute('reading_list_compose');
         }
 
@@ -107,7 +132,7 @@ class ReadingListWizardController extends AbstractController
             }
 
             // Add the article to the draft
-            if (!in_array($coordinate, $draft->articles, true)) {
+            if ($draft && !in_array($coordinate, $draft->articles, true)) {
                 $draft->articles[] = $coordinate;
                 $session = $request->getSession();
                 $session->set('read_wizard', $draft);
@@ -122,6 +147,7 @@ class ReadingListWizardController extends AbstractController
 
         return $this->render('reading_list/add_article_confirm.html.twig', [
             'coordinate' => $coordinate,
+            'parsedCoordinate' => $this->parseCoordinate($coordinate),
             'availableLists' => $availableLists,
             'currentDraft' => $currentDraft,
         ]);
@@ -135,10 +161,13 @@ class ReadingListWizardController extends AbstractController
             return $this->redirectToRoute('read_wizard_setup');
         }
 
+        // Determine the type based on session flag
+        $type = $request->getSession()->get('read_wizard_type', 'reading-list');
+
         // Build a single category event skeleton
         $tags = [];
         $tags[] = ['d', $draft->slug];
-        $tags[] = ['type', 'reading-list'];
+        $tags[] = ['type', $type];
         if ($draft->title) { $tags[] = ['title', $draft->title]; }
         if ($draft->summary) { $tags[] = ['summary', $draft->summary]; }
         if ($draft->image) { $tags[] = ['image', $draft->image]; }
@@ -158,6 +187,7 @@ class ReadingListWizardController extends AbstractController
             'draft' => $draft,
             'eventJson' => json_encode($event, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
+            'isMagazineCategory' => $type === 'category',
         ]);
     }
 
@@ -167,6 +197,79 @@ class ReadingListWizardController extends AbstractController
         $this->clearDraft($request);
         $this->addFlash('info', 'Reading list creation canceled.');
         return $this->redirectToRoute('home');
+    }
+
+    /**
+     * Parse an naddr (NIP-19) into a coordinate string
+     * naddr encodes: kind, pubkey, d-tag (slug), and optional relays
+     */
+    private function parseNaddr(string $naddr): ?string
+    {
+        try {
+            // Remove naddr1 prefix if present and decode bech32
+            if (!str_starts_with($naddr, 'naddr1')) {
+                return null;
+            }
+
+            // Use the nostr library to decode naddr
+            $helper = new \swentel\nostr\Nip19\Nip19Helper();
+            $decoded = $helper->decode($naddr);
+
+            if (!isset($decoded['kind'], $decoded['pubkey'], $decoded['identifier'])) {
+                return null;
+            }
+
+            return sprintf('%d:%s:%s', $decoded['kind'], $decoded['pubkey'], $decoded['identifier']);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parse a coordinate string into its components
+     *
+     * @return array{kind: int, pubkey: string, slug: string}|null
+     */
+    private function parseCoordinate(string $coordinate): ?array
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        return [
+            'kind' => (int)$parts[0],
+            'pubkey' => $parts[1],
+            'slug' => $parts[2],
+        ];
+    }
+
+    /**
+     * Validate coordinate format
+     */
+    private function isValidCoordinate(string $coordinate): bool
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3) {
+            return false;
+        }
+
+        // Kind should be numeric
+        if (!is_numeric($parts[0])) {
+            return false;
+        }
+
+        // Pubkey should be 64 hex characters
+        if (!preg_match('/^[a-f0-9]{64}$/i', $parts[1])) {
+            return false;
+        }
+
+        // Slug should not be empty
+        if (empty($parts[2])) {
+            return false;
+        }
+
+        return true;
     }
 
     private function getDraft(Request $request): ?CategoryDraft
@@ -183,6 +286,7 @@ class ReadingListWizardController extends AbstractController
     private function clearDraft(Request $request): void
     {
         $request->getSession()->remove(self::SESSION_KEY);
+        $request->getSession()->remove('read_wizard_type');
     }
 
     private function slugifyWithRandom(string $title): string

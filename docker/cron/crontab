@@ -26,3 +26,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Runs every 6 hours to refresh media content
 0 */6 * * * /var/www/html/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
 
+# Project magazine indices to Magazine entities
+# Runs every 10 minutes to keep magazine projections up-to-date
+*/10 * * * * /var/www/html/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
+

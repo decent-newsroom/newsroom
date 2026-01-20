@@ -24,6 +24,7 @@ framework:
             'App\Message\FetchCommentsMessage': async
             'App\Message\FetchAuthorArticlesMessage': async
             'App\Message\FetchMediaEventsMessage': async
+            'App\Message\ProjectMagazineMessage': async
 
 # when@test:
 #    framework:

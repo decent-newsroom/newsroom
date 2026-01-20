@@ -1,7 +1,7 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Create Magazine</h1>
+    <twig:Atoms:PageHeading heading="Magazine Setup" tagline="Define the basics of your magazine"/>
 
   {{ form_start(form) }}
   {{ form_row(form.title) }}
@@ -12,16 +12,16 @@
 
   <h3>Categories</h3>
   <div
-    {{ stimulus_controller('form-collection') }}
-    data-form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"
-    data-form-collection-prototype-value="{{ form_widget(form.categories.vars.prototype)|e('html_attr') }}">
-    <ul class="list-unstyled" {{ stimulus_target('form-collection', 'collectionContainer') }}>
+    {{ stimulus_controller('ui--form-collection') }}
+    data-ui--form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"
+    data-ui--form-collection-prototype-value="{{ form_widget(form.categories.vars.prototype)|e('html_attr') }}">
+    <ul class="list-unstyled" {{ stimulus_target('ui--form-collection', 'collectionContainer') }}>
       {% for cat in form.categories %}
         <li class="mb-3">{{ form_row(cat) }}</li>
       {% endfor %}
     </ul>
       <div class="actions mt-3">
-          <button type="button" class="btn btn-secondary" {{ stimulus_action('form-collection', 'addCollectionElement') }}>Add category</button>
+          <button type="button" class="btn btn-secondary" {{ stimulus_action('ui--form-collection', 'addCollectionElement') }}>Add category</button>
       </div>
   </div>
 
