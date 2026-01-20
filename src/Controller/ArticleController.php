@@ -134,7 +134,8 @@ class ArticleController  extends AbstractController
         RedisCacheService $redisCacheService,
         Converter $converter,
         LoggerInterface $logger,
-        HighlightService $highlightService
+        HighlightService $highlightService,
+        NostrEventParser $eventParser
     ): Response
     {
         set_time_limit(300);
@@ -146,6 +147,13 @@ class ArticleController  extends AbstractController
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
         if (!$article) {
             throw $this->createNotFoundException('The article could not be found');
+        }
+
+        // Parse advanced metadata from raw event for zap splits etc.
+        $advancedMetadata = null;
+        if ($article->getRaw()) {
+            $tags = $article->getRaw()['tags'] ?? [];
+            $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
         }
 
         // Use cached processedHtml from database if available
@@ -188,7 +196,8 @@ class ArticleController  extends AbstractController
             'content' => $htmlContent,
             'canEdit' => $canEdit,
             'canonical' => $canonical,
-            'highlights' => $highlights
+            'highlights' => $highlights,
+            'advancedMetadata' => $advancedMetadata
         ]);
     }
 

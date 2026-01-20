@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\MutedPubkeysService;
 use App\Service\NostrClient;
+use App\Service\Nostr\NostrEventParser;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
 use App\Service\Search\ArticleSearchFactory;
@@ -394,7 +395,8 @@ class DefaultController extends AbstractController
                                CacheItemPoolInterface $articlesCache,
                                EntityManagerInterface $entityManager,
                                Converter $converter,
-                               LoggerInterface $logger): Response
+                               LoggerInterface $logger,
+                               NostrEventParser $eventParser): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
@@ -431,6 +433,13 @@ class DefaultController extends AbstractController
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
         $author = $redisCacheService->getMetadata($article->getPubkey());
 
+        // Parse advanced metadata from raw event for zap splits etc.
+        $advancedMetadata = null;
+        if ($article->getRaw()) {
+            $tags = $article->getRaw()['tags'] ?? [];
+            $advancedMetadata = $eventParser->parseAdvancedMetadata($tags);
+        }
+
         // set canonical url to this article as article-slug path
         $canonical = $this->generateUrl('article-slug', [
             'slug' => $article->getSlug()
@@ -444,7 +453,8 @@ class DefaultController extends AbstractController
             'npub' => $npub,
             'content' => $cacheItem->get(),
             'canEdit' => false,
-            'canonical' => $canonical
+            'canonical' => $canonical,
+            'advancedMetadata' => $advancedMetadata
         ]);
     }
 

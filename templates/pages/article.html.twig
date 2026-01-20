@@ -61,16 +61,21 @@
             {% endif %}
 
             {# Zap Button with split payment support #}
-            {% set zapSplits = article.advancedMetadata.zapSplits|default([]) %}
+            {% set zapSplitObjects = advancedMetadata.zapSplits|default([]) %}
+            {% set zapSplits = [] %}
+            {% for split in zapSplitObjects %}
+                {% set zapSplits = zapSplits|merge([{
+                    'recipient': split.recipient,
+                    'relay': split.relay,
+                    'weight': split.weight
+                }]) %}
+            {% endfor %}
             {% if zapSplits|length > 0 %}
                 <twig:Molecules:ZapButton
                     recipientPubkey="{{ article.pubkey }}"
                     recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
                     :zapSplits="zapSplits" />
-                <small class="text-muted ms-2">
-                    <em>(Split between {{ zapSplits|length + 1 }} recipients)</em>
-                </small>
-            {% else %}
+            {% elseif author.lud16 %}
                 <twig:Molecules:ZapButton
                     recipientPubkey="{{ article.pubkey }}"
                     recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
