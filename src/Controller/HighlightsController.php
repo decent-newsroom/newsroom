@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Event;
 use App\Service\HighlightService;
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisViewStore;
+use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +29,7 @@ class HighlightsController extends AbstractController
         private readonly LoggerInterface $logger,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisViewStore $viewStore,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     #[Route('/highlights', name: 'highlights')]
@@ -85,6 +88,9 @@ class HighlightsController extends AbstractController
                     // Fetch highlights that reference articles (kind 30023)
                     $events = $this->nostrClient->getArticleHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
 
+                    // Save highlights to database as Event entities
+                    $this->saveHighlightsAsEvents($events);
+
                     // Process and enrich the highlights for display
                     return $this->processHighlights($events);
                 } catch (\Exception $e) {
@@ -110,6 +116,73 @@ class HighlightsController extends AbstractController
                 'highlights' => [],
                 'total' => 0,
                 'error' => 'Unable to load highlights at this time. Please try again later.',
+            ]);
+        }
+    }
+
+    /**
+     * Save highlights as Event entities to database
+     */
+    private function saveHighlightsAsEvents(array $events): void
+    {
+        $saved = 0;
+        $skipped = 0;
+
+        foreach ($events as $nostrEvent) {
+            try {
+                // Skip if event ID is missing
+                if (!isset($nostrEvent->id) || empty($nostrEvent->id)) {
+                    $this->logger->warning('Skipping event without ID');
+                    $skipped++;
+                    continue;
+                }
+
+                // Check if event already exists
+                $existingEvent = $this->entityManager->getRepository(Event::class)->find($nostrEvent->id);
+                if ($existingEvent) {
+                    $this->logger->debug('Event already exists, skipping', ['event_id' => $nostrEvent->id]);
+                    $skipped++;
+                    continue;
+                }
+
+                // Create new Event entity
+                $event = new Event();
+                $event->setId($nostrEvent->id);
+                $event->setEventId($nostrEvent->id);
+                $event->setKind($nostrEvent->kind ?? 9802);
+                $event->setPubkey($nostrEvent->pubkey ?? '');
+                $event->setContent($nostrEvent->content ?? '');
+                $event->setCreatedAt($nostrEvent->created_at ?? time());
+                $event->setTags($nostrEvent->tags ?? []);
+                $event->setSig($nostrEvent->sig ?? '');
+
+                $this->entityManager->persist($event);
+                $saved++;
+
+                $this->logger->debug('Saved highlight as Event entity', [
+                    'event_id' => $nostrEvent->id,
+                    'kind' => $nostrEvent->kind,
+                    'pubkey' => substr($nostrEvent->pubkey ?? '', 0, 16),
+                ]);
+            } catch (\Exception $e) {
+                $this->logger->error('Failed to save highlight as Event entity', [
+                    'event_id' => $nostrEvent->id ?? 'unknown',
+                    'error' => $e->getMessage()
+                ]);
+                $skipped++;
+            }
+        }
+
+        try {
+            $this->entityManager->flush();
+            $this->logger->info('Saved highlights as Event entities', [
+                'saved' => $saved,
+                'skipped' => $skipped,
+                'total' => count($events)
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to flush Event entities', [
+                'error' => $e->getMessage()
             ]);
         }
     }

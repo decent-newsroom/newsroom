@@ -1100,7 +1100,7 @@ class NostrClient
         $filter = new Filter();
         $filter->setKinds([9802]); // NIP-84 highlights
         $filter->setLimit($limit);
-        $filter->setSince(strtotime('-7 days')); // Last 7 days
+        $filter->setSince(strtotime('-30 days')); // Last 30 days
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
