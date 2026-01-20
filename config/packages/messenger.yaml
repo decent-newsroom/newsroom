@@ -23,6 +23,7 @@ framework:
             # Route your messages to the transports
             'App\Message\FetchCommentsMessage': async
             'App\Message\FetchAuthorArticlesMessage': async
+            'App\Message\FetchMediaEventsMessage': async
 
 # when@test:
 #    framework:

@@ -888,29 +888,121 @@ class NostrClient
 
     /**
      * Get media events filtered by specific hashtags
+     * @param array $hashtags Hashtags to filter by
+     * @param array $kinds Event kinds to fetch (default: 20, 21, 22 for images and videos)
      * @throws \Exception
      */
-    public function getMediaEventsByHashtags(array $hashtags): array
+    public function getMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22]): array
     {
         $allEvents = [];
 
-        // Fetch events for each hashtag
+        // Fetch events for the specified kinds
+        $request = $this->createNostrRequest(
+            kinds: $kinds, // NIP-68 Pictures (20) and Videos (21, 22)
+            filters: [
+                'tag' => ['#t', $hashtags],
+                'limit' => 500
+            ],
+            relaySet: $this->createRelaySet(['wss://theforest.nostr1.com'])
+        );
 
-            $request = $this->createNostrRequest(
-                kinds: [20], // NIP-68 Pictures; consider expanding to 21/22 later
-                filters: [
-                    'tag' => ['#t', $hashtags],
-                    'limit' => 500 // Fetch up to 100 per hashtag
-                ],
-                relaySet: $this->createRelaySet(['wss://theforest.nostr1.com'])
-            );
+        $events = $this->processResponse($request->send(), function($event) {
+            return $event;
+        });
 
-            $events = $this->processResponse($request->send(), function($event) {
-                return $event;
-            });
+        $allEvents = array_merge($allEvents, $events);
 
-            $allEvents = array_merge($allEvents, $events);
+        return $allEvents;
+    }
 
+    /**
+     * Save a media event to the database
+     * Creates or updates an Event entity from a raw Nostr event
+     *
+     * @param object $rawEvent Raw Nostr event from relay
+     * @return void
+     */
+    public function saveMediaEvent(object $rawEvent): void
+    {
+        // Check if event already exists
+        $eventRepo = $this->entityManager->getRepository(\App\Entity\Event::class);
+        $existingEvent = $eventRepo->find($rawEvent->id);
+
+        if ($existingEvent) {
+            // Event already exists, skip (events are immutable in Nostr)
+            $this->logger->debug('Media event already exists, skipping', ['event_id' => $rawEvent->id]);
+            return;
+        }
+
+        // Create new Event entity
+        $event = new \App\Entity\Event();
+        $event->setId($rawEvent->id);
+        $event->setPubkey($rawEvent->pubkey);
+        $event->setCreatedAt($rawEvent->created_at);
+        $event->setKind($rawEvent->kind);
+        $event->setTags($rawEvent->tags ?? []);
+        $event->setContent($rawEvent->content ?? '');
+        $event->setSig($rawEvent->sig);
+
+        // Persist the event (will be flushed by the handler)
+        $this->entityManager->persist($event);
+
+        $this->logger->debug('Persisted media event', [
+            'event_id' => $rawEvent->id,
+            'kind' => $rawEvent->kind,
+            'pubkey' => $rawEvent->pubkey
+        ]);
+    }
+
+    /**
+     * Get media events by time range
+     * @param array $kinds Event kinds to fetch (default: 20, 21, 22)
+     * @param int $from Unix timestamp for start of range
+     * @param int $to Unix timestamp for end of range
+     * @param int $limit Maximum number of events to fetch
+     * @return array Array of raw Nostr events
+     * @throws \Exception
+     */
+    public function getMediaEventsByTimeRange(array $kinds = [20, 21, 22], int $from = 0, int $to = 0, int $limit = 1000): array
+    {
+        $allEvents = [];
+
+        if ($to === 0) {
+            $to = time();
+        }
+
+        if ($from === 0) {
+            // Default to last 7 days
+            $from = $to - (7 * 24 * 60 * 60);
+        }
+
+        $this->logger->info('Fetching media events by time range', [
+            'kinds' => $kinds,
+            'from' => date('Y-m-d H:i:s', $from),
+            'to' => date('Y-m-d H:i:s', $to),
+            'limit' => $limit
+        ]);
+
+        // Fetch events for the specified kinds and time range
+        $request = $this->createNostrRequest(
+            kinds: $kinds,
+            filters: [
+                'since' => $from,
+                'until' => $to,
+                'limit' => $limit
+            ],
+            relaySet: $this->createRelaySet(['wss://theforest.nostr1.com', 'wss://nos.lol'])
+        );
+
+        $events = $this->processResponse($request->send(), function($event) {
+            return $event;
+        });
+
+        $allEvents = array_merge($allEvents, $events);
+
+        $this->logger->info('Fetched media events', [
+            'count' => count($allEvents)
+        ]);
 
         return $allEvents;
     }

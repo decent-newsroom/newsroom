@@ -2,13 +2,15 @@
 
 namespace App\Entity;
 
+use App\Repository\EventRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use swentel\nostr\Nip19\Nip19Helper;
 
 /**
  * Nostr events
  */
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: EventRepository::class)]
 class Event
 {
     #[ORM\Id]
@@ -148,5 +150,81 @@ class Event
         $this->tags[] = $tag;
 
         return $this;
+    }
+
+    /**
+     * Get media URL from event tags
+     * Looks for 'url' or 'image' tags commonly used in NIP-68 (kind 20, 21, 22)
+     */
+    public function getMediaUrl(): ?string
+    {
+        foreach ($this->getTags() as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            // Check for url tag (most common for media events)
+            if ($tag[0] === 'url') {
+                return $tag[1];
+            }
+
+            // Check for image tag (alternative)
+            if ($tag[0] === 'image') {
+                return $tag[1];
+            }
+        }
+
+        // Fallback: check if content is a URL
+        if (!empty($this->content) && filter_var($this->content, FILTER_VALIDATE_URL)) {
+            return $this->content;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if event is marked as NSFW
+     * Checks for content-warning tags and NSFW-related hashtags (NIP-32)
+     */
+    public function isNSFW(): bool
+    {
+        if (!is_array($this->tags)) {
+            return false;
+        }
+
+        foreach ($this->tags as $tag) {
+            if (!is_array($tag) || count($tag) < 1) {
+                continue;
+            }
+
+            // Check for content-warning tag (NIP-32)
+            if ($tag[0] === 'content-warning') {
+                return true;
+            }
+
+            // Check for L tag with NSFW marking
+            if ($tag[0] === 'L' && count($tag) >= 2 && strtolower($tag[1]) === 'nsfw') {
+                return true;
+            }
+
+            // Check for hashtags that indicate NSFW content
+            if ($tag[0] === 't' && count($tag) >= 2) {
+                $hashtag = strtolower($tag[1]);
+                if (in_array($hashtag, ['nsfw', 'adult', 'explicit', '18+', 'nsfl'])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Encode event ID as note1... format (NIP-19)
+     */
+    public function encodeAsNote1(): string
+    {
+        $nip19 = new Nip19Helper();
+        return $nip19->encodeNote($this->id);
     }
 }

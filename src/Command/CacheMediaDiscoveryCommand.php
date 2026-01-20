@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\NostrClient;
-use App\Util\NostrKeyUtil;
+use App\Message\FetchMediaEventsMessage;
+use App\Repository\EventRepository;
+use App\Service\MutedPubkeysService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -15,6 +16,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(
@@ -34,10 +36,12 @@ class CacheMediaDiscoveryCommand extends Command
     ];
 
     public function __construct(
-        private readonly NostrClient $nostrClient,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
         private readonly ParameterBagInterface $params,
+        private readonly MessageBusInterface $messageBus,
+        private readonly EventRepository $eventRepository,
+        private readonly MutedPubkeysService $mutedPubkeysService,
     ) {
         parent::__construct();
     }
@@ -53,7 +57,6 @@ class CacheMediaDiscoveryCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $force = true; // Always force refresh for this command
-        // $force = $input->getOption('force');
 
         $io->title('Media Discovery Cache Update');
 
@@ -65,65 +68,62 @@ class CacheMediaDiscoveryCommand extends Command
             }
 
             $env = $this->params->get('kernel.environment');
-            $cacheKey = 'media_discovery_events_all_prod';
+            $cacheKey = 'media_discovery_events_all_prod_' . $env;
 
             if ($force) {
                 $io->info('Force refresh enabled - deleting existing cache');
                 $this->cache->delete($cacheKey);
             }
 
-            $io->info(sprintf('Fetching media events for %d hashtags...', count($allHashtags)));
+            $io->info(sprintf('Dispatching async media fetch for %d hashtags...', count($allHashtags)));
+
+            // Dispatch async message to fetch and persist media events
+            $message = new FetchMediaEventsMessage($allHashtags, [20, 21, 22]);
+            $this->messageBus->dispatch($message);
+
+            $io->success('Dispatched media fetch message to async worker');
+
+            // Query from database and rebuild cache
+            $io->info('Querying media events from database...');
             $startTime = microtime(true);
 
-            // Fetch and cache the events
-            $mediaEvents = $this->cache->get($cacheKey, function () use ($io, $allHashtags) {
-                $io->comment('Cache miss - fetching from Nostr relays...');
+            // Get muted pubkeys for filtering
+            $excludedPubkeys = $this->mutedPubkeysService->getMutedPubkeys();
+            $io->comment(sprintf('Excluding %d muted pubkeys', count($excludedPubkeys)));
 
-                // Fetch media events that match these hashtags
-                $mediaEvents = $this->nostrClient->getMediaEventsByHashtags($allHashtags);
+            // Fetch and cache the events from database
+            $mediaEvents = $this->cache->get($cacheKey, function () use ($io, $excludedPubkeys) {
+                $io->comment('Cache miss - querying from database...');
 
-                $io->comment(sprintf('Fetched %d total events', count($mediaEvents)));
+                // Query non-NSFW media events from database
+                $events = $this->eventRepository->findNonNSFWMediaEvents(
+                    [20, 21, 22],
+                    $excludedPubkeys,
+                    500
+                );
 
-                // Deduplicate by event ID
-                $uniqueEvents = [];
-                foreach ($mediaEvents as $event) {
-                    if (!isset($uniqueEvents[$event->id])) {
-                        $uniqueEvents[$event->id] = $event;
-                    }
-                }
+                $io->comment(sprintf('Fetched %d events from database', count($events)));
 
-                $mediaEvents = array_values($uniqueEvents);
-                $io->comment(sprintf('After deduplication: %d unique events', count($mediaEvents)));
-
-                // Filter out NSFW content
-                $mediaEvents = $this->filterNSFW($mediaEvents);
-                $io->comment(sprintf('After NSFW filter: %d events', count($mediaEvents)));
-
-                $keyUtil = new NostrKeyUtil();
-                // Filter out npubs in blocklist
-                $blocked = [
-                    $keyUtil->npubToHex('npub1prxnwedta6z2sv8atavcsd3hl8f8s8c9acc3syw6myfug92q07us5429qj'),
-                    $keyUtil->npubToHex('npub1jpc8h8fwdrsw5r3e7huahktd6npxzz9prq9t4dgcv9djdq8ggwhqd4xrcs'),
-                ];
-
-                $mediaEvents = array_filter($mediaEvents, function($event) use ($blocked, $io) {
-                    $io->comment($event->pubkey);
-
-                    return !in_array($event->pubkey, $blocked);
-                });
-
-                $io->comment(sprintf('After blocklist filter: %d events', count($mediaEvents)));
-
-
-                // Encode event IDs as note1... for each event
+                // Convert Event entities to simple objects for caching
+                $mediaEvents = [];
                 $nip19 = new Nip19Helper();
-                foreach ($mediaEvents as $event) {
-                    $event->noteId = $nip19->encodeNote($event->id);
+
+                foreach ($events as $event) {
+                    $obj = new \stdClass();
+                    $obj->id = $event->getId();
+                    $obj->pubkey = $event->getPubkey();
+                    $obj->created_at = $event->getCreatedAt();
+                    $obj->kind = $event->getKind();
+                    $obj->tags = $event->getTags();
+                    $obj->content = $event->getContent();
+                    $obj->sig = $event->getSig();
+                    $obj->noteId = $nip19->encodeNote($event->getId());
+
+                    $mediaEvents[] = $obj;
                 }
 
-                $this->logger->info('Media discovery cache updated', [
+                $this->logger->info('Media discovery cache updated from database', [
                     'event_count' => count($mediaEvents),
-                    'hashtags' => count($allHashtags),
                 ]);
 
                 return $mediaEvents;
@@ -148,45 +148,6 @@ class CacheMediaDiscoveryCommand extends Command
 
             return Command::FAILURE;
         }
-    }
-
-    /**
-     * Filter out NSFW content from events
-     * Checks for content-warning tags and NSFW-related hashtags
-     */
-    private function filterNSFW(array $events): array
-    {
-        return array_filter($events, function($event) {
-            if (!isset($event->tags) || !is_array($event->tags)) {
-                return true; // Keep if no tags
-            }
-
-            foreach ($event->tags as $tag) {
-                if (!is_array($tag) || count($tag) < 1) {
-                    continue;
-                }
-
-                // Check for content-warning tag (NIP-32)
-                if ($tag[0] === 'content-warning') {
-                    return false;
-                }
-
-                // Check for L tag with NSFW marking
-                if ($tag[0] === 'L' && count($tag) >= 2 && strtolower($tag[1]) === 'nsfw') {
-                    return false;
-                }
-
-                // Check for hashtags that indicate NSFW content
-                if ($tag[0] === 't' && count($tag) >= 2) {
-                    $hashtag = strtolower($tag[1]);
-                    if (in_array($hashtag, ['nsfw', 'adult', 'explicit', '18+', 'nsfl'])) {
-                        return false;
-                    }
-                }
-            }
-
-            return true; // Keep the event if no NSFW markers found
-        });
     }
 }
 

@@ -8,8 +8,6 @@ use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
 use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\Subscription\Subscription;
-use Symfony\Component\HttpClient\Exception\TimeoutException;
-use WebSocket\Exception\Exception;
 
 /**
  * Manages persistent WebSocket connections to Nostr relays
@@ -265,7 +263,7 @@ class NostrRelayPool
                 // Update last connected time on successful send
                 $this->lastConnected[$relay->getUrl()] = time();
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // If this is a timeout, treat as normal; otherwise, rethrow or handle
                 if (stripos($e->getMessage(), 'timeout') !== false) {
                     $this->logger->debug('Relay timeout (normal - all events received)', [
@@ -449,7 +447,7 @@ class NostrRelayPool
         $subscriptionId = $subscription->setId();
 
         $filter = new Filter();
-        $filter->setKinds([30023]); // Longform article events only
+        $filter->setKinds([30023, 20]); // Longform article events, images
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
         $payload = $requestMessage->generate();
@@ -457,7 +455,7 @@ class NostrRelayPool
         $this->logger->info('Sending REQ to local relay', [
             'relay' => $relayUrl,
             'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => [30023]]
+            'filter' => ['kinds' => [30023, 20]]
         ]);
 
         // Send the subscription request
@@ -514,14 +512,20 @@ class NostrRelayPool
                             ]);
 
                             // Call the callback with the event
-                            try {
-                                $onArticleEvent($event, $relayUrl);
-                            } catch (\Throwable $e) {
-                                // Log callback errors but don't break the loop
-                                $this->logger->error('Error in article event callback', [
-                                    'event_id' => $event->id ?? 'unknown',
-                                    'error' => $e->getMessage(),
-                                    'exception' => get_class($e)
+                            if ($event->kind === 30023) {
+                                try {
+                                    $onArticleEvent($event, $relayUrl);
+                                } catch (\Throwable $e) {
+                                    // Log callback errors but don't break the loop
+                                    $this->logger->error('Error in article event callback', [
+                                        'event_id' => $event->id ?? 'unknown',
+                                        'error' => $e->getMessage(),
+                                        'exception' => get_class($e)
+                                    ]);
+                                }
+                            } else {
+                                $this->logger->error('Got media in callback', [
+                                    'event_id' => $event->id ?? 'unknown'
                                 ]);
                             }
                         }
@@ -594,26 +598,40 @@ class NostrRelayPool
                         break;
                 }
 
-            } catch (TimeoutException $e) {
-                // Timeout is expected when no new events arrive
-                // Just continue the loop to keep listening
-                if ($eoseReceived) {
-                    $this->logger->debug('WebSocket timeout (normal - waiting for new events)', [
-                        'relay' => $relayUrl
-                    ]);
-                }
-                continue;
-            } catch (Exception $e) {
-                // WebSocket errors - log and rethrow to allow Docker restart
-                $this->logger->error('WebSocket error in subscription loop', [
-                    'relay' => $relayUrl,
-                    'error' => $e->getMessage(),
-                    'exception' => get_class($e)
-                ]);
-                throw $e;
             } catch (\Throwable $e) {
-                // Unexpected errors - log and rethrow
-                $this->logger->error('Unexpected error in subscription loop', [
+                $errorMessage = strtolower($e->getMessage());
+                $errorClass = strtolower(get_class($e));
+
+                // Timeouts and connection errors are normal when waiting for new events - just continue
+                if (stripos($errorMessage, 'timeout') !== false ||
+                    stripos($errorClass, 'timeout') !== false ||
+                    stripos($errorMessage, 'connection operation') !== false) {
+                    if ($eoseReceived) {
+                        // Only log timeout every 60 seconds to avoid spam
+                        static $lastArticleTimeoutLog = 0;
+                        if (time() - $lastArticleTimeoutLog > 60) {
+                            $this->logger->debug('Waiting for new article events (no activity)', [
+                                'relay' => $relayUrl
+                            ]);
+                            $lastArticleTimeoutLog = time();
+                        }
+                    }
+                    continue;
+                }
+
+                // Unparseable messages and bad msg errors - log and continue
+                if (stripos($errorMessage, 'bad msg') !== false ||
+                    stripos($errorMessage, 'unparseable') !== false ||
+                    stripos($errorMessage, 'invalid') !== false) {
+                    $this->logger->debug('Skipping invalid message from relay, continuing', [
+                        'relay' => $relayUrl,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
+
+                // Fatal errors - log and rethrow to allow Docker restart
+                $this->logger->error('Fatal error in subscription loop', [
                     'relay' => $relayUrl,
                     'error' => $e->getMessage(),
                     'exception' => get_class($e)
@@ -625,5 +643,217 @@ class NostrRelayPool
         // This line should never be reached (infinite loop above)
         // But if it is, log it
         $this->logger->warning('Subscription loop exited unexpectedly');
+    }
+
+    /**
+     * Subscribe to local relay for media events (kinds 20, 21, 22) in real-time
+     * This is a long-lived subscription that processes events via callback
+     * Blocks forever - meant to be run as a daemon process
+     *
+     * @param callable $onMediaEvent Callback function(object $event, string $relayUrl): void
+     * @throws \Exception if subscription fails
+     */
+    public function subscribeLocalMedia(callable $onMediaEvent): void
+    {
+        if (!$this->nostrDefaultRelay) {
+            throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
+        }
+
+        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
+
+        $this->logger->info('Starting long-lived subscription to local relay for media events', [
+            'relay' => $relayUrl,
+            'kinds' => [20, 21, 22]
+        ]);
+
+        // Get relay connection
+        $relay = $this->getRelay($relayUrl);
+
+        // Ensure relay is connected
+        if (!$relay->isConnected()) {
+            $relay->connect();
+        }
+
+        $client = $relay->getClient();
+
+        // Use reasonable timeout (15 seconds per receive call)
+        $client->setTimeout(15);
+
+        // Create subscription for media events (kinds 20, 21, 22)
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+
+        $filter = new Filter();
+        $filter->setKinds([20]); // NIP-68 Picture and Video events
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+        $payload = $requestMessage->generate();
+
+        $this->logger->info('Sending REQ to local relay for media', [
+            'relay' => $relayUrl,
+            'subscription_id' => $subscriptionId,
+            'filter' => ['kinds' => [20]]
+        ]);
+
+        // Send the subscription request
+        $client->text($payload);
+
+        $this->logger->info('Entering infinite receive loop for media events...');
+
+        // Track if we've received EOSE
+        $eoseReceived = false;
+
+        // Infinite loop: receive and process messages
+        while (true) {
+            try {
+                $resp = $client->receive();
+
+                // Handle PING/PONG for keepalive
+                if ($resp instanceof \WebSocket\Message\Ping) {
+                    $client->text((new \WebSocket\Message\Pong())->getPayload());
+                    $this->logger->debug('Received PING, sent PONG');
+                    continue;
+                }
+
+                // Only process text messages
+                if (!($resp instanceof \WebSocket\Message\Text)) {
+                    continue;
+                }
+
+                $content = $resp->getContent();
+                $decoded = json_decode($content);
+
+                if (!$decoded) {
+                    $this->logger->debug('Failed to decode message from relay', [
+                        'relay' => $relayUrl,
+                        'content_preview' => substr($content, 0, 100)
+                    ]);
+                    continue;
+                }
+
+                // Parse relay response
+                $relayResponse = RelayResponse::create($decoded);
+
+                // Handle different response types
+                switch ($relayResponse->type) {
+                    case 'EVENT':
+                        // This is a media event - process it
+                        if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
+                            $event = $relayResponse->event;
+
+                            $this->logger->info('Received media event from relay', [
+                                'relay' => $relayUrl,
+                                'event_id' => substr($event->id ?? 'unknown', 0, 16) . '...',
+                                'kind' => $event->kind ?? 'unknown',
+                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...'
+                            ]);
+
+                            // Call the callback with the event
+                            try {
+                                $onMediaEvent($event, $relayUrl);
+                            } catch (\Throwable $e) {
+                                // Log callback errors but don't break the loop
+                                $this->logger->error('Error in media event callback', [
+                                    'event_id' => $event->id ?? 'unknown',
+                                    'error' => $e->getMessage(),
+                                    'exception' => get_class($e)
+                                ]);
+                            }
+                        }
+                        break;
+
+                    case 'EOSE':
+                        // End of stored events - keep listening for new events
+                        $eoseReceived = true;
+                        $this->logger->info('Received EOSE - all stored media events processed, now listening for new events', [
+                            'relay' => $relayUrl,
+                            'subscription_id' => $subscriptionId
+                        ]);
+                        break;
+
+                    case 'CLOSED':
+                        // Subscription closed by relay
+                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $this->logger->warning('Relay closed subscription', [
+                            'relay' => $relayUrl,
+                            'subscription_id' => $subscriptionId,
+                            'message' => $decodedArray[2] ?? 'no message'
+                        ]);
+                        throw new \Exception('Subscription closed by relay: ' . ($decodedArray[2] ?? 'no message'));
+
+                    case 'NOTICE':
+                        // Notice from relay
+                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $message = $decodedArray[1] ?? 'no message';
+                        if (str_starts_with($message, 'ERROR:')) {
+                            $this->logger->error('Received ERROR NOTICE from relay', [
+                                'relay' => $relayUrl,
+                                'message' => $message
+                            ]);
+                            throw new \Exception('Relay error: ' . $message);
+                        }
+                        $this->logger->info('Received NOTICE from relay', [
+                            'relay' => $relayUrl,
+                            'message' => $message
+                        ]);
+                        break;
+
+                    case 'OK':
+                        // OK response - just log it
+                        $this->logger->debug('Received OK from relay', ['relay' => $relayUrl]);
+                        break;
+
+                    default:
+                        $this->logger->debug('Unknown relay response type', [
+                            'relay' => $relayUrl,
+                            'type' => $relayResponse->type
+                        ]);
+                        break;
+                }
+
+            } catch (\Throwable $e) {
+                $errorMessage = strtolower($e->getMessage());
+                $errorClass = strtolower(get_class($e));
+
+                // Timeouts and connection errors are normal when waiting for new events - just continue
+                if (stripos($errorMessage, 'timeout') !== false ||
+                    stripos($errorClass, 'timeout') !== false ||
+                    stripos($errorMessage, 'connection operation') !== false) {
+                    if ($eoseReceived) {
+                        // Only log timeout every 60 seconds to avoid spam
+                        static $lastTimeoutLog = 0;
+                        if (time() - $lastTimeoutLog > 60) {
+                            $this->logger->debug('Waiting for new media events (no activity)', [
+                                'relay' => $relayUrl
+                            ]);
+                            $lastTimeoutLog = time();
+                        }
+                    }
+                    continue;
+                }
+
+                // Unparseable messages and bad msg errors - log and continue
+                if (stripos($errorMessage, 'bad msg') !== false ||
+                    stripos($errorMessage, 'unparseable') !== false ||
+                    stripos($errorMessage, 'invalid') !== false) {
+                    $this->logger->debug('Skipping invalid message from relay, continuing', [
+                        'relay' => $relayUrl,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
+
+                // Fatal errors - log and rethrow to allow Docker restart
+                $this->logger->error('Fatal error in media subscription loop', [
+                    'relay' => $relayUrl,
+                    'error' => $e->getMessage(),
+                    'exception' => get_class($e)
+                ]);
+                throw $e;
+            }
+        }
+
+        // This line should never be reached (infinite loop above)
+        $this->logger->warning('Media subscription loop exited unexpectedly');
     }
 }

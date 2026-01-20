@@ -22,3 +22,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Runs every 30 minutes
 */30 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
 
+# Cache media discovery events
+# Runs every 6 hours to refresh media content
+0 */6 * * * /var/www/html/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
+

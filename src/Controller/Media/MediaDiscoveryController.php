@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Media;
 
+use App\Repository\EventRepository;
+use App\Service\MutedPubkeysService;
+use Psr\Log\LoggerInterface;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,9 +27,13 @@ class MediaDiscoveryController extends AbstractController
     ];
 
     #[Route('/multimedia', name: 'media-discovery')]
-    public function discover(CacheInterface $cache, ParameterBagInterface $params): Response
-    {
-        // Defaulting to all, might do topics later
+    public function discover(
+        CacheInterface $cache,
+        ParameterBagInterface $params,
+        EventRepository $eventRepository,
+        MutedPubkeysService $mutedPubkeysService,
+        LoggerInterface $logger
+    ): Response {
         try {
             $allHashtags = [];
             // Get all topics
@@ -37,11 +45,41 @@ class MediaDiscoveryController extends AbstractController
             $env = $params->get('kernel.environment');
             $cacheKey = 'media_discovery_events_all_' . $env;
 
-            // Read from cache only - the cache is populated by the CacheMediaDiscoveryCommand
-            $allCachedEvents = $cache->get($cacheKey, function () {
-                // Return empty array if cache is not populated yet
-                // The command should be run to populate this
-                return [];
+            // Try to get from cache first
+            $allCachedEvents = $cache->get($cacheKey, function () use ($eventRepository, $mutedPubkeysService, $logger) {
+                $logger->info('Media discovery cache miss - querying from database');
+
+                // Fallback: query from database if cache is not populated
+                $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+                $events = $eventRepository->findNonNSFWMediaEvents(
+                    [20, 21, 22],
+                    $excludedPubkeys,
+                    500
+                );
+
+                // Convert Event entities to simple objects for display
+                $mediaEvents = [];
+                $nip19 = new Nip19Helper();
+
+                foreach ($events as $event) {
+                    $obj = new \stdClass();
+                    $obj->id = $event->getId();
+                    $obj->pubkey = $event->getPubkey();
+                    $obj->created_at = $event->getCreatedAt();
+                    $obj->kind = $event->getKind();
+                    $obj->tags = $event->getTags();
+                    $obj->content = $event->getContent();
+                    $obj->sig = $event->getSig();
+                    $obj->noteId = $nip19->encodeNote($event->getId());
+
+                    $mediaEvents[] = $obj;
+                }
+
+                $logger->info('Media discovery queried from database', [
+                    'event_count' => count($mediaEvents)
+                ]);
+
+                return $mediaEvents;
             });
 
             // Randomize from the cached events
@@ -60,6 +98,11 @@ class MediaDiscoveryController extends AbstractController
 
         } catch (\Exception $e) {
             // Log error and show empty state
+            $logger->error('Error loading media discovery', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return $this->render('pages/media-discovery.html.twig', [
                 'mediaEvents' => [],
                 'total' => 0,
