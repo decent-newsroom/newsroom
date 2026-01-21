@@ -39,6 +39,28 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find media events for a specific pubkey
+     *
+     * @param string $pubkey Hex pubkey
+     * @param array $kinds Array of event kinds (default: 20, 21, 22)
+     * @param int $limit Maximum number of events to return
+     * @return Event[]
+     */
+    public function findMediaEventsByPubkey(string $pubkey, array $kinds = [20, 21, 22], int $limit = 100): array
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->where($qb->expr()->in('e.kind', ':kinds'))
+            ->andWhere('e.pubkey = :pubkey')
+            ->setParameter('kinds', $kinds)
+            ->setParameter('pubkey', $pubkey)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Find media events by hashtags
      *
      * @param array $hashtags Array of hashtags to search for

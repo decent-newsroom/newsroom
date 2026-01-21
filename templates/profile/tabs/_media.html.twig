@@ -1,0 +1,37 @@
+<turbo-frame id="profile-tab-content">
+    <div class="w-container media-container">
+        {% if mediaEvents|default([])|length > 0 %}
+            <div class="media-grid">
+                {% for event in mediaEvents %}
+                    <div class="media-item">
+                        {% if event.kind == 20 %}
+                            {# Image #}
+                            <a href="{{ path('nevent', {'nevent': event.noteId}) }}">
+                                <img src="{{ event.content }}" alt="{{ event.alt ?? '' }}" loading="lazy">
+                            </a>
+                        {% elseif event.kind == 21 %}
+                            {# Video #}
+                            <video src="{{ event.content }}" controls preload="metadata"></video>
+                        {% elseif event.kind == 22 %}
+                            {# Audio #}
+                            <audio src="{{ event.content }}" controls preload="metadata"></audio>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            {% if hasMore|default(false) %}
+                <div class="load-more">
+                    <button class="btn btn-secondary"
+                            data-action="click->content--author-media#loadMore"
+                            data-npub="{{ npub }}">
+                        Load more
+                    </button>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="no-content">
+                <p>No media found for this author.</p>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

@@ -6,8 +6,11 @@ namespace App\Controller;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
-use App\Message\FetchAuthorArticlesMessage;
+use App\Message\FetchAuthorContentMessage;
+use App\Service\AuthorRelayService;
+use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
 use App\Service\Search\ArticleSearchInterface;
@@ -15,7 +18,6 @@ use App\ReadModel\RedisView\RedisViewFactory;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
-use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -23,7 +25,6 @@ use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -31,7 +32,9 @@ use Symfony\Component\Serializer\SerializerInterface;
 class AuthorController extends AbstractController
 {
     public function __construct(
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AuthorRelayService $authorRelayService,
+        private readonly NostrLinkParser $nostrLinkParser
     ) {}
 
     /**
@@ -159,37 +162,6 @@ class AuthorController extends AbstractController
     }
 
     /**
-     * Multimedia
-     * @throws Exception|InvalidArgumentException
-     */
-    #[Route('/p/{npub}/media', name: 'author-media', requirements: ['npub' => '^npub1.*'])]
-    public function media($npub, RedisCacheService $redisCacheService, NostrKeyUtil $keyUtil): Response
-    {
-        $pubkey = $keyUtil->npubToHex($npub);
-        $author = $redisCacheService->getMetadata($pubkey);
-
-        // Use paginated cached media events - fetches 200 from relays, serves first 24
-        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, 1, 24);
-        $mediaEvents = $paginatedData['events'];
-
-        // Encode event IDs as note1... for each event
-        foreach ($mediaEvents as $event) {
-            $nip19 = new Nip19Helper();
-            $event->noteId = $nip19->encodeNote($event->id);
-        }
-
-        return $this->render('profile/author-media.html.twig', [
-            'author' => $author,
-            'npub' => $npub,
-            'pubkey' => $pubkey,
-            'pictureEvents' => $mediaEvents,
-            'hasMore' => $paginatedData['hasMore'],
-            'total' => $paginatedData['total'],
-            'is_author_profile' => true,
-        ]);
-    }
-
-    /**
      * AJAX endpoint to load more media events
      * @throws Exception
      */
@@ -198,8 +170,11 @@ class AuthorController extends AbstractController
     {
         $page = $request->query->getInt('page', 2); // Default to page 2
 
+        $keys = new Key();
+        $pubkey = $keys->convertToHex($npub);
+
         // Get paginated data from cache - 24 items per page
-        $paginatedData = $redisCacheService->getMediaEventsPaginated($npub, $page, 24);
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, $page, 24);
         $mediaEvents = $paginatedData['events'];
 
         // Encode event IDs as note1... for each event
@@ -226,46 +201,420 @@ class AuthorController extends AbstractController
     }
 
     /**
-     * Author profile and articles
+     * Tab content endpoint - returns full page with layout or just tab content for Turbo Frames
      * @throws Exception
-     * @throws ExceptionInterface
      * @throws InvalidArgumentException
      */
-    #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
-    #[Route('/p/{npub}/articles', name: 'author-articles', requirements: ['npub' => '^npub1.*'])]
-    public function index($npub, RedisCacheService $redisCacheService, FinderInterface $finder,
-                          MessageBusInterface $messageBus, RedisViewStore $viewStore,
-                          RedisViewFactory $viewFactory, ArticleSearchInterface $articleSearch): Response
-    {
+    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|bookmarks'])]
+    public function profileTab(
+        string $npub,
+        string $tab,
+        Request $request,
+        RedisCacheService $redisCacheService,
+        MessageBusInterface $messageBus,
+        RedisViewStore $viewStore,
+        RedisViewFactory $viewFactory,
+        ArticleSearchInterface $articleSearch,
+        EntityManagerInterface $em
+    ): Response {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
-
         $author = $redisCacheService->getMetadata($pubkey);
 
-        // Check if viewer is the author
+        // Check ownership
         $currentUser = $this->getUser();
-        $isOwnProfile = $currentUser && $currentUser->getUserIdentifier() === $npub;
+        $isOwner = $currentUser && $currentUser->getUserIdentifier() === $npub;
 
-        // Try to get cached view first
+        // Private tabs require ownership
+        $privateTabsRequireAuth = ['drafts', 'bookmarks'];
+        if (in_array($tab, $privateTabsRequireAuth) && !$isOwner) {
+            // Check if this is a Turbo Frame request
+            $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
+
+            if ($isTurboFrameRequest) {
+                return $this->render("profile/tabs/_{$tab}.html.twig", [
+                    'isOwner' => false,
+                    'npub' => $npub,
+                    'pubkey' => $pubkey,
+                ]);
+            }
+
+            // For direct access, show full page with tabs
+            return $this->render('profile/author-tabs.html.twig', [
+                'author' => $author,
+                'npub' => $npub,
+                'pubkey' => $pubkey,
+                'isOwner' => false,
+                'activeTab' => $tab,
+                'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+            ]);
+        }
+
+        // Load tab-specific data
+        $templateData = match($tab) {
+            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+            'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
+            'media' => $this->getMediaTabData($pubkey, $redisCacheService),
+            'highlights' => $this->getHighlightsTabData($pubkey, $em),
+            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $redisCacheService->getMetadata($pubkey)),
+            'bookmarks' => $this->getBookmarksTabData($pubkey, $em),
+            default => [],
+        };
+
+        // Check if this is a Turbo Frame request (AJAX partial load)
+        $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
+
+        if ($isTurboFrameRequest) {
+            // Return just the tab partial for Turbo Frame
+            return $this->render("profile/tabs/_{$tab}.html.twig", array_merge([
+                'author' => $author,
+                'npub' => $npub,
+                'pubkey' => $pubkey,
+                'isOwner' => $isOwner,
+                'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+            ], $templateData));
+        }
+
+        // Direct access - return full page with layout and tabs
+        return $this->render('profile/author-tabs.html.twig', array_merge([
+            'author' => $author,
+            'npub' => $npub,
+            'pubkey' => $pubkey,
+            'isOwner' => $isOwner,
+            'activeTab' => $tab,
+            'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+        ], $templateData));
+    }
+
+    /**
+     * Get articles for the articles tab
+     */
+    private function getArticlesTabData(
+        string $pubkey,
+        bool $isOwner,
+        RedisViewStore $viewStore,
+        RedisViewFactory $viewFactory,
+        ArticleSearchInterface $articleSearch
+    ): array {
+        $articles = $this->getAuthorArticles($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch);
+        return ['articles' => $articles];
+    }
+
+    /**
+     * Get overview tab data - mix of recent content
+     */
+    private function getOverviewTabData(
+        string $pubkey,
+        bool $isOwner,
+        RedisCacheService $redisCacheService,
+        RedisViewStore $viewStore,
+        RedisViewFactory $viewFactory,
+        ArticleSearchInterface $articleSearch,
+        MessageBusInterface $messageBus,
+        EntityManagerInterface $em
+    ): array {
+        // Determine which content types to fetch
+        $contentTypes = AuthorContentType::publicTypes();
+        if ($isOwner) {
+            $contentTypes = AuthorContentType::cases();
+        }
+
+        // Dispatch async message to fetch content from author's home relays
+        $relays = $this->authorRelayService->getRelaysForFetching($pubkey);
+        $messageBus->dispatch(new FetchAuthorContentMessage(
+            $pubkey,
+            $contentTypes,
+            0,
+            $isOwner,
+            $relays
+        ));
+
+        // Get recent articles (limit to 6 for overview)
+        $allArticles = $this->getAuthorArticles($pubkey, false, $viewStore, $viewFactory, $articleSearch);
+        $recentArticles = array_slice($allArticles, 0, 6);
+
+        // Get recent media (limit to 6 for overview)
+        $mediaData = $this->getMediaTabData($pubkey, $redisCacheService);
+        $recentMedia = array_slice($mediaData['mediaEvents'] ?? [], 0, 6);
+
+        // Get recent highlights (limit to 6 for overview)
+        $highlightsData = $this->getHighlightsTabData($pubkey, $em);
+        $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 6);
+
+        return [
+            'recentArticles' => $recentArticles,
+            'recentMedia' => $recentMedia,
+            'recentHighlights' => $recentHighlights,
+            'hasMoreArticles' => count($allArticles) > 6,
+            'hasMoreMedia' => ($mediaData['hasMore'] ?? false) || count($mediaData['mediaEvents'] ?? []) > 6,
+            'hasMoreHighlights' => count($highlightsData['highlights'] ?? []) > 6,
+        ];
+    }
+
+    /**
+     * Get media events for the media tab
+     */
+    private function getMediaTabData(string $pubkey, RedisCacheService $redisCacheService): array
+    {
+        $paginatedData = $redisCacheService->getMediaEventsPaginated($pubkey, 1, 24);
+        $mediaEvents = $paginatedData['events'];
+
+        foreach ($mediaEvents as $event) {
+            $nip19 = new Nip19Helper();
+            $event->noteId = $nip19->encodeNote($event->id);
+        }
+
+        return [
+            'mediaEvents' => $mediaEvents,
+            'hasMore' => $paginatedData['hasMore'],
+            'total' => $paginatedData['total'],
+        ];
+    }
+
+    /**
+     * Get highlights for the highlights tab
+     */
+    private function getHighlightsTabData(string $pubkey, EntityManagerInterface $em): array
+    {
+        $repo = $em->getRepository(Event::class);
+        $events = $repo->findBy(
+            ['pubkey' => $pubkey, 'kind' => KindsEnum::HIGHLIGHTS->value],
+            ['created_at' => 'DESC'],
+            50
+        );
+
+        $highlights = [];
+        foreach ($events as $event) {
+            $context = null;
+            $sourceUrl = null;
+            $articleRef = null;
+            $articleTitle = null;
+            $articleAuthor = null;
+            $url = null;
+            $relayHints = [];
+
+            // Extract metadata from tags
+            foreach ($event->getTags() as $tag) {
+                if (!is_array($tag) || count($tag) < 2) {
+                    continue;
+                }
+
+                switch ($tag[0]) {
+                    case 'context':
+                        $context = $tag[1] ?? null;
+                        break;
+                    case 'r': // URL reference
+                        if (!$sourceUrl) {
+                            $sourceUrl = $tag[1] ?? null;
+                        }
+                        if (!$url) {
+                            $url = $tag[1] ?? null;
+                        }
+                        // Collect relay hints
+                        if (isset($tag[1]) && str_starts_with($tag[1], 'wss://')) {
+                            $relayHints[] = $tag[1];
+                        }
+                        break;
+                    case 'a': // Article reference (kind:pubkey:identifier)
+                    case 'A':
+                        $articleRef = $tag[1] ?? null;
+                        // Get relay hint if available
+                        if (isset($tag[2]) && str_starts_with($tag[2], 'wss://')) {
+                            $relayHints[] = $tag[2];
+                        }
+                        // Parse to check if it's an article (kind 30023)
+                        $parts = explode(':', $tag[1] ?? '', 3);
+                        if (count($parts) === 3 && $parts[0] === '30023') {
+                            $articleAuthor = $parts[1];
+                        }
+                        break;
+                    case 'title':
+                        $articleTitle = $tag[1] ?? null;
+                        break;
+                }
+            }
+
+            $highlight = (object)[
+                'id' => $event->getId(),
+                'content' => $event->getContent(),
+                'context' => $context,
+                'sourceUrl' => $sourceUrl,
+                'createdAt' => $event->getCreatedAt(),
+                'article_ref' => $articleRef,
+                'article_title' => $articleTitle,
+                'article_author' => $articleAuthor,
+                'url' => $url,
+                'naddr' => null,
+                'preview' => null,
+            ];
+
+            // Generate naddr if we have an article reference
+            if ($articleRef && str_starts_with($articleRef, '30023:')) {
+                $highlight->naddr = $this->generateNaddr($articleRef, $relayHints);
+
+                // Create preview data if we have naddr
+                if ($highlight->naddr) {
+                    $highlight->preview = $this->createPreviewData($highlight->naddr);
+                }
+            }
+
+            $highlights[] = $highlight;
+        }
+
+        return ['highlights' => $highlights];
+    }
+
+    /**
+     * Generate naddr from coordinate (kind:pubkey:identifier) and relay hints
+     */
+    private function generateNaddr(string $coordinate, array $relayHints = []): ?string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        try {
+            $kind = (int)$parts[0];
+            $pubkey = $parts[1];
+            $identifier = $parts[2];
+
+            $naddr = \nostriphant\NIP19\Bech32::naddr(
+                kind: $kind,
+                pubkey: $pubkey,
+                identifier: $identifier,
+                relays: $relayHints
+            );
+
+            return (string)$naddr;
+
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to generate naddr', [
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Create preview data structure for NostrPreview component
+     */
+    private function createPreviewData(string $naddr): ?array
+    {
+        try {
+            // Use NostrLinkParser to parse the naddr identifier
+            $links = $this->nostrLinkParser->parseLinks("nostr:$naddr");
+
+            if (!empty($links)) {
+                return $links[0];
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            $this->logger->debug('Failed to create preview data', [
+                'naddr' => $naddr,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Get drafts for the drafts tab (owner only)
+     */
+    private function getDraftsTabData(
+        string $pubkey,
+        ArticleSearchInterface $articleSearch,
+        RedisViewFactory $viewFactory,
+        object $author
+    ): array {
+        $allArticles = $articleSearch->findByPubkey($pubkey, 100, 0);
+        $drafts = [];
+
+        foreach ($allArticles as $article) {
+            if ($article instanceof Article && $article->getKind() === KindsEnum::LONGFORM_DRAFT->value) {
+                $baseObject = $viewFactory->articleBaseObject($article, $author);
+                $normalized = $viewFactory->normalizeBaseObject($baseObject);
+                if (isset($normalized['article'])) {
+                    $drafts[] = (object) $normalized['article'];
+                }
+            }
+        }
+
+        // Deduplicate by slug
+        $slugMap = [];
+        foreach ($drafts as $draft) {
+            $slug = $draft->slug ?? null;
+            if ($slug && (!isset($slugMap[$slug]) || ($draft->createdAt ?? 0) > ($slugMap[$slug]->createdAt ?? 0))) {
+                $slugMap[$slug] = $draft;
+            }
+        }
+
+        return ['drafts' => array_values($slugMap)];
+    }
+
+    /**
+     * Get bookmarks for the bookmarks tab (owner only)
+     */
+    private function getBookmarksTabData(string $pubkey, EntityManagerInterface $em): array
+    {
+        $repo = $em->getRepository(Event::class);
+        $events = $repo->findBy(
+            ['pubkey' => $pubkey, 'kind' => KindsEnum::CURATION_SET->value],
+            ['created_at' => 'DESC'],
+            50
+        );
+
+        $bookmarks = [];
+        foreach ($events as $event) {
+            $identifier = null;
+            $items = [];
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'd') {
+                    $identifier = $tag[1] ?? null;
+                }
+                if (in_array($tag[0] ?? '', ['e', 'a', 'p', 't'])) {
+                    $items[] = [
+                        'type' => $tag[0],
+                        'value' => $tag[1] ?? null,
+                        'relay' => $tag[2] ?? null,
+                    ];
+                }
+            }
+            $bookmarks[] = (object)[
+                'id' => $event->getId(),
+                'identifier' => $identifier,
+                'items' => $items,
+                'createdAt' => $event->getCreatedAt(),
+            ];
+        }
+
+        return ['bookmarks' => $bookmarks];
+    }
+
+    /**
+     * Helper to get author articles (used by both unified profile and tab)
+     */
+    private function getAuthorArticles(
+        string $pubkey,
+        bool $isOwner,
+        RedisViewStore $viewStore,
+        RedisViewFactory $viewFactory,
+        ArticleSearchInterface $articleSearch
+    ): array {
         $cachedArticles = $viewStore->fetchUserArticles($pubkey);
         $viewData = [];
-        $fromCache = false;
-        $articles = []; // For message dispatching
 
         if ($cachedArticles !== null) {
-            // Cache hit - extract and filter cached data
-            $fromCache = true;
-
             foreach ($cachedArticles as $baseObject) {
                 if (isset($baseObject['article'])) {
                     $articleData = $baseObject['article'];
-
-                    // Apply filtering to cached data
                     $kind = $articleData['kind'] ?? null;
                     $slug = $articleData['slug'] ?? null;
 
-                    // Skip drafts unless viewing own profile
-                    if (!$isOwnProfile && $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                    // Skip drafts (they go in drafts tab)
+                    if ($kind === KindsEnum::LONGFORM_DRAFT->value) {
                         continue;
                     }
 
@@ -274,76 +623,27 @@ class AuthorController extends AbstractController
                     }
                 }
             }
-
-            // Deduplicate cached data by slug (keep latest)
             $viewData = $this->deduplicateViewData($viewData);
-
         } else {
-            // Cache miss - query entities
             $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
+            $articles = $this->filterAndDeduplicateArticles($articles, false); // Always filter out drafts for articles tab
 
-            // Filter and deduplicate articles at the entity level
-            $articles = $this->filterAndDeduplicateArticles($articles, $isOwnProfile);
-
-            // Build view objects for template from filtered entities
-            if (!empty($articles)) {
-                try {
-                    $baseObjects = [];
-                    foreach ($articles as $article) {
-                        if ($article instanceof Article) {
-                            $baseObject = $viewFactory->articleBaseObject($article, $author);
-                            $baseObjects[] = $baseObject;
-                            $normalized = $viewFactory->normalizeBaseObject($baseObject);
-
-                            // Extract just the article data and convert to object
-                            if (isset($normalized['article'])) {
-                                $viewData[] = (object) $normalized['article'];
-                            }
+            foreach ($articles as $article) {
+                if ($article instanceof Article) {
+                    try {
+                        $baseObject = $viewFactory->articleBaseObject($article, null);
+                        $normalized = $viewFactory->normalizeBaseObject($baseObject);
+                        if (isset($normalized['article'])) {
+                            $viewData[] = (object) $normalized['article'];
                         }
+                    } catch (\Exception $e) {
+                        $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
                     }
-
-                    // Cache the base objects for next time (unfiltered, filtering happens on read)
-                    if (!empty($baseObjects)) {
-                        $viewStore->storeUserArticles($pubkey, $baseObjects);
-                    }
-                } catch (\Exception $e) {
-                    $this->logger->error('Failed to build view objects', [
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
         }
 
-        // Get latest createdAt for dispatching fetch message
-        if (!empty($viewData)) {
-            // Extract latest timestamp from view data (works for both cached and fresh)
-            $latest = 0;
-            foreach ($viewData as $item) {
-                $createdAt = $item->createdAt ?? null;
-                if ($createdAt) {
-                    $timestamp = is_string($createdAt) ? strtotime($createdAt) : $createdAt->getTimestamp();
-                    if ($timestamp > $latest) {
-                        $latest = $timestamp;
-                    }
-                }
-            }
-            if ($latest > 0) {
-                // Dispatch async message to fetch new articles since latest + 1
-                $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, $latest + 1));
-            }
-        } else {
-            // No articles, fetch all
-            $messageBus->dispatch(new FetchAuthorArticlesMessage($pubkey, 0));
-        }
-
-        return $this->render('profile/author.html.twig', [
-            'author' => $author,
-            'npub' => $npub,
-            'pubkey' => $pubkey,
-            'articles' => $viewData, // Pass normalized view data to template
-            'is_author_profile' => true,
-            'from_cache' => $fromCache,
-        ]);
+        return $viewData;
     }
 
     /**
@@ -441,15 +741,13 @@ class AuthorController extends AbstractController
 
 
     /**
-     * Redirect from /p/{pubkey} to /p/{npub}
-     * @throws Exception
+     * Author profile - redirect to overview tab by default
      */
-    #[Route('/p/{pubkey}', name: 'author-redirect')]
-    public function authorRedirect($pubkey): Response
+    #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
+    public function index(string $npub): Response
     {
-        $keys = new Key();
-        $npub = $keys->convertPublicKeyToBech32($pubkey);
-        return $this->redirectToRoute('author-profile', ['npub' => $npub]);
+        // Redirect to overview tab - shows dashboard with mix of content
+        return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => 'overview']);
     }
 
     /**
@@ -470,5 +768,18 @@ class AuthorController extends AbstractController
         return $this->render('articles.html.twig', [
             'articles' => $articles
         ]);
+    }
+
+    /**
+     * Redirect from /p/{pubkey} (hex format) to /p/{npub} (bech32 format)
+     * This route must be AFTER the npub route to avoid conflicts
+     * @throws Exception
+     */
+    #[Route('/p/{pubkey}', name: 'author-redirect', requirements: ['pubkey' => '^(?!npub1)[0-9a-f]{64}$'])]
+    public function authorRedirect($pubkey): Response
+    {
+        $keys = new Key();
+        $npub = $keys->convertPublicKeyToBech32($pubkey);
+        return $this->redirectToRoute('author-profile', ['npub' => $npub]);
     }
 }

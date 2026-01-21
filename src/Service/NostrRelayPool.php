@@ -264,7 +264,7 @@ class NostrRelayPool
                 $this->lastConnected[$relay->getUrl()] = time();
 
             } catch (\Exception $e) {
-                // If this is a timeout, treat as normal; otherwise, rethrow or handle
+                // If this is a timeout, treat as normal (all events received)
                 if (stripos($e->getMessage(), 'timeout') !== false) {
                     $this->logger->debug('Relay timeout (normal - all events received)', [
                         'relay' => $relay->getUrl()
@@ -272,7 +272,25 @@ class NostrRelayPool
                     $responses[$relay->getUrl()] = $relayResponses;
                     $this->lastConnected[$relay->getUrl()] = time();
                 } else {
-                    throw $e;
+                    // Log the error but continue with other relays instead of throwing
+                    $this->logger->error('Error sending to relay (continuing with others)', [
+                        'relay' => $relay->getUrl(),
+                        'error' => $e->getMessage(),
+                        'class' => get_class($e)
+                    ]);
+
+                    // Track failed attempts
+                    $url = $relay->getUrl();
+                    $this->connectionAttempts[$url] = ($this->connectionAttempts[$url] ?? 0) + 1;
+
+                    // If too many failures, remove from pool
+                    if ($this->connectionAttempts[$url] >= self::MAX_RETRIES) {
+                        $this->logger->warning('Removing relay from pool due to repeated failures', [
+                            'relay' => $url,
+                            'attempts' => $this->connectionAttempts[$url]
+                        ]);
+                        unset($this->relays[$url]);
+                    }
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('Error sending to relay', [

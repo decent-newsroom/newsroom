@@ -1,0 +1,11 @@
+<turbo-frame id="profile-tab-content">
+    <div class="w-container">
+        {% if articles|length > 0 %}
+            <twig:Organisms:CardList :list="articles" class="article-list"></twig:Organisms:CardList>
+        {% else %}
+            <div class="no-content">
+                <p>No articles found for this author.</p>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

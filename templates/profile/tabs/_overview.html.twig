@@ -1,0 +1,93 @@
+<turbo-frame id="profile-tab-content">
+    <div class="profile-overview-content">
+        {# Recent Articles Section #}
+        {% if recentArticles|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="section-header">
+                    <h2>Recent Articles</h2>
+                    {% if hasMoreArticles|default(false) %}
+                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'articles'}) }}"
+                           class="see-all-link"
+                           data-turbo-frame="profile-tab-content">
+                            See all articles →
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="w-container">
+                    <twig:Organisms:CardList :list="recentArticles" class="article-list overview-grid"></twig:Organisms:CardList>
+                </div>
+            </div>
+        {% endif %}
+
+        {# Recent Media Section #}
+        {% if recentMedia|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="section-header">
+                    <h2>Recent Media</h2>
+                    {% if hasMoreMedia|default(false) %}
+                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'media'}) }}"
+                           class="see-all-link"
+                           data-turbo-frame="profile-tab-content">
+                            See all media →
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="media-grid overview-media-grid">
+                    {% for event in recentMedia %}
+                        <div class="media-item">
+                            {% if event.kind == 20 %}
+                                <a href="{{ path('nevent', {'nevent': event.noteId}) }}">
+                                    <img src="{{ event.content }}" alt="{{ event.alt ?? '' }}" loading="lazy">
+                                </a>
+                            {% elseif event.kind == 21 %}
+                                <video src="{{ event.content }}" controls preload="metadata"></video>
+                            {% elseif event.kind == 22 %}
+                                <audio src="{{ event.content }}" controls preload="metadata"></audio>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# Recent Highlights Section #}
+        {% if recentHighlights|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="section-header">
+                    <h2>Recent Highlights</h2>
+                    {% if hasMoreHighlights|default(false) %}
+                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'highlights'}) }}"
+                           class="see-all-link"
+                           data-turbo-frame="profile-tab-content">
+                            See all highlights →
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="highlights-preview">
+                    {% for highlight in recentHighlights %}
+                        <blockquote class="highlight-item compact">
+                            <p>{{ highlight.content|length > 200 ? highlight.content|slice(0, 200) ~ '...' : highlight.content }}</p>
+                            {% if highlight.sourceUrl %}
+                                <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener">
+                                    Source →
+                                </a>
+                            {% endif %}
+                        </blockquote>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# Empty state #}
+        {% if recentArticles|default([])|length == 0 and recentMedia|default([])|length == 0 and recentHighlights|default([])|length == 0 %}
+            <div class="no-content">
+                <p>This author hasn't published any content yet.</p>
+                {% if isOwner|default(false) %}
+                    <p>
+                        <a href="{{ path('new-article') }}" class="btn btn-primary">Write your first article</a>
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

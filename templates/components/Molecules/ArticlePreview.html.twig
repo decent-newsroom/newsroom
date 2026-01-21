@@ -20,7 +20,7 @@
 
         <div class="px-2">
             <h5 class="card-title">
-                <a href="{{ path('author-article-slug', {npub: npub, slug: article.slug}) }}" class="text-decoration-none">
+                <a href="{{ path('author-article-slug', {npub: npub, slug: article.slug}) }}" class="text-decoration-none" data-turbo-frame="_top">
                     {{ article.title }}
                 </a>
             </h5>

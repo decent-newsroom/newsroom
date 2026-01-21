@@ -272,4 +272,7 @@ return [
     'nostr-tools/nip44' => [
         'version' => '2.19.4',
     ],
+    '@hotwired/turbo' => [
+        'version' => '7.3.0',
+    ],
 ];

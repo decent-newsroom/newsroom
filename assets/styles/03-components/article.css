@@ -92,10 +92,14 @@ blockquote {
     margin: var(--spacing-6) 0 var(--spacing-6) var(--spacing-1);
 }
 
-blockquote p {
-    font-size: 1.6rem;
+blockquote > p {
+    font-size: 1.2rem;
     font-style: italic;
     color: var(--color-text-mid);
+    padding-left: var(--spacing-5);
+}
+
+blockquote > * {
     padding-left: var(--spacing-5);
 }
 

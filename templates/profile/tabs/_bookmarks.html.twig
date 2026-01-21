@@ -1,0 +1,43 @@
+<turbo-frame id="profile-tab-content">
+    <div class="w-container bookmarks-container">
+        {% if isOwner|default(false) %}
+            {% if bookmarks|default([])|length > 0 %}
+                <div class="bookmarks-list">
+                    {% for bookmark in bookmarks %}
+                        <div class="bookmark-item card">
+                            <h4>{{ bookmark.identifier ?? 'Untitled List' }}</h4>
+                            {% if bookmark.items|length > 0 %}
+                                <ul class="bookmark-items">
+                                    {% for item in bookmark.items %}
+                                        <li>
+                                            {% if item.type == 'e' %}
+                                                <span class="bookmark-type">Event:</span>
+                                            {% elseif item.type == 'a' %}
+                                                <span class="bookmark-type">Article:</span>
+                                            {% elseif item.type == 'p' %}
+                                                <span class="bookmark-type">Profile:</span>
+                                            {% elseif item.type == 't' %}
+                                                <span class="bookmark-type">Topic:</span>
+                                            {% endif %}
+                                            <code>{{ item.value|slice(0, 24) }}...</code>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="empty-list text-muted">No items in this list</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-content">
+                    <p>You don't have any bookmarks yet.</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="no-content">
+                <p>Bookmarks are private and only visible to the owner.</p>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

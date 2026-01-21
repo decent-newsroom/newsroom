@@ -363,27 +363,31 @@ class RedisCacheService
                 $item->expiresAfter(600); // 10 minutes cache
 
                 try {
-                    // Fetch a large batch to account for deduplication
-                    // Nostr relays are unstable, so we fetch more than we need
-                    $mediaEvents = $this->nostrClient->getAllMediaEventsForPubkey($pubkey, 200);
+                    // Fetch from database instead of Nostr relays for better reliability
+                    $eventRepo = $this->entityManager->getRepository(Event::class);
+                    $dbEvents = $eventRepo->findMediaEventsByPubkey($pubkey, [20, 21, 22], 200);
 
-                    // Deduplicate by event ID
-                    $uniqueEvents = [];
-                    foreach ($mediaEvents as $event) {
-                        if (!isset($uniqueEvents[$event->id])) {
-                            $uniqueEvents[$event->id] = $event;
-                        }
+                    // Convert Event entities to stdClass objects (same format as Nostr events)
+                    $mediaEvents = [];
+                    foreach ($dbEvents as $event) {
+                        $obj = new \stdClass();
+                        $obj->id = $event->getId();
+                        $obj->pubkey = $event->getPubkey();
+                        $obj->created_at = $event->getCreatedAt();
+                        $obj->kind = $event->getKind();
+                        $obj->tags = $event->getTags();
+                        $obj->content = $event->getContent();
+                        $obj->sig = $event->getSig();
+                        $mediaEvents[] = $obj;
                     }
 
-                    // Convert back to indexed array and sort by date (newest first)
-                    $mediaEvents = array_values($uniqueEvents);
-                    usort($mediaEvents, function ($a, $b) {
-                        return $b->created_at <=> $a->created_at;
-                    });
-
+                    // Already sorted by created_at DESC from the query
                     return $mediaEvents;
                 } catch (\Exception $e) {
-                    $this->logger->error('Error getting media events.', ['exception' => $e, 'pubkey' => $pubkey]);
+                    $this->logger->error('Error getting media events from database.', [
+                        'exception' => $e,
+                        'pubkey' => $pubkey
+                    ]);
                     return [];
                 }
             });

@@ -62,17 +62,6 @@ nav a:hover {
     text-decoration: none;
 }
 
-#progress-bar {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 4px;
-    width: 0;
-    background: var(--color-primary);
-    transition: width 0.4s ease;
-    z-index: 1000;
-}
-
 /* Main content */
 main {
     display: flex;

@@ -56,6 +56,7 @@
         "symfony/twig-bundle": "7.3.*",
         "symfony/ux-icons": "^2.22",
         "symfony/ux-live-component": "^2.21",
+        "symfony/ux-turbo": "^2.32",
         "symfony/validator": "^7.3",
         "symfony/workflow": "7.3.*",
         "symfony/yaml": "7.3.*",

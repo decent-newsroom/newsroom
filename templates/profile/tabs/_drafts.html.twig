@@ -1,0 +1,20 @@
+<turbo-frame id="profile-tab-content">
+    <div class="w-container drafts-container">
+        {% if isOwner|default(false) %}
+            {% if drafts|default([])|length > 0 %}
+                <div class="drafts-list">
+                    <twig:Organisms:CardList :list="drafts" class="article-list draft-list"></twig:Organisms:CardList>
+                </div>
+            {% else %}
+                <div class="no-content">
+                    <p>You don't have any drafts yet.</p>
+                    <a href="{{ path('new-article') }}" class="btn btn-primary">Start writing</a>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="no-content">
+                <p>Drafts are private and only visible to the author.</p>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>

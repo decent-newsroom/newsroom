@@ -280,9 +280,14 @@ class AdminDashboardService
                 $totalHighlights = $this->highlightRepository->count([]);
                 $totalUnfoldSites = $this->unfoldSiteRepository->count([]);
 
+                // Count media items from events with kind 20
+                $mediaCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 20";
+                $totalMedia = (int) $conn->executeQuery($mediaCountQuery)->fetchOne();
+
                 return [
                     'total_articles' => $totalArticles,
                     'total_events' => $totalEvents,
+                    'total_media' => $totalMedia,
                     'total_highlights' => $totalHighlights,
                     'total_unfold_sites' => $totalUnfoldSites,
                 ];

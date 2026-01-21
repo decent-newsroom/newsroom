@@ -126,7 +126,7 @@ class ArticleController  extends AbstractController
         ]);
     }
 
-    #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'])]
+    #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
         $npub,
         $slug,

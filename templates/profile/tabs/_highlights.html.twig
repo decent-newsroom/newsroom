@@ -1,0 +1,85 @@
+<turbo-frame id="profile-tab-content">
+    <div class="w-container highlights-container">
+        {% if highlights|default([])|length > 0 %}
+            <div class="highlights-list">
+                {% for highlight in highlights %}
+                    <blockquote>
+                        {% if highlight.context %}
+                            {# Render markdown to HTML first, then wrap highlight substring in a span. #}
+                            {% set htmlContext = highlight.context|markdown_to_html %}
+                            {% if highlight.content in highlight.context %}
+                                {% set wrapper = '<span class="highlight-mark">' ~ highlight.content ~ '</span>' %}
+                                {# Replace occurrences in rendered HTML and output raw HTML #}
+                                {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
+                                {# Check if the rendered content is just a span (highlight is the complete context) #}
+                                {% if rendered starts with '<span class="highlight-mark">' and rendered ends with '</span>' %}
+                                    <p>{{ rendered|raw }}</p>
+                                {% else %}
+                                    {{ rendered|raw }}
+                                {% endif %}
+                            {% else %}
+                                <div class="context-text">{{ htmlContext|raw }}</div>
+                                <div><span class="highlight-mark">{{ highlight.content }}</span></div>
+                            {% endif %}
+                        {% else %}
+                            <p><span class="highlight-mark">{{ highlight.content }}</span></p>
+                        {% endif %}
+
+                        {% if highlight.preview is defined and highlight.preview %}
+                            {# Show article preview using NostrPreview component #}
+                            <div class="article-preview">
+                                <twig:Molecules:NostrPreview :preview="highlight.preview" />
+                            </div>
+                        {% elseif highlight.naddr is defined and highlight.naddr %}
+                            {# Fallback: Use naddr to link to article so it gets fetched from relays #}
+                            <a href="{{ path('article-naddr', {naddr: highlight.naddr}) }}"
+                               class="article-reference"
+                               data-turbo-frame="_top">
+                                {% if highlight.article_title %}
+                                    {{ highlight.article_title }}
+                                {% else %}
+                                    View original article
+                                {% endif %}
+                            </a>
+                        {% elseif highlight.article_ref %}
+                            {# Fallback: show article reference but no link if naddr generation failed #}
+                            <span class="article-reference" style="opacity: 0.6; cursor: default;">
+                                {% if highlight.article_title %}
+                                    {{ highlight.article_title }}
+                                {% else %}
+                                    Article reference: {{ highlight.article_ref }}
+                                {% endif %}
+                            </span>
+                        {% elseif highlight.sourceUrl %}
+                            <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener" data-turbo-frame="_top">
+                                Source: {{ highlight.sourceUrl|replace({'https://': '', 'http://': ''})|split('/')[0] }}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                        {% elseif highlight.url %}
+                            <a href="{{ highlight.url }}"
+                               class="article-reference"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               data-turbo-frame="_top">
+                                View source
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                        {% endif %}
+                    </blockquote>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-content">
+                <p>No highlights found for this author.</p>
+            </div>
+        {% endif %}
+    </div>
+</turbo-frame>
