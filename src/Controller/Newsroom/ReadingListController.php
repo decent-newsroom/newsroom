@@ -2,26 +2,127 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Newsroom;
 
 use App\Dto\CategoryDraft;
+use App\Entity\Event;
 use App\Form\CategoryArticlesType;
 use App\Form\CategoryType;
 use App\Service\ReadingListManager;
+use Doctrine\ORM\EntityManagerInterface;
+use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Reading List / Category Wizard Controller
+ * Reading List Controller
  *
- * Handles creation and editing of reading lists (standalone) and categories (for magazines).
+ * Handles creation, editing and management of reading lists (standalone) and categories (for magazines).
  * Both use Nostr kind 30040 events with different 'type' tags.
  */
-class ReadingListWizardController extends AbstractController
+class ReadingListController extends AbstractController
 {
     private const SESSION_KEY = 'read_wizard';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Index & Compose Routes
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Display the user's reading lists.
+     */
+    #[Route('/reading-list', name: 'reading_list_index')]
+    public function index(EntityManagerInterface $em): Response
+    {
+        $lists = [];
+        $user = $this->getUser();
+        $pubkeyHex = null;
+        if ($user) {
+            try {
+                $key = new Key();
+                $pubkeyHex = $key->convertToHex($user->getUserIdentifier());
+            } catch (\Throwable $e) {
+                $pubkeyHex = null;
+            }
+        }
+
+        if ($pubkeyHex) {
+            $repo = $em->getRepository(Event::class);
+            $events = $repo->findBy(['kind' => 30040, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
+            $seenSlugs = [];
+            foreach ($events as $ev) {
+                if (!$ev instanceof Event) continue;
+                $tags = $ev->getTags();
+                $isReadingList = false;
+                $title = null; $slug = null; $summary = null;
+                foreach ($tags as $t) {
+                    if (is_array($t)) {
+                        if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') { $isReadingList = true; }
+                        if (($t[0] ?? null) === 'title') { $title = (string)$t[1]; }
+                        if (($t[0] ?? null) === 'summary') { $summary = (string)$t[1]; }
+                        if (($t[0] ?? null) === 'd') { $slug = (string)$t[1]; }
+                    }
+                }
+                if ($isReadingList) {
+                    // Collapse by slug: keep only newest per slug
+                    $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
+                    if (isset($seenSlugs[$slug ?? $keySlug])) {
+                        continue;
+                    }
+                    $seenSlugs[$slug ?? $keySlug] = true;
+
+                    $lists[] = [
+                        'id' => $ev->getId(),
+                        'title' => $title ?: '(untitled)',
+                        'summary' => $summary,
+                        'slug' => $slug,
+                        'createdAt' => $ev->getCreatedAt(),
+                        'pubkey' => $ev->getPubkey(),
+                    ];
+                }
+            }
+        }
+
+        return $this->render('reading_list/index.html.twig', [
+            'lists' => $lists,
+        ]);
+    }
+
+    #[Route('/reading-list/compose', name: 'reading_list_compose')]
+    public function compose(Request $request): Response
+    {
+        // Check if a coordinate was passed via URL parameter
+        $coordinate = $request->query->get('add');
+        $addedArticle = null;
+
+        if ($coordinate) {
+            // Auto-add the coordinate to the current draft
+            $session = $request->getSession();
+            $draft = $session->get(self::SESSION_KEY);
+
+            if (!$draft instanceof CategoryDraft) {
+                $draft = new CategoryDraft();
+                $draft->title = 'My Reading List';
+                $draft->slug = substr(bin2hex(random_bytes(6)), 0, 8);
+            }
+
+            if (!in_array($coordinate, $draft->articles, true)) {
+                $draft->articles[] = $coordinate;
+                $session->set(self::SESSION_KEY, $draft);
+                $addedArticle = $coordinate;
+            }
+        }
+
+        return $this->render('reading_list/compose.html.twig', [
+            'addedArticle' => $addedArticle,
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Wizard Routes
+    // ─────────────────────────────────────────────────────────────────────────
 
     #[Route('/reading-list/wizard/setup', name: 'read_wizard_setup')]
     public function setup(Request $request): Response
@@ -135,7 +236,7 @@ class ReadingListWizardController extends AbstractController
             if ($draft && !in_array($coordinate, $draft->articles, true)) {
                 $draft->articles[] = $coordinate;
                 $session = $request->getSession();
-                $session->set('read_wizard', $draft);
+                $session->set(self::SESSION_KEY, $draft);
             }
 
             // Redirect to compose page with success message
@@ -198,6 +299,10 @@ class ReadingListWizardController extends AbstractController
         $this->addFlash('info', 'Reading list creation canceled.');
         return $this->redirectToRoute('home');
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Private Helpers
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Parse an naddr (NIP-19) into a coordinate string
