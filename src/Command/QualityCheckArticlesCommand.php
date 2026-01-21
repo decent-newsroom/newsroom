@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Article;
+use App\Entity\User;
 use App\Enum\IndexStatusEnum;
+use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use FOS\ElasticaBundle\Persister\ObjectPersister;
-use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -18,18 +18,27 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'articles:qa', description: 'Mark articles by quality and select which to index')]
 class QualityCheckArticlesCommand extends Command
 {
-    private const BLACKLIST = [
-        'npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'
-    ];
+    private array $mutedUserNpubs = [];
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
+        private readonly EntityManagerInterface $entityManager,
+        private readonly UserEntityRepository $userRepository
     )
     {
         parent::__construct();
     }
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        // Load muted users
+        try {
+            $mutedUsers = $this->userRepository->findMutedUsers();
+            $this->mutedUserNpubs = array_map(fn(User $user) => $user->getNpub(), $mutedUsers);
+            $output->writeln(sprintf('Found %d muted users to exclude', count($this->mutedUserNpubs)));
+        } catch (\Exception $e) {
+            // Notify and continue
+            $output->writeln('<error>Error fetching muted users: ' . $e->getMessage() . '</error>');
+        }
+
         $articles = $this->entityManager->getRepository(Article::class)->findBy(['indexStatus' => IndexStatusEnum::NOT_INDEXED]);
         $count = 0;
         foreach ($articles as $article) {
@@ -51,9 +60,10 @@ class QualityCheckArticlesCommand extends Command
 
     private function meetsCriteria(Article $article): bool
     {
-        // Exclude blacklisted pubkeys
+        // Exclude muted users
         $key = new Key();
-        if (in_array($key->convertPublicKeyToBech32($article->getPubkey()), self::BLACKLIST, true))
+        $authorNpub = $key->convertPublicKeyToBech32($article->getPubkey());
+        if (in_array($authorNpub, $this->mutedUserNpubs, true))
         {
             return false;
         }
@@ -66,10 +76,23 @@ class QualityCheckArticlesCommand extends Command
         }
 
         $content = $article->getContent();
+        $title = $article->getTitle();
 
-        // No empty title
-        if (empty($article->getTitle()) || strtolower($article->getTitle()) === 'test' || strtolower($article->getTitle()) === 'step counter') {
+        // No empty, null, or "null" string titles
+        if (empty($title) ||
+            strtolower(trim($title)) === 'null' ||
+            strtolower($title) === 'test' ||
+            strtolower($title) === 'step counter') {
             return false;
+        }
+
+        // Skip articles with stringified JSON content (malformed kind 30023 events)
+        if ($content && (str_starts_with(trim($content), '{') || str_starts_with(trim($content), '['))) {
+            // Try to decode JSON - if it succeeds, it's likely stringified JSON instead of proper content
+            $decoded = json_decode($content, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return false;
+            }
         }
 
         // Do not index stacker news reposts
