@@ -2,13 +2,13 @@ import { Controller } from '@hotwired/stimulus';
 import { getPublicKey, SimplePool } from 'nostr-tools';
 import { hexToBytes } from 'nostr-tools/utils';
 import { BunkerSigner } from "nostr-tools/nip46";
+import * as nip44 from 'nostr-tools/nip44';
 import { setRemoteSignerSession } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
   static targets = ['dialog', 'qr', 'status'];
 
   connect() {
-    console.log('[signer-modal] controller connected');
     this._localSecretKeyHex = null;
     this._localSecretKey = null;
     this._uri = null;
@@ -77,20 +77,12 @@ export default class extends Controller {
   _checkClientPubkeyIntegrity() {
     try {
       if (!this._localSecretKey || !this._uri) return;
-      console.log('[signer-modal] Checking pubkey integrity...');
       const derived = getPublicKey(this._localSecretKey);
-      console.log('[signer-modal] Derived pubkey:', derived);
       const m = this._uri.match(/^nostrconnect:\/\/([0-9a-fA-F]{64})/);
-      if (!m) {
-        console.warn('[signer-modal] URI missing/invalid pubkey segment');
-        return;
-      }
+      if (!m) return;
       const uriPk = m[1].toLowerCase();
-      console.log('[signer-modal] URI pubkey:', uriPk);
       if (uriPk !== derived.toLowerCase()) {
-        console.warn('[signer-modal] Pubkey mismatch: derived != URI', { derived, uriPk });
-      } else {
-        console.log('[signer-modal] ✅ Pubkey integrity check passed');
+        console.warn('[signer-modal] Pubkey mismatch: derived != URI');
       }
     } catch (e) {
       console.warn('[signer-modal] integrity check failed', e);
@@ -98,9 +90,79 @@ export default class extends Controller {
   }
 
   async _createSigner() {
-    this._pool = new SimplePool();
-    this._setStatus('Waiting for remote signer…');
-    this._signer = await BunkerSigner.fromURI(this._localSecretKey, this._uri, { pool: this._pool });
+    if (!this._pool) {
+      this._pool = new SimplePool();
+    }
+
+    const CONNECTION_TIMEOUT = 60000; // 60 seconds
+
+    try {
+      this._setStatus('Waiting for remote signer…');
+      const clientPubkey = getPublicKey(this._localSecretKey);
+
+      // Wait for the connect event, then use fromBunker()
+      const bunkerPubkey = await this._waitForConnectEvent(clientPubkey, CONNECTION_TIMEOUT);
+
+      // Create BunkerPointer for fromBunker()
+      const bunkerPointer = {
+        pubkey: bunkerPubkey,
+        relays: this._relays,
+        secret: this._secret
+      };
+
+      // Use fromBunker() - we already handled the connect handshake
+      this._signer = BunkerSigner.fromBunker(
+        this._localSecretKey,
+        bunkerPointer,
+        { pool: this._pool }
+      );
+
+      console.log('[signer-modal] ✅ BunkerSigner created successfully');
+    } catch (error) {
+      console.error('[signer-modal] ❌ Connection failed:', error.message);
+      throw error;
+    }
+  }
+
+  async _waitForConnectEvent(clientPubkey, timeout) {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        sub.close();
+        reject(new Error(`Connection timed out after ${timeout/1000} seconds`));
+      }, timeout);
+
+      const sub = this._pool.subscribe(
+        this._relays,
+        { kinds: [24133], "#p": [clientPubkey] },
+        {
+          onevent: async (event) => {
+            try {
+              // Decrypt the NIP-44 encrypted content
+              const conversationKey = nip44.v2.utils.getConversationKey(
+                this._localSecretKey,
+                event.pubkey
+              );
+              const decrypted = nip44.v2.decrypt(event.content, conversationKey);
+              const parsed = JSON.parse(decrypted);
+
+              // Check if result matches our secret
+              if (parsed.result === this._secret) {
+                console.log('[signer-modal] ✅ Connection established');
+                clearTimeout(timeoutId);
+                sub.close();
+                resolve(event.pubkey);
+              }
+            } catch (e) {
+              // Decryption failed, keep waiting for correct event
+              console.warn('[signer-modal] Event decryption failed, waiting...', e.message);
+            }
+          },
+          oneose: () => {
+            console.log('[signer-modal] Waiting for remote signer response...');
+          }
+        }
+      );
+    });
   }
 
   async _attemptAuth() {
@@ -154,4 +216,3 @@ export default class extends Controller {
     if (this.hasStatusTarget) this.statusTarget.textContent = msg;
   }
 }
-

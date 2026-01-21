@@ -6,6 +6,7 @@ import { hexToBytes } from 'nostr-tools/utils';
 const REMOTE_SIGNER_KEY = 'amber_remote_signer';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
+const CONNECTION_TIMEOUT_MS = 60000; // 60 seconds - event may arrive after EOSE
 
 let remoteSigner = null;
 let remoteSignerPromise = null;
@@ -103,67 +104,101 @@ async function createRemoteSignerFromSession(session) {
     console.log('[signer_manager] Reusing existing SimplePool');
   }
 
-  try {
-    let signer;
+  const MAX_RETRIES = 3;
+  let lastError = null;
 
-    // NEW PATTERN: Use fromBunker() with stored BunkerPointer (preferred)
-    if (session.bunkerPointer) {
-      console.log('[signer_manager] Using fromBunker() with stored BunkerPointer');
-      console.log('[signer_manager] BunkerPointer pubkey:', session.bunkerPointer.pubkey);
-      console.log('[signer_manager] BunkerPointer relays:', session.bunkerPointer.relays);
-
-      // fromBunker() is for reconnecting to an already-authorized bunker
-      // It doesn't wait for a new connect message like fromURI() does
-      // Convert hex privkey to Uint8Array
-      signer = BunkerSigner.fromBunker(
-        hexToBytes(session.privkey),
-        session.bunkerPointer,
-        { pool: remoteSignerPool }
-      );
-
-      console.log('[signer_manager] ✅ BunkerSigner created from pointer!');
-    }
-    // LEGACY PATTERN: Fallback to fromURI() for old sessions (backward compatibility)
-    else if (session.uri) {
-      console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern (session has no bunkerPointer)');
-      console.log('[signer_manager] Session URI:', session.uri);
-      console.log('[signer_manager] Session relays:', session.relays);
-
-      // fromURI returns a Promise - await it to get the signer
-      // Convert hex privkey to Uint8Array
-      signer = await BunkerSigner.fromURI(hexToBytes(session.privkey), session.uri, { pool: remoteSignerPool });
-      console.log('[signer_manager] ✅ BunkerSigner created from URI!');
-
-      // With fromURI, we need to call connect()
-      console.log('[signer_manager] Calling connect() to establish relay connection...');
-      await signer.connect();
-      console.log('[signer_manager] ✅ Connected to remote signer!');
-    } else {
-      throw new Error('Session missing both bunkerPointer and uri');
-    }
-
-    // Test the signer to make sure it works
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      console.log('[signer_manager] Testing signer with getPublicKey...');
-      const pubkey = await signer.getPublicKey();
-      console.log('[signer_manager] ✅ Signer verified! Pubkey:', pubkey);
-      return signer;
-    } catch (testError) {
-      console.error('[signer_manager] ❌ Signer test failed:', testError);
-      throw new Error('Signer created but failed verification: ' + testError.message);
-    }
-  } catch (error) {
-    console.error('[signer_manager] ❌ Failed to create signer:', error);
-    // Clean up on error
-    if (remoteSignerPool) {
+      let signer;
+
+      console.log(`[signer_manager] Reconnection attempt ${attempt}/${MAX_RETRIES}`);
+
+      // NEW PATTERN: Use fromBunker() with stored BunkerPointer (preferred)
+      if (session.bunkerPointer) {
+        console.log('[signer_manager] Using fromBunker() with stored BunkerPointer');
+        console.log('[signer_manager] BunkerPointer pubkey:', session.bunkerPointer.pubkey);
+        console.log('[signer_manager] BunkerPointer relays:', session.bunkerPointer.relays);
+
+        // fromBunker() is for reconnecting to an already-authorized bunker
+        // It doesn't wait for a new connect message like fromURI() does
+        // Convert hex privkey to Uint8Array
+        signer = BunkerSigner.fromBunker(
+          hexToBytes(session.privkey),
+          session.bunkerPointer,
+          { pool: remoteSignerPool }
+        );
+
+        console.log('[signer_manager] ✅ BunkerSigner created from pointer!');
+      }
+      // LEGACY PATTERN: Fallback to fromURI() for old sessions (backward compatibility)
+      else if (session.uri) {
+        console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern (session has no bunkerPointer)');
+        console.log('[signer_manager] Session URI:', session.uri);
+        console.log('[signer_manager] Session relays:', session.relays);
+        console.log('[signer_manager] Timeout:', CONNECTION_TIMEOUT_MS, 'ms');
+
+        // fromURI returns a Promise and waits for kind 24133 event
+        // The 4th parameter sets maxWait on subscription to handle EOSE-before-EVENT
+        // Convert hex privkey to Uint8Array
+        signer = await BunkerSigner.fromURI(
+          hexToBytes(session.privkey),
+          session.uri,
+          { pool: remoteSignerPool },
+          CONNECTION_TIMEOUT_MS // Pass timeout as 4th parameter
+        );
+        console.log('[signer_manager] ✅ BunkerSigner created from URI!');
+
+        // With fromURI, we need to call connect()
+        console.log('[signer_manager] Calling connect() to establish relay connection...');
+        await signer.connect();
+        console.log('[signer_manager] ✅ Connected to remote signer!');
+      } else {
+        throw new Error('Session missing both bunkerPointer and uri');
+      }
+
+      // Test the signer to make sure it works
       try {
-        console.log('[signer_manager] Closing pool after error');
-        remoteSignerPool.close?.([]);
-      } catch (_) {}
-      remoteSignerPool = null;
+        console.log('[signer_manager] Testing signer with getPublicKey...');
+        const testPromise = signer.getPublicKey();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Signer verification timeout')), 10000)
+        );
+        const pubkey = await Promise.race([testPromise, timeoutPromise]);
+        console.log('[signer_manager] ✅ Signer verified! Pubkey:', pubkey);
+        return signer;
+      } catch (testError) {
+        console.error('[signer_manager] ❌ Signer test failed:', testError);
+        throw new Error('Signer created but failed verification: ' + testError.message);
+      }
+    } catch (error) {
+      lastError = error;
+      console.error(`[signer_manager] ❌ Reconnection attempt ${attempt}/${MAX_RETRIES} failed:`, error.message);
+
+      // If this was the last attempt, give up
+      if (attempt === MAX_RETRIES) {
+        console.error('[signer_manager] All reconnection attempts failed');
+        // Clean up on final failure
+        if (remoteSignerPool) {
+          try {
+            console.log('[signer_manager] Closing pool after final failure');
+            remoteSignerPool.close?.([]);
+          } catch (_) {}
+          remoteSignerPool = null;
+        }
+        remoteSigner = null;
+        remoteSignerPromise = null;
+        throw new Error(`Failed to reconnect after ${MAX_RETRIES} attempts: ${error.message}`);
+      }
+
+      // Calculate exponential backoff delay: 2s, 4s, 8s...
+      const retryDelay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      console.log(`[signer_manager] Retrying in ${retryDelay}ms...`);
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+
+      // DON'T reset the pool - the relay won't resend the stored event
+      console.log('[signer_manager] Retrying with same pool (relay already sent stored event)');
     }
-    remoteSigner = null;
-    remoteSignerPromise = null;
-    throw error;
   }
 }

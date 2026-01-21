@@ -47,15 +47,6 @@
     background-color: rgba(0, 0, 0, 0.5);
 }
 
-.iu-modal {
-    max-width: 500px;
-    margin: 3rem auto;
-    background-color: white;
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    z-index: 1051;
-}
-
 .modal-header {
     padding: 1rem;
     border-bottom: 1px solid #dee2e6;

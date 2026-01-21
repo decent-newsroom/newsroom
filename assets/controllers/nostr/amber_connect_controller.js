@@ -2,15 +2,16 @@ import { Controller } from '@hotwired/stimulus';
 import { getPublicKey, SimplePool } from 'nostr-tools';
 import { hexToBytes } from 'nostr-tools/utils';
 import { BunkerSigner } from "nostr-tools/nip46";
+import * as nip44 from 'nostr-tools/nip44';
 import { setRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['qr', 'status'];
 
   connect() {
-    this._localSecretKeyHex = null; // hex (32 bytes) from server - for getPublicKey
-    this._localSecretKey = null;    // Uint8Array - for BunkerSigner
-    this._uri = null;            // nostrconnect:// URI from server (NOT re-generated client side)
+    this._localSecretKeyHex = null;
+    this._localSecretKey = null;
+    this._uri = null;
     this._relays = [];
     this._secret = null;
     this._signer = null;
@@ -22,8 +23,6 @@ export default class extends Controller {
   disconnect() {
     try { this._signer?.close?.(); } catch (_) {}
     try { this._pool?.close?.([]); } catch (_) {}
-    // IMPORTANT: Don't clear session here - we want to reuse it after reload/navigation
-    // Session should only be cleared on explicit logout
   }
 
   async _init() {
@@ -33,10 +32,9 @@ export default class extends Controller {
       if (!res.ok) throw new Error('QR fetch failed');
       const data = await res.json();
 
-      // Store both formats: hex string for getPublicKey, Uint8Array for BunkerSigner
       this._localSecretKeyHex = data.privkey;
-      this._localSecretKey = hexToBytes(data.privkey); // hex secret key (client keypair)
-      this._uri = data.uri;                // full nostrconnect URI (already includes relays, secret, name)
+      this._localSecretKey = hexToBytes(data.privkey);
+      this._uri = data.uri;
       this._relays = data.relays || [data.relay].filter(Boolean);
       this._secret = data.secret || null;
 
@@ -44,7 +42,6 @@ export default class extends Controller {
         this.qrTarget.innerHTML = `<img alt="Amber pairing QR" src="${data.qr}" style="width:260px;height:260px;" />`;
       }
 
-      // Integrity check: derive pubkey from provided privkey and compare to URI authority
       this._checkClientPubkeyIntegrity();
 
       this._setStatus('Scan with Amber (NIP-46)…');
@@ -62,16 +59,10 @@ export default class extends Controller {
       if (!this._localSecretKey || !this._uri) return;
       const derived = getPublicKey(this._localSecretKey);
       const m = this._uri.match(/^nostrconnect:\/\/([0-9a-fA-F]{64})/);
-      if (!m) {
-        console.warn('[amber-connect] URI missing/invalid pubkey segment');
-        return;
-      }
+      if (!m) return;
       const uriPk = m[1].toLowerCase();
-      console.log('[amber-connect] URI pubkey:', uriPk);
       if (uriPk !== derived.toLowerCase()) {
-        console.warn('[amber-connect] Pubkey mismatch: derived != URI', { derived, uriPk });
-      } else {
-        console.log('[amber-connect] ✅ Pubkey integrity check passed');
+        console.warn('[amber-connect] Pubkey mismatch: derived != URI');
       }
     } catch (e) {
       console.warn('[amber-connect] integrity check failed', e);
@@ -79,15 +70,78 @@ export default class extends Controller {
   }
 
   async _createSigner() {
-    this._pool = new SimplePool();
-    this._setStatus('Waiting for remote signer…');
-    console.log('[amber-connect] Creating BunkerSigner from URI:', this._uri);
-    console.log('[amber-connect] Using relays:', this._relays);
-    // INITIAL CONNECTION: fromURI() waits for Amber to accept connection (NIP-46 connect handshake)
-    // After this succeeds, the session (privkey, uri, relays, secret) is persisted to localStorage
-    // Subsequent calls to BunkerSigner.fromURI() with same credentials should work without waiting for approval
-    this._signer = await BunkerSigner.fromURI(this._localSecretKeyHex, this._uri, { pool: this._pool });
-    console.log('[amber-connect] BunkerSigner created, bp:', this._signer.bp);
+    if (!this._pool) {
+      this._pool = new SimplePool();
+    }
+
+    const CONNECTION_TIMEOUT = 60000; // 60 seconds
+
+    try {
+      this._setStatus('Waiting for remote signer…');
+      const clientPubkey = getPublicKey(this._localSecretKey);
+
+      // Wait for the connect event, then use fromBunker()
+      const bunkerPubkey = await this._waitForConnectEvent(clientPubkey, CONNECTION_TIMEOUT);
+
+      // Create BunkerPointer for fromBunker()
+      const bunkerPointer = {
+        pubkey: bunkerPubkey,
+        relays: this._relays,
+        secret: this._secret
+      };
+
+      // Use fromBunker() - we already handled the connect handshake
+      this._signer = BunkerSigner.fromBunker(
+        this._localSecretKey,
+        bunkerPointer,
+        { pool: this._pool }
+      );
+
+      console.log('[amber-connect] ✅ BunkerSigner created successfully');
+    } catch (error) {
+      console.error('[amber-connect] ❌ Connection failed:', error.message);
+      throw error;
+    }
+  }
+
+  async _waitForConnectEvent(clientPubkey, timeout) {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        sub.close();
+        reject(new Error(`Connection timed out after ${timeout/1000} seconds`));
+      }, timeout);
+
+      const sub = this._pool.subscribe(
+        this._relays,
+        { kinds: [24133], "#p": [clientPubkey] },
+        {
+          onevent: async (event) => {
+            try {
+              // Decrypt the NIP-44 encrypted content
+              const conversationKey = nip44.v2.utils.getConversationKey(
+                this._localSecretKey,
+                event.pubkey
+              );
+              const decrypted = nip44.v2.decrypt(event.content, conversationKey);
+              const parsed = JSON.parse(decrypted);
+
+              // Check if result matches our secret
+              if (parsed.result === this._secret) {
+                console.log('[amber-connect] ✅ Connection established');
+                clearTimeout(timeoutId);
+                sub.close();
+                resolve(event.pubkey);
+              }
+            } catch (e) {
+              console.warn('[amber-connect] Event decryption failed, waiting...', e.message);
+            }
+          },
+          oneose: () => {
+            console.log('[amber-connect] Waiting for remote signer response...');
+          }
+        }
+      );
+    });
   }
 
   async _attemptAuth() {
@@ -113,12 +167,9 @@ export default class extends Controller {
         headers: { 'Authorization': 'Nostr ' + btoa(JSON.stringify(signed)) }
       });
       if (resp.ok) {
-        // Persist remote signer session for reuse after reload
-        // Store the BunkerPointer (signer.bp) for proper reconnection using fromBunker()
         setRemoteSignerSession({
           privkey: this._localSecretKeyHex,
-          bunkerPointer: this._signer.bp,  // BunkerPointer contains pubkey, relays, secret, perms
-          // Legacy fields for backward compatibility
+          bunkerPointer: this._signer.bp,
           uri: this._uri,
           relays: this._relays,
           secret: this._secret
