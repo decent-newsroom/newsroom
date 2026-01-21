@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Reader;
 
+use App\Entity\Article;
 use App\Entity\User;
 use App\Repository\ArticleRepository;
 use App\Service\NostrClient;
@@ -138,6 +139,7 @@ class ForumController extends AbstractController
 
         try {
             $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0); // Fetch more for pagination
+            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
         } catch (\Throwable $e) {
             // Search error - return empty articles
         }
@@ -233,6 +235,7 @@ class ForumController extends AbstractController
 
         try {
             $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0); // Fetch more for pagination
+            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
         } catch (\Throwable $e) {
             // Search error - return empty articles
         }
@@ -280,6 +283,7 @@ class ForumController extends AbstractController
 
         try {
             $articles = $articleSearch->findByTag($tag, $perPage * 10, 0); // Fetch more for pagination
+            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
         } catch (\Throwable $e) {
             // Search error - return empty articles
         }
@@ -349,6 +353,32 @@ class ForumController extends AbstractController
             $out[$catKey]['subcategories'] = $subs;
         }
         return $out;
+    }
+
+    /**
+     * Deduplicate articles by pubkey+slug combination.
+     * Keeps the first occurrence of each unique pubkey+slug pair.
+     *
+     * @param Article[] $articles
+     * @return Article[]
+     */
+    private function deduplicateArticles(array $articles): array
+    {
+        $seen = [];
+        $unique = [];
+
+        foreach ($articles as $article) {
+            $pubkey = $article->getPubkey();
+            $slug = $article->getSlug();
+            $key = $pubkey . '|' . $slug;
+
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $article;
+            }
+        }
+
+        return $unique;
     }
 
     /**

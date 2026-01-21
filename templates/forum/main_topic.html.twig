@@ -25,6 +25,19 @@
             <div class="alert alert-info">No subcategories available for this topic.</div>
         {% endif %}
     </div>
+
+    {% if articles is not empty %}
+        <div class="articles-list" style="margin-top: 3rem;">
+            <h2 style="margin: 0 var(--spacing-3) 1rem;">Recent Articles</h2>
+            {% for article in articles %}
+                <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+            {% endfor %}
+        </div>
+
+        {% if pager.getNbPages() > 1 %}
+            <twig:Atoms:Pagination :pager="pager" route="forum_main_topic" :routeParams="{topic: categoryKey}" />
+        {% endif %}
+    {% endif %}
 {% endblock %}
 
 {% block aside %}

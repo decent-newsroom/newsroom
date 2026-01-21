@@ -12,9 +12,14 @@
             </div>
         {% endfor %}
     </div>
-{% if articles is empty %}
-    <p>No articles found for this tag.</p>
-{% endif %}
+
+    {% if articles is empty %}
+        <p>No articles found for this tag.</p>
+    {% endif %}
+
+    {% if pager.getNbPages() > 1 %}
+        <twig:Atoms:Pagination :pager="pager" route="forum_tag" :routeParams="{tag: tag}" />
+    {% endif %}
 {% endblock %}
 
 {% block aside %}

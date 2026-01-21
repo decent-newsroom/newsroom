@@ -8,8 +8,13 @@
             <twig:Molecules:ArticlePreview :article="article"  npub="{{ article.pubkey|toNpub }}" />
         {% endfor %}
     </div>
+
     {% if articles is empty %}
         <p>No articles found for this tag.</p>
+    {% endif %}
+
+    {% if pager.getNbPages() > 1 %}
+        <twig:Atoms:Pagination :pager="pager" route="forum_topic" :routeParams="{key: categoryKey ~ '-' ~ subcategoryKey}" />
     {% endif %}
 {% endblock %}
 

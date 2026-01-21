@@ -1,0 +1,25 @@
+<div {{ attributes.defaults({class: 'pagination'}) }}>
+    {% if pager.hasPreviousPage() %}
+        <a href="{{ path(route, routeParams|merge({page: pager.getPreviousPage()})) }}" class="pagination-link pagination-prev">
+            ← Newer
+        </a>
+    {% else %}
+        <span class="pagination-link pagination-prev pagination-disabled">
+            ← Newer
+        </span>
+    {% endif %}
+
+    <span class="pagination-info">
+        Page {{ pager.getCurrentPage() }} of {{ pager.getNbPages() }}
+    </span>
+
+    {% if pager.hasNextPage() %}
+        <a href="{{ path(route, routeParams|merge({page: pager.getNextPage()})) }}" class="pagination-link pagination-next">
+            Older →
+        </a>
+    {% else %}
+        <span class="pagination-link pagination-next pagination-disabled">
+            Older →
+        </span>
+    {% endif %}
+</div>
