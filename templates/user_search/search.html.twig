@@ -11,14 +11,19 @@
         </header>
 
         <div class="search-box">
-            <form action="{{ path('users_search_page') }}" method="get" class="search-form">
+            <form action="{{ path('users_search_page') }}"
+                  method="get"
+                  class="search-form"
+                  data-controller="search--nostr-redirect"
+                  data-action="submit->search--nostr-redirect#submit">
                 <div class="input-group">
                     <input
                         type="text"
                         name="q"
                         value="{{ query }}"
-                        placeholder="Search by name, display name, NIP-05, or about..."
+                        placeholder="Search by name, NIP-05, about, or paste npub..."
                         class="search-input"
+                        data-search--nostr-redirect-target="input"
                         autofocus
                     >
                     <button type="submit" class="search-button">

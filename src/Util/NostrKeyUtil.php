@@ -49,5 +49,44 @@ class NostrKeyUtil
         $key = new Key();
         return $key->convertPublicKeyToBech32($pubkey);
     }
+
+    /**
+     * Check if a string is a valid Nostr identifier (bech32 encoded).
+     * Returns the type if valid, null otherwise.
+     * Supported types: npub, naddr, nevent, note, nprofile, nsec
+     */
+    public static function getNostrIdentifierType(string $identifier): ?string
+    {
+        $identifier = trim($identifier);
+
+        // Remove nostr: prefix if present
+        if (str_starts_with($identifier, 'nostr:')) {
+            $identifier = substr($identifier, 6);
+        }
+
+        $validPrefixes = ['npub1', 'naddr1', 'nevent1', 'note1', 'nprofile1', 'nsec1'];
+
+        foreach ($validPrefixes as $prefix) {
+            if (str_starts_with($identifier, $prefix)) {
+                return rtrim($prefix, '1'); // Return type without the '1'
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalize a Nostr identifier by removing the nostr: prefix if present.
+     */
+    public static function normalizeNostrIdentifier(string $identifier): string
+    {
+        $identifier = trim($identifier);
+
+        if (str_starts_with($identifier, 'nostr:')) {
+            return substr($identifier, 6);
+        }
+
+        return $identifier;
+    }
 }
 

@@ -1,6 +1,6 @@
 text:
     byline: 'By'
-    search: 'Search...'
+    search: 'Search articles or paste Nostr identifiers...'
     searching: 'Searching...'
     noResults: 'No results.'
     searchMobileNotice: 'Search is currently only available on desktop for logged-in users.'

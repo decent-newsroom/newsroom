@@ -4,12 +4,17 @@
     {# Search Section #}
     <section class="w-container">
         <div class="discover-section">
-            <form action="{{ path('app_search_index') }}" method="get" class="discover-search-form">
+            <form action="{{ path('app_search_index') }}"
+                  method="get"
+                  class="discover-search-form"
+                  data-controller="search--nostr-redirect"
+                  data-action="submit->search--nostr-redirect#submit">
                 <label class="search">
                     <input type="search"
                            name="q"
-                           placeholder="Search for articles..."
+                           placeholder="Search for articles or paste Nostr identifiers..."
                            class="form-control"
+                           data-search--nostr-redirect-target="input"
                            required
                     />
                     <button type="submit" class="btn btn-primary">

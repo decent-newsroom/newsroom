@@ -5,8 +5,10 @@ namespace App\Twig\Components;
 use App\Credits\Service\CreditsManager;
 use App\Service\RedisCacheService;
 use App\Service\Search\ArticleSearchInterface;
+use App\Util\NostrKeyUtil;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
@@ -18,7 +20,7 @@ use Symfony\UX\LiveComponent\ComponentToolsTrait;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsLiveComponent]
-final class SearchComponent
+final class SearchComponent extends AbstractController
 {
     use DefaultActionTrait;
     use ComponentToolsTrait;
@@ -120,7 +122,7 @@ final class SearchComponent
      * @throws InvalidArgumentException
      */
     #[LiveAction]
-    public function search(): void
+    public function search()
     {
         $token = $this->tokenStorage->getToken();
         $this->npub = $token?->getUserIdentifier();
@@ -132,7 +134,22 @@ final class SearchComponent
             $this->results = [];
             $this->authors = [];
             $this->clearSearchCache();
-            return;
+            return null;
+        }
+
+        // Check if the query is a Nostr identifier and handle redirect
+        $nostrType = NostrKeyUtil::getNostrIdentifierType($this->query);
+        if ($nostrType !== null) {
+            $identifier = NostrKeyUtil::normalizeNostrIdentifier($this->query);
+            $this->logger->info('Detected Nostr identifier, redirecting', ['type' => $nostrType, 'identifier' => $identifier]);
+
+            // Route based on identifier type
+            return match($nostrType) {
+                'npub' => $this->redirectToRoute('author-profile', ['npub' => $identifier]),
+                'naddr' => $this->redirectToRoute('article-naddr', ['naddr' => $identifier]),
+                'nevent', 'note', 'nprofile' => $this->redirectToRoute('nevent', ['nevent' => $identifier]),
+                default => null
+            };
         }
 
         // Update credits for authenticated users
@@ -152,7 +169,7 @@ final class SearchComponent
             $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
             $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
             $this->logger->info('Using cached search results for query: ' . $this->query);
-            return;
+            return null;
         }
 
         try {
@@ -181,6 +198,8 @@ final class SearchComponent
             $this->results = [];
             $this->authors = [];
         }
+
+        return null;
     }
 
     #[LiveAction]
