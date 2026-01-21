@@ -114,7 +114,7 @@
             <ol>
                 {% for article in metrics.visits.top_articles_24h %}
                 <li>
-                    <strong>{{ article.title ?? article.slug }}</strong> - {{ article.visit_count }} visits
+                    <strong>{{ article.route }}</strong> - {{ article.count }} visits
                 </li>
                 {% endfor %}
             </ol>

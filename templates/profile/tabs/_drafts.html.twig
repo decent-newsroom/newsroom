@@ -8,7 +8,7 @@
             {% else %}
                 <div class="no-content">
                     <p>You don't have any drafts yet.</p>
-                    <a href="{{ path('new-article') }}" class="btn btn-primary">Start writing</a>
+                    <a href="{{ path('new-article') }}" class="btn btn-primary" data-turbo-frame="_top">Start writing</a>
                 </div>
             {% endif %}
         {% else %}

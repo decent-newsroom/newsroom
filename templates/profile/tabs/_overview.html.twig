@@ -84,7 +84,7 @@
                 <p>This author hasn't published any content yet.</p>
                 {% if isOwner|default(false) %}
                     <p>
-                        <a href="{{ path('new-article') }}" class="btn btn-primary">Write your first article</a>
+                        <a href="{{ path('new-article') }}" class="btn btn-primary" data-turbo-frame="_top">Write your first article</a>
                     </p>
                 {% endif %}
             </div>

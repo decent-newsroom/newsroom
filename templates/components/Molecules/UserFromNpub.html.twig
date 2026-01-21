@@ -1,5 +1,5 @@
 {% if user %}
-    <a href="{{ path('author-profile', { npub: npub })}}"><twig:Atoms:NameOrNpub :author="user" :npub="npub"/></a>
+    <a href="{{ path('author-profile', { npub: npub })}}" data-turbo-frame="_top"><twig:Atoms:NameOrNpub :author="user" :npub="npub"/></a>
 {% else %}
-    <a href="{{ path('author-profile', { npub: npub })}}"><span>{{ npub|shortenNpub }}</span></a>
+    <a href="{{ path('author-profile', { npub: npub })}}" data-turbo-frame="_top"><span>{{ npub|shortenNpub }}</span></a>
 {% endif %}

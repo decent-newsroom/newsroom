@@ -12,7 +12,7 @@
         {% if cat  and mag %}
             {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
         {% endif %}
-        <a href="{{ link }}">
+        <a href="{{ link }}" data-turbo-frame="_top">
             <div class="card-header">
                 {% if article.image %}
                     <img src="{{ article.image }}" alt="Cover image for {{ article.title }}" onerror="this.style.display='none';" >

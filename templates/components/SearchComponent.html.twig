@@ -55,7 +55,7 @@
                                                 <small>by <twig:Molecules:UserFromNpub ident="{{ art.pubkey }}" user="{{ authors[art.pubkey] }}" /></small>
                                                 <small class="ms-2">{{ art.createdAt|date('F j Y') }}</small>
                                             </div>
-                                            <a href="{{ path('article-slug', {slug: art.slug}) }}"><h3 class="h5 m-0">{{ art.title }}</h3></a>
+                                            <a href="{{ path('article-slug', {slug: art.slug}) }}" data-turbo-frame="_top"><h3 class="h5 m-0">{{ art.title }}</h3></a>
                                             {% if art.summary %}<p class="mt-2 small line-clamp-5">{{ art.summary }}</p>{% endif %}
                                             <code class="small text-muted">{{ coordinate }}</code>
                                         </div>

@@ -6,7 +6,7 @@
                     <div class="media-item">
                         {% if event.kind == 20 %}
                             {# Image #}
-                            <a href="{{ path('nevent', {'nevent': event.noteId}) }}">
+                            <a href="{{ path('nevent', {'nevent': event.noteId}) }}" data-turbo-frame="_top">
                                 <img src="{{ event.content }}" alt="{{ event.alt ?? '' }}" loading="lazy">
                             </a>
                         {% elseif event.kind == 21 %}
