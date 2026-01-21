@@ -24,7 +24,6 @@ class CacheLatestHighlightsCommand extends Command
 {
     public function __construct(
         private readonly HighlightRepository $highlightRepository,
-        private readonly ArticleRepository $articleRepository,
         private readonly RedisCacheService $redisCacheService,
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
@@ -83,14 +82,25 @@ class CacheLatestHighlightsCommand extends Command
             $output->writeln('<comment>Building Redis view objects...</comment>');
             $baseObjects = [];
             $skipped = 0;
+            $skippedNoCoordinate = 0;
+            $skippedNoArticle = 0;
 
             foreach ($highlightsWithArticles as $item) {
                 $highlight = $item['highlight'];
                 $article = $item['article'];
 
+                // Skip if no article coordinate (highlight doesn't reference an article)
+                if (!$highlight->getArticleCoordinate()) {
+                    $skippedNoCoordinate++;
+                    $this->logger->debug('Skipping highlight - no article coordinate', [
+                        'highlight_id' => $highlight->getEventId(),
+                    ]);
+                    continue;
+                }
+
                 // Skip if article not found
                 if (!$article) {
-                    $skipped++;
+                    $skippedNoArticle++;
                     $this->logger->debug('Skipping highlight - article not found', [
                         'highlight_id' => $highlight->getEventId(),
                         'coordinate' => $highlight->getArticleCoordinate(),
@@ -120,8 +130,14 @@ class CacheLatestHighlightsCommand extends Command
                 }
             }
 
+            if ($skippedNoCoordinate > 0) {
+                $output->writeln(sprintf('<comment>Skipped %d highlights without article coordinates</comment>', $skippedNoCoordinate));
+            }
+            if ($skippedNoArticle > 0) {
+                $output->writeln(sprintf('<comment>Skipped %d highlights with missing articles</comment>', $skippedNoArticle));
+            }
             if ($skipped > 0) {
-                $output->writeln(sprintf('<comment>Skipped %d highlights (missing articles or errors)</comment>', $skipped));
+                $output->writeln(sprintf('<comment>Skipped %d highlights (errors)</comment>', $skipped));
             }
 
             // Store to Redis views

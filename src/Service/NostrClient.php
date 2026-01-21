@@ -1179,12 +1179,13 @@ class NostrClient
     }
 
     /**
-     * Get article highlights (NIP-84) - kind 9802 events that reference articles
+     * Get highlights (NIP-84) - all kind 9802 events
+     * Note: Method name is historical - now returns ALL highlights, not just article-related
      * @throws \Exception
      */
     public function getArticleHighlights(int $limit = 50): array
     {
-        $this->logger->info('Fetching article highlights from default relay');
+        $this->logger->info('Fetching highlights from default relay');
 
         // Use relay pool to send request
         $subscription = new Subscription();
@@ -1212,24 +1213,9 @@ class NostrClient
         // Process the response and deduplicate by eventId
         $uniqueEvents = [];
         $this->processResponse($responses, function($event) use (&$uniqueEvents) {
-            // Filter to only include highlights that reference articles
-            $hasArticleRef = false;
-            foreach ($event->tags ?? [] as $tag) {
-                if (is_array($tag) && count($tag) >= 2) {
-                    if (in_array($tag[0], ['a', 'A'])) {
-                        // Check if it references a kind 30023 (article)
-                        if (str_starts_with($tag[1] ?? '', '30023:')) {
-                            $hasArticleRef = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if ($hasArticleRef) {
-                $this->logger->debug('Received article highlight event', ['event_id' => $event->id]);
-                $uniqueEvents[$event->id] = $event;
-            }
+            // Accept all highlights, regardless of whether they reference articles
+            $this->logger->debug('Received highlight event', ['event_id' => $event->id]);
+            $uniqueEvents[$event->id] = $event;
             return null;
         });
 

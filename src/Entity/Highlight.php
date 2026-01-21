@@ -24,7 +24,7 @@ class Highlight
     #[ORM\Column(length: 255, unique: true)]
     private ?string $eventId = null;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $articleCoordinate = null;
 
     #[ORM\Column(type: Types::TEXT)]
@@ -71,7 +71,7 @@ class Highlight
         return $this->articleCoordinate;
     }
 
-    public function setArticleCoordinate(string $articleCoordinate): static
+    public function setArticleCoordinate(?string $articleCoordinate): static
     {
         $this->articleCoordinate = $articleCoordinate;
         return $this;

@@ -70,13 +70,11 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
-    color: var(--color-accent-strong);
     text-decoration: none;
     transition: color 0.2s;
 }
 
 .article-reference:hover {
-    color: var(--color-primary);
     text-decoration: underline;
 }
 

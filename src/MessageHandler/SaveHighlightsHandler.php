@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
-use App\Entity\Event;
-use App\Enum\KindsEnum;
+use App\Entity\Highlight;
 use App\Message\SaveHighlightsMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -39,31 +38,57 @@ class SaveHighlightsHandler
                     continue;
                 }
 
-                // Check if event already exists
-                $existingEvent = $this->entityManager->getRepository(Event::class)->find($nostrEvent->id);
-                if ($existingEvent) {
-                    $this->logger->debug('Event already exists, skipping', ['event_id' => $nostrEvent->id]);
+                // Check if highlight already exists by event ID
+                $existingHighlight = $this->entityManager->getRepository(Highlight::class)
+                    ->findOneBy(['eventId' => $nostrEvent->id]);
+                if ($existingHighlight) {
+                    $this->logger->debug('Highlight already exists, skipping', ['event_id' => $nostrEvent->id]);
                     $skipped++;
                     continue;
                 }
 
-                // Create new Event entity
-                $event = new Event();
-                $event->setId($nostrEvent->id);
-                $event->setEventId($nostrEvent->id);
-                $event->setKind($nostrEvent->kind ?? KindsEnum::HIGHLIGHTS->value);
-                $event->setPubkey($nostrEvent->pubkey ?? '');
-                $event->setContent($nostrEvent->content ?? '');
-                $event->setCreatedAt($nostrEvent->created_at ?? time());
-                $event->setTags($nostrEvent->tags ?? []);
-                $event->setSig($nostrEvent->sig ?? '');
+                // Extract article coordinate from tags (looking for 'a' or 'A' tag with 30023: prefix)
+                $articleCoordinate = null;
+                $context = null;
+                foreach ($nostrEvent->tags ?? [] as $tag) {
+                    if (is_array($tag) && count($tag) >= 2) {
+                        if (in_array($tag[0], ['a', 'A'])) {
+                            // Check for article reference (kind 30023)
+                            if (str_starts_with($tag[1] ?? '', '30023:')) {
+                                $articleCoordinate = $tag[1];
+                            }
+                        }
+                        // Extract context if available (quoted text)
+                        if ($tag[0] === 'context' && isset($tag[1])) {
+                            $context = $tag[1];
+                        }
+                    }
+                }
 
-                $this->entityManager->persist($event);
+                // Create new Highlight entity (articleCoordinate is optional)
+                $highlight = new Highlight();
+                $highlight->setEventId($nostrEvent->id);
+                $highlight->setArticleCoordinate($articleCoordinate);
+                $highlight->setContent($nostrEvent->content ?? '');
+                $highlight->setPubkey($nostrEvent->pubkey ?? '');
+                $highlight->setCreatedAt($nostrEvent->created_at ?? time());
+                $highlight->setContext($context);
+                $highlight->setRawEvent([
+                    'id' => $nostrEvent->id,
+                    'kind' => $nostrEvent->kind,
+                    'pubkey' => $nostrEvent->pubkey,
+                    'content' => $nostrEvent->content,
+                    'created_at' => $nostrEvent->created_at,
+                    'tags' => $nostrEvent->tags,
+                    'sig' => $nostrEvent->sig ?? '',
+                ]);
+
+                $this->entityManager->persist($highlight);
                 $saved++;
 
                 $this->logger->debug('Prepared highlight for save', [
                     'event_id' => $nostrEvent->id,
-                    'kind' => $nostrEvent->kind,
+                    'article_coordinate' => $articleCoordinate,
                     'pubkey' => substr($nostrEvent->pubkey ?? '', 0, 16),
                 ]);
             } catch (\Exception $e) {
@@ -85,7 +110,7 @@ class SaveHighlightsHandler
                 'total' => count($events)
             ]);
         } catch (\Exception $e) {
-            $this->logger->error('Failed to flush highlight Event entities', [
+            $this->logger->error('Failed to flush Highlight entities', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

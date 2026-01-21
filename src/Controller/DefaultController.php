@@ -581,7 +581,7 @@ class DefaultController extends AbstractController
                     '<div class="alert alert-info">
                         <strong>Article Preview</strong><br>
                         This article hasn\'t been fetched yet.
-                        <a href="' . $this->generateUrl('article-naddr', ['naddr' => (string)$naddr]) . '" class="alert-link">Click here to view it</a>
+                        <a href="' . $this->generateUrl('article-naddr', ['naddr' => (string)$naddr]) . '" class="alert-link" data-turbo-frame="_top">Click here to view it</a>
                     </div>',
                     200
                 );
