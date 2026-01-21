@@ -86,7 +86,7 @@ class ArticlePostProcessCommand extends Command
                     'bin/console',
                     $cmd['name'],
                     '--no-interaction'
-                ]);
+                ], cwd: dirname(__DIR__, 2)); // Set working directory to project root
                 $process->setTimeout(600); // 10 minutes timeout
 
                 // Run and stream output in real-time
