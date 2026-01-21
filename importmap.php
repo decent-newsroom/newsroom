@@ -79,19 +79,19 @@ return [
         'version' => '2.19.4',
     ],
     '@noble/curves/secp256k1' => [
-        'version' => '2.0.1',
+        'version' => '1.2.0',
     ],
     '@scure/base' => [
-        'version' => '2.0.0',
+        'version' => '1.1.1',
     ],
     '@noble/ciphers/aes' => [
         'version' => '2.1.1',
     ],
     '@noble/ciphers/chacha' => [
-        'version' => '2.1.1',
+        'version' => '0.5.3',
     ],
     '@noble/ciphers/utils' => [
-        'version' => '2.1.1',
+        'version' => '0.5.3',
     ],
     'nostr-tools/nip46' => [
         'version' => '2.19.4',
@@ -267,6 +267,9 @@ return [
         'version' => '16.12.0',
     ],
     'nostr-tools/utils' => [
+        'version' => '2.19.4',
+    ],
+    'nostr-tools/nip44' => [
         'version' => '2.19.4',
     ],
 ];
