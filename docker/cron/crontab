@@ -8,29 +8,29 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 
 # Post-process articles (QA, indexing, mark as indexed)
 # Runs every 5 minutes to process articles ingested by hydration worker
-*/5 * * * * /var/www/html/docker/cron/post_process_articles.sh >> /var/log/cron-post-process.log 2>&1
+*/5 * * * * /app/docker/cron/post_process_articles.sh >> /var/log/cron-post-process.log 2>&1
 
 # Backfill historical articles
 # Runs once daily at 2 AM for historical data
-0 2 * * * /var/www/html/docker/cron/index_articles.sh >> /var/log/cron-backfill.log 2>&1
+0 2 * * * /app/docker/cron/index_articles.sh >> /var/log/cron-backfill.log 2>&1
 
 # Cache latest articles for Redis views
 # Runs every 15 minutes to keep cache fresh
-*/15 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
+*/15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
 
 # Fetch highlights from Nostr relays to database
 # Runs every 15 minutes to keep highlights fresh
-*/15 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:fetch-highlights --limit=100 >> /var/log/cron-fetch-highlights.log 2>&1
+*/15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:fetch-highlights --limit=100 >> /var/log/cron-fetch-highlights.log 2>&1
 
 # Cache latest highlights for Redis views
 # Runs every 30 minutes
-*/30 * * * * . /etc/environment && /usr/local/bin/php /var/www/html/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
+*/30 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache-latest-highlights >> /var/log/cron-cache-highlights.log 2>&1
 
 # Cache media discovery events
 # Runs every 6 hours to refresh media content
-0 */6 * * * /var/www/html/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
+0 */6 * * * /app/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
 
 # Project magazine indices to Magazine entities
 # Runs every 10 minutes to keep magazine projections up-to-date
-*/10 * * * * /var/www/html/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
+*/10 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
 

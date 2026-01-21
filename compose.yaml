@@ -81,11 +81,27 @@ services:
 
   cron:
     build:
-      context: ./docker/cron
-    volumes:
-      - .:/var/www/html
+      context: .
+      dockerfile: Dockerfile
+      target: frankenphp_prod
+    working_dir: /app
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        # Export environment variables for cron
+        printenv | grep -E "^(APP_|DATABASE_|REDIS_|NOSTR_|MESSENGER_|ELASTICSEARCH_)" >> /etc/environment
+        echo "PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin" >> /etc/environment
+        # Copy cron files
+        cp /app/docker/cron/crontab /etc/cron.d/app-cron
+        chmod 0644 /etc/cron.d/app-cron
+        chmod +x /app/docker/cron/*.sh
+        crontab /etc/cron.d/app-cron
+        # Run cron in foreground
+        cron -f
     depends_on:
       - php
+      - database
     environment:
       APP_ENV: prod
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}

@@ -15,6 +15,6 @@ export PATH="/usr/local/bin:/usr/bin:/bin"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting magazine projection..."
 
 # Run the projection command which dispatches messages for all magazine slugs
-/usr/local/bin/php /var/www/html/bin/console app:project-magazines
+/usr/local/bin/php /app/bin/console app:project-magazines
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Magazine projection dispatched"
