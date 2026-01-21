@@ -45,7 +45,7 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
-<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
+<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--signer-modal" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
     {{ form_start(form, {'attr': {'id': 'editor-form'}}) }}
     <div class="editor-main">
         <div data-nostr--nostr-single-sign-target="status"
@@ -129,12 +129,18 @@
 
                     {# Mobile action buttons at bottom #}
                     <div class="editor-mobile-actions">
-                        <button type="button" class="btn btn-secondary btn-lg" data-action="editor--layout#saveDraft">
-                            Save draft
-                        </button>
-                        <button type="button" class="btn btn-primary btn-lg" data-action="editor--layout#publish">
-                            Publish
-                        </button>
+                        {% if app.user %}
+                            <button type="button" class="btn btn-secondary btn-lg" data-action="editor--layout#saveDraft">
+                                Save draft
+                            </button>
+                            <button type="button" class="btn btn-primary btn-lg" data-action="editor--layout#publish">
+                                Publish
+                            </button>
+                        {% else %}
+                            <button type="button" class="btn btn-accent btn-lg" data-action="utility--signer-modal#openDialog">
+                                Login with Bunker
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -314,6 +320,9 @@
             </div>
         </div>
     </div>
+
+    {# Signer modal for bunker login #}
+    <twig:SignerModal />
 </main>
 {% endblock %}
 
