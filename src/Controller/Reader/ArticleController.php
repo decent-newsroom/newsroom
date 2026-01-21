@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Form\EditorType;
 use App\Service\HighlightService;
-use App\Service\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Service\RedisViewStore;
 use App\Util\CommonMark\Converter;
