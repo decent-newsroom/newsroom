@@ -29,14 +29,6 @@
         {# Recent Articles Section #}
         {% if recentArticles|length > 0 %}
             <div class="overview-section">
-                <div class="section-header">
-                    <h2>Recent Articles</h2>
-                    {% if hasMoreArticles %}
-                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'articles'}) }}" class="see-all-link">
-                            See all articles →
-                        </a>
-                    {% endif %}
-                </div>
                 <div class="w-container">
                     <twig:Organisms:CardList :list="recentArticles" class="article-list overview-grid"></twig:Organisms:CardList>
                 </div>
@@ -46,14 +38,6 @@
         {# Recent Media Section #}
         {% if recentMedia|length > 0 %}
             <div class="overview-section">
-                <div class="section-header">
-                    <h2>Recent Media</h2>
-                    {% if hasMoreMedia %}
-                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'media'}) }}" class="see-all-link">
-                            See all media →
-                        </a>
-                    {% endif %}
-                </div>
                 <div class="media-grid overview-media-grid">
                     {% for event in recentMedia %}
                         <div class="media-item">
@@ -75,14 +59,6 @@
         {# Recent Highlights Section #}
         {% if recentHighlights|length > 0 %}
             <div class="overview-section">
-                <div class="section-header">
-                    <h2>Recent Highlights</h2>
-                    {% if hasMoreHighlights %}
-                        <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'highlights'}) }}" class="see-all-link">
-                            See all highlights →
-                        </a>
-                    {% endif %}
-                </div>
                 <div class="highlights-preview">
                     {% for highlight in recentHighlights %}
                         <blockquote class="highlight-item compact">
@@ -104,7 +80,7 @@
                 <p>This author hasn't published any content yet.</p>
                 {% if isOwner %}
                     <p>
-                        <a href="{{ path('new-article') }}" class="btn btn-primary">Write your first article</a>
+                        <a href="{{ path('editor-create') }}" class="btn btn-primary">Write your first article</a>
                     </p>
                 {% endif %}
             </div>
