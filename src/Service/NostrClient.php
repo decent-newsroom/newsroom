@@ -613,7 +613,7 @@ class NostrClient
         $filter = new Filter();
         $filter->setKinds([
             KindsEnum::COMMENTS->value,
-            // KindsEnum::ZAP_RECEIPT->value  // Not yet
+            KindsEnum::ZAP_RECEIPT->value,
         ]);
         $filter->setTag('#A', [$coordinate]);
 
