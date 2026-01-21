@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Controller\Admin;
+namespace App\Controller\Administration;
 
+use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Service\RSS\RssFeedService;
 use App\Service\RSS\RssToNostrConverter;
 use App\Util\NostrKeyUtil;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\ORM\EntityManagerInterface;
-use App\Entity\Event;
-use App\Enum\KindsEnum;
 
 class AdminRssController extends AbstractController
 {
