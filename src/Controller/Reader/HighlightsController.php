@@ -42,6 +42,24 @@ class HighlightsController extends AbstractController
 
                 foreach ($cachedView as $baseObject) {
                     if (isset($baseObject['highlight']) && isset($baseObject['article'])) {
+                        $article = $baseObject['article'];
+
+                        // Build article coordinate from article data (kind:pubkey:slug)
+                        $articleCoordinate = null;
+                        if (isset($article['kind']) && isset($article['pubkey']) && isset($article['slug'])) {
+                            $articleCoordinate = $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug'];
+                        }
+
+                        // Generate naddr and preview data for NostrPreview component
+                        $naddr = null;
+                        $preview = null;
+                        if ($articleCoordinate) {
+                            $naddr = $this->generateNaddr($articleCoordinate, []);
+                            if ($naddr) {
+                                $preview = $this->createPreviewData($naddr);
+                            }
+                        }
+
                         // Transform Redis view format to legacy highlight format
                         $highlight = [
                             'id' => $baseObject['highlight']['eventId'] ?? null,
@@ -51,12 +69,14 @@ class HighlightsController extends AbstractController
                                 : time(),
                             'pubkey' => $baseObject['highlight']['pubkey'] ?? null,
                             'context' => $baseObject['highlight']['context'] ?? null,
-                            'article_ref' => $baseObject['article']['eventId'] ?? null,
-                            'article_title' => $baseObject['article']['title'] ?? null,
-                            'article_author' => $baseObject['article']['pubkey'] ?? null,
-                            'article_slug' => $baseObject['article']['slug'] ?? null,
+                            'article_ref' => $articleCoordinate,
+                            'article_title' => $article['title'] ?? null,
+                            'article_author' => $article['pubkey'] ?? null,
+                            'article_slug' => $article['slug'] ?? null,
+                            'naddr' => $naddr,
+                            'preview' => $preview,
                             'profile' => $baseObject['author'] ?? null, // Highlight author profile
-                            'article_author_profile' => $baseObject['profiles'][$baseObject['article']['pubkey']] ?? null,
+                            'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
                         ];
 
                         $highlights[] = $highlight;
