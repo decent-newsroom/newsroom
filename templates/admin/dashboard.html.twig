@@ -1,0 +1,359 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Administration Dashboard{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Administration Dashboard</h1>
+        <div class="admin-actions">
+            <form method="post" action="{{ path('admin_dashboard_refresh') }}" style="display: inline;">
+                <input type="hidden" name="_token" value="{{ csrf_token('refresh') }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Refresh</button>
+            </form>
+        </div>
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <!-- Content Statistics -->
+    <section class="metric-section">
+        <h2>Content Statistics</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.content.error|default(false) %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.content.total_articles|number_format }}</div>
+                <div class="metric-label">Total Articles</div>
+                <div class="metric-subtitle">(unique by slug)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.content.articles_last_24h|number_format }}</div>
+                <div class="metric-label">Last 24 Hours</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.content.articles_last_7d|number_format }}</div>
+                <div class="metric-label">Last 7 Days</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.content.articles_last_30d|number_format }}</div>
+                <div class="metric-label">Last 30 Days</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.content.total_magazines|number_format }}</div>
+                <div class="metric-label">Total Magazines</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.content.published_magazines|number_format }}</div>
+                <div class="metric-label">Published Magazines</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- User Statistics -->
+    <section class="metric-section">
+        <h2>User Statistics</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.users.error|default(false) %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.users.total_users|number_format }}</div>
+                <div class="metric-label">Total Users</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.users.admin_users|number_format }}</div>
+                <div class="metric-label">Admin Users</div>
+                <div class="metric-badge">🛡️ Privileged</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.users.featured_writers|number_format }}</div>
+                <div class="metric-label">Featured Writers</div>
+                <div class="metric-badge">⭐ Featured</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.users.muted_users|number_format }}</div>
+                <div class="metric-label">Muted Users</div>
+                <div class="metric-badge">🔇 Muted</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Visitor Analytics Summary -->
+    <section class="metric-section">
+        <h2>Visitor Analytics</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.visits.error|default(false) %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.visits.visits_last_24h|number_format }}</div>
+                <div class="metric-label">Visits (24h)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.visits.visits_last_7d|number_format }}</div>
+                <div class="metric-label">Visits (7d)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.visits.total_visits|number_format }}</div>
+                <div class="metric-label">Total Visits</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.visits.unique_visitors_last_24h|number_format }}</div>
+                <div class="metric-label">Unique Visitors (24h)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.visits.unique_visitors_last_7d|number_format }}</div>
+                <div class="metric-label">Unique Visitors (7d)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ (metrics.visits.bounce_rate * 100)|number_format(1) }}%</div>
+                <div class="metric-label">Bounce Rate</div>
+            </div>
+        </div>
+
+        {% if metrics.visits.top_articles_24h|length > 0 %}
+        <div class="top-articles">
+            <h3>Top Articles (Last 24h)</h3>
+            <ol>
+                {% for article in metrics.visits.top_articles_24h %}
+                <li>
+                    <strong>{{ article.title ?? article.slug }}</strong> - {{ article.visit_count }} visits
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Transaction Summary -->
+    <section class="metric-section">
+        <h2>Credit Transactions</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.transactions.error|default(false) %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.transactions.total_transactions|number_format }}</div>
+                <div class="metric-label">Total Transactions</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.transactions.recent_transactions_24h|number_format }}</div>
+                <div class="metric-label">Last 24 Hours</div>
+            </div>
+            <div class="metric-card metric-positive">
+                <div class="metric-value">{{ metrics.transactions.total_credits|number_format }}</div>
+                <div class="metric-label">Total Credits Issued</div>
+            </div>
+            <div class="metric-card metric-negative">
+                <div class="metric-value">{{ metrics.transactions.total_debits|number_format }}</div>
+                <div class="metric-label">Total Debits</div>
+            </div>
+            {% if metrics.transactions.last_transaction_time %}
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.transactions.last_transaction_time|date('H:i') }}</div>
+                <div class="metric-label">Last Transaction</div>
+                <div class="metric-subtitle">{{ metrics.transactions.last_transaction_time|date('Y-m-d') }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Relay Health -->
+    <section class="metric-section">
+        <h2>Relay Status</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.relay.accessible %}metric-success{% else %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.relay.accessible ? 'Online' : 'Offline' }}</div>
+                <div class="metric-label">Connection Status</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Database Summary -->
+    <section class="metric-section">
+        <h2>Database Summary</h2>
+        <div class="metric-grid">
+            <div class="metric-card {% if metrics.database.error|default(false) %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.database.total_articles|default(0)|number_format }}</div>
+                <div class="metric-label">Articles (all rows)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.database.total_events|number_format }}</div>
+                <div class="metric-label">Events</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.database.total_highlights|number_format }}</div>
+                <div class="metric-label">Highlights</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.database.total_unfold_sites|number_format }}</div>
+                <div class="metric-label">Unfold Sites</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Navigation Grid -->
+    <section class="metric-section">
+        <h2>Tools</h2>
+        <div class="nav-grid">
+            <a href="{{ path('admin_analytics') }}" class="nav-card">
+                <div class="nav-title">Visit Analytics</div>
+                <div class="nav-description">Detailed visitor tracking and analysis</div>
+            </a>
+            <a href="{{ path('admin_credit_transactions') }}" class="nav-card">
+                <div class="nav-title">Transactions</div>
+                <div class="nav-description">Credit transaction history</div>
+            </a>
+            <a href="{{ path('admin_relay_index') }}" class="nav-card">
+                <div class="nav-title">Relay Management</div>
+                <div class="nav-description">Monitor and manage relay</div>
+            </a>
+            <a href="{{ path('admin_articles') }}" class="nav-card">
+                <div class="nav-title">Article Management</div>
+                <div class="nav-description">Manage articles and cache</div>
+            </a>
+            <a href="{{ path('admin_magazines') }}" class="nav-card">
+                <div class="nav-title">Magazines</div>
+                <div class="nav-description">Magazine administration</div>
+            </a>
+            <a href="{{ path('admin_roles') }}" class="nav-card">
+                <div class="nav-title">User Roles</div>
+                <div class="nav-description">Manage user permissions</div>
+            </a>
+            <a href="{{ path('admin_rss_submit') }}" class="nav-card">
+                <div class="nav-title">RSS Management</div>
+                <div class="nav-description">Submit and review RSS feeds</div>
+            </a>
+        </div>
+    </section>
+</div>
+
+<style>
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background: var(--color-bg-light);
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-accent, #0066cc);
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #666);
+    font-weight: 500;
+}
+
+.metric-subtitle {
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary, #999);
+    margin-top: 0.25rem;
+}
+
+.metric-badge {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--color-info-bg, #e7f3ff);
+    color: var(--color-info, #0066cc);
+    border-radius: 0;
+    font-size: 0.75rem;
+}
+
+.metric-success {
+    border-color: var(--color-success, #28a745);
+}
+
+.metric-success .metric-value {
+    color: var(--color-success, #28a745);
+}
+
+.metric-error {
+    border-color: var(--color-error, #dc3545);
+}
+
+.metric-error .metric-value {
+    color: var(--color-error, #dc3545);
+}
+
+.metric-positive .metric-value {
+    color: var(--color-success, #28a745);
+}
+
+.metric-negative .metric-value {
+    color: var(--color-warning, #ffc107);
+}
+
+.top-articles {
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.top-articles h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.top-articles ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.top-articles li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.nav-card {
+    background: var(--color-bg-light);
+    padding: 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    display: block;
+}
+
+.nav-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-primary, #333);
+}
+
+.nav-description {
+    font-size: 0.9rem;
+    color: var(--color-text-secondary, #666);
+    line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .metric-grid,
+    .nav-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

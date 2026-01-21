@@ -7,6 +7,7 @@
         </div>
         {% if is_granted('ROLE_ADMIN') %}
         <ul class="user-nav">
+            <li><a href="{{ path('admin_dashboard') }}"><strong>Admin Dashboard</strong></a></li>
             <li><a href="{{ path('admin_magazines') }}">Magazines</a></li>
             <li><a href="{{ path('admin_analytics') }}">Visit Analytics</a></li>
         </ul>
