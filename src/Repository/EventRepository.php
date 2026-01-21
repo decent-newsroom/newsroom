@@ -110,6 +110,24 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find highlight events (kind 9802) that reference articles
+     *
+     * @param int $limit Maximum number of highlights to return
+     * @return Event[]
+     */
+    public function findHighlights(int $limit = 50): array
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->where('e.kind = :kind')
+            ->setParameter('kind', 9802)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Save or update an event
      *
      * @param Event $event

@@ -2,38 +2,35 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Reader;
 
-use App\Entity\Event;
-use App\Service\HighlightService;
+use App\Message\FetchHighlightsMessage;
+use App\Repository\EventRepository;
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisViewStore;
-use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
 
 class HighlightsController extends AbstractController
 {
-    private const CACHE_TTL = 3600; // 1 hour in seconds
     private const MAX_DISPLAY_HIGHLIGHTS = 50;
 
     public function __construct(
+        private readonly EventRepository $eventRepository,
         private readonly NostrClient $nostrClient,
-        private readonly HighlightService $highlightService,
         private readonly LoggerInterface $logger,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisViewStore $viewStore,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly MessageBusInterface $messageBus,
     ) {}
 
     #[Route('/highlights', name: 'highlights')]
-    public function index(CacheInterface $cache): Response
+    public function index(): Response
     {
         try {
             // Fast path: Try Redis views first (single GET)
@@ -75,31 +72,18 @@ class HighlightsController extends AbstractController
                 ]);
             }
 
-            // Fallback path: Use old cache system if Redis view not available
-            $this->logger->debug('Redis view not found, falling back to Nostr relay fetch');
+            // Fallback path: Load highlights from database
+            $this->logger->debug('Redis view not found, loading from database');
 
-            // Cache key for highlights
-            $cacheKey = 'global_article_highlights';
-            // Get highlights from cache or fetch fresh
-            $highlights = $cache->get($cacheKey, function (ItemInterface $item) {
-                $item->expiresAfter(self::CACHE_TTL);
+            // Query highlights from database
+            $highlightEvents = $this->eventRepository->findHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
 
-                try {
-                    // Fetch highlights that reference articles (kind 30023)
-                    $events = $this->nostrClient->getArticleHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
+            // Dispatch async message to fetch fresh highlights in background (fire and forget)
+            $this->messageBus->dispatch(new FetchHighlightsMessage(self::MAX_DISPLAY_HIGHLIGHTS));
+            $this->logger->debug('Dispatched async fetch for highlights');
 
-                    // Save highlights to database as Event entities
-                    $this->saveHighlightsAsEvents($events);
-
-                    // Process and enrich the highlights for display
-                    return $this->processHighlights($events);
-                } catch (\Exception $e) {
-                    $this->logger->error('Failed to fetch highlights', [
-                        'error' => $e->getMessage()
-                    ]);
-                    return [];
-                }
-            });
+            // Process and enrich the highlights for display
+            $highlights = $this->processHighlights($highlightEvents);
 
             return $this->render('pages/highlights.html.twig', [
                 'highlights' => $highlights,
@@ -120,118 +104,7 @@ class HighlightsController extends AbstractController
         }
     }
 
-    /**
-     * Save highlights as Event entities to database
-     */
-    private function saveHighlightsAsEvents(array $events): void
-    {
-        $saved = 0;
-        $skipped = 0;
 
-        foreach ($events as $nostrEvent) {
-            try {
-                // Skip if event ID is missing
-                if (!isset($nostrEvent->id) || empty($nostrEvent->id)) {
-                    $this->logger->warning('Skipping event without ID');
-                    $skipped++;
-                    continue;
-                }
-
-                // Check if event already exists
-                $existingEvent = $this->entityManager->getRepository(Event::class)->find($nostrEvent->id);
-                if ($existingEvent) {
-                    $this->logger->debug('Event already exists, skipping', ['event_id' => $nostrEvent->id]);
-                    $skipped++;
-                    continue;
-                }
-
-                // Create new Event entity
-                $event = new Event();
-                $event->setId($nostrEvent->id);
-                $event->setEventId($nostrEvent->id);
-                $event->setKind($nostrEvent->kind ?? 9802);
-                $event->setPubkey($nostrEvent->pubkey ?? '');
-                $event->setContent($nostrEvent->content ?? '');
-                $event->setCreatedAt($nostrEvent->created_at ?? time());
-                $event->setTags($nostrEvent->tags ?? []);
-                $event->setSig($nostrEvent->sig ?? '');
-
-                $this->entityManager->persist($event);
-                $saved++;
-
-                $this->logger->debug('Saved highlight as Event entity', [
-                    'event_id' => $nostrEvent->id,
-                    'kind' => $nostrEvent->kind,
-                    'pubkey' => substr($nostrEvent->pubkey ?? '', 0, 16),
-                ]);
-            } catch (\Exception $e) {
-                $this->logger->error('Failed to save highlight as Event entity', [
-                    'event_id' => $nostrEvent->id ?? 'unknown',
-                    'error' => $e->getMessage()
-                ]);
-                $skipped++;
-            }
-        }
-
-        try {
-            $this->entityManager->flush();
-            $this->logger->info('Saved highlights as Event entities', [
-                'saved' => $saved,
-                'skipped' => $skipped,
-                'total' => count($events)
-            ]);
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to flush Event entities', [
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Save highlights to database grouped by article coordinate
-     */
-    private function saveHighlightsToDatabase(array $events): void
-    {
-        // Group events by article coordinate
-        $eventsByArticle = [];
-
-        foreach ($events as $event) {
-            // Extract article coordinate from tags
-            foreach ($event->tags ?? [] as $tag) {
-                if (!is_array($tag) || count($tag) < 2) {
-                    continue;
-                }
-
-                if (in_array($tag[0], ['a', 'A'])) {
-                    $coordinate = $tag[1] ?? null;
-                    if ($coordinate && str_starts_with($coordinate, '30023:')) {
-                        if (!isset($eventsByArticle[$coordinate])) {
-                            $eventsByArticle[$coordinate] = [];
-                        }
-                        $eventsByArticle[$coordinate][] = $event;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Save each article's highlights to database
-        foreach ($eventsByArticle as $coordinate => $articleEvents) {
-            try {
-                $this->highlightService->saveEventsToDatabase($coordinate, $articleEvents);
-
-                $this->logger->debug('Saved highlights to database', [
-                    'coordinate' => $coordinate,
-                    'count' => count($articleEvents)
-                ]);
-            } catch (\Exception $e) {
-                $this->logger->warning('Failed to save highlights to database', [
-                    'coordinate' => $coordinate,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-    }
 
     /**
      * Process highlights to extract metadata
