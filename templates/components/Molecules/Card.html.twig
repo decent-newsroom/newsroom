@@ -8,9 +8,16 @@
             {% endif %}
             <small>{{ article.createdAt|date('F j Y') }}</small>
         </div>
-        {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
-        {% if cat  and mag %}
-            {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
+        {% if article.kind == 30024 %}
+            {# Draft - use draft route #}
+            {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
+        {% else %}
+            {# Regular article #}
+            {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
+
+            {% if cat  and mag %}
+                {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
+            {% endif %}
         {% endif %}
         <a href="{{ link }}" data-turbo-frame="_top">
             <div class="card-header">

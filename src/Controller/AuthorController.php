@@ -331,7 +331,7 @@ class AuthorController extends AbstractController
 
         // Get recent articles (limit to 6 for overview)
         $allArticles = $this->getAuthorArticles($pubkey, false, $viewStore, $viewFactory, $articleSearch);
-        $recentArticles = array_slice($allArticles, 0, 6);
+        $recentArticles = array_slice($allArticles, 0, 3);
 
         // Get recent media (limit to 6 for overview)
         $mediaData = $this->getMediaTabData($pubkey, $redisCacheService);
@@ -339,15 +339,12 @@ class AuthorController extends AbstractController
 
         // Get recent highlights (limit to 6 for overview)
         $highlightsData = $this->getHighlightsTabData($pubkey, $em);
-        $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 6);
+        $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 3);
 
         return [
             'recentArticles' => $recentArticles,
             'recentMedia' => $recentMedia,
             'recentHighlights' => $recentHighlights,
-            'hasMoreArticles' => count($allArticles) > 6,
-            'hasMoreMedia' => ($mediaData['hasMore'] ?? false) || count($mediaData['mediaEvents'] ?? []) > 6,
-            'hasMoreHighlights' => count($highlightsData['highlights'] ?? []) > 6,
         ];
     }
 
@@ -533,7 +530,7 @@ class AuthorController extends AbstractController
         $drafts = [];
 
         foreach ($allArticles as $article) {
-            if ($article instanceof Article && $article->getKind() === KindsEnum::LONGFORM_DRAFT->value) {
+            if ($article instanceof Article && $article->getKind() === KindsEnum::LONGFORM_DRAFT) {
                 $baseObject = $viewFactory->articleBaseObject($article, $author);
                 $normalized = $viewFactory->normalizeBaseObject($baseObject);
                 if (isset($normalized['article'])) {
@@ -667,7 +664,7 @@ class AuthorController extends AbstractController
             $createdAt = $article->getCreatedAt();
 
             // Skip drafts unless viewing own profile
-            if (!$isOwnProfile && $kind === KindsEnum::LONGFORM_DRAFT->value) {
+            if (!$isOwnProfile && $kind === KindsEnum::LONGFORM_DRAFT) {
                 continue;
             }
 

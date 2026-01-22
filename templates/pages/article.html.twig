@@ -17,84 +17,95 @@
     {% endif %}
 
     <article class="w-container" data-controller="ui--highlights-toggle">
-        <div class="article-actions">
-            <div data-controller="utility--share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
-                <button data-utility--share-dropdown-target="button"
-                        class="btn btn-secondary"
-                        id="shareBtn"
-                        type="button"
-                        aria-haspopup="true"
-                        aria-expanded="false"
-                        data-action="click->utility--share-dropdown#toggle">
-                    Share
-                </button>
-                <div data-utility--share-dropdown-target="menu"
-                     class="dropdown-menu"
-                     id="shareDropdown"
-                     style="display:none;position:absolute;z-index:1000;min-width:200px;">
-                    <button class="dropdown-item"
-                            type="button"
-                            data-action="click->utility--share-dropdown#copy"
-                            data-copy="{{ canonical|e('html_attr') }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
-                        </svg>
-                        Newsroom Link
-                    </button>
-                    <button class="dropdown-item"
-                            type="button"
-                            data-action="click->utility--share-dropdown#copy"
-                            data-copy="{{ article|naddrEncode }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
-                        </svg>
-                        Naddr
-                    </button>
-                </div>
+        {% if isDraft is defined and isDraft %}
+            <div class="alert alert-info" role="alert">
+                <strong>Draft Preview:</strong> This is a draft version and is only visible to you.
             </div>
-            {% if canEdit %}
-                <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
-            {% endif %}
+        {% endif %}
 
-            {% if app.user %}
-                <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
-            {% endif %}
-
-            {# Zap Button with split payment support #}
-            {% set zapSplitObjects = advancedMetadata.zapSplits|default([]) %}
-            {% set zapSplits = [] %}
-            {% for split in zapSplitObjects %}
-                {% set zapSplits = zapSplits|merge([{
-                    'recipient': split.recipient,
-                    'relay': split.relay,
-                    'weight': split.weight
-                }]) %}
-            {% endfor %}
-            {% if zapSplits|length > 0 %}
-                <twig:Molecules:ZapButton
-                    recipientPubkey="{{ article.pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-                    :zapSplits="zapSplits" />
-            {% elseif author.lud16 %}
-                <twig:Molecules:ZapButton
-                    recipientPubkey="{{ article.pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
-            {% endif %}
-
-            {# Highlights toggle button #}
-            {% if highlights is defined and highlights|length > 0 %}
-                <button data-ui--highlights-toggle-target="button"
-                        data-action="click->ui--highlights-toggle#toggle"
-                        class="btn btn-secondary"
-                        type="button"
-                        aria-pressed="false"
-                        title="Toggle highlights">
-                    Highlights ({{ highlights|length }})
-                </button>
-            {% endif %}
-
+        {% if isDraft %}
+        <div class="article-actions">
+            <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">Edit draft</a>
         </div>
+        {% else %}
+            <div class="article-actions">
+                <div data-controller="utility--share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
+                    <button data-utility--share-dropdown-target="button"
+                            class="btn btn-secondary"
+                            id="shareBtn"
+                            type="button"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            data-action="click->utility--share-dropdown#toggle">
+                        Share
+                    </button>
+                    <div data-utility--share-dropdown-target="menu"
+                         class="dropdown-menu"
+                         id="shareDropdown"
+                         style="display:none;position:absolute;z-index:1000;min-width:200px;">
+                        <button class="dropdown-item"
+                                type="button"
+                                data-action="click->utility--share-dropdown#copy"
+                                data-copy="{{ canonical|e('html_attr') }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
+                            </svg>
+                            Newsroom Link
+                        </button>
+                        <button class="dropdown-item"
+                                type="button"
+                                data-action="click->utility--share-dropdown#copy"
+                                data-copy="{{ article|naddrEncode }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
+                            </svg>
+                            Naddr
+                        </button>
+                    </div>
+                </div>
+                {% if canEdit %}
+                    <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
+                {% endif %}
 
+                {% if app.user %}
+                    <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
+                {% endif %}
+
+                {# Zap Button with split payment support #}
+                {% set zapSplitObjects = advancedMetadata.zapSplits|default([]) %}
+                {% set zapSplits = [] %}
+                {% for split in zapSplitObjects %}
+                    {% set zapSplits = zapSplits|merge([{
+                        'recipient': split.recipient,
+                        'relay': split.relay,
+                        'weight': split.weight
+                    }]) %}
+                {% endfor %}
+                {% if zapSplits|length > 0 %}
+                    <twig:Molecules:ZapButton
+                        recipientPubkey="{{ article.pubkey }}"
+                        recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+                        :zapSplits="zapSplits" />
+                {% elseif author.lud16 %}
+                    <twig:Molecules:ZapButton
+                        recipientPubkey="{{ article.pubkey }}"
+                        recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
+                {% endif %}
+
+                {# Highlights toggle button #}
+                {% if highlights is defined and highlights|length > 0 %}
+                    <button data-ui--highlights-toggle-target="button"
+                            data-action="click->ui--highlights-toggle#toggle"
+                            class="btn btn-secondary"
+                            type="button"
+                            aria-pressed="false"
+                            title="Toggle highlights">
+                        Highlights ({{ highlights|length }})
+                    </button>
+                {% endif %}
+
+            </div>
+        {% endif %}
 
         <div class="card">
             <div class="card-header">
@@ -156,6 +167,7 @@
         </pre>
         {% endif %}
 
+        {% if not isDraft %}
         <twig:Organisms:CommentForm
             :publish_url="path('comment_publish')"
             :csrf_token="csrf_token('comment_publish')"
@@ -175,6 +187,7 @@
             }" />
 
         <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
+        {% endif %}
 
         {# Mobile highlights - shown after comments on narrow screens #}
         {% if highlights is defined and highlights|length > 0 %}

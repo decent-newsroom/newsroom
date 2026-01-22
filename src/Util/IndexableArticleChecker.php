@@ -11,7 +11,7 @@ class IndexableArticleChecker
     public static function isIndexable(Article $article): bool
     {
         // Don't index drafts - they're private working copies
-        if ($article->getKind() === KindsEnum::LONGFORM_DRAFT->value) {
+        if ($article->getKind() === KindsEnum::LONGFORM_DRAFT) {
             return false;
         }
 

@@ -72,8 +72,8 @@
                                     <span class="article-icon" title="Draft">
                                         <span style="color: orange; font-weight: bold;"></span><span class="article-kind">D</span>
                                     </span>
-                                    <a href="{{ path('editor-edit-slug', {slug: draft.slug}) }}">
-                                        {{ draft.title }} ({{ draft.updatedAt|date('Y-m-d') }})
+                                    <a href="{{ path('editor-edit-slug-draft', {slug: draft.slug}) }}">
+                                        {{ draft.title }} ({{ draft.createdAt|date('Y-m-d') }})
                                     </a>
                                 </li>
                             {% else %}

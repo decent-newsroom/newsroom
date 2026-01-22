@@ -132,6 +132,35 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find event by naddr parameters (kind, pubkey, identifier)
+     * Used for parameterized replaceable events (kinds 30000-39999)
+     *
+     * @param int $kind Event kind
+     * @param string $pubkey Author pubkey
+     * @param string $identifier Event identifier (d tag)
+     * @return Event|null
+     */
+    public function findByNaddr(int $kind, string $pubkey, string $identifier): ?Event
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->where('e.kind = :kind')
+            ->andWhere('e.pubkey = :pubkey')
+            ->setParameter('kind', $kind)
+            ->setParameter('pubkey', $pubkey);
+
+        // Search for the 'd' tag with the identifier
+        // JSON search: find events where tags contain ['d', identifier]
+        $qb->andWhere("JSON_SEARCH(e.tags, 'one', :identifier, NULL, '$[*][1]') IS NOT NULL")
+            ->setParameter('identifier', $identifier);
+
+        $qb->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(1);
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
      * Find highlight events (kind 9802) that reference articles
      *
      * @param int $limit Maximum number of highlights to return
