@@ -20,6 +20,13 @@ figure.media {
     }
 }
 
+figcaption img {
+    width: 150px;
+    height: 150px;
+    margin: var(--spacing-3);
+    object-fit: cover;
+    display: block;
+}
 
 figcaption.picture-description div {
     flex-grow: 1;
@@ -35,7 +42,7 @@ figcaption.picture-description .credits {
     display: flex;
     gap: var(--spacing-1);
     margin-top: var(--spacing-1);
-    justify-content: flex-start;
+    justify-content: center;
     flex-wrap: wrap;
 }
 .gallery-view .thumbnail {

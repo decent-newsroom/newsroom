@@ -11,11 +11,9 @@
             <strong>⚠️ Content Warning:</strong> {{ contentWarning }}
             <button class="btn-show-nsfw" onclick="this.parentElement.nextElementSibling.classList.remove('hidden'); this.parentElement.style.display='none';">Show Content</button>
         </div>
-        <div class="picture-gallery hidden">
-    {% else %}
-        <div class="picture-gallery">
     {% endif %}
 
+    <div class="picture-gallery {% if contentWarning %}hidden{% endif %}">
     {# Collect all imeta images into an array #}
     {% set images = [] %}
     {% for tag in event.tags %}
@@ -93,7 +91,7 @@
                                  class="thumbnail{% if loop.first %} selected{% endif %}"
                                  data-ui--gallery-target="thumbnail"
                                  data-action="click->ui--gallery#switch"
-                                 data-ui--gallery-index="{{ loop.index0 }}"
+                                 data-gallery-index="{{ loop.index0 }}"
                                  {% if img.dimensions %}data-dimensions="{{ img.dimensions }}"{% endif %}
                                 {% if img.blurhash %}data-blurhash="{{ img.blurhash }}"{% endif %}
                             />

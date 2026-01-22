@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Event as EventEntity;
 use App\Enum\KindsEnum;
+use App\Repository\EventRepository;
 use App\Service\NostrClient;
 use App\Service\NostrLinkParser;
 use App\Service\RedisCacheService;
@@ -23,11 +25,28 @@ use Symfony\Component\Routing\Attribute\Route;
 class EventController extends AbstractController
 {
     /**
+     * Convert Event entity to stdClass object compatible with NostrClient responses
+     */
+    private function entityToObject(EventEntity $entity): \stdClass
+    {
+        $obj = new \stdClass();
+        $obj->id = $entity->getId();
+        $obj->kind = $entity->getKind();
+        $obj->pubkey = $entity->getPubkey();
+        $obj->content = $entity->getContent();
+        $obj->created_at = $entity->getCreatedAt();
+        $obj->tags = $entity->getTags();
+        $obj->sig = $entity->getSig();
+        return $obj;
+    }
+
+    /**
      * @throws Exception
      */
     #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note)1.*'])]
     public function index($nevent, \Symfony\Component\HttpFoundation\Request $request, NostrClient $nostrClient,
-                          RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser, LoggerInterface $logger): Response
+                          RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser,
+                          LoggerInterface $logger, EventRepository $eventRepository): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -44,8 +63,18 @@ class EventController extends AbstractController
             // Sort which event type this is using $data->type
             switch ($decoded->type) {
                 case 'note':
-                    // Handle note (regular event)
-                    $event = $nostrClient->getEventById($data->data);
+                    // Handle note (regular event) - check DB first
+                    $eventId = $data->data;
+                    $logger->info('Looking up event in database', ['eventId' => $eventId]);
+
+                    $dbEvent = $eventRepository->findById($eventId);
+                    if ($dbEvent) {
+                        $logger->info('Event found in database', ['eventId' => $eventId]);
+                        $event = $this->entityToObject($dbEvent);
+                    } else {
+                        $logger->info('Event not in database, fetching from relays', ['eventId' => $eventId]);
+                        $event = $nostrClient->getEventById($eventId);
+                    }
                     break;
 
                 case 'nprofile':
@@ -54,20 +83,50 @@ class EventController extends AbstractController
                     return $this->redirectToRoute('author-redirect', ['pubkey' => $data->pubkey]);
 
                 case 'nevent':
-                    // Handle nevent identifier (event with additional metadata)
-                    $relays = $data->relays ?? null;
-                    $event = $nostrClient->getEventById($data->id, $relays);
+                    // Handle nevent identifier (event with additional metadata) - check DB first
+                    $eventId = $data->id;
+                    $logger->info('Looking up event in database', ['eventId' => $eventId]);
+
+                    $dbEvent = $eventRepository->findById($eventId);
+                    if ($dbEvent) {
+                        $logger->info('Event found in database', ['eventId' => $eventId]);
+                        $event = $this->entityToObject($dbEvent);
+                    } else {
+                        $logger->info('Event not in database, fetching from relays', ['eventId' => $eventId]);
+                        $relays = $data->relays ?? null;
+                        $event = $nostrClient->getEventById($eventId, $relays);
+                    }
                     break;
 
                 case 'naddr':
-                    // Handle naddr (parameterized replaceable event)
-                    $decodedData = [
+                    // Handle naddr (parameterized replaceable event) - check DB first
+                    $logger->info('Looking up naddr event in database', [
                         'kind' => $data->kind,
                         'pubkey' => $data->pubkey,
-                        'identifier' => $data->identifier,
-                        'relays' => $data->relays ?? []
-                    ];
-                    $event = $nostrClient->getEventByNaddr($decodedData);
+                        'identifier' => $data->identifier
+                    ]);
+
+                    $dbEvent = $eventRepository->findByNaddr($data->kind, $data->pubkey, $data->identifier);
+                    if ($dbEvent) {
+                        $logger->info('Event found in database', [
+                            'eventId' => $dbEvent->getId(),
+                            'kind' => $data->kind
+                        ]);
+                        $event = $this->entityToObject($dbEvent);
+                    } else {
+                        $logger->info('Event not in database, fetching from relays', [
+                            'kind' => $data->kind,
+                            'identifier' => $data->identifier
+                        ]);
+                        $decodedData = [
+                            'kind' => $data->kind,
+                            'pubkey' => $data->pubkey,
+                            'identifier' => $data->identifier,
+                            'relays' => $data->relays ?? []
+                        ];
+                        $event = $nostrClient->getEventByNaddr($decodedData);
+                    }
+
                     if ($data->kind === KindsEnum::LONGFORM->value) {
                         // If it's a long-form content, redirect to the article page
                         $logger->info('Redirecting to article', ['identifier' => $data->identifier]);

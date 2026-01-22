@@ -293,11 +293,6 @@
     font-style: italic;
 }
 
-/* Drafts styles */
-.drafts-container .draft-list .card {
-    border-left: 4px solid #ffc107;
-}
-
 /* Media grid for profile */
 .media-container .media-grid {
     display: grid;
@@ -458,3 +453,19 @@
         gap: 0.5rem;
     }
 }
+
+/* Draft articles styling */
+.draft-list .card-title::before {
+    content: "D";
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    line-height: 1.2em;
+    text-align: center;
+    background-color: var(--color-accent-strong);
+    color: white;
+    border-radius: 3px;
+    font-size: 0.8em;
+    margin-right: 0.5em;
+}
+
