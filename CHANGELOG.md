@@ -2,11 +2,13 @@
 
 ## v0.0.5
 
-- Publish magazines.
+
+- Extended search to nostr idents, so you can paste a nostr npub, note, nevent or naddr to navigate to that profile, event or article.
+- Updated profiles, implemented background fetch.
+- Made publishing magazines available.
 - Added zap buttons to articles.
-- Show zaps as comments.
-- Make multimedia more resilient.
-- Actually implement comment publishing.
+- Brought back zaps as comments.
+- Made multimedia more resilient.
 
 ## v0.0.4
 Deployment used to be a remake of Minesweeper. Now it's more like Darts.
