@@ -5,21 +5,34 @@
                 <div class="bookmarks-list">
                     {% for bookmark in bookmarks %}
                         <div class="bookmark-item card">
-                            <h4>{{ bookmark.identifier ?? 'Untitled List' }}</h4>
+                            <div class="bookmark-header">
+                                <span class="bookmark-kind-badge">{{ bookmark.listType }}</span>
+                                {% if bookmark.listType != 'Bookmarks' %}
+                                    <h3>{{ bookmark.title ?? bookmark.identifier ?? 'Untitled List' }}</h3>
+                                {% endif %}
+                                <div class="bookmark-meta">
+                                    <small class="text-muted">Created: {{ bookmark.createdAt|date('M d, Y') }}</small>
+                                </div>
+                                {% if bookmark.description %}
+                                    <p class="bookmark-description text-muted">{{ bookmark.description }}</p>
+                                {% endif %}
+                                {% if bookmark.image %}
+                                    <img src="{{ bookmark.image }}" alt="{{ bookmark.title ?? 'List image' }}" class="bookmark-image" />
+                                {% endif %}
+                            </div>
+
                             {% if bookmark.items|length > 0 %}
-                                <ul class="bookmark-items">
+                                <div class="bookmark-items-count">
+                                    <small class="text-muted">{{ bookmark.items|length }} item{{ bookmark.items|length > 1 ? 's' : '' }}</small>
+                                </div>
+
+                                <ul class="bookmark-items-list">
                                     {% for item in bookmark.items %}
-                                        <li>
-                                            {% if item.type == 'e' %}
-                                                <span class="bookmark-type">Event:</span>
-                                            {% elseif item.type == 'a' %}
-                                                <span class="bookmark-type">Article:</span>
-                                            {% elseif item.type == 'p' %}
-                                                <span class="bookmark-type">Profile:</span>
-                                            {% elseif item.type == 't' %}
-                                                <span class="bookmark-type">Topic:</span>
-                                            {% endif %}
-                                            <code>{{ item.value|slice(0, 24) }}...</code>
+                                        {% if item.type == 'a' %}
+                                            <twig:Organisms:ArticleFromCoordinate :coordinate="item.value" />
+                                        {% endif %}
+                                        <li class="bookmark-item-entry">
+                                            <span class="tag">{{ item.type }}</span> - <span>{{ item.value }}</span>
                                         </li>
                                     {% endfor %}
                                 </ul>
@@ -32,6 +45,7 @@
             {% else %}
                 <div class="no-content">
                     <p>You don't have any bookmarks yet.</p>
+                    <small class="text-muted">Fetching bookmarks from your home relays...</small>
                 </div>
             {% endif %}
         {% else %}

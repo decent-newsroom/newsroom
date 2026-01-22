@@ -257,7 +257,7 @@ class AuthorController extends AbstractController
             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
             'highlights' => $this->getHighlightsTabData($pubkey, $em),
             'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $redisCacheService->getMetadata($pubkey)),
-            'bookmarks' => $this->getBookmarksTabData($pubkey, $em),
+            'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
             default => [],
         };
 
@@ -554,34 +554,142 @@ class AuthorController extends AbstractController
     /**
      * Get bookmarks for the bookmarks tab (owner only)
      */
-    private function getBookmarksTabData(string $pubkey, EntityManagerInterface $em): array
+    private function getBookmarksTabData(string $pubkey, EntityManagerInterface $em, MessageBusInterface $messageBus): array
     {
         $repo = $em->getRepository(Event::class);
-        $events = $repo->findBy(
-            ['pubkey' => $pubkey, 'kind' => KindsEnum::CURATION_SET->value],
-            ['created_at' => 'DESC'],
-            50
-        );
+
+        // Fetch all bookmark-related kinds: 10003 (standard), 30003 (sets), 30004 (curation)
+        $bookmarkKinds = [
+            KindsEnum::BOOKMARKS->value,      // 10003
+            KindsEnum::BOOKMARK_SETS->value,  // 30003
+            KindsEnum::CURATION_SET->value    // 30004
+        ];
+
+        $events = $repo->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind IN (:kinds)')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kinds', $bookmarkKinds)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+
+        // Make note no events were found
+        if (empty($events)) {
+            $this->logger->info('📚 No bookmarks found in DB', [
+                'pubkey' => $pubkey,
+                'kinds' => $bookmarkKinds,
+            ]);
+        }
+
+        // Also dispatch message to fetch from user's home relays
+        // To update with new bookmarks since the user is clearly active if none found
+        // Or existing is older than 1 week
+        $weekAgo = time() - 7 * 24 * 60 * 60;
+        if (empty($events) || (isset($events[0]) && $events[0]->getCreatedAt() < $weekAgo)) {
+            $this->logger->info('📚 No bookmarks found in DB, dispatching fetch from user home relays', [
+                'pubkey' => $pubkey,
+                'kinds' => $bookmarkKinds,
+                'content_type' => 'BOOKMARKS',
+                'action' => 'DISPATCH_MESSAGE'
+            ]);
+
+            $envelope = $messageBus->dispatch(new FetchAuthorContentMessage(
+                $pubkey,
+                [AuthorContentType::BOOKMARKS],
+                0, // since = 0 (fetch all)
+                true // isOwner = true for private bookmarks
+            ));
+
+            $this->logger->info('📤 FetchAuthorContentMessage dispatched successfully', [
+                'pubkey' => $pubkey,
+                'stamps_count' => count($envelope->all()),
+                'message_class' => get_class($envelope->getMessage())
+            ]);
+        } else {
+            $this->logger->info('📚 Found existing bookmarks in DB', [
+                'pubkey' => $pubkey,
+                'count' => count($events),
+                'kinds_found' => array_unique(array_map(fn($e) => $e->getKind(), $events))
+            ]);
+        }
 
         $bookmarks = [];
         foreach ($events as $event) {
             $identifier = null;
+            $title = null;
+            $summary = null;
+            $image = null;
             $items = [];
+
             foreach ($event->getTags() as $tag) {
-                if (($tag[0] ?? '') === 'd') {
-                    $identifier = $tag[1] ?? null;
+                if (!is_array($tag) || count($tag) < 2) {
+                    continue;
                 }
-                if (in_array($tag[0] ?? '', ['e', 'a', 'p', 't'])) {
-                    $items[] = [
-                        'type' => $tag[0],
-                        'value' => $tag[1] ?? null,
-                        'relay' => $tag[2] ?? null,
-                    ];
+
+                switch ($tag[0]) {
+                    case 'd':
+                        $identifier = $tag[1] ?? null;
+                        break;
+                    case 'title':
+                        $title = $tag[1] ?? null;
+                        break;
+                    case 'summary':
+                        $summary = $tag[1] ?? null;
+                        break;
+                    case 'image':
+                        $image = $tag[1] ?? null;
+                        break;
+                    case 'e':
+                        $eventId = $tag[1] ?? null;
+                        if ($eventId) {
+                            $eventIds[] = $eventId;
+                        }
+                        $items[] = [
+                            'type' => $tag[0],
+                            'value' => $eventId,
+                            'relay' => $tag[2] ?? null,
+                        ];
+                        break;
+                    case 'a':
+                        $coordinate = $tag[1] ?? null;
+                        if ($coordinate) {
+                            $articleCoordinates[] = $coordinate;
+                        }
+                        $items[] = [
+                            'type' => $tag[0],
+                            'value' => $coordinate,
+                            'relay' => $tag[2] ?? null,
+                        ];
+                        break;
+                    case 'p':
+                    case 't':
+                        $items[] = [
+                            'type' => $tag[0],
+                            'value' => $tag[1] ?? null,
+                            'relay' => $tag[2] ?? null,
+                        ];
+                        break;
                 }
             }
+
+            // Determine the list type label based on kind
+            $listType = match($event->getKind()) {
+                KindsEnum::BOOKMARKS->value => 'Bookmarks',
+                KindsEnum::BOOKMARK_SETS->value => 'Bookmark Set',
+                KindsEnum::CURATION_SET->value => 'Curation Set',
+                default => 'Unknown List',
+            };
+
             $bookmarks[] = (object)[
                 'id' => $event->getId(),
+                'kind' => $event->getKind(),
+                'listType' => $listType,
                 'identifier' => $identifier,
+                'title' => $title,
+                'description' => $summary,
+                'image' => $image,
                 'items' => $items,
                 'createdAt' => $event->getCreatedAt(),
             ];

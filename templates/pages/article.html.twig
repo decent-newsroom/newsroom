@@ -23,7 +23,7 @@
             </div>
         {% endif %}
 
-        {% if isDraft %}
+        {% if isDraft is defined and isDraft %}
         <div class="article-actions">
             <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">Edit draft</a>
         </div>
@@ -167,7 +167,7 @@
         </pre>
         {% endif %}
 
-        {% if not isDraft %}
+        {% if not (isDraft is defined and isDraft) %}
         <twig:Organisms:CommentForm
             :publish_url="path('comment_publish')"
             :csrf_token="csrf_token('comment_publish')"

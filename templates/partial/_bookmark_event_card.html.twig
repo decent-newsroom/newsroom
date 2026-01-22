@@ -1,0 +1,50 @@
+{# Bookmark event card - renders a bookmarked event as a card #}
+<div class="bookmark-event-card card mb-3">
+    {# Extract title from tags #}
+    {% set eventTitle = null %}
+    {% for tag in event.tags %}
+        {% if tag[0] == 'title' %}
+            {% set eventTitle = tag[1] %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="card-header">
+        <h4 class="card-title">
+            {{ eventTitle ?? 'Untitled' }}
+        </h4>
+        <div class="event-meta">
+            <span class="event-kind badge bg-secondary">Kind {{ event.kind }}</span>
+            <span class="event-date text-muted">{{ event.createdAt|date('M j, Y') }}</span>
+        </div>
+    </div>
+
+    <div class="card-body">
+        {# Render event based on kind #}
+        {% if event.kind == 20 %}
+            {# Picture event #}
+            {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
+        {% elseif event.kind == 21 or event.kind == 22 %}
+            {# Video event #}
+            {% include 'event/_kind22_video.html.twig' with {event: event, embed: true} %}
+        {% elseif event.kind == 1450 %}
+            {# Tabular data #}
+            {% include 'event/_kind1450_tabular.html.twig' with {event: event} %}
+        {% else %}
+            {# Default: show content #}
+            <div class="event-content">
+                {% set contentPreview = event.content|striptags|slice(0, 280) %}
+                <twig:Atoms:Content :content="contentPreview" />
+                {% if event.content|length > 280 %}
+                    <span class="text-muted">...</span>
+                {% endif %}
+            </div>
+            {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} %}
+        {% endif %}
+    </div>
+
+    <div class="card-footer">
+        <a href="/e/{{ event.encodeAsNote1() }}" class="btn btn-sm btn-primary">
+            View Full Event
+        </a>
+    </div>
+</div>
