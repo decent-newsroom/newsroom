@@ -12,8 +12,10 @@ enum KindsEnum: int
     case GENERIC_REPOST = 16; // Generic repost, original kind signalled in a "k" tag, NIP-18
     case FILE_METADATA = 1063; // NIP-94
     case INTERESTS = 10015; // NIP-51
+    case BOOKMARKS = 10003; // NIP-51, Standard bookmarks list
     case COMMENTS = 1111;
     case HTTP_AUTH = 27235; // NIP-98, HTTP Auth
+    case BOOKMARK_SETS = 30003; // NIP-51, Categorized bookmark sets
     case CURATION_SET = 30004; // NIP-51
     case LONGFORM = 30023; // NIP-23
     case LONGFORM_DRAFT = 30024; // NIP-23

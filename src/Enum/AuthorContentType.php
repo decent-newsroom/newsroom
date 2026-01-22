@@ -28,7 +28,11 @@ enum AuthorContentType: string
             self::DRAFTS => [KindsEnum::LONGFORM_DRAFT->value],
             self::MEDIA => [KindsEnum::IMAGE->value, 21, 22], // 20=image, 21=video, 22=audio (NIP-68/94)
             self::HIGHLIGHTS => [KindsEnum::HIGHLIGHTS->value],
-            self::BOOKMARKS => [KindsEnum::CURATION_SET->value], // 30004 for bookmark lists
+            self::BOOKMARKS => [
+                KindsEnum::BOOKMARKS->value,      // 10003 - standard bookmarks
+                KindsEnum::BOOKMARK_SETS->value,  // 30003 - bookmark sets
+                KindsEnum::CURATION_SET->value    // 30004 - curation sets
+            ],
             self::INTERESTS => [KindsEnum::INTERESTS->value],
         };
     }

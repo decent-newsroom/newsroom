@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Entity\Event;
 use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
@@ -38,15 +39,16 @@ class FetchAuthorContentHandler
         $since = $message->getSince();
 
         if (empty($contentTypes)) {
-            $this->logger->info('No content types to fetch (ownership check filtered all)', [
+            $this->logger->info('⚠️  No content types to fetch (ownership check filtered all)', [
                 'pubkey' => $pubkey
             ]);
             return;
         }
 
-        $this->logger->info('Fetching author content', [
+        $this->logger->info('🚀 FetchAuthorContentHandler invoked - Starting content fetch', [
             'pubkey' => $pubkey,
             'content_types' => array_map(fn($t) => $t->value, $contentTypes),
+            'kinds' => $message->getKinds(),
             'since' => $since,
             'is_owner' => $message->isOwner(),
         ]);
@@ -55,13 +57,13 @@ class FetchAuthorContentHandler
         $relays = $message->getRelays() ?? $this->authorRelayService->getRelaysForFetching($pubkey);
 
         if (empty($relays)) {
-            $this->logger->error('No relays available for fetching author content', [
+            $this->logger->error('❌ No relays available for fetching author content', [
                 'pubkey' => $pubkey,
             ]);
             return;
         }
 
-        $this->logger->info('Using relays for content fetch', [
+        $this->logger->info('🔗 Using relays for content fetch (NIP-65 discovery)', [
             'pubkey' => $pubkey,
             'relays' => $relays,
             'relay_count' => count($relays),
@@ -70,6 +72,11 @@ class FetchAuthorContentHandler
         // Fetch and process each content type
         foreach ($contentTypes as $contentType) {
             try {
+                $this->logger->info('📡 Fetching content type ' . $contentType->value . ' from relays', [
+                    'content_type' => $contentType->value,
+                    'kinds' => $contentType->getKinds(),
+                ]);
+
                 $events = $this->fetchContentType($pubkey, $contentType, $relays, $since);
                 $processedData = $this->processEvents($pubkey, $contentType, $events);
 
@@ -78,7 +85,7 @@ class FetchAuthorContentHandler
                     $this->publishToMercure($pubkey, $contentType, $processedData);
                 }
 
-                $this->logger->info('Processed author content type', [
+                $this->logger->info('✅ Processed author content type  ' . $contentType->value, [
                     'pubkey' => $pubkey,
                     'content_type' => $contentType->value,
                     'event_count' => count($events),
@@ -86,7 +93,7 @@ class FetchAuthorContentHandler
                 ]);
 
             } catch (\Exception $e) {
-                $this->logger->error('Error fetching content type', [
+                $this->logger->error('❌ Error fetching content type  ' . $contentType->value, [
                     'pubkey' => $pubkey,
                     'content_type' => $contentType->value,
                     'error' => $e->getMessage(),
@@ -107,7 +114,7 @@ class FetchAuthorContentHandler
         int $since
     ): array {
         if (empty($relays)) {
-            $this->logger->warning('No relays provided to fetchContentType', [
+            $this->logger->warning('⚠️  No relays provided to fetchContentType', [
                 'pubkey' => $pubkey,
                 'content_type' => $contentType->value,
             ]);
@@ -116,14 +123,25 @@ class FetchAuthorContentHandler
 
         $kinds = $contentType->getKinds();
 
-        $this->logger->debug('Fetching content type from relays', [
+        $this->logger->info('🔍 Preparing to query relays', [
             'pubkey' => $pubkey,
             'content_type' => $contentType->value,
             'kinds' => $kinds,
+            'relays' => $relays,
             'relay_count' => count($relays),
+            'since' => $since,
         ]);
 
         try {
+            $this->logger->info('📤 Sending filter to relays via NostrRelayPool', [
+                'filter' => [
+                    'kinds' => $kinds,
+                    'authors' => [$pubkey],
+                    'limit' => 100,
+                    'since' => $since > 0 ? $since : null,
+                ]
+            ]);
+
             $responses = $this->relayPool->sendToRelays(
                 $relays,
                 function () use ($pubkey, $kinds, $since) {
@@ -139,24 +157,41 @@ class FetchAuthorContentHandler
                         $filter->setSince($since);
                     }
 
+                    $this->logger->debug('🎯 Filter created', [
+                        'subscription_id' => $subscriptionId,
+                        'filter_details' => [
+                            'kinds' => $kinds,
+                            'authors' => [$pubkey],
+                            'limit' => 100,
+                        ]
+                    ]);
+
                     return new RequestMessage($subscriptionId, [$filter]);
                 }
             );
+
+            $this->logger->info('📥 Received responses from relays', [
+                'response_count' => count($responses),
+                'relay_urls' => array_keys($responses),
+            ]);
+
         } catch (\Exception $e) {
-            $this->logger->error('Failed to send request to relays', [
+            $this->logger->error('❌ Failed to send request to relays', [
                 'pubkey' => $pubkey,
                 'content_type' => $contentType->value,
                 'error' => $e->getMessage(),
                 'exception_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
             ]);
             return [];
         }
 
         if (empty($responses)) {
-            $this->logger->warning('No responses received from relays', [
+            $this->logger->warning('⚠️  No responses received from relays', [
                 'pubkey' => $pubkey,
                 'content_type' => $contentType->value,
                 'relay_count' => count($relays),
+                'relays' => $relays,
             ]);
             return [];
         }
@@ -167,7 +202,7 @@ class FetchAuthorContentHandler
 
         foreach ($responses as $relayUrl => $relayResponses) {
             if (!is_array($relayResponses)) {
-                $this->logger->warning('Invalid relay responses format', [
+                $this->logger->warning('⚠️  Invalid relay responses format', [
                     'pubkey' => $pubkey,
                     'content_type' => $contentType->value,
                     'relay_url' => $relayUrl,
@@ -176,19 +211,32 @@ class FetchAuthorContentHandler
                 continue;
             }
 
+            $relayEventCount = 0;
             foreach ($relayResponses as $response) {
                 if (isset($response->type) && $response->type === 'EVENT' && isset($response->event)) {
                     $eventId = $response->event->id ?? null;
                     if ($eventId && !isset($seenIds[$eventId])) {
                         $seenIds[$eventId] = true;
                         $events[] = $response->event;
+                        $relayEventCount++;
                     }
                 }
             }
+
+            $this->logger->info('📊 Relay response processed', [
+                'relay_url' => $relayUrl,
+                'events_from_relay' => $relayEventCount,
+                'total_responses' => count($relayResponses),
+            ]);
         }
 
         // Sort by created_at descending
         usort($events, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
+
+        $this->logger->info('✅ Relay fetch complete', [
+            'total_unique_events' => count($events),
+            'event_ids' => array_slice(array_keys($seenIds), 0, 5), // Show first 5 IDs
+        ]);
 
         return $events;
     }
@@ -261,7 +309,7 @@ class FetchAuthorContentHandler
             return;
         }
 
-        $entity = new \App\Entity\Event();
+        $entity = new Event();
         $entity->setId($event->id);
         $entity->setEventId($event->id);
         $entity->setKind($event->kind ?? 0);
