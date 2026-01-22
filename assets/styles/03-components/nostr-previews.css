@@ -5,7 +5,7 @@
  */
 
 .nostr-article-preview.card {
-    margin: 0;
+    padding-bottom: var(--spacing-2);
     background: var(--color-bg-light);
 }
 
