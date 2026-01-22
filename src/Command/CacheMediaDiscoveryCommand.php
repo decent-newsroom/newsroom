@@ -68,7 +68,7 @@ class CacheMediaDiscoveryCommand extends Command
             }
 
             $env = $this->params->get('kernel.environment');
-            $cacheKey = 'media_discovery_events_all_prod_' . $env;
+            $cacheKey = 'media_discovery_events_all_' . $env;
 
             if ($force) {
                 $io->info('Force refresh enabled - deleting existing cache');
