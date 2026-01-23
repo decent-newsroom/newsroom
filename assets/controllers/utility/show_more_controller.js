@@ -3,6 +3,16 @@ import { Controller } from "@hotwired/stimulus";
 export default class extends Controller {
     static targets = ["preview", "full", "button"];
 
+    connect() {
+        // Check if content is short enough to not need the button
+        if (this.hasPreviewTarget && this.previewTarget.scrollHeight <= 200) {
+            this.previewTarget.classList.add('no-fade');
+            if (this.hasButtonTarget) {
+                this.buttonTarget.style.display = 'none';
+            }
+        }
+    }
+
     toggle(event) {
         event?.preventDefault?.();
         if (this.fullTarget.style.display === "none") {
@@ -16,4 +26,3 @@ export default class extends Controller {
         }
     }
 }
-

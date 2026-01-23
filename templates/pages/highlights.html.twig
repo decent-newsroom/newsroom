@@ -38,7 +38,7 @@
                             </div>
                         </div>
 
-                        <div class="highlight-content">
+                        <div class="highlight-content" data-controller="utility--show-more">
                             {% if highlight.context %}
                                 {# Render markdown to HTML first, then wrap highlight substring in a span. #}
                                 {% set htmlContext = highlight.context|markdown_to_html %}
@@ -46,14 +46,30 @@
                                     {% set wrapper = '<span class="highlight-mark">' ~ highlight.content ~ '</span>' %}
                                     {# Replace occurrences in rendered HTML and output raw HTML #}
                                     {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
-                                    {{ rendered|raw }}
+                                    <div data-utility--show-more-target="preview" class="content-preview">
+                                        {{ rendered|raw }}
+                                    </div>
+                                    <div data-utility--show-more-target="full" class="content-full" style="display: none;">
+                                        {{ rendered|raw }}
+                                    </div>
                                 {% else %}
-                                    <div class="context-text">{{ htmlContext|raw }}</div>
-                                    <div><span class="highlight-mark">{{ highlight.content }}</span></div>
+                                    <div data-utility--show-more-target="preview" class="content-preview">
+                                        <div class="context-text">{{ htmlContext|raw }}</div>
+                                        <div><span class="highlight-mark">{{ highlight.content }}</span></div>
+                                    </div>
+                                    <div data-utility--show-more-target="full" class="content-full" style="display: none;">
+                                        <div class="context-text">{{ htmlContext|raw }}</div>
+                                        <div><span class="highlight-mark">{{ highlight.content }}</span></div>
+                                    </div>
                                 {% endif %}
                             {% else %}
                                 <span class="highlight-mark">{{ highlight.content }}</span>
                             {% endif %}
+                            <button data-utility--show-more-target="button"
+                                    data-action="click->utility--show-more#toggle"
+                                    class="show-more-button">
+                                Show more
+                            </button>
                         </div>
 
                         <div class="highlight-footer">
