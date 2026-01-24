@@ -279,10 +279,17 @@ class ArticleController  extends AbstractController
         ]);
 
         if (!$htmlContent) {
-            // Fall back to converting on-the-fly and save for future requests
-            $htmlContent = $converter->convertToHTML($article->getContent());
-            $article->setProcessedHtml($htmlContent);
-            $entityManager->flush();
+            try {
+                // Fall back to converting on-the-fly and save for future requests
+                $htmlContent = $converter->convertToHTML($article->getContent());
+                $article->setProcessedHtml($htmlContent);
+                $entityManager->flush();
+            } catch (\Exception $e) {
+                $logger->error('Error converting article content to HTML', [
+                    'article_id' => $article->getId(),
+                    'error' => $e->getMessage()
+                ]);
+            }
         }
 
         $authorMetadata = $redisCacheService->getMetadata($article->getPubkey());

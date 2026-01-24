@@ -290,4 +290,81 @@ class EventRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Find comments and zaps for an article by coordinate.
+     *
+     * Searches for events with kind 1111 (comments) or 9735 (zap receipts)
+     * that have an "A" tag matching the article coordinate.
+     *
+     * @param string $coordinate Article coordinate (kind:pubkey:identifier)
+     * @param int|null $since Optional timestamp to fetch only newer comments
+     * @param int $limit Maximum number of comments to return
+     * @return Event[] Array of comment and zap events, ordered by created_at DESC
+     */
+    public function findCommentsByCoordinate(string $coordinate, ?int $since = null, int $limit = 500): array
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->where($qb->expr()->in('e.kind', ':kinds'))
+            ->setParameter('kinds', [1111, 9735]);
+
+        // Search for the 'A' tag with the coordinate
+        // JSON search: find events where tags contain ['A', coordinate]
+        $qb->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+            ->setParameter('coordinate', $coordinate);
+
+        if ($since !== null && $since > 0) {
+            $qb->andWhere('e.created_at > :since')
+                ->setParameter('since', $since);
+        }
+
+        $qb->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Get the latest comment timestamp for an article coordinate.
+     * Used for incremental fetching with "since" parameter.
+     *
+     * @param string $coordinate Article coordinate (kind:pubkey:identifier)
+     * @return int|null Latest comment timestamp or null if no comments exist
+     */
+    public function findLatestCommentTimestamp(string $coordinate): ?int
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->select('e.created_at')
+            ->where($qb->expr()->in('e.kind', ':kinds'))
+            ->setParameter('kinds', [1111, 9735])
+            ->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+            ->setParameter('coordinate', $coordinate)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(1);
+
+        $result = $qb->getQuery()->getOneOrNullResult();
+
+        return $result ? (int)$result['created_at'] : null;
+    }
+
+    /**
+     * Count comments for an article coordinate (excluding zap receipts).
+     *
+     * @param string $coordinate Article coordinate (kind:pubkey:identifier)
+     * @return int Number of comments
+     */
+    public function countCommentsByCoordinate(string $coordinate): int
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->select('COUNT(e.id)')
+            ->where('e.kind = :kind')
+            ->setParameter('kind', 1111)
+            ->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+            ->setParameter('coordinate', $coordinate);
+
+        return (int)$qb->getQuery()->getSingleScalarResult();
+    }
 }

@@ -3,9 +3,10 @@
 namespace App\MessageHandler;
 
 use App\Message\FetchCommentsMessage;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\CommentEventProjector;
 use App\Service\Nostr\NostrClient;
-use App\Service\Nostr\NostrLinkParser;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -14,14 +15,13 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 class FetchCommentsHandler
 {
-    private const SOFT_TTL = 10;   // serve cached instantly within 10s
-    private const HARD_TTL = 60;   // force refresh after 60s
-    private const CACHE_TTL = 90;  // stored item TTL (just > HARD_TTL)
+    private const CACHE_TTL = 30;  // Cache for 30s as performance layer over DB
 
     public function __construct(
         private readonly NostrClient $nostrClient,
-        private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisCacheService $redisCacheService,
+        private readonly EventRepository $eventRepository,
+        private readonly CommentEventProjector $commentProjector,
         private readonly HubInterface $hub,
         private readonly LoggerInterface $logger
     ) {}
@@ -30,62 +30,20 @@ class FetchCommentsHandler
     {
         $coordinate = $message->getCoordinate();
 
-        // 0) Try cache
+        // Step 1: Check cache first (fast path)
         $cached = $this->redisCacheService->getCommentsPayload($coordinate);
-        $now    = time();
-        $age    = $cached ? $now - (int)($cached['stored_at'] ?? 0) : PHP_INT_MAX;
-
-        // 1) Fresh enough? Publish and return
-        if ($cached && $age <= self::SOFT_TTL) {
+        if ($cached) {
             $this->publish($coordinate, $cached['comments'], $cached['profiles']);
+            $this->logger->debug('Published cached comments', ['coordinate' => $coordinate]);
             return;
         }
 
-        // 2) Soft-stale: publish cached immediately, then refresh incrementally
-        if ($cached && $age <= self::HARD_TTL) {
-            $this->publish($coordinate, $cached['comments'], $cached['profiles']);
-            $this->refreshIncremental($coordinate, $cached);
-            return;
-        }
+        // Step 2: Get comments from database (stale-while-revalidate)
+        $dbComments = $this->eventRepository->findCommentsByCoordinate($coordinate);
 
-        // 3) No cache or hard-stale: full refresh
-        $this->refreshFull($coordinate, $cached);
-    }
-
-    private function refreshIncremental(string $coordinate, array $cached): void
-    {
-        try {
-            $sinceTs = (int)($cached['max_ts'] ?? 0);
-
-            // Prefer incremental fetch if your NostrClient supports it
-            // e.g. getComments(string $coordinate, ?int $since = null): array
-            $new = $this->nostrClient->getComments($coordinate, $sinceTs + 1);
-
-            if (!empty($new)) {
-                $merged = $this->mergeComments($cached['comments'], $new);
-                [$profiles, $maxTs] = $this->hydrateProfilesAndTs($merged);
-
-                $payload = [
-                    'comments'  => $merged,
-                    'profiles'  => $profiles,
-                    'max_ts'    => $maxTs,
-                    'stored_at' => time(),
-                ];
-
-                $this->redisCacheService->setCommentsPayload($coordinate, $payload, self::CACHE_TTL);
-                $this->publish($coordinate, $merged, $profiles);
-            }
-        } catch (\Throwable $e) {
-            $this->logger->warning('Incremental comments refresh failed', [
-                'coord' => $coordinate, 'err' => $e->getMessage()
-            ]);
-        }
-    }
-
-    private function refreshFull(string $coordinate, ?array $cached): void
-    {
-        try {
-            $comments = $this->nostrClient->getComments($coordinate);
+        if (!empty($dbComments)) {
+            // We have DB comments - publish them immediately
+            $comments = $this->convertEventsToObjects($dbComments);
             [$profiles, $maxTs] = $this->hydrateProfilesAndTs($comments);
 
             $payload = [
@@ -95,30 +53,96 @@ class FetchCommentsHandler
                 'stored_at' => time(),
             ];
 
+            // Cache for quick subsequent access
             $this->redisCacheService->setCommentsPayload($coordinate, $payload, self::CACHE_TTL);
             $this->publish($coordinate, $comments, $profiles);
-        } catch (\Throwable $e) {
-            $this->logger->error('Full comments refresh failed', [
-                'coord' => $coordinate, 'err' => $e->getMessage()
+
+            $this->logger->info('Published comments from database', [
+                'coordinate' => $coordinate,
+                'count' => count($comments)
+            ]);
+        }
+
+        // Step 3: Refresh from relays (async/background refresh)
+        $this->refreshFromRelays($coordinate, $dbComments);
+    }
+
+    /**
+     * Refresh comments from Nostr relays, persisting new ones to database
+     */
+    private function refreshFromRelays(string $coordinate, array $existingDbComments): void
+    {
+        try {
+            // Get the latest timestamp from DB for incremental fetch
+            $since = $this->eventRepository->findLatestCommentTimestamp($coordinate);
+
+            $this->logger->info('Fetching fresh comments from relays', [
+                'coordinate' => $coordinate,
+                'since' => $since,
+                'existing_count' => count($existingDbComments)
             ]);
 
-            // If we had *any* cache, at least publish that so clients see something
-            if ($cached) {
-                $this->publish($coordinate, $cached['comments'], $cached['profiles']);
+            // Fetch from relays (local relay first, then others)
+            $newEvents = $this->nostrClient->getComments($coordinate, $since);
+
+            if (empty($newEvents)) {
+                $this->logger->debug('No new comments from relays', ['coordinate' => $coordinate]);
+                return;
             }
+
+            // Persist new events to database
+            $persistedCount = $this->commentProjector->projectEvents($newEvents);
+
+            if ($persistedCount > 0) {
+                // Fetch updated list from DB and publish
+                $allComments = $this->eventRepository->findCommentsByCoordinate($coordinate);
+                $comments = $this->convertEventsToObjects($allComments);
+                [$profiles, $maxTs] = $this->hydrateProfilesAndTs($comments);
+
+                $payload = [
+                    'comments'  => $comments,
+                    'profiles'  => $profiles,
+                    'max_ts'    => $maxTs,
+                    'stored_at' => time(),
+                ];
+
+                // Update cache
+                $this->redisCacheService->setCommentsPayload($coordinate, $payload, self::CACHE_TTL);
+
+                // Publish updated comments
+                $this->publish($coordinate, $comments, $profiles);
+
+                $this->logger->info('Refreshed and published new comments', [
+                    'coordinate' => $coordinate,
+                    'new_count' => $persistedCount,
+                    'total_count' => count($comments)
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to refresh comments from relays', [
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 
-    /** Merge + sort desc by created_at, dedupe by id */
-    private function mergeComments(array $existing, array $new): array
+    /**
+     * Convert Event entities to stdClass objects for compatibility with frontend
+     */
+    private function convertEventsToObjects(array $events): array
     {
-        $byId = [];
-        foreach ($existing as $c) { $byId[$c->id] = $c; }
-        foreach ($new as $c)      { $byId[$c->id] = $c; }
-
-        $all = array_values($byId);
-        usort($all, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
-        return $all;
+        return array_map(function($event) {
+            $obj = new \stdClass();
+            $obj->id = $event->getId();
+            $obj->kind = $event->getKind();
+            $obj->pubkey = $event->getPubkey();
+            $obj->content = $event->getContent();
+            $obj->created_at = $event->getCreatedAt();
+            $obj->tags = $event->getTags();
+            $obj->sig = $event->getSig();
+            return $obj;
+        }, $events);
     }
 
     /** Collect pubkeys (authors + zappers), hydrate profiles via your Redis cache, compute max_ts */
