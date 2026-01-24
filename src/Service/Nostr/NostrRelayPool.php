@@ -465,7 +465,7 @@ class NostrRelayPool
         $subscriptionId = $subscription->setId();
 
         $filter = new Filter();
-        $filter->setKinds([30023, 20]); // Longform article events, images
+        $filter->setKinds([30023]); // Longform article events only (media handled by media worker)
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
         $payload = $requestMessage->generate();
@@ -473,7 +473,7 @@ class NostrRelayPool
         $this->logger->info('Sending REQ to local relay', [
             'relay' => $relayUrl,
             'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => [30023, 20]]
+            'filter' => ['kinds' => [30023]]
         ]);
 
         // Send the subscription request
@@ -702,7 +702,7 @@ class NostrRelayPool
         $subscriptionId = $subscription->setId();
 
         $filter = new Filter();
-        $filter->setKinds([20]); // NIP-68 Picture and Video events
+        $filter->setKinds([20, 21, 22]); // NIP-68 Picture and Video events
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
         $payload = $requestMessage->generate();
@@ -710,7 +710,7 @@ class NostrRelayPool
         $this->logger->info('Sending REQ to local relay for media', [
             'relay' => $relayUrl,
             'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => [20]]
+            'filter' => ['kinds' => [20, 21, 22]]
         ]);
 
         // Send the subscription request
@@ -873,5 +873,238 @@ class NostrRelayPool
 
         // This line should never be reached (infinite loop above)
         $this->logger->warning('Media subscription loop exited unexpectedly');
+    }
+
+    /**
+     * Subscribe to local relay for generic events by kind(s) in real-time
+     * This is a long-lived subscription that processes events via callback
+     * Blocks forever - meant to be run as a daemon process
+     *
+     * @param array<int> $kinds Array of event kinds to subscribe to
+     * @param callable $onEvent Callback function(object $event, string $relayUrl): void
+     * @throws \Exception if subscription fails
+     */
+    public function subscribeLocalGenericEvents(array $kinds, callable $onEvent): void
+    {
+        if (!$this->nostrDefaultRelay) {
+            throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
+        }
+
+        if (empty($kinds)) {
+            throw new \InvalidArgumentException('At least one event kind must be specified');
+        }
+
+        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
+
+        $this->logger->info('Starting long-lived subscription to local relay for generic events', [
+            'relay' => $relayUrl,
+            'kinds' => $kinds
+        ]);
+
+        // Get relay connection
+        $relay = $this->getRelay($relayUrl);
+
+        // Ensure relay is connected
+        if (!$relay->isConnected()) {
+            $relay->connect();
+        }
+
+        $client = $relay->getClient();
+
+        // Use reasonable timeout (15 seconds per receive call)
+        $client->setTimeout(15);
+
+        // Create subscription for specified event kinds
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+
+        $filter = new Filter();
+        $filter->setKinds($kinds);
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+        $payload = $requestMessage->generate();
+
+        $this->logger->info('Sending REQ to local relay for generic events', [
+            'relay' => $relayUrl,
+            'subscription_id' => $subscriptionId,
+            'filter' => ['kinds' => $kinds]
+        ]);
+
+        // Send the subscription request
+        $client->text($payload);
+
+        $this->logger->info('Entering infinite receive loop for generic events...');
+
+        // Track if we've received EOSE
+        $eoseReceived = false;
+
+        // Infinite loop: receive and process messages
+        while (true) {
+            try {
+                $resp = $client->receive();
+
+                // Handle PING/PONG for keepalive
+                if ($resp instanceof \WebSocket\Message\Ping) {
+                    $client->text((new \WebSocket\Message\Pong())->getPayload());
+                    $this->logger->debug('Received PING, sent PONG');
+                    continue;
+                }
+
+                // Only process text messages
+                if (!($resp instanceof \WebSocket\Message\Text)) {
+                    continue;
+                }
+
+                $content = $resp->getContent();
+                $decoded = json_decode($content);
+
+                if (!$decoded) {
+                    $this->logger->debug('Failed to decode message from relay', [
+                        'relay' => $relayUrl,
+                        'content_preview' => substr($content, 0, 100)
+                    ]);
+                    continue;
+                }
+
+                // Parse relay response
+                $relayResponse = RelayResponse::create($decoded);
+
+                // Handle different response types
+                switch ($relayResponse->type) {
+                    case 'EVENT':
+                        // Process the event
+                        if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
+                            $event = $relayResponse->event;
+
+                            $this->logger->info('Received generic event from relay', [
+                                'relay' => $relayUrl,
+                                'event_id' => $event->id ?? 'unknown',
+                                'kind' => $event->kind ?? 'unknown',
+                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...'
+                            ]);
+
+                            // Call the callback with the event
+                            try {
+                                $onEvent($event, $relayUrl);
+                            } catch (\Throwable $e) {
+                                // Log callback errors but don't break the loop
+                                $this->logger->error('Error in generic event callback', [
+                                    'event_id' => $event->id ?? 'unknown',
+                                    'kind' => $event->kind ?? 'unknown',
+                                    'error' => $e->getMessage(),
+                                    'exception' => get_class($e)
+                                ]);
+                            }
+                        }
+                        break;
+
+                    case 'EOSE':
+                        // End of stored events - continue listening for new events
+                        $eoseReceived = true;
+                        $this->logger->info('Received EOSE - all stored events processed, now listening for new events', [
+                            'relay' => $relayUrl,
+                            'subscription_id' => $subscriptionId
+                        ]);
+                        break;
+
+                    case 'CLOSED':
+                        // Subscription closed by relay
+                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $this->logger->warning('Relay closed subscription', [
+                            'relay' => $relayUrl,
+                            'subscription_id' => $subscriptionId,
+                            'message' => $decodedArray[2] ?? 'no message'
+                        ]);
+                        throw new \Exception('Subscription closed by relay: ' . ($decodedArray[2] ?? 'no message'));
+
+                    case 'NOTICE':
+                        // Notice from relay
+                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $message = $decodedArray[1] ?? 'no message';
+                        if (str_starts_with($message, 'ERROR:')) {
+                            $this->logger->error('Received ERROR NOTICE from relay', [
+                                'relay' => $relayUrl,
+                                'message' => $message
+                            ]);
+                            throw new \Exception('Relay error: ' . $message);
+                        }
+                        $this->logger->info('Received NOTICE from relay', [
+                            'relay' => $relayUrl,
+                            'message' => $message
+                        ]);
+                        break;
+
+                    case 'OK':
+                        // Command result
+                        $this->logger->debug('Received OK from relay', [
+                            'relay' => $relayUrl,
+                            'message' => json_encode($decoded)
+                        ]);
+                        break;
+
+                    case 'AUTH':
+                        // NIP-42 auth challenge
+                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $this->logger->info('Received AUTH challenge from relay (ignoring for read-only subscription)', [
+                            'relay' => $relayUrl,
+                            'challenge' => $decodedArray[1] ?? 'no challenge'
+                        ]);
+                        break;
+
+                    default:
+                        $this->logger->debug('Received unknown message type from relay', [
+                            'relay' => $relayUrl,
+                            'type' => $relayResponse->type ?? 'unknown',
+                            'content' => json_encode($decoded)
+                        ]);
+                        break;
+                }
+
+            } catch (\Throwable $e) {
+                $errorMessage = strtolower($e->getMessage());
+                $errorClass = strtolower(get_class($e));
+
+                // Timeouts are normal when waiting for new events
+                if (stripos($errorMessage, 'timeout') !== false ||
+                    stripos($errorClass, 'timeout') !== false ||
+                    stripos($errorMessage, 'connection operation') !== false) {
+                    if ($eoseReceived) {
+                        // Only log timeout every 60 seconds to avoid spam
+                        static $lastGenericTimeoutLog = 0;
+                        if (time() - $lastGenericTimeoutLog > 60) {
+                            $this->logger->debug('Waiting for new generic events (no activity)', [
+                                'relay' => $relayUrl,
+                                'kinds' => $kinds
+                            ]);
+                            $lastGenericTimeoutLog = time();
+                        }
+                    }
+                    continue;
+                }
+
+                // Bad messages - log and continue
+                if (stripos($errorMessage, 'bad msg') !== false ||
+                    stripos($errorMessage, 'unparseable') !== false ||
+                    stripos($errorMessage, 'invalid') !== false) {
+                    $this->logger->debug('Skipping invalid message from relay, continuing', [
+                        'relay' => $relayUrl,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
+
+                // Fatal errors - log and rethrow
+                $this->logger->error('Fatal error in generic subscription loop', [
+                    'relay' => $relayUrl,
+                    'kinds' => $kinds,
+                    'error' => $e->getMessage(),
+                    'exception' => get_class($e)
+                ]);
+                throw $e;
+            }
+        }
+
+        // This line should never be reached
+        $this->logger->warning('Generic subscription loop exited unexpectedly');
     }
 }

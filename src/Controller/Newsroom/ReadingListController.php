@@ -6,6 +6,7 @@ namespace App\Controller\Newsroom;
 
 use App\Dto\CategoryDraft;
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\CategoryType;
 use App\Service\ReadingListManager;
@@ -50,7 +51,7 @@ class ReadingListController extends AbstractController
 
         if ($pubkeyHex) {
             $repo = $em->getRepository(Event::class);
-            $events = $repo->findBy(['kind' => 30040, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
+            $events = $repo->findBy(['kind' => KindsEnum::PUBLICATION_INDEX->value, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
             $seenSlugs = [];
             foreach ($events as $ev) {
                 if (!$ev instanceof Event) continue;

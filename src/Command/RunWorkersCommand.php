@@ -46,6 +46,12 @@ class RunWorkersCommand extends Command
                 'Disable media hydration worker'
             )
             ->addOption(
+                'without-magazines',
+                null,
+                InputOption::VALUE_NONE,
+                'Disable magazine hydration worker'
+            )
+            ->addOption(
                 'without-profiles',
                 null,
                 InputOption::VALUE_NONE,
@@ -76,6 +82,7 @@ class RunWorkersCommand extends Command
                 'Workers:' . "\n" .
                 '  - Article hydration: Subscribes to relay for article events (kind 30023)' . "\n" .
                 '  - Media hydration: Subscribes to relay for media events (kinds 20, 21, 22)' . "\n" .
+                '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
                 '  - Profile refresh: Periodic profile metadata updates' . "\n" .
                 '  - Messenger consumer: Async job queue processing' . "\n\n" .
                 'All workers restart automatically on failure.'
@@ -110,6 +117,13 @@ class RunWorkersCommand extends Command
             $workers['media'] = [
                 'command' => ['php', 'bin/console', 'media:subscribe-local-relay', '-vv'],
                 'description' => 'Media hydration worker'
+            ];
+        }
+
+        if (!$input->getOption('without-magazines')) {
+            $workers['magazines'] = [
+                'command' => ['php', 'bin/console', 'magazines:subscribe-local-relay', '-vv'],
+                'description' => 'Magazine hydration worker'
             ];
         }
 
