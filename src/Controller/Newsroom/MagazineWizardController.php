@@ -180,18 +180,11 @@ class MagazineWizardController extends AbstractController
     public function publishIndexEvent(
         Request                   $request,
         CacheItemPoolInterface    $appCache,
-        CsrfTokenManagerInterface $csrfTokenManager,
         RedisClient               $redis,
         EntityManagerInterface    $entityManager,
         NostrClient               $nostrClient,
         LoggerInterface           $logger
     ): JsonResponse {
-        // Verify CSRF token
-        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
-        if (!$csrfTokenManager->isTokenValid(new CsrfToken('nostr_publish', $csrfToken))) {
-            return new JsonResponse(['error' => 'Invalid CSRF token'], 403);
-        }
-
         $data = json_decode($request->getContent(), true);
         if (!$data || !isset($data['event'])) {
             return new JsonResponse(['error' => 'Invalid request'], 400);

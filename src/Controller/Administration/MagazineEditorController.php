@@ -89,12 +89,8 @@ class MagazineEditorController extends AbstractController
         string $slug,
         Request $request,
         CacheItemPoolInterface $cachePool,
-        CsrfTokenManagerInterface $csrf
     ): RedirectResponse {
-        $token = (string) $request->request->get('_token');
-        if (!$csrf->isTokenValid(new CsrfToken('admin_mag_edit', $token))) {
-            throw $this->createAccessDeniedException('Invalid CSRF');
-        }
+
         $articleSlug = trim((string) $request->request->get('article_slug', ''));
         $pubkey = trim((string) $request->request->get('article_pubkey', ''));
         if ($articleSlug === '' || $pubkey === '') {
@@ -124,13 +120,8 @@ class MagazineEditorController extends AbstractController
     public function removeArticle(
         string $slug,
         Request $request,
-        CacheItemPoolInterface $cachePool,
-        CsrfTokenManagerInterface $csrf
+        CacheItemPoolInterface $cachePool
     ): RedirectResponse {
-        $token = (string) $request->request->get('_token');
-        if (!$csrf->isTokenValid(new CsrfToken('admin_mag_edit', $token))) {
-            throw $this->createAccessDeniedException('Invalid CSRF');
-        }
         $articleSlug = trim((string) $request->request->get('article_slug', ''));
         if ($articleSlug === '') {
             return $this->redirectToRoute('admin_magazine_edit', ['slug' => $slug]);
