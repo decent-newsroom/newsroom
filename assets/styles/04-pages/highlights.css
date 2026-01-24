@@ -48,7 +48,7 @@
 }
 
 .highlight-content .content-preview {
-    max-height: 200px;
+    max-height: 280px;
     overflow: hidden;
     position: relative;
 }
@@ -239,7 +239,6 @@
     display: none;
     margin-top: 3rem;
     padding-top: 2rem;
-    border-top: 2px solid var(--color-border);
 }
 
 .highlights-mobile-heading {
