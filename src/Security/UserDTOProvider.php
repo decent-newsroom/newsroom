@@ -3,12 +3,11 @@
 namespace App\Security;
 
 use App\Entity\User;
-use App\Service\RedisCacheService;
-use App\Service\UserMetadataSyncService;
+use App\Message\UpdateProfileProjectionMessage;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
@@ -22,43 +21,51 @@ readonly class UserDTOProvider implements UserProviderInterface
 {
     public function __construct(
         private EntityManagerInterface    $entityManager,
-        private RedisCacheService         $redisCacheService,
-        private UserMetadataSyncService   $metadataSyncService,
-        private LoggerInterface           $logger
+        private LoggerInterface           $logger,
+        private MessageBusInterface       $messageBus
     )
     {
     }
 
     /**
-     * Refreshes the user by reloading it from the database and updating its metadata from cache.
+     * Refreshes the user by reloading it from the database.
+     *
+     * Metadata updates are handled asynchronously and won't block this operation.
      *
      * @param UserInterface $user The user to refresh.
      * @return UserInterface The refreshed user instance.
-     * @throws \InvalidArgumentException|InvalidArgumentException If the provided user is not an instance of User.
+     * @throws \InvalidArgumentException If the provided user is not an instance of User.
      */
     public function refreshUser(UserInterface $user): UserInterface
     {
         if (!$user instanceof User) {
             throw new \InvalidArgumentException('Invalid user type.');
         }
+
         $this->logger->info('Refresh user.', ['user' => $user->getUserIdentifier()]);
+
+        // Reload user from database (fast operation)
         $freshUser = $this->entityManager->getRepository(User::class)
             ->findOneBy(['npub' => $user->getUserIdentifier()]);
-        try {
-            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-        } catch (\InvalidArgumentException $e) {
-            $this->logger->error('Invalid npub identifier.', ['npub' => $user->getUserIdentifier()]);
-            throw $e;
+
+        if (!$freshUser) {
+            // Create minimal user entity if not found
+            $freshUser = new User();
+            $freshUser->setNpub($user->getUserIdentifier());
+            $this->entityManager->persist($freshUser);
+            $this->entityManager->flush();
+
+            $this->logger->info('Created new user during refresh', ['npub' => $user->getUserIdentifier()]);
         }
-        $metadata = $this->redisCacheService->getMetadata($pubkey);
-        $freshUser->setMetadata($metadata);
 
-        // Fetch relays from RedisCacheService and set on user
-        $relays = $this->redisCacheService->getRelays($pubkey);
-        $freshUser->setRelays($relays);
-
-        // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
-        $this->metadataSyncService->syncUser($freshUser);
+         // Trigger async profile update if we want to refresh metadata
+         try {
+             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+             $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+         } catch (\Exception $e) {
+            // Log but don't block refresh
+            $this->logger->error('Exception on dispatch during refresh: ' . $e->getMessage(), ['npub' => $user->getUserIdentifier()]);
+         }
 
         return $freshUser;
     }
@@ -83,7 +90,8 @@ readonly class UserDTOProvider implements UserProviderInterface
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
         $this->logger->info('Load user by identifier.', ['identifier' => $identifier]);
-        // Get or create user
+
+        // Get or create user (fast DB operation)
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['npub' => $identifier]);
 
         if (!$user) {
@@ -91,25 +99,25 @@ readonly class UserDTOProvider implements UserProviderInterface
             $user->setNpub($identifier);
             $this->entityManager->persist($user);
             $this->entityManager->flush();
+
+            $this->logger->info('Created new user', ['npub' => $identifier]);
         }
 
+        // Convert npub to hex for async profile update
         try {
             $pubkey = NostrKeyUtil::npubToHex($identifier);
+
+            // Dispatch async message to update profile projection
+            // This is non-blocking and won't delay login
+            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+
+            $this->logger->debug('Dispatched profile projection update', ['npub' => $identifier]);
         } catch (\InvalidArgumentException $e) {
             $this->logger->error('Invalid npub identifier.', ['npub' => $identifier]);
             throw $e;
         }
-        $metadata = $this->redisCacheService->getMetadata($pubkey);
-        $user->setMetadata($metadata);
-        $this->logger->debug('User metadata set.', ['metadata' => json_encode($user->getMetadata())]);
 
-        // Fetch relays from RedisCacheService and set on user
-        $relays = $this->redisCacheService->getRelays($pubkey);
-        $user->setRelays($relays);
-
-        // Sync metadata to database fields (will also trigger Elasticsearch indexing via listener)
-        $this->metadataSyncService->syncUser($user);
-
+        // Return user immediately - metadata will be updated async
         return $user;
     }
 }

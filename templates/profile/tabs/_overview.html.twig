@@ -39,11 +39,13 @@
         {# Empty state #}
         {% if recentArticles|default([])|length == 0 and recentMedia|default([])|length == 0 and recentHighlights|default([])|length == 0 %}
             <div class="no-content">
-                <p>This author hasn't published any content yet.</p>
                 {% if isOwner|default(false) %}
+                    <p>You haven't published any content yet.</p>
                     <p>
                         <a href="{{ path('editor-create') }}" class="btn btn-primary" data-turbo-frame="_top">Write your first article</a>
                     </p>
+                {% else %}
+                    <p>This author hasn't published any content yet.</p>
                 {% endif %}
             </div>
         {% endif %}

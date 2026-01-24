@@ -114,10 +114,9 @@ class User implements UserInterface, EquatableInterface
         $this->npub = $npub;
     }
 
+    #[\Deprecated]
     public function eraseCredentials(): void
     {
-        $this->metadata = null;
-        $this->relays = null;
     }
 
     public function getUserIdentifier(): string

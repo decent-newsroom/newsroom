@@ -26,6 +26,8 @@ framework:
             'App\Message\FetchAuthorContentMessage': async
             'App\Message\FetchMediaEventsMessage': async
             'App\Message\ProjectMagazineMessage': async
+            'App\Message\UpdateProfileProjectionMessage': async
+            'App\Message\BatchUpdateProfileProjectionMessage': async
 
 # when@test:
 #    framework:

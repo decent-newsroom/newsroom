@@ -203,4 +203,91 @@ class EventRepository extends ServiceEntityRepository
     {
         $this->getEntityManager()->flush();
     }
+
+    /**
+     * Find latest metadata event (kind:0) for a pubkey.
+     *
+     * Uses composite index (pubkey, kind, created_at DESC) for efficient lookup.
+     *
+     * @param string $pubkeyHex Hex pubkey
+     * @return Event|null Latest kind:0 event or null if not found
+     */
+    public function findLatestMetadataByPubkey(string $pubkeyHex): ?Event
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kind', 0)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Find latest relay list event (kind:10002) for a pubkey.
+     *
+     * Uses composite index (pubkey, kind, created_at DESC) for efficient lookup.
+     *
+     * @param string $pubkeyHex Hex pubkey
+     * @return Event|null Latest kind:10002 event or null if not found
+     */
+    public function findLatestRelayListByPubkey(string $pubkeyHex): ?Event
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kind', 10002)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Find latest profile event for a pubkey (metadata or relay list).
+     *
+     * Generic method that can fetch any profile-related kind.
+     * Uses composite index (pubkey, kind, created_at DESC) for efficient lookup.
+     *
+     * @param string $pubkeyHex Hex pubkey
+     * @param int $kind Event kind (0 for metadata, 10002 for relay list, etc.)
+     * @return Event|null Latest event of specified kind or null if not found
+     */
+    public function findLatestByPubkeyAndKind(string $pubkeyHex, int $kind): ?Event
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kind', $kind)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Find all profile events for a pubkey (metadata and relay list).
+     *
+     * Returns both kind:0 and kind:10002 events for comprehensive profile data.
+     * Uses composite index (pubkey, kind, created_at DESC) for efficient lookup.
+     *
+     * @param string $pubkeyHex Hex pubkey
+     * @return Event[] Array of profile events (kind:0 and kind:10002)
+     */
+    public function findProfileEventsByPubkey(string $pubkeyHex): array
+    {
+        return $this->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere($this->createQueryBuilder('e')->expr()->in('e.kind', ':kinds'))
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kinds', [0, 10002])
+            ->orderBy('e.kind', 'ASC')
+            ->addOrderBy('e.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }
