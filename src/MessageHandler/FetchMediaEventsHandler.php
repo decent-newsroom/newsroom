@@ -4,7 +4,7 @@ namespace App\MessageHandler;
 
 use App\Message\FetchMediaEventsMessage;
 use App\Repository\EventRepository;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

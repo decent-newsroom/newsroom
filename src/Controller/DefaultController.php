@@ -7,11 +7,11 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Cache\RedisViewStore;
 use App\Service\MutedPubkeysService;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
-use App\Service\RedisCacheService;
-use App\Service\RedisViewStore;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\CommonMark\Converter;
@@ -21,12 +21,12 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Psr\Log\LoggerInterface;
 
 class DefaultController extends AbstractController
 {

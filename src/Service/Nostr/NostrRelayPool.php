@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Nostr;
 
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;

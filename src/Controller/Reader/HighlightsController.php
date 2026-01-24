@@ -6,9 +6,9 @@ namespace App\Controller\Reader;
 
 use App\Message\FetchHighlightsMessage;
 use App\Repository\EventRepository;
-use App\Service\NostrClient;
-use App\Service\NostrLinkParser;
-use App\Service\RedisViewStore;
+use App\Service\Cache\RedisViewStore;
+use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrLinkParser;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

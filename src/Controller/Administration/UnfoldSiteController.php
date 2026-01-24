@@ -7,7 +7,7 @@ namespace App\Controller\Administration;
 use App\Entity\UnfoldSite;
 use App\Enum\KindsEnum;
 use App\Repository\UnfoldSiteRepository;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;

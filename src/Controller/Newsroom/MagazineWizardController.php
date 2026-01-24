@@ -10,11 +10,13 @@ use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineSetupType;
 use App\Message\ProjectMagazineMessage;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Redis as RedisClient;
 use swentel\nostr\Event\Event;
+use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,8 +26,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
-use swentel\nostr\Key\Key;
-use Redis as RedisClient;
 
 /**
  * Magazine Wizard Controller

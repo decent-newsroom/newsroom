@@ -2,8 +2,8 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
-use App\Service\NostrClient;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
@@ -15,7 +15,6 @@ use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
 use nostriphant\NIP19\Data\NPub;
 use Twig\Environment;
-use swentel\nostr\Key\Key;
 
 
 class NostrSchemeParser  implements InlineParserInterface

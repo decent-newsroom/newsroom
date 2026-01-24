@@ -7,7 +7,7 @@ namespace App\Controller\Reader;
 use App\Entity\Article;
 use App\Entity\User;
 use App\Repository\ArticleRepository;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;

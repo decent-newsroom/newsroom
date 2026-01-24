@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Nostr;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;

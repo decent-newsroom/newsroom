@@ -4,10 +4,10 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
+use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
-use App\Service\NostrClient;
-use App\Service\RedisCacheService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;

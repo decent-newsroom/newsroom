@@ -2,7 +2,7 @@
 
 namespace App\Twig\Components\Molecules;
 
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 

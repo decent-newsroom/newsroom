@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Highlight;
 use App\Repository\HighlightRepository;
+use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

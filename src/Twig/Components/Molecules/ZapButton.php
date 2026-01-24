@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Twig\Components\Molecules;
 
+use App\Service\Cache\RedisCacheService;
 use App\Service\LNURLResolver;
-use App\Service\NostrSigner;
+use App\Service\Nostr\NostrSigner;
 use App\Service\QRGenerator;
-use App\Service\RedisCacheService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;

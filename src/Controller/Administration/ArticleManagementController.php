@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Controller\Administration;
 
-use App\Service\RedisCacheService;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Cache\RedisCacheService;
 use Elastica\Query;
 use FOS\ElasticaBundle\Finder\PaginatedFinderInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class ArticleManagementController extends AbstractController
 {

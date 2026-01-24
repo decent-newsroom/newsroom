@@ -6,7 +6,7 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Entity\Highlight;
 use App\Enum\KindsEnum;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

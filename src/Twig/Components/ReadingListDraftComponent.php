@@ -4,7 +4,7 @@ namespace App\Twig\Components;
 
 use App\Dto\CategoryDraft;
 use App\Enum\KindsEnum;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use App\Service\ReadingListWorkflowService;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;

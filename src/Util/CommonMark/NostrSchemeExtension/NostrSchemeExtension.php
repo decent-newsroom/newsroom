@@ -2,8 +2,8 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
-use App\Service\NostrClient;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\EnvironmentBuilderInterface;
 use League\CommonMark\Extension\ExtensionInterface;

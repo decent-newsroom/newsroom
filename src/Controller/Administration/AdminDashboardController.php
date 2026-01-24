@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Administration;
 
-use App\Service\AdminDashboardService;
+use App\Service\Admin\AdminDashboardService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;

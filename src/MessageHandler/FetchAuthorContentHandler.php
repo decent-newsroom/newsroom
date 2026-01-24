@@ -6,19 +6,18 @@ namespace App\MessageHandler;
 
 use App\Entity\Event;
 use App\Enum\AuthorContentType;
-use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Message\FetchAuthorContentMessage;
 use App\Repository\EventRepository;
 use App\Service\AuthorRelayService;
-use App\Service\NostrRelayPool;
+use App\Service\Nostr\NostrRelayPool;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Subscription\Subscription;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 class FetchAuthorContentHandler

@@ -3,7 +3,7 @@
 namespace App\UnfoldBundle\Config;
 
 use App\Enum\KindsEnum;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Cache\CacheItemPoolInterface;

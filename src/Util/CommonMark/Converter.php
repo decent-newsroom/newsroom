@@ -3,8 +3,8 @@
 namespace App\Util\CommonMark;
 
 use App\Enum\KindsEnum;
-use App\Service\NostrClient;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\NostrClient;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\Environment;
@@ -23,12 +23,12 @@ use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\Extension\TableOfContents\TableOfContentsExtension;
 use League\CommonMark\MarkdownConverter;
 use League\CommonMark\Renderer\HtmlDecorator;
-use Twig\Environment as TwigEnvironment;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use nostriphant\NIP19\Data\NEvent;
 use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
+use Twig\Environment as TwigEnvironment;
 
 final readonly class Converter
 {

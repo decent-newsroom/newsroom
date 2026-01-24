@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Enum\KindsEnum;
+use App\Service\Nostr\NostrRelayPool;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;

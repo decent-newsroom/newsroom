@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Service;
+namespace App\Service\Cache;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\UpdateProfileProjectionMessage;
+use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
-use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;

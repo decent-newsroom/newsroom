@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Nostr;
 
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;

@@ -2,8 +2,7 @@
 
 namespace App\UnfoldBundle\Content;
 
-use App\Enum\KindsEnum;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use App\UnfoldBundle\Config\SiteConfig;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;

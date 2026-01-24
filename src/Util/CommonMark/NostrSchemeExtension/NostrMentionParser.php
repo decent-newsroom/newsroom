@@ -2,12 +2,11 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
 use League\CommonMark\Parser\InlineParserContext;
-use swentel\nostr\Key\Key;
 
 /**
  * Class NostrMentionParser

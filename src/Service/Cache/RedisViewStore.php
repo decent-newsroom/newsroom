@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Cache;
 
-use App\ReadModel\RedisView\RedisViewFactory;
 use App\ReadModel\RedisView\RedisBaseObject;
 use App\ReadModel\RedisView\RedisReadingListView;
+use App\ReadModel\RedisView\RedisViewFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 

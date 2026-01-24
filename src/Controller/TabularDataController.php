@@ -6,9 +6,8 @@ namespace App\Controller;
 
 use App\Enum\KindsEnum;
 use App\Form\TabularDataType;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use swentel\nostr\Event\Event;
-use swentel\nostr\Sign\Sign;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

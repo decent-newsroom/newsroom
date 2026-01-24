@@ -3,7 +3,7 @@
 namespace App\Twig\Components\Atoms;
 
 use App\Repository\UserEntityRepository;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 

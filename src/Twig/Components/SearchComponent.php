@@ -3,7 +3,7 @@
 namespace App\Twig\Components;
 
 use App\Credits\Service\CreditsManager;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\NostrKeyUtil;
 use Psr\Cache\InvalidArgumentException;
@@ -11,13 +11,13 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveListener;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
-use Symfony\UX\LiveComponent\DefaultActionTrait;
 use Symfony\UX\LiveComponent\ComponentToolsTrait;
-use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\UX\LiveComponent\DefaultActionTrait;
 
 #[AsLiveComponent]
 final class SearchComponent extends AbstractController

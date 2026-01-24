@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+namespace App\Service\Admin;
 
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;

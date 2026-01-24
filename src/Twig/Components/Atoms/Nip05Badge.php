@@ -2,7 +2,7 @@
 
 namespace App\Twig\Components\Atoms;
 
-use App\Service\Nip05VerificationService;
+use App\Service\Nostr\Nip05VerificationService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;

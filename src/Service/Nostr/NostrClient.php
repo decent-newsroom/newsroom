@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Nostr;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
@@ -16,7 +16,6 @@ use swentel\nostr\Filter\Filter;
 use swentel\nostr\Key\Key;
 use swentel\nostr\Message\EventMessage;
 use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\Relay;
 use swentel\nostr\Relay\RelaySet;
 use swentel\nostr\Request\Request;
 use swentel\nostr\Subscription\Subscription;

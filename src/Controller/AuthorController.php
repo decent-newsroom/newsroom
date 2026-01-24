@@ -9,12 +9,12 @@ use App\Entity\Event;
 use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
-use App\Service\AuthorRelayService;
-use App\Service\NostrLinkParser;
-use App\Service\RedisCacheService;
-use App\Service\RedisViewStore;
-use App\Service\Search\ArticleSearchInterface;
 use App\ReadModel\RedisView\RedisViewFactory;
+use App\Service\AuthorRelayService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Cache\RedisViewStore;
+use App\Service\Nostr\NostrLinkParser;
+use App\Service\Search\ArticleSearchInterface;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -25,8 +25,8 @@ use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class AuthorController extends AbstractController

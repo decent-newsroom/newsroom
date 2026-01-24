@@ -3,8 +3,8 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Message\FetchCommentsMessage;
-use App\Service\NostrLinkParser;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\NostrLinkParser;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;

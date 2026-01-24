@@ -3,7 +3,6 @@
 namespace App\Service\RSS;
 
 use App\Enum\KindsEnum;
-use App\Service\EncryptionService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Sign\Sign;

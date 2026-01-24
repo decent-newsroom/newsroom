@@ -3,13 +3,13 @@
 namespace App\MessageHandler;
 
 use App\Message\FetchCommentsMessage;
-use App\Service\NostrClient;
-use App\Service\NostrLinkParser;
-use App\Service\RedisCacheService;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\NostrLinkParser;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
 class FetchCommentsHandler

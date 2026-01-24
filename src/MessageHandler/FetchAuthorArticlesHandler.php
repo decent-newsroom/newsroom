@@ -3,11 +3,11 @@
 namespace App\MessageHandler;
 
 use App\Message\FetchAuthorArticlesMessage;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Serializer\SerializerInterface;
 
 #[AsMessageHandler]
