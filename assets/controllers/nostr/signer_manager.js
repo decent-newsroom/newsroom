@@ -129,6 +129,11 @@ async function createRemoteSignerFromSession(session) {
         );
 
         console.log('[signer_manager] ✅ BunkerSigner created from pointer!');
+
+        // CRITICAL: Call connect() to establish relay subscription for receiving responses
+        console.log('[signer_manager] Calling connect() to establish relay subscription...');
+        await signer.connect();
+        console.log('[signer_manager] ✅ Connected to remote signer relay!');
       }
       // LEGACY PATTERN: Fallback to fromURI() for old sessions (backward compatibility)
       else if (session.uri) {
