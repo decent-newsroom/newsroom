@@ -33,7 +33,8 @@ final class UserFromNpub
             throw new \InvalidArgumentException('UserFromNpub expects npub or hex pubkey');
         }
         if ($this->user === null) {
-            $this->user = $this->redisCacheService->getMetadata($this->pubkey);
+            $userMetadata = $this->redisCacheService->getMetadata($this->pubkey);
+            $this->user = $userMetadata->toStdClass(); // Convert to stdClass for template
         }
     }
 }

@@ -1,7 +1,7 @@
 <section>
     <h1>
         <twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub>
-        {% if author.bot is defined %}
+        {% if author.bot is defined and author.bot %}
             <span class="tag">bot</span>
         {% endif %}
     </h1>

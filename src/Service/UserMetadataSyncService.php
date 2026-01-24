@@ -122,6 +122,36 @@ class UserMetadataSyncService
      */
     private function updateUserFromMetadata(User $user, object $metadata): void
     {
+        // Handle UserMetadata DTO
+        if ($metadata instanceof \App\Dto\UserMetadata) {
+            if ($metadata->displayName !== null) {
+                $user->setDisplayName($metadata->displayName);
+            }
+            if ($metadata->name !== null) {
+                $user->setName($metadata->name);
+            }
+            if ($metadata->getNip05() !== null) {
+                $user->setNip05($metadata->getNip05());
+            }
+            if ($metadata->about !== null) {
+                $user->setAbout($metadata->about);
+            }
+            if ($metadata->getWebsite() !== null) {
+                $user->setWebsite($metadata->getWebsite());
+            }
+            if ($metadata->picture !== null) {
+                $user->setPicture($metadata->picture);
+            }
+            if ($metadata->banner !== null) {
+                $user->setBanner($metadata->banner);
+            }
+            if ($metadata->getLightningAddress() !== null) {
+                $user->setLud16($metadata->getLightningAddress());
+            }
+            return;
+        }
+
+        // Handle legacy stdClass format
         if (isset($metadata->display_name)) {
             $user->setDisplayName($this->sanitizeStringValue($metadata->display_name));
         }

@@ -109,6 +109,18 @@ class DefaultController extends AbstractController
             $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
         }
 
+        // Convert UserMetadata objects to stdClass for template compatibility
+        // (cached views already have stdClass, so only convert UserMetadata)
+        $authorsMetadataStd = [];
+        foreach ($authorsMetadata as $pubkey => $metadata) {
+            if ($metadata instanceof \App\Dto\UserMetadata) {
+                $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
+            } else {
+                // Already stdClass from cached view
+                $authorsMetadataStd[$pubkey] = $metadata;
+            }
+        }
+
         // Build main topics key => display name map from ForumTopics constant
         $mainTopicsMap = [];
         foreach (ForumTopics::TOPICS as $key => $data) {
@@ -118,7 +130,7 @@ class DefaultController extends AbstractController
 
         return $this->render('pages/discover.html.twig', [
             'articles' => $articles,
-            'authorsMetadata' => $authorsMetadata,
+            'authorsMetadata' => $authorsMetadataStd,
             'mainTopicsMap' => $mainTopicsMap,
             'from_redis_view' => $fromCache,
         ]);
@@ -195,10 +207,22 @@ class DefaultController extends AbstractController
             }
         }
 
+        // Convert UserMetadata objects to stdClass for template compatibility
+        // (cached views already have stdClass, so only convert UserMetadata)
+        $authorsMetadataStd = [];
+        foreach ($authorsMetadata as $pubkey => $metadata) {
+            if ($metadata instanceof \App\Dto\UserMetadata) {
+                $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
+            } else {
+                // Already stdClass from cached view
+                $authorsMetadataStd[$pubkey] = $metadata;
+            }
+        }
+
         return $this->render('pages/latest-articles.html.twig', [
             'articles' => $articles,
             'newsBots' => array_slice($excludedPubkeys, 0, 4),
-            'authorsMetadata' => $authorsMetadata,
+            'authorsMetadata' => $authorsMetadataStd,
             'from_redis_view' => $fromCache ?? false,
         ]);
     }
@@ -431,7 +455,8 @@ class DefaultController extends AbstractController
 
         $key = new Key();
         $npub = $key->convertPublicKeyToBech32($article->getPubkey());
-        $author = $redisCacheService->getMetadata($article->getPubkey());
+        $authorMetadata = $redisCacheService->getMetadata($article->getPubkey());
+        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
 
         // Parse advanced metadata from raw event for zap splits etc.
         $advancedMetadata = null;

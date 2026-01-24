@@ -82,10 +82,12 @@
                     }]) %}
                 {% endfor %}
                 {% if zapSplits|length > 0 %}
+                    {% if author.lud16 %}
                     <twig:Molecules:ZapButton
                         recipientPubkey="{{ article.pubkey }}"
                         recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
                         :zapSplits="zapSplits" />
+                    {% endif %}
                 {% elseif author.lud16 %}
                     <twig:Molecules:ZapButton
                         recipientPubkey="{{ article.pubkey }}"

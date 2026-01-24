@@ -96,7 +96,7 @@ class NostrSchemeParser  implements InlineParserInterface
                         // Render the embedded event card
                         $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
                             'event' => $event,
-                            'author' => $authorMetadata,
+                            'author' => $authorMetadata->toStdClass(), // Convert to stdClass for template
                             'nevent' => $bechEncoded
                         ]);
 

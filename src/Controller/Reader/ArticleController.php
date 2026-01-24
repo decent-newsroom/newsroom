@@ -206,7 +206,8 @@ class ArticleController  extends AbstractController
             $entityManager->flush();
         }
 
-        $author = $redisCacheService->getMetadata($draft->getPubkey());
+        $authorMetadata = $redisCacheService->getMetadata($draft->getPubkey());
+        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
         $canEdit = false;
         $user = $this->getUser();
         if ($user) {
@@ -284,7 +285,8 @@ class ArticleController  extends AbstractController
             $entityManager->flush();
         }
 
-        $author = $redisCacheService->getMetadata($article->getPubkey());
+        $authorMetadata = $redisCacheService->getMetadata($article->getPubkey());
+        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
         $canEdit = false;
         $user = $this->getUser();
         if ($user) {

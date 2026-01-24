@@ -23,21 +23,36 @@ class RedisViewFactory
 
     /**
      * Convert Nostr kind 0 profile metadata to RedisProfileView
-     * @param array|\stdClass|null $metadata Profile metadata (from RedisCacheService)
+     * @param array|\stdClass|\App\Dto\UserMetadata|null $metadata Profile metadata (from RedisCacheService)
      */
-    public function profileToView(array|\stdClass|null $metadata, string $pubkey): ?RedisProfileView
+    public function profileToView(array|\stdClass|\App\Dto\UserMetadata|null $metadata, string $pubkey): ?RedisProfileView
     {
         if (empty($metadata)) {
             $this->logger->debug('No metadata found for pubkey', ['pubkey' => $pubkey]);
             return null;
         }
 
-        // Convert stdClass to array if needed
+        // Handle UserMetadata DTO (new format)
+        if ($metadata instanceof \App\Dto\UserMetadata) {
+            return new RedisProfileView(
+                pubkey: $pubkey,
+                name: $metadata->name,
+                display_name: $metadata->displayName,
+                picture: $metadata->picture,
+                nip05: $metadata->getNip05(),  // Get first element from array
+                about: $metadata->about,
+                website: $metadata->getWebsite(),  // Get first element from array
+                lud16: $metadata->getLightningAddress(),  // Get first lud16 or lud06
+                banner: $metadata->banner,
+            );
+        }
+
+        // Convert stdClass to array if needed (legacy format)
         if ($metadata instanceof \stdClass) {
             $metadata = json_decode(json_encode($metadata), true) ?? [];
         }
 
-        // Helper to extract string from array or return string/null
+        // Helper to extract string from array or return string/null (legacy format)
         $getString = function($value): ?string {
             if (is_array($value)) {
                 return !empty($value) ? (string)$value[0] : null;
@@ -106,9 +121,9 @@ class RedisViewFactory
      * Build a complete RedisBaseObject for an article
      * Fetches author profile from Redis metadata cache
      * @param Article $article
-     * @param array|\stdClass|null $authorMetadata Author profile metadata (from RedisCacheService)
+     * @param array|\stdClass|\App\Dto\UserMetadata|null $authorMetadata Author profile metadata (from RedisCacheService)
      */
-    public function articleBaseObject(Article $article, array|\stdClass|null $authorMetadata = null): RedisBaseObject
+    public function articleBaseObject(Article $article, array|\stdClass|\App\Dto\UserMetadata|null $authorMetadata = null): RedisBaseObject
     {
         $articleView = $this->articleToView($article);
 
@@ -138,14 +153,14 @@ class RedisViewFactory
      * Requires the highlighted article and fetches both author profiles
      * @param Highlight $highlight
      * @param Article $article
-     * @param array|\stdClass|null $highlightAuthorMetadata Highlight author metadata
-     * @param array|\stdClass|null $articleAuthorMetadata Article author metadata
+     * @param array|\stdClass|\App\Dto\UserMetadata|null $highlightAuthorMetadata Highlight author metadata
+     * @param array|\stdClass|\App\Dto\UserMetadata|null $articleAuthorMetadata Article author metadata
      */
     public function highlightBaseObject(
         Highlight $highlight,
         Article $article,
-        array|\stdClass|null $highlightAuthorMetadata = null,
-        array|\stdClass|null $articleAuthorMetadata = null
+        array|\stdClass|\App\Dto\UserMetadata|null $highlightAuthorMetadata = null,
+        array|\stdClass|\App\Dto\UserMetadata|null $articleAuthorMetadata = null
     ): RedisBaseObject {
         $articleView = $this->articleToView($article);
         $highlightView = $this->highlightToView($highlight);

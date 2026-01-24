@@ -327,12 +327,7 @@ final class ZapButton
 
             // Look up the recipient's lightning address from their metadata
             $recipientMeta = $this->redisCacheService->getMetadata($recipientPubkey);
-            $recipientLud16 = $recipientMeta->lud16 ?? null;
-
-            // Handle case where lud16 might be an array
-            if (is_array($recipientLud16)) {
-                $recipientLud16 = $recipientLud16[0] ?? null;
-            }
+            $recipientLud16 = $recipientMeta->getLightningAddress();
 
             if (!$recipientLud16) {
                 throw new \RuntimeException('Recipient has no Lightning Address (lud16) configured');

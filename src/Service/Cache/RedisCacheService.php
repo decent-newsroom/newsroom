@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service\Cache;
 
+use App\Dto\UserMetadata;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\BatchUpdateProfileProjectionMessage;
@@ -48,10 +49,10 @@ class RedisCacheService
 
     /**
      * @param string $pubkey Hex-encoded public key
-     * @return \stdClass
+     * @return UserMetadata
      * @throws InvalidArgumentException
      */
-    public function getMetadata(string $pubkey): \stdClass
+    public function getMetadata(string $pubkey): UserMetadata
     {
         if (!NostrKeyUtil::isHexPubkey($pubkey)) {
             throw new \InvalidArgumentException('getMetadata expects hex pubkey');
@@ -62,7 +63,17 @@ class RedisCacheService
         try {
             $item = $this->npubCache->getItem($cacheKey);
             if ($item->isHit()) {
-                return $item->get();
+                $cached = $item->get();
+
+                // Handle legacy stdClass format
+                if ($cached instanceof \stdClass) {
+                    return UserMetadata::fromStdClass($cached);
+                }
+
+                // Handle new UserMetadata format
+                if ($cached instanceof UserMetadata) {
+                    return $cached;
+                }
             }
         } catch (\Exception $e) {
             $this->logger->error('Error checking cache for user metadata.', ['exception' => $e]);
@@ -77,12 +88,7 @@ class RedisCacheService
         }
 
         // Return default metadata immediately (non-blocking)
-        $content = new \stdClass();
-        $npub = NostrKeyUtil::hexToNpub($pubkey);
-        $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
-        $content->name = $defaultName;
-
-        return $content;
+        return UserMetadata::createDefault($pubkey);
     }
 
     /**
@@ -90,7 +96,7 @@ class RedisCacheService
      * Returns cached data immediately, dispatches async batch fetch for misses.
      *
      * @param string[] $pubkeys Array of hex pubkeys
-     * @return array<string, \stdClass> Map of pubkey => metadata
+     * @return array<string, UserMetadata> Map of pubkey => metadata
      * @throws InvalidArgumentException
      */
     public function getMultipleMetadata(array $pubkeys): array
@@ -111,17 +117,24 @@ class RedisCacheService
         foreach ($items as $cacheKey => $item) {
             $pubkey = $pubkeyMap[$cacheKey];
             if ($item->isHit()) {
-                $result[$pubkey] = $item->get();
+                $cached = $item->get();
+
+                // Handle legacy stdClass format
+                if ($cached instanceof \stdClass) {
+                    $result[$pubkey] = UserMetadata::fromStdClass($cached);
+                } elseif ($cached instanceof UserMetadata) {
+                    $result[$pubkey] = $cached;
+                } else {
+                    // Invalid cached data
+                    $missedPubkeys[] = $pubkey;
+                    $result[$pubkey] = UserMetadata::createDefault($pubkey);
+                }
             } else {
                 // Track cache misses
                 $missedPubkeys[] = $pubkey;
 
                 // Return default metadata immediately
-                $npub = NostrKeyUtil::hexToNpub($pubkey);
-                $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
-                $content = new \stdClass();
-                $content->name = $defaultName;
-                $result[$pubkey] = $content;
+                $result[$pubkey] = UserMetadata::createDefault($pubkey);
             }
         }
 
