@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Article;
-use App\Repository\ArticleRepository;
-use App\Service\RedisCacheService;
-use App\Service\RedisViewStore;
 use App\ReadModel\RedisView\RedisViewFactory;
+use App\Repository\ArticleRepository;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Cache\RedisViewStore;
+use swentel\nostr\Key\Key;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use swentel\nostr\Key\Key;
 
 #[AsCommand(
     name: 'app:cache_latest_articles',

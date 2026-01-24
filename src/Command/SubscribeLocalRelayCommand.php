@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Service\ArticleEventProjector;
-use App\Service\NostrRelayPool;
+use App\Service\Nostr\NostrRelayPool;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

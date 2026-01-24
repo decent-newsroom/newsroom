@@ -7,9 +7,10 @@ namespace App\Command;
 use App\Enum\IndexStatusEnum;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
+use Redis as RedisClient;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Sign\Sign;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -21,7 +22,6 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Contracts\Cache\CacheInterface;
-use Redis as RedisClient;
 
 #[AsCommand(name: 'app:yaml_to_nostr', description: 'Traverses folders, converts YAML files to JSON using object mapping, and saves the result in Redis cache.')]
 class NostrEventFromYamlDefinitionCommand extends Command

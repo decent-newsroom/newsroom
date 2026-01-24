@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Repository\HighlightRepository;
-use App\Repository\ArticleRepository;
-use App\Service\RedisCacheService;
-use App\Service\RedisViewStore;
 use App\ReadModel\RedisView\RedisViewFactory;
+use App\Repository\HighlightRepository;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Cache\RedisViewStore;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Psr\Log\LoggerInterface;
 
 #[AsCommand(
     name: 'app:cache-latest-highlights',

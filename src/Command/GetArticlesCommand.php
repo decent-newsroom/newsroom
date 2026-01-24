@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Service\NostrClient;
+use App\Service\Nostr\NostrClient;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
