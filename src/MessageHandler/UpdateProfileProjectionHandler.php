@@ -5,18 +5,19 @@ namespace App\MessageHandler;
 use App\Entity\User;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
+use App\Service\NostrClient;
 use App\Service\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
  * Handles async profile projection updates.
  *
- * Updates the User entity projection from:
- * 1. Redis cache (metadata from kind:0, relays from kind:10002)
- * 2. Raw Event table (future: when profile events are persisted locally)
+ * Fetches profile data from Nostr relays, caches it in Redis, and updates the User entity.
+ * This handler actively fetches data rather than just reading from cache.
  *
  * This handler is idempotent and order-independent.
  */
@@ -24,6 +25,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 class UpdateProfileProjectionHandler
 {
     public function __construct(
+        private readonly NostrClient $nostrClient,
+        private readonly CacheItemPoolInterface $npubCache,
         private readonly RedisCacheService $redisCacheService,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -82,15 +85,40 @@ class UpdateProfileProjectionHandler
     }
 
     /**
-     * Update metadata facet (kind:0) from Redis cache
+     * Update metadata facet (kind:0) by fetching from Nostr and caching
      */
     private function updateMetadataFacet(User $user, string $pubkeyHex): bool
     {
         try {
-            $metadata = $this->redisCacheService->getMetadata($pubkeyHex);
+            // Fetch metadata from Nostr relays
+            $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex);
 
-            if ($metadata === null) {
+            if (!$rawEvent) {
+                $this->logger->debug('No metadata found on relays', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...'
+                ]);
                 return false;
+            }
+
+            // Parse metadata
+            $metadata = $this->parseUserMetadata($rawEvent, $pubkeyHex);
+
+            // Cache the parsed metadata
+            try {
+                $cacheKey = '0_' . $pubkeyHex;
+                $item = $this->npubCache->getItem($cacheKey);
+                $item->set($metadata);
+                $item->expiresAfter(3600); // 1 hour
+                $this->npubCache->save($item);
+
+                $this->logger->debug('Cached profile metadata', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...'
+                ]);
+            } catch (\Exception $e) {
+                $this->logger->warning('Failed to cache metadata', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'error' => $e->getMessage()
+                ]);
             }
 
             // Update user fields from metadata
@@ -127,6 +155,45 @@ class UpdateProfileProjectionHandler
             ]);
             return false;
         }
+    }
+
+    /**
+     * Parse user metadata from a raw event object.
+     */
+    private function parseUserMetadata(\stdClass $rawEvent, string $pubkey): \stdClass
+    {
+        $contentData = json_decode($rawEvent->content ?? '{}');
+        if (!$contentData) {
+            $contentData = new \stdClass();
+        }
+        $arrayFields = ['nip05', 'lud16', 'lud06'];
+        $arrayCollectors = [];
+        $tags = $rawEvent->tags ?? [];
+        foreach ($tags as $tag) {
+            if (is_array($tag) && count($tag) >= 2) {
+                $tagName = $tag[0];
+                if (in_array($tagName, $arrayFields, true)) {
+                    if (!isset($arrayCollectors[$tagName])) {
+                        $arrayCollectors[$tagName] = [];
+                    }
+                    for ($i = 1; $i < count($tag); $i++) {
+                        $arrayCollectors[$tagName][] = $tag[$i];
+                    }
+                } elseif (!isset($contentData->$tagName) && isset($tag[1])) {
+                    $contentData->$tagName = $tag[1];
+                }
+            }
+        }
+        foreach ($arrayCollectors as $fieldName => $values) {
+            $contentData->$fieldName = array_unique($values);
+        }
+        foreach ($arrayFields as $fieldName) {
+            if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
+                $contentData->$fieldName = [$contentData->$fieldName];
+            }
+        }
+
+        return $contentData;
     }
 
     /**

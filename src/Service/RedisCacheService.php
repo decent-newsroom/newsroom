@@ -5,6 +5,8 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Message\BatchUpdateProfileProjectionMessage;
+use App\Message\UpdateProfileProjectionMessage;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -13,6 +15,7 @@ use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 class RedisCacheService
@@ -23,7 +26,8 @@ class RedisCacheService
         private readonly NostrClient            $nostrClient,
         private readonly CacheItemPoolInterface $npubCache,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface        $logger
+        private readonly LoggerInterface        $logger,
+        private readonly MessageBusInterface    $messageBus
     ) {}
 
     /**
@@ -53,95 +57,37 @@ class RedisCacheService
             throw new \InvalidArgumentException('getMetadata expects hex pubkey');
         }
         $cacheKey = $this->getUserCacheKey($pubkey);
-        // Default content if fetching/parsing fails
+
+        // Check if we have cached data
+        try {
+            $item = $this->npubCache->getItem($cacheKey);
+            if ($item->isHit()) {
+                return $item->get();
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Error checking cache for user metadata.', ['exception' => $e]);
+        }
+
+        // Cache miss: dispatch async fetch and return default immediately
+        try {
+            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+            $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
+        } catch (\Exception $e) {
+            $this->logger->error('Error dispatching async profile fetch.', ['exception' => $e]);
+        }
+
+        // Return default metadata immediately (non-blocking)
         $content = new \stdClass();
-        // Pubkey to npub
         $npub = NostrKeyUtil::hexToNpub($pubkey);
         $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
         $content->name = $defaultName;
 
-        try {
-            $content = $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($pubkey) {
-                $item->expiresAfter(3600); // 1 hour, adjust as needed
-                $rawEvent = $this->fetchRawUserEvent($pubkey);
-                return $this->parseUserMetadata($rawEvent, $pubkey);
-            });
-        } catch (Exception|InvalidArgumentException $e) {
-            $this->logger->error('Error getting user data.', ['exception' => $e]);
-        }
-        // If content is still default, delete cache to retry next time
-        if (isset($content->name) && $content->name === $defaultName
-            && $this->npubCache->hasItem($cacheKey)) {
-            try {
-                $this->npubCache->deleteItem($cacheKey);
-            } catch (\Exception $e) {
-                $this->logger->error('Error deleting user cache item.', ['exception' => $e]);
-            }
-        }
         return $content;
     }
 
     /**
-     * Fetch raw user event from Nostr client, with error fallback.
-     * @param string $pubkey Hex-encoded public key
-     * @throws Exception
-     */
-    private function fetchRawUserEvent(string $pubkey): \stdClass
-    {
-        try {
-            return $this->nostrClient->getPubkeyMetadata($pubkey);
-        } catch (\Exception $e) {
-            $this->logger->error('Error getting user data.', ['exception' => $e]);
-            // Rethrow exception to be caught in getMetadata
-            throw $e;
-        }
-    }
-
-    /**
-     * Parse user metadata from a raw event object.
-     */
-    private function parseUserMetadata(\stdClass $rawEvent, string $pubkey): \stdClass
-    {
-        $contentData = json_decode($rawEvent->content ?? '{}');
-        if (!$contentData) {
-            $contentData = new \stdClass();
-        }
-        $arrayFields = ['nip05', 'lud16', 'lud06'];
-        $arrayCollectors = [];
-        $tags = $rawEvent->tags ?? [];
-        foreach ($tags as $tag) {
-            if (is_array($tag) && count($tag) >= 2) {
-                $tagName = $tag[0];
-                if (in_array($tagName, $arrayFields, true)) {
-                    if (!isset($arrayCollectors[$tagName])) {
-                        $arrayCollectors[$tagName] = [];
-                    }
-                    for ($i = 1; $i < count($tag); $i++) {
-                        $arrayCollectors[$tagName][] = $tag[$i];
-                    }
-                } elseif (!isset($contentData->$tagName) && isset($tag[1])) {
-                    $contentData->$tagName = $tag[1];
-                }
-            }
-        }
-        foreach ($arrayCollectors as $fieldName => $values) {
-            $contentData->$fieldName = array_unique($values);
-        }
-        foreach ($arrayFields as $fieldName) {
-            if (isset($contentData->$fieldName) && !is_array($contentData->$fieldName)) {
-                $contentData->$fieldName = [$contentData->$fieldName];
-            }
-        }
-        $this->logger->info('Metadata (with tags):', [
-            'meta' => json_encode($contentData),
-            'tags' => json_encode($tags)
-        ]);
-        return $contentData;
-    }
-
-    /**
      * Fetch metadata for multiple pubkeys at once using Redis getItems.
-     * Batch fetches missing pubkeys from Nostr relays (local relay first, then public fallback).
+     * Returns cached data immediately, dispatches async batch fetch for misses.
      *
      * @param string[] $pubkeys Array of hex pubkeys
      * @return array<string, \stdClass> Map of pubkey => metadata
@@ -157,62 +103,41 @@ class RedisCacheService
         $result = [];
         $cacheKeys = array_map(fn($pubkey) => $this->getUserCacheKey($pubkey), $pubkeys);
         $pubkeyMap = array_combine($cacheKeys, $pubkeys);
+
+        // Get all cached items
         $items = $this->npubCache->getItems($cacheKeys);
+        $missedPubkeys = [];
+
         foreach ($items as $cacheKey => $item) {
             $pubkey = $pubkeyMap[$cacheKey];
             if ($item->isHit()) {
                 $result[$pubkey] = $item->get();
+            } else {
+                // Track cache misses
+                $missedPubkeys[] = $pubkey;
+
+                // Return default metadata immediately
+                $npub = NostrKeyUtil::hexToNpub($pubkey);
+                $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
+                $content = new \stdClass();
+                $content->name = $defaultName;
+                $result[$pubkey] = $content;
             }
         }
 
-        // Batch fetch missing pubkeys using NostrClient (local relay first, fallback to public)
-        $missedPubkeys = array_diff($pubkeys, array_keys($result));
+        // Dispatch batch async fetch for all misses (non-blocking)
         if (!empty($missedPubkeys)) {
             try {
-                $batchMetadata = $this->nostrClient->getMetadataForPubkeys(array_values($missedPubkeys), true);
-
-                foreach ($missedPubkeys as $pubkey) {
-                    if (isset($batchMetadata[$pubkey])) {
-                        // Parse and cache the metadata
-                        $parsed = $this->parseUserMetadata($batchMetadata[$pubkey], $pubkey);
-                        $result[$pubkey] = $parsed;
-
-                        // Store in cache for future use
-                        try {
-                            $cacheKey = $this->getUserCacheKey($pubkey);
-                            $item = $this->npubCache->getItem($cacheKey);
-                            $item->set($parsed);
-                            $item->expiresAfter(3600); // 1 hour
-                            $this->npubCache->save($item);
-                        } catch (\Throwable $e) {
-                            $this->logger->warning('Failed to cache batch-fetched metadata', [
-                                'pubkey' => $pubkey,
-                                'error' => $e->getMessage()
-                            ]);
-                        }
-                    } else {
-                        // Fallback to default metadata if not found
-                        $npub = NostrKeyUtil::hexToNpub($pubkey);
-                        $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
-                        $content = new \stdClass();
-                        $content->name = $defaultName;
-                        $result[$pubkey] = $content;
-                    }
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error('Batch metadata fetch failed, using defaults', [
-                    'error' => $e->getMessage(),
-                    'pubkeys_count' => count($missedPubkeys)
+                $this->messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missedPubkeys));
+                $this->logger->debug('Dispatched batch async profile fetch', [
+                    'count' => count($missedPubkeys),
+                    'sample' => substr($missedPubkeys[0] ?? '', 0, 8)
                 ]);
-
-                // Fallback: create default metadata for all missed pubkeys
-                foreach ($missedPubkeys as $pubkey) {
-                    $npub = NostrKeyUtil::hexToNpub($pubkey);
-                    $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
-                    $content = new \stdClass();
-                    $content->name = $defaultName;
-                    $result[$pubkey] = $content;
-                }
+            } catch (\Exception $e) {
+                $this->logger->error('Error dispatching batch profile fetch.', [
+                    'error' => $e->getMessage(),
+                    'count' => count($missedPubkeys)
+                ]);
             }
         }
 
