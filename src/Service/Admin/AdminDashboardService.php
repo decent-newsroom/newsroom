@@ -284,10 +284,19 @@ class AdminDashboardService
                 $mediaCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 20";
                 $totalMedia = (int) $conn->executeQuery($mediaCountQuery)->fetchOne();
 
+                // Count comments (kind 1111) and zaps (kind 9735)
+                $commentsCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 1111";
+                $totalComments = (int) $conn->executeQuery($commentsCountQuery)->fetchOne();
+
+                $zapsCountQuery = "SELECT COUNT(*) FROM event WHERE kind = 9735";
+                $totalZaps = (int) $conn->executeQuery($zapsCountQuery)->fetchOne();
+
                 return [
                     'total_articles' => $totalArticles,
                     'total_events' => $totalEvents,
                     'total_media' => $totalMedia,
+                    'total_comments' => $totalComments,
+                    'total_zaps' => $totalZaps,
                     'total_highlights' => $totalHighlights,
                     'total_unfold_sites' => $totalUnfoldSites,
                 ];
@@ -297,6 +306,9 @@ class AdminDashboardService
             return [
                 'total_articles' => 0,
                 'total_events' => 0,
+                'total_media' => 0,
+                'total_comments' => 0,
+                'total_zaps' => 0,
                 'total_highlights' => 0,
                 'total_unfold_sites' => 0,
                 'error' => true,

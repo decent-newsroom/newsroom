@@ -24,7 +24,7 @@ class CommentEventProjector
      * Project a Nostr comment event (kind 1111) into the database
      *
      * @param object $event The Nostr event object (stdClass with id, kind, pubkey, content, tags, etc.)
-     * @throws \InvalidArgumentException if event is not a valid comment event
+     * @throws \InvalidArgumentException|\Exception if event is not a valid comment event
      */
     public function projectCommentFromEvent(object $event): void
     {
@@ -43,7 +43,7 @@ class CommentEventProjector
      * Project a Nostr zap receipt event (kind 9735) into the database
      *
      * @param object $event The Nostr event object (stdClass with id, kind, pubkey, content, tags, etc.)
-     * @throws \InvalidArgumentException if event is not a valid zap event
+     * @throws \InvalidArgumentException|\Exception if event is not a valid zap event
      */
     public function projectZapFromEvent(object $event): void
     {
@@ -113,6 +113,7 @@ class CommentEventProjector
      *
      * @param object $event The Nostr event object
      * @param string $type Event type for logging ('comment' or 'zap')
+     * @throws \Exception
      */
     private function projectEvent(object $event, string $type): void
     {

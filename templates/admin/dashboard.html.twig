@@ -180,6 +180,16 @@
                 <div class="metric-label">Media</div>
             </div>
             <div class="metric-card">
+                <div class="metric-value">{{ metrics.database.total_comments|default(0)|number_format }}</div>
+                <div class="metric-label">Comments</div>
+                <div class="metric-subtitle">kind 1111</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.database.total_zaps|default(0)|number_format }}</div>
+                <div class="metric-label">Zaps</div>
+                <div class="metric-subtitle">kind 9735</div>
+            </div>
+            <div class="metric-card">
                 <div class="metric-value">{{ metrics.database.total_highlights|number_format }}</div>
                 <div class="metric-label">Highlights</div>
             </div>
