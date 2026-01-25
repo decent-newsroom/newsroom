@@ -3,7 +3,8 @@
 {% block body %}
   <h1>Create Reading List</h1>
 
-  {{ form_start(form) }}
+  {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
+  {{ form_row(form.existingListCoordinate, {'row_attr': {'class': 'hidden'}}) }}
   {{ form_row(form.title, {label: 'Title'}) }}
   {{ form_row(form.summary) }}
   {{ form_row(form.image) }}

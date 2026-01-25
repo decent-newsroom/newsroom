@@ -3,6 +3,12 @@
 {% block body %}
   <h1>Attach Articles</h1>
 
+  {% if hasExistingLists is defined and hasExistingLists %}
+    <div class="alert alert-info">
+      <strong>Note:</strong> Some categories reference existing lists and will use their current articles. Only new categories are shown below.
+    </div>
+  {% endif %}
+
   {{ form_start(form) }}
 
   {% for cat in form.categories %}

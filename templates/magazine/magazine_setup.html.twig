@@ -11,6 +11,11 @@
   {{ form_row(form.tags) }}
 
   <h3>Categories</h3>
+  <div class="alert alert-info mb-3">
+    <strong>Tip:</strong><span>You can either create new categories OR attach existing reading lists.
+    To attach an existing list, fill in the "Use existing list" field with its coordinate (format: 30040:pubkey:slug).
+          You can find coordinates of your reading lists at <a href="{{ path('reading_list_index') }}" target="_blank">your reading lists</a>.</span>
+  </div>
   <div
     {{ stimulus_controller('ui--form-collection') }}
     data-ui--form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"

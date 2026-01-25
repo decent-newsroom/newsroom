@@ -26,7 +26,16 @@
         {% for cat in draft.categories %}
           <li>
             <div>
-              <strong>{{ cat.title }}</strong> (slug: {{ cat.slug }})<br>
+              <strong>{{ cat.title }}</strong> (slug: {{ cat.slug }})
+              {% if cat.existingListCoordinate %}
+                <span class="badge bg-info">Existing List</span>
+              {% else %}
+                <span class="badge bg-success">New Category</span>
+              {% endif %}
+              <br>
+              {% if cat.existingListCoordinate %}
+                <small>Reference: <code>{{ cat.existingListCoordinate }}</code></small><br>
+              {% endif %}
               <em>{{ cat.summary }}</em><br>
               <small>Tags: {{ cat.tags is defined and cat.tags|length ? cat.tags|join(', ') : '—' }}</small>
               {% if cat.articles is defined and cat.articles|length %}
