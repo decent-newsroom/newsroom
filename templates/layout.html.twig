@@ -37,6 +37,7 @@
                     </li>
                 </ul>
                 <twig:UserMenu />
+
                 <div class="container mt-2 mb-2 text-end">
                     <a href="{{ path('feedback_form') }}" class="btn btn-outline-primary">Send Feedback</a>
                 </div>
@@ -56,7 +57,26 @@
                 <header>
                     <button class="close" data-action="click->sidebar-toggle#close" aria-label="Close right sidebar">✕</button>
                 </header>
-                {% block aside %}{% endblock %}
+                {% block aside %}
+                    {# Contribution invitation section #}
+                    {% if contribution_npub and contribution_lud16 %}
+                        <div class="contribution-section mt-3 mb-3 p-3 border rounded bg-light">
+                            <div class="text-center mb-2">
+                                <strong>Support this Project</strong>
+                            </div>
+                            <p class="small text-muted mb-2 text-center">
+                                Help us build the future of decentralized journalism
+                            </p>
+                            <div class="text-center">
+                                <twig:Molecules:ZapButton
+                                    btnClass="btn-sm w-100"
+                                    recipientPubkey="{{ contribution_npub|toHex }}"
+                                    recipientLud16="{{ contribution_lud16 }}"
+                                />
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endblock %}
             </aside>
         </div>
     </div>

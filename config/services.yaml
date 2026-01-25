@@ -8,6 +8,10 @@ parameters:
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
+    
+    # Contribution/donation settings
+    project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
+    project_contribution_lud16: '%env(default::PROJECT_CONTRIBUTION_LUD16)%'
 
 services:
     # default configuration for services in *this* file

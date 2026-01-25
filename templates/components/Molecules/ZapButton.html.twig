@@ -2,7 +2,7 @@
     {# Zap Button - always visible #}
     <button
         type="button"
-        class="btn btn-outline-warning zap-trigger {{ btnClass|default('') }}"
+        class="btn btn-sm zap-trigger {{ btnClass|default('') }}"
         data-action="live#action"
         data-live-action-param="openDialog"
         title="Send a zap"
@@ -20,7 +20,12 @@
                 <div class="card-body">
                     {# Header #}
                     <div class="d-flex flex-row justify-content-between align-items-center mb-3">
-                        <h5 class="m-0">Send Zap</h5>
+                        <div>
+                            <h5 class="m-0">Send Zap</h5>
+                            {% if recipientPubkey %}
+                                <small class="text-muted">to <twig:Molecules:UserFromNpub :ident="recipientPubkey"/></small>
+                            {% endif %}
+                        </div>
                         <button
                             type="button"
                             class="btn btn-secondary"
@@ -64,28 +69,28 @@
                                 <div class="d-flex flex-row gap-2 mt-2">
                                     <button
                                         type="button"
-                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        class="btn btn-sm flex-fill"
                                         onclick="document.getElementById('zap-amount').value = 21; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
                                     >
                                         21
                                     </button>
                                     <button
                                         type="button"
-                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        class="btn btn-sm flex-fill"
                                         onclick="document.getElementById('zap-amount').value = 100; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
                                     >
                                         100
                                     </button>
                                     <button
                                         type="button"
-                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        class="btn btn-sm flex-fill"
                                         onclick="document.getElementById('zap-amount').value = 1000; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
                                     >
                                         1000
                                     </button>
                                     <button
                                         type="button"
-                                        class="btn btn-sm btn-outline-warning flex-fill"
+                                        class="btn btn-sm flex-fill"
                                         onclick="document.getElementById('zap-amount').value = 21000; document.getElementById('zap-amount').dispatchEvent(new Event('input', { bubbles: true }));"
                                     >
                                         21k
