@@ -4,10 +4,12 @@ namespace App\Service;
 
 use App\Entity\Article;
 use App\Factory\ArticleFactory;
+use App\Message\UpdateProfileProjectionMessage;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Projects Nostr article events into the database
@@ -24,6 +26,7 @@ class ArticleEventProjector
         private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
         private readonly Converter $converter,
+        private readonly MessageBusInterface $messageBus,
     ) {
     }
 
@@ -84,6 +87,22 @@ class ArticleEventProjector
                     'event_id' => $article->getEventId(),
                     'db_id' => $article->getId()
                 ]);
+
+                // Trigger async profile fetch for the article author
+                try {
+                    $this->messageBus->dispatch(new UpdateProfileProjectionMessage($article->getPubkey()));
+                    $this->logger->debug('Dispatched profile fetch for article author', [
+                        'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
+                        'event_id' => $article->getEventId()
+                    ]);
+                } catch (\Exception $e) {
+                    // Log error but don't fail the article ingestion
+                    $this->logger->error('Failed to dispatch profile fetch for article author', [
+                        'pubkey' => $article->getPubkey(),
+                        'event_id' => $article->getEventId(),
+                        'error' => $e->getMessage()
+                    ]);
+                }
 
                 // Note: Post-processing (QA, indexing) will be handled by cron job
                 // See: docker/cron/post_process_articles.sh (runs every 5 minutes)
