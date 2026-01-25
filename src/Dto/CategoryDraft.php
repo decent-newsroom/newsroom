@@ -15,6 +15,12 @@ class CategoryDraft
     public array $articles = [];
     public string $slug = '';
 
+    /**
+     * If set, this category references an existing list by coordinate (30040:pubkey:slug)
+     * instead of creating a new one
+     */
+    public ?string $existingListCoordinate = null;
+
     /** Workflow state tracking */
     private string $workflowState = 'empty';
 
@@ -26,5 +32,13 @@ class CategoryDraft
     public function setWorkflowState(string $state): void
     {
         $this->workflowState = $state;
+    }
+
+    /**
+     * Returns true if this draft references an existing list
+     */
+    public function isExistingList(): bool
+    {
+        return $this->existingListCoordinate !== null && $this->existingListCoordinate !== '';
     }
 }

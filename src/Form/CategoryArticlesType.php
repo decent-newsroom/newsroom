@@ -26,13 +26,13 @@ class CategoryArticlesType extends AbstractType
                 'entry_options' => [
                     'required' => false,
                     'attr' => [
-                        'placeholder' => '30023:pubkey:slug'
+                        'placeholder' => 'naddr1... or 30023:pubkey:slug'
                     ],
                 ],
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,
-                'label' => 'Article coordinates (kind:pubkey:slug)',
+                'label' => 'Articles (naddr or coordinate)',
                 'prototype' => true,
             ]);
     }
