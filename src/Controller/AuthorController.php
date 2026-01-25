@@ -219,7 +219,8 @@ class AuthorController extends AbstractController
     ): Response {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
-        $author = $redisCacheService->getMetadata($pubkey);
+        $authorMetadata = $redisCacheService->getMetadata($pubkey);
+        $author = $authorMetadata->toStdClass(); // Convert to stdClass for template compatibility
 
         // Check ownership
         $currentUser = $this->getUser();
@@ -256,7 +257,7 @@ class AuthorController extends AbstractController
             'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
             'highlights' => $this->getHighlightsTabData($pubkey, $em),
-            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $redisCacheService->getMetadata($pubkey)),
+            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
             'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
             default => [],
         };

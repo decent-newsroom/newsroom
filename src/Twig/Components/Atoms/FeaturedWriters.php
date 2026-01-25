@@ -53,7 +53,7 @@ final class FeaturedWriters
                 $this->writers[] = [
                     'npub' => $npub,
                     'pubkey' => $hex,
-                    'metadata' => $metadataMap[$hex],
+                    'metadata' => $metadataMap[$hex]->toStdClass(), // Convert to stdClass for template compatibility
                     'user' => $user,
                 ];
             }

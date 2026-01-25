@@ -188,7 +188,9 @@ final class SearchComponent extends AbstractController
             // Perform optimized single search query with appropriate limit
             $this->results = $this->performOptimizedSearch($this->query, $maxResults);
             $pubkeys = array_unique(array_map(fn($art) => $art->getPubkey(), $this->results));
-            $this->authors = $this->redisCacheService->getMultipleMetadata($pubkeys);
+            $metadataMap = $this->redisCacheService->getMultipleMetadata($pubkeys);
+            // Convert UserMetadata DTOs to stdClass for template compatibility
+            $this->authors = array_map(fn($metadata) => $metadata->toStdClass(), $metadataMap);
 
             // Cache the search results in session
             $this->saveSearchToSession($this->query, $this->results);

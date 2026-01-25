@@ -161,7 +161,9 @@ class EventController extends AbstractController
                 }
                 if (!empty($pubkeys)) {
                     $logger->info('Batch fetching follow pack profiles', ['count' => count($pubkeys)]);
-                    $followPackProfiles = $redisCacheService->getMultipleMetadata($pubkeys);
+                    $metadataMap = $redisCacheService->getMultipleMetadata($pubkeys);
+                    // Convert UserMetadata DTOs to stdClass for template compatibility
+                    $followPackProfiles = array_map(fn($metadata) => $metadata->toStdClass(), $metadataMap);
                 }
             }
 
