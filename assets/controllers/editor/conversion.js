@@ -9,7 +9,8 @@
 // - Text ops do not contain embedded '\n' (deltaToMarkdown tolerates splitting, but no block attrs from text ops)
 //
 // Markdown subset supported:
-// - #..###### headings
+// - #..###### headings (ATX-style)
+// - Setext-style headings (underlined with === for H1, --- for H2)
 // - > blockquote (single-line)
 // - ordered lists ("1. item") and bullet lists ("- item" or "* item") with indentation by leading spaces
 // - fenced code blocks ```
@@ -252,9 +253,16 @@ export function markdownToDelta(md, opts = {}) {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const ops = [];
   let inCodeBlock = false;
+  let skipNextLine = false; // Track if we should skip the next line (underline)
 
-  for (const rawLine of lines) {
-    const line = rawLine;
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
+
+    // Skip lines that were already processed as underlines
+    if (skipNextLine) {
+      skipNextLine = false;
+      continue;
+    }
 
     // fence toggle
     if (line.trim().startsWith(options.fence)) {
@@ -275,7 +283,24 @@ export function markdownToDelta(md, opts = {}) {
       continue;
     }
 
-    // header
+    // Check for setext-style headers (underlined with === or ---)
+    // Look ahead to see if the next line is an underline
+    const nextLine = lineIdx + 1 < lines.length ? lines[lineIdx + 1] : null;
+    if (nextLine && !inCodeBlock) {
+      const isH1Underline = /^=+\s*$/.test(nextLine.trim());
+      const isH2Underline = /^-+\s*$/.test(nextLine.trim());
+
+      if (isH1Underline || isH2Underline) {
+        const level = isH1Underline ? 1 : 2;
+        const content = line.trim();
+        ops.push(...inlineMarkdownToOps(content));
+        ops.push({ insert: '\n', attributes: { header: level } });
+        skipNextLine = true; // Skip the underline on the next iteration
+        continue;
+      }
+    }
+
+    // header (ATX-style: # ## ### etc.)
     const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headerMatch) {
       const level = headerMatch[1].length;
