@@ -118,7 +118,9 @@ export default class extends Controller {
   }
 
   async buildReadingListEvent(listData) {
-    const pubkey = await window.nostr.getPublicKey();
+    // Use getSigner to get the correct signer (remote or extension)
+    const signer = await getSigner();
+    const pubkey = await signer.getPublicKey();
 
     // Build tags array
     const tags = [];
