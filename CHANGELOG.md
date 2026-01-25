@@ -2,17 +2,18 @@
 
 
 ## v0.0.6
-
+Testing revealed some issues. What a shocker. 
 
 - Non-blocking user profile data sync, typed metadata.
 - Show/hide long highlights context.
+- [Bug] Fixed scrolling in editor.
 - [Bug] Fix signer flow in magazine setup.
 - [Bug] Fixed squished tabs on mobile.
 - [Bug] Fixed reading list wizard buttons and general publishing flow.
 
 
 ## v0.0.5
-
+Navigating to nostr ids made easier.
 
 - Extended search to nostr idents, so you can paste a nostr npub, note, nevent or naddr to navigate to that profile, event or article.
 - Updated profiles, implemented background fetch.
