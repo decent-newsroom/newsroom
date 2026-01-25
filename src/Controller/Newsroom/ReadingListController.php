@@ -56,16 +56,43 @@ class ReadingListController extends AbstractController
             foreach ($events as $ev) {
                 if (!$ev instanceof Event) continue;
                 $tags = $ev->getTags();
-                $isReadingList = false;
+                $typeTag = null;
+                $hasLongFormArticles = false;
+                $hasAnyATags = false;
+                $hasMagazineReferences = false;
                 $title = null; $slug = null; $summary = null;
+                $articleCount = 0;
+
                 foreach ($tags as $t) {
                     if (is_array($t)) {
-                        if (($t[0] ?? null) === 'type' && ($t[1] ?? null) === 'reading-list') { $isReadingList = true; }
-                        if (($t[0] ?? null) === 'title') { $title = (string)$t[1]; }
-                        if (($t[0] ?? null) === 'summary') { $summary = (string)$t[1]; }
-                        if (($t[0] ?? null) === 'd') { $slug = (string)$t[1]; }
+                        if (($t[0] ?? null) === 'type') { $typeTag = $t[1] ?? null; }
+                        if (($t[0] ?? null) === 'title') { $title = (string)($t[1] ?? ''); }
+                        if (($t[0] ?? null) === 'summary') { $summary = (string)($t[1] ?? ''); }
+                        if (($t[0] ?? null) === 'd') { $slug = (string)($t[1] ?? ''); }
+
+                        // Check for any 'a' tags
+                        if (($t[0] ?? null) === 'a' && isset($t[1])) {
+                            $hasAnyATags = true;
+                            // Check if this references long-form articles (kind 30023)
+                            if (str_starts_with((string)$t[1], '30023:')) {
+                                $hasLongFormArticles = true;
+                                $articleCount++;
+                            }
+                            // Check if this references other 30040 events (magazine index)
+                            if (str_starts_with((string)$t[1], '30040:')) {
+                                $hasMagazineReferences = true;
+                            }
+                        }
                     }
                 }
+
+                // Include:
+                // 1. Events that reference long-form articles (30023) - active reading lists
+                // 2. Events with NO 'a' tags at all - empty/draft reading lists to be edited
+                // Exclude:
+                // - Events that reference 30040 (magazine indexes)
+                $isReadingList = !$hasMagazineReferences && ($hasLongFormArticles || !$hasAnyATags);
+
                 if ($isReadingList) {
                     // Collapse by slug: keep only newest per slug
                     $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
@@ -81,6 +108,9 @@ class ReadingListController extends AbstractController
                         'slug' => $slug,
                         'createdAt' => $ev->getCreatedAt(),
                         'pubkey' => $ev->getPubkey(),
+                        'type' => $typeTag, // Keep for display as badge
+                        'articleCount' => $articleCount,
+                        'isEmpty' => !$hasAnyATags, // Flag for empty lists
                     ];
                 }
             }
@@ -141,6 +171,15 @@ class ReadingListController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var CategoryDraft $draft */
             $draft = $form->getData();
+
+            // Transform naddr to coordinate if needed
+            if ($draft->existingListCoordinate && str_starts_with($draft->existingListCoordinate, 'naddr1')) {
+                $coordinate = $this->parseNaddr($draft->existingListCoordinate);
+                if ($coordinate) {
+                    $draft->existingListCoordinate = $coordinate;
+                }
+            }
+
             if (!$draft->slug) {
                 $draft->slug = $this->slugifyWithRandom($draft->title);
             }
@@ -177,6 +216,18 @@ class ReadingListController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var CategoryDraft $draft */
             $draft = $form->getData();
+
+            // Transform any naddr values to coordinates in the articles array
+            if (!empty($draft->articles)) {
+                $draft->articles = array_map(function($article) {
+                    if (is_string($article) && str_starts_with($article, 'naddr1')) {
+                        $coordinate = $this->parseNaddr($article);
+                        return $coordinate ?? $article;
+                    }
+                    return $article;
+                }, $draft->articles);
+            }
+
             // ensure slug exists
             if (!$draft->slug) {
                 $draft->slug = $this->slugifyWithRandom($draft->title);
@@ -261,6 +312,35 @@ class ReadingListController extends AbstractController
         $draft = $this->getDraft($request);
         if (!$draft) {
             return $this->redirectToRoute('read_wizard_setup');
+        }
+
+        // Transform any remaining naddr values to coordinates (safety check)
+        if (!empty($draft->articles)) {
+            $transformed = false;
+            $draft->articles = array_map(function($article) use (&$transformed) {
+                if (is_string($article) && str_starts_with($article, 'naddr1')) {
+                    $coordinate = $this->parseNaddr($article);
+                    if ($coordinate) {
+                        $transformed = true;
+                        return $coordinate;
+                    }
+                }
+                return $article;
+            }, $draft->articles);
+
+            // If we transformed any naddr values, save the updated draft
+            if ($transformed) {
+                $this->saveDraft($request, $draft);
+            }
+        }
+
+        // Transform existingListCoordinate if it's an naddr (safety check)
+        if ($draft->existingListCoordinate && str_starts_with($draft->existingListCoordinate, 'naddr1')) {
+            $coordinate = $this->parseNaddr($draft->existingListCoordinate);
+            if ($coordinate) {
+                $draft->existingListCoordinate = $coordinate;
+                $this->saveDraft($request, $draft);
+            }
         }
 
         // Determine the type based on session flag
@@ -381,7 +461,42 @@ class ReadingListController extends AbstractController
     private function getDraft(Request $request): ?CategoryDraft
     {
         $data = $request->getSession()->get(self::SESSION_KEY);
-        return $data instanceof CategoryDraft ? $data : null;
+        if (!$data instanceof CategoryDraft) {
+            return null;
+        }
+
+        // Transform any naddr values to coordinates when loading from session
+        $needsSave = false;
+
+        if (!empty($data->articles)) {
+            $originalArticles = $data->articles;
+            $data->articles = array_map(function($article) {
+                if (is_string($article) && str_starts_with($article, 'naddr1')) {
+                    $coordinate = $this->parseNaddr($article);
+                    return $coordinate ?? $article;
+                }
+                return $article;
+            }, $data->articles);
+
+            if ($originalArticles !== $data->articles) {
+                $needsSave = true;
+            }
+        }
+
+        if ($data->existingListCoordinate && str_starts_with($data->existingListCoordinate, 'naddr1')) {
+            $coordinate = $this->parseNaddr($data->existingListCoordinate);
+            if ($coordinate) {
+                $data->existingListCoordinate = $coordinate;
+                $needsSave = true;
+            }
+        }
+
+        // Save the transformed draft back to session if we made changes
+        if ($needsSave) {
+            $this->saveDraft($request, $data);
+        }
+
+        return $data;
     }
 
     private function saveDraft(Request $request, CategoryDraft $draft): void

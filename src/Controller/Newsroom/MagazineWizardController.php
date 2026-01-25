@@ -24,8 +24,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Csrf\CsrfToken;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 /**
  * Magazine Wizard Controller
@@ -44,7 +42,7 @@ class MagazineWizardController extends AbstractController
     }
 
     #[Route('/magazine/wizard/setup', name: 'mag_wizard_setup')]
-    public function setup(Request $request): Response
+    public function setup(Request $request, EntityManagerInterface $entityManager): Response
     {
         $draft = $this->getDraft($request);
         if (!$draft) {
@@ -60,11 +58,20 @@ class MagazineWizardController extends AbstractController
             if (!$draft->slug) {
                 $draft->slug = $this->slugifyWithRandom($draft->title);
             }
+
+            // Process categories: either existing lists or new ones
             foreach ($draft->categories as $cat) {
-                if (!$cat->slug) {
-                    $cat->slug = $this->slugifyWithRandom($cat->title);
+                if ($cat->existingListCoordinate && $cat->existingListCoordinate !== '') {
+                    // Load metadata from existing list
+                    $this->loadExistingListMetadata($cat, $entityManager);
+                } else {
+                    // Generate slug for new category
+                    if (!$cat->slug) {
+                        $cat->slug = $this->slugifyWithRandom($cat->title);
+                    }
                 }
             }
+
             $this->saveDraft($request, $draft);
             return $this->redirectToRoute('mag_wizard_articles');
         }
@@ -82,8 +89,16 @@ class MagazineWizardController extends AbstractController
             return $this->redirectToRoute('mag_wizard_setup');
         }
 
-        // Build a form as a collection of CategoryArticlesType
-        $formBuilder = $this->createFormBuilder($draft);
+        // Filter out categories that reference existing lists (they already have articles)
+        $editableCategories = array_filter($draft->categories, fn($cat) => !$cat->isExistingList());
+
+        // If all categories are existing lists, skip to review
+        if (empty($editableCategories)) {
+            return $this->redirectToRoute('mag_wizard_review');
+        }
+
+        // Build a form as a collection of CategoryArticlesType for editable categories only
+        $formBuilder = $this->createFormBuilder(['categories' => $editableCategories]);
         $formBuilder->add('categories', CollectionType::class, [
             'entry_type' => CategoryArticlesType::class,
             'allow_add' => false,
@@ -94,12 +109,44 @@ class MagazineWizardController extends AbstractController
         $form = $formBuilder->getForm();
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->saveDraft($request, $form->getData());
+            // Merge the edited categories back into the draft
+            $formData = $form->getData();
+            $editedCats = $formData['categories'] ?? [];
+
+            // Normalize article coordinates (convert naddr to coordinate format)
+            foreach ($editedCats as $cat) {
+                if ($cat instanceof CategoryDraft && is_array($cat->articles)) {
+                    $normalizedArticles = [];
+                    foreach ($cat->articles as $article) {
+                        if (is_string($article) && $article !== '') {
+                            $normalized = $this->parseNaddr($article);
+                            if ($normalized !== null) {
+                                $normalizedArticles[] = $normalized;
+                            }
+                        }
+                    }
+                    $cat->articles = $normalizedArticles;
+                }
+            }
+
+            // Replace editable categories in draft with edited versions
+            $editedIndex = 0;
+            foreach ($draft->categories as $i => $cat) {
+                if (!$cat->isExistingList()) {
+                    if (isset($editedCats[$editedIndex])) {
+                        $draft->categories[$i] = $editedCats[$editedIndex];
+                    }
+                    $editedIndex++;
+                }
+            }
+
+            $this->saveDraft($request, $draft);
             return $this->redirectToRoute('mag_wizard_review');
         }
 
         return $this->render('magazine/magazine_articles.html.twig', [
             'form' => $form->createView(),
+            'hasExistingLists' => count($editableCategories) < count($draft->categories),
         ]);
     }
 
@@ -112,8 +159,14 @@ class MagazineWizardController extends AbstractController
         }
 
         // Build event skeletons (without pubkey/sig/id); created_at client can adjust
+        // Only for NEW categories (not existing lists)
         $categoryEvents = [];
         foreach ($draft->categories as $cat) {
+            // Skip existing lists - they don't need new events
+            if ($cat->isExistingList()) {
+                continue;
+            }
+
             $tags = [];
             $tags[] = ['d', $cat->slug];
             $tags[] = ['type', 'magazine'];
@@ -152,10 +205,14 @@ class MagazineWizardController extends AbstractController
         if ($draft->language) { $magTags[] = ['l', $draft->language]; }
         foreach ($draft->tags as $t) { $magTags[] = ['t', $t]; }
 
-        // If we know the user's pubkey, include all category coordinates as 'a' tags now
+        // Add category coordinates as 'a' tags
         if ($pubkeyHex) {
             foreach ($draft->categories as $cat) {
-                if ($cat->slug) {
+                if ($cat->isExistingList()) {
+                    // Use the existing coordinate directly
+                    $magTags[] = ['a', $cat->existingListCoordinate];
+                } elseif ($cat->slug) {
+                    // Build coordinate for new category
                     $magTags[] = ['a', sprintf('30040:%s:%s', $pubkeyHex, $cat->slug)];
                 }
             }
@@ -329,12 +386,15 @@ class MagazineWizardController extends AbstractController
         $draft->tags = $this->getAllTagValues($tags, 't');
         $draft->categories = [];
 
+        $magazinePubkey = $magEventData['pubkey'];
+
         // For each category coordinate (30040:pubkey:slug), load its index and map
         foreach ($tags as $t) {
             if (is_array($t) && ($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
-                $parts = explode(':', (string)$t[1], 3);
+                $coordinate = (string)$t[1];
+                $parts = explode(':', $coordinate, 3);
                 if (count($parts) !== 3) { continue; }
-                $catSlug = $parts[2];
+                [$kind, $catPubkey, $catSlug] = $parts;
 
                 // Query database for category event
                 $catResult = $conn->executeQuery($sql, [
@@ -350,6 +410,12 @@ class MagazineWizardController extends AbstractController
                 $cat->title = $this->getTagValue($ctags, 'title') ?? '';
                 $cat->summary = $this->getTagValue($ctags, 'summary') ?? '';
                 $cat->tags = $this->getAllTagValues($ctags, 't');
+
+                // If category pubkey differs from magazine pubkey, it's an existing list reference
+                if ($catPubkey !== $magazinePubkey) {
+                    $cat->existingListCoordinate = $coordinate;
+                }
+
                 $cat->articles = [];
                 foreach ($ctags as $ct) {
                     if (is_array($ct) && ($ct[0] ?? null) === 'a' && isset($ct[1])) {
@@ -407,5 +473,102 @@ class MagazineWizardController extends AbstractController
         $slug = trim(preg_replace('/-+/', '-', $slug) ?? '', '-');
         $rand = substr(bin2hex(random_bytes(4)), 0, 6);
         return $slug !== '' ? ($slug . '-' . $rand) : $rand;
+    }
+
+    /**
+     * Convert naddr to coordinate format (kind:pubkey:identifier)
+     * If already a coordinate, returns as-is
+     *
+     * @param string $input Either naddr or coordinate
+     * @return string|null Coordinate string or null if invalid
+     */
+    private function parseNaddr(string $input): ?string
+    {
+        $input = trim($input);
+
+        if (empty($input)) {
+            return null;
+        }
+
+        // If already a coordinate format (kind:pubkey:slug), return as-is
+        if (preg_match('/^\d+:[a-f0-9]{64}:.+$/i', $input)) {
+            return $input;
+        }
+
+        // Try to decode as naddr
+        if (str_starts_with($input, 'naddr1')) {
+            try {
+                $helper = new \swentel\nostr\Nip19\Nip19Helper();
+                $decoded = $helper->decode($input);
+
+                if (!isset($decoded['kind'], $decoded['pubkey'], $decoded['identifier'])) {
+                    return null;
+                }
+
+                return sprintf('%d:%s:%s', $decoded['kind'], $decoded['pubkey'], $decoded['identifier']);
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Load metadata from an existing list event by coordinate
+     */
+    private function loadExistingListMetadata(CategoryDraft $cat, EntityManagerInterface $entityManager): void
+    {
+        if (!$cat->existingListCoordinate) {
+            return;
+        }
+
+        // Parse coordinate: 30040:pubkey:slug
+        $parts = explode(':', $cat->existingListCoordinate, 3);
+        if (count($parts) !== 3) {
+            return; // Invalid coordinate format
+        }
+
+        [, $pubkey, $slug] = $parts;
+        $cat->slug = $slug;
+
+        // Query database for the list event
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                AND e.pubkey = ?
+                AND e.kind = 30040
+                ORDER BY e.created_at DESC
+                LIMIT 1";
+
+        try {
+            $conn = $entityManager->getConnection();
+            $result = $conn->executeQuery($sql, [
+                json_encode([['d', $slug]]),
+                $pubkey
+            ]);
+
+            $eventData = $result->fetchAssociative();
+
+            if ($eventData !== false) {
+                $tags = json_decode($eventData['tags'], true);
+
+                // Load metadata from existing event
+                $cat->title = $this->getTagValue($tags, 'title') ?? $cat->title;
+                $cat->summary = $this->getTagValue($tags, 'summary') ?? '';
+                $cat->image = $this->getTagValue($tags, 'image') ?? '';
+                $cat->tags = $this->getAllTagValues($tags, 't');
+
+                // Load article coordinates
+                $cat->articles = [];
+                foreach ($tags as $t) {
+                    if (is_array($t) && ($t[0] ?? null) === 'a' && isset($t[1])) {
+                        $cat->articles[] = (string)$t[1];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // If we can't load the list, just keep the coordinate
+            // The user can still proceed and the coordinate will be used as-is
+        }
     }
 }

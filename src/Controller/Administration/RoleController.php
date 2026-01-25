@@ -273,10 +273,11 @@ class RoleController extends AbstractController
         foreach ($users as $user) {
             $npub = $user->getNpub();
             $hex = $npubToHex[$npub] ?? null;
+            $metadata = $hex ? ($metadataMap[$hex] ?? null) : null;
             $result[] = [
                 'user' => $user,
                 'npub' => $npub,
-                'metadata' => $hex ? ($metadataMap[$hex] ?? null) : null,
+                'metadata' => $metadata ? $metadata->toStdClass() : null, // Convert to stdClass for template compatibility
             ];
         }
 
