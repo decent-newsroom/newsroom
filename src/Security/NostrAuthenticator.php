@@ -263,10 +263,44 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
             $message = $authException->getMessage();
         }
 
+        // Check if request expects JSON (API requests)
+        $acceptHeader = $request->headers->get('Accept', '');
+        $contentType = $request->headers->get('Content-Type', '');
+        $isJsonRequest = str_contains($acceptHeader, 'application/json') ||
+                         str_contains($contentType, 'application/json') ||
+                         $request->isXmlHttpRequest();
+
+        if ($isJsonRequest) {
+            return new Response(
+                json_encode(['error' => 'Authentication required', 'message' => $message]),
+                Response::HTTP_UNAUTHORIZED,
+                ['Content-Type' => 'application/json']
+            );
+        }
+
+        // For HTML requests, redirect to login page
         return new Response(
-            json_encode(['error' => 'Authentication required', 'message' => $message]),
+            '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Authentication Required</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 50px; }
+        .error-box { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 20px; border-radius: 5px; }
+        a { color: #004085; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>Authentication Required</h1>
+        <p>' . htmlspecialchars($message) . '</p>
+        <p><a href="/login">Please log in to continue</a></p>
+    </div>
+</body>
+</html>',
             Response::HTTP_UNAUTHORIZED,
-            ['Content-Type' => 'application/json']
+            ['Content-Type' => 'text/html']
         );
     }
 
