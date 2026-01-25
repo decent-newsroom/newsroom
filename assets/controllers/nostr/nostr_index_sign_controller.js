@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getSigner } from './signer_manager.js';
+import { getSigner, getRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
@@ -22,7 +22,12 @@ export default class extends Controller {
       const catSkeletons = JSON.parse(this.categoryEventsValue || '[]');
       const magSkeleton = JSON.parse(this.magazineEventValue || '{}');
       let pubkey = '<pubkey>';
-      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+
+      // Check for remote signer session first - don't use extension if remote signer is active
+      const session = getRemoteSignerSession();
+      if (session) {
+        pubkey = '<will be obtained from remote signer>';
+      } else if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
         try { pubkey = await window.nostr.getPublicKey(); } catch (_) {}
       }
 

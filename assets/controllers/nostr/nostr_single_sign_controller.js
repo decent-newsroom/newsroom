@@ -51,18 +51,15 @@ export default class extends Controller {
       const skeleton = JSON.parse(this.eventValue || '{}');
       let pubkey = '<pubkey>';
 
-      // Only try to get pubkey if extension is available
-      // Don't attempt remote signer connection during preview (it would timeout)
-      if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+      // Check for remote signer session first - don't use extension if remote signer is active
+      const session = getRemoteSignerSession();
+      if (session) {
+        pubkey = '<will be obtained from remote signer>';
+      } else if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+        // Only try to get pubkey from extension if no remote signer session exists
         try {
           pubkey = await window.nostr.getPublicKey();
         } catch (_) {}
-      } else {
-        // If remote signer session exists, show placeholder
-        const session = getRemoteSignerSession();
-        if (session) {
-          pubkey = '<will be obtained from remote signer>';
-        }
       }
 
       const preview = JSON.parse(JSON.stringify(skeleton));

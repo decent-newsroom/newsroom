@@ -2,6 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { EditorView, basicSetup } from 'codemirror';
 import { json } from '@codemirror/lang-json';
 import { npubToHex } from '../../typescript/nostr-utils.ts';
+import { getRemoteSignerSession } from './signer_manager.js';
 
 // Inline utility functions (simplified versions)
 function buildAdvancedTags(metadata) {
@@ -223,10 +224,14 @@ export default class extends Controller {
       const formData = this.collectFormData();
       let nostrEvent = await this.createNostrEvent(formData);
 
-      // Choose signing flow based on loginMethod
+      // Choose signing flow based on loginMethod or remote signer session
       let signedEvent;
       console.log('[nostr-publish] loginMethod:', formData.loginMethod);
-      if (formData.loginMethod === 'bunker') {
+
+      // Check for remote signer session first, regardless of loginMethod value
+      const remoteSession = getRemoteSignerSession();
+
+      if (formData.loginMethod === 'bunker' || remoteSession) {
         // Hand off to signer_manager via custom event
         const handoffEvent = new CustomEvent('nostr:sign', {
           detail: { nostrEvent, formData: formData },
