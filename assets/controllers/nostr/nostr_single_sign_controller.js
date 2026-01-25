@@ -146,12 +146,10 @@ export default class extends Controller {
       } else {
         this.showSuccess(result.message || 'Published successfully! Redirecting...');
         // Redirect: use URL from response, then from value, then default
-        if (this.hasPublishButtonTarget) {
-          const redirectUrl = result.redirectUrl || this.redirectUrlValue || '/reading-list';
-          setTimeout(() => {
-            window.location.href = redirectUrl;
-          }, 1500);
-        }
+        const redirectUrl = result.redirectUrl || this.redirectUrlValue || '/reading-list';
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 1500);
       }
     } catch (e) {
       console.error('[nostr_single_sign] Error during sign/publish:', e);

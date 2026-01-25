@@ -330,12 +330,19 @@ class EditorController extends AbstractController
             }
 
 
+            // Generate URL for the published article
+            $redirectUrl = null;
+            if (!$isDraft) {
+                $redirectUrl = $this->generateUrl('article-slug', ['slug' => $article->getSlug()]);
+            }
+
             return new JsonResponse([
                 'success' => true,
                 'message' => $isDraft ? 'Draft saved successfully' : 'Article published successfully',
                 'articleId' => $article->getId(),
                 'slug' => $article->getSlug(),
                 'isDraft' => $isDraft,
+                'redirectUrl' => $redirectUrl,
                 'relayResults' => $relayResults
             ]);
 
