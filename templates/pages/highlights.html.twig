@@ -62,14 +62,14 @@
                                         <div><span class="highlight-mark">{{ highlight.content }}</span></div>
                                     </div>
                                 {% endif %}
+                                <button data-utility--show-more-target="button"
+                                        data-action="click->utility--show-more#toggle"
+                                        class="show-more-button">
+                                    Show more
+                                </button>
                             {% else %}
                                 <span class="highlight-mark">{{ highlight.content }}</span>
                             {% endif %}
-                            <button data-utility--show-more-target="button"
-                                    data-action="click->utility--show-more#toggle"
-                                    class="show-more-button">
-                                Show more
-                            </button>
                         </div>
 
                         <div class="highlight-footer">

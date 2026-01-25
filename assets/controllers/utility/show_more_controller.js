@@ -4,9 +4,17 @@ export default class extends Controller {
     static targets = ["preview", "full", "button"];
 
     connect() {
+        // If there's no preview target, hide the button (no expandable content)
+        if (!this.hasPreviewTarget) {
+            if (this.hasButtonTarget) {
+                this.buttonTarget.classList.add('hidden');
+            }
+            return;
+        }
+
         // Check if content is short enough to not need the button
         // The preview has max-height of 280px, so if scrollHeight <= 280px, no need for toggle
-        if (this.hasPreviewTarget && this.previewTarget.scrollHeight <= 280) {
+        if (this.previewTarget.scrollHeight <= 280) {
             this.previewTarget.classList.add('no-fade');
             if (this.hasButtonTarget) {
                 this.buttonTarget.classList.add('hidden');
