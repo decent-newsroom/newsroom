@@ -68,6 +68,7 @@ main.editor-layout {
     flex-direction: column;
     border-right: 1px solid var(--border-color, #e5e7eb);
     min-height: 0;
+    max-height: calc(100vh - 60px);
     background: var(--background, #ffffff);
 }
 
@@ -116,15 +117,19 @@ main.editor-layout {
 }
 
 .cm-editor {
-    height: 100%;
+    flex: 1;
     max-width: 100%;
+    overflow: auto;
+    min-height: 0;
 }
 
 .editor-pane {
     flex: 1;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem;
     min-height: 0;
+    height: 100%;
 }
 
 .editor-pane.is-hidden {
@@ -151,18 +156,10 @@ main.editor-layout {
     flex-shrink: 0;
 }
 
-.markdown-editor {
+.editor-pane--markdown .cm-editor {
     flex: 1;
-    width: 100%;
-    min-height: 300px;
-    padding: 1rem;
-    line-height: 1.6;
-    resize: none;
-    overflow-y: auto;
-    overflow-x: hidden;
-    word-break: break-word;
-    white-space: pre-wrap;
-    box-sizing: border-box;
+    min-height: 0;
+    margin-bottom: var(--spacing-2);
 }
 
 /* Editor specific styles */
@@ -175,6 +172,7 @@ main.editor-layout {
 
 .editor-title-input {
     margin-bottom: 1rem;
+    flex-shrink: 0;
 }
 
 .editor-title-field {
