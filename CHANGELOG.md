@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.0.7
+Making UI more usable.
+
+- Reading lists now load existing lists.
+- Now possible to add articles to magazines and reading lists by naddr.
+- [Bug] Refactoring metadata introduced a bug in profiles, showing name instead of display name.
+- [Bug] Add-to-list button defaulted to extension, now honors login method.
+
 
 ## v0.0.6
 Testing revealed some issues. What a shocker. 
