@@ -1,5 +1,16 @@
 # CHANGELOG
 
+
+## v0.0.6
+
+
+- Non-blocking user profile data sync, typed metadata.
+- Show/hide long highlights context.
+- [Bug] Fix signer flow in magazine setup.
+- [Bug] Fixed squished tabs on mobile.
+- [Bug] Fixed reading list wizard buttons and general publishing flow.
+
+
 ## v0.0.5
 
 
@@ -9,6 +20,7 @@
 - Added zap buttons to articles.
 - Brought back zaps as comments.
 - Made multimedia more resilient.
+
 
 ## v0.0.4
 Deployment used to be a remake of Minesweeper. Now it's more like Darts.
