@@ -25,7 +25,7 @@
                     <span class="badge bg-secondary ms-2">{{ item.type}}</span>
                   {% endif %}
                   {% if item.isEmpty %}
-                    <span class="badge bg-warning text-dark ms-1">Empty - Add Articles</span>
+                    <span class="badge bg-warning text-dark ms-1">Empty</span>
                   {% elseif item.articleCount is defined %}
                     <span class="badge bg-info text-dark ms-1">{{ item.articleCount }} article{{ item.articleCount != 1 ? 's' : '' }}</span>
                   {% endif %}
@@ -42,7 +42,7 @@
                     </span>
                     {% endif %}
                     {% if item.slug and item.pubkey %}
-                        <div class="mt-2 small" data-controller="utility--copy-to-clipboard">
+                        <div data-controller="utility--copy-to-clipboard">
                             <code class="hidden bg-light px-1" data-utility--copy-to-clipboard-target="textToCopy">30040:{{ item.pubkey }}:{{ item.slug }}</code>
                             <button class="btn btn-sm btn-secondary"
                                     data-utility--copy-to-clipboard-target="copyButton"
