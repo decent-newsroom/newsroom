@@ -170,6 +170,7 @@ class MagazineWizardController extends AbstractController
             $tags = [];
             $tags[] = ['d', $cat->slug];
             $tags[] = ['type', 'magazine'];
+            $tags[] = ['alt', 'This is a publication index event viewable on Decent Newsroom at decentnewsroom.com'];
             if ($cat->title) { $tags[] = ['title', $cat->title]; }
             if ($cat->summary) { $tags[] = ['summary', $cat->summary]; }
             foreach ($cat->tags as $t) { $tags[] = ['t', $t]; }
@@ -199,6 +200,7 @@ class MagazineWizardController extends AbstractController
         $magTags = [];
         $magTags[] = ['d', $draft->slug];
         $magTags[] = ['type', 'magazine'];
+        $magTags[] = ['alt', 'This is a publication index event viewable on Decent Newsroom at decentnewsroom.com'];
         if ($draft->title) { $magTags[] = ['title', $draft->title]; }
         if ($draft->summary) { $magTags[] = ['summary', $draft->summary]; }
         if ($draft->imageUrl) { $magTags[] = ['image', $draft->imageUrl]; }
