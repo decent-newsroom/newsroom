@@ -90,6 +90,12 @@ class HandlebarsRenderer
         // Add asset path prefix to context for runtime use
         $context['@assetPath'] = '/assets/themes/' . $this->currentTheme;
 
+        // LightnCandy expects @ variables in both the context and also accessible via 'site' for compatibility
+        // Ensure site data is accessible both ways
+        if (isset($context['@site'])) {
+            $context['site'] = $context['@site'];
+        }
+
         $renderer = $this->getCompiledTemplate($templateName);
 
         try {
@@ -286,10 +292,6 @@ class HandlebarsRenderer
                 return date($format, strtotime($date ?? 'now'));
             },
 
-            // URL helper
-            'url' => function ($path) {
-                return '/' . ltrim($path ?? '', '/');
-            },
 
             // Asset URL helper - uses @assetPath from runtime context
             'asset' => function ($path, $options = null) {

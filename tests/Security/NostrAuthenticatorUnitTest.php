@@ -28,7 +28,7 @@ class NostrAuthenticatorUnitTest extends TestCase
      */
     public function testSupportsValidNostrRequest(): void
     {
-        $request = new Request();
+        $request = Request::create('/login', 'POST');
         $request->headers->set('Authorization', 'Nostr eyJpZCI6InRlc3QifQ==');
 
         $this->assertTrue($this->authenticator->supports($request));

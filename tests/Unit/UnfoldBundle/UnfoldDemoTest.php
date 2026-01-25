@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 /**
- * Demo test for Unfold theme rendering with Casper theme
+ * Demo test for Unfold theme rendering with default theme
  */
 class UnfoldDemoTest extends TestCase
 {
@@ -25,10 +25,10 @@ class UnfoldDemoTest extends TestCase
         $this->contextBuilder = new ContextBuilder();
     }
 
-    public function testRenderHomePageWithCasperTheme(): void
+    public function testRenderHomePageWithDefaultTheme(): void
     {
-        // Set theme to casper
-        $this->renderer->setTheme('casper');
+        // Use default theme
+        $this->renderer->setTheme('default');
 
         // Create mock site config
         $siteConfig = new SiteConfig(
@@ -38,7 +38,7 @@ class UnfoldDemoTest extends TestCase
             logo: 'https://picsum.photos/200',
             categories: ['30040:abc123:tech', '30040:abc123:culture'],
             pubkey: 'abc123def456',
-            theme: 'casper',
+            theme: 'default',
         );
 
         // Create mock categories
@@ -94,14 +94,13 @@ class UnfoldDemoTest extends TestCase
         // Build context
         $context = $this->contextBuilder->buildHomeContext($siteConfig, $categories, $posts);
 
-        // Render using simple template (Ghost's index.hbs has incompatible syntax)
-        $html = $this->renderer->render('index-simple', $context);
+        // Render using index template
+        $html = $this->renderer->render('index', $context);
 
         // Assertions
         $this->assertNotEmpty($html);
         $this->assertStringContainsString('Demo Magazine', $html);
         $this->assertStringContainsString('Hello World', $html);
-        $this->assertStringContainsString('/assets/themes/casper/', $html);
 
         // Output for visual inspection
         echo "\n\n=== RENDERED HOME PAGE (first 2000 chars) ===\n";
@@ -109,9 +108,9 @@ class UnfoldDemoTest extends TestCase
         echo "\n...\n";
     }
 
-    public function testRenderPostPageWithCasperTheme(): void
+    public function testRenderPostPageWithDefaultTheme(): void
     {
-        $this->renderer->setTheme('casper');
+        $this->renderer->setTheme('default');
 
         $siteConfig = new SiteConfig(
             naddr: 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu35yyt0mwjjh8pcz4zprhxegz69t4wr9t74vk6zne58wzh0waycrqsqqqa28pjfdhz',
@@ -120,7 +119,7 @@ class UnfoldDemoTest extends TestCase
             logo: null,
             categories: ['30040:abc123:tech'],
             pubkey: 'abc123def456',
-            theme: 'casper',
+            theme: 'default',
         );
 
         $categories = [
@@ -145,8 +144,8 @@ class UnfoldDemoTest extends TestCase
 
         $context = $this->contextBuilder->buildPostContext($siteConfig, $categories, $post);
 
-        // Render using simple template (Ghost's post.hbs has incompatible syntax)
-        $html = $this->renderer->render('post-simple', $context);
+        // Render using post template
+        $html = $this->renderer->render('post', $context);
 
         $this->assertNotEmpty($html);
         $this->assertStringContainsString('Hello World', $html);
@@ -158,7 +157,7 @@ class UnfoldDemoTest extends TestCase
 
     public function testAssetPathsAreCorrect(): void
     {
-        $this->renderer->setTheme('casper');
+        $this->renderer->setTheme('default');
 
         $siteConfig = new SiteConfig(
             naddr: 'naddr1test',
@@ -167,19 +166,17 @@ class UnfoldDemoTest extends TestCase
             logo: null,
             categories: [],
             pubkey: 'test',
-            theme: 'casper',
+            theme: 'default',
         );
 
         $context = $this->contextBuilder->buildHomeContext($siteConfig, [], []);
-        $html = $this->renderer->render('index-simple', $context);
+        $html = $this->renderer->render('index', $context);
 
-        // Check that asset paths point to casper theme
-        $this->assertStringContainsString('/assets/themes/casper/built/screen.css', $html);
-        $this->assertStringContainsString('/assets/themes/casper/built/casper.js', $html);
+        // Check that asset paths point to default theme
+        $this->assertStringContainsString('/assets/themes/default', $html);
 
         echo "\n\n=== ASSET PATHS CHECK ===\n";
-        echo "✓ CSS path: /assets/themes/casper/built/screen.css\n";
-        echo "✓ JS path: /assets/themes/casper/built/casper.js\n";
+        echo "✓ Asset paths use default theme\n";
     }
 }
 

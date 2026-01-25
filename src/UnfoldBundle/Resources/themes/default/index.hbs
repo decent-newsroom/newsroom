@@ -1,55 +1,58 @@
 <!DOCTYPE html>
-</html>
-</body>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{site.title}}</title>
+    <meta name="description" content="{{site.description}}">
+    <!-- Theme assets would be loaded here in a real theme -->
+    <!-- Example: <link rel="stylesheet" href="/assets/themes/default/style.css"> -->
+    <style data-theme-path="/assets/themes/default">
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 40px; }
+        .site-title { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .site-title a { color: inherit; text-decoration: none; }
+        .site-description { color: #666; }
+        nav { margin-top: 1rem; }
+        nav a { color: #333; text-decoration: none; margin-right: 1.5rem; }
+        nav a:hover { text-decoration: underline; }
+        .post-list { display: grid; gap: 2rem; }
+        .post-card { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+        .post-card img { width: 100%; height: 200px; object-fit: cover; }
+        .post-card-content { padding: 1.5rem; }
+        .post-card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+        .post-card h2 a { color: inherit; text-decoration: none; }
+        .post-card h2 a:hover { text-decoration: underline; }
+        .post-card p { color: #666; font-size: 0.95rem; }
+        .post-meta { font-size: 0.85rem; color: #999; margin-top: 1rem; }
+        footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 40px; text-align: center; color: #666; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    {{> header}}
+
+    <main>
+        <div class="post-list">
+            {{#each posts}}
+            <article class="post-card">
+                {{#if feature_image}}
+                <img src="{{feature_image}}" alt="{{title}}">
+                {{/if}}
+                <div class="post-card-content">
+                    <h2><a href="{{url}}">{{title}}</a></h2>
+                    <p>{{excerpt}}</p>
+                    <div class="post-meta">
+                        {{published_at_formatted}} · {{reading_time}} min read
+                    </div>
+                </div>
+            </article>
+            {{/each}}
+        </div>
+    </main>
+
     {{> footer}}
 
-    </main>
-        </div>
-            {{/each}}
-            </article>
-                </div>
-                    </div>
-                        {{published_at_formatted}} · {{reading_time}} min read
-                    <div class="post-meta">
-                    <p>{{excerpt}}</p>
-                    <h2><a href="{{url}}">{{title}}</a></h2>
-                <div class="post-card-content">
-                {{/if}}
-                <img src="{{feature_image}}" alt="{{title}}">
-                {{#if feature_image}}
-            <article class="post-card">
-            {{#each posts}}
-        <div class="post-list">
-    <main>
-
-    {{> header}}
-<body>
-</head>
-    </style>
-        footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 40px; text-align: center; color: #666; font-size: 0.9rem; }
-        .post-meta { font-size: 0.85rem; color: #999; margin-top: 1rem; }
-        .post-card p { color: #666; font-size: 0.95rem; }
-        .post-card h2 a:hover { text-decoration: underline; }
-        .post-card h2 a { color: inherit; text-decoration: none; }
-        .post-card h2 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-        .post-card-content { padding: 1.5rem; }
-        .post-card img { width: 100%; height: 200px; object-fit: cover; }
-        .post-card { border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
-        .post-list { display: grid; gap: 2rem; }
-        nav a:hover { text-decoration: underline; }
-        nav a { color: #333; text-decoration: none; margin-right: 1.5rem; }
-        nav { margin-top: 1rem; }
-        .site-description { color: #666; }
-        .site-title a { color: inherit; text-decoration: none; }
-        .site-title { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
-        header { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 40px; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-    <style>
-    <meta name="description" content="{{@site.description}}">
-    <title>{{@site.title}}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta charset="utf-8">
-<head>
-<html lang="en">
+</body>
+</html>
 

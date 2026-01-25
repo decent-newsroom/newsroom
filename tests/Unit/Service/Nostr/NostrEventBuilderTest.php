@@ -163,9 +163,10 @@ class NostrEventBuilderTest extends TestCase
         $shares = $this->builder->calculateShares($splits);
 
         $this->assertCount(3, $shares);
-        $this->assertEquals(33.333333333333, $shares[0], '', 0.01);
-        $this->assertEquals(33.333333333333, $shares[1], '', 0.01);
-        $this->assertEquals(33.333333333333, $shares[2], '', 0.01);
+        // Use delta of 0.01 for floating point comparison (each should be ~33.33%)
+        $this->assertEqualsWithDelta(33.333333333333, $shares[0], 0.01);
+        $this->assertEqualsWithDelta(33.333333333333, $shares[1], 0.01);
+        $this->assertEqualsWithDelta(33.333333333333, $shares[2], 0.01);
     }
 
     public function testCalculateSharesWeightedDistribution(): void

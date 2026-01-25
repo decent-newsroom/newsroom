@@ -2,7 +2,7 @@
 
 namespace App\Tests\Service;
 
-use App\Service\TagMatchingService;
+use App\Service\RSS\TagMatchingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
