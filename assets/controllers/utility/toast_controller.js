@@ -25,9 +25,7 @@ export default class extends Controller {
 
   connect() {
     console.log('Toast controller connected');
-    this.queue = [];
-    this.currentToast = null;
-    this.isProcessing = false;
+    this.activeToasts = new Set();
 
     // Expose globally for easy access from any controller
     window.showToast = (message, type = 'info', duration = 4000) => {
@@ -49,31 +47,10 @@ export default class extends Controller {
    * @param {number} duration - How long to show the toast in milliseconds (default: 4000)
    */
   show(message, type = 'info', duration = 4000) {
-    this.queue.push({ message, type, duration });
-    this.processQueue();
-  }
-
-  /**
-   * Process the toast queue one at a time
-   */
-  processQueue() {
-    // If already showing a toast, wait
-    if (this.isProcessing) {
-      return;
-    }
-
-    // If queue is empty, nothing to do
-    if (this.queue.length === 0) {
-      return;
-    }
-
-    this.isProcessing = true;
-    const { message, type, duration } = this.queue.shift();
-
-    // Create toast element
+    // Create and show toast immediately
     const toast = this.createToastElement(message, type);
     this.containerTarget.appendChild(toast);
-    this.currentToast = toast;
+    this.activeToasts.add(toast);
 
     // Trigger animation after a small delay (for CSS transition)
     requestAnimationFrame(() => {
@@ -124,10 +101,11 @@ export default class extends Controller {
    */
   dismissToast(toast) {
     if (!toast || !toast.parentNode) {
-      this.isProcessing = false;
-      this.processQueue();
       return;
     }
+
+    // Remove from active set
+    this.activeToasts.delete(toast);
 
     // Start fade out animation
     toast.classList.remove('toast--show');
@@ -138,11 +116,6 @@ export default class extends Controller {
       if (toast.parentNode) {
         toast.remove();
       }
-      this.currentToast = null;
-      this.isProcessing = false;
-
-      // Process next toast in queue
-      this.processQueue();
     }, 300); // Match CSS transition duration
   }
 
@@ -150,13 +123,12 @@ export default class extends Controller {
    * Clear all toasts immediately
    */
   clearAll() {
-    this.queue = [];
-    const toasts = this.containerTarget.querySelectorAll('.toast');
-    toasts.forEach(toast => {
-      toast.remove();
+    this.activeToasts.forEach(toast => {
+      if (toast.parentNode) {
+        toast.remove();
+      }
     });
-    this.currentToast = null;
-    this.isProcessing = false;
+    this.activeToasts.clear();
   }
 }
 
