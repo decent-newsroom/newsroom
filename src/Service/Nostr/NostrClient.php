@@ -41,7 +41,6 @@ class NostrClient
     public function __construct(private readonly EntityManagerInterface $entityManager,
                                 private readonly ManagerRegistry        $managerRegistry,
                                 private readonly ArticleFactory         $articleFactory,
-                                private readonly TokenStorageInterface  $tokenStorage,
                                 private readonly LoggerInterface        $logger,
                                 private readonly CacheItemPoolInterface $npubCache,
                                 private readonly NostrRelayPool         $relayPool,
@@ -137,7 +136,7 @@ class NostrClient
         ]);
         $relaySet = $this->createRelaySet($relayUrls);
 
-        $this->logger->info('Getting metadata for pubkey ' . $pubkey );
+        $this->logger->debug('Getting metadata for pubkey ' . $pubkey );
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::METADATA],
             filters: ['authors' => [$pubkey]],
@@ -145,11 +144,9 @@ class NostrClient
         );
 
         $events = $this->processResponse($request->send(), function($received) {
-            $this->logger->info('Getting metadata for pubkey', ['item' => $received]);
+            $this->logger->debug('Received metadata event for pubkey', ['item' => $received]);
             return $received;
         });
-
-        $this->logger->info('Getting metadata for pubkey', ['response' => $events]);
 
         if (empty($events)) {
             throw new \Exception('No metadata found for pubkey: ' . $pubkey);
@@ -1397,7 +1394,7 @@ class NostrClient
             foreach ($relayRes as $item) {
                 try {
                     if (!is_object($item)) {
-                        $this->logger->warning('Invalid response item from ' . $relayUrl , [
+                        $this->logger->debug('Invalid response item from ' . $relayUrl , [
                             'relay' => $relayUrl,
                             'item' => $item
                         ]);
@@ -1416,14 +1413,14 @@ class NostrClient
                             }
                             break;
                         case 'AUTH':
-                            $this->logger->info('Relay required authentication (handled during request)', [
+                            $this->logger->debug('Relay required authentication (handled during request)', [
                                 'relay' => $relayUrl,
                                 'response' => $item
                             ]);
                             break;
                         case 'ERROR':
                         case 'NOTICE':
-                            $this->logger->warning('Relay error/notice', [
+                            $this->logger->debug('Relay error/notice', [
                                 'relay' => $relayUrl,
                                 'type' => $item->type,
                                 'message' => $item->message ?? 'No message'

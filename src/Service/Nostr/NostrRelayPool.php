@@ -30,7 +30,7 @@ class NostrRelayPool
     /** @var array<string> Default public relays to fall back to */
     private const PUBLIC_RELAYS = [
         'wss://theforest.nostr1.com',
-        'wss://nostr.land',
+        'wss://relay.damus.io',
         'wss://relay.primal.net',
     ];
 
@@ -209,7 +209,7 @@ class NostrRelayPool
                 while ($resp = $client->receive()) {
                     // Handle PING/PONG
                     if ($resp instanceof \WebSocket\Message\Ping) {
-                        $client->text((new \WebSocket\Message\Pong())->getPayload());
+                        $client->send(new \WebSocket\Message\Pong());
                         continue;
                     }
 
@@ -491,7 +491,7 @@ class NostrRelayPool
 
                 // Handle PING/PONG for keepalive (following TweakedRequest pattern)
                 if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->text((new \WebSocket\Message\Pong())->getPayload());
+                    $client->send(new \WebSocket\Message\Pong());
                     $this->logger->debug('Received PING, sent PONG');
                     continue;
                 }
@@ -577,7 +577,7 @@ class NostrRelayPool
                         $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
                         $message = $decodedArray[1] ?? 'no message';
                         if (str_starts_with($message, 'ERROR:')) {
-                            $this->logger->error('Received ERROR NOTICE from relay', [
+                            $this->logger->warning('Received ERROR NOTICE from relay', [
                                 'relay' => $relayUrl,
                                 'message' => $message
                             ]);
@@ -601,7 +601,7 @@ class NostrRelayPool
                         // NIP-42 auth challenge - log but don't handle for now
                         // Most relays won't require auth for reading public events
                         $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $this->logger->info('Received AUTH challenge from relay (ignoring for read-only subscription)', [
+                        $this->logger->debug('Received AUTH challenge from relay (ignoring for read-only subscription)', [
                             'relay' => $relayUrl,
                             'challenge' => $decodedArray[1] ?? 'no challenge'
                         ]);
@@ -657,10 +657,6 @@ class NostrRelayPool
                 throw $e;
             }
         }
-
-        // This line should never be reached (infinite loop above)
-        // But if it is, log it
-        $this->logger->warning('Subscription loop exited unexpectedly');
     }
 
     /**
@@ -728,7 +724,7 @@ class NostrRelayPool
 
                 // Handle PING/PONG for keepalive
                 if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->text((new \WebSocket\Message\Pong())->getPayload());
+                    $client->send(new \WebSocket\Message\Pong());
                     $this->logger->debug('Received PING, sent PONG');
                     continue;
                 }
@@ -804,7 +800,7 @@ class NostrRelayPool
                         $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
                         $message = $decodedArray[1] ?? 'no message';
                         if (str_starts_with($message, 'ERROR:')) {
-                            $this->logger->error('Received ERROR NOTICE from relay', [
+                            $this->logger->warning('Received ERROR NOTICE from relay', [
                                 'relay' => $relayUrl,
                                 'message' => $message
                             ]);
@@ -870,9 +866,6 @@ class NostrRelayPool
                 throw $e;
             }
         }
-
-        // This line should never be reached (infinite loop above)
-        $this->logger->warning('Media subscription loop exited unexpectedly');
     }
 
     /**
@@ -945,7 +938,7 @@ class NostrRelayPool
 
                 // Handle PING/PONG for keepalive
                 if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->text((new \WebSocket\Message\Pong())->getPayload());
+                    $client->send(new \WebSocket\Message\Pong());
                     $this->logger->debug('Received PING, sent PONG');
                     continue;
                 }
@@ -1022,7 +1015,7 @@ class NostrRelayPool
                         $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
                         $message = $decodedArray[1] ?? 'no message';
                         if (str_starts_with($message, 'ERROR:')) {
-                            $this->logger->error('Received ERROR NOTICE from relay', [
+                            $this->logger->warning('Received ERROR NOTICE from relay', [
                                 'relay' => $relayUrl,
                                 'message' => $message
                             ]);
@@ -1045,7 +1038,7 @@ class NostrRelayPool
                     case 'AUTH':
                         // NIP-42 auth challenge
                         $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $this->logger->info('Received AUTH challenge from relay (ignoring for read-only subscription)', [
+                        $this->logger->debug('Received AUTH challenge from relay (ignoring for read-only subscription)', [
                             'relay' => $relayUrl,
                             'challenge' => $decodedArray[1] ?? 'no challenge'
                         ]);
@@ -1103,8 +1096,5 @@ class NostrRelayPool
                 throw $e;
             }
         }
-
-        // This line should never be reached
-        $this->logger->warning('Generic subscription loop exited unexpectedly');
     }
 }

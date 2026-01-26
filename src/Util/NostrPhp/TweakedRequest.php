@@ -74,7 +74,7 @@ final class TweakedRequest implements RequestInterface
                 // Loop until: first match, EOSE/CLOSED/ERROR, or socket ends
                 while ($resp = $client->receive()) {
                     if ($resp instanceof \WebSocket\Message\Ping) {
-                        $client->text((new Pong())->getPayload());
+                        $client->send(new Pong());
                         continue;
                     }
                     if (!$resp instanceof Text) {
@@ -136,7 +136,7 @@ final class TweakedRequest implements RequestInterface
                     if ($relayResponse->type === 'AUTH') {
                         $raw = json_decode($resp->getContent(), true);
                         $_SESSION['challenge'] = $raw[1] ?? '';
-                        $this->logger->warning('Received AUTH challenge from relay: ' . $relay->getUrl());
+                        $this->logger->debug('Received AUTH challenge from relay: ' . $relay->getUrl());
                         $this->performAuth($relay, $client);
                         // continue loop, relay should now respond to the subscription
                     }
@@ -172,7 +172,7 @@ final class TweakedRequest implements RequestInterface
             $authEvent = new AuthEvent($relay->getUrl(), $_SESSION['challenge']);
             (new Sign())->signEvent($authEvent, $this->nsec);
             $authMsg = new AuthMessage($authEvent);
-            $this->logger->warning('Sending NIP-42 AUTH to relay: ' . $relay->getUrl());
+            $this->logger->debug('Sending NIP-42 AUTH to relay: ' . $relay->getUrl());
             $client->text($authMsg->generate());
         } catch (\Throwable) {
             // ignore and continue; some relays won’t require it

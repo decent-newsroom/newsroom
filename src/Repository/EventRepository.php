@@ -14,6 +14,23 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Build a JSON search condition for PostgreSQL
+     * Searches for a value in the second element (index 1) of JSON array elements
+     *
+     * @param string $column The JSON column to search (e.g., 'e.tags')
+     * @param string $paramName The parameter name to use in the query
+     * @return string The WHERE clause condition
+     */
+    private function buildJsonSearchCondition(string $column, string $paramName): string
+    {
+        // PostgreSQL: Check if any array element has the value at position 1
+        return "EXISTS (
+            SELECT 1 FROM jsonb_array_elements({$column}::jsonb) AS tag
+            WHERE tag->1 = to_jsonb(:{$paramName}::text)
+        )";
+    }
+
+    /**
      * Find media events by kinds (20, 21, 22) excluding muted pubkeys
      *
      * @param array $kinds Array of event kinds to query
@@ -80,10 +97,8 @@ class EventRepository extends ServiceEntityRepository
         if (!empty($hashtags)) {
             $hashtagConditions = [];
             foreach ($hashtags as $index => $hashtag) {
-                // JSON search for PostgreSQL: tags @> '[["t", "hashtag"]]'
-                // For MySQL: JSON_CONTAINS or JSON_SEARCH
                 $paramName = 'hashtag_' . $index;
-                $hashtagConditions[] = "JSON_SEARCH(e.tags, 'one', :{$paramName}, NULL, '$[*][1]') IS NOT NULL";
+                $hashtagConditions[] = $this->buildJsonSearchCondition('e.tags', $paramName);
                 $qb->setParameter($paramName, strtolower($hashtag));
             }
             $qb->andWhere($qb->expr()->orX(...$hashtagConditions));
@@ -151,7 +166,7 @@ class EventRepository extends ServiceEntityRepository
 
         // Search for the 'd' tag with the identifier
         // JSON search: find events where tags contain ['d', identifier]
-        $qb->andWhere("JSON_SEARCH(e.tags, 'one', :identifier, NULL, '$[*][1]') IS NOT NULL")
+        $qb->andWhere($this->buildJsonSearchCondition('e.tags', 'identifier'))
             ->setParameter('identifier', $identifier);
 
         $qb->orderBy('e.created_at', 'DESC')
@@ -311,7 +326,7 @@ class EventRepository extends ServiceEntityRepository
 
         // Search for the 'A' tag with the coordinate
         // JSON search: find events where tags contain ['A', coordinate]
-        $qb->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+        $qb->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
             ->setParameter('coordinate', $coordinate);
 
         if ($since !== null && $since > 0) {
@@ -339,7 +354,7 @@ class EventRepository extends ServiceEntityRepository
         $qb->select('e.created_at')
             ->where($qb->expr()->in('e.kind', ':kinds'))
             ->setParameter('kinds', [1111, 9735])
-            ->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+            ->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
             ->setParameter('coordinate', $coordinate)
             ->orderBy('e.created_at', 'DESC')
             ->setMaxResults(1);
@@ -362,7 +377,7 @@ class EventRepository extends ServiceEntityRepository
         $qb->select('COUNT(e.id)')
             ->where('e.kind = :kind')
             ->setParameter('kind', 1111)
-            ->andWhere("JSON_SEARCH(e.tags, 'one', :coordinate, NULL, '$[*][1]') IS NOT NULL")
+            ->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
             ->setParameter('coordinate', $coordinate);
 
         return (int)$qb->getQuery()->getSingleScalarResult();
