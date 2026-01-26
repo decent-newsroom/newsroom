@@ -8,8 +8,8 @@
   {% if authenticated %}
     <div class="alert alert-success">You are already authenticated.</div>
   {% else %}
-    <div class="card">
-      <div class="card-body" data-controller="utility--login utility--signer-modal">
+    <div class="card" data-controller="utility--signer-modal">
+      <div class="card-body" data-controller="utility--login">
         <p class="text-muted small mb-3">Use your Nostr credentials to authenticate.</p>
         <button class="btn btn--primary" data-action="click->utility--login#loginAct">Login with Extension</button>
         <button class="btn btn--primary" data-action="click->utility--signer-modal#openDialog">Login with a remote signer</button>
