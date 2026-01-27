@@ -206,8 +206,8 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns the top N most visited articles since a given datetime.
-     * Only considers routes matching /article/d/{slug}.
+     * Only considers routes matching /p/{npub}/d/{slug} (current article route pattern).
+     * Excludes draft routes (/p/{npub}/d/{slug}/draft).
      * Returns array: [ 'route' => string, 'count' => int ]
      */
     public function getMostVisitedArticlesSince(\DateTimeImmutable $since, int $limit = 5): array
@@ -216,8 +216,10 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.route, COUNT(v.id) as count')
             ->where('v.visitedAt >= :since')
             ->andWhere('v.route LIKE :articlePath')
+            ->andWhere('v.route NOT LIKE :draftPath')
             ->setParameter('since', $since, \Doctrine\DBAL\Types\Types::DATETIME_IMMUTABLE)
-            ->setParameter('articlePath', '/article/d/%')
+            ->setParameter('articlePath', '/p/%/d/%')
+            ->setParameter('draftPath', '%/draft')
             ->groupBy('v.route')
             ->orderBy('count', 'DESC')
             ->setMaxResults($limit);

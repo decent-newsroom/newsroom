@@ -97,6 +97,14 @@ class ArticleController  extends AbstractController
         return $this->redirectToRoute('author-draft-slug', ['npub' => $npub, 'slug' => $slug]);
     }
 
+    /**
+     * Handles disambiguation for articles with the same slug by different authors.
+     * If only one found, redirects to 'author-article-slug'.
+     *
+     * @param $slug
+     * @param EntityManagerInterface $entityManager
+     * @return Response
+     */
     #[Route('/article/d/{slug}', name: 'article-slug', requirements: ['slug' => '.+'])]
     public function disambiguation($slug, EntityManagerInterface $entityManager): Response
     {

@@ -7,11 +7,11 @@
     {% for article in articles %}
       {% set author = authors[loop.index0] %}
       <li>
+        Author: <twig:Molecules:UserFromNpub :pubkey="article.pubkey" /><span> | </span>
+          <span>Published: {{ article.createdAt|date('Y-m-d H:i') }}</span><br>
         <a href="{{ path('author-article-slug', { npub: author.npub, slug: slug }) }}">
-          Author: {{ author.npub }}
+            {{ article.title }}
         </a>
-        <span>Published: {{ article.createdAt|date('Y-m-d H:i') }}</span>
-        {% if article.title %} - <strong>{{ article.title }}</strong>{% endif %}
       </li>
     {% endfor %}
   </ul>
