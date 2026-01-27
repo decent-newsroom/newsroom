@@ -1,5 +1,6 @@
 {# Embedded event card component #}
-<div class="embedded-event-card" data-nevent="{{ nevent }}">
+{% set eventIdentifier = nevent ?? naddr %}
+<div class="embedded-event-card" data-event-id="{{ eventIdentifier }}">
     <div class="event-header">
         {% if author %}
             <div class="author-info">
@@ -17,6 +18,6 @@
     {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} %}
 
     <div class="event-footer">
-        <a href="/e/{{ nevent }}" class="view-full">View full event</a>
+        <a href="/e/{{ eventIdentifier }}" class="view-full">View full event</a>
     </div>
 </div>

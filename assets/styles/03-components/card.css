@@ -90,3 +90,23 @@ h2.card-title {
     margin: 0;
     padding: 0;
 }
+
+.card.embed {
+    background-color: var(--color-bg-light);
+}
+
+.card.embed .metadata {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin: var(--spacing-1);
+}
+
+.card.embed .card-body {
+    margin: var(--spacing-1);
+}
+
+.card.embed .card-body h2 {
+    margin-top: var(--spacing-2);
+}

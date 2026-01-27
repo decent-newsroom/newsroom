@@ -201,3 +201,7 @@ article .card {
     flex-direction: column;
     gap: var(--spacing-2);
 }
+
+article p > img {
+    display: block;
+}

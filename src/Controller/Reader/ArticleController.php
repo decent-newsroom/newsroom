@@ -10,6 +10,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
+use League\CommonMark\Exception\CommonMarkException;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
@@ -284,7 +285,7 @@ class ArticleController  extends AbstractController
                 $htmlContent = $converter->convertToHTML($article->getContent());
                 $article->setProcessedHtml($htmlContent);
                 $entityManager->flush();
-            } catch (\Exception $e) {
+            } catch (\Exception|CommonMarkException $e) {
                 $logger->error('Error converting article content to HTML', [
                     'article_id' => $article->getId(),
                     'error' => $e->getMessage()

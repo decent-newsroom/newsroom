@@ -2,6 +2,8 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
+use App\Factory\ArticleFactory;
+use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
@@ -16,7 +18,9 @@ class NostrSchemeExtension  implements ExtensionInterface
         private readonly RedisCacheService $redisCacheService,
         private readonly NostrClient $nostrClient,
         private readonly Environment $twig,
-        private readonly NostrKeyUtil $nostrKeyUtil
+        private readonly NostrKeyUtil $nostrKeyUtil,
+        private readonly ArticleFactory $articleFactory,
+        private readonly ArticleRepository $articleRepository
     ) {
     }
 
@@ -24,11 +28,11 @@ class NostrSchemeExtension  implements ExtensionInterface
     {
         $environment
             ->addInlineParser(new NostrMentionParser($this->redisCacheService, $this->nostrKeyUtil), 200)
-            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil), 199)
+            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository), 199)
             ->addInlineParser(new NostrRawNpubParser($this->redisCacheService, $this->nostrKeyUtil), 198)
 
-            ->addRenderer(NostrSchemeData::class, new NostrEventRenderer(), 2)
-            ->addRenderer(NostrEmbeddedCard::class, new NostrEmbeddedCardRenderer(), 3)
+            ->addRenderer(NostrSchemeData::class, new NostrEventRenderer(), 3)
+            ->addRenderer(NostrEmbeddedCard::class, new NostrEmbeddedCardRenderer(), 2)
             ->addRenderer(NostrMentionLink::class, new NostrMentionRenderer(), 1)
         ;
     }

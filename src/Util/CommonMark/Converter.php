@@ -3,9 +3,12 @@
 namespace App\Util\CommonMark;
 
 use App\Enum\KindsEnum;
+use App\Factory\ArticleFactory;
+use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
+use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Exception\CommonMarkException;
@@ -45,7 +48,9 @@ final readonly class Converter
         private RedisCacheService $redisCacheService,
         private NostrClient $nostrClient,
         private TwigEnvironment $twig,
-        private NostrKeyUtil $nostrKeyUtil
+        private NostrKeyUtil $nostrKeyUtil,
+        private ArticleFactory $articleFactory,
+        private ArticleRepository $articleRepository
     ) {}
 
     /**
@@ -56,7 +61,7 @@ final readonly class Converter
         $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
         $config = [
-            'table_of_contents' => ['min_heading_level' => 1, 'max_heading_level' => 2],
+            'table_of_contents' => ['min_heading_level' => 1, 'max_heading_level' => 3],
             'heading_permalink' => ['symbol' => '§'],
             'autolink'          => ['allowed_protocols' => ['https'], 'default_protocol' => 'https'],
             'embed'             => [
@@ -74,6 +79,7 @@ final readonly class Converter
         $env->addExtension(new SmartPunctExtension());
         $env->addExtension(new EmbedExtension());
         $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository));
         $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
@@ -97,7 +103,7 @@ final readonly class Converter
         }
 
         $uniqueLinks = array_values(array_unique($mAll[0]));
-        [$eventIds, $pubkeyHexes] = $this->collectBatchKeys($uniqueLinks);
+        [$eventIds, $pubkeyHexes, $naddrCoords] = $this->collectBatchKeys($uniqueLinks);
 
         // 2) Batch fetch events (map: id => event)
         $eventsById = $this->fetchEventsById($eventIds, $pubkeyHexes);
@@ -114,11 +120,12 @@ final readonly class Converter
         return $content;
     }
 
-    /** @return array{0: array<string,int>, 1: array<string,int>} [$eventIds, $pubkeyHexes] */
+    /** @return array{0: array<string,int>, 1: array<string,int>, 2: array<string,array>} [$eventIds, $pubkeyHexes, $naddrCoords] */
     private function collectBatchKeys(array $links): array
     {
         $eventIds = [];    // id => 1
         $pubkeyHexes = []; // hex => 1
+        $naddrCoords = []; // bech => ['kind' => x, 'pubkey' => hex, 'identifier' => d, 'relays' => [...]]
 
         foreach ($links as $link) {
             $bech = substr($link, 6);
@@ -145,7 +152,15 @@ final readonly class Converter
                         $eventIds[$obj->id] = 1;
                         break;
                     case 'naddr':
-                        // no prefetch for now
+                        /** @var NAddr $obj */
+                        $obj = $decoded->data;
+                        $naddrCoords[$bech] = [
+                            'kind' => $obj->kind,
+                            'pubkey' => $obj->pubkey,
+                            'identifier' => $obj->identifier,
+                            'relays' => $obj->relays ?? []
+                        ];
+                        $pubkeyHexes[$obj->pubkey] = 1;
                         break;
                 }
             } catch (\Throwable) {
@@ -153,7 +168,7 @@ final readonly class Converter
             }
         }
 
-        return [$eventIds, $pubkeyHexes];
+        return [$eventIds, $pubkeyHexes, $naddrCoords];
     }
 
     /** @param array<string,int> $eventIds  @param array<string,int> $pubkeyHexes  @return array<string,object> */
@@ -264,6 +279,7 @@ final readonly class Converter
     /**
      * Renders a single nostr reference to HTML.
      * - $eventsById: event.id => event
+     * - $eventsByNaddr: bech => event
      * - $metadataByHex: authorHex => profile
      * - $displayText: preserve original anchor text if provided
      * - $preferInline: true for inline <a>, false to allow cards
@@ -273,6 +289,7 @@ final readonly class Converter
         string $bechEncoded,
         array $metadataByHex,
         array $eventsById,
+        array $eventsByNaddr,
         ?string $displayText = null,
         bool $preferInline = false
     ): string {
@@ -339,14 +356,49 @@ final readonly class Converter
 
             case 'naddr': {
                 /** @var NAddr $obj */
-                $obj  = $decoded->data;
-                $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+                $obj   = $decoded->data;
+                $event = $eventsByNaddr[$bechEncoded] ?? null;
 
-                if ((int) $obj->kind === (int) KindsEnum::LONGFORM->value) {
-                    return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+                // Inline if requested (anchors) or if we don't have event data
+                if ($preferInline || !$event) {
+                    $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+
+                    if ((int) $obj->kind === (int) KindsEnum::LONGFORM->value) {
+                        return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+                    }
+
+                    return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
 
-                return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+                // Otherwise render a rich card
+                $authorMeta = $metadataByHex[$event->pubkey] ?? null;
+
+                // Use article card for longform content (kind 30023)
+                if ((int) $event->kind === (int) KindsEnum::LONGFORM->value) {
+                    try {
+                        // Convert event to Article entity for the Card component
+                        $article = $this->articleFactory->createFromLongFormContentEvent($event);
+
+                        // Prepare authors metadata in the format expected by Card component
+                        $authorsMetadata = $authorMeta ? [$event->pubkey => $authorMeta] : [];
+
+                        return $this->twig->render('components/Molecules/Card.html.twig', [
+                            'article' => $article,
+                            'authors_metadata' => $authorsMetadata,
+                            'is_author_profile' => false,
+                        ]);
+                    } catch (\Throwable $e) {
+                        // If conversion fails, fall back to simple link
+                        return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($bechEncoded) . '</a>';
+                    }
+                }
+
+                // Use generic event card for other addressable events
+                return $this->twig->render('components/event_card.html.twig', [
+                    'event'  => $event,
+                    'author' => $authorMeta,
+                    'naddr'  => $bechEncoded,
+                ]);
             }
 
             default:
