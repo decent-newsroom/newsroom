@@ -1,0 +1,12 @@
+{% if article is defined %}
+    <div class="broadcast-button-wrapper"
+         data-controller="ui--article-broadcast"
+         data-ui--article-broadcast-article-id-value="{{ article.id }}"
+         data-ui--article-broadcast-coordinate-value="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}">
+        <button class="btn broadcast-article-btn"
+                data-action="click->ui--article-broadcast#broadcast"
+                title="Broadcast this article to Nostr relays">
+            Broadcast
+        </button>
+    </div>
+{% endif %}

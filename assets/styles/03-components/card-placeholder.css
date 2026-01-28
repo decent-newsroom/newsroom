@@ -1,0 +1,109 @@
+/**
+ * Card Placeholder Component
+ * Styling for article placeholder cards when articles aren't fully loaded
+ */
+
+.card-placeholder {
+    background-color: var(--color-bg-light);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-3);
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.placeholder-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: 100%;
+}
+
+.placeholder-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+    padding: 0;
+}
+
+.placeholder-description {
+    font-size: 0.95rem;
+    color: var(--color-text-muted, #666);
+    margin: var(--spacing-2) 0;
+    line-height: 1.5;
+}
+
+.placeholder-meta {
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #888);
+    font-family: monospace;
+    background-color: var(--color-bg, #f5f5f5);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: 4px;
+    margin: var(--spacing-1) 0;
+    word-break: break-all;
+}
+
+.fetch-article-btn {
+    margin-top: var(--spacing-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: transparent;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.fetch-article-btn:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.fetch-article-btn:active {
+    transform: scale(0.98);
+}
+
+.fetch-article-btn svg {
+    flex-shrink: 0;
+}
+
+/* Spinning animation for loading state */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    .card-placeholder {
+        min-height: 150px;
+        padding: var(--spacing-3);
+    }
+
+    .placeholder-title {
+        font-size: 1rem;
+    }
+
+    .placeholder-description {
+        font-size: 0.85rem;
+    }
+}

@@ -39,7 +39,26 @@ class UserMetadata
             lud16: self::extractArray($data, 'lud16'),
             lud06: self::extractArray($data, 'lud06'),
             nip05: self::extractArray($data, 'nip05'),
-            bot: isset($data->bot) ? (bool)$data->bot : false,
+            bot: isset($data->bot) && (bool)$data->bot,
+        );
+    }
+
+    /**
+     * Create from User entity (database).
+     */
+    public static function fromUserEntity(\App\Entity\User $user): self
+    {
+        return new self(
+            name: $user->getName(),
+            displayName: $user->getDisplayName(),
+            picture: $user->getPicture(),
+            banner: $user->getBanner(),
+            about: $user->getAbout(),
+            website: $user->getWebsite() ? [$user->getWebsite()] : [],
+            lud16: $user->getLud16() ? [$user->getLud16()] : [],
+            lud06: [],
+            nip05: $user->getNip05() ? [$user->getNip05()] : [],
+            bot: false,
         );
     }
 

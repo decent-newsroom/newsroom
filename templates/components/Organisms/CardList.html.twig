@@ -3,6 +3,9 @@
     {% for item in list %}
         {%  if item.slug is not empty and item.title is not empty %}
             <twig:Molecules:Card :article="item" :is_author_profile="is_author_profile" :category="category" :mag="mag" :authors_metadata="authorsMetadata"></twig:Molecules:Card>
+        {% else %}
+            {# Show placeholder for articles that haven't been fully loaded #}
+            <twig:Molecules:CardPlaceholder :item="item"></twig:Molecules:CardPlaceholder>
         {% endif %}
     {% endfor %}
 </div>

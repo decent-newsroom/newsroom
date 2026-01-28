@@ -19,6 +19,7 @@ article {
 .article-actions {
     display: flex;
     justify-content: flex-start;
+    flex-wrap: wrap;
     gap: var(--spacing-3);
     margin: var(--spacing-3) 0;
 }

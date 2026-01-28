@@ -144,16 +144,38 @@ class AuthorController extends AbstractController
                         'pubkey' => $author
                     ], ['createdAt' => 'DESC']);
 
+                    $found = false;
                     // Filter by slug and get the latest
                     foreach ($events as $event) {
                         if ($event->getSlug() === $articleSlug) {
                             $articles[] = $event;
+                            $found = true;
+                            $logger->info('Found article in DB', ['coordinate' => $coord, 'title' => $event->getTitle()]);
                             break; // Take the first match (most recent if ordered)
                         }
+                    }
+
+                    // If not found, add placeholder data
+                    if (!$found) {
+                        $placeholder = (object)[
+                            'pubkey' => $author,
+                            'slug' => $articleSlug,
+                            'coordinate' => $coord,
+                            'kind' => (int)$kind,
+                            'title' => null, // No title means CardPlaceholder will be used
+                        ];
+                        $articles[] = $placeholder;
+                        $logger->info('Article not found, adding placeholder', ['coordinate' => $coord]);
                     }
                 }
             }
         }
+
+        $logger->info('Reading list loaded', [
+            'slug' => $slug,
+            'total_coordinates' => count($coordinates),
+            'total_articles' => count($articles)
+        ]);
 
         return $this->render('pages/list.html.twig', [
             'list' => $list,

@@ -1,0 +1,29 @@
+{% if item is defined %}
+    <div class="card card-placeholder" data-controller="ui--card-placeholder">
+        <div class="card-body placeholder-content">
+            <h3 class="placeholder-title">Article Not Yet Available</h3>
+            <p class="placeholder-description">
+                This article is part of the list but hasn't been fully loaded yet.
+            </p>
+            {% if item.id is defined %}
+                <p class="placeholder-meta">
+                    <small>Article ID: {{ item.id }}</small>
+                </p>
+            {% elseif item.pubkey is defined and item.slug is defined %}
+                <p class="placeholder-meta">
+                    <small>{{ item.pubkey|slice(0, 8) }}...{{ item.pubkey|slice(-8) }}:{{ item.slug }}</small>
+                </p>
+            {% endif %}
+            <button class="btn btn-sm btn-outline fetch-article-btn"
+                    data-action="click->ui--card-placeholder#fetch"
+                    data-article-id="{{ item.id ?? '' }}"
+                    data-article-pubkey="{{ item.pubkey ?? '' }}"
+                    data-article-slug="{{ item.slug ?? '' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                Fetch Article
+            </button>
+        </div>
+    </div>
+{% endif %}

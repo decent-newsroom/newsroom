@@ -5,6 +5,9 @@ namespace App\Service\Nostr;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
+use App\Repository\EventRepository;
+use App\Service\AuthorRelayService;
+use App\Util\NostrKeyUtil;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -19,7 +22,6 @@ use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\RelaySet;
 use swentel\nostr\Request\Request;
 use swentel\nostr\Subscription\Subscription;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 class NostrClient
 {
@@ -31,7 +33,6 @@ class NostrClient
     private const REPUTABLE_RELAYS = [
         'wss://theforest.nostr1.com',
         'wss://nostr.land',
-        'wss://purplepag.es',
         'wss://nos.lol',
         'wss://relay.snort.social',
         'wss://relay.damus.io',
@@ -44,6 +45,8 @@ class NostrClient
                                 private readonly LoggerInterface        $logger,
                                 private readonly CacheItemPoolInterface $npubCache,
                                 private readonly NostrRelayPool         $relayPool,
+                                private readonly EventRepository        $eventRepository,
+                                private readonly AuthorRelayService     $authorRelayService,
                                 private readonly ?string                $nostrDefaultRelay = null)
     {
         // Initialize default relay set using the relay pool to avoid duplicate connections
@@ -509,50 +512,51 @@ class NostrClient
     }
 
     /**
-     * @throws \Exception
+     * Get relay list for an npub/pubkey
+     *
+     * OPTIMIZED: Now uses multi-level fallback strategy:
+     * 1. Check cache
+     * 2. Check database for persisted kind:10002 events
+     * 3. Use AuthorRelayService (optimized relay fetching)
+     * 4. Fallback to reputable relays
+     *
+     * @param string $npub Npub or hex pubkey
+     * @return array Flat array of relay URLs for backward compatibility
+     * @throws \Exception|\Psr\Cache\InvalidArgumentException
      */
     public function getNpubRelays($npub): array
     {
         $cacheKey = 'npub_relays_' . $npub;
+
+        // 1. Check cache first
         try {
-            // $this->npubCache->deleteItem($cacheKey);
             $cachedItem = $this->npubCache->getItem($cacheKey);
             if ($cachedItem->isHit()) {
-                $this->logger->debug('Using cached relays for npub', ['npub' => $npub]);
+                $this->logger->debug('Using cached relays for npub', ['npub' => substr($npub, 0, 8) . '...']);
                 return $cachedItem->get();
             }
         } catch (\Exception $e) {
             $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
         }
 
-        $relays = new RelaySet();
-        $relays->createFromUrls(self::REPUTABLE_RELAYS);
+        // Convert npub to hex if needed
+        $pubkeyHex = str_starts_with($npub, 'npub1') ? NostrKeyUtil::npubToHex($npub) : $npub;
 
-        // Get relays
-        $request = $this->createNostrRequest(
-            kinds: [KindsEnum::RELAY_LIST->value],
-            filters: ['authors' => [$npub]],
-            relaySet: $relays
-        );
-        $response = $this->processResponse($request->send(), function($received) {
-            return $received;
-        });
-        if (empty($response)) {
-            return [];
+        // 2. Try database first (persisted kind:10002 events)
+        $relays = $this->getRelaysFromDatabase($pubkeyHex);
+
+        // 3. If no DB data, use AuthorRelayService (optimized fetching)
+        if (empty($relays)) {
+            $relays = $this->getRelaysFromAuthorService($pubkeyHex);
         }
-        // Sort by date and use newest
-        usort($response, fn($a, $b) => $b->created_at <=> $a->created_at);
-        // Process tags of the $response[0] and extract relays
-        $relays = [];
-        foreach ($response[0]->tags as $tag) {
-            if ($tag[0] === 'r') {
-                $relays[] = $tag[1];
-            }
+
+        // 4. Final fallback to reputable relays
+        if (empty($relays)) {
+            $this->logger->debug('No relays found, using reputable fallback', [
+                'pubkey' => substr($pubkeyHex, 0, 8) . '...'
+            ]);
+            $relays = array_slice(self::REPUTABLE_RELAYS, 0, 3);
         }
-        // Remove duplicates, localhost and any non-wss relays
-        $relays = array_filter(array_unique($relays), function ($relay) {
-            return str_starts_with($relay, 'wss:') && !str_contains($relay, 'localhost');
-        });
 
         // Cache the result
         try {
@@ -565,6 +569,88 @@ class NostrClient
         }
 
         return $relays;
+    }
+
+    /**
+     * Get relays from database (persisted kind:10002 events)
+     */
+    private function getRelaysFromDatabase(string $pubkeyHex): array
+    {
+        try {
+            $relayEvent = $this->eventRepository->findLatestRelayListByPubkey($pubkeyHex);
+
+            if (!$relayEvent) {
+                return [];
+            }
+
+            $relays = [];
+            $tags = $relayEvent->getTags() ?? [];
+
+            foreach ($tags as $tag) {
+                if (isset($tag[0]) && $tag[0] === 'r' && isset($tag[1])) {
+                    $relayUrl = $tag[1];
+                    if ($this->isValidRelayUrl($relayUrl)) {
+                        $relays[] = $relayUrl;
+                    }
+                }
+            }
+
+            if (!empty($relays)) {
+                $this->logger->debug('Loaded relays from database', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'count' => count($relays),
+                    'age' => time() - ($relayEvent->getCreatedAt() ?? 0)
+                ]);
+            }
+
+            return array_unique($relays);
+        } catch (\Exception $e) {
+            $this->logger->warning('Error loading relays from database', [
+                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Get relays using AuthorRelayService (optimized network fetching)
+     */
+    private function getRelaysFromAuthorService(string $pubkeyHex): array
+    {
+        try {
+            $authorRelays = $this->authorRelayService->getAuthorRelays($pubkeyHex);
+
+            // Flatten to simple array (combining read/write for backward compatibility)
+            $relays = array_unique(array_merge(
+                $authorRelays['read'] ?? [],
+                $authorRelays['write'] ?? [],
+                $authorRelays['all'] ?? []
+            ));
+
+            if (!empty($relays)) {
+                $this->logger->debug('Fetched relays from network via AuthorRelayService', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'count' => count($relays)
+                ]);
+            }
+
+            return array_values($relays);
+        } catch (\Exception $e) {
+            $this->logger->warning('Error fetching relays via AuthorRelayService', [
+                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Validate relay URL
+     */
+    private function isValidRelayUrl(string $url): bool
+    {
+        return str_starts_with($url, 'wss://') && !str_contains($url, 'localhost');
     }
 
     /**
@@ -1114,7 +1200,7 @@ class NostrClient
 
             // If no author relays found, add default relay
             if (empty($relayList)) {
-                $relayList = [self::REPUTABLE_RELAYS[0]];
+                $relayList = self::REPUTABLE_RELAYS;
             }
 
             // Ensure we use a RelaySet
@@ -1131,36 +1217,48 @@ class NostrClient
 
             try {
                 $request = new Request($relaySet, $requestMessage);
-                $response = $request->send();
-                $found = false;
 
-                // Check responses from each relay
-                foreach ($response as $value) {
-                    foreach ($value as $item) {
-                        if ($item->type === 'EVENT') {
-                            $articlesMap[$coordinate] = $item->event;
-                            $found = true;
-                            break 2; // Found what we need, exit both loops
-                        }
-                    }
-                }
+                // Use processResponse to properly wait for relay responses
+                $events = $this->processResponse($request->send(), function($event) use ($coordinate) {
+                    $this->logger->info('Received event for coordinate', [
+                        'event_id' => $event->id,
+                        'coordinate' => $coordinate
+                    ]);
+                    return $event;
+                });
 
-                // If still not found, try with default relay set as fallback
-                if (!$found) {
+                // If we got events, store to map
+                if (!empty($events)) {
+                    $articlesMap[$coordinate] = $events[0];
+                    $this->logger->info('Found article in author relays', [
+                        'coordinate' => $coordinate,
+                        'event_id' => $events[0]->id
+                    ]);
+                } else {
+                    // If still not found, try with default relay set as fallback
                     $this->logger->info('Article not found in author relays, trying default relays', [
                         'coordinate' => $coordinate
                     ]);
 
-                    $request = new Request($this->defaultRelaySet, $requestMessage);
-                    $response = $request->send();
+                    $fallbackRequest = new Request($this->defaultRelaySet, $requestMessage);
+                    $fallbackEvents = $this->processResponse($fallbackRequest->send(), function($event) use ($coordinate) {
+                        $this->logger->info('Received event from default relay', [
+                            'event_id' => $event->id,
+                            'coordinate' => $coordinate
+                        ]);
+                        return $event;
+                    });
 
-                    foreach ($response as $value) {
-                        foreach ($value as $item) {
-                            if ($item->type === 'EVENT') {
-                                $articlesMap[$coordinate] = $item->event;
-                                break 2;
-                            }
-                        }
+                    if (!empty($fallbackEvents)) {
+                        $articlesMap[$coordinate] = $fallbackEvents[0];
+                        $this->logger->info('Found article in default relays', [
+                            'coordinate' => $coordinate,
+                            'event_id' => $fallbackEvents[0]->id
+                        ]);
+                    } else {
+                        $this->logger->warning('Article not found in any relay', [
+                            'coordinate' => $coordinate
+                        ]);
                     }
                 }
             } catch (\Exception $e) {
@@ -1170,6 +1268,11 @@ class NostrClient
                 ]);
             }
         }
+
+        $this->logger->info('Finished fetching articles by coordinates', [
+            'total_coordinates' => count($coordinates),
+            'articles_found' => count($articlesMap)
+        ]);
 
         return $articlesMap;
     }

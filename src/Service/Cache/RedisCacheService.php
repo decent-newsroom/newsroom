@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\UpdateProfileProjectionMessage;
+use App\Repository\UserEntityRepository;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,7 +29,8 @@ class RedisCacheService
         private readonly CacheItemPoolInterface $npubCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface        $logger,
-        private readonly MessageBusInterface    $messageBus
+        private readonly MessageBusInterface    $messageBus,
+        private readonly UserEntityRepository   $userRepository
     ) {}
 
     /**
@@ -79,7 +81,21 @@ class RedisCacheService
             $this->logger->error('Error checking cache for user metadata.', ['exception' => $e]);
         }
 
-        // Cache miss: dispatch async fetch and return default immediately
+        // Cache miss: Try to get metadata from database first
+        try {
+            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $user = $this->userRepository->findOneBy(['npub' => $npub]);
+
+            if ($user && $user->getDisplayName()) {
+                // User exists in database with metadata
+                $this->logger->debug('Retrieved metadata from database', ['pubkey' => substr($pubkey, 0, 8)]);
+                return UserMetadata::fromUserEntity($user);
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Error fetching user from database.', ['exception' => $e, 'pubkey' => substr($pubkey, 0, 8)]);
+        }
+
+        // No data in cache or database: dispatch async fetch
         try {
             $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
             $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
@@ -127,15 +143,46 @@ class RedisCacheService
                 } else {
                     // Invalid cached data
                     $missedPubkeys[] = $pubkey;
-                    $result[$pubkey] = UserMetadata::createDefault($pubkey);
                 }
             } else {
                 // Track cache misses
                 $missedPubkeys[] = $pubkey;
-
-                // Return default metadata immediately
-                $result[$pubkey] = UserMetadata::createDefault($pubkey);
             }
+        }
+
+        // Try to fetch missed pubkeys from database
+        if (!empty($missedPubkeys)) {
+            try {
+                $npubs = array_map(fn($pk) => NostrKeyUtil::hexToNpub($pk), $missedPubkeys);
+                $users = $this->userRepository->findByNpubs($npubs);
+
+                $foundPubkeys = [];
+                foreach ($users as $user) {
+                    if ($user->getDisplayName()) {
+                        $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
+                        $result[$pubkey] = UserMetadata::fromUserEntity($user);
+                        $foundPubkeys[] = $pubkey;
+                    }
+                }
+
+                // Remove found pubkeys from missed list
+                $missedPubkeys = array_diff($missedPubkeys, $foundPubkeys);
+
+                if (!empty($foundPubkeys)) {
+                    $this->logger->debug('Retrieved metadata from database for batch', [
+                        'count' => count($foundPubkeys)
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $this->logger->error('Error fetching users from database in batch.', [
+                    'exception' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Set defaults for any remaining misses
+        foreach ($missedPubkeys as $pubkey) {
+            $result[$pubkey] = UserMetadata::createDefault($pubkey);
         }
 
         // Dispatch batch async fetch for all misses (non-blocking)
