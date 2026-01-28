@@ -1,0 +1,50 @@
+{% extends 'layout.html.twig' %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ curation.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ curation.summary ?? '' }}">
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5 mb-5">
+            <h1>{{ curation.title }}</h1>
+            <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-3">
+                <span class="badge bg-secondary">{{ type }}</span>
+                <span class="badge bg-info text-dark hidden">{{ mediaEvents|length }} video{{ mediaEvents|length != 1 ? 's' : '' }}</span>
+            </div>
+            {% if curation.summary %}
+                <p class="eyebrow">{{ curation.summary }}</p>
+            {% endif %}
+            <div>by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
+        </div>
+    </section>
+
+    <div class="w-container">
+        {% if mediaEvents|length > 0 %}
+            <div class="row g-4">
+                {% for event in mediaEvents %}
+                    <div class="col-12 col-md-6 col-lg-4">
+                        {% if event.notFound is defined and event.notFound %}
+                            <div class="card h-100">
+                                <div class="ratio ratio-16x9 bg-light d-flex align-items-center justify-content-center">
+                                    <div class="text-center text-muted p-3">
+                                        <p class="mb-1">Video not yet synced</p>
+                                        <small>{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            {% include 'event/_kind22_video.html.twig' with {event: event} %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No videos in this curation set.</p>
+        {% endif %}
+    </div>
+{% endblock %}
