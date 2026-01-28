@@ -26,7 +26,8 @@ class ReadingListManager
 
     /**
      * Get all published reading lists and categories for the current user
-     * @return array<array{id: int, title: string, summary: ?string, slug: string, createdAt: \DateTimeInterface, pubkey: string, articleCount: int}>
+     * Includes reading lists (30040) and curation sets (30004, 30005, 30006)
+     * @return array<array{id: int, title: string, summary: ?string, slug: string, createdAt: \DateTimeInterface, pubkey: string, itemCount: int, kind: int, type: string, isEmpty: bool}>
      */
     public function getUserReadingLists(): array
     {
@@ -45,24 +46,40 @@ class ReadingListManager
         }
 
         $repo = $this->em->getRepository(Event::class);
-        $events = $repo->findBy(['kind' => 30040, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
+        // Query for reading lists (30040) and all curation set types (30004, 30005, 30006)
+        $events = $repo->createQueryBuilder('e')
+            ->where('e.kind IN (:kinds)')
+            ->andWhere('e.pubkey = :pubkey')
+            ->setParameter('kinds', [30040, 30004, 30005, 30006])
+            ->setParameter('pubkey', $pubkeyHex)
+            ->orderBy('e.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
         $seenSlugs = [];
 
         foreach ($events as $ev) {
             if (!$ev instanceof Event) continue;
             $tags = $ev->getTags();
-            $isIndex = false;
-            $isMagazine = false;
+            $kind = $ev->getKind();
             $title = null;
             $slug = null;
             $summary = null;
-            $articleCount = 0;
+            $itemCount = 0;
+            $hasAnyATags = false;
+            $hasAnyETags = false;
+
+            // Determine type label from kind
+            $typeLabel = match($kind) {
+                30040 => 'Reading List',
+                30004 => 'Articles/Notes',
+                30005 => 'Videos',
+                30006 => 'Pictures',
+                default => 'Unknown',
+            };
 
             foreach ($tags as $t) {
                 if (is_array($t)) {
-                    if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'magazine'])) {
-                        $isIndex = true;
-                    }
                     if (($t[0] ?? null) === 'title') {
                         $title = (string)$t[1];
                     }
@@ -72,36 +89,60 @@ class ReadingListManager
                     if (($t[0] ?? null) === 'd') {
                         $slug = (string)$t[1];
                     }
-                    if (($t[0] ?? null) === 'a') {
-                        // Look for kind 30023 articles only
-                        if (isset($t[1]) && str_starts_with($t[1],'30023')) {
-                            $articleCount++;
-                        }
-                        if (isset($t[1]) && str_starts_with($t[1],'30040')) {
-                            $isMagazine = true;
-                        }
+                    // Count all 'a' tags (coordinate references)
+                    if (($t[0] ?? null) === 'a' && isset($t[1])) {
+                        $hasAnyATags = true;
+                        $itemCount++;
+                    }
+                    // Count all 'e' tags (event ID references)
+                    if (($t[0] ?? null) === 'e' && isset($t[1])) {
+                        $hasAnyETags = true;
+                        $itemCount++;
                     }
                 }
             }
 
-            if ($isIndex && !$isMagazine) {
-                // Collapse by slug: keep only newest per slug
-                $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
-                if (isset($seenSlugs[$slug ?? $keySlug])) {
+            // For kind 30040, check for magazine index and skip
+            if ($kind === 30040) {
+                $isIndex = false;
+                $isMagazine = false;
+
+                foreach ($tags as $t) {
+                    if (is_array($t)) {
+                        if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'magazine'])) {
+                            $isIndex = true;
+                        }
+                        if (($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with($t[1], '30040:')) {
+                            $isMagazine = true;
+                        }
+                    }
+                }
+
+                // Skip magazine indexes (30040 events that reference other 30040 events)
+                if ($isMagazine) {
                     continue;
                 }
-                $seenSlugs[$slug ?? $keySlug] = true;
-
-                $lists[] = [
-                    'id' => $ev->getId(),
-                    'title' => $title ?: '(untitled)',
-                    'summary' => $summary,
-                    'slug' => $slug,
-                    'createdAt' => $ev->getCreatedAt(),
-                    'pubkey' => $ev->getPubkey(),
-                    'articleCount' => $articleCount,
-                ];
             }
+
+            // Collapse by slug: keep only newest per slug
+            $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
+            if (isset($seenSlugs[$slug ?? $keySlug])) {
+                continue;
+            }
+            $seenSlugs[$slug ?? $keySlug] = true;
+
+            $lists[] = [
+                'id' => $ev->getId(),
+                'title' => $title ?: '(untitled)',
+                'summary' => $summary,
+                'slug' => $slug,
+                'createdAt' => $ev->getCreatedAt(),
+                'pubkey' => $ev->getPubkey(),
+                'itemCount' => $itemCount,
+                'kind' => $kind,
+                'type' => $typeLabel,
+                'isEmpty' => !$hasAnyATags && !$hasAnyETags,
+            ];
         }
 
         return $lists;

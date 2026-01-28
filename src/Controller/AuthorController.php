@@ -184,6 +184,304 @@ class AuthorController extends AbstractController
     }
 
     /**
+     * Curation Set (kinds 30004, 30005, 30006)
+     * Displays curated content based on kind type
+     * @throws Exception
+     */
+    #[Route('/p/{npub}/curation/{kind}/{slug}', name: 'curation-set', requirements: ['kind' => '30004|30005|30006'])]
+    public function curationSet(string $npub, int $kind, string $slug,
+                                EntityManagerInterface $em,
+                                LoggerInterface $logger): Response
+    {
+        $logger->info(sprintf('Curation set: npub=%s, kind=%d, slug=%s', $npub, $kind, $slug));
+
+        // Convert npub to hex pubkey
+        try {
+            $keys = new Key();
+            $pubkeyHex = $keys->convertToHex($npub);
+        } catch (\Exception $e) {
+            throw $this->createNotFoundException('Invalid npub');
+        }
+
+        // Validate kind is a curation type
+        $validKinds = [
+            KindsEnum::CURATION_SET->value,       // 30004
+            KindsEnum::CURATION_VIDEOS->value,    // 30005
+            KindsEnum::CURATION_PICTURES->value   // 30006
+        ];
+
+        if (!in_array($kind, $validKinds)) {
+            throw $this->createNotFoundException('Invalid curation type');
+        }
+
+        // Find curation set by kind, pubkey and slug
+        $repo = $em->getRepository(Event::class);
+        $events = $repo->createQueryBuilder('e')
+            ->where('e.kind = :kind')
+            ->andWhere('e.pubkey = :pubkey')
+            ->setParameter('kind', $kind)
+            ->setParameter('pubkey', $pubkeyHex)
+            ->orderBy('e.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        // Filter by slug
+        $curation = null;
+        foreach ($events as $ev) {
+            if (!$ev instanceof Event) continue;
+            if ($ev->getSlug() === $slug) {
+                $curation = $ev;
+                break;
+            }
+        }
+
+        if (!$curation) {
+            throw $this->createNotFoundException('Curation set not found');
+        }
+
+        $kind = $curation->getKind();
+
+        // Determine type label
+        $typeLabel = match($kind) {
+            30004 => 'Articles/Notes',
+            30005 => 'Videos',
+            30006 => 'Pictures',
+            default => 'Curation',
+        };
+
+        // Extract items from tags (both 'a' and 'e' tags)
+        $items = [];
+        $coordinates = [];
+        $eventIds = [];
+
+        foreach ($curation->getTags() as $tag) {
+            if (!is_array($tag) || count($tag) < 2) continue;
+
+            if ($tag[0] === 'a') {
+                $coordinates[] = $tag[1];
+                $items[] = [
+                    'type' => 'coordinate',
+                    'value' => $tag[1],
+                    'relay' => $tag[2] ?? null,
+                ];
+            } elseif ($tag[0] === 'e') {
+                $eventIds[] = $tag[1];
+                $items[] = [
+                    'type' => 'event',
+                    'value' => $tag[1],
+                    'relay' => $tag[2] ?? null,
+                ];
+            }
+        }
+
+        // For videos (30005) and pictures (30006), fetch media events
+        $mediaItems = [];
+        $mediaEvents = []; // Store actual Event objects for templates that need them
+        if ($kind === KindsEnum::CURATION_VIDEOS->value || $kind === KindsEnum::CURATION_PICTURES->value) {
+            // Fetch events by ID from database
+            if (!empty($eventIds)) {
+                $foundEvents = $repo->findBy(['id' => $eventIds]);
+                $foundIds = [];
+                foreach ($foundEvents as $mediaEvent) {
+                    $mediaItems[] = $this->extractMediaFromEvent($mediaEvent);
+                    $mediaEvents[] = $mediaEvent; // Keep the Event object
+                    $foundIds[] = $mediaEvent->getId();
+                }
+                // Add placeholders for events not found
+                foreach ($eventIds as $eventId) {
+                    if (!in_array($eventId, $foundIds)) {
+                        $mediaItems[] = [
+                            'id' => $eventId,
+                            'url' => null,
+                            'thumb' => null,
+                            'alt' => null,
+                            'title' => null,
+                            'mimeType' => null,
+                            'pubkey' => null,
+                            'createdAt' => null,
+                            'kind' => null,
+                            'notFound' => true,
+                        ];
+                        // Add placeholder object for mediaEvents
+                        $mediaEvents[] = (object)[
+                            'id' => $eventId,
+                            'notFound' => true,
+                        ];
+                    }
+                }
+            }
+
+            // Also handle coordinate-based references
+            foreach ($coordinates as $coord) {
+                $parts = explode(':', $coord, 3);
+                if (count($parts) === 3) {
+                    [$coordKind, $author, $identifier] = $parts;
+                    // Find events matching this coordinate
+                    $coordEvents = $repo->createQueryBuilder('e')
+                        ->where('e.pubkey = :pubkey')
+                        ->andWhere('e.kind = :kind')
+                        ->setParameter('pubkey', $author)
+                        ->setParameter('kind', (int)$coordKind)
+                        ->orderBy('e.created_at', 'DESC')
+                        ->setMaxResults(10)
+                        ->getQuery()
+                        ->getResult();
+
+                    $found = false;
+                    foreach ($coordEvents as $coordEvent) {
+                        if ($coordEvent->getSlug() === $identifier) {
+                            $mediaItems[] = $this->extractMediaFromEvent($coordEvent);
+                            $mediaEvents[] = $coordEvent; // Keep the Event object
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    // Add placeholder if not found
+                    if (!$found) {
+                        $mediaItems[] = [
+                            'id' => null,
+                            'url' => null,
+                            'thumb' => null,
+                            'alt' => null,
+                            'title' => "Item: $identifier",
+                            'mimeType' => null,
+                            'pubkey' => $author,
+                            'createdAt' => null,
+                            'kind' => (int)$coordKind,
+                            'coordinate' => $coord,
+                            'notFound' => true,
+                        ];
+                        // Add placeholder object for mediaEvents
+                        $mediaEvents[] = (object)[
+                            'id' => null,
+                            'coordinate' => $coord,
+                            'notFound' => true,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // For articles/notes (30004), fetch articles similar to reading lists
+        $articles = [];
+        if ($kind === KindsEnum::CURATION_SET->value) {
+            $articleRepo = $em->getRepository(Article::class);
+
+            foreach ($coordinates as $coord) {
+                $parts = explode(':', $coord, 3);
+                if (count($parts) === 3) {
+                    [$coordKind, $author, $articleSlug] = $parts;
+
+                    $events = $articleRepo->findBy([
+                        'slug' => $articleSlug,
+                        'pubkey' => $author
+                    ], ['createdAt' => 'DESC']);
+
+                    $found = false;
+                    foreach ($events as $event) {
+                        if ($event->getSlug() === $articleSlug) {
+                            $articles[] = $event;
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    if (!$found) {
+                        $placeholder = (object)[
+                            'pubkey' => $author,
+                            'slug' => $articleSlug,
+                            'coordinate' => $coord,
+                            'kind' => (int)$coordKind,
+                            'title' => null,
+                        ];
+                        $articles[] = $placeholder;
+                    }
+                }
+            }
+        }
+
+        $logger->info('Curation set loaded', [
+            'slug' => $slug,
+            'kind' => $kind,
+            'type' => $typeLabel,
+            'items_count' => count($items),
+            'media_count' => count($mediaItems),
+            'articles_count' => count($articles),
+        ]);
+
+        // Choose template based on kind
+        $template = match($kind) {
+            30005 => 'pages/curation-videos.html.twig',
+            30006 => 'pages/curation-pictures.html.twig',
+            default => 'pages/curation-articles.html.twig',
+        };
+
+        return $this->render($template, [
+            'curation' => $curation,
+            'type' => $typeLabel,
+            'items' => $items,
+            'mediaItems' => $mediaItems,
+            'mediaEvents' => $mediaEvents,
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * Extract media URL and metadata from an Event
+     */
+    private function extractMediaFromEvent(Event $event): array
+    {
+        $url = null;
+        $alt = null;
+        $title = null;
+        $thumb = null;
+        $mimeType = null;
+
+        foreach ($event->getTags() as $tag) {
+            if (!is_array($tag) || count($tag) < 2) continue;
+
+            switch ($tag[0]) {
+                case 'url':
+                    $url = $tag[1];
+                    break;
+                case 'image':
+                    if (!$url) $url = $tag[1];
+                    break;
+                case 'thumb':
+                    $thumb = $tag[1];
+                    break;
+                case 'alt':
+                    $alt = $tag[1];
+                    break;
+                case 'title':
+                    $title = $tag[1];
+                    break;
+                case 'm':
+                    $mimeType = $tag[1];
+                    break;
+            }
+        }
+
+        // Fallback: check content for URL
+        if (!$url && filter_var($event->getContent(), FILTER_VALIDATE_URL)) {
+            $url = $event->getContent();
+        }
+
+        return [
+            'id' => $event->getId(),
+            'url' => $url,
+            'thumb' => $thumb ?? $url,
+            'alt' => $alt,
+            'title' => $title,
+            'mimeType' => $mimeType,
+            'pubkey' => $event->getPubkey(),
+            'createdAt' => $event->getCreatedAt(),
+            'kind' => $event->getKind(),
+        ];
+    }
+
+    /**
      * AJAX endpoint to load more media events
      * @throws Exception
      */
@@ -581,11 +879,13 @@ class AuthorController extends AbstractController
     {
         $repo = $em->getRepository(Event::class);
 
-        // Fetch all bookmark-related kinds: 10003 (standard), 30003 (sets), 30004 (curation)
+        // Fetch all bookmark-related kinds: 10003 (standard), 30003 (sets), 30004/30005/30006 (curation)
         $bookmarkKinds = [
-            KindsEnum::BOOKMARKS->value,      // 10003
-            KindsEnum::BOOKMARK_SETS->value,  // 30003
-            KindsEnum::CURATION_SET->value    // 30004
+            KindsEnum::BOOKMARKS->value,         // 10003
+            KindsEnum::BOOKMARK_SETS->value,     // 30003
+            KindsEnum::CURATION_SET->value,      // 30004
+            KindsEnum::CURATION_VIDEOS->value,   // 30005
+            KindsEnum::CURATION_PICTURES->value  // 30006
         ];
 
         $events = $repo->createQueryBuilder('e')
@@ -701,7 +1001,9 @@ class AuthorController extends AbstractController
             $listType = match($event->getKind()) {
                 KindsEnum::BOOKMARKS->value => 'Bookmarks',
                 KindsEnum::BOOKMARK_SETS->value => 'Bookmark Set',
-                KindsEnum::CURATION_SET->value => 'Curation Set',
+                KindsEnum::CURATION_SET->value => 'Curation Set (Articles/Notes)',
+                KindsEnum::CURATION_VIDEOS->value => 'Curation Set (Videos)',
+                KindsEnum::CURATION_PICTURES->value => 'Curation Set (Pictures)',
                 default => 'Unknown List',
             };
 

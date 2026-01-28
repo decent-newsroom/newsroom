@@ -32,7 +32,7 @@ class ReadingListController extends AbstractController
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Display the user's reading lists.
+     * Display the user's reading lists and curation sets.
      */
     #[Route('/reading-list', name: 'reading_list_index')]
     public function index(EntityManagerInterface $em): Response
@@ -51,17 +51,41 @@ class ReadingListController extends AbstractController
 
         if ($pubkeyHex) {
             $repo = $em->getRepository(Event::class);
-            $events = $repo->findBy(['kind' => KindsEnum::PUBLICATION_INDEX->value, 'pubkey' => $pubkeyHex], ['created_at' => 'DESC']);
+            // Query for reading lists (30040) and all curation set types (30004, 30005, 30006)
+            $events = $repo->createQueryBuilder('e')
+                ->where('e.kind IN (:kinds)')
+                ->andWhere('e.pubkey = :pubkey')
+                ->setParameter('kinds', [
+                    KindsEnum::PUBLICATION_INDEX->value,  // 30040
+                    KindsEnum::CURATION_SET->value,       // 30004
+                    KindsEnum::CURATION_VIDEOS->value,    // 30005
+                    KindsEnum::CURATION_PICTURES->value   // 30006
+                ])
+                ->setParameter('pubkey', $pubkeyHex)
+                ->orderBy('e.created_at', 'DESC')
+                ->getQuery()
+                ->getResult();
+
             $seenSlugs = [];
             foreach ($events as $ev) {
                 if (!$ev instanceof Event) continue;
                 $tags = $ev->getTags();
+                $kind = $ev->getKind();
                 $typeTag = null;
-                $hasLongFormArticles = false;
                 $hasAnyATags = false;
+                $hasAnyETags = false;
                 $hasMagazineReferences = false;
                 $title = null; $slug = null; $summary = null;
-                $articleCount = 0;
+                $itemCount = 0;
+
+                // Determine type label from kind
+                $typeLabel = match($kind) {
+                    30040 => 'Reading List',
+                    30004 => 'Articles/Notes',
+                    30005 => 'Videos',
+                    30006 => 'Pictures',
+                    default => null,
+                };
 
                 foreach ($tags as $t) {
                     if (is_array($t)) {
@@ -70,49 +94,47 @@ class ReadingListController extends AbstractController
                         if (($t[0] ?? null) === 'summary') { $summary = (string)($t[1] ?? ''); }
                         if (($t[0] ?? null) === 'd') { $slug = (string)($t[1] ?? ''); }
 
-                        // Check for any 'a' tags
+                        // Count all 'a' tags (coordinate references)
                         if (($t[0] ?? null) === 'a' && isset($t[1])) {
                             $hasAnyATags = true;
-                            // Check if this references long-form articles (kind 30023)
-                            if (str_starts_with((string)$t[1], '30023:')) {
-                                $hasLongFormArticles = true;
-                                $articleCount++;
-                            }
+                            $itemCount++;
                             // Check if this references other 30040 events (magazine index)
                             if (str_starts_with((string)$t[1], '30040:')) {
                                 $hasMagazineReferences = true;
                             }
                         }
+                        // Count all 'e' tags (event ID references)
+                        if (($t[0] ?? null) === 'e' && isset($t[1])) {
+                            $hasAnyETags = true;
+                            $itemCount++;
+                        }
                     }
                 }
 
-                // Include:
-                // 1. Events that reference long-form articles (30023) - active reading lists
-                // 2. Events with NO 'a' tags at all - empty/draft reading lists to be edited
-                // Exclude:
-                // - Events that reference 30040 (magazine indexes)
-                $isReadingList = !$hasMagazineReferences && ($hasLongFormArticles || !$hasAnyATags);
-
-                if ($isReadingList) {
-                    // Collapse by slug: keep only newest per slug
-                    $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
-                    if (isset($seenSlugs[$slug ?? $keySlug])) {
-                        continue;
-                    }
-                    $seenSlugs[$slug ?? $keySlug] = true;
-
-                    $lists[] = [
-                        'id' => $ev->getId(),
-                        'title' => $title ?: '(untitled)',
-                        'summary' => $summary,
-                        'slug' => $slug,
-                        'createdAt' => $ev->getCreatedAt(),
-                        'pubkey' => $ev->getPubkey(),
-                        'type' => $typeTag, // Keep for display as badge
-                        'articleCount' => $articleCount,
-                        'isEmpty' => !$hasAnyATags, // Flag for empty lists
-                    ];
+                // For kind 30040, skip magazine indexes (events that reference other 30040 events)
+                if ($kind === 30040 && $hasMagazineReferences) {
+                    continue;
                 }
+
+                // Collapse by slug: keep only newest per slug
+                $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
+                if (isset($seenSlugs[$slug ?? $keySlug])) {
+                    continue;
+                }
+                $seenSlugs[$slug ?? $keySlug] = true;
+
+                $lists[] = [
+                    'id' => $ev->getId(),
+                    'title' => $title ?: '(untitled)',
+                    'summary' => $summary,
+                    'slug' => $slug,
+                    'createdAt' => $ev->getCreatedAt(),
+                    'pubkey' => $ev->getPubkey(),
+                    'kind' => $kind,
+                    'type' => $typeLabel,
+                    'itemCount' => $itemCount,
+                    'isEmpty' => !$hasAnyATags && !$hasAnyETags,
+                ];
             }
         }
 

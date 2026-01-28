@@ -16,7 +16,9 @@ enum KindsEnum: int
     case COMMENTS = 1111;
     case HTTP_AUTH = 27235; // NIP-98, HTTP Auth
     case BOOKMARK_SETS = 30003; // NIP-51, Categorized bookmark sets
-    case CURATION_SET = 30004; // NIP-51
+    case CURATION_SET = 30004; // NIP-51, Curation sets (articles/notes)
+    case CURATION_VIDEOS = 30005; // NIP-51, Video curation sets
+    case CURATION_PICTURES = 30006; // NIP-51, Picture curation sets
     case LONGFORM = 30023; // NIP-23
     case LONGFORM_DRAFT = 30024; // NIP-23
     case PUBLICATION_INDEX = 30040;

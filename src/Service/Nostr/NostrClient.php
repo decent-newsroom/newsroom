@@ -1089,6 +1089,77 @@ class NostrClient
         return $allEvents;
     }
 
+    /**
+     * Get curation set events by time range (NIP-51)
+     * @param array $kinds Event kinds to fetch (default: 30004, 30005, 30006)
+     * @param int $from Unix timestamp for start of range
+     * @param int $to Unix timestamp for end of range
+     * @param int $limit Maximum number of events to fetch
+     * @param string|null $pubkey Optional pubkey to filter by
+     * @return array Array of raw Nostr events
+     * @throws \Exception
+     */
+    public function getCurationEventsByTimeRange(
+        array $kinds = [30004, 30005, 30006],
+        int $from = 0,
+        int $to = 0,
+        int $limit = 500,
+        ?string $pubkey = null
+    ): array {
+        $allEvents = [];
+
+        if ($to === 0) {
+            $to = time();
+        }
+
+        if ($from === 0) {
+            // Default to last 30 days
+            $from = $to - (30 * 24 * 60 * 60);
+        }
+
+        $this->logger->info('Fetching curation set events by time range', [
+            'kinds' => $kinds,
+            'from' => date('Y-m-d H:i:s', $from),
+            'to' => date('Y-m-d H:i:s', $to),
+            'limit' => $limit,
+            'pubkey' => $pubkey ? substr($pubkey, 0, 16) . '...' : null
+        ]);
+
+        // Build filters
+        $filters = [
+            'since' => $from,
+            'until' => $to,
+            'limit' => $limit
+        ];
+
+        if ($pubkey) {
+            $filters['authors'] = [$pubkey];
+        }
+
+        // Fetch events for the specified kinds and time range
+        $request = $this->createNostrRequest(
+            kinds: $kinds,
+            filters: $filters,
+            relaySet: $this->createRelaySet([
+                'wss://nos.lol',
+                'wss://relay.damus.io',
+                'wss://theforest.nostr1.com'
+            ])
+        );
+
+        $events = $this->processResponse($request->send(), function($event) {
+            return $event;
+        });
+
+        $allEvents = array_merge($allEvents, $events);
+
+        $this->logger->info('Fetched curation set events', [
+            'count' => count($allEvents)
+        ]);
+
+        return $allEvents;
+    }
+
     public function getArticles(array $slugs): array
     {
         $articles = [];

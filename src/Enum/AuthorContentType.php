@@ -31,7 +31,9 @@ enum AuthorContentType: string
             self::BOOKMARKS => [
                 KindsEnum::BOOKMARKS->value,      // 10003 - standard bookmarks
                 KindsEnum::BOOKMARK_SETS->value,  // 30003 - bookmark sets
-                KindsEnum::CURATION_SET->value    // 30004 - curation sets
+                KindsEnum::CURATION_SET->value,   // 30004 - curation sets (articles/notes)
+                KindsEnum::CURATION_VIDEOS->value, // 30005 - video curation sets
+                KindsEnum::CURATION_PICTURES->value // 30006 - picture curation sets
             ],
             self::INTERESTS => [KindsEnum::INTERESTS->value],
         };
