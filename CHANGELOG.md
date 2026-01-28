@@ -1,7 +1,20 @@
 # CHANGELOG
 
+## v0.0.8
+Toast on toast, and event in event.
+
+- Show embeds of nostr events in articles.
+- Broadcast option.
+- Show a stack of toasts instead of replacing the previous one.
+- Showing a placeholder when an article is not found.
+- Better handle comments.
+- Added generic 'alt' tags to index events.
+- Admin dash update.
+- [Bug] Button didn't open a dialog on login page.
+
+
 ## v0.0.7
-Making UI more usable.
+Lists that actually list things. Revolutionary.
 
 - Reading lists now load existing lists.
 - Now possible to add articles to magazines and reading lists by naddr.
