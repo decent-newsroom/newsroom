@@ -1,6 +1,7 @@
 {
-    # Set to 'off' if using an external proxy for TLS termination
-    auto_https {$CADDY_AUTO_HTTPS:off}
+    # To disable automatic HTTPS (e.g., behind a proxy), add to your .env:
+    # CADDY_EXTRA_CONFIG="{ auto_https off }"
+    {$CADDY_GLOBAL_OPTIONS}
 }
 
 frankenphp {
@@ -14,27 +15,25 @@ frankenphp {
 #   SERVER_NAME - main site (e.g., "example.com" or ":80" for catch-all behind proxy)
 #   RELAY_DOMAIN - relay subdomain (e.g., "relay.example.com")
 {$SERVER_NAME:localhost} {
+	log {
+		{$CADDY_SERVER_LOG_OPTIONS}
+		# Redact the authorization query parameter that can be set by Mercure
+		format filter {
+			request>uri query {
+				replace authorization REDACTED
+			}
+		}
+	}
+
 	# Nostr relay WebSocket proxy
 	@relay host {$RELAY_DOMAIN:relay.localhost}
 	handle @relay {
-		log {
-			format json
-		}
 		encode zstd gzip
 		reverse_proxy strfry:7777
 	}
 
 	# Main application
 	handle {
-		log {
-			{$CADDY_SERVER_LOG_OPTIONS}
-			# Redact the authorization query parameter that can be set by Mercure
-			format filter {
-				request>uri query {
-					replace authorization REDACTED
-				}
-			}
-		}
 
 		root /app/public
 		encode zstd br gzip
