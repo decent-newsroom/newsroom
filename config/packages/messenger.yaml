@@ -3,6 +3,11 @@ framework:
         # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
         # failure_transport: failed
 
+        buses:
+            messenger.bus.default:
+                middleware:
+                    - App\Messenger\Middleware\IgnoreTransportExceptionMiddleware
+
         transports:
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
