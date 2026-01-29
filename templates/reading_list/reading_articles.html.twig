@@ -4,7 +4,8 @@
   <h1>Attach Articles</h1>
 
   <div class="notice info">
-    <p>Add article coordinates to your reading list. Use format <code>30023:pubkey:slug</code>.</p>
+      <p>Add articles to your reading list. Use the coordinate format <code>30023:pubkey:slug</code>, or <code>naddr</code>.</p>
+      <small>You can remove items from the list in the next step.</small>
   </div>
 
   {{ form_start(form) }}
@@ -13,11 +14,17 @@
   <h3>Articles</h3>
   <div
     {{ stimulus_controller('ui--form-collection') }}
+    {{ stimulus_controller('ui--article-preview-input', { url: path('api_article_preview') }) }}
     data-ui--form-collection-index-value="{{ form.articles|length > 0 ? form.articles|last.vars.name + 1 : 0 }}"
-    data-ui--form-collection-prototype-value="{{ form_widget(form.articles.vars.prototype)|e('html_attr') }}">
-        <ul id="aCollection" class="d-flex gap-2 list-unstyled" {{ stimulus_target('ui--form-collection', 'collectionContainer') }}>
+    data-ui--form-collection-prototype-value="<div class=&quot;article-input-wrapper&quot;>{{ form_widget(form.articles.vars.prototype, { attr: { 'data-ui--article-preview-input-target': 'input', 'data-action': 'change->ui--article-preview-input#onInputChange blur->ui--article-preview-input#onInputChange' } })|e('html_attr') }}<div class=&quot;article-preview-container mt-1&quot;></div></div>">
+        <ul id="aCollection" class="d-flex flex-column gap-2 list-unstyled" {{ stimulus_target('ui--form-collection', 'collectionContainer') }}>
           {% for item in form.articles %}
-            <li class="d-flex flex-row">{{ form_row(item) }}</li>
+            <li class="d-flex flex-column">
+              <div class="article-input-wrapper">
+                {{ form_widget(item, { attr: { 'data-ui--article-preview-input-target': 'input', 'data-action': 'change->ui--article-preview-input#onInputChange blur->ui--article-preview-input#onInputChange' } }) }}
+                <div class="article-preview-container mt-1"></div>
+              </div>
+            </li>
           {% endfor %}
         </ul>
         <div class="actions">

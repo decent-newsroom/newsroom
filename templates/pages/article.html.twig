@@ -107,7 +107,9 @@
                 {% endif %}
 
                 {# Broadcast #}
-                <twig:Molecules:BroadcastButton :article="article" />
+                {% if app.user %}
+                    <twig:Molecules:BroadcastButton :article="article" />
+                {% endif %}
             </div>
         {% endif %}
 
@@ -145,12 +147,63 @@
                 </div>
             {% endif %}
 
+            {% if article.raw is defined and article.raw.tags is defined and article.raw.tags|length > 0 %}
+                {# Separate r and imeta tags #}
+                {% set reference_tags = [] %}
+                {% set media_tags = [] %}
+                {% for tag in article.raw.tags %}
+                    {% if tag[0] == 'r' %}
+                        {% set reference_tags = reference_tags|merge([tag]) %}
+                    {% elseif tag[0] == 'imeta' %}
+                        {% set media_tags = media_tags|merge([tag]) %}
+                    {% endif %}
+                {% endfor %}
+                {% if media_tags|length > 0 %}
+                    <section class="article-media-section">
+                        <ul class="media-list list-unstyled">
+                            {% for tag in media_tags %}
+                                {% set audio_url = null %}
+                                {% for param in tag %}
+                                    {% if param starts with 'url ' and (param ends with '.mp3' or 'audio' in param) %}
+                                        {% set audio_url = param|replace({'url ': ''}) %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if audio_url %}
+                                    <li>
+                                        <audio controls style="width:100%;">
+                                            <source src="{{ audio_url }}" type="audio/mpeg">
+                                            Your browser does not support the audio element.
+                                        </audio>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endif %}
+            {% endif %}
+
             <div class="article-main"
                  {% if highlights is defined and highlights|length > 0 %}
                  data-highlights="{{ highlights|json_encode|e('html_attr') }}"
                  {% endif %}>
                 {{ content|raw }}
             </div>
+
+            {% if article.raw is defined and article.raw.tags is defined and article.raw.tags|length > 0 %}
+                {% if reference_tags|length > 0 %}
+                    <section class="article-references-section p-0">
+                        <ul class="reference-list list-unstyled">
+                            {% for tag in reference_tags %}
+                                {% if tag[1] is defined %}
+                                    <li>
+                                        Reference: <a href="{{ tag[1] }}" target="_blank" rel="noopener noreferrer">{{ tag[1] }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endif %}
+            {% endif %}
 
             {% if article.topics|length > 0 %}
             <hr class="divider" />

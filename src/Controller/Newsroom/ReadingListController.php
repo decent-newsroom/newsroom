@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\CategoryType;
+use App\Service\Cache\RedisCacheService;
 use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
 use swentel\nostr\Key\Key;
@@ -402,6 +403,97 @@ class ReadingListController extends AbstractController
         $this->clearDraft($request);
         $this->addFlash('info', 'Reading list creation canceled.');
         return $this->redirectToRoute('home');
+    }
+
+    #[Route('/reading-list/wizard/remove-article', name: 'read_wizard_remove_article', methods: ['POST'])]
+    public function removeArticle(Request $request): Response
+    {
+        $coordinate = $request->request->get('coordinate');
+        if (!$coordinate) {
+            return $this->redirectToRoute('read_wizard_review');
+        }
+
+        $draft = $this->getDraft($request);
+        if ($draft && !empty($draft->articles)) {
+            $draft->articles = array_values(array_filter($draft->articles, fn($c) => $c !== $coordinate));
+            $this->saveDraft($request, $draft);
+        }
+
+        return $this->redirectToRoute('read_wizard_review');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // API Endpoints
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * API endpoint to get article preview info from a coordinate or naddr
+     */
+    #[Route('/api/reading-list/article-preview', name: 'api_article_preview', methods: ['POST'])]
+    public function articlePreview(
+        Request $request,
+        EntityManagerInterface $em,
+        RedisCacheService $redisCacheService
+    ): Response
+    {
+        $data = json_decode($request->getContent(), true);
+        $input = trim($data['coordinate'] ?? '');
+
+        if (empty($input)) {
+            return $this->json(['error' => 'No coordinate provided']);
+        }
+
+        // Parse naddr if provided
+        $coordinate = $input;
+        if (str_starts_with($input, 'naddr1') || str_starts_with($input, 'nostr:naddr1')) {
+            // Strip nostr: prefix if present
+            $naddr = preg_replace('/^nostr:/', '', $input);
+            $coordinate = $this->parseNaddr($naddr);
+            if (!$coordinate) {
+                return $this->json(['error' => 'Invalid naddr format']);
+            }
+        }
+
+        // Parse coordinate
+        $parsed = $this->parseCoordinate($coordinate);
+        if (!$parsed) {
+            return $this->json(['error' => 'Invalid coordinate format']);
+        }
+
+        // Look up the article
+        $article = $em->getRepository(\App\Entity\Article::class)->findOneBy([
+            'pubkey' => $parsed['pubkey'],
+            'slug' => $parsed['slug'],
+        ]);
+
+        if (!$article) {
+            return $this->json(['title' => null, 'author' => null, 'error' => 'Article not found locally']);
+        }
+
+        // Get author name from Redis cache
+        $authorName = null;
+        try {
+            $metadata = $redisCacheService->getMetadata($parsed['pubkey']);
+            $authorName = $metadata->displayName ?: $metadata->name;
+        } catch (\Throwable) {
+            // Metadata not available
+        }
+
+        // Fallback to shortened npub if no name
+        if (!$authorName) {
+            try {
+                $key = new Key();
+                $npub = $key->convertPublicKeyToBech32($parsed['pubkey']);
+                $authorName = substr($npub, 0, 8) . '...' . substr($npub, -4);
+            } catch (\Throwable) {
+                $authorName = 'Unknown';
+            }
+        }
+
+        return $this->json([
+            'title' => $article->getTitle(),
+            'author' => $authorName,
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

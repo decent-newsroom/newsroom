@@ -20,12 +20,21 @@
     </ul>
 
     {% if draft.articles is defined and draft.articles|length %}
-      <div class="mt-2">
+      <div class="mt-2" {{ stimulus_controller('ui--article-preview-input', { url: path('api_article_preview') }) }}>
         <strong>Articles: {{ draft.articles|length }}</strong>
           {% if draft.articles|length > 0 %}
-            <ul>
+            <ul class="list-unstyled">
               {% for a in draft.articles %}
-                <li><code>{{ a }}</code></li>
+                <li class="d-flex flex-row justify-content-between align-items-center gap-2 mb-2 p-2 bg-light rounded">
+                  <div class="flex-fill">
+                    <div class="article-preview-display" data-coordinate="{{ a }}"></div>
+                    <code class="small text-muted text-truncate d-block" title="{{ a }}">{{ a }}</code>
+                  </div>
+                  <form method="post" action="{{ path('read_wizard_remove_article') }}" class="d-inline m-0">
+                    <input type="hidden" name="coordinate" value="{{ a }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove article">×</button>
+                  </form>
+                </li>
               {% endfor %}
             </ul>
             {% else %}
