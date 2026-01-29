@@ -79,16 +79,25 @@ class ProcessArticleHtmlCommand extends Command
         $failed = 0;
         $batchSize = 20;
 
+        // Get article IDs upfront since we'll be clearing the entity manager
+        $articleIds = array_map(fn($article) => $article->getId(), $articles);
+        // Free memory from original query result
+        unset($articles);
+        $this->entityManager->clear();
 
-        foreach ($articles as $index => $article) {
+        foreach ($articleIds as $index => $articleId) {
             try {
+                /** @var Article|null $article */
+                $article = $this->entityManager->find(Article::class, $articleId);
+                if (!$article || !$article->getContent()) {
+                    continue;
+                }
+
                 $html = $this->converter->convertToHTML($article->getContent());
-                /* @var Article $article */
                 $article->setProcessedHtml($html);
-                $this->entityManager->persist($article);
                 $processed++;
 
-                // Flush in batches for better performance
+                // Flush and clear in batches for better performance
                 if (($index + 1) % $batchSize === 0) {
                     $this->entityManager->flush();
                     $this->entityManager->clear();
@@ -97,8 +106,8 @@ class ProcessArticleHtmlCommand extends Command
                 $failed++;
                 $io->writeln('');
                 $io->warning(sprintf(
-                    'Failed to process article %s: %s',
-                    $article->getEventId() ?? $article->getId(),
+                    'Failed to process article ID %s: %s',
+                    $articleId,
                     $e->getMessage()
                 ));
             }
