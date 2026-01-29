@@ -30,8 +30,8 @@ frankenphp {
 	encode zstd br gzip
 
     mercure {
-        transport bolt {
-               path /data/mercure.db
+        transport redis {
+            address {env.MESSENGER_TRANSPORT_DSN}
         }
 
         # Publisher JWT key
