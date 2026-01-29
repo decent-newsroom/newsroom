@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Entity\Article;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
+use League\CommonMark\Exception\CommonMarkException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -78,10 +79,13 @@ class ProcessArticleHtmlCommand extends Command
         $failed = 0;
         $batchSize = 20;
 
+
         foreach ($articles as $index => $article) {
             try {
                 $html = $this->converter->convertToHTML($article->getContent());
+                /* @var Article $article */
                 $article->setProcessedHtml($html);
+                $this->entityManager->persist($article);
                 $processed++;
 
                 // Flush in batches for better performance
@@ -89,7 +93,7 @@ class ProcessArticleHtmlCommand extends Command
                     $this->entityManager->flush();
                     $this->entityManager->clear();
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception|CommonMarkException $e) {
                 $failed++;
                 $io->writeln('');
                 $io->warning(sprintf(
