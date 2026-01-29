@@ -10,8 +10,7 @@ frankenphp {
 }
 
 # Nostr relay WebSocket proxy
-# Set RELAY_PORT to `:80` for HTTP only (behind proxy), or leave empty for HTTPS (Caddy manages certs)
-{$RELAY_DOMAIN:relay.localhost}{$RELAY_PORT::80} {
+{$RELAY_DOMAIN:relay.localhost} {
 	log {
 		format json
 	}
@@ -19,7 +18,7 @@ frankenphp {
 	reverse_proxy strfry:7777
 }
 
-{$SERVER_NAME:localhost}{$SERVER_PORT::80} {
+{$SERVER_NAME:localhost} {
 	log {
 		{$CADDY_SERVER_LOG_OPTIONS}
 		# Redact the authorization query parameter that can be set by Mercure
@@ -70,7 +69,8 @@ frankenphp {
 
 # Documentation:
 # - To use with an external proxy (no TLS from Caddy):
-#   Set CADDY_AUTO_HTTPS=off (default), ports default to :80
+#   Set CADDY_AUTO_HTTPS=off (default)
+#   Set SERVER_NAME=:80 and RELAY_DOMAIN=relay.yourdomain.com:80
 # - To let Caddy manage HTTPS (no external proxy):
-#   Set CADDY_AUTO_HTTPS=on and set RELAY_PORT and SERVER_PORT to empty strings
-# - Set RELAY_DOMAIN and SERVER_NAME to your domains (e.g., relay.example.com, example.com)
+#   Set CADDY_AUTO_HTTPS=on
+#   Set SERVER_NAME=yourdomain.com and RELAY_DOMAIN=relay.yourdomain.com
