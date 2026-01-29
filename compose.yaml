@@ -48,7 +48,7 @@ services:
         REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
         MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/messages}
         ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-false}
-        CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:}
+        CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
