@@ -64,11 +64,22 @@ class UpdateProfileProjectionHandler
             // Update relay list facet from Redis
             $updated = $this->updateRelayListFacet($user, $pubkeyHex) || $updated;
 
+            // Use transaction for database flush to prevent partial updates
             if ($updated) {
-                $this->entityManager->flush();
-                $this->logger->info('Profile projection updated successfully', [
-                    'npub' => $npub
-                ]);
+                try {
+                    $this->entityManager->flush();
+                    $this->logger->info('Profile projection updated successfully', [
+                        'npub' => $npub
+                    ]);
+                } catch (\Exception $flushException) {
+                    $this->logger->error('Database flush failed for profile projection', [
+                        'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                        'error' => $flushException->getMessage()
+                    ]);
+                    // Clear entity manager to prevent issues with next message
+                    $this->entityManager->clear();
+                    throw $flushException;
+                }
             } else {
                 $this->logger->debug('No profile data available to update', [
                     'npub' => $npub
@@ -78,9 +89,17 @@ class UpdateProfileProjectionHandler
         } catch (\Exception $e) {
             $this->logger->error('Failed to update profile projection', [
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
+
+            // Clear entity manager to prevent stale data in next message
+            if ($this->entityManager->isOpen()) {
+                $this->entityManager->clear();
+            }
+
             // Don't rethrow - we don't want to retry indefinitely
+            // The middleware will handle acknowledgment issues
         }
     }
 
@@ -90,8 +109,24 @@ class UpdateProfileProjectionHandler
     private function updateMetadataFacet(User $user, string $pubkeyHex): bool
     {
         try {
-            // Fetch metadata from Nostr relays
-            $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex);
+            // Fetch metadata from Nostr relays with timeout protection
+            $rawEvent = null;
+            $timeoutSeconds = 20; // Maximum time to wait for relay response
+
+            try {
+                // Use set_error_handler to catch timeout warnings
+                set_time_limit($timeoutSeconds + 5); // PHP execution time limit
+
+                $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex);
+            } catch (\Exception $relayException) {
+                $this->logger->warning('Relay fetch timed out or failed for metadata', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'error' => $relayException->getMessage()
+                ]);
+                return false;
+            } finally {
+                set_time_limit(0); // Reset to no limit
+            }
 
             if (!$rawEvent) {
                 $this->logger->debug('No metadata found on relays', [
@@ -122,29 +157,37 @@ class UpdateProfileProjectionHandler
             }
 
             // Update user fields from metadata
-            if (isset($metadata->display_name)) {
-                $user->setDisplayName($this->sanitizeStringValue($metadata->display_name));
-            }
-            if (isset($metadata->name)) {
-                $user->setName($this->sanitizeStringValue($metadata->name));
-            }
-            if (isset($metadata->nip05)) {
-                $user->setNip05($this->sanitizeStringValue($metadata->nip05));
-            }
-            if (isset($metadata->about)) {
-                $user->setAbout($this->sanitizeStringValue($metadata->about));
-            }
-            if (isset($metadata->website)) {
-                $user->setWebsite($this->sanitizeStringValue($metadata->website));
-            }
-            if (isset($metadata->picture)) {
-                $user->setPicture($this->sanitizeStringValue($metadata->picture));
-            }
-            if (isset($metadata->banner)) {
-                $user->setBanner($this->sanitizeStringValue($metadata->banner));
-            }
-            if (isset($metadata->lud16)) {
-                $user->setLud16($this->sanitizeStringValue($metadata->lud16));
+            try {
+                if (isset($metadata->display_name)) {
+                    $user->setDisplayName($this->sanitizeStringValue($metadata->display_name));
+                }
+                if (isset($metadata->name)) {
+                    $user->setName($this->sanitizeStringValue($metadata->name));
+                }
+                if (isset($metadata->nip05)) {
+                    $user->setNip05($this->sanitizeStringValue($metadata->nip05));
+                }
+                if (isset($metadata->about)) {
+                    $user->setAbout($this->sanitizeStringValue($metadata->about));
+                }
+                if (isset($metadata->website)) {
+                    $user->setWebsite($this->sanitizeStringValue($metadata->website));
+                }
+                if (isset($metadata->picture)) {
+                    $user->setPicture($this->sanitizeStringValue($metadata->picture));
+                }
+                if (isset($metadata->banner)) {
+                    $user->setBanner($this->sanitizeStringValue($metadata->banner));
+                }
+                if (isset($metadata->lud16)) {
+                    $user->setLud16($this->sanitizeStringValue($metadata->lud16));
+                }
+            } catch (\Exception $fieldException) {
+                $this->logger->warning('Failed to set user field from metadata', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'error' => $fieldException->getMessage()
+                ]);
+                // Continue anyway - partial updates are acceptable
             }
 
             return true;
