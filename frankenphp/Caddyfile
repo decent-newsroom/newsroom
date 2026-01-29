@@ -3,74 +3,80 @@
     auto_https {$CADDY_AUTO_HTTPS:off}
 }
 
-{$CADDY_EXTRA_CONFIG}
-
 frankenphp {
 	{$FRANKENPHP_CONFIG}
 }
 
-# Nostr relay WebSocket proxy
-{$RELAY_DOMAIN:relay.localhost} {
-	log {
-		format json
-	}
-	encode zstd gzip
-	reverse_proxy strfry:7777
-}
+{$CADDY_EXTRA_CONFIG}
 
+# Main site block - handles both main domain and relay subdomain
+# Configure via environment variables:
+#   SERVER_NAME - main site (e.g., "example.com" or ":80" for catch-all behind proxy)
+#   RELAY_DOMAIN - relay subdomain (e.g., "relay.example.com")
 {$SERVER_NAME:localhost} {
-	log {
-		{$CADDY_SERVER_LOG_OPTIONS}
-		# Redact the authorization query parameter that can be set by Mercure
-		format filter {
-			request>uri query {
-				replace authorization REDACTED
+	# Nostr relay WebSocket proxy
+	@relay host {$RELAY_DOMAIN:relay.localhost}
+	handle @relay {
+		log {
+			format json
+		}
+		encode zstd gzip
+		reverse_proxy strfry:7777
+	}
+
+	# Main application
+	handle {
+		log {
+			{$CADDY_SERVER_LOG_OPTIONS}
+			# Redact the authorization query parameter that can be set by Mercure
+			format filter {
+				request>uri query {
+					replace authorization REDACTED
+				}
 			}
 		}
+
+		root /app/public
+		encode zstd br gzip
+
+		mercure {
+			transport bolt {
+				path /data/mercure.db
+			}
+
+			# Publisher JWT key
+			publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+			# Subscriber JWT key
+			subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+
+			anonymous
+			subscriptions
+
+			{$MERCURE_EXTRA_DIRECTIVES}
+		}
+
+		vulcain
+
+		{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+		# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
+		header ?Permissions-Policy "browsing-topics=()"
+
+		@phpRoute {
+			not path /.well-known/mercure*
+			not file {path}
+		}
+		rewrite @phpRoute index.php
+
+		@frontController path index.php
+		php @frontController
+
+		file_server
 	}
-
-	root /app/public
-	encode zstd br gzip
-
-    mercure {
-       transport bolt {
-           path /data/mercure.db
-       }
-
-        # Publisher JWT key
-        publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
-        # Subscriber JWT key
-        subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
-
-        anonymous
-        subscriptions
-
-        {$MERCURE_EXTRA_DIRECTIVES}
-    }
-
-	vulcain
-
-	{$CADDY_SERVER_EXTRA_DIRECTIVES}
-
-	# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
-	header ?Permissions-Policy "browsing-topics=()"
-
-	@phpRoute {
-		not path /.well-known/mercure*
-		not file {path}
-	}
-	rewrite @phpRoute index.php
-
-	@frontController path index.php
-	php @frontController
-
-	file_server
 }
 
 # Documentation:
 # - To use with an external proxy (no TLS from Caddy):
-#   Set CADDY_AUTO_HTTPS=off (default)
-#   Set SERVER_NAME=:80 and RELAY_DOMAIN=relay.yourdomain.com:80
+#   Set CADDY_AUTO_HTTPS=off, SERVER_NAME=:80, RELAY_DOMAIN=relay.yourdomain.com
 # - To let Caddy manage HTTPS (no external proxy):
-#   Set CADDY_AUTO_HTTPS=on
-#   Set SERVER_NAME=yourdomain.com and RELAY_DOMAIN=relay.yourdomain.com
+#   Set CADDY_AUTO_HTTPS=on, SERVER_NAME=yourdomain.com, RELAY_DOMAIN=relay.yourdomain.com
