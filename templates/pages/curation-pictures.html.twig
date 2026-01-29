@@ -1,0 +1,50 @@
+{% extends 'layout.html.twig' %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ curation.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ curation.summary ?? '' }}">
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5 mb-5">
+            <h1>{{ curation.title }}</h1>
+            <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-3">
+                <span class="badge bg-secondary">{{ type }}</span>
+                <span class="badge bg-info text-dark">{{ mediaEvents|length }} picture{{ mediaEvents|length != 1 ? 's' : '' }}</span>
+            </div>
+            {% if curation.summary %}
+                <p class="eyebrow">{{ curation.summary }}</p>
+            {% endif %}
+            <div>by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
+        </div>
+    </section>
+
+    <div class="w-container">
+        {% if mediaEvents|length > 0 %}
+            <div class="row g-3">
+                {% for event in mediaEvents %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        {% if event.notFound is defined and event.notFound %}
+                            <div class="card h-100">
+                                <div class="bg-light d-flex align-items-center justify-content-center" style="aspect-ratio: 1;">
+                                    <div class="text-center text-muted p-2">
+                                        <p class="mb-1 small">Not synced</p>
+                                        <small class="text-truncate d-block" style="max-width: 100%;">{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No pictures in this curation set.</p>
+        {% endif %}
+    </div>
+{% endblock %}
