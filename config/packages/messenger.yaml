@@ -15,7 +15,7 @@ framework:
                     stream: '%kernel.environment%:messenger:async'   # dev/prod get different keys
                     group: '%kernel.environment%'
                     consumer: 'consumer-%kernel.environment%'
-                    delete_after_ack: false
+                    delete_after_ack: true
                     delete_after_reject: false
                     stream_max_entries: 50000
                     redeliver_timeout: 600
@@ -27,7 +27,7 @@ framework:
                     stream: '%kernel.environment%:messenger:priority'
                     group: '%kernel.environment%'
                     consumer: 'consumer-priority-%kernel.environment%'
-                    delete_after_ack: false
+                    delete_after_ack: true
                     delete_after_reject: false
                     stream_max_entries: 10000
                     redeliver_timeout: 300  # 5 min (faster than async)
