@@ -107,7 +107,16 @@
                 {% endif %}
 
                 {# Broadcast #}
-                {% if app.user %}
+                {# Only if the article has no '-' (protected) tag set #}
+                {% set isProtected = false %}
+                {% if article.raw is defined and article.raw.tags is defined %}
+                    {% for tag in article.raw.tags %}
+                        {% if tag[0] == '-' %}
+                            {% set isProtected = true %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if app.user and not isProtected %}
                     <twig:Molecules:BroadcastButton :article="article" />
                 {% endif %}
             </div>
@@ -194,7 +203,7 @@
                     <section class="article-references-section p-0">
                         <ul class="reference-list list-unstyled">
                             {% for tag in reference_tags %}
-                                {% if tag[1] is defined %}
+                                {% if tag[1] is defined and not (tag[1] starts with 'ws://') and not (tag[1] starts with 'wss://') %}
                                     <li>
                                         Reference: <a href="{{ tag[1] }}" target="_blank" rel="noopener noreferrer">{{ tag[1] }}</a>
                                     </li>
