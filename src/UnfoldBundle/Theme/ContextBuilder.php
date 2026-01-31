@@ -2,6 +2,7 @@
 
 namespace App\UnfoldBundle\Theme;
 
+use App\Service\Cache\RedisCacheService;
 use App\UnfoldBundle\Config\SiteConfig;
 use App\UnfoldBundle\Content\CategoryData;
 use App\UnfoldBundle\Content\PostData;
@@ -18,6 +19,7 @@ class ContextBuilder
     public function __construct(
         private readonly MarkdownConverterInterface $converter,
         private readonly CacheItemPoolInterface $cache,
+        private readonly RedisCacheService $redisCacheService,
     ) {}
 
     /**
@@ -131,6 +133,10 @@ class ContextBuilder
      */
     private function buildPostListItemContext(PostData $post): array
     {
+        // Fetch author metadata from Redis cache
+        $authorMetadata = $this->redisCacheService->getMetadata($post->pubkey);
+        $authorName = $authorMetadata->displayName ?: $authorMetadata->name ?: 'Author';
+
         return [
             'id' => $post->coordinate,
             'slug' => $post->slug,
@@ -141,6 +147,12 @@ class ContextBuilder
             'published_at' => date('c', $post->publishedAt),
             'published_at_formatted' => $post->getPublishedDate(),
             'reading_time' => $this->estimateReadingTime($post->content),
+            'primary_author' => [
+                'id' => $post->pubkey,
+                'name' => $authorName,
+                'slug' => substr($post->pubkey, 0, 8),
+                'profile_image' => $authorMetadata->picture,
+            ],
         ];
     }
 
@@ -149,6 +161,10 @@ class ContextBuilder
      */
     private function buildSinglePostContext(PostData $post): array
     {
+        // Fetch author metadata from Redis cache
+        $authorMetadata = $this->redisCacheService->getMetadata($post->pubkey);
+        $authorName = $authorMetadata->displayName ?: $authorMetadata->name ?: 'Author';
+
         return [
             'id' => $post->coordinate,
             'slug' => $post->slug,
@@ -162,8 +178,9 @@ class ContextBuilder
             'reading_time' => $this->estimateReadingTime($post->content),
             'primary_author' => [
                 'id' => $post->pubkey,
-                'name' => 'Author', // TODO: fetch author metadata
+                'name' => $authorName,
                 'slug' => substr($post->pubkey, 0, 8),
+                'profile_image' => $authorMetadata->picture,
             ],
         ];
     }

@@ -25,7 +25,9 @@
         .post-card h2 a { color: inherit; text-decoration: none; }
         .post-card h2 a:hover { text-decoration: underline; }
         .post-card p { color: #666; font-size: 0.95rem; }
-        .post-meta { font-size: 0.85rem; color: #999; margin-top: 1rem; }
+        .post-meta { font-size: 0.85rem; color: #999; margin-top: 1rem; display: flex; align-items: center; }
+        .post-meta .author { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .post-meta .author-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
         footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 40px; text-align: center; color: #666; font-size: 0.9rem; }
     </style>
 </head>
@@ -43,7 +45,13 @@
                     <h2><a href="{{url}}">{{title}}</a></h2>
                     <p>{{excerpt}}</p>
                     <div class="post-meta">
-                        {{published_at_formatted}} · {{reading_time}}
+                        {{#if primary_author}}
+                        <span class="author">
+                            {{#if primary_author.profile_image}}<img src="{{primary_author.profile_image}}" alt="{{primary_author.name}}" class="author-avatar">{{/if}}
+                            {{primary_author.name}}
+                        </span>&nbsp;·
+                        {{/if}}
+                        {{published_at_formatted}}
                     </div>
                 </div>
             </article>

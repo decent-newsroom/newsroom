@@ -78,9 +78,6 @@ class ContentProvider
             }
         }
 
-        // Sort by published date descending
-        usort($posts, fn(PostData $a, PostData $b) => $b->publishedAt <=> $a->publishedAt);
-
         $cacheItem->set($posts);
         $cacheItem->expiresAfter(self::CACHE_TTL);
         $this->unfoldCache->save($cacheItem);
@@ -93,7 +90,7 @@ class ContentProvider
      *
      * @return PostData[]
      */
-    public function getHomePosts(SiteConfig $site, int $limit = 10): array
+    public function getHomePosts(SiteConfig $site, int $limit = 3): array
     {
         $cacheKey = 'home_posts_' . md5($site->naddr) . '_' . $limit;
         $cacheItem = $this->unfoldCache->getItem($cacheKey);
@@ -107,25 +104,14 @@ class ContentProvider
 
         foreach ($categories as $category) {
             $categoryPosts = $this->getCategoryPosts($category->coordinate);
-            $allPosts = array_merge($allPosts, $categoryPosts);
+            $allPosts = array_merge($allPosts, array_slice($categoryPosts, 0, $limit));
         }
 
-        // Remove duplicates by coordinate
-        $uniquePosts = [];
-        foreach ($allPosts as $post) {
-            $uniquePosts[$post->coordinate] = $post;
-        }
-        $allPosts = array_values($uniquePosts);
-
-        // Sort by published date descending and limit
-        usort($allPosts, fn(PostData $a, PostData $b) => $b->publishedAt <=> $a->publishedAt);
-        $posts = array_slice($allPosts, 0, $limit);
-
-        $cacheItem->set($posts);
+        $cacheItem->set($allPosts);
         $cacheItem->expiresAfter(self::CACHE_TTL);
         $this->unfoldCache->save($cacheItem);
 
-        return $posts;
+        return $allPosts;
     }
 
     /**
