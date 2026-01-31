@@ -97,6 +97,13 @@ services:
     App\Util\NostrPhp\TweakedRequest: ~
     swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'
 
+    # Markdown converter interface - use the Nostr-aware Converter (lazy to avoid loading on list pages)
+    App\Util\CommonMark\MarkdownConverterInterface:
+        alias: App\Util\CommonMark\Converter
+        
+    App\Util\CommonMark\Converter:
+        lazy: true
+
     # Search services - Elasticsearch implementation
     App\Service\Search\ElasticsearchArticleSearch:
         arguments:
@@ -147,7 +154,9 @@ services:
     
     App\UnfoldBundle\Http\RouteMatcher: ~
     
-    App\UnfoldBundle\Theme\ContextBuilder: ~
+    App\UnfoldBundle\Theme\ContextBuilder:
+        arguments:
+            $cache: '@unfold.cache'
     
     App\UnfoldBundle\Theme\HandlebarsRenderer:
         arguments:
