@@ -10,6 +10,8 @@ Toast on toast, and event in event.
 - Better handle comments.
 - Added generic 'alt' tags to index events.
 - Admin dash update.
+- Overhauled Caddy config. 
+- [Bug] Comments never loaded... because configuration was a mess.
 - [Bug] Button didn't open a dialog on login page.
 
 

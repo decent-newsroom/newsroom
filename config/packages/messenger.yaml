@@ -15,22 +15,8 @@ framework:
                     stream: '%kernel.environment%:messenger:async'   # dev/prod get different keys
                     group: '%kernel.environment%'
                     consumer: 'consumer-%kernel.environment%'
-                    delete_after_ack: true
-                    delete_after_reject: false
                     stream_max_entries: 50000
                     redeliver_timeout: 600
-            
-            # High-priority transport for time-sensitive messages (comments)
-            priority:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                options:
-                    stream: '%kernel.environment%:messenger:priority'
-                    group: '%kernel.environment%'
-                    consumer: 'consumer-priority-%kernel.environment%'
-                    delete_after_ack: true
-                    delete_after_reject: false
-                    stream_max_entries: 10000
-                    redeliver_timeout: 300  # 5 min (faster than async)
             
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             # failed: 'doctrine://default?queue_name=failed'
@@ -38,10 +24,7 @@ framework:
 
         routing:
             # Route your messages to the transports
-            # High-priority: Comments (user-facing, time-sensitive)
-            'App\Message\FetchCommentsMessage': priority
-            
-            # Normal priority: Background jobs
+            'App\Message\FetchCommentsMessage': async
             'App\Message\FetchAuthorArticlesMessage': async
             'App\Message\FetchAuthorContentMessage': async
             'App\Message\FetchMediaEventsMessage': async

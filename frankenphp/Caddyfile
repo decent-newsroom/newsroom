@@ -43,10 +43,9 @@ frankenphp {
 				path /data/mercure.db
 			}
 
-			# Publisher JWT key
-			publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
-			# Subscriber JWT key
-			subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+			# JWT key for both publisher and subscriber
+			publisher_jwt {env.MERCURE_JWT_SECRET}
+			subscriber_jwt {env.MERCURE_JWT_SECRET}
 
 			anonymous
 			subscriptions

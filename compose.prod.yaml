@@ -16,7 +16,7 @@
 #   - APP_SECRET: Unique secret for CSRF/cookies
 #   - SERVER_NAME: Your domain (e.g., yourdomain.com)
 #   - POSTGRES_PASSWORD: Strong database password
-#   - MERCURE_JWT_SECRET, MERCURE_PUBLISHER_JWT_KEY, MERCURE_SUBSCRIBER_JWT_KEY
+#   - MERCURE_JWT_SECRET
 #   - RELAY_DOMAIN: Nostr relay subdomain (e.g., relay.yourdomain.com)
 #
 # =============================================================================
@@ -38,10 +38,7 @@ services:
       # Set SERVER_NAME to your domain for automatic TLS, or :80 if behind a reverse proxy
       SERVER_NAME: ${SERVER_NAME:-:80}
       # --- Mercure (Caddy module) ---
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_PUBLISHER_JWT_ALG: ${MERCURE_PUBLISHER_JWT_ALG:-HS256}
-      MERCURE_SUBSCRIBER_JWT_ALG: ${MERCURE_SUBSCRIBER_JWT_ALG:-HS256}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       # --- Nostr Relay ---
       RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.localhost}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
