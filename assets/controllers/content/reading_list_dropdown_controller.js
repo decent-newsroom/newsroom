@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { getSigner } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
-  static targets = ['dropdown', 'status', 'menu'];
+  static targets = ['dropdown', 'menu'];
   static values = {
     coordinate: String,
     lists: String,
@@ -86,7 +86,6 @@ export default class extends Controller {
       if (selectedList.articles && selectedList.articles.includes(this.coordinateValue)) {
         this.showSuccess(`Already in "${title}"`);
         setTimeout(() => {
-          this.hideStatus();
           this.closeDropdown();
         }, 2000);
         return;
@@ -105,7 +104,6 @@ export default class extends Controller {
 
       // Close dropdown after success and reload to update the UI
       setTimeout(() => {
-        this.hideStatus();
         this.closeDropdown();
         // Reload the page to show updated state
         window.location.reload();
@@ -196,32 +194,24 @@ export default class extends Controller {
   }
 
   showStatus(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.className = 'alert alert-info small mt-2 mb-0';
-      this.statusTarget.textContent = message;
-      this.statusTarget.style.display = 'block';
+    if (window.showToast) {
+      window.showToast(message, 'info', 3000);
     }
   }
 
   showSuccess(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.className = 'alert alert-success small mt-2 mb-0';
-      this.statusTarget.textContent = message;
-      this.statusTarget.style.display = 'block';
+    if (window.showToast) {
+      window.showToast(message, 'success', 3000);
     }
   }
 
   showError(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.className = 'alert alert-danger small mt-2 mb-0';
-      this.statusTarget.textContent = message;
-      this.statusTarget.style.display = 'block';
+    if (window.showToast) {
+      window.showToast(message, 'danger', 5000);
     }
   }
 
   hideStatus() {
-    if (this.hasStatusTarget) {
-      this.statusTarget.style.display = 'none';
-    }
+    // No longer needed - toasts auto-dismiss
   }
 }
