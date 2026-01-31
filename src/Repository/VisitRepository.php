@@ -261,4 +261,141 @@ class VisitRepository extends ServiceEntityRepository
             'all_time' => $allTime,
         ];
     }
+
+    /**
+     * Count visits for routes matching a specific npub (author profile and articles).
+     * Matches /p/{npub} and /p/{npub}/...
+     */
+    public function countVisitsForNpubSince(string $npub, \DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.route LIKE :npubPattern')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('npubPattern', '/p/' . $npub . '%');
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Count unique sessions visiting routes for a specific npub.
+     */
+    public function countUniqueVisitorsForNpubSince(string $npub, \DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(DISTINCT v.sessionId)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.sessionId IS NOT NULL')
+            ->andWhere('v.route LIKE :npubPattern')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('npubPattern', '/p/' . $npub . '%');
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Get most visited articles for a specific npub.
+     * Matches /p/{npub}/d/{slug} pattern.
+     */
+    public function getMostVisitedArticlesForNpub(string $npub, \DateTimeImmutable $since, int $limit = 10): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.route, COUNT(v.id) as count')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.route LIKE :articlePattern')
+            ->andWhere('v.route NOT LIKE :draftPath')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('articlePattern', '/p/' . $npub . '/d/%')
+            ->setParameter('draftPath', '%/draft')
+            ->groupBy('v.route')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Get visits per day for a specific npub.
+     */
+    public function getVisitsPerDayForNpub(string $npub, int $days = 30): array
+    {
+        $from = (new \DateTimeImmutable())->modify("-{$days} days");
+        $conn = $this->getEntityManager()->getConnection();
+        $sql = 'SELECT DATE(visited_at) as day, COUNT(id) as count
+                FROM visit
+                WHERE visited_at >= :from
+                AND route LIKE :npubPattern
+                GROUP BY day
+                ORDER BY day ASC';
+        $result = $conn->executeQuery(
+            $sql,
+            [
+                'from' => $from->format('Y-m-d H:i:s'),
+                'npubPattern' => '/p/' . $npub . '%'
+            ]
+        );
+        return $result->fetchAllAssociative();
+    }
+
+    /**
+     * Get profile vs article visits breakdown for an npub.
+     */
+    public function getVisitBreakdownForNpub(string $npub, \DateTimeImmutable $since): array
+    {
+        // Profile visits (exact /p/{npub} or /p/{npub}/{tab})
+        $profileQb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.route LIKE :profilePattern')
+            ->andWhere('v.route NOT LIKE :articlePattern')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('profilePattern', '/p/' . $npub . '%')
+            ->setParameter('articlePattern', '/p/' . $npub . '/d/%');
+        $profileVisits = (int) $profileQb->getQuery()->getSingleScalarResult();
+
+        // Article visits
+        $articleQb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.route LIKE :articlePattern')
+            ->andWhere('v.route NOT LIKE :draftPath')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
+            ->setParameter('articlePattern', '/p/' . $npub . '/d/%')
+            ->setParameter('draftPath', '%/draft');
+        $articleVisits = (int) $articleQb->getQuery()->getSingleScalarResult();
+
+        return [
+            'profile' => $profileVisits,
+            'articles' => $articleVisits,
+            'total' => $profileVisits + $articleVisits,
+        ];
+    }
+
+    /**
+     * Get daily unique visitors for an npub over the last N days.
+     */
+    public function getDailyUniqueVisitorsForNpub(string $npub, int $days = 7): array
+    {
+        $result = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $day = (new \DateTimeImmutable("today"))->modify("-{$i} days");
+            $start = $day->setTime(0, 0, 0);
+            $end = $day->setTime(23, 59, 59);
+            $qb = $this->createQueryBuilder('v')
+                ->select('COUNT(DISTINCT v.sessionId)')
+                ->where('v.visitedAt BETWEEN :start AND :end')
+                ->andWhere('v.sessionId IS NOT NULL')
+                ->andWhere('v.route LIKE :npubPattern')
+                ->setParameter('start', $start)
+                ->setParameter('end', $end)
+                ->setParameter('npubPattern', '/p/' . $npub . '%');
+            $count = (int) $qb->getQuery()->getSingleScalarResult();
+            $result[] = [
+                'day' => $day->format('Y-m-d'),
+                'count' => $count
+            ];
+        }
+        return $result;
+    }
 }

@@ -10,6 +10,7 @@ use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
+use App\Repository\VisitRepository;
 use App\Service\AuthorRelayService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
@@ -525,7 +526,7 @@ class AuthorController extends AbstractController
      * @throws Exception
      * @throws InvalidArgumentException
      */
-    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|bookmarks'])]
+    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|bookmarks|stats'])]
     public function profileTab(
         string $npub,
         string $tab,
@@ -535,7 +536,8 @@ class AuthorController extends AbstractController
         RedisViewStore $viewStore,
         RedisViewFactory $viewFactory,
         ArticleSearchInterface $articleSearch,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        VisitRepository $visitRepository
     ): Response {
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
@@ -547,7 +549,7 @@ class AuthorController extends AbstractController
         $isOwner = $currentUser && $currentUser->getUserIdentifier() === $npub;
 
         // Private tabs require ownership
-        $privateTabsRequireAuth = ['drafts', 'bookmarks'];
+        $privateTabsRequireAuth = ['drafts', 'bookmarks', 'stats'];
         if (in_array($tab, $privateTabsRequireAuth) && !$isOwner) {
             // Check if this is a Turbo Frame request
             $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
@@ -579,6 +581,7 @@ class AuthorController extends AbstractController
             'highlights' => $this->getHighlightsTabData($pubkey, $em),
             'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
             'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
+            'stats' => $this->getStatsTabData($npub, $visitRepository),
             default => [],
         };
 
@@ -1021,6 +1024,67 @@ class AuthorController extends AbstractController
         }
 
         return ['bookmarks' => $bookmarks];
+    }
+
+    /**
+     * Get visit statistics for the stats tab (owner only)
+     */
+    private function getStatsTabData(string $npub, VisitRepository $visitRepository): array
+    {
+        // Total visits for different time periods
+        $visitsLast24Hours = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-24 hours'));
+        $visitsLast7Days = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-7 days'));
+        $visitsLast30Days = $visitRepository->countVisitsForNpubSince($npub, new \DateTimeImmutable('-30 days'));
+
+        // Unique visitors for different time periods
+        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-24 hours'));
+        $uniqueVisitorsLast7Days = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-7 days'));
+        $uniqueVisitorsLast30Days = $visitRepository->countUniqueVisitorsForNpubSince($npub, new \DateTimeImmutable('-30 days'));
+
+        // Top articles
+        $topArticlesLast7Days = $visitRepository->getMostVisitedArticlesForNpub($npub, new \DateTimeImmutable('-7 days'), 10);
+        $topArticlesLast30Days = $visitRepository->getMostVisitedArticlesForNpub($npub, new \DateTimeImmutable('-30 days'), 10);
+
+        // Visits per day (last 30 days) - sparse array, only days with visits
+        $dailyVisitCountsRaw = $visitRepository->getVisitsPerDayForNpub($npub, 30);
+
+        // Daily unique visitors (last 30 days) - full array with all days
+        $dailyUniqueVisitors = $visitRepository->getDailyUniqueVisitorsForNpub($npub, 30);
+
+        // Create a lookup map for visits by day
+        $visitsMap = [];
+        foreach ($dailyVisitCountsRaw as $row) {
+            $visitsMap[$row['day']] = (int)$row['count'];
+        }
+
+        // Merge into aligned chart data using unique visitors days as the base (has all 30 days)
+        $chartData = [];
+        foreach ($dailyUniqueVisitors as $dayData) {
+            $day = $dayData['day'];
+            $chartData[] = [
+                'day' => $day,
+                'visits' => $visitsMap[$day] ?? 0,
+                'uniqueVisitors' => (int)$dayData['count'],
+            ];
+        }
+
+        // Visit breakdown (profile vs articles)
+        $visitBreakdownLast7Days = $visitRepository->getVisitBreakdownForNpub($npub, new \DateTimeImmutable('-7 days'));
+        $visitBreakdownLast30Days = $visitRepository->getVisitBreakdownForNpub($npub, new \DateTimeImmutable('-30 days'));
+
+        return [
+            'visitsLast24Hours' => $visitsLast24Hours,
+            'visitsLast7Days' => $visitsLast7Days,
+            'visitsLast30Days' => $visitsLast30Days,
+            'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
+            'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
+            'uniqueVisitorsLast30Days' => $uniqueVisitorsLast30Days,
+            'topArticlesLast7Days' => $topArticlesLast7Days,
+            'topArticlesLast30Days' => $topArticlesLast30Days,
+            'chartData' => $chartData,
+            'visitBreakdownLast7Days' => $visitBreakdownLast7Days,
+            'visitBreakdownLast30Days' => $visitBreakdownLast30Days,
+        ];
     }
 
     /**

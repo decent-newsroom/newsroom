@@ -1,0 +1,339 @@
+<turbo-frame id="profile-tab-content">
+    <div class="author-stats">
+        {% if isOwner|default(false) %}
+            {# Hero Stats Row #}
+            <h2>This week</h2>
+            <div class="stats-hero">
+                <div class="stat-card stat-card--visits">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ visitsLast7Days|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Views this week</span>
+                    </div>
+                    <div class="stat-card__trend">
+                        <span class="stat-card__period">24h: {{ visitsLast24Hours|default(0)|number_format }}</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card--visitors">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ uniqueVisitorsLast7Days|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Unique readers</span>
+                    </div>
+                    <div class="stat-card__trend">
+                        <span class="stat-card__period">24h: {{ uniqueVisitorsLast24Hours|default(0)|number_format }}</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card--articles">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ visitBreakdownLast7Days.articles|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Article reads</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card--articles">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ visitBreakdownLast7Days.profile|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Profile views</span>
+                    </div>
+                </div>
+
+                <div class="stats-articles-card  span-2">
+                    {% if topArticlesLast7Days|default([])|length > 0 %}
+                        <ul class="top-articles-list">
+                            {% for stat in topArticlesLast7Days %}
+                                <li class="top-article-item">
+                                    <span class="top-article-rank">{{ loop.index }}</span>
+                                    <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                        {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                    </a>
+                                    <span class="top-article-views">{{ stat.count|number_format }} views</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="stats-empty-state stats-empty-state--small">
+                            <span>No article views this week yet 🌱</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <h2>Last 30 days</h2>
+            <div class="stats-hero">
+                <div class="stat-card stat-card--monthly">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ visitsLast30Days|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Monthly views</span>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-card--monthly">
+                    <div class="stat-card__content">
+                        <span class="stat-card__value">{{ uniqueVisitorsLast30Days|default(0)|number_format }}</span>
+                        <span class="stat-card__label">Monthly unique readers</span>
+                    </div>
+                </div>
+
+                <div class="stats-articles-card span-2">
+                    {% if topArticlesLast30Days|default([])|length > 0 %}
+                        <ul class="top-articles-list">
+                            {% for stat in topArticlesLast30Days %}
+                                <li class="top-article-item">
+                                    <span class="top-article-rank">{{ loop.index }}</span>
+                                    <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                        {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                    </a>
+                                    <span class="top-article-views">{{ stat.count|number_format }} views</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="stats-empty-state stats-empty-state--small">
+                            <span>No article views this month yet 🌱</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Combined Chart #}
+            <div class="stats-chart-container">
+                <h3 class="stats-section-title hidden">Your Traffic (Last 30 Days)</h3>
+                {% if chartData|default([])|length > 0 %}
+                    <div class="chart-wrapper">
+                        <canvas id="authorCombinedChart"
+                                data-controller="analytics--author-stats-chart"
+                                data-analytics--author-stats-chart-labels-value='{{ chartData|map(stat => stat.day)|json_encode()|e('html_attr') }}'
+                                data-analytics--author-stats-chart-visits-value='{{ chartData|map(stat => stat.visits)|json_encode()|e('html_attr') }}'
+                                data-analytics--author-stats-chart-unique-visitors-value='{{ chartData|map(stat => stat.uniqueVisitors)|json_encode()|e('html_attr') }}'
+                        ></canvas>
+                    </div>
+                {% else %}
+                    <div class="stats-empty-state">
+                        <span class="stats-empty-state__icon">📭</span>
+                        <p>No traffic data yet. Share your content to start seeing stats!</p>
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="stats-private-notice">
+                <span class="stats-private-notice__icon">🔒</span>
+                <p>Statistics are private and only visible to the author.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <style>
+        .author-stats {
+            padding: var(--spacing-4);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .stats-hero {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-variant, #f8f9fa) 100%);
+            border-radius: 16px;
+            padding: var(--spacing-4);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+            border: 1px solid var(--color-border, #e5e7eb);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card__content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-card__value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--color-text);
+        }
+
+        .stat-card__label {
+            font-size: 0.875rem;
+            color: var(--color-text-mid, #6b7280);
+            font-weight: 500;
+        }
+
+        .stat-card__trend {
+            margin-top: auto;
+        }
+
+        .stat-card__period {
+            font-size: 0.75rem;
+            background: var(--color-bg-light);
+            padding: 2px 8px;
+        }
+
+        .stats-chart-container {
+            background: var(--color-bg-light);
+            padding: var(--spacing-4);
+            margin-bottom: var(--spacing-6);
+        }
+
+        /* Make any grid item span two columns */
+        .span-2 {
+            grid-column: span 2;
+        }
+
+        /* For responsive: reset to single column on mobile */
+        @media (max-width: 640px) {
+            .span-2 {
+                grid-column: span 1;
+            }
+        }
+
+        .stats-section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-4);
+            color: var(--color-text);
+        }
+
+        .chart-wrapper {
+            height: 280px;
+            position: relative;
+        }
+
+        .stats-articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-4);
+        }
+
+        .stats-articles-card {
+            background: var(--color-surface);
+            border-radius: 16px;
+            padding: var(--spacing-4);
+            border: 1px solid var(--color-border, #e5e7eb);
+        }
+
+        .top-articles-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .top-article-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+            padding: var(--spacing-2) var(--spacing-3);
+            background: var(--color-bg-light);
+            border-radius: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .top-article-item:hover {
+            background: var(--color-bg-light);
+        }
+
+        .top-article-rank {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .top-article-item:nth-child(1) .top-article-rank {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        }
+
+        .top-article-item:nth-child(2) .top-article-rank {
+            background: linear-gradient(135deg, #9ca3af, #d1d5db);
+        }
+
+        .top-article-item:nth-child(3) .top-article-rank {
+            background: linear-gradient(135deg, #cd7f32, #daa06d);
+        }
+
+        .top-article-link {
+            flex: 1;
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .top-article-link:hover {
+            color: #6366f1;
+        }
+
+        .top-article-views {
+            font-size: 0.75rem;
+            color: var(--color-text-light, #9ca3af);
+            white-space: nowrap;
+        }
+
+        .stats-empty-state {
+            text-align: center;
+            padding: var(--spacing-6);
+            color: var(--color-text-mid, #6b7280);
+        }
+
+        .stats-empty-state__icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: var(--spacing-2);
+        }
+
+        .stats-empty-state--small {
+            padding: var(--spacing-4);
+            font-size: 0.9rem;
+        }
+
+        .stats-private-notice {
+            text-align: center;
+            padding: var(--spacing-8);
+            color: var(--color-text-mid, #6b7280);
+        }
+
+        .stats-private-notice__icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: var(--spacing-3);
+        }
+
+        @media (max-width: 640px) {
+            .stats-hero {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat-card__value {
+                font-size: 1.5rem;
+            }
+
+            .stats-articles-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</turbo-frame>
