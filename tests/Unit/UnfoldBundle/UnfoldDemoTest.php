@@ -7,7 +7,10 @@ use App\UnfoldBundle\Content\CategoryData;
 use App\UnfoldBundle\Content\PostData;
 use App\UnfoldBundle\Theme\ContextBuilder;
 use App\UnfoldBundle\Theme\HandlebarsRenderer;
+use App\Util\CommonMark\MarkdownConverterInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Cache\CacheItemInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
 
 /**
@@ -22,7 +25,31 @@ class UnfoldDemoTest extends TestCase
     {
         $projectDir = dirname(__DIR__, 3);
         $this->renderer = new HandlebarsRenderer(new NullLogger(), $projectDir);
-        $this->contextBuilder = new ContextBuilder();
+
+        // Create a mock Converter that performs basic HTML escaping
+        $converter = $this->createMock(MarkdownConverterInterface::class);
+        $converter->method('convertToHTML')
+            ->willReturnCallback(function (string $markdown): string {
+                // Basic markdown-like conversion for test purposes
+                $html = htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
+                $html = preg_replace('/^# (.+)$/m', '<h1>$1</h1>', $html);
+                $html = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $html);
+                $html = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $html);
+                $html = nl2br($html);
+                return $html;
+            });
+
+        // Create a mock cache that always misses (so converter is called)
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->method('isHit')->willReturn(false);
+        $cacheItem->method('set')->willReturnSelf();
+        $cacheItem->method('expiresAfter')->willReturnSelf();
+
+        $cache = $this->createMock(CacheItemPoolInterface::class);
+        $cache->method('getItem')->willReturn($cacheItem);
+        $cache->method('save')->willReturn(true);
+
+        $this->contextBuilder = new ContextBuilder($converter, $cache);
     }
 
     public function testRenderHomePageWithDefaultTheme(): void

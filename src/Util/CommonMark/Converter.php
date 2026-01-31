@@ -33,7 +33,7 @@ use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
 use Twig\Environment as TwigEnvironment;
 
-final readonly class Converter
+readonly class Converter implements MarkdownConverterInterface
 {
     /** Match any nostr:* bech link (used for batching) */
     private const RE_ALL_NOSTR = '~nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\s<>()\[\]{}"\'`.,;:!?]*~i';

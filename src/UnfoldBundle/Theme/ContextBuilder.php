@@ -5,12 +5,21 @@ namespace App\UnfoldBundle\Theme;
 use App\UnfoldBundle\Config\SiteConfig;
 use App\UnfoldBundle\Content\CategoryData;
 use App\UnfoldBundle\Content\PostData;
+use App\Util\CommonMark\MarkdownConverterInterface;
+use Psr\Cache\CacheItemPoolInterface;
 
 /**
  * Builds Ghost-compatible context for Handlebars templates
  */
 class ContextBuilder
 {
+    private const CACHE_TTL = 86400; // 24 hours - content is fixed per event
+
+    public function __construct(
+        private readonly MarkdownConverterInterface $converter,
+        private readonly CacheItemPoolInterface $cache,
+    ) {}
+
     /**
      * Build context for home page
      *
@@ -145,7 +154,7 @@ class ContextBuilder
             'slug' => $post->slug,
             'title' => $post->title,
             'excerpt' => $post->summary,
-            'html' => $this->markdownToHtml($post->content),
+            'html' => $this->markdownToHtml($post->content, $post->coordinate),
             'url' => '/a/' . $post->slug,
             'feature_image' => $post->image,
             'published_at' => date('c', $post->publishedAt),
@@ -188,17 +197,35 @@ class ContextBuilder
     }
 
     /**
-     * Convert markdown to HTML (basic implementation)
-     * TODO: Use proper markdown parser
+     * Convert markdown to HTML using the CommonMark converter with Nostr link support.
+     * Results are cached by event coordinate since content is immutable.
      */
-    private function markdownToHtml(string $markdown): string
+    private function markdownToHtml(string $markdown, string $coordinate): string
     {
-        // For now, just wrap in paragraph tags and handle basic formatting
-        // This should be replaced with a proper markdown parser like league/commonmark
-        $html = htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
-        $html = nl2br($html);
+        // Cache key based on event coordinate (content is fixed per event)
+        $cacheKey = 'unfold_html_' . str_replace([':', '/'], '_', $coordinate);
 
-        return $html;
+        try {
+            $item = $this->cache->getItem($cacheKey);
+
+            if ($item->isHit()) {
+                return $item->get();
+            }
+
+            // Convert markdown to HTML
+            $html = $this->converter->convertToHTML($markdown);
+
+            // Cache the result
+            $item->set($html);
+            $item->expiresAfter(self::CACHE_TTL);
+            $this->cache->save($item);
+
+            return $html;
+        } catch (\Throwable $e) {
+            // Fallback to basic HTML escaping if conversion or caching fails
+            $html = htmlspecialchars($markdown, ENT_QUOTES, 'UTF-8');
+            return nl2br($html);
+        }
     }
 }
 
