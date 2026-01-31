@@ -453,7 +453,8 @@ class RedisCacheService
 
     private function commentsKey(string $coordinate): string
     {
-        return 'comments_' . $coordinate;
+        // Sanitize coordinate for cache key (replace : with _ to avoid reserved character issues)
+        return 'comments_' . str_replace(':', '_', $coordinate);
     }
 
     /** Return cached comments payload or null */

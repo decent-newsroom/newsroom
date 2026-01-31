@@ -747,7 +747,7 @@ class NostrClient
         // Create request using the helper method
         // Zaps are kind 9735
         $request = $this->createNostrRequest(
-            kinds: [KindsEnum::ZAP_RECEIPT],
+            kinds: [KindsEnum::ZAP_RECEIPT->value],
             filters: ['tag' => ['#a', [$coordinate]]],
             relaySet: $relaySet
         );

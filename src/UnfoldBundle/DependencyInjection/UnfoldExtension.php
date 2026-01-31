@@ -21,6 +21,13 @@ class UnfoldExtension extends Extension
         $container->setParameter('unfold.themes_path', $config['themes_path']);
         $container->setParameter('unfold.default_theme', $config['default_theme']);
         $container->setParameter('unfold.cache_pool', $config['cache_pool']);
+
+        // Load bundle services
+        $loader = new YamlFileLoader(
+            $container,
+            new FileLocator(__DIR__ . '/../Resources/config')
+        );
+        $loader->load('services.yaml');
     }
 
     public function getAlias(): string

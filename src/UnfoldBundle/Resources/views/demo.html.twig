@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unfold - {{ subdomain }}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 3rem;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #1a1a2e;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #667eea;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+        .info-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .info-card h3 {
+            color: #475569;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .info-card p {
+            color: #1e293b;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+        .status.success {
+            color: #16a34a;
+        }
+        .status.success::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #16a34a;
+            border-radius: 50%;
+        }
+        .status.error {
+            color: #dc2626;
+        }
+        .status.error::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #dc2626;
+            border-radius: 50%;
+        }
+        .next-steps {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .next-steps.success {
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+        .next-steps h3 {
+            color: #92400e;
+            margin-bottom: 0.75rem;
+        }
+        .next-steps.success h3 {
+            color: #166534;
+        }
+        .next-steps ul {
+            color: #78350f;
+            padding-left: 1.25rem;
+        }
+        .next-steps.success ul {
+            color: #166534;
+        }
+        .next-steps li {
+            margin-bottom: 0.5rem;
+        }
+        code {
+            background: #e2e8f0;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Unfold</h1>
+        <p class="subtitle">Nostr Magazine Rendering Runtime</p>
+
+        <div class="info-card">
+            <h3>Host</h3>
+            <p>{{ host }}</p>
+        </div>
+
+        <div class="info-card">
+            <h3>Subdomain</h3>
+            <p>{{ subdomain }}</p>
+        </div>
+
+        <div class="info-card">
+            <h3>Database Lookup</h3>
+            {% if siteFound %}
+            <p class="status success">UnfoldSite found in database</p>
+            {% else %}
+            <p class="status error">No UnfoldSite entry for this subdomain</p>
+            {% endif %}
+        </div>
+
+        {% if naddr %}
+        <div class="info-card">
+            <h3>Magazine naddr</h3>
+            <p style="font-size: 0.875rem; word-break: break-all;">{{ naddr }}</p>
+        </div>
+        {% endif %}
+
+        {% if siteFound %}
+        <div class="next-steps success">
+            <h3>✓ Setup Complete!</h3>
+            <ul>
+                <li>Subdomain routing: <strong>working</strong></li>
+                <li>Database lookup: <strong>working</strong></li>
+                <li>Next: Update naddr to a real magazine coordinate</li>
+                <li>Then visit <code>/</code> to render the full magazine</li>
+            </ul>
+        </div>
+        {% else %}
+        <div class="next-steps">
+            <h3>Next Steps</h3>
+            <ul>
+                <li>Create UnfoldSite entry in database</li>
+                <li>Link subdomain <code>{{ subdomain }}</code> to a magazine naddr</li>
+                <li>Configure theme in SiteConfig</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

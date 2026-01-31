@@ -37,10 +37,10 @@ class SiteController
             throw new NotFoundHttpException('Site not found for this subdomain');
         }
 
-        // 2. Load SiteConfig from AppData event (which fetches magazine and theme)
+        // 2. Load SiteConfig directly from magazine naddr (kind 30040)
         try {
-            $siteConfig = $this->siteConfigLoader->load($unfoldSite->getNaddr());
-        } catch (\RuntimeException $e) {
+            $siteConfig = $this->siteConfigLoader->loadFromMagazine($unfoldSite->getNaddr());
+        } catch (\RuntimeException|\InvalidArgumentException $e) {
             $this->logger->error('Failed to load site config', [
                 'subdomain' => $unfoldSite->getSubdomain(),
                 'naddr' => $unfoldSite->getNaddr(),
@@ -50,7 +50,8 @@ class SiteController
         }
 
         // 3. Set theme from SiteConfig (theme comes from AppData event)
-        $this->renderer->setTheme($siteConfig->theme);
+        // $this->renderer->setTheme($siteConfig->theme);
+
 
         // 4. Get categories for route matching
         $categories = $this->contentProvider->getCategories($siteConfig);

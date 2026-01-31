@@ -1,6 +1,12 @@
 # Unfold Bundle Routes
 # Mount these routes for subdomain-based site rendering
 
+# Demo route for testing subdomain setup
+unfold_demo:
+    path: /demo
+    controller: App\UnfoldBundle\Controller\DemoController::index
+    methods: [GET]
+
 # Theme assets route - must come before catch-all
 unfold_theme_assets:
     path: /assets/themes/{theme}/{path}

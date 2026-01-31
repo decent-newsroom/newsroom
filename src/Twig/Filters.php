@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig;
 
 use App\Entity\Article;
+use App\Entity\Event as AppEvent;
 use BitWasp\Bech32\Exception\Bech32Exception;
 use Exception;
 use swentel\nostr\Event\Event;
@@ -83,17 +84,35 @@ class Filters extends AbstractExtension
      * @throws Bech32Exception
      * @throws Exception
      */
-    public function naddrEncode(Article $article): string
+    public function naddrEncode(Article|AppEvent $entity): string
     {
         $nip19 = new Nip19Helper();
-        if ($article->getRaw() !== null) {
-            $event = Event::fromVerified((object)$article->getRaw());
-            if ($event === null) {
-                return $nip19->encodeNote($article->getEventId());
+
+        // Handle App\Entity\Event (e.g., magazines, lists)
+        if ($entity instanceof AppEvent) {
+            $slug = $entity->getSlug();
+            if ($slug === null) {
+                return $nip19->encodeNote($entity->getEventId() ?? $entity->getId());
             }
-            return $nip19->encodeAddr($event, $article->getSlug(), $article->getKind()->value);
+
+            // Create a swentel Event for encoding
+            $event = new Event();
+            $event->setId($entity->getEventId() ?? $entity->getId());
+            $event->setPublicKey($entity->getPubkey());
+            $event->setKind($entity->getKind());
+
+            return $nip19->encodeAddr($event, $slug, $entity->getKind());
+        }
+
+        // Handle Article entity
+        if ($entity->getRaw() !== null) {
+            $event = Event::fromVerified((object)$entity->getRaw());
+            if ($event === null) {
+                return $nip19->encodeNote($entity->getEventId());
+            }
+            return $nip19->encodeAddr($event, $entity->getSlug(), $entity->getKind()->value);
         } else {
-            return $nip19->encodeNote($article->getEventId());
+            return $nip19->encodeNote($entity->getEventId());
         }
     }
 

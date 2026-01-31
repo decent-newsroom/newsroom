@@ -1,0 +1,6 @@
+# Unfold Bundle Routes - subdomain-based site rendering
+# These routes only match on the configured unfold_host parameter
+
+unfold_bundle:
+    resource: '@UnfoldBundle/Resources/config/routes.yaml'
+    host: '%unfold_host%'

@@ -12,6 +12,9 @@ parameters:
     # Contribution/donation settings
     project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
     project_contribution_lud16: '%env(default::PROJECT_CONTRIBUTION_LUD16)%'
+    
+    # Unfold subdomain routing
+    unfold_host: '%env(UNFOLD_HOST)%'
 
 services:
     # default configuration for services in *this* file

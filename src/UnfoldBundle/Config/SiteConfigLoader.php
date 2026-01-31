@@ -3,6 +3,7 @@
 namespace App\UnfoldBundle\Config;
 
 use App\Enum\KindsEnum;
+use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data\NAddr;
@@ -15,6 +16,8 @@ use Psr\Log\LoggerInterface;
  * 2. Extracting magazineNaddr and theme from AppData
  * 3. Fetching root magazine event (kind 30040) via magazineNaddr
  * 4. Building SiteConfig from magazine event + theme
+ *
+ * Or directly from a magazine naddr (kind 30040) using loadFromMagazine()
  */
 class SiteConfigLoader
 {
@@ -24,6 +27,7 @@ class SiteConfigLoader
         private readonly NostrClient $nostrClient,
         private readonly CacheItemPoolInterface $unfoldCache,
         private readonly LoggerInterface $logger,
+        private readonly EventRepository $eventRepository,
     ) {}
 
     /**
@@ -75,6 +79,101 @@ class SiteConfigLoader
         ]);
 
         return $siteConfig;
+    }
+
+    /**
+     * Load SiteConfig directly from a magazine naddr (kind 30040)
+     * This bypasses the AppData layer and uses a default theme
+     *
+     * @param string $magazineNaddr naddr of the magazine event (kind 30040)
+     * @param string $theme Theme name to use (defaults to 'default')
+     * @throws \InvalidArgumentException if naddr is invalid or not kind 30040
+     * @throws \RuntimeException if event cannot be fetched
+     */
+    public function loadFromMagazine(string $magazineNaddr, string $theme = 'default'): SiteConfig
+    {
+        // Check cache first
+        $cacheKey = 'site_config_magazine_' . md5($magazineNaddr);
+        $cacheItem = $this->unfoldCache->getItem($cacheKey);
+
+        if ($cacheItem->isHit()) {
+            $this->logger->debug('SiteConfig (magazine) cache hit', ['magazineNaddr' => $magazineNaddr]);
+            return $cacheItem->get();
+        }
+
+        // Decode and validate
+        $decoded = $this->decodeNaddr($magazineNaddr);
+
+        // Verify it's a kind 30040 event
+        if ($decoded['kind'] !== KindsEnum::PUBLICATION_INDEX->value) {
+            throw new \InvalidArgumentException(sprintf(
+                'Expected magazine event (kind %d), got kind %d',
+                KindsEnum::PUBLICATION_INDEX->value,
+                $decoded['kind']
+            ));
+        }
+
+        // Try database first (fast path)
+        $magazineEvent = $this->loadEventFromDatabase($decoded);
+
+        // Fallback to network if not in database
+        if ($magazineEvent === null) {
+            $this->logger->debug('Magazine not in database, fetching from network', [
+                'naddr' => $magazineNaddr
+            ]);
+            $magazineEvent = $this->nostrClient->getEventByNaddr($decoded);
+        }
+
+        if ($magazineEvent === null) {
+            throw new \RuntimeException(sprintf(
+                'Could not fetch magazine event for naddr: %s',
+                $magazineNaddr
+            ));
+        }
+
+        // Build SiteConfig directly from magazine event
+        $siteConfig = SiteConfig::fromEvent($magazineEvent, $magazineNaddr, $theme);
+
+        // Cache it
+        $cacheItem->set($siteConfig);
+        $cacheItem->expiresAfter(self::CACHE_TTL);
+        $this->unfoldCache->save($cacheItem);
+
+        $this->logger->info('Loaded and cached SiteConfig from magazine', [
+            'magazineNaddr' => $magazineNaddr,
+            'theme' => $theme,
+            'title' => $siteConfig->title,
+            'categories' => count($siteConfig->categories),
+        ]);
+
+        return $siteConfig;
+    }
+
+    /**
+     * Try to load event from database first (fast path)
+     */
+    private function loadEventFromDatabase(array $decoded): ?object
+    {
+        $event = $this->eventRepository->findByNaddr(
+            $decoded['kind'],
+            $decoded['pubkey'],
+            $decoded['identifier']
+        );
+
+        if ($event === null) {
+            return null;
+        }
+
+        // Convert Entity to stdClass object matching NostrClient format
+        return (object) [
+            'id' => $event->getId(),
+            'pubkey' => $event->getPubkey(),
+            'kind' => $event->getKind(),
+            'content' => $event->getContent(),
+            'tags' => $event->getTags(),
+            'created_at' => $event->getCreatedAt(),
+            'sig' => $event->getSig(),
+        ];
     }
 
     /**
@@ -138,6 +237,16 @@ class SiteConfigLoader
         $cacheKey = 'site_config_' . md5($appDataNaddr);
         $this->unfoldCache->deleteItem($cacheKey);
         $this->logger->info('Invalidated SiteConfig cache', ['appDataNaddr' => $appDataNaddr]);
+    }
+
+    /**
+     * Invalidate cached SiteConfig for a given magazine naddr
+     */
+    public function invalidateFromMagazine(string $magazineNaddr): void
+    {
+        $cacheKey = 'site_config_magazine_' . md5($magazineNaddr);
+        $this->unfoldCache->deleteItem($cacheKey);
+        $this->logger->info('Invalidated SiteConfig cache (magazine)', ['magazineNaddr' => $magazineNaddr]);
     }
 }
 

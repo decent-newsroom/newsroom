@@ -18,16 +18,39 @@ class EventRepository extends ServiceEntityRepository
      * Searches for a value in the second element (index 1) of JSON array elements
      *
      * @param string $column The JSON column to search (e.g., 'e.tags')
-     * @param string $paramName The parameter name to use in the query
+     * @param string $paramPlaceholder The placeholder to use in the query (e.g., ':coordinate')
      * @return string The WHERE clause condition
      */
-    private function buildJsonSearchCondition(string $column, string $paramName): string
+    private function buildJsonSearchCondition(string $column, string $paramPlaceholder): string
     {
         // PostgreSQL: Check if any array element has the value at position 1
         return "EXISTS (
             SELECT 1 FROM jsonb_array_elements({$column}::jsonb) AS tag
-            WHERE tag->1 = to_jsonb(:{$paramName}::text)
+            WHERE tag->1 = to_jsonb({$paramPlaceholder}::text)
         )";
+    }
+
+    /**
+     * Map a database row to an Event entity
+     */
+    private function mapRowToEvent(array $row): Event
+    {
+        $event = new Event();
+        $event->setId($row['id']);
+        $event->setKind($row['kind']);
+        $event->setPubkey($row['pubkey']);
+        $event->setContent($row['content']);
+        $event->setCreatedAt($row['created_at']);
+        $event->setSig($row['sig'] ?? null);
+
+        // Handle tags - could be JSON string or already decoded
+        $tags = $row['tags'];
+        if (is_string($tags)) {
+            $tags = json_decode($tags, true) ?? [];
+        }
+        $event->setTags($tags ?? []);
+
+        return $event;
     }
 
     /**
@@ -88,31 +111,48 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22], array $excludedPubkeys = [], int $limit = 500): array
     {
-        $qb = $this->createQueryBuilder('e');
-
-        $qb->where($qb->expr()->in('e.kind', ':kinds'))
-            ->setParameter('kinds', $kinds);
-
-        // Build hashtag conditions - check if any of the hashtags appear in the tags JSON
-        if (!empty($hashtags)) {
-            $hashtagConditions = [];
-            foreach ($hashtags as $index => $hashtag) {
-                $paramName = 'hashtag_' . $index;
-                $hashtagConditions[] = $this->buildJsonSearchCondition('e.tags', $paramName);
-                $qb->setParameter($paramName, strtolower($hashtag));
-            }
-            $qb->andWhere($qb->expr()->orX(...$hashtagConditions));
+        if (empty($hashtags)) {
+            return $this->findMediaEvents($kinds, $excludedPubkeys, $limit);
         }
 
+        $conn = $this->getEntityManager()->getConnection();
+        $params = [];
+
+        // Build kinds placeholders
+        $kindsPlaceholders = [];
+        foreach ($kinds as $i => $kind) {
+            $kindsPlaceholders[] = ':kind_' . $i;
+            $params['kind_' . $i] = $kind;
+        }
+
+        // Build hashtag conditions
+        $hashtagConditions = [];
+        foreach ($hashtags as $i => $hashtag) {
+            $paramName = ':hashtag_' . $i;
+            $hashtagConditions[] = $this->buildJsonSearchCondition('e.tags', $paramName);
+            $params['hashtag_' . $i] = strtolower($hashtag);
+        }
+
+        $sql = "SELECT * FROM event e
+                WHERE e.kind IN (" . implode(', ', $kindsPlaceholders) . ")
+                AND (" . implode(' OR ', $hashtagConditions) . ")";
+
+        // Build excluded pubkeys condition
         if (!empty($excludedPubkeys)) {
-            $qb->andWhere($qb->expr()->notIn('e.pubkey', ':excludedPubkeys'))
-                ->setParameter('excludedPubkeys', $excludedPubkeys);
+            $excludePlaceholders = [];
+            foreach ($excludedPubkeys as $i => $pubkey) {
+                $excludePlaceholders[] = ':exclude_' . $i;
+                $params['exclude_' . $i] = $pubkey;
+            }
+            $sql .= " AND e.pubkey NOT IN (" . implode(', ', $excludePlaceholders) . ")";
         }
 
-        $qb->orderBy('e.created_at', 'DESC')
-            ->setMaxResults($limit);
+        $sql .= " ORDER BY e.created_at DESC LIMIT :limit";
+        $params['limit'] = $limit;
 
-        return $qb->getQuery()->getResult();
+        $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+
+        return array_map(fn($row) => $this->mapRowToEvent($row), $results);
     }
 
     /**
@@ -157,22 +197,26 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findByNaddr(int $kind, string $pubkey, string $identifier): ?Event
     {
-        $qb = $this->createQueryBuilder('e');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $qb->where('e.kind = :kind')
-            ->andWhere('e.pubkey = :pubkey')
-            ->setParameter('kind', $kind)
-            ->setParameter('pubkey', $pubkey);
+        // Search specifically for d-tag: ["d", "identifier"]
+        $sql = "SELECT * FROM event e
+                WHERE e.kind = :kind
+                AND e.pubkey = :pubkey
+                AND EXISTS (
+                    SELECT 1 FROM jsonb_array_elements(e.tags::jsonb) AS tag
+                    WHERE tag->>0 = 'd' AND tag->>1 = :identifier
+                )
+                ORDER BY e.created_at DESC
+                LIMIT 1";
 
-        // Search for the 'd' tag with the identifier
-        // JSON search: find events where tags contain ['d', identifier]
-        $qb->andWhere($this->buildJsonSearchCondition('e.tags', 'identifier'))
-            ->setParameter('identifier', $identifier);
+        $result = $conn->executeQuery($sql, [
+            'kind' => $kind,
+            'pubkey' => $pubkey,
+            'identifier' => $identifier,
+        ])->fetchAssociative();
 
-        $qb->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(1);
-
-        return $qb->getQuery()->getOneOrNullResult();
+        return $result ? $this->mapRowToEvent($result) : null;
     }
 
     /**
@@ -319,25 +363,25 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findCommentsByCoordinate(string $coordinate, ?int $since = null, int $limit = 500): array
     {
-        $qb = $this->createQueryBuilder('e');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $qb->where($qb->expr()->in('e.kind', ':kinds'))
-            ->setParameter('kinds', [1111, 9735]);
+        $sql = "SELECT * FROM event e
+                WHERE e.kind IN (1111, 9735)
+                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate');
 
-        // Search for the 'A' tag with the coordinate
-        // JSON search: find events where tags contain ['A', coordinate]
-        $qb->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
-            ->setParameter('coordinate', $coordinate);
+        $params = ['coordinate' => $coordinate];
 
         if ($since !== null && $since > 0) {
-            $qb->andWhere('e.created_at > :since')
-                ->setParameter('since', $since);
+            $sql .= " AND e.created_at > :since";
+            $params['since'] = $since;
         }
 
-        $qb->orderBy('e.created_at', 'DESC')
-            ->setMaxResults($limit);
+        $sql .= " ORDER BY e.created_at DESC LIMIT :limit";
+        $params['limit'] = $limit;
 
-        return $qb->getQuery()->getResult();
+        $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+
+        return array_map(fn($row) => $this->mapRowToEvent($row), $results);
     }
 
     /**
@@ -349,17 +393,15 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findLatestCommentTimestamp(string $coordinate): ?int
     {
-        $qb = $this->createQueryBuilder('e');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $qb->select('e.created_at')
-            ->where($qb->expr()->in('e.kind', ':kinds'))
-            ->setParameter('kinds', [1111, 9735])
-            ->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
-            ->setParameter('coordinate', $coordinate)
-            ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(1);
+        $sql = "SELECT e.created_at FROM event e
+                WHERE e.kind IN (1111, 9735)
+                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate') . "
+                ORDER BY e.created_at DESC
+                LIMIT 1";
 
-        $result = $qb->getQuery()->getOneOrNullResult();
+        $result = $conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchAssociative();
 
         return $result ? (int)$result['created_at'] : null;
     }
@@ -372,14 +414,12 @@ class EventRepository extends ServiceEntityRepository
      */
     public function countCommentsByCoordinate(string $coordinate): int
     {
-        $qb = $this->createQueryBuilder('e');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $qb->select('COUNT(e.id)')
-            ->where('e.kind = :kind')
-            ->setParameter('kind', 1111)
-            ->andWhere($this->buildJsonSearchCondition('e.tags', 'coordinate'))
-            ->setParameter('coordinate', $coordinate);
+        $sql = "SELECT COUNT(e.id) FROM event e
+                WHERE e.kind = 1111
+                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate');
 
-        return (int)$qb->getQuery()->getSingleScalarResult();
+        return (int)$conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchOne();
     }
 }

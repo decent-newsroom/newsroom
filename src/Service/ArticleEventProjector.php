@@ -41,6 +41,22 @@ class ArticleEventProjector
     public function projectArticleFromEvent(object $event, string $relayUrl): void
     {
         try {
+            // Early exit: check if article already exists before doing expensive work
+            $eventId = $event->id ?? null;
+            if ($eventId) {
+                $existingArticle = $this->entityManager
+                    ->getRepository(Article::class)
+                    ->findOneBy(['eventId' => $eventId]);
+
+                if ($existingArticle) {
+                    $this->logger->debug('Article already exists in database, skipping', [
+                        'event_id' => $eventId,
+                        'db_id' => $existingArticle->getId()
+                    ]);
+                    return;
+                }
+            }
+
             // Create Article entity from the event using the factory
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
 
@@ -64,55 +80,43 @@ class ArticleEventProjector
                 }
             }
 
-            // Check if article with same eventId already exists in the database
-            $existingArticle = $this->entityManager
-                ->getRepository(Article::class)
-                ->findOneBy(['eventId' => $article->getEventId()]);
+            // New article - persist it
+            $this->logger->info('Persisting new article from relay', [
+                'event_id' => $article->getEventId(),
+                'kind' => $article->getKind()?->value,
+                'pubkey' => $article->getPubkey(),
+                'title' => $article->getTitle(),
+                'has_processed_html' => $article->getProcessedHtml() !== null,
+                'relay' => $relayUrl
+            ]);
 
-            if (!$existingArticle) {
-                // New article - persist it
-                $this->logger->info('Persisting new article from relay', [
-                    'event_id' => $article->getEventId(),
-                    'kind' => $article->getKind()?->value,
+            $this->entityManager->persist($article);
+            $this->entityManager->flush();
+
+            $this->logger->info('Article successfully saved to database', [
+                'event_id' => $article->getEventId(),
+                'db_id' => $article->getId()
+            ]);
+
+            // Trigger async profile fetch for the article author
+            try {
+                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($article->getPubkey()));
+                $this->logger->debug('Dispatched profile fetch for article author', [
+                    'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
+                    'event_id' => $article->getEventId()
+                ]);
+            } catch (\Exception $e) {
+                // Log error but don't fail the article ingestion
+                $this->logger->error('Failed to dispatch profile fetch for article author', [
                     'pubkey' => $article->getPubkey(),
-                    'title' => $article->getTitle(),
-                    'has_processed_html' => $article->getProcessedHtml() !== null,
-                    'relay' => $relayUrl
-                ]);
-
-                $this->entityManager->persist($article);
-                $this->entityManager->flush();
-
-                $this->logger->info('Article successfully saved to database', [
                     'event_id' => $article->getEventId(),
-                    'db_id' => $article->getId()
-                ]);
-
-                // Trigger async profile fetch for the article author
-                try {
-                    $this->messageBus->dispatch(new UpdateProfileProjectionMessage($article->getPubkey()));
-                    $this->logger->debug('Dispatched profile fetch for article author', [
-                        'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
-                        'event_id' => $article->getEventId()
-                    ]);
-                } catch (\Exception $e) {
-                    // Log error but don't fail the article ingestion
-                    $this->logger->error('Failed to dispatch profile fetch for article author', [
-                        'pubkey' => $article->getPubkey(),
-                        'event_id' => $article->getEventId(),
-                        'error' => $e->getMessage()
-                    ]);
-                }
-
-                // Note: Post-processing (QA, indexing) will be handled by cron job
-                // See: docker/cron/post_process_articles.sh (runs every 5 minutes)
-
-            } else {
-                $this->logger->debug('Article already exists in database, skipping', [
-                    'event_id' => $article->getEventId(),
-                    'db_id' => $existingArticle->getId()
+                    'error' => $e->getMessage()
                 ]);
             }
+
+            // Note: Post-processing (QA, indexing) will be handled by cron job
+            // See: docker/cron/post_process_articles.sh (runs every 5 minutes)
+
         } catch (\InvalidArgumentException $e) {
             // Invalid event (wrong kind, invalid signature, etc.)
             $this->logger->warning('Invalid article event received', [

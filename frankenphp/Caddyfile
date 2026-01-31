@@ -10,6 +10,26 @@ frankenphp {
 
 {$CADDY_EXTRA_CONFIG}
 
+# Support subdomain for Unfold
+{$SUPPORT_DOMAIN:support.localhost} {
+    log {
+        {$CADDY_SERVER_LOG_OPTIONS}
+    }
+
+    root /app/public
+    encode zstd br gzip
+
+    @phpRoute not file {path}
+    rewrite @phpRoute index.php
+
+    @frontController path index.php
+    php @frontController {
+        env UNFOLD_SUBDOMAIN support
+    }
+
+    file_server
+}
+
 # Main site block - handles both main domain and relay subdomain
 # Configure via environment variables:
 #   SERVER_NAME - main site (e.g., "example.com" or ":80" for catch-all behind proxy)
