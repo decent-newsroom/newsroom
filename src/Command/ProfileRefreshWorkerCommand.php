@@ -2,7 +2,7 @@
 
 namespace App\Command;
 
-use App\Message\UpdateProfileProjectionMessage;
+use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * Background worker that periodically refreshes profile metadata for users.
  *
  * This command runs continuously and triggers profile updates in batches,
- * coalescing requests to avoid overwhelming the relay network.
+ * using BatchUpdateProfileProjectionMessage for efficient single relay calls.
  */
 #[AsCommand(
     name: 'app:profile-refresh-worker',
@@ -25,7 +25,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 )]
 class ProfileRefreshWorkerCommand extends Command
 {
-    private const DEFAULT_BATCH_SIZE = 50;
+    private const DEFAULT_BATCH_SIZE = 25; // Smaller batches for efficient relay calls
     private const DEFAULT_INTERVAL_SECONDS = 300; // 5 minutes
     private const DEFAULT_COALESCE_WINDOW_SECONDS = 60; // 1 minute
 
@@ -132,7 +132,6 @@ class ProfileRefreshWorkerCommand extends Command
 
         // Group users into batches
         $batches = array_chunk($users, $batchSize);
-        $pubkeysBatch = [];
         $dispatchedCount = 0;
 
         foreach ($batches as $batchIndex => $userBatch) {
@@ -140,6 +139,7 @@ class ProfileRefreshWorkerCommand extends Command
                 $batchIndex + 1, count($batches), count($userBatch)));
 
             // Collect pubkeys for this batch
+            $pubkeysBatch = [];
             foreach ($userBatch as $user) {
                 try {
                     $npub = $user->getNpub();
@@ -159,26 +159,23 @@ class ProfileRefreshWorkerCommand extends Command
                 }
             }
 
-            // Dispatch updates for accumulated pubkeys
+            // Dispatch batch message (single message for all pubkeys in batch)
             if (!empty($pubkeysBatch)) {
-                foreach ($pubkeysBatch as $pubkeyHex) {
-                    try {
-                        $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkeyHex));
-                        $dispatchedCount++;
-                    } catch (\Exception $e) {
-                        $this->logger->error('Failed to dispatch profile update', [
-                            'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                            'error' => $e->getMessage()
-                        ]);
-                    }
+                try {
+                    $this->messageBus->dispatch(new BatchUpdateProfileProjectionMessage($pubkeysBatch));
+                    $dispatchedCount += count($pubkeysBatch);
+
+                    $this->logger->info('Dispatched batch profile update', [
+                        'batch_size' => count($pubkeysBatch)
+                    ]);
+                } catch (\Exception $e) {
+                    $this->logger->error('Failed to dispatch batch profile update', [
+                        'batch_size' => count($pubkeysBatch),
+                        'error' => $e->getMessage()
+                    ]);
                 }
-
-                $this->logger->info('Dispatched batch profile updates', [
-                    'count' => count($pubkeysBatch)
-                ]);
-
-                $pubkeysBatch = []; // Reset for next batch
             }
+
 
             // Coalesce window: wait before next batch
             if ($batchIndex < count($batches) - 1 && $coalesceWindow > 0) {

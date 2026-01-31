@@ -20,6 +20,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * This handler actively fetches data rather than just reading from cache.
  *
  * This handler is idempotent and order-independent.
+ *
+ * NOTE: For batch updates, prefer using BatchUpdateProfileProjectionMessage which
+ * makes a single relay call for multiple pubkeys and is much more efficient.
  */
 #[AsMessageHandler]
 class UpdateProfileProjectionHandler
@@ -38,7 +41,7 @@ class UpdateProfileProjectionHandler
     {
         $pubkeyHex = $message->getPubkeyHex();
 
-        $this->logger->info('Processing profile projection update', [
+        $this->logger->debug('Processing profile projection update', [
             'pubkey' => substr($pubkeyHex, 0, 8) . '...'
         ]);
 
@@ -109,9 +112,25 @@ class UpdateProfileProjectionHandler
     private function updateMetadataFacet(User $user, string $pubkeyHex): bool
     {
         try {
+            // Check cache freshness first - skip relay call if we have recent data
+            $cacheKey = '0_' . $pubkeyHex;
+            $cacheItem = $this->npubCache->getItem($cacheKey);
+
+            if ($cacheItem->isHit()) {
+                $cachedMeta = $cacheItem->get();
+                // If we have cached metadata and user already has display name,
+                // skip the relay call - the profile is already synced
+                if ($cachedMeta && $user->getDisplayName()) {
+                    $this->logger->debug('Skipping relay call - user already has profile data', [
+                        'pubkey' => substr($pubkeyHex, 0, 8) . '...'
+                    ]);
+                    return $this->updateUserFromCachedMetadata($user, $cachedMeta);
+                }
+            }
+
             // Fetch metadata from Nostr relays with timeout protection
             $rawEvent = null;
-            $timeoutSeconds = 20; // Maximum time to wait for relay response
+            $timeoutSeconds = 10; // Reduced from 20 to 10 seconds
 
             try {
                 // Use set_error_handler to catch timeout warnings
@@ -119,7 +138,7 @@ class UpdateProfileProjectionHandler
 
                 $rawEvent = $this->nostrClient->getPubkeyMetadata($pubkeyHex);
             } catch (\Exception $relayException) {
-                $this->logger->warning('Relay fetch timed out or failed for metadata', [
+                $this->logger->debug('Relay fetch timed out or failed for metadata', [
                     'pubkey' => substr($pubkeyHex, 0, 8) . '...',
                     'error' => $relayException->getMessage()
                 ]);
@@ -196,6 +215,46 @@ class UpdateProfileProjectionHandler
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...',
                 'error' => $e->getMessage()
             ]);
+            return false;
+        }
+    }
+
+    /**
+     * Update user fields from cached metadata (without relay call)
+     */
+    private function updateUserFromCachedMetadata(User $user, mixed $metadata): bool
+    {
+        if (!$metadata || !is_object($metadata)) {
+            return false;
+        }
+
+        try {
+            if (isset($metadata->display_name)) {
+                $user->setDisplayName($this->sanitizeStringValue($metadata->display_name));
+            }
+            if (isset($metadata->name)) {
+                $user->setName($this->sanitizeStringValue($metadata->name));
+            }
+            if (isset($metadata->nip05)) {
+                $user->setNip05($this->sanitizeStringValue($metadata->nip05));
+            }
+            if (isset($metadata->about)) {
+                $user->setAbout($this->sanitizeStringValue($metadata->about));
+            }
+            if (isset($metadata->website)) {
+                $user->setWebsite($this->sanitizeStringValue($metadata->website));
+            }
+            if (isset($metadata->picture)) {
+                $user->setPicture($this->sanitizeStringValue($metadata->picture));
+            }
+            if (isset($metadata->banner)) {
+                $user->setBanner($this->sanitizeStringValue($metadata->banner));
+            }
+            if (isset($metadata->lud16)) {
+                $user->setLud16($this->sanitizeStringValue($metadata->lud16));
+            }
+            return true;
+        } catch (\Exception $e) {
             return false;
         }
     }

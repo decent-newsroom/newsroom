@@ -18,6 +18,20 @@ framework:
                     stream_max_entries: 50000
                     redeliver_timeout: 600
             
+            # Low-priority transport for profile updates - processed slower to not block main queue
+            async_low_priority:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: '%kernel.environment%:messenger:async_low'
+                    group: '%kernel.environment%-low'
+                    consumer: 'consumer-%kernel.environment%-low'
+                    stream_max_entries: 10000
+                    redeliver_timeout: 1200
+                retry_strategy:
+                    max_retries: 1
+                    delay: 5000
+                    multiplier: 2
+            
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             # failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
@@ -29,8 +43,9 @@ framework:
             'App\Message\FetchAuthorContentMessage': async
             'App\Message\FetchMediaEventsMessage': async
             'App\Message\ProjectMagazineMessage': async
-            'App\Message\UpdateProfileProjectionMessage': async
-            'App\Message\BatchUpdateProfileProjectionMessage': async
+            # Profile updates go to low priority queue - less urgent
+            'App\Message\UpdateProfileProjectionMessage': async_low_priority
+            'App\Message\BatchUpdateProfileProjectionMessage': async_low_priority
 
 # when@test:
 #    framework:
