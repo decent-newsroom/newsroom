@@ -94,6 +94,11 @@ class User implements UserInterface, EquatableInterface
         return in_array(RolesEnum::MUTED, $this->roles, true);
     }
 
+    public function isActiveIndexingSubscriber(): bool
+    {
+        return in_array(RolesEnum::ACTIVE_INDEXING->value, $this->roles, true);
+    }
+
     public function getId(): ?int
     {
         return $this->id;

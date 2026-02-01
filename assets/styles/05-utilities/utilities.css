@@ -31,6 +31,7 @@
 .flex-row{flex-direction:row}.flex-row-reverse{flex-direction:row-reverse}
 .flex-wrap{flex-wrap: wrap}
 .justify-content-between{justify-content:space-between!important}
+.justify-content-evenly{justify-content:space-evenly!important}
 .justify-content-center{justify-content:center!important}
 .justify-content-start{justify-content:flex-start!important}
 .justify-content-end{justify-content:flex-end!important}

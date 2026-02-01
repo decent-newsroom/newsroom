@@ -159,6 +159,7 @@ class LNURLResolver
             $params = ['amount' => $amountMillisats];
 
             if ($nostrEvent !== null) {
+                // URL-encode the nostr event JSON
                 $params['nostr'] = $nostrEvent;
             }
 
@@ -168,15 +169,45 @@ class LNURLResolver
 
             // Some LNURL services expect the callback URL to already contain query params
             $separator = str_contains($callback, '?') ? '&' : '?';
-            $url = $callback . $separator . http_build_query($params);
+            $queryString = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+            $url = $callback . $separator . $queryString;
+
+            // Log if URL is very long (might cause issues with some servers)
+            if (strlen($url) > 2000) {
+                $this->logger->warning('LNURL callback URL is very long', [
+                    'url_length' => strlen($url),
+                    'callback' => $callback,
+                    'has_nostr' => $nostrEvent !== null,
+                ]);
+            }
 
             $response = $this->httpClient->request('GET', $url, [
                 'timeout' => 15,
                 'headers' => ['Accept' => 'application/json'],
             ]);
 
-            if ($response->getStatusCode() !== 200) {
-                throw new \RuntimeException('Callback returned status ' . $response->getStatusCode());
+            $statusCode = $response->getStatusCode();
+
+            if ($statusCode !== 200) {
+                // Try to get error details from response body
+                $errorBody = null;
+                try {
+                    $errorBody = $response->toArray(false);
+                } catch (\Exception $e) {
+                    $errorBody = $response->getContent(false);
+                }
+
+                $this->logger->error('LNURL callback returned non-200 status', [
+                    'status' => $statusCode,
+                    'url' => $callback, // Don't log full URL with params for security
+                    'response_body' => $errorBody,
+                ]);
+
+                $errorMessage = is_array($errorBody) && isset($errorBody['reason'])
+                    ? $errorBody['reason']
+                    : 'Callback returned status ' . $statusCode;
+
+                throw new \RuntimeException($errorMessage);
             }
 
             $data = $response->toArray();

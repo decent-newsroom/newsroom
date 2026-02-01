@@ -1,0 +1,120 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Active Indexing Service" tagline="Get your content reliably indexed from your declared relays." />
+
+    {# Flash messages for feedback #}
+    {% for message in app.flashes('success') %}
+        <div class="notice success">
+            {{ message }}
+        </div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="notice error">
+            {{ message }}
+        </div>
+    {% endfor %}
+    {% for message in app.flashes('info') %}
+        <div class="notice info">
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    <div class="d-flex mt-4">
+        <div>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">What is Active Indexing?</h5>
+                    <p>By default, our indexer only monitors a small set of public relays. With Active Indexing, we actively fetch your content from <strong>your declared relays</strong> (NIP-65 kind 10002), ensuring your articles are discoverable in search and on the newsstand.</p>
+
+                    <h6 class="mt-3">Benefits:</h6>
+                    <ul>
+                        <li>Content fetched from your preferred relays</li>
+                        <li>Bypass quality gates - your content indexed reliably</li>
+                        <li>Dashboard to monitor indexing status</li>
+                        <li>Option to specify custom relay list for indexing</li>
+                    </ul>
+                </div>
+            </div>
+
+            {% if subscription and subscription.isActive %}
+                <div class="notice success">
+                    <strong>✓ You have an active subscription!</strong><br>
+                    Status: <span class="badge">{{ subscription.status.label }}</span><br>
+                    Expires: {{ subscription.expiresAt|date('F j, Y') }}
+                    {% if subscription.daysRemaining is not null %}
+                        ({{ subscription.daysRemaining }} days remaining)
+                    {% endif %}
+                </div>
+                <a href="{{ path('active_indexing_settings') }}" class="btn">Manage Subscription</a>
+            {% elseif subscription and subscription.status.value == 'pending' %}
+                <div class="notice info">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--spacing-3);">
+                        <div>
+                            <strong>⏳ Payment Pending</strong><br>
+                            Your subscription is awaiting payment confirmation.
+                            <br><small style="color: var(--color-text-muted);">If you didn't pay or want to try a different plan, you can cancel this pending subscription.</small>
+                        </div>
+                        <form action="{{ path('active_indexing_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription? You can create a new one after cancelling.');">
+                            <button type="submit" class="btn btn-secondary" style="white-space: nowrap;">Cancel Pending</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <h5 class="mt-4">Choose a Plan</h5>
+                <div class="price-list">
+                    {% for tier in tiers %}
+                        <div class="card">
+                            <h3>{{ tier.value == 'monthly' ? 'Monthly Plan' : 'Yearly Plan' }}</h3>
+                            <p class="price">{{ tier.priceInSats|number_format }} sats</p>
+                            {% if tier.value == 'yearly' %}
+                                <p><span class="badge">Save 17%</span></p>
+                            {% endif %}
+                            <ul class="features">
+                                <li>Duration: {{ tier.durationDays }} days</li>
+                                <li>Grace period: {{ tier.gracePeriodDays }} days</li>
+                                <li>Content fetched from your relays</li>
+                                <li>Bypass quality gates</li>
+                                <li>Dashboard to monitor status</li>
+                            </ul>
+                            {% if app.user %}
+                                <a href="{{ path('active_indexing_subscribe', {tier: tier.value}) }}" class="btn">
+                                    ⚡ Subscribe
+                                </a>
+                            {% else %}
+                                <button class="btn" disabled>Login to Subscribe</button>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Your NIP-65 Relay List</div>
+                <div class="card-body">
+                    {% if nip65Relays|length > 0 %}
+                        <p class="small text-muted">These relays will be used to fetch your content:</p>
+                        <ul class="list-unstyled small">
+                            {% for relay in nip65Relays|slice(0, 10) %}
+                                <li class="text-truncate" title="{{ relay }}">
+                                    <code>{{ relay }}</code>
+                                </li>
+                            {% endfor %}
+                            {% if nip65Relays|length > 10 %}
+                                <li class="text-muted">... and {{ nip65Relays|length - 10 }} more</li>
+                            {% endif %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small">
+                            No NIP-65 relay list found. You can still subscribe and configure custom relays.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

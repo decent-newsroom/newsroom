@@ -1,0 +1,169 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<div class="container py-4">
+    <h1>Active Indexing Settings</h1>
+
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('active_indexing_index') }}">Active Indexing</a></li>
+            <li class="breadcrumb-item active">Settings</li>
+        </ol>
+    </nav>
+
+    {% for message in app.flashes('success') %}
+        <div class="notice success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+
+    <div class="row">
+        {# Subscription Status #}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">Subscription Status</div>
+                <div class="card-body">
+                    <dl>
+                        <dt>Status</dt>
+                        <dd>
+                            <span class="badge {{ subscription.status.badgeClass }}">
+                                {{ subscription.status.label }}
+                            </span>
+                        </dd>
+
+                        <dt>Plan</dt>
+                        <dd>{{ subscription.tier.label }}</dd>
+
+                        <dt>Started</dt>
+                        <dd>{{ subscription.startedAt ? subscription.startedAt|date('F j, Y') : 'N/A' }}</dd>
+
+                        <dt>Expires</dt>
+                        <dd>
+                            {{ subscription.expiresAt|date('F j, Y') }}
+                            {% if subscription.daysRemaining is not null %}
+                                {% if subscription.daysRemaining > 0 %}
+                                    <span class="text-muted">({{ subscription.daysRemaining }} days remaining)</span>
+                                {% elseif subscription.daysRemaining == 0 %}
+                                    <span class="text-warning">(expires today)</span>
+                                {% else %}
+                                    <span class="text-danger">(expired {{ subscription.daysRemaining|abs }} days ago)</span>
+                                {% endif %}
+                            {% endif %}
+                        </dd>
+
+                        {% if subscription.isInGracePeriod %}
+                            <dt>Grace Period Ends</dt>
+                            <dd class="text-warning">{{ subscription.graceEndsAt|date('F j, Y') }}</dd>
+                        {% endif %}
+
+                        <dt>Articles Indexed</dt>
+                        <dd>{{ subscription.articlesIndexed|number_format }}</dd>
+
+                        <dt>Last Content Fetch</dt>
+                        <dd>{{ subscription.lastFetchedAt ? subscription.lastFetchedAt|date('F j, Y H:i') : 'Not yet' }}</dd>
+                    </dl>
+
+                    <hr>
+
+                    <div class="d-flex gap-2">
+                        <a href="{{ path('active_indexing_renew', {tier: subscription.tier.value}) }}" class="btn btn-warning">
+                            ⚡ Renew Subscription
+                        </a>
+                        <a href="{{ path('active_indexing_index') }}" class="btn btn-outline-secondary">
+                            Change Plan
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Relay Configuration #}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">Relay Configuration</div>
+                <div class="card-body">
+                    <form action="{{ path('active_indexing_update_relays') }}" method="post">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="use_nip65_relays"
+                                    id="relay-nip65"
+                                    value="1"
+                                    {{ subscription.useNip65Relays ? 'checked' : '' }}
+                                    onchange="toggleCustomRelays()"
+                                >
+                                <label class="form-check-label" for="relay-nip65">
+                                    <strong>Use NIP-65 Relay List</strong>
+                                    <br><small class="text-muted">Automatically use your declared relays (kind 10002)</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="use_nip65_relays"
+                                    id="relay-custom"
+                                    value="0"
+                                    {{ not subscription.useNip65Relays ? 'checked' : '' }}
+                                    onchange="toggleCustomRelays()"
+                                >
+                                <label class="form-check-label" for="relay-custom">
+                                    <strong>Use Custom Relay List</strong>
+                                    <br><small class="text-muted">Specify relays specifically for indexing</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="custom-relays-section" class="mb-3" style="{{ subscription.useNip65Relays ? 'display:none' : '' }}">
+                            <label class="form-label">Custom Relays (one per line)</label>
+                            <textarea
+                                name="custom_relays"
+                                class="form-control font-monospace"
+                                rows="5"
+                                placeholder="wss://relay.example.com&#10;wss://another-relay.com"
+                            >{{ subscription.customRelays ? subscription.customRelays|join("\n") : '' }}</textarea>
+                            <div class="form-text">Enter relay URLs starting with wss:// or ws://</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Save Relay Configuration</button>
+                    </form>
+
+                    <hr>
+
+                    <h6>Your Current NIP-65 Relays</h6>
+                    {% if nip65Relays|length > 0 %}
+                        <ul class="list-unstyled small">
+                            {% for relay in nip65Relays|slice(0, 8) %}
+                                <li class="text-truncate" title="{{ relay }}">
+                                    <code>{{ relay }}</code>
+                                </li>
+                            {% endfor %}
+                            {% if nip65Relays|length > 8 %}
+                                <li class="text-muted">... and {{ nip65Relays|length - 8 }} more</li>
+                            {% endif %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small mb-0">
+                            No NIP-65 relay list found. Consider using custom relays or publishing a kind 10002 event.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleCustomRelays() {
+        const customSection = document.getElementById('custom-relays-section');
+        const useCustom = document.getElementById('relay-custom').checked;
+        customSection.style.display = useCustom ? 'block' : 'none';
+    }
+</script>
+{% endblock %}

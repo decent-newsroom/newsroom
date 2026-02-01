@@ -1,0 +1,150 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Subscribe to Active Indexing" tagline="{{ isRenewal|default(false) ? 'Renew' : 'Subscribe' }}: {{ tier.label }}" />
+
+    <p style="margin-bottom: var(--spacing-4);">
+        <a href="{{ path('active_indexing_index') }}">← Back to Active Indexing</a>
+    </p>
+
+    <div class="d-flex gap-4">
+        <div class="card" style="flex: 1;">
+            <div style="text-align: center;">
+                <p style="margin-bottom: var(--spacing-3);">
+                    <strong>Amount: {{ amount|number_format }} sats</strong>
+                </p>
+
+                <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-4);">
+                    Scan the QR code or copy the invoice to pay with your Lightning wallet.
+                </p>
+
+                {# QR Code #}
+                <div style="margin-bottom: var(--spacing-4);">
+                    {{ qrSvg|raw }}
+                </div>
+
+                {# BOLT11 Invoice #}
+                <div style="margin-bottom: var(--spacing-3);">
+                    <label style="color: var(--color-text-muted); display: block; margin-bottom: var(--spacing-1);">BOLT11 Invoice:</label>
+                    <div style="display: flex; gap: var(--spacing-1);">
+                        <input
+                            type="text"
+                            id="bolt11-input"
+                            style="flex: 1; font-family: monospace; font-size: 12px; padding: var(--spacing-1);"
+                            value="{{ bolt11 }}"
+                            readonly
+                            onclick="this.select()"
+                        />
+                        <button
+                            class="btn btn-secondary"
+                            type="button"
+                            onclick="navigator.clipboard.writeText('{{ bolt11|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                        >
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
+                {# Open in Wallet #}
+                <a href="lightning:{{ bolt11|upper }}" class="btn" style="width: 100%; margin-bottom: var(--spacing-3);">
+                    ⚡ Open in Wallet
+                </a>
+
+                <hr style="margin: var(--spacing-4) 0;">
+
+                <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-3);">
+                    After payment, contact an admin to activate your subscription.
+                </p>
+
+                {# Cancel Option #}
+                <div style="margin-top: var(--spacing-4); padding-top: var(--spacing-3); border-top: 1px solid var(--color-border);">
+                    <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-2);">Changed your mind or want to try a different plan?</p>
+                    <form action="{{ path('active_indexing_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription? You can create a new one after.');">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                            Cancel Pending Subscription
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="flex: 1;">
+            <h3>Subscription Details</h3>
+            <dl>
+                <dt>Plan</dt>
+                <dd>{{ tier.label }}</dd>
+
+                <dt>Duration</dt>
+                <dd>{{ tier.durationDays }} days</dd>
+
+                <dt>Grace Period</dt>
+                <dd>{{ tier.gracePeriodDays }} days after expiry</dd>
+
+                <dt>Price</dt>
+                <dd>{{ tier.priceInSats|number_format }} sats</dd>
+            </dl>
+
+            <hr style="margin: var(--spacing-3) 0;">
+
+            <h4>What happens next?</h4>
+            <ol>
+                <li>Pay the Lightning invoice</li>
+                <li>Contact an admin to activate your subscription</li>
+                <li>Your subscription will be activated</li>
+                <li>We start indexing from your relays</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}
+                        <dd>{{ tier.durationDays }} days</dd>
+
+                        <dt>Grace Period</dt>
+                        <dd>{{ tier.gracePeriodDays }} days after expiry</dd>
+
+                        <dt>Price</dt>
+                        <dd>{{ tier.priceInSats|number_format }} sats</dd>
+                    </dl>
+
+                    <hr>
+
+                    <h6>What happens next?</h6>
+                    <ol class="small">
+                        <li>Pay the Lightning invoice</li>
+                        <li>Our system detects the zap receipt</li>
+                        <li>Your subscription is activated</li>
+                        <li>We start indexing from your relays</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function checkPaymentStatus() {
+        const statusDiv = document.getElementById('status-result');
+        statusDiv.innerHTML = '<span class="text-muted">Checking...</span>';
+
+        fetch('{{ path('active_indexing_check_payment', {id: subscription.id}) }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.isActive) {
+                    statusDiv.innerHTML = '<span class="text-success">✓ Payment confirmed! Redirecting...</span>';
+                    setTimeout(() => {
+                        window.location.href = '{{ path('active_indexing_settings') }}';
+                    }, 1500);
+                } else {
+                    statusDiv.innerHTML = '<span class="text-warning">Payment not yet confirmed. Status: ' + data.status + '</span>';
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML = '<span class="text-danger">Error checking status</span>';
+            });
+    }
+
+    // Auto-check every 30 seconds
+    setInterval(checkPaymentStatus, 30000);
+</script>
+{% endblock %}
