@@ -184,4 +184,7 @@ services:
         arguments:
             $recipientPubkey: '%active_indexing_recipient_pubkey%'
 
-
+    # Reading List Workflow Service - bind the specific workflow
+    App\Service\ReadingListWorkflowService:
+        arguments:
+            $readingListWorkflow: '@state_machine.reading_list_workflow'
