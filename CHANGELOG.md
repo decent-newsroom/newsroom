@@ -3,6 +3,9 @@
 ## v0.0.8
 Toast on toast, and event in event.
 
+- Remember me.
+- Favicon is now there.
+- UnfoldBundle now loads a magazine on a configured subdomain.
 - Show embeds of nostr events in articles.
 - Broadcast option.
 - Show a stack of toasts instead of replacing the previous one.
