@@ -11,12 +11,14 @@
                 </p>
             {% elseif item.pubkey is defined and item.slug is defined %}
                 <p class="placeholder-meta">
-                    <small>{{ item.pubkey|slice(0, 8) }}...{{ item.pubkey|slice(-8) }}:{{ item.slug }}</small>
+                    <small>{{ item.kind }}:{{ item.pubkey|slice(0, 8) }}...{{ item.pubkey|slice(-8) }}:{{ item.slug }}</small>
                 </p>
             {% endif %}
             <button class="btn btn-sm btn-outline fetch-article-btn"
                     data-action="click->ui--card-placeholder#fetch"
                     data-article-id="{{ item.id ?? '' }}"
+                    data-article-kind="{{ item.kind ?? '' }}"
+                    data-article-coordinate="{{ item.coordinate ?? '' }}"
                     data-article-pubkey="{{ item.pubkey ?? '' }}"
                     data-article-slug="{{ item.slug ?? '' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

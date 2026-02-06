@@ -1242,12 +1242,7 @@ class NostrClient
         $articlesMap = [];
 
         foreach ($coordinates as $coordinate) {
-            $parts = explode(':', $coordinate);
-
-            if (count($parts) !== 3) {
-                $this->logger->warning('Invalid coordinate format', ['coordinate' => $coordinate]);
-                continue;
-            }
+            $parts = explode(':', $coordinate, 3);
 
             $kind = (int)$parts[0];
             $pubkey = $parts[1];

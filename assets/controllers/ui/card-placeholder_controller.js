@@ -19,6 +19,8 @@ export default class extends Controller {
         const articleId = button.dataset.articleId;
         const articlePubkey = button.dataset.articlePubkey;
         const articleSlug = button.dataset.articleSlug;
+        const articleKind = button.dataset.articleKind;
+        const articleCoordinate = button.dataset.articleCoordinate;
 
         // Disable button and show loading state
         button.disabled = true;
@@ -32,9 +34,11 @@ export default class extends Controller {
 
         try {
             // Build the coordinate identifier
-            let coordinate = '';
-            if (articlePubkey && articleSlug) {
-                coordinate = `30023:${articlePubkey}:${articleSlug}`;
+            // Prefer coordinate provided by backend/template; otherwise build from kind/pubkey/slug.
+            let coordinate = (articleCoordinate || '').trim();
+            if (!coordinate && articlePubkey && articleSlug) {
+                const kind = (articleKind || '30023').trim();
+                coordinate = `${kind}:${articlePubkey}:${articleSlug}`;
             }
 
             // Call the API endpoint to fetch the article
@@ -45,6 +49,7 @@ export default class extends Controller {
                 },
                 body: JSON.stringify({
                     id: articleId,
+                    kind: articleKind,
                     pubkey: articlePubkey,
                     slug: articleSlug,
                     coordinate: coordinate

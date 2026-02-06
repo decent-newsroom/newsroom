@@ -35,18 +35,11 @@ class ArticleFetchController extends AbstractController
 
         $pubkey = $data['pubkey'] ?? null;
         $slug = $data['slug'] ?? null;
+        $kind = $data['kind'] ?? null;
         $coordinate = $data['coordinate'] ?? null;
 
-        // Parse coordinate if provided
-        if ($coordinate && str_contains($coordinate, ':')) {
-            $parts = explode(':', $coordinate, 3);
-            if (count($parts) === 3) {
-                [, $pubkey, $slug] = $parts;
-                // Use the full coordinate as-is
-            }
-        } else if ($pubkey && $slug) {
-            // Build coordinate from parts (default to kind 30023)
-            $coordinate = "30023:{$pubkey}:{$slug}";
+        if (!$coordinate) {
+            $coordinate = "{$kind}:{$pubkey}:{$slug}";
         }
 
         if (!$coordinate) {
