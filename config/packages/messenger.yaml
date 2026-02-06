@@ -17,6 +17,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%'
                     stream_max_entries: 50000
                     redeliver_timeout: 600
+                    delete_after_ack: false
+                    delete_after_delete: false
             
             # Low-priority transport for profile updates - processed slower to not block main queue
             async_low_priority:
@@ -27,6 +29,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-low'
                     stream_max_entries: 10000
                     redeliver_timeout: 1200
+                    delete_after_ack: false
+                    delete_after_delete: false
                 retry_strategy:
                     max_retries: 1
                     delay: 5000
