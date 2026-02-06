@@ -28,6 +28,7 @@ final class TweakedRequest implements RequestInterface
     private RelaySet $relays;
     private string $payload;
     private array $responses = [];
+    private int $timeout = 15;
 
     /** Optional: when set, CLOSE & disconnect immediately once this id arrives */
     private ?string $stopOnEventId = null;
@@ -66,7 +67,7 @@ final class TweakedRequest implements RequestInterface
                 }
 
                 $client = $relay->getClient();
-                $client->setTimeout(15); // seconds per receive call (keep it small if you want responsiveness)
+                $client->setTimeout($this->timeout);
 
                 // Send subscription payload
                 $client->text($this->payload);
@@ -177,5 +178,11 @@ final class TweakedRequest implements RequestInterface
         } catch (\Throwable) {
             // ignore and continue; some relays won’t require it
         }
+    }
+
+    public function setTimeout(float|int $timeout): static
+    {
+        $this->timeout = (int) $timeout;
+        return $this;
     }
 }
