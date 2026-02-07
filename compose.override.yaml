@@ -72,7 +72,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
-      MERCURE_PUBLIC_URL: https://php/.well-known/mercure # It's important to override this, using the service name
+      # Use HTTP for internal Docker network (no TLS issues), the php service listens on port 80 internally
+      MERCURE_PUBLIC_URL: http://php/.well-known/mercure
     depends_on:
       php:
         condition: service_started
