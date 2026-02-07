@@ -4,30 +4,30 @@
 <div class="w-container py-4">
     <twig:Atoms:PageHeading heading="Subscribe to Active Indexing" tagline="{{ isRenewal|default(false) ? 'Renew' : 'Subscribe' }}: {{ tier.label }}" />
 
-    <p style="margin-bottom: var(--spacing-4);">
+    <p class="mb-4">
         <a href="{{ path('active_indexing_index') }}">← Back to Active Indexing</a>
     </p>
 
     <div class="d-flex gap-4">
         <div class="card" style="flex: 1;">
             <div style="text-align: center;">
-                <p style="margin-bottom: var(--spacing-3);">
+                <p class="mb-3">
                     <strong>Amount: {{ amount|number_format }} sats</strong>
                 </p>
 
-                <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-4);">
+                <p class="mb-4">
                     Scan the QR code or copy the invoice to pay with your Lightning wallet.
                 </p>
 
                 {# QR Code #}
-                <div style="margin-bottom: var(--spacing-4);">
+                <div class="mb-4">
                     {{ qrSvg|raw }}
                 </div>
 
                 {# BOLT11 Invoice #}
-                <div style="margin-bottom: var(--spacing-3);">
-                    <label style="color: var(--color-text-muted); display: block; margin-bottom: var(--spacing-1);">BOLT11 Invoice:</label>
-                    <div style="display: flex; gap: var(--spacing-1);">
+                <div class="mb-3">
+                    <label class="mb-1">BOLT11 Invoice:</label>
+                    <div class="d-flex flex-row gap-1">
                         <input
                             type="text"
                             id="bolt11-input"
@@ -53,8 +53,20 @@
 
                 <hr style="margin: var(--spacing-4) 0;">
 
-                <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-3);">
-                    After payment, contact an admin to activate your subscription.
+                {# Payment Status Check #}
+                <div id="payment-status" style="margin-bottom: var(--spacing-3);"
+                     data-controller="utility--payment-status"
+                     data-utility--payment-status-check-url-value="{{ path('active_indexing_check_payment', {id: subscription.id}) }}"
+                     data-utility--payment-status-redirect-url-value="{{ path('active_indexing_settings') }}"
+                     data-utility--payment-status-interval-value="30000">
+                    <button type="button" class="btn btn-secondary" data-action="utility--payment-status#check" style="margin-bottom: var(--spacing-2);">
+                        Check Payment Status
+                    </button>
+                    <div data-utility--payment-status-target="result"></div>
+                </div>
+
+                <p class="mb-3">
+                    After payment, your subscription will be activated automatically, or you can contact an admin.
                 </p>
 
                 {# Cancel Option #}
@@ -90,61 +102,12 @@
             <h4>What happens next?</h4>
             <ol>
                 <li>Pay the Lightning invoice</li>
-                <li>Contact an admin to activate your subscription</li>
-                <li>Your subscription will be activated</li>
+                <li>Our system detects the payment</li>
+                <li>Your subscription is activated</li>
                 <li>We start indexing from your relays</li>
             </ol>
         </div>
     </div>
 </div>
-{% endblock %}
-                        <dd>{{ tier.durationDays }} days</dd>
 
-                        <dt>Grace Period</dt>
-                        <dd>{{ tier.gracePeriodDays }} days after expiry</dd>
-
-                        <dt>Price</dt>
-                        <dd>{{ tier.priceInSats|number_format }} sats</dd>
-                    </dl>
-
-                    <hr>
-
-                    <h6>What happens next?</h6>
-                    <ol class="small">
-                        <li>Pay the Lightning invoice</li>
-                        <li>Our system detects the zap receipt</li>
-                        <li>Your subscription is activated</li>
-                        <li>We start indexing from your relays</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function checkPaymentStatus() {
-        const statusDiv = document.getElementById('status-result');
-        statusDiv.innerHTML = '<span class="text-muted">Checking...</span>';
-
-        fetch('{{ path('active_indexing_check_payment', {id: subscription.id}) }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.isActive) {
-                    statusDiv.innerHTML = '<span class="text-success">✓ Payment confirmed! Redirecting...</span>';
-                    setTimeout(() => {
-                        window.location.href = '{{ path('active_indexing_settings') }}';
-                    }, 1500);
-                } else {
-                    statusDiv.innerHTML = '<span class="text-warning">Payment not yet confirmed. Status: ' + data.status + '</span>';
-                }
-            })
-            .catch(error => {
-                statusDiv.innerHTML = '<span class="text-danger">Error checking status</span>';
-            });
-    }
-
-    // Auto-check every 30 seconds
-    setInterval(checkPaymentStatus, 30000);
-</script>
 {% endblock %}
