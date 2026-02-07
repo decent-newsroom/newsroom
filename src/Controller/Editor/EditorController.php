@@ -7,7 +7,9 @@ namespace App\Controller\Editor;
 use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
+use App\Enum\RolesEnum;
 use App\Form\EditorType;
+use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
@@ -224,7 +226,8 @@ class EditorController extends AbstractController
         NostrClient $nostrClient,
         CacheItemPoolInterface $articlesCache,
         LoggerInterface $logger,
-        NostrEventParser $eventParser
+        NostrEventParser $eventParser,
+        UserEntityRepository $userRepository
     ): JsonResponse {
         try {
             // Get JSON data
@@ -294,6 +297,19 @@ class EditorController extends AbstractController
             // Save to database
             $entityManager->persist($article);
             $entityManager->flush();
+
+            // Grant ROLE_WRITER to the publishing user (only for published articles, not drafts)
+            if (!$isDraft) {
+                $key = new Key();
+                $publisherNpub = $key->convertPublicKeyToBech32($signedEvent['pubkey']);
+                $publisherUser = $userRepository->findOneBy(['npub' => $publisherNpub]);
+
+                if ($publisherUser && !$publisherUser->isWriter()) {
+                    $publisherUser->addRole(RolesEnum::WRITER->value);
+                    $entityManager->flush();
+                    $logger->info('Granted ROLE_WRITER to user', ['npub' => $publisherNpub]);
+                }
+            }
 
             // Clear relevant caches
             $cacheKey = 'article_' . $article->getEventId();

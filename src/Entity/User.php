@@ -89,6 +89,11 @@ class User implements UserInterface, EquatableInterface
         return in_array(RolesEnum::FEATURED_WRITER, $this->roles, true);
     }
 
+    public function isWriter(): bool
+    {
+        return in_array(RolesEnum::WRITER->value, $this->roles, true);
+    }
+
     public function isMuted(): bool
     {
         return in_array(RolesEnum::MUTED, $this->roles, true);
