@@ -2,7 +2,7 @@
 
 {% block body %}
 <div class="w-container py-4">
-    <twig:Atoms:PageHeading heading="Active Indexing" tagline="Get your content reliably indexed from your declared relays." />
+    <twig:Atoms:PageHeading heading="Active Indexing" tagline="Get your content reliably indexed from your declared relays" />
 
     {# Flash messages for feedback #}
     {% for message in app.flashes('success') %}
@@ -41,6 +41,12 @@
             </div>
         </div>
     {% else %}
+        {# Intro #}
+        <div class="d-flex flex-column align-items-center gap-3 mb-5">
+            <strong>Get found—even if your home relay isn’t on our default crawl list.</strong>
+            <p>Active Indexing makes sure Decent Newsroom fetches your long-form content from the relays you declare.</p>
+        </div>
+
         {# Pricing Section with Toggle #}
         <div class="pricing-section">
             <div class="pricing-toggle" role="group" aria-label="Billing period">
