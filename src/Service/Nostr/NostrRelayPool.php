@@ -200,7 +200,7 @@ class NostrRelayPool
                 }
 
                 $client = $relay->getClient();
-                $client->setTimeout(15); // 15 seconds timeout for receiving
+                $client->setTimeout(150); // 150 seconds timeout for receiving
 
                 // Send the request
                 $client->text($payload);
