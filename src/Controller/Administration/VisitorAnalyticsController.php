@@ -66,6 +66,9 @@ class VisitorAnalyticsController extends AbstractController
         // Article publish statistics
         $articlePublishStats = $visitRepository->getArticlePublishStats();
 
+        // Zap invoice statistics
+        $zapInvoiceStats = $visitRepository->getZapInvoiceStats();
+
         return $this->render('admin/analytics.html.twig', [
             'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsLast24Hours' => $visitsLast24Hours,
@@ -83,6 +86,7 @@ class VisitorAnalyticsController extends AbstractController
             'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
             'topArticlesLast24Hours' => $topArticlesLast24Hours,
             'articlePublishStats' => $articlePublishStats,
+            'zapInvoiceStats' => $zapInvoiceStats,
         ]);
     }
 }

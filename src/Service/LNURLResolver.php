@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Visit;
+use App\Repository\VisitRepository;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use function tkijewski\lnurl\decodeUrl;
@@ -17,6 +19,7 @@ class LNURLResolver
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
+        private readonly VisitRepository $visitRepository,
     ) {}
 
     /**
@@ -221,6 +224,9 @@ class LNURLResolver
                 throw new \RuntimeException('No invoice (pr) in callback response');
             }
 
+            // Track the zap invoice generation for analytics
+            $this->trackZapInvoice();
+
             return $data['pr'];
         } catch (\Exception $e) {
             $this->logger->error('LNURL invoice request failed', [
@@ -229,6 +235,20 @@ class LNURLResolver
                 'error' => $e->getMessage(),
             ]);
             throw new \RuntimeException('Could not obtain invoice: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Track zap invoice generation for analytics
+     */
+    private function trackZapInvoice(): void
+    {
+        try {
+            $visit = new Visit('/zap/invoice-generated', null);
+            $this->visitRepository->save($visit);
+        } catch (\Exception $e) {
+            // Silently fail - don't break the zap flow for analytics
+            $this->logger->warning('Failed to track zap invoice', ['error' => $e->getMessage()]);
         }
     }
 }

@@ -18,6 +18,18 @@
                 </ul>
                 <p class="analytics-note">Number of times articles were published via the API endpoint</p>
             </div>
+
+            <div class="analytics-card">
+                <h2>Zap Invoices Generated</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last hour:</strong> {{ zapInvoiceStats.last_hour|number_format }}</li>
+                    <li><strong>Last 24 hours:</strong> {{ zapInvoiceStats.last_24_hours|number_format }}</li>
+                    <li><strong>Last 7 days:</strong> {{ zapInvoiceStats.last_7_days|number_format }}</li>
+                    <li><strong>Last 30 days:</strong> {{ zapInvoiceStats.last_30_days|number_format }}</li>
+                    <li><strong>All time:</strong> {{ zapInvoiceStats.all_time|number_format }}</li>
+                </ul>
+                <p class="analytics-note">Number of times zap button invoices were created</p>
+            </div>
         </div>
 
         <div class="analytics-summary-row">

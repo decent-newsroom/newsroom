@@ -398,4 +398,40 @@ class VisitRepository extends ServiceEntityRepository
         }
         return $result;
     }
+
+    /**
+     * Returns the number of times a zap invoice was generated since a given datetime.
+     */
+    public function countZapInvoicesSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.route = :route')
+            ->andWhere('v.visitedAt >= :since')
+            ->setParameter('route', '/zap/invoice-generated')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns zap invoice statistics for different time periods.
+     */
+    public function getZapInvoiceStats(): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.route = :route')
+            ->setParameter('route', '/zap/invoice-generated');
+
+        $allTime = (int) $qb->getQuery()->getSingleScalarResult();
+
+        return [
+            'last_hour' => $this->countZapInvoicesSince(new \DateTimeImmutable('-1 hour')),
+            'last_24_hours' => $this->countZapInvoicesSince(new \DateTimeImmutable('-24 hours')),
+            'last_7_days' => $this->countZapInvoicesSince(new \DateTimeImmutable('-7 days')),
+            'last_30_days' => $this->countZapInvoicesSince(new \DateTimeImmutable('-30 days')),
+            'all_time' => $allTime,
+        ];
+    }
 }
