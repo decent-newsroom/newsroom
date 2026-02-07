@@ -34,8 +34,8 @@ enum ActiveIndexingTier: string
     public function getLabel(): string
     {
         return match ($this) {
-            self::MONTHLY => 'Experimental', // Monthly (1,000 sats)
-            self::YEARLY => 'Press Pass', // Yearly (10,000 sats)
+            self::MONTHLY => 'Monthly', // Monthly (1,000 sats)
+            self::YEARLY => 'Yearly', // Yearly (10,000 sats)
         };
     }
 }

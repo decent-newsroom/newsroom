@@ -47,7 +47,7 @@
                 </div>
 
                 {# Open in Wallet #}
-                <a href="lightning:{{ bolt11|upper }}" class="btn" style="width: 100%; margin-bottom: var(--spacing-3);">
+                <a href="lightning:{{ bolt11|upper }}" class="btn mb-3">
                     ⚡ Open in Wallet
                 </a>
 
@@ -70,43 +70,19 @@
                 </p>
 
                 {# Cancel Option #}
-                <div style="margin-top: var(--spacing-4); padding-top: var(--spacing-3); border-top: 1px solid var(--color-border);">
+                <div class="mt-5 mb-2">
                     <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-2);">Changed your mind or want to try a different plan?</p>
                     <form action="{{ path('active_indexing_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription? You can create a new one after.');">
-                        <button type="submit" class="btn btn-secondary" style="width: 100%;">
-                            Cancel Pending Subscription
-                        </button>
+                        <div class="actions">
+                            <button type="submit" class="btn btn-secondary">
+                                Cancel Pending Subscription
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="card" style="flex: 1;">
-            <h3>Subscription Details</h3>
-            <dl>
-                <dt>Plan</dt>
-                <dd>{{ tier.label }}</dd>
-
-                <dt>Duration</dt>
-                <dd>{{ tier.durationDays }} days</dd>
-
-                <dt>Grace Period</dt>
-                <dd>{{ tier.gracePeriodDays }} days after expiry</dd>
-
-                <dt>Price</dt>
-                <dd>{{ tier.priceInSats|number_format }} sats</dd>
-            </dl>
-
-            <hr style="margin: var(--spacing-3) 0;">
-
-            <h4>What happens next?</h4>
-            <ol>
-                <li>Pay the Lightning invoice</li>
-                <li>Our system detects the payment</li>
-                <li>Your subscription is activated</li>
-                <li>We start indexing from your relays</li>
-            </ol>
-        </div>
     </div>
 </div>
 

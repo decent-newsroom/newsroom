@@ -12,3 +12,8 @@
     background-color: var(--color-bg-light); /* Light version of --color-primary */
     color: var(--color-text); /* Use theme text color for better contrast */
 }
+
+.notice.success {
+    background-color: var(--color-primary); /* Use theme success color */
+    color: var(--color-text); /* Use theme text color for better contrast */
+}
