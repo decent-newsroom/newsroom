@@ -72,5 +72,6 @@
 details>summary{cursor:pointer}
 
 /* Text truncation with ellipsis */
+.line-clamp-1{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden;text-overflow:ellipsis;line-height:inherit;}
 .line-clamp-3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;text-overflow:ellipsis;line-height:inherit;}
 .line-clamp-5{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden;text-overflow:ellipsis;line-height:inherit;}
