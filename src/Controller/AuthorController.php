@@ -16,6 +16,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Search\ArticleSearchInterface;
+use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -35,7 +36,8 @@ class AuthorController extends AbstractController
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly AuthorRelayService $authorRelayService,
-        private readonly NostrLinkParser $nostrLinkParser
+        private readonly NostrLinkParser $nostrLinkParser,
+        private readonly VanityNameService $vanityNameService,
     ) {}
 
     /**
@@ -1275,5 +1277,22 @@ class AuthorController extends AbstractController
         $keys = new Key();
         $npub = $keys->convertPublicKeyToBech32($pubkey);
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);
+    }
+
+    /**
+     * Redirect from /p/{vanityName} to the user's profile
+     * This route catches vanity names (not npub or hex pubkey)
+     */
+    #[Route('/p/{vanityName}', name: 'vanity-profile-redirect', requirements: ['vanityName' => '^(?!npub1)[a-z0-9\-_.]+$'], priority: -10)]
+    public function vanityProfileRedirect(string $vanityName): Response
+    {
+        $vanity = $this->vanityNameService->getActiveByVanityName($vanityName);
+
+        if ($vanity === null) {
+            throw $this->createNotFoundException('Profile not found.');
+        }
+
+        // Redirect to the actual profile page
+        return $this->redirectToRoute('author-profile', ['npub' => $vanity->getNpub()]);
     }
 }

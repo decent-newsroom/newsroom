@@ -1,0 +1,190 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ vanityName.vanityName }} | Vanity Name Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Vanity Name: {{ vanityName.vanityName }}</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_vanity_index') }}" class="btn btn-secondary">← Back to List</a>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="d-flex gap-4 flex-wrap">
+        {# Details Card #}
+        <div class="card" style="flex: 2; min-width: 400px;">
+            <div class="card-header">
+                <h3>Details</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>ID</dt>
+                    <dd>{{ vanityName.id }}</dd>
+
+                    <dt>Vanity Name</dt>
+                    <dd><strong>{{ vanityName.vanityName }}</strong></dd>
+
+                    <dt>NIP-05 Identifier</dt>
+                    <dd><code>{{ vanityName.vanityName }}@{{ serverDomain }}</code></dd>
+
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge {{ vanityName.status.badgeClass }}">
+                            {{ vanityName.status.label }}
+                        </span>
+                    </dd>
+
+                    <dt>User npub</dt>
+                    <dd>
+                        <a href="{{ path('author-profile', {npub: vanityName.npub}) }}">
+                            {{ vanityName.npub }}
+                        </a>
+                    </dd>
+
+                    <dt>User Pubkey (hex)</dt>
+                    <dd><code style="font-size: 0.8rem; word-break: break-all;">{{ vanityName.pubkeyHex }}</code></dd>
+
+                    <dt>Payment Type</dt>
+                    <dd>{{ vanityName.paymentType.label }}</dd>
+
+                    <dt>Expires At</dt>
+                    <dd>
+                        {% if vanityName.expiresAt %}
+                            {{ vanityName.expiresAt|date('F j, Y H:i') }}
+                            {% if vanityName.isExpired %}
+                                <span class="text-danger">(expired)</span>
+                            {% elseif vanityName.daysRemaining is not null %}
+                                ({{ vanityName.daysRemaining }} days remaining)
+                            {% endif %}
+                        {% else %}
+                            <span class="text-success">Lifetime (no expiration)</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Created At</dt>
+                    <dd>{{ vanityName.createdAt|date('F j, Y H:i') }}</dd>
+
+                    <dt>Updated At</dt>
+                    <dd>{{ vanityName.updatedAt|date('F j, Y H:i') }}</dd>
+
+                    {% if vanityName.relays %}
+                        <dt>Relays</dt>
+                        <dd>
+                            <ul>
+                                {% for relay in vanityName.relays %}
+                                    <li><code>{{ relay }}</code></li>
+                                {% endfor %}
+                            </ul>
+                        </dd>
+                    {% endif %}
+
+                    {% if vanityName.pendingInvoiceBolt11 %}
+                        <dt>Pending Invoice</dt>
+                        <dd>
+                            <code style="font-size: 0.7rem; word-break: break-all;">
+                                {{ vanityName.pendingInvoiceBolt11|slice(0, 50) }}...
+                            </code>
+                        </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {# Actions Card #}
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div class="card-header">
+                <h3>Actions</h3>
+            </div>
+            <div class="card-body">
+                {% if vanityName.status.value == 'pending' %}
+                    <form action="{{ path('admin_vanity_activate', {id: vanityName.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_vanity_action') }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            ✓ Activate
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Activate this vanity name (use after verifying payment).
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {% if vanityName.status.value == 'active' %}
+                    <form action="{{ path('admin_vanity_suspend', {id: vanityName.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_vanity_action') }}">
+                        <button type="submit" class="btn btn-warning w-100" onclick="return confirm('Suspend this vanity name?');">
+                            ⏸ Suspend
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Temporarily suspend the vanity name. It will stop appearing in NIP-05 responses.
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {% if vanityName.status.value == 'suspended' %}
+                    <form action="{{ path('admin_vanity_activate', {id: vanityName.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_vanity_action') }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            ▶ Reactivate
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Reactivate the suspended vanity name.
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {% if vanityName.status.value != 'released' %}
+                    <form action="{{ path('admin_vanity_release', {id: vanityName.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_vanity_action') }}">
+                        <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Release this vanity name? This will make it available for others to register.');">
+                            ✗ Release
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Permanently release the vanity name. The user will lose it.
+                    </p>
+                {% else %}
+                    <div class="notice info">
+                        This vanity name has been released and is available for re-registration.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# NIP-05 Test #}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3>NIP-05 Test</h3>
+        </div>
+        <div class="card-body">
+            <p>Test the NIP-05 endpoint for this vanity name:</p>
+            <code>
+                <a href="{{ path('well_known_nostr', {name: vanityName.vanityName}) }}" target="_blank">
+                    {{ url('well_known_nostr', {name: vanityName.vanityName}) }}
+                </a>
+            </code>
+            {% if vanityName.status.value == 'active' %}
+                <p class="text-success mt-2">
+                    ✓ This vanity name should appear in the response.
+                </p>
+            {% else %}
+                <p class="text-warning mt-2">
+                    ⚠ This vanity name will NOT appear in the response (status: {{ vanityName.status.label }}).
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

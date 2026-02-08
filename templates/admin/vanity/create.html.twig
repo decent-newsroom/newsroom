@@ -1,0 +1,99 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Create Vanity Name | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Create Vanity Name</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_vanity_index') }}" class="btn btn-secondary">← Back to List</a>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="card" style="max-width: 600px;">
+        <div class="card-header">
+            <h3>Register Vanity Name for User</h3>
+        </div>
+        <div class="card-body">
+            <form action="{{ path('admin_vanity_store') }}" method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_vanity_create') }}">
+
+                <div class="mb-4">
+                    <label for="vanity_name" class="form-label">Vanity Name *</label>
+                    <div class="input-group">
+                        <input type="text"
+                               id="vanity_name"
+                               name="vanity_name"
+                               class="form-control"
+                               placeholder="username"
+                               pattern="[a-zA-Z0-9\-_.]+"
+                               minlength="2"
+                               maxlength="50"
+                               required>
+                        <span class="input-group-text">@{{ serverDomain }}</span>
+                    </div>
+                    <small class="form-text text-muted">
+                        Only letters (a-z), numbers (0-9), dash (-), underscore (_), and period (.) allowed.
+                    </small>
+                </div>
+
+                <div class="mb-4">
+                    <label for="npub" class="form-label">User npub *</label>
+                    <input type="text"
+                           id="npub"
+                           name="npub"
+                           class="form-control"
+                           placeholder="npub1..."
+                           pattern="npub1[a-z0-9]+"
+                           required>
+                    <small class="form-text text-muted">
+                        The user's npub (bech32 format, starts with npub1).
+                    </small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Payment Type *</label>
+                    {% for paymentType in paymentTypes %}
+                        <div class="form-check">
+                            <input type="radio"
+                                   id="payment_{{ paymentType.value }}"
+                                   name="payment_type"
+                                   value="{{ paymentType.value }}"
+                                   class="form-check-input"
+                                   {{ paymentType.value == 'admin_granted' ? 'checked' : '' }}>
+                            <label for="payment_{{ paymentType.value }}" class="form-check-label">
+                                {{ paymentType.label }}
+                                {% if paymentType.priceInSats > 0 %}
+                                    ({{ paymentType.priceInSats|number_format }} sats)
+                                {% else %}
+                                    (Free)
+                                {% endif %}
+                            </label>
+                        </div>
+                    {% endfor %}
+                    <small class="form-text text-muted mt-2 d-block">
+                        <strong>Admin Granted:</strong> Free, lifetime, activated immediately.<br>
+                        <strong>One-time:</strong> Lifetime, activated immediately (payment assumed verified).<br>
+                        <strong>Subscription:</strong> 30 days, activated immediately (payment assumed verified).
+                    </small>
+                </div>
+
+                <hr>
+
+                <button type="submit" class="btn btn-primary">
+                    Create Vanity Name
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

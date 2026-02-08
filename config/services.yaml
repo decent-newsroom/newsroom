@@ -17,6 +17,9 @@ parameters:
     active_indexing_recipient_pubkey: '%env(default:project_contribution_npub:ACTIVE_INDEXING_RECIPIENT_PUBKEY)%'
     active_indexing_recipient_lud16: '%env(default:project_contribution_lud16:ACTIVE_INDEXING_RECIPIENT_LUD16)%'
     
+    # Vanity Name Service settings
+    vanity_server_domain: '%env(default::SERVER_NAME)%'
+    
     # Unfold subdomain routing
     unfold_host: '%env(UNFOLD_HOST)%'
 
@@ -183,6 +186,12 @@ services:
     App\Command\SubscriptionZapReceiptWorkerCommand:
         arguments:
             $recipientPubkey: '%active_indexing_recipient_pubkey%'
+
+    # Vanity Name Service
+    App\Service\VanityNameService:
+        arguments:
+            $serverDomain: '%vanity_server_domain%'
+            $recipientLud16: '%active_indexing_recipient_lud16%'
 
     # Reading List Workflow Service - bind the specific workflow
     App\Service\ReadingListWorkflowService:

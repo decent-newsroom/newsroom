@@ -55,6 +55,7 @@ import './styles/04-pages/author-media.css';
 import './styles/04-pages/forum.css';
 import './styles/04-pages/highlights.css';
 import './styles/04-pages/discover.css';
+import './styles/04-pages/subscription.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

@@ -1,0 +1,186 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Vanity Name | NIP-05 Identity{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Vanity Name" tagline="Get your own NIP-05 identity on {{ serverDomain }}" />
+
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+        <div class="notice success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('info') %}
+        <div class="notice info">{{ message }}</div>
+    {% endfor %}
+
+    {% if existingVanity and existingVanity.status.value == 'active' %}
+        {# User already has an active vanity name #}
+        <div class="notice success" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
+            <strong>✓ You have an active vanity name!</strong><br>
+            <span style="font-size: 1.25rem; font-weight: bold;">{{ existingVanity.vanityName }}@{{ serverDomain }}</span><br>
+            {% if existingVanity.expiresAt %}
+                Expires: {{ existingVanity.expiresAt|date('F j, Y') }}
+                {% if existingVanity.daysRemaining is not null %}
+                    ({{ existingVanity.daysRemaining }} days remaining)
+                {% endif %}
+            {% else %}
+                <span class="badge bg-success">Lifetime</span>
+            {% endif %}
+        </div>
+        <div style="text-align: center;">
+            <a href="{{ path('vanity_settings') }}" class="btn">Manage Vanity Name</a>
+        </div>
+
+    {% elseif existingVanity and existingVanity.status.value == 'pending' %}
+        {# Pending payment #}
+        <div class="notice info" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--spacing-3);">
+                <div>
+                    <strong>⏳ Payment Pending</strong><br>
+                    Your vanity name <strong>{{ existingVanity.vanityName }}</strong> is awaiting payment confirmation.
+                    <br><small style="color: var(--color-text-mid);">If you didn't pay or want to try a different name, you can cancel this pending reservation.</small>
+                </div>
+                <form action="{{ path('vanity_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending vanity name? You can register a new one after cancelling.');">
+                    <button type="submit" class="btn btn-secondary" style="white-space: nowrap;">Cancel Pending</button>
+                </form>
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <a href="{{ path('vanity_invoice', {id: existingVanity.id}) }}" class="btn btn-primary">Complete Payment</a>
+        </div>
+
+    {% else %}
+        {# Intro #}
+        <div class="d-flex flex-column align-items-center gap-3 mb-5">
+            <strong>Reserve your vanity name and get a verified NIP-05 identity!</strong>
+            <p>Your vanity name will be <code>yourname@{{ serverDomain }}</code></p>
+        </div>
+
+        {# Pricing Section with Toggle #}
+        <div class="pricing-section" data-controller="ui--pricing-toggle">
+            <div class="pricing-toggle" role="group" aria-label="Payment type">
+                <button type="button" class="toggle-btn active" data-period="subscription" data-action="click->ui--pricing-toggle#toggle">Monthly</button>
+                <button type="button" class="toggle-btn" data-period="one_time" data-action="click->ui--pricing-toggle#toggle">
+                    Lifetime
+                </button>
+            </div>
+
+            <div class="pricing-card">
+                {% for paymentType in paymentTypes %}
+                    <div class="pricing-details" data-ui--pricing-toggle-target="panel" data-period="{{ paymentType.value }}" {% if paymentType.value == 'one_time' %}style="display: none;"{% endif %}>
+                        <div class="price-display">
+                            <span class="price-amount">{{ paymentType.priceInSats|number_format }}</span>
+                            <span class="price-unit">sats</span>
+                            <span class="price-period">/ {{ paymentType.value == 'subscription' ? 'month' : 'lifetime' }}</span>
+                        </div>
+
+                        <ul class="feature-list">
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                NIP-05 verified identity
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Custom profile URL: <code>/p/yourname</code>
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Easy discovery via <code>name@{{ serverDomain }}</code>
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Verified badge in Nostr clients
+                            </li>
+                            {% if paymentType.value == 'one_time' %}
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <strong>Never expires</strong>
+                            </li>
+                            {% else %}
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Cancel anytime
+                            </li>
+                            {% endif %}
+                        </ul>
+
+                        {# Vanity Name Input #}
+                        <form action="{{ path('vanity_register') }}" method="post" id="vanityForm-{{ paymentType.value }}" class="vanity-form">
+                            <input type="hidden" name="payment_type" value="{{ paymentType.value }}">
+
+                            <div class="vanity-input-group">
+                                <input type="text"
+                                       name="vanity_name"
+                                       class="vanity-input"
+                                       placeholder="yourname"
+                                       pattern="[a-zA-Z0-9\-_.]+"
+                                       minlength="2"
+                                       maxlength="50"
+                                       required>
+                                <span class="vanity-domain">@{{ serverDomain }}</span>
+                            </div>
+                            <div class="availability-status"></div>
+
+                            {% if app.user %}
+                                <button type="submit" class="btn btn-subscribe">
+                                    ⚡ Get Vanity Name
+                                </button>
+                            {% else %}
+                                <button class="btn btn-subscribe" disabled>Login to Register</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Availability check for all forms
+    document.querySelectorAll('.vanity-input').forEach(input => {
+        const form = input.closest('form');
+        const statusDiv = form.querySelector('.availability-status');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        let debounceTimer;
+
+        input.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const name = this.value.trim();
+
+            if (name.length < 2) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+
+            statusDiv.innerHTML = '<span class="text-muted">Checking availability...</span>';
+
+            debounceTimer = setTimeout(function() {
+                fetch('{{ path('vanity_check') }}?name=' + encodeURIComponent(name))
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.available) {
+                            statusDiv.innerHTML = '<span class="text-success">✓ "' + data.name + '" is available!</span>';
+                            if (submitBtn) submitBtn.disabled = false;
+                        } else {
+                            statusDiv.innerHTML = '<span class="text-danger">✗ ' + data.error + '</span>';
+                            if (submitBtn) submitBtn.disabled = true;
+                        }
+                    })
+                    .catch(() => {
+                        statusDiv.innerHTML = '<span class="text-warning">Unable to check availability</span>';
+                    });
+            }, 300);
+        });
+    });
+});
+</script>
+{% endblock %}
+

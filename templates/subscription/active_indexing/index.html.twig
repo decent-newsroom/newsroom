@@ -48,17 +48,17 @@
         </div>
 
         {# Pricing Section with Toggle #}
-        <div class="pricing-section">
+        <div class="pricing-section" data-controller="ui--pricing-toggle">
             <div class="pricing-toggle" role="group" aria-label="Billing period">
-                <button type="button" class="toggle-btn active" data-period="monthly">Monthly</button>
-                <button type="button" class="toggle-btn" data-period="yearly">
+                <button type="button" class="toggle-btn active" data-period="monthly" data-action="click->ui--pricing-toggle#toggle">Monthly</button>
+                <button type="button" class="toggle-btn" data-period="yearly" data-action="click->ui--pricing-toggle#toggle">
                     Yearly <span class="save-badge">Save 17%</span>
                 </button>
             </div>
 
             <div class="pricing-card">
                 {% for tier in tiers %}
-                    <div class="pricing-details" data-period="{{ tier.value }}" {% if tier.value == 'yearly' %}style="display: none;"{% endif %}>
+                    <div class="pricing-details" data-ui--pricing-toggle-target="panel" data-period="{{ tier.value }}" {% if tier.value == 'yearly' %}style="display: none;"{% endif %}>
                         <div class="price-display">
                             <span class="price-amount">{{ tier.priceInSats|number_format }}</span>
                             <span class="price-unit">sats</span>
@@ -116,182 +116,4 @@
         {% endif %}
     {% endif %}
 </div>
-
-<style>
-.active-indexing-hero {
-    text-align: center;
-    padding: var(--spacing-6) 0;
-}
-
-.active-indexing-hero h1 {
-    font-size: 2.5rem;
-    margin-bottom: var(--spacing-2);
-}
-
-.hero-tagline {
-    font-size: 1.25rem;
-    color: var(--color-text-mid);
-    margin: 0;
-}
-
-.pricing-section {
-    max-width: 480px;
-    margin: 0 auto;
-}
-
-.pricing-toggle {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-2);
-    margin-bottom: var(--spacing-4);
-    background: var(--color-bg-light);
-    border-radius: 8px;
-    padding: 4px;
-}
-
-.toggle-btn {
-    padding: var(--spacing-2) var(--spacing-4);
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--color-text-mid);
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-}
-
-.toggle-btn.active {
-    background: var(--color-primary);
-    color: var(--color-text-contrast);
-}
-
-.toggle-btn:hover:not(.active) {
-    color: var(--color-text);
-}
-
-.save-badge {
-    font-size: 0.75rem;
-    background: var(--color-accent-strong);
-    color: var(--color-bg);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-}
-
-.pricing-card {
-    background: var(--color-bg-light);
-    padding: var(--spacing-5);
-    text-align: center;
-}
-
-.price-display {
-    margin-bottom: var(--spacing-4);
-}
-
-.price-amount {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--color-text);
-}
-
-.price-unit {
-    font-size: 1.5rem;
-    color: var(--color-secondary);
-    margin-left: var(--spacing-1);
-}
-
-.price-period {
-    display: block;
-    font-size: 1rem;
-    color: var(--color-text-mid);
-    margin-top: var(--spacing-1);
-}
-
-.feature-list {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 var(--spacing-4);
-    text-align: left;
-}
-
-.feature-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--spacing-2);
-    padding: var(--spacing-2) 0;
-    color: var(--color-text);
-}
-
-.feature-list li svg {
-    flex-shrink: 0;
-    color: var(--color-accent);
-    margin-top: 2px;
-}
-
-.btn-subscribe {
-    width: 100%;
-    padding: var(--spacing-3);
-    font-size: 1.1rem;
-}
-
-.relay-info {
-    max-width: 480px;
-    margin: var(--spacing-5) auto 0;
-    text-align: center;
-    color: var(--color-text-mid);
-    font-size: 0.875rem;
-}
-
-.relay-info p {
-    margin-bottom: var(--spacing-2);
-}
-
-.relay-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--spacing-2);
-}
-
-.relay-list code {
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    background: var(--color-bg-light);
-    border-radius: 4px;
-}
-
-.more-relays {
-    color: var(--color-text-mid);
-    font-size: 0.75rem;
-}
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtns = document.querySelectorAll('.toggle-btn');
-    const pricingDetails = document.querySelectorAll('.pricing-details');
-
-    toggleBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const period = this.dataset.period;
-
-            // Update active button
-            toggleBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-
-            // Show/hide pricing details
-            pricingDetails.forEach(detail => {
-                if (detail.dataset.period === period) {
-                    detail.style.display = 'block';
-                } else {
-                    detail.style.display = 'none';
-                }
-            });
-        });
-    });
-});
-</script>
 {% endblock %}

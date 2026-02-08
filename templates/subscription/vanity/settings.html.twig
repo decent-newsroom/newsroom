@@ -1,0 +1,115 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Vanity Name Settings{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Vanity Name Settings" tagline="Manage your NIP-05 identity" />
+
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+        <div class="notice success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+
+    <div class="d-flex gap-4 justify-content-center flex-wrap">
+        {# Vanity Name Details #}
+        <div class="card" style="flex: 1; min-width: 300px; max-width: 500px;">
+            <div class="card-header">
+                <h3>Your Vanity Name</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>NIP-05 Identifier</dt>
+                    <dd style="font-size: 1.25rem; font-weight: bold;">
+                        {{ vanityName.vanityName }}@{{ serverDomain }}
+                    </dd>
+
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge {{ vanityName.status.badgeClass }}">
+                            {{ vanityName.status.label }}
+                        </span>
+                    </dd>
+
+                    <dt>Payment Type</dt>
+                    <dd>{{ vanityName.paymentType.label }}</dd>
+
+                    {% if vanityName.expiresAt %}
+                        <dt>Expires</dt>
+                        <dd>
+                            {{ vanityName.expiresAt|date('F j, Y') }}
+                            {% if vanityName.daysRemaining is not null %}
+                                <span class="{% if vanityName.daysRemaining <= 7 %}text-warning{% endif %}">
+                                    ({{ vanityName.daysRemaining }} days remaining)
+                                </span>
+                            {% endif %}
+                        </dd>
+                    {% else %}
+                        <dt>Duration</dt>
+                        <dd><span class="badge bg-success">Lifetime</span></dd>
+                    {% endif %}
+
+                    <dt>Profile URL</dt>
+                    <dd>
+                        <a href="{{ path('vanity-profile-redirect', {vanityName: vanityName.vanityName}) }}">
+                            {{ url('vanity-profile-redirect', {vanityName: vanityName.vanityName}) }}
+                        </a>
+                    </dd>
+
+                    <dt>Created</dt>
+                    <dd>{{ vanityName.createdAt|date('F j, Y') }}</dd>
+                </dl>
+
+                {% if vanityName.paymentType.value == 'subscription' %}
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <form action="{{ path('vanity_renew') }}" method="post">
+                            <button type="submit" class="btn btn-primary">
+                                ⚡ Renew Subscription
+                            </button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Actions #}
+        <div class="card" style="flex: 1; min-width: 300px; max-width: 500px;">
+            <div class="card-header">
+                <h3>Actions</h3>
+            </div>
+            <div class="card-body">
+                <h4>Update Your NIP-05</h4>
+                <p class="text-muted">
+                    To use your vanity name, update your Nostr profile's <code>nip05</code> field to:
+                </p>
+                <div class="input-group mb-4">
+                    <input type="text" class="form-control" value="{{ vanityName.vanityName }}@{{ serverDomain }}" readonly id="nip05-input">
+                    <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('nip05-input').value); this.textContent = 'Copied!';">
+                        Copy
+                    </button>
+                </div>
+
+                <hr>
+
+                <h4 class="text-danger">Danger Zone</h4>
+                <p class="text-muted">
+                    Releasing your vanity name will make it available for others to register.
+                    This action cannot be undone.
+                </p>
+                <form action="{{ path('vanity_release') }}" method="post" onsubmit="return confirm('Are you sure you want to release your vanity name? This cannot be undone.');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('release_vanity') }}">
+                    <button type="submit" class="btn btn-danger">
+                        Release Vanity Name
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

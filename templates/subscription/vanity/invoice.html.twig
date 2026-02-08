@@ -1,0 +1,105 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Payment | {{ vanityName.vanityName }}@{{ serverDomain }}{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ isRenewal|default(false) ? 'Renew' : 'Complete Payment' }}" tagline="{{ vanityName.vanityName }}@{{ serverDomain }}" />
+
+    <p class="mb-4">
+        <a href="{{ path('vanity_index') }}">← Back to Vanity Name</a>
+    </p>
+
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+
+    <div class="d-flex gap-4 justify-content-center">
+        <div class="card" style="max-width: 500px; flex: 1;">
+            <div class="card-header">
+                <h3>{{ isRenewal|default(false) ? 'Renewal' : 'Payment' }} Details</h3>
+            </div>
+            <div class="card-body text-center">
+                <p class="mb-3">
+                    <strong>Vanity Name:</strong> {{ vanityName.vanityName }}@{{ serverDomain }}
+                </p>
+                <p class="mb-3">
+                    <strong>Payment Type:</strong> {{ vanityName.paymentType.label }}
+                </p>
+                <p class="mb-4">
+                    <strong style="font-size: 1.5rem;">Amount: {{ amount|number_format }} sats</strong>
+                </p>
+
+                {% if bolt11 is defined and bolt11 %}
+                    {# QR Code #}
+                    <div class="mb-4">
+                        {{ qrSvg|raw }}
+                    </div>
+
+                    <p class="mb-3">Scan the QR code or copy the invoice to pay with your Lightning wallet.</p>
+
+                    {# Invoice Copy #}
+                    <div class="mb-4">
+                        <label class="form-label">Lightning Invoice:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ bolt11 }}" readonly id="invoice-input" style="font-size: 0.75rem;">
+                            <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('invoice-input').value); this.textContent = 'Copied!';">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    {# Open in Wallet Button #}
+                    <a href="lightning:{{ bolt11 }}" class="btn btn-primary mb-3">
+                        ⚡ Open in Wallet
+                    </a>
+
+                    <hr style="margin: var(--spacing-4) 0;">
+
+                    {# Payment Status Check #}
+                    <div id="payment-status" style="margin-bottom: var(--spacing-3);"
+                         data-controller="utility--payment-status"
+                         data-utility--payment-status-check-url-value="{{ path('vanity_check_payment', {id: vanityName.id}) }}"
+                         data-utility--payment-status-redirect-url-value="{{ path('vanity_settings') }}"
+                         data-utility--payment-status-interval-value="30000">
+                        <button type="button" class="btn btn-secondary" data-action="utility--payment-status#check" style="margin-bottom: var(--spacing-2);">
+                            Check Payment Status
+                        </button>
+                        <div data-utility--payment-status-target="result"></div>
+                    </div>
+
+                    <p class="mb-3 text-muted small">
+                        After payment, your vanity name will be activated automatically, or you can contact an admin.
+                    </p>
+
+                    {# Cancel Pending #}
+                    {% if not isRenewal|default(false) %}
+                    <hr style="margin: var(--spacing-4) 0;">
+                    <form action="{{ path('vanity_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending vanity name? You can register a different name after.');">
+                        <button type="submit" class="btn btn-outline-secondary">Cancel Pending</button>
+                    </form>
+                    {% endif %}
+
+                {% else %}
+                    {# Invoice not yet generated - show placeholder #}
+                    <div class="notice info">
+                        <p><strong>Payment Integration Issue</strong></p>
+                        <p>Could not generate a Lightning invoice. Please contact an administrator.</p>
+                    </div>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <p class="text-muted small">
+                    {% if vanityName.paymentType.durationInDays %}
+                        Your subscription will be valid for {{ vanityName.paymentType.durationInDays }} days.
+                    {% else %}
+                        This is a lifetime purchase.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

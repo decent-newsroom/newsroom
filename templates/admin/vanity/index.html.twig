@@ -1,0 +1,125 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Vanity Names | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Vanity Names</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_vanity_create') }}" class="btn btn-primary">+ Create Vanity Name</a>
+            <form method="post" action="{{ path('admin_vanity_process_expired') }}" style="display: inline;">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_process_expired') }}">
+                <button type="submit" class="btn btn-secondary">Process Expired</button>
+            </form>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Filters #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="d-flex gap-3 align-items-end flex-wrap">
+                <div>
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.value }}" {{ currentStatus == status.value ? 'selected' : '' }}>
+                                {{ status.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label for="q" class="form-label">Search</label>
+                    <input type="text" name="q" id="q" class="form-control" placeholder="Search by name or npub..." value="{{ searchQuery }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{{ path('admin_vanity_index') }}" class="btn btn-secondary">Clear</a>
+            </form>
+        </div>
+    </div>
+
+    {# Vanity Names Table #}
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Vanity Name</th>
+                    <th>NIP-05</th>
+                    <th>User (npub)</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Expires</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vanity in vanityNames %}
+                    <tr>
+                        <td>
+                            <a href="{{ path('admin_vanity_show', {id: vanity.id}) }}">
+                                <strong>{{ vanity.vanityName }}</strong>
+                            </a>
+                        </td>
+                        <td>
+                            <code>{{ vanity.vanityName }}@{{ serverDomain }}</code>
+                        </td>
+                        <td>
+                            <a href="{{ path('author-profile', {npub: vanity.npub}) }}" title="{{ vanity.npub }}">
+                                {{ vanity.npub|slice(0, 12) }}...
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge {{ vanity.status.badgeClass }}">
+                                {{ vanity.status.label }}
+                            </span>
+                        </td>
+                        <td>{{ vanity.paymentType.label }}</td>
+                        <td>
+                            {% if vanity.expiresAt %}
+                                {{ vanity.expiresAt|date('Y-m-d') }}
+                                {% if vanity.isExpired %}
+                                    <span class="text-danger">(expired)</span>
+                                {% elseif vanity.daysRemaining <= 7 %}
+                                    <span class="text-warning">({{ vanity.daysRemaining }}d)</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Lifetime</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ vanity.createdAt|date('Y-m-d') }}</td>
+                        <td>
+                            <a href="{{ path('admin_vanity_show', {id: vanity.id}) }}" class="btn btn-sm btn-secondary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No vanity names found.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# Stats #}
+    <div class="mt-4">
+        <p class="text-muted">
+            Total: {{ vanityNames|length }} vanity name(s)
+        </p>
+    </div>
+</div>
+{% endblock %}
+

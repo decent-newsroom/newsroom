@@ -1,0 +1,223 @@
+/**
+ * Subscription Pages Styles
+ * Used for Active Indexing, Vanity Name, and other subscription pages
+ */
+
+/* ===== Hero Section ===== */
+.active-indexing-hero {
+    text-align: center;
+    padding: var(--spacing-6) 0;
+}
+
+.active-indexing-hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-2);
+}
+
+.hero-tagline {
+    font-size: 1.25rem;
+    color: var(--color-text-mid);
+    margin: 0;
+}
+
+/* ===== Pricing Section ===== */
+.pricing-section {
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* ===== Toggle Buttons ===== */
+.pricing-toggle {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-4);
+    background: var(--color-bg-light);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.toggle-btn {
+    padding: var(--spacing-2) var(--spacing-4);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-mid);
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.toggle-btn.active {
+    background: var(--color-primary);
+    color: var(--color-text-contrast);
+}
+
+.toggle-btn:hover:not(.active) {
+    color: var(--color-text);
+}
+
+.save-badge {
+    font-size: 0.75rem;
+    background: var(--color-accent-strong);
+    color: var(--color-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* ===== Pricing Card ===== */
+.pricing-card {
+    background: var(--color-bg-light);
+    padding: var(--spacing-5);
+    text-align: center;
+}
+
+/* ===== Price Display ===== */
+.price-display {
+    margin-bottom: var(--spacing-4);
+}
+
+.price-amount {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.price-unit {
+    font-size: 1.5rem;
+    color: var(--color-secondary);
+    margin-left: var(--spacing-1);
+}
+
+.price-period {
+    display: block;
+    font-size: 1rem;
+    color: var(--color-text-mid);
+    margin-top: var(--spacing-1);
+}
+
+/* ===== Feature List ===== */
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-4);
+    text-align: left;
+}
+
+.feature-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) 0;
+    color: var(--color-text);
+}
+
+.feature-list li svg {
+    flex-shrink: 0;
+    color: var(--color-accent);
+    margin-top: 2px;
+}
+
+.feature-list li code {
+    font-size: 0.85rem;
+    background: var(--color-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* ===== Subscribe Button ===== */
+.btn-subscribe {
+    width: 100%;
+    padding: var(--spacing-3);
+    font-size: 1.1rem;
+}
+
+/* ===== Relay Info (Active Indexing) ===== */
+.relay-info {
+    max-width: 480px;
+    margin: var(--spacing-5) auto 0;
+    text-align: center;
+    color: var(--color-text-mid);
+    font-size: 0.875rem;
+}
+
+.relay-info p {
+    margin-bottom: var(--spacing-2);
+}
+
+.relay-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-2);
+}
+
+.relay-list code {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    background: var(--color-bg-light);
+    border-radius: 4px;
+}
+
+.more-relays {
+    color: var(--color-text-mid);
+    font-size: 0.75rem;
+}
+
+/* ===== Vanity Name Form ===== */
+.vanity-form {
+    margin-top: var(--spacing-4);
+}
+
+.vanity-input-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-2);
+}
+
+.vanity-input {
+    flex: 1;
+    border: none;
+    padding: var(--spacing-3);
+    font-size: 1rem;
+    background: transparent;
+    outline: none;
+}
+
+.vanity-input:focus {
+    outline: none;
+}
+
+.vanity-domain {
+    padding: var(--spacing-3);
+    background: var(--color-bg-light);
+    color: var(--color-text-mid);
+    font-size: 0.9rem;
+    border-left: 1px solid var(--color-border);
+}
+
+/* ===== Availability Status ===== */
+.availability-status {
+    min-height: 24px;
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-3);
+}
+
+.availability-status .text-success {
+    color: var(--color-accent);
+}
+
+.availability-status .text-danger {
+    color: #dc3545; /* Bootstrap danger red */
+}
+
+
