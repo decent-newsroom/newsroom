@@ -94,23 +94,14 @@ class EditorController extends AbstractController
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Try to get relays synchronously (uses cache, falls back to fallbacks quickly)
-                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, false);
+                // Use non-blocking mode to avoid timeout - returns fallbacks immediately on cache miss
+                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, true);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
-                } else {
-                    // Set fallback relays immediately so user sees something
-                    $fallbackRelays = $authorRelayService->getFallbackRelays();
-                    $user->setRelays([
-                        'read' => $fallbackRelays,
-                        'write' => $fallbackRelays,
-                        'all' => $fallbackRelays,
-                    ]);
-                    $entityManager->flush();
-                    // Also dispatch async message to fetch real relays in the background
-                    $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
                 }
+                // Dispatch async message to fetch real relays in the background
+                $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
             }
 
             $recentArticles = $entityManager->getRepository(Article::class)
@@ -218,21 +209,13 @@ class EditorController extends AbstractController
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, false);
+                // Use non-blocking mode to avoid timeout - returns fallbacks immediately
+                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, true);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
-                } else {
-                    // Set fallback relays immediately
-                    $fallbackRelays = $authorRelayService->getFallbackRelays();
-                    $user->setRelays([
-                        'read' => $fallbackRelays,
-                        'write' => $fallbackRelays,
-                        'all' => $fallbackRelays,
-                    ]);
-                    $entityManager->flush();
-                    $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
                 }
+                $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
             }
 
             $recentArticles = $entityManager->getRepository(Article::class)

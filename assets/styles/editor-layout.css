@@ -40,6 +40,7 @@ main.editor-layout {
     font-size: 1rem;
     font-weight: 500;
     color: var(--text-primary, #111827);
+    line-clamp: 1;
 }
 
 .editor-header-right {

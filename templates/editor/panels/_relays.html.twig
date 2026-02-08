@@ -7,9 +7,9 @@
             {# Handle both flat array and nested {write: [], read: [], all: []} structure #}
             {% set writeRelays = relays.write is defined ? relays.write : (relays.all is defined ? relays.all : relays) %}
             {% if writeRelays and writeRelays|length > 0 %}
-                <ul>
+                <ul class="list-unstyled">
                     {% for relay in writeRelays %}
-                        <li>{{ relay }}</li>
+                        <li><pre>{{ relay }}</pre></li>
                     {% endfor %}
                 </ul>
             {% else %}
