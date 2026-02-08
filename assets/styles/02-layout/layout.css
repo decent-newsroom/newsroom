@@ -145,6 +145,10 @@ aside header {
     aside {
         display: none; /* Hide the sidebars on small screens */
     }
+
+    .w-container {
+        padding: 0 var(--spacing-3);
+    }
 }
 
 /* Responsive adjustments */

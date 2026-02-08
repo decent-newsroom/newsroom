@@ -175,7 +175,7 @@
 
 .vanity-input-group {
     display: flex;
-    flex-direction: row;
+    flex-direction: row !important;
     align-items: center;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
