@@ -20,9 +20,20 @@ export default class extends Controller {
 
             const response = await fetch('/api/broadcast-article', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify(payload)
             });
+
+            // Check if response is JSON before parsing
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Non-JSON response:', text.substring(0, 200));
+                throw new Error(`Server returned non-JSON response (${response.status}). Check server logs.`);
+            }
 
             const data = await response.json();
 

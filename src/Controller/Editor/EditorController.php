@@ -319,7 +319,7 @@ class EditorController extends AbstractController
             $user = $this->getUser();
             $relays = [];
             if ($user) {
-                $relays = $user->getRelays();
+                $relays = $user->getRelays() ?? [];
             }
 
             // Publish to Nostr relays

@@ -27,14 +27,15 @@ class ArticleBroadcastController extends AbstractController
     #[Route('/broadcast-article', name: 'api_broadcast_article', methods: ['POST'])]
     public function broadcastArticle(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        try {
+            $data = json_decode($request->getContent(), true);
 
-        if (!$data) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Invalid request data'
-            ], 400);
-        }
+            if (!$data) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Invalid request data'
+                ], 400);
+            }
 
         // Accept either article ID or coordinate
         $articleId = $data['article_id'] ?? null;
@@ -43,6 +44,12 @@ class ArticleBroadcastController extends AbstractController
         // Default to user's write relays
         if (empty($relays)) {
             $user = $this->getUser();
+            if (!$user) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Authentication required to broadcast articles'
+                ], 401);
+            }
             // Get user's relays
             $relays = $this->nostrClient->getNpubRelays($user->getUserIdentifier());
         }
@@ -91,8 +98,7 @@ class ArticleBroadcastController extends AbstractController
             ], 400);
         }
 
-        try {
-            // Reconstruct the Event object from raw data
+        // Reconstruct the Event object from raw data
             $event = new Event();
             $event->setId($rawEvent['id'] ?? $article->getEventId());
             $event->setKind($rawEvent['kind'] ?? $article->getKind()?->value);
@@ -157,7 +163,7 @@ class ArticleBroadcastController extends AbstractController
 
         } catch (\Exception $e) {
             $this->logger->error('Failed to broadcast article', [
-                'article_id' => $article->getId(),
+                'article_id' => isset($article) ? $article->getId() : null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -165,7 +171,7 @@ class ArticleBroadcastController extends AbstractController
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Failed to broadcast article: ' . $e->getMessage(),
-                'article_id' => $article->getId()
+                'article_id' => isset($article) ? $article->getId() : null
             ], 500);
         }
     }
