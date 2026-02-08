@@ -10,9 +10,12 @@ use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
+use App\Service\AuthorRelayService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Util\NostrKeyUtil;
+use App\Message\UpdateProfileProjectionMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -22,6 +25,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class EditorController extends AbstractController
@@ -39,6 +43,8 @@ class EditorController extends AbstractController
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
         RedisViewStore $redisViewStore,
+        AuthorRelayService $authorRelayService,
+        MessageBusInterface $messageBus,
         $slug = null
     ): Response
     {
@@ -82,6 +88,31 @@ class EditorController extends AbstractController
         if (!!$user) {
             $key = new Key();
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+
+            // Ensure user has relays - fetch if missing or empty
+            $storedRelays = $user->getRelays();
+            $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
+
+            if (!$hasValidRelays) {
+                // Try to get relays synchronously (uses cache, falls back to fallbacks quickly)
+                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, false);
+                if (!empty($relays['all'])) {
+                    $user->setRelays($relays);
+                    $entityManager->flush();
+                } else {
+                    // Set fallback relays immediately so user sees something
+                    $fallbackRelays = $authorRelayService->getFallbackRelays();
+                    $user->setRelays([
+                        'read' => $fallbackRelays,
+                        'write' => $fallbackRelays,
+                        'all' => $fallbackRelays,
+                    ]);
+                    $entityManager->flush();
+                    // Also dispatch async message to fetch real relays in the background
+                    $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
+                }
+            }
+
             $recentArticles = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC']);
             // Collapse by slug, keep only latest revision
@@ -146,7 +177,9 @@ class EditorController extends AbstractController
         NostrEventParser $eventParser,
         RedisViewStore $redisViewStore,
         Request $request,
-        NostrClient $nostrClient
+        NostrClient $nostrClient,
+        AuthorRelayService $authorRelayService,
+        MessageBusInterface $messageBus
     ): Response {
         // This route previews another user's article, but sidebar shows current user's lists for navigation.
         $advancedMetadata = null;
@@ -179,6 +212,29 @@ class EditorController extends AbstractController
         $user = $this->getUser();
         if ($user) {
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+
+            // Ensure user has relays - fetch if missing or empty
+            $storedRelays = $user->getRelays();
+            $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
+
+            if (!$hasValidRelays) {
+                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, false);
+                if (!empty($relays['all'])) {
+                    $user->setRelays($relays);
+                    $entityManager->flush();
+                } else {
+                    // Set fallback relays immediately
+                    $fallbackRelays = $authorRelayService->getFallbackRelays();
+                    $user->setRelays([
+                        'read' => $fallbackRelays,
+                        'write' => $fallbackRelays,
+                        'all' => $fallbackRelays,
+                    ]);
+                    $entityManager->flush();
+                    $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
+                }
+            }
+
             $recentArticles = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC'], 5);
             // Collapse by slug, keep only latest revision
@@ -227,7 +283,8 @@ class EditorController extends AbstractController
         CacheItemPoolInterface $articlesCache,
         LoggerInterface $logger,
         NostrEventParser $eventParser,
-        UserEntityRepository $userRepository
+        UserEntityRepository $userRepository,
+        AuthorRelayService $authorRelayService
     ): JsonResponse {
         try {
             // Get JSON data
@@ -319,7 +376,22 @@ class EditorController extends AbstractController
             $user = $this->getUser();
             $relays = [];
             if ($user) {
-                $relays = $user->getRelays() ?? [];
+                // First try to get relays from User entity (persisted in DB)
+                $storedRelays = $user->getRelays();
+                if (!empty($storedRelays['write'] ?? $storedRelays['all'] ?? null)) {
+                    // Prefer write relays for publishing, fallback to all
+                    $relays = $storedRelays['write'] ?? $storedRelays['all'] ?? [];
+                    $logger->debug('Using stored relays from User entity', ['relay_count' => count($relays)]);
+                } else {
+                    // Fallback to AuthorRelayService (cached with fallbacks, non-blocking)
+                    try {
+                        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                        $relays = $authorRelayService->getRelaysForPublishing($pubkeyHex);
+                    } catch (\Exception $e) {
+                        $logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
+                        $relays = $authorRelayService->getFallbackRelays();
+                    }
+                }
             }
 
             // Publish to Nostr relays

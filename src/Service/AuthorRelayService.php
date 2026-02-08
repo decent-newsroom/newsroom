@@ -18,15 +18,13 @@ use swentel\nostr\Subscription\Subscription;
 class AuthorRelayService
 {
     private const FALLBACK_RELAYS = [
-        'wss://theforest.nostr1.com',
-        'wss://nostr.land',
-        'wss://relay.primal.net',
-        'wss://purplepag.es',
+        'wss://relay.decentnewsroom.com'
     ];
 
     private const PROFILE_RELAYS = [
         'wss://purplepag.es',
-        'wss://theforest.nostr1.com',
+        'wss://relay.primal.net',
+        'wss://relay.damus.io',
     ];
 
     private const CACHE_TTL = 3600;
@@ -40,9 +38,11 @@ class AuthorRelayService
 
     /**
      * Get relay list for an author (NIP-65 kind 10002)
+     * @param bool $forceRefresh Force a network fetch even if cached
+     * @param bool $nonBlocking If true, return fallbacks immediately on cache miss (no network call)
      * @return array{read: string[], write: string[], all: string[]}
      */
-    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false): array
+    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false, bool $nonBlocking = false): array
     {
         $cacheKey = 'author_relays_' . $pubkey;
 
@@ -55,6 +55,12 @@ class AuthorRelayService
             } catch (\Exception $e) {
                 $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
             }
+        }
+
+        // In non-blocking mode, return fallbacks immediately on cache miss
+        if ($nonBlocking) {
+            $this->logger->debug('Non-blocking mode: returning fallback relays', ['pubkey' => substr($pubkey, 0, 8)]);
+            return ['read' => self::FALLBACK_RELAYS, 'write' => self::FALLBACK_RELAYS, 'all' => self::FALLBACK_RELAYS];
         }
 
         $relayList = $this->fetchRelayList($pubkey);
@@ -106,10 +112,12 @@ class AuthorRelayService
 
     /**
      * Get prioritized relay URLs for publishing content
+     * Uses non-blocking mode to avoid timeout issues during publishing
      */
     public function getRelaysForPublishing(string $pubkey, int $limit = 5): array
     {
-        $authorRelays = $this->getAuthorRelays($pubkey);
+        // Use non-blocking mode to avoid timeout - returns fallbacks on cache miss
+        $authorRelays = $this->getAuthorRelays($pubkey, false, true);
         $relays = [];
 
         if ($this->nostrDefaultRelay) {
@@ -145,7 +153,7 @@ class AuthorRelayService
                     $filter = new Filter();
                     $filter->setKinds([KindsEnum::RELAY_LIST->value]);
                     $filter->setAuthors([$pubkey]);
-                    $filter->setLimit(5);
+                    $filter->setLimit(1);
                     return new RequestMessage($subscriptionId, [$filter]);
                 }
             );

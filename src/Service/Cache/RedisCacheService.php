@@ -204,22 +204,28 @@ class RedisCacheService
         return $result;
     }
 
-    public function getRelays($npub)
+    /**
+     * Get relays for a user from cache only (non-blocking).
+     * Returns empty array on cache miss - relay data should be populated asynchronously.
+     *
+     * @param string $npub The user's npub
+     * @return array The cached relay list or empty array
+     */
+    public function getRelays($npub): array
     {
         $cacheKey = '10002_' . $npub;
 
         try {
-            return $this->npubCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
-                $item->expiresAfter(3600); // 1 hour, adjust as needed
-                try {
-                    $relays = $this->nostrClient->getNpubRelays($npub);
-                } catch (\Exception $e) {
-                    $this->logger->error('Error getting user relays.', ['exception' => $e]);
-                }
-                return $relays ?? [];
-            });
+            $item = $this->npubCache->getItem($cacheKey);
+            if ($item->isHit()) {
+                return $item->get() ?? [];
+            }
+            // Cache miss: return empty array immediately (non-blocking)
+            // Relay data should be populated asynchronously via UpdateProfileProjectionHandler
+            $this->logger->debug('Relay cache miss, returning empty array', ['npub' => substr($npub, 0, 12)]);
+            return [];
         } catch (InvalidArgumentException $e) {
-            $this->logger->error('Error getting user relays.', ['exception' => $e]);
+            $this->logger->error('Error getting user relays from cache.', ['exception' => $e]);
             return [];
         }
     }

@@ -17,8 +17,13 @@ class RedisViewStore
     private const KEY_LATEST_ARTICLES = 'view:articles:latest';
     private const KEY_LATEST_HIGHLIGHTS = 'view:highlights:latest';
     private const KEY_USER_ARTICLES = 'view:user:articles:%s'; // sprintf with pubkey
+    private const KEY_PROFILE_TAB = 'view:profile:tab:%s:%s'; // sprintf with pubkey and tab
 
     private const DEFAULT_TTL = 3600; // 1 hour
+
+    // Stale-while-revalidate TTLs
+    private const PROFILE_STALE_TTL = 60; // Consider stale after 1 minute
+    private const PROFILE_MAX_TTL = 86400; // Hard expiry after 1 day
 
     public function __construct(
         private readonly \Redis $redis,
@@ -95,6 +100,127 @@ class RedisViewStore
             $this->logger->debug('Invalidated user articles cache', ['pubkey' => $pubkey, 'key' => $key]);
         } catch (\Exception $e) {
             $this->logger->error('Failed to invalidate user articles cache', [
+                'pubkey' => $pubkey,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Store profile tab data with stale-while-revalidate pattern.
+     * Data includes a timestamp to determine staleness.
+     *
+     * @param string $pubkey User's pubkey
+     * @param string $tab Tab name (overview, articles, media, highlights, etc.)
+     * @param array $data Tab-specific data to cache
+     */
+    public function storeProfileTabData(string $pubkey, string $tab, array $data): void
+    {
+        $key = sprintf(self::KEY_PROFILE_TAB, $pubkey, $tab);
+
+        try {
+            $cacheData = [
+                'data' => $data,
+                'cached_at' => time(),
+            ];
+
+            $json = json_encode($cacheData, JSON_THROW_ON_ERROR);
+            $compressed = $this->shouldCompress($json) ? gzcompress($json, 6) : $json;
+            $isCompressed = $compressed !== $json;
+
+            $this->redis->setex($key, self::PROFILE_MAX_TTL, $compressed);
+
+            if ($isCompressed) {
+                $this->redis->setex($key . ':compressed', self::PROFILE_MAX_TTL, '1');
+            } else {
+                $this->redis->del($key . ':compressed');
+            }
+
+            $this->logger->debug('Stored profile tab data', [
+                'key' => $key,
+                'tab' => $tab,
+                'size_bytes' => strlen($compressed),
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to store profile tab data', [
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Fetch profile tab data with stale-while-revalidate info.
+     * Returns cached data immediately, with a flag indicating if it's stale.
+     *
+     * @param string $pubkey User's pubkey
+     * @param string $tab Tab name
+     * @return array{data: array|null, isStale: bool, isCached: bool}
+     */
+    public function fetchProfileTabData(string $pubkey, string $tab): array
+    {
+        $key = sprintf(self::KEY_PROFILE_TAB, $pubkey, $tab);
+
+        try {
+            $compressed = $this->redis->get($key);
+
+            if ($compressed === false || $compressed === null) {
+                return ['data' => null, 'isStale' => true, 'isCached' => false];
+            }
+
+            // Check if compressed
+            $isCompressed = $this->redis->get($key . ':compressed') !== false;
+
+            if ($isCompressed) {
+                $json = gzuncompress($compressed);
+                if ($json === false) {
+                    return ['data' => null, 'isStale' => true, 'isCached' => false];
+                }
+            } else {
+                $json = $compressed;
+            }
+
+            $cacheData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            $cachedAt = $cacheData['cached_at'] ?? 0;
+            $age = time() - $cachedAt;
+            $isStale = $age > self::PROFILE_STALE_TTL;
+
+            $this->logger->debug('Fetched profile tab data', [
+                'key' => $key,
+                'age_seconds' => $age,
+                'isStale' => $isStale,
+            ]);
+
+            return [
+                'data' => $cacheData['data'] ?? null,
+                'isStale' => $isStale,
+                'isCached' => true,
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to fetch profile tab data', [
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
+            return ['data' => null, 'isStale' => true, 'isCached' => false];
+        }
+    }
+
+    /**
+     * Invalidate all profile tab caches for a user
+     */
+    public function invalidateProfileTabs(string $pubkey): void
+    {
+        $tabs = ['overview', 'articles', 'media', 'highlights', 'drafts', 'bookmarks', 'stats'];
+
+        try {
+            foreach ($tabs as $tab) {
+                $key = sprintf(self::KEY_PROFILE_TAB, $pubkey, $tab);
+                $this->redis->del($key);
+                $this->redis->del($key . ':compressed');
+            }
+            $this->logger->debug('Invalidated all profile tabs', ['pubkey' => $pubkey]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to invalidate profile tabs', [
                 'pubkey' => $pubkey,
                 'error' => $e->getMessage(),
             ]);

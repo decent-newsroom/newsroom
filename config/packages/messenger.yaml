@@ -51,6 +51,8 @@ framework:
             # Profile updates go to low priority queue - less urgent
             'App\Message\UpdateProfileProjectionMessage': async_low_priority
             'App\Message\BatchUpdateProfileProjectionMessage': async_low_priority
+            # Profile cache revalidation - background refresh for stale-while-revalidate
+            'App\Message\RevalidateProfileCacheMessage': async_low_priority
 
 # when@test:
 #    framework:

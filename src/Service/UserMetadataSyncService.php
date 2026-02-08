@@ -15,6 +15,7 @@ class UserMetadataSyncService
         private readonly RedisCacheService $redisCacheService,
         private readonly EntityManagerInterface $entityManager,
         private readonly UserEntityRepository $userRepository,
+        private readonly AuthorRelayService $authorRelayService,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -41,6 +42,22 @@ class UserMetadataSyncService
             }
 
             $this->updateUserFromMetadata($user, $metadata);
+
+            // Also sync relays if missing or empty
+            $storedRelays = $user->getRelays();
+            $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
+
+            if (!$hasValidRelays) {
+                // Use non-blocking mode to avoid slowing down login
+                $relays = $this->authorRelayService->getAuthorRelays($hexPubkey, false, true);
+                if (!empty($relays['all'])) {
+                    $user->setRelays($relays);
+                    $this->logger->debug("Synced relays for user: {$npub}", [
+                        'relay_count' => count($relays['all'])
+                    ]);
+                }
+            }
+
             $this->entityManager->flush();
 
             $this->logger->info("Synced metadata for user: {$npub}");

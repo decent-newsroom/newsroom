@@ -3,7 +3,9 @@
 namespace App\Controller\Api;
 
 use App\Repository\ArticleRepository;
+use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
+use App\Util\NostrKeyUtil;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,7 +19,8 @@ class ArticleBroadcastController extends AbstractController
     public function __construct(
         private readonly ArticleRepository $articleRepository,
         private readonly NostrClient $nostrClient,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AuthorRelayService $authorRelayService
     ) {}
 
     /**
@@ -50,8 +53,22 @@ class ArticleBroadcastController extends AbstractController
                     'error' => 'Authentication required to broadcast articles'
                 ], 401);
             }
-            // Get user's relays
-            $relays = $this->nostrClient->getNpubRelays($user->getUserIdentifier());
+            // First try to get relays from User entity (persisted in DB)
+            $storedRelays = $user->getRelays();
+            if (!empty($storedRelays['write'] ?? $storedRelays['all'] ?? null)) {
+                // Prefer write relays for publishing, fallback to all
+                $relays = $storedRelays['write'] ?? $storedRelays['all'] ?? [];
+                $this->logger->debug('Using stored relays from User entity', ['relay_count' => count($relays)]);
+            } else {
+                // Fallback to AuthorRelayService (cached with fallbacks, non-blocking)
+                try {
+                    $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $relays = $this->authorRelayService->getRelaysForPublishing($pubkeyHex);
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
+                    $relays = $this->authorRelayService->getFallbackRelays();
+                }
+            }
         }
 
         // Find the article
@@ -99,14 +116,7 @@ class ArticleBroadcastController extends AbstractController
         }
 
         // Reconstruct the Event object from raw data
-            $event = new Event();
-            $event->setId($rawEvent['id'] ?? $article->getEventId());
-            $event->setKind($rawEvent['kind'] ?? $article->getKind()?->value);
-            $event->setContent($rawEvent['content'] ?? $article->getContent());
-            $event->setCreatedAt($rawEvent['created_at'] ?? $article->getCreatedAt()?->getTimestamp());
-            $event->setPublicKey($rawEvent['pubkey'] ?? $article->getPubkey());
-            $event->setSignature($rawEvent['sig'] ?? $article->getSig());
-            $event->setTags($rawEvent['tags'] ?? []);
+            $event = Event::fromVerified((object)$rawEvent);
 
             $this->logger->info('Broadcasting article to relays', [
                 'article_id' => $article->getId(),

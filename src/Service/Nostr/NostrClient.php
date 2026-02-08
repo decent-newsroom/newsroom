@@ -165,8 +165,7 @@ class NostrClient
         $eventMessage = new EventMessage($event);
         // If no relays, fetch relays for user then post to those
         if (empty($relays)) {
-            $key = new Key();
-            $relays = $this->getTopReputableRelaysForAuthor($key->convertPublicKeyToBech32($event->getPublicKey()), 0);
+            $relays = $this->getTopReputableRelaysForAuthor($event->getPublicKey());
         } else {
             // Ensure local relay is included when publishing
             $relays = $this->relayPool->ensureLocalRelayInList($relays);

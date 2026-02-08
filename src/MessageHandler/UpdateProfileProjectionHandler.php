@@ -5,7 +5,7 @@ namespace App\MessageHandler;
 use App\Entity\User;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
-use App\Service\Cache\RedisCacheService;
+use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -30,10 +30,10 @@ class UpdateProfileProjectionHandler
     public function __construct(
         private readonly NostrClient $nostrClient,
         private readonly CacheItemPoolInterface $npubCache,
-        private readonly RedisCacheService $redisCacheService,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AuthorRelayService $authorRelayService
     ) {
     }
 
@@ -299,29 +299,35 @@ class UpdateProfileProjectionHandler
     }
 
     /**
-     * Update relay list facet (kind:10002) from Redis cache
+     * Update relay list facet (kind:10002) using AuthorRelayService
      *
-     * Note: Currently just fetches from Redis. In the future, this will also
-     * read from persisted kind:10002 events in the Event table.
+     * This runs asynchronously so it can make network calls safely.
+     * The relays are cached by AuthorRelayService and persisted to User entity.
      */
     private function updateRelayListFacet(User $user, string $pubkeyHex): bool
     {
         try {
-            $relays = $this->redisCacheService->getRelays($pubkeyHex);
+            // Use AuthorRelayService with forceRefresh=true to fetch and cache relays
+            // This is async so network calls are safe here
+            $relays = $this->authorRelayService->getAuthorRelays($pubkeyHex, true);
 
-            if (empty($relays)) {
+            if (empty($relays['all'])) {
+                $this->logger->debug('No relay list found for user', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...'
+                ]);
                 return false;
             }
 
-            // Note: Relay data is typically not persisted to User entity columns
-            // but could be stored in a separate relation if needed
-            // For now, we just log that we have relay data
-            $this->logger->debug('Retrieved relay list', [
+            // Persist relays to User entity for fast access during publishing
+            $user->setRelays($relays);
+
+            $this->logger->debug('Fetched and persisted relay list', [
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                'relay_count' => is_array($relays) ? count($relays) : 0
+                'read_count' => count($relays['read'] ?? []),
+                'write_count' => count($relays['write'] ?? []),
             ]);
 
-            return false; // Not persisting relays to DB yet
+            return true;
         } catch (\Exception $e) {
             $this->logger->warning('Failed to update relay list facet', [
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...',

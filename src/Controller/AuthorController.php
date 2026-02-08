@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
+use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\VisitRepository;
 use App\Service\AuthorRelayService;
@@ -575,17 +576,50 @@ class AuthorController extends AbstractController
             ]);
         }
 
-        // Load tab-specific data
-        $templateData = match($tab) {
-            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
-            'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
-            'media' => $this->getMediaTabData($pubkey, $redisCacheService),
-            'highlights' => $this->getHighlightsTabData($pubkey, $em),
-            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
-            'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
-            'stats' => $this->getStatsTabData($npub, $visitRepository),
-            default => [],
-        };
+        // STALE-WHILE-REVALIDATE: Try to get cached data first for instant loads
+        $cacheableTabs = ['overview', 'articles', 'media', 'highlights', 'drafts'];
+        $templateData = [];
+
+        if (in_array($tab, $cacheableTabs)) {
+            $cacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
+
+            if ($cacheResult['isCached'] && $cacheResult['data'] !== null) {
+                // Use cached data for instant response - convert arrays to objects for Twig
+                $templateData = $this->hydrateTemplateData($cacheResult['data']);
+
+                // If stale, trigger background revalidation
+                if ($cacheResult['isStale']) {
+                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                    $this->logger->debug('Profile cache stale, dispatched revalidation', [
+                        'pubkey' => substr($pubkey, 0, 8),
+                        'tab' => $tab,
+                    ]);
+                }
+            } else {
+                // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
+                $templateData = match($tab) {
+                    'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+                    'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
+                    'media' => $this->getMediaTabData($pubkey, $redisCacheService),
+                    'highlights' => $this->getHighlightsTabData($pubkey, $em),
+                    'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
+                    default => [],
+                };
+
+                // Cache the data for next request
+                $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
+
+                // Dispatch background revalidation to get fresh data from relays
+                $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+            }
+        } else {
+            // Non-cacheable tabs (bookmarks, stats) - load synchronously
+            $templateData = match($tab) {
+                'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
+                'stats' => $this->getStatsTabData($npub, $visitRepository),
+                default => [],
+            };
+        }
 
         // Check if this is a Turbo Frame request (AJAX partial load)
         $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
@@ -639,23 +673,10 @@ class AuthorController extends AbstractController
         MessageBusInterface $messageBus,
         EntityManagerInterface $em
     ): array {
-        // Determine which content types to fetch
-        $contentTypes = AuthorContentType::publicTypes();
-        if ($isOwner) {
-            $contentTypes = AuthorContentType::cases();
-        }
+        // Note: Background revalidation via RevalidateProfileCacheMessage
+        // will dispatch FetchAuthorContentMessage asynchronously
 
-        // Dispatch async message to fetch content from author's home relays
-        $relays = $this->authorRelayService->getRelaysForFetching($pubkey);
-        $messageBus->dispatch(new FetchAuthorContentMessage(
-            $pubkey,
-            $contentTypes,
-            0,
-            $isOwner,
-            $relays
-        ));
-
-        // Get recent articles (limit to 6 for overview)
+        // Get recent articles (limit to 3 for overview)
         $allArticles = $this->getAuthorArticles($pubkey, false, $viewStore, $viewFactory, $articleSearch);
         $recentArticles = array_slice($allArticles, 0, 3);
 
@@ -1233,6 +1254,42 @@ class AuthorController extends AbstractController
         });
 
         return $deduplicated;
+    }
+
+    /**
+     * Convert cached array data back to objects for Twig template compatibility.
+     * Twig can access both array keys and object properties, but some components expect objects.
+     */
+    private function hydrateTemplateData(array $data): array
+    {
+        $result = [];
+
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                // Check if this is a list of items that should be objects
+                if ($this->isIndexedArray($value)) {
+                    $result[$key] = array_map(fn($item) => is_array($item) ? (object) $item : $item, $value);
+                } else {
+                    // Keep associative arrays as-is (Twig handles these fine)
+                    $result[$key] = $value;
+                }
+            } else {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Check if an array is indexed (list) vs associative
+     */
+    private function isIndexedArray(array $arr): bool
+    {
+        if (empty($arr)) {
+            return true;
+        }
+        return array_keys($arr) === range(0, count($arr) - 1);
     }
 
 
