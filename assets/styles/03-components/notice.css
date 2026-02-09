@@ -15,5 +15,5 @@
 
 .notice.success {
     background-color: var(--color-primary); /* Use theme success color */
-    color: var(--color-text); /* Use theme text color for better contrast */
+    color: var(--color-text-contrast); /* Use theme text color for better contrast */
 }

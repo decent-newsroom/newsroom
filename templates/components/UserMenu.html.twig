@@ -13,14 +13,14 @@
         </ul>
         {% endif %}
         <ul class="user-nav">
-            <li>
-                <a href="{{ path('active_indexing_index') }}">
-                    Active Indexing
-                    {% if is_granted('ROLE_ACTIVE_INDEXING') %}
-                        <span class="badge bg-success">✓</span>
-                    {% endif %}
-                </a>
-            </li>
+{#            <li>#}
+{#                <a href="{{ path('active_indexing_index') }}">#}
+{#                    Active Indexing#}
+{#                    {% if is_granted('ROLE_ACTIVE_INDEXING') %}#}
+{#                        <span class="badge bg-success">✓</span>#}
+{#                    {% endif %}#}
+{#                </a>#}
+{#            </li>#}
             <li>
                 <a href="/logout"
                    data-controller="nostr--logout"

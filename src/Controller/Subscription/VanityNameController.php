@@ -34,14 +34,15 @@ class VanityNameController extends AbstractController
      * Vanity name registration page
      */
     #[Route('', name: 'index')]
-    #[IsGranted('ROLE_USER')]
     public function index(): Response
     {
         $npub = $this->getUser()?->getUserIdentifier();
-        $existingVanity = $this->vanityNameService->getByNpub($npub);
+        if ($npub !== null) {
+            $existingVanity = $this->vanityNameService->getByNpub($npub);
+        }
 
         return $this->render('subscription/vanity/index.html.twig', [
-            'existingVanity' => $existingVanity,
+            'existingVanity' => $existingVanity ?? null,
             'paymentTypes' => [
                 VanityNamePaymentType::SUBSCRIPTION,
                 VanityNamePaymentType::ONE_TIME,

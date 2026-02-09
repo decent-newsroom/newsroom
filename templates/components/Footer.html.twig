@@ -1,9 +1,11 @@
-<div class="footer-links">
+<div class="footer-links mb-3">
+    <span>Subscriptions:</span>
+    <a href="{{ path('vanity_index') }}">Vanity Name</a> |
+    <a href="{{ path('active_indexing_index') }}">Active Indexing</a>
+</div>
+<div class="footer-links mb-3">
     <a href="{{ path('app_static_about') }}">About</a> -
-{#    <a href="{{ path('app_static_roadmap') }}">Roadmap</a> -#}
-{#    <a href="{{ path('app_static_pricing') }}">Pricing</a> -#}
-    <a href="{{ path('app_static_tos') }}">Terms of service</a>
-    <br>
-{#    <a href="https://geyser.fund/project/newsroom" target="_blank">Decent Newsroom @ Geyser fund</a>#}
+    <a href="{{ path('app_static_tos') }}">Terms of service</a> -
+    <a href="/feedback">Contact</a>
 </div>
 <p>{{ "now"|date("Y") }} Decent Newsroom - v0.0.8 Preprint</p>
