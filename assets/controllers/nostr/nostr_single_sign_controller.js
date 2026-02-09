@@ -46,21 +46,11 @@ export default class extends Controller {
     });
   }
 
-  async preparePreview() {
+  preparePreview() {
     try {
       const skeleton = JSON.parse(this.eventValue || '{}');
-      let pubkey = '<pubkey>';
-
-      // Check for remote signer session first - don't use extension if remote signer is active
-      const session = getRemoteSignerSession();
-      if (session) {
-        pubkey = '<will be obtained from remote signer>';
-      } else if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-        // Only try to get pubkey from extension if no remote signer session exists
-        try {
-          pubkey = await window.nostr.getPublicKey();
-        } catch (_) {}
-      }
+      // Use placeholder for preview - actual pubkey obtained during signing
+      const pubkey = '<pubkey>';
 
       const preview = JSON.parse(JSON.stringify(skeleton));
       preview.pubkey = pubkey;
