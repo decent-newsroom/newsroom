@@ -63,7 +63,7 @@
         {# Pricing Section with Toggle #}
         <div class="pricing-section" data-controller="ui--pricing-toggle">
             <div class="pricing-toggle" role="group" aria-label="Payment type">
-                <button type="button" class="toggle-btn active" data-period="subscription" data-action="click->ui--pricing-toggle#toggle">Monthly</button>
+                <button type="button" class="toggle-btn active" data-period="subscription" data-action="click->ui--pricing-toggle#toggle">Quarterly</button>
                 <button type="button" class="toggle-btn" data-period="one_time" data-action="click->ui--pricing-toggle#toggle">
                     Lifetime
                 </button>
@@ -75,7 +75,7 @@
                         <div class="price-display">
                             <span class="price-amount">{{ paymentType.priceInSats|number_format }}</span>
                             <span class="price-unit">sats</span>
-                            <span class="price-period">/ {{ paymentType.value == 'subscription' ? 'month' : 'lifetime' }}</span>
+                            <span class="price-period">/ {{ paymentType.value == 'subscription' ? 'quarter' : 'lifetime' }}</span>
                         </div>
 
                         <ul class="feature-list">

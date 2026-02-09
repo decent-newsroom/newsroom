@@ -41,8 +41,10 @@
                     <label for="q" class="form-label">Search</label>
                     <input type="text" name="q" id="q" class="form-control" placeholder="Search by name or npub..." value="{{ searchQuery }}">
                 </div>
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="{{ path('admin_vanity_index') }}" class="btn btn-secondary">Clear</a>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{{ path('admin_vanity_index') }}" class="btn btn-secondary">Clear</a>
+                </div>
             </form>
         </div>
     </div>

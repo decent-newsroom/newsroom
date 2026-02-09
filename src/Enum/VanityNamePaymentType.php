@@ -4,7 +4,7 @@ namespace App\Enum;
 
 enum VanityNamePaymentType: string
 {
-    case SUBSCRIPTION = 'subscription';   // Monthly recurring payment
+    case SUBSCRIPTION = 'subscription';   // Recurring payment
     case ONE_TIME = 'one_time';           // Lifetime payment
     case ADMIN_GRANTED = 'admin_granted'; // Free grant by admin
 
@@ -16,7 +16,7 @@ enum VanityNamePaymentType: string
     public function getLabel(): string
     {
         return match ($this) {
-            self::SUBSCRIPTION => 'Monthly Subscription',
+            self::SUBSCRIPTION => '3-Month Subscription',
             self::ONE_TIME => 'Lifetime (One-time)',
             self::ADMIN_GRANTED => 'Admin Granted',
         };
@@ -34,7 +34,7 @@ enum VanityNamePaymentType: string
     public function getDurationInDays(): ?int
     {
         return match ($this) {
-            self::SUBSCRIPTION => 30,      // 30 days
+            self::SUBSCRIPTION => 90,      // 90 days
             self::ONE_TIME => null,        // Lifetime
             self::ADMIN_GRANTED => null,   // Lifetime
         };

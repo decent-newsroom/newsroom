@@ -32,7 +32,7 @@ class VanityName
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(name: 'vanity_name', length: 255, unique: true)]
+    #[ORM\Column(name: 'vanity_name', length: 255)] // removed unique: true
     private string $vanityName;
 
     #[ORM\Column(length: 255)]

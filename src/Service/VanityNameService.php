@@ -51,7 +51,7 @@ class VanityNameService
     /**
      * Get validation error for a vanity name, or null if valid
      */
-    public function getValidationError(string $name): ?string
+    public function getValidationError(string $name, ?string $npub = null): ?string
     {
         if (!VanityName::isValidFormat($name)) {
             return 'Invalid format. Only letters (a-z), numbers (0-9), dash (-), underscore (_), and period (.) are allowed. Length must be 2-50 characters.';
@@ -61,10 +61,20 @@ class VanityNameService
             return 'This name is reserved and cannot be registered.';
         }
 
-        if (!$this->repository->isAvailable($name)) {
-            return 'This name is already taken.';
+        $existing = $this->repository->findByVanityName($name);
+        if ($existing !== null) {
+            $status = $existing->getStatus()->value;
+            if (in_array($status, ['released', 'expired'], true)) {
+                // Allow re-claim only if npub matches
+                if ($npub !== null && $existing->getNpub() === $npub) {
+                    return null; // allow
+                } else {
+                    return 'This name is already taken (previously released/expired, but only the original owner can reclaim).';
+                }
+            } else {
+                return 'This name is already taken.';
+            }
         }
-
         return null;
     }
 
@@ -73,7 +83,7 @@ class VanityNameService
      */
     public function reserve(string $npub, string $name, VanityNamePaymentType $paymentType): VanityName
     {
-        $validationError = $this->getValidationError($name);
+        $validationError = $this->getValidationError($name, $npub);
         if ($validationError !== null) {
             throw new \InvalidArgumentException($validationError);
         }
@@ -84,10 +94,27 @@ class VanityNameService
             throw new \RuntimeException('User already has an active or pending vanity name.');
         }
 
+        // If the name exists and is released/expired and npub matches, reuse the record
+        $existingName = $this->repository->findByVanityName($name);
+        if ($existingName !== null && in_array($existingName->getStatus()->value, ['released', 'expired'], true) && $existingName->getNpub() === $npub) {
+            // Reset status and update payment type
+            $existingName->setStatus(VanityNameStatus::PENDING);
+            $existingName->setPaymentType($paymentType);
+            $existingName->setExpiresAt(null);
+            $existingName->setPendingInvoiceBolt11(null);
+            $this->repository->save($existingName);
+            $this->clearNip05Cache();
+            $this->logger->info('Vanity name re-claimed by original owner', [
+                'vanityName' => $name,
+                'npub' => $npub,
+                'paymentType' => $paymentType->value,
+            ]);
+            return $existingName;
+        }
+
         // Convert npub to hex
         $key = new Key();
         $pubkeyHex = $key->convertToHex($npub);
-
         $vanityName = new VanityName($name, $npub, $pubkeyHex, $paymentType);
 
         // Admin grants are activated immediately

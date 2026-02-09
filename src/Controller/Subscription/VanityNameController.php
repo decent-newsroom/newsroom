@@ -62,7 +62,9 @@ class VanityNameController extends AbstractController
             return $this->json(['available' => false, 'error' => 'Name is required']);
         }
 
-        $error = $this->vanityNameService->getValidationError($name);
+        $npub = $this->getUser()?->getUserIdentifier();
+
+        $error = $this->vanityNameService->getValidationError($name, $npub);
 
         return $this->json([
             'available' => $error === null,
@@ -97,16 +99,13 @@ class VanityNameController extends AbstractController
 
         try {
             $invoiceData = $this->vanityNameService->reserveWithInvoice($npub, $name, $paymentType);
-            $qrSvg = $this->qrGenerator->svg('lightning:' . strtoupper($invoiceData['bolt11']), 280);
-
-            return $this->render('subscription/vanity/invoice.html.twig', [
-                'vanityName' => $invoiceData['vanityName'],
-                'bolt11' => $invoiceData['bolt11'],
-                'amount' => $invoiceData['amount'],
-                'qrSvg' => $qrSvg,
-                'serverDomain' => $this->vanityNameService->getServerDomain(),
-                'isRenewal' => false,
-            ]);
+            $vanityName = $invoiceData['vanityName'] ?? null;
+            if ($vanityName && $vanityName->getId()) {
+                return $this->redirectToRoute('vanity_invoice', ['id' => $vanityName->getId()]);
+            } else {
+                $this->addFlash('error', 'Could not find or create your vanity name. Please try again or contact support.');
+                return $this->redirectToRoute('vanity_index');
+            }
         } catch (\InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
             return $this->redirectToRoute('vanity_index');
@@ -285,7 +284,4 @@ class VanityNameController extends AbstractController
         return $this->redirectToRoute('vanity_index');
     }
 }
-
-
-
 
