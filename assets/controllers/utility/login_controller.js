@@ -17,6 +17,19 @@ export default class extends Controller {
       this.nostrErrorTarget.style.display = 'none';
     }
 
+    // Request pubkey first - required by some extensions (e.g., nos2x-fox) to determine active profile
+    let pubkey;
+    try {
+      pubkey = await window.nostr.getPublicKey();
+    } catch (e) {
+      if (this.hasNostrErrorTarget) {
+        this.nostrErrorTarget.textContent = 'Failed to get public key: ' + e.message;
+        this.nostrErrorTarget.style.display = 'block';
+      }
+      event?.preventDefault();
+      return;
+    }
+
     const tags = [
       ['u', window.location.origin + '/login'],
       ['method', 'POST'],
@@ -26,7 +39,8 @@ export default class extends Controller {
       created_at: Math.floor(Date.now()/1000),
       kind: 27235,
       tags: tags,
-      content: ''
+      content: '',
+      pubkey: pubkey
     }
 
     const signed = await window.nostr.signEvent(ev);

@@ -57,6 +57,14 @@ export default class extends Controller {
               this.showError('Nostr extension not found.');
               return;
           }
+          // Request pubkey first - required by some extensions (e.g., nos2x-fox) to determine active profile
+          let pubkey;
+          try {
+              pubkey = await window.nostr.getPublicKey();
+          } catch (e) {
+              this.showError('Failed to get public key: ' + e.message);
+              return;
+          }
           // Determine provider
           const provider = this.providerTarget.value;
 
@@ -74,6 +82,7 @@ export default class extends Controller {
           const event = {
               kind: 27235,
               created_at: Math.floor(Date.now() / 1000),
+              pubkey: pubkey,
               tags: [
                   ["u", upstreamEndpoint],
                   ["method", "POST"]

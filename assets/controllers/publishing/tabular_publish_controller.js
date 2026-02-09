@@ -29,6 +29,16 @@ export default class extends Controller {
             return;
         }
 
+        // Request pubkey first - required by some extensions (e.g., nos2x-fox) to determine active profile
+        this.showStatus('Requesting public key from Nostr extension...');
+        let pubkey;
+        try {
+            pubkey = await window.nostr.getPublicKey();
+        } catch (e) {
+            this.showError('Failed to get public key: ' + e.message);
+            return;
+        }
+
         this.publishButtonTarget.disabled = true;
         this.showStatus('Requesting signature from Nostr extension...');
 
@@ -37,6 +47,7 @@ export default class extends Controller {
             const eventData = this.eventDataValue;
             delete eventData.sig; // Remove sig if present
             delete eventData.id; // Remove id if present
+            eventData.pubkey = pubkey; // Set pubkey from extension
 
             // Sign the event with Nostr extension
             const signedEvent = await window.nostr.signEvent(eventData);
