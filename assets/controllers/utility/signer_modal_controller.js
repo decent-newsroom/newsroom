@@ -185,7 +185,12 @@ export default class extends Controller {
       const resp = await fetch('/login', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Authorization': 'Nostr ' + btoa(JSON.stringify(signed)) }
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Nostr ' + btoa(JSON.stringify(signed))
+        },
+        body: '{}'
       });
       if (resp.ok) {
         setRemoteSignerSession({

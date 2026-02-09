@@ -23,8 +23,9 @@ security:
                 lifetime: 31536000 # 1 year in seconds
                 path: /
                 always_remember_me: true
-                token_provider:
-                    doctrine: true
+                # Disabled doctrine token provider - use signature-based cookies instead
+                # token_provider:
+                #     doctrine: true
 
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall

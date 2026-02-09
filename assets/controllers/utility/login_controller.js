@@ -35,8 +35,11 @@ export default class extends Controller {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'Authorization': 'Nostr ' + btoa(JSON.stringify(signed))
-      }
+      },
+      body: '{}'
     }).then(response => {
       if (!response.ok) return false;
       return 'Authentication Successful';

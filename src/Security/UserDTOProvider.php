@@ -7,6 +7,7 @@ use App\Message\UpdateProfileProjectionMessage;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
@@ -62,7 +63,7 @@ readonly class UserDTOProvider implements UserProviderInterface
          try {
              $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
              $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
-         } catch (\Exception $e) {
+         } catch (\Exception|ExceptionInterface $e) {
             // Log but don't block refresh
             $this->logger->error('Exception on dispatch during refresh: ' . $e->getMessage(), ['npub' => $user->getUserIdentifier()]);
          }
@@ -86,6 +87,7 @@ readonly class UserDTOProvider implements UserProviderInterface
 
     /**
      * @inheritDoc
+     * @throws ExceptionInterface
      */
     public function loadUserByIdentifier(string $identifier): UserInterface
     {
@@ -112,7 +114,7 @@ readonly class UserDTOProvider implements UserProviderInterface
             $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
 
             $this->logger->debug('Dispatched profile projection update', ['npub' => $identifier]);
-        } catch (\InvalidArgumentException $e) {
+        } catch (\InvalidArgumentException|ExceptionInterface $e) {
             $this->logger->error('Invalid npub identifier.', ['npub' => $identifier]);
             throw $e;
         }
