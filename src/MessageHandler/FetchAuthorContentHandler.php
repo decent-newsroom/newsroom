@@ -156,12 +156,13 @@ class FetchAuthorContentHandler
                         $filter->setSince($since);
                     }
 
-                    $this->logger->debug('🎯 Filter created', [
+                    $this->logger->info('🎯 Filter created', [
                         'subscription_id' => $subscriptionId,
                         'filter_details' => [
                             'kinds' => $kinds,
                             'authors' => [$pubkey],
                             'limit' => 100,
+                            'since' => $since > 0 ? $since : null,
                         ]
                     ]);
 

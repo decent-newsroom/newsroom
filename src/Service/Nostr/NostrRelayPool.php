@@ -189,7 +189,7 @@ class NostrRelayPool
                 $message = $messageBuilder();
                 $payload = $message->generate();
 
-                $this->logger->debug('Sending request to relay', [
+                $this->logger->info('Sending request to relay ' . $relay->getUrl(), [
                     'relay' => $relay->getUrl(),
                     'subscription_id' => $subscriptionId
                 ]);
@@ -219,7 +219,7 @@ class NostrRelayPool
 
                     $decoded = json_decode($resp->getContent());
                     if (!$decoded) {
-                        $this->logger->debug('Failed to decode response from relay', [
+                        $this->logger->info('Failed to decode response from relay', [
                             'relay' => $relay->getUrl(),
                             'content' => $resp->getContent()
                         ]);
@@ -231,7 +231,7 @@ class NostrRelayPool
 
                     // Check for EOSE (End of Stored Events) or CLOSED
                     if (in_array($relayResponse->type, ['EOSE', 'CLOSED'])) {
-                        $this->logger->debug('Received EOSE/CLOSED from relay', [
+                        $this->logger->info('Received EOSE/CLOSED from relay', [
                             'relay' => $relay->getUrl(),
                             'type' => $relayResponse->type
                         ]);
@@ -266,7 +266,7 @@ class NostrRelayPool
             } catch (\Exception $e) {
                 // If this is a timeout, treat as normal (all events received)
                 if (stripos($e->getMessage(), 'timeout') !== false) {
-                    $this->logger->debug('Relay timeout (normal - all events received)', [
+                    $this->logger->error('Relay timeout (normal - all events received)', [
                         'relay' => $relay->getUrl()
                     ]);
                     $responses[$relay->getUrl()] = $relayResponses;
