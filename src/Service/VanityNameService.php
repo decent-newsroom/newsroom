@@ -100,7 +100,11 @@ class VanityNameService
             // Reset status and update payment type
             $existingName->setStatus(VanityNameStatus::PENDING);
             $existingName->setPaymentType($paymentType);
-            $existingName->setExpiresAt(null);
+            // 3 months from now for subscription, no expiry for admin grants
+            $until = $paymentType === VanityNamePaymentType::SUBSCRIPTION
+                ? (new \DateTime())->modify('+3 months')
+                : null;
+            $existingName->setExpiresAt($until);
             $existingName->setPendingInvoiceBolt11(null);
             $this->repository->save($existingName);
             $this->clearNip05Cache();
