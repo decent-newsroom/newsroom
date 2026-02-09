@@ -1,0 +1,83 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Create Subscription | Active Indexing Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Create Active Indexing Subscription</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_active_indexing_index') }}" class="btn btn-secondary">← Back to List</a>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="card" style="max-width: 600px;">
+        <div class="card-header">
+            <h3>Grant Subscription to User</h3>
+        </div>
+        <div class="card-body">
+            <form action="{{ path('admin_active_indexing_store') }}" method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_create') }}">
+
+                <div class="mb-4">
+                    <label for="npub" class="form-label">User npub *</label>
+                    <input type="text"
+                           id="npub"
+                           name="npub"
+                           class="form-control"
+                           placeholder="npub1..."
+                           pattern="npub1[a-z0-9]+"
+                           required>
+                    <small class="form-text text-muted">
+                        The user's npub (bech32 format, starts with npub1).
+                    </small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Subscription Tier *</label>
+                    {% for tier in tiers %}
+                        <div class="form-check">
+                            <input type="radio"
+                                   id="tier_{{ tier.value }}"
+                                   name="tier"
+                                   value="{{ tier.value }}"
+                                   class="form-check-input"
+                                   {{ tier.value == 'monthly' ? 'checked' : '' }}>
+                            <label for="tier_{{ tier.value }}" class="form-check-label">
+                                {{ tier.label }}
+                                ({{ tier.priceInSats|number_format }} sats / {{ tier.durationDays }} days)
+                            </label>
+                        </div>
+                    {% endfor %}
+                    <small class="form-text text-muted mt-2 d-block">
+                        The tier determines the subscription duration. As admin, payment is bypassed.
+                    </small>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Creating a subscription as admin will:
+                    <ul class="mb-0 mt-2">
+                        <li>Activate the subscription immediately</li>
+                        <li>Grant the user ROLE_ACTIVE_INDEXING</li>
+                        <li>Set expiration based on the selected tier</li>
+                    </ul>
+                </div>
+
+                <hr>
+
+                <button type="submit" class="btn btn-primary">
+                    Create Subscription
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

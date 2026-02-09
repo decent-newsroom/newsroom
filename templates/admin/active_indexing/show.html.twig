@@ -1,0 +1,220 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Subscription Details | Active Indexing Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Active Indexing Subscription</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_active_indexing_index') }}" class="btn btn-secondary">← Back to List</a>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="d-flex gap-4 flex-wrap">
+        {# Details Card #}
+        <div class="card" style="flex: 2; min-width: 400px;">
+            <div class="card-header">
+                <h3>Subscription Details</h3>
+            </div>
+            <div class="card-body">
+                <dl>
+                    <dt>ID</dt>
+                    <dd>{{ subscription.id }}</dd>
+
+                    <dt>User npub</dt>
+                    <dd>
+                        <a href="{{ path('author-profile', {npub: subscription.npub}) }}">
+                            {{ subscription.npub }}
+                        </a>
+                    </dd>
+
+                    <dt>Tier</dt>
+                    <dd>
+                        <span class="badge bg-primary">{{ subscription.tier.label }}</span>
+                        ({{ subscription.tier.priceInSats|number_format }} sats / {{ subscription.tier.durationDays }} days)
+                    </dd>
+
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge {{ subscription.status.badgeClass }}">
+                            {{ subscription.status.label }}
+                        </span>
+                    </dd>
+
+                    <dt>Started At</dt>
+                    <dd>
+                        {% if subscription.startedAt %}
+                            {{ subscription.startedAt|date('F j, Y H:i') }}
+                        {% else %}
+                            <span class="text-muted">Not started</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Expires At</dt>
+                    <dd>
+                        {% if subscription.expiresAt %}
+                            {{ subscription.expiresAt|date('F j, Y H:i') }}
+                            {% if subscription.isExpired %}
+                                <span class="text-danger">(expired)</span>
+                            {% elseif subscription.daysRemaining is not null %}
+                                ({{ subscription.daysRemaining }} days remaining)
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Grace Period Ends</dt>
+                    <dd>
+                        {% if subscription.graceEndsAt %}
+                            {{ subscription.graceEndsAt|date('F j, Y H:i') }}
+                        {% else %}
+                            <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Articles Indexed</dt>
+                    <dd>{{ subscription.articlesIndexed|number_format }}</dd>
+
+                    <dt>Last Fetched</dt>
+                    <dd>
+                        {% if subscription.lastFetchedAt %}
+                            {{ subscription.lastFetchedAt|date('F j, Y H:i') }}
+                        {% else %}
+                            <span class="text-muted">Never</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Use NIP-65 Relays</dt>
+                    <dd>{{ subscription.useNip65Relays ? 'Yes' : 'No' }}</dd>
+
+                    {% if subscription.customRelays %}
+                        <dt>Custom Relays</dt>
+                        <dd>
+                            <ul>
+                                {% for relay in subscription.customRelays %}
+                                    <li><code>{{ relay }}</code></li>
+                                {% endfor %}
+                            </ul>
+                        </dd>
+                    {% endif %}
+
+                    <dt>Created At</dt>
+                    <dd>{{ subscription.createdAt|date('F j, Y H:i') }}</dd>
+
+                    <dt>Updated At</dt>
+                    <dd>{{ subscription.updatedAt|date('F j, Y H:i') }}</dd>
+
+                    {% if subscription.pendingInvoiceBolt11 %}
+                        <dt>Pending Invoice</dt>
+                        <dd>
+                            <code style="font-size: 0.7rem; word-break: break-all;">
+                                {{ subscription.pendingInvoiceBolt11|slice(0, 50) }}...
+                            </code>
+                        </dd>
+                    {% endif %}
+
+                    {% if subscription.zapReceiptEventId %}
+                        <dt>Payment Event ID</dt>
+                        <dd>
+                            <code style="font-size: 0.8rem;">{{ subscription.zapReceiptEventId }}</code>
+                        </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {# Actions Card #}
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div class="card-header">
+                <h3>Actions</h3>
+            </div>
+            <div class="card-body">
+                {% if subscription.status.value == 'pending' %}
+                    <form action="{{ path('admin_active_indexing_activate', {id: subscription.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            ✓ Activate
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Activate this subscription (use after verifying payment).
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {% if subscription.status.value in ['active', 'grace'] %}
+                    <form action="{{ path('admin_active_indexing_renew', {id: subscription.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                        <button type="submit" class="btn btn-primary w-100">
+                            ↻ Renew
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Extend the subscription by {{ subscription.tier.durationDays }} days.
+                    </p>
+                    <hr>
+
+                    <form action="{{ path('admin_active_indexing_expire', {id: subscription.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                        <button type="submit" class="btn btn-warning w-100" onclick="return confirm('Expire this subscription immediately?');">
+                            ⏸ Expire Now
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Mark subscription as expired immediately.
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {% if subscription.status.value == 'expired' %}
+                    <form action="{{ path('admin_active_indexing_activate', {id: subscription.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            ▶ Reactivate
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Reactivate the expired subscription.
+                    </p>
+                    <hr>
+                {% endif %}
+
+                {# Change Tier #}
+                <form action="{{ path('admin_active_indexing_update_tier', {id: subscription.id}) }}" method="post" class="mb-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                    <label class="form-label">Change Tier</label>
+                    <div class="d-flex gap-2">
+                        <select name="tier" class="form-select">
+                            <option value="monthly" {{ subscription.tier.value == 'monthly' ? 'selected' : '' }}>Monthly</option>
+                            <option value="yearly" {{ subscription.tier.value == 'yearly' ? 'selected' : '' }}>Yearly</option>
+                        </select>
+                        <button type="submit" class="btn btn-secondary">Update</button>
+                    </div>
+                </form>
+                <hr>
+
+                {# Delete #}
+                <form action="{{ path('admin_active_indexing_delete', {id: subscription.id}) }}" method="post" class="mb-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('admin_active_indexing_action') }}">
+                    <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Delete this subscription permanently? This cannot be undone.');">
+                        ✗ Delete
+                    </button>
+                </form>
+                <p class="text-muted small">
+                    Permanently delete this subscription record.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

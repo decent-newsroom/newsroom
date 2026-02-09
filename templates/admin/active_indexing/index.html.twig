@@ -1,0 +1,179 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Active Indexing Subscriptions | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Active Indexing Subscriptions</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_active_indexing_create') }}" class="btn btn-primary">+ Create Subscription</a>
+            <form method="post" action="{{ path('admin_active_indexing_process_expired') }}" style="display: inline;">
+                <input type="hidden" name="_token" value="{{ csrf_token('admin_process_expired') }}">
+                <button type="submit" class="btn btn-secondary">Process Expired</button>
+            </form>
+        </div>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Statistics #}
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">{{ statistics.total }}</h3>
+                    <small class="text-muted">Total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-success">{{ statistics.active }}</h3>
+                    <small class="text-muted">Active</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-warning">{{ statistics.grace }}</h3>
+                    <small class="text-muted">Grace Period</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0 text-info">{{ statistics.pending }}</h3>
+                    <small class="text-muted">Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="mb-0">{{ statistics.total_articles_indexed|number_format }}</h3>
+                    <small class="text-muted">Articles Indexed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Filters #}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="d-flex gap-3 align-items-end flex-wrap">
+                <div>
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.value }}" {{ currentStatus == status.value ? 'selected' : '' }}>
+                                {{ status.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label for="q" class="form-label">Search</label>
+                    <input type="text" name="q" id="q" class="form-control" placeholder="Search by npub..." value="{{ searchQuery }}">
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{{ path('admin_active_indexing_index') }}" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Subscriptions Table #}
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>User (npub)</th>
+                    <th>Tier</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Expires</th>
+                    <th>Articles</th>
+                    <th>Last Fetch</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscription in subscriptions %}
+                    <tr>
+                        <td>
+                            <a href="{{ path('author-profile', {npub: subscription.npub}) }}" title="{{ subscription.npub }}">
+                                {{ subscription.npub|slice(0, 16) }}...
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ subscription.tier.label }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {{ subscription.status.badgeClass }}">
+                                {{ subscription.status.label }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if subscription.startedAt %}
+                                {{ subscription.startedAt|date('Y-m-d') }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if subscription.expiresAt %}
+                                {{ subscription.expiresAt|date('Y-m-d') }}
+                                {% if subscription.isExpired %}
+                                    <span class="text-danger">(expired)</span>
+                                {% elseif subscription.daysRemaining is not null and subscription.daysRemaining <= 7 %}
+                                    <span class="text-warning">({{ subscription.daysRemaining }}d)</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ subscription.articlesIndexed|number_format }}</td>
+                        <td>
+                            {% if subscription.lastFetchedAt %}
+                                {{ subscription.lastFetchedAt|date('Y-m-d H:i') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ path('admin_active_indexing_show', {id: subscription.id}) }}" class="btn btn-sm btn-secondary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No subscriptions found.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# Stats #}
+    <div class="mt-4">
+        <p class="text-muted">
+            Showing {{ subscriptions|length }} subscription(s)
+        </p>
+    </div>
+</div>
+{% endblock %}
+

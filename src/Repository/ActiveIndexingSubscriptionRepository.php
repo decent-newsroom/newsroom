@@ -23,6 +23,20 @@ class ActiveIndexingSubscriptionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Search subscriptions by npub (partial match)
+     * @return ActiveIndexingSubscription[]
+     */
+    public function searchByNpub(string $query): array
+    {
+        return $this->createQueryBuilder('s')
+            ->where('s.npub LIKE :query')
+            ->setParameter('query', '%' . $query . '%')
+            ->orderBy('s.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Find all active subscriptions (status = active or grace)
      * @return ActiveIndexingSubscription[]
      */
