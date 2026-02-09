@@ -12,7 +12,6 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\InteractiveAuthenticatorInterface;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
-use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
@@ -63,8 +62,7 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
             $this->validateSignature($event);
 
             return new SelfValidatingPassport(
-                new UserBadge($this->convertToUserIdentifier($event->getPubkey())),
-                [new RememberMeBadge()]
+                new UserBadge($this->convertToUserIdentifier($event->getPubkey()))
             );
         } catch (AuthenticationException $e) {
             // Re-throw authentication exceptions as-is
