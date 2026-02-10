@@ -36,20 +36,62 @@ class AuthorController extends AbstractController
 {
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly AuthorRelayService $authorRelayService,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly VanityNameService $vanityNameService,
     ) {}
 
     /**
+     * Resolve vanity name to npub, or redirect npub to vanity if exists
+     * @return string|Response|array Returns npub string, Response redirect, or array with npub and vanity info
+     */
+    private function resolveVanityOrRedirect(?string $npub, ?string $vanity, string $routeName, array $params = []): string|Response|array
+    {
+        if ($vanity !== null) {
+            // Vanity name provided, resolve it to npub and return both
+            $vanityObj = $this->vanityNameService->getActiveByVanityName($vanity);
+            if ($vanityObj === null) {
+                throw $this->createNotFoundException('Profile not found.');
+            }
+            return [
+                'npub' => $vanityObj->getNpub(),
+                'vanity' => $vanity,
+                'useVanity' => true
+            ];
+        }
+
+        if ($npub !== null) {
+            // Npub provided, check if it has a vanity name and redirect
+            $vanityObj = $this->vanityNameService->getActiveByNpub($npub);
+            if ($vanityObj !== null) {
+                return $this->redirectToRoute($routeName, array_merge(['vanity' => $vanityObj->getVanityName()], $params), 301);
+            }
+            return [
+                'npub' => $npub,
+                'vanity' => null,
+                'useVanity' => false
+            ];
+        }
+
+        throw $this->createNotFoundException('Profile not found.');
+    }
+
+    /**
      * Reading List Index
      */
-    #[Route('/p/{npub}/lists', name: 'author-reading-lists')]
-    public function readingLists($npub,
+    #[Route('/{vanity}/lists', name: 'author-vanity-reading-lists')]
+    #[Route('/p/{npub}/lists', name: 'author-reading-lists', requirements: ['npub' => '^npub1.*'])]
+    public function readingLists(string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
                                 NostrKeyUtil $keyUtil,
                                 LoggerInterface $logger): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-lists');
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+
         // Convert npub to hex pubkey
         $pubkey = $keyUtil->npubToHex($npub);
         $logger->info(sprintf('Reading list: pubkey=%s', $pubkey));
@@ -93,12 +135,20 @@ class AuthorController extends AbstractController
      * List
      * @throws Exception
      */
-    #[Route('/p/{npub}/list/{slug}', name: 'reading-list')]
-    public function readingList($npub, $slug,
+    #[Route('/{vanity}/list/{slug}', name: 'author-vanity-reading-list')]
+    #[Route('/p/{npub}/list/{slug}', name: 'reading-list', requirements: ['npub' => '^npub1.*'])]
+    public function readingList(string $slug, string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
                                 NostrKeyUtil $keyUtil,
                                 LoggerInterface $logger): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-reading-list', ['slug' => $slug]);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+
         // Convert npub to hex pubkey
         $pubkey = $keyUtil->npubToHex($npub);
         $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
@@ -192,11 +242,19 @@ class AuthorController extends AbstractController
      * Displays curated content based on kind type
      * @throws Exception
      */
-    #[Route('/p/{npub}/curation/{kind}/{slug}', name: 'curation-set', requirements: ['kind' => '30004|30005|30006'])]
-    public function curationSet(string $npub, int $kind, string $slug,
+    #[Route('/{vanity}/curation/{kind}/{slug}', name: 'author-vanity-curation-set', requirements: ['kind' => '30004|30005|30006'])]
+    #[Route('/p/{npub}/curation/{kind}/{slug}', name: 'curation-set', requirements: ['npub' => '^npub1.*', 'kind' => '30004|30005|30006'])]
+    public function curationSet(int $kind, string $slug, string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
                                 LoggerInterface $logger): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-curation-set', ['kind' => $kind, 'slug' => $slug]);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+
         $logger->info(sprintf('Curation set: npub=%s, kind=%d, slug=%s', $npub, $kind, $slug));
 
         // Convert npub to hex pubkey
@@ -489,9 +547,17 @@ class AuthorController extends AbstractController
      * AJAX endpoint to load more media events
      * @throws Exception
      */
+    #[Route('/{vanity}/media/load-more', name: 'author-vanity-media-load-more')]
     #[Route('/p/{npub}/media/load-more', name: 'author-media-load-more', requirements: ['npub' => '^npub1.*'])]
-    public function mediaLoadMore($npub, Request $request, RedisCacheService $redisCacheService): Response
+    public function mediaLoadMore(Request $request, RedisCacheService $redisCacheService, string $npub = null, string $vanity = null): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-media-load-more');
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+
         $page = $request->query->getInt('page', 2); // Default to page 2
 
         $keys = new Key();
@@ -529,9 +595,9 @@ class AuthorController extends AbstractController
      * @throws Exception
      * @throws InvalidArgumentException
      */
+    #[Route('/{vanity}/{tab}', name: 'author-vanity-profile-tab', requirements: ['tab' => 'overview|articles|media|highlights|drafts|bookmarks|stats'])]
     #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|bookmarks|stats'])]
     public function profileTab(
-        string $npub,
         string $tab,
         Request $request,
         RedisCacheService $redisCacheService,
@@ -540,8 +606,23 @@ class AuthorController extends AbstractController
         RedisViewFactory $viewFactory,
         ArticleSearchInterface $articleSearch,
         EntityManagerInterface $em,
-        VisitRepository $visitRepository
+        VisitRepository $visitRepository,
+        string $npub = null,
+        string $vanity = null
     ): Response {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => $tab]);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+        $vanityName = $resolved['vanity'];
+        $useVanity = $resolved['useVanity'];
+
+        // Determine which identifier to use in URLs
+        $profileId = $useVanity ? $vanityName : $npub;
+        $routePrefix = $useVanity ? 'author-vanity-' : 'author-';
+
         $keys = new Key();
         $pubkey = $keys->convertToHex($npub);
         $authorMetadata = $redisCacheService->getMetadata($pubkey);
@@ -562,6 +643,9 @@ class AuthorController extends AbstractController
                     'isOwner' => false,
                     'npub' => $npub,
                     'pubkey' => $pubkey,
+                    'profileId' => $profileId,
+                    'useVanity' => $useVanity,
+                    'routePrefix' => $routePrefix,
                 ]);
             }
 
@@ -573,6 +657,9 @@ class AuthorController extends AbstractController
                 'isOwner' => false,
                 'activeTab' => $tab,
                 'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+                'profileId' => $profileId,
+                'useVanity' => $useVanity,
+                'routePrefix' => $routePrefix,
             ]);
         }
 
@@ -632,6 +719,9 @@ class AuthorController extends AbstractController
                 'pubkey' => $pubkey,
                 'isOwner' => $isOwner,
                 'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+                'profileId' => $profileId,
+                'useVanity' => $useVanity,
+                'routePrefix' => $routePrefix,
             ], $templateData));
         }
 
@@ -643,6 +733,9 @@ class AuthorController extends AbstractController
             'isOwner' => $isOwner,
             'activeTab' => $tab,
             'mercure_public_hub_url' => $this->getParameter('mercure_public_hub_url'),
+            'profileId' => $profileId,
+            'useVanity' => $useVanity,
+            'routePrefix' => $routePrefix,
         ], $templateData));
     }
 
@@ -1296,9 +1389,24 @@ class AuthorController extends AbstractController
     /**
      * Author profile - redirect to overview tab by default
      */
+    #[Route('/p/{vanity}', name: 'author-vanity-profile', priority: -10)]
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
-    public function index(string $npub): Response
+    public function index(string $npub = null, string $vanity = null): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => 'overview']);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+        $useVanity = $resolved['useVanity'];
+        $vanityName = $resolved['vanity'];
+
+        // Redirect to overview tab with the same identifier type
+        if ($useVanity) {
+            return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => 'overview']);
+        }
+
         // Redirect to overview tab - shows dashboard with mix of content
         return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => 'overview']);
     }
@@ -1334,22 +1442,5 @@ class AuthorController extends AbstractController
         $keys = new Key();
         $npub = $keys->convertPublicKeyToBech32($pubkey);
         return $this->redirectToRoute('author-profile', ['npub' => $npub]);
-    }
-
-    /**
-     * Redirect from /p/{vanityName} to the user's profile
-     * This route catches vanity names (not npub or hex pubkey)
-     */
-    #[Route('/p/{vanityName}', name: 'vanity-profile-redirect', requirements: ['vanityName' => '^(?!npub1)[a-z0-9\-_.]+$'], priority: -10)]
-    public function vanityProfileRedirect(string $vanityName): Response
-    {
-        $vanity = $this->vanityNameService->getActiveByVanityName($vanityName);
-
-        if ($vanity === null) {
-            throw $this->createNotFoundException('Profile not found.');
-        }
-
-        // Redirect to the actual profile page
-        return $this->redirectToRoute('author-profile', ['npub' => $vanity->getNpub()]);
     }
 }

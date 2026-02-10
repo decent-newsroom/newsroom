@@ -11,7 +11,7 @@
              data-content--author-profile-tabs-active-tab-value="{{ activeTab ?? 'articles' }}">
 
             {# Public tabs - visible to everyone #}
-            <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'articles'}) }}"
+            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'articles'} : {'npub': profileId, 'tab': 'articles'}) }}"
                class="tab-link {{ activeTab == 'articles' or activeTab is null ? 'active' : '' }}"
                data-content--author-profile-tabs-target="tab"
                data-tab="articles"
@@ -20,7 +20,7 @@
                 Articles
             </a>
 
-            <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'media'}) }}"
+            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'media'} : {'npub': profileId, 'tab': 'media'}) }}"
                class="tab-link {{ activeTab == 'media' ? 'active' : '' }}"
                data-content--author-profile-tabs-target="tab"
                data-tab="media"
@@ -29,7 +29,7 @@
                 Media
             </a>
 
-            <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'highlights'}) }}"
+            <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'highlights'} : {'npub': profileId, 'tab': 'highlights'}) }}"
                class="tab-link {{ activeTab == 'highlights' ? 'active' : '' }}"
                data-content--author-profile-tabs-target="tab"
                data-tab="highlights"
@@ -40,7 +40,7 @@
 
             {# Private tabs - only visible to owner #}
             {% if isOwner %}
-                <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'drafts'}) }}"
+                <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'drafts'} : {'npub': profileId, 'tab': 'drafts'}) }}"
                    class="tab-link {{ activeTab == 'drafts' ? 'active' : '' }}"
                    data-content--author-profile-tabs-target="tab"
                    data-tab="drafts"
@@ -50,7 +50,7 @@
                 </a>
 
                 {% if is_granted('ROLE_ADMIN') %}
-                <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'stats'}) }}"
+                <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'stats'} : {'npub': profileId, 'tab': 'stats'}) }}"
                    class="tab-link {{ activeTab == 'stats' ? 'active' : '' }}"
                    data-content--author-profile-tabs-target="tab"
                    data-tab="stats"
@@ -61,7 +61,7 @@
                 {% endif %}
 
 {#              Need to fix loading issues #}
-{#              <a href="{{ path('author-profile-tab', {'npub': npub, 'tab': 'bookmarks'}) }}"#}
+{#              <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'bookmarks'} : {'npub': profileId, 'tab': 'bookmarks'}) }}"#}
 {#                   class="tab-link {{ activeTab == 'bookmarks' ? 'active' : '' }}"#}
 {#                   data-content--author-profile-tabs-target="tab"#}
 {#                   data-tab="bookmarks"#}
