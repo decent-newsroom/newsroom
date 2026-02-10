@@ -402,15 +402,17 @@ class NostrRelayPool
         // Track if we've received EOSE
         $eoseReceived = false;
 
+        // Use shared handler for common relay logic
+        $handler = new \App\Util\NostrPhp\RelaySubscriptionHandler($this->logger);
+
         // Infinite loop: receive and process messages
         while (true) {
             try {
                 $resp = $client->receive();
 
-                // Handle PING/PONG for keepalive (following TweakedRequest pattern)
+                // Handle PING/PONG using shared handler
                 if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->send(new \WebSocket\Message\Pong());
-                    $this->logger->debug('Received PING, sent PONG');
+                    $handler->handlePing($client);
                     continue;
                 }
 
@@ -419,19 +421,12 @@ class NostrRelayPool
                     continue;
                 }
 
-                $content = $resp->getContent();
-                $decoded = json_decode($content); // Decode as object for RelayResponse compatibility
-
-                if (!$decoded) {
-                    $this->logger->debug('Failed to decode message from relay', [
-                        'relay' => $relayUrl,
-                        'content_preview' => substr($content, 0, 100)
-                    ]);
+                // Parse relay response using shared handler
+                $relayResponse = $handler->parseRelayResponse($resp);
+                if (!$relayResponse) {
                     continue;
                 }
 
-                // Parse relay response
-                $relayResponse = RelayResponse::create($decoded);
 
                 // Handle different response types
                 switch ($relayResponse->type) {
@@ -481,20 +476,18 @@ class NostrRelayPool
 
                     case 'CLOSED':
                         // Subscription closed by relay
-                        // Decode as array to access message by index
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $message = $handler->extractMessage(json_decode($resp->getContent()));
                         $this->logger->warning('Relay closed subscription', [
                             'relay' => $relayUrl,
                             'subscription_id' => $subscriptionId,
-                            'message' => $decodedArray[2] ?? 'no message'
+                            'message' => $message
                         ]);
-                        throw new \Exception('Subscription closed by relay: ' . ($decodedArray[2] ?? 'no message'));
+                        throw new \Exception('Subscription closed by relay: ' . $message);
 
                     case 'NOTICE':
-                        // Notice from relay - check if it's an error
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $message = $decodedArray[1] ?? 'no message';
-                        if (str_starts_with($message, 'ERROR:')) {
+                        // Notice from relay - check if it's an error using shared handler
+                        $message = $handler->extractMessage(json_decode($resp->getContent()));
+                        if ($handler->isErrorNotice($message)) {
                             $this->logger->warning('Received ERROR NOTICE from relay', [
                                 'relay' => $relayUrl,
                                 'message' => $message
@@ -510,19 +503,21 @@ class NostrRelayPool
                     case 'OK':
                         // Command result (usually for EVENT, not REQ)
                         $this->logger->debug('Received OK from relay', [
-                            'relay' => $relayUrl,
-                            'message' => json_encode($decoded)
+                            'relay' => $relayUrl
                         ]);
                         break;
 
                     case 'AUTH':
-                        // NIP-42 auth challenge - log but don't handle for now
-                        // Most relays won't require auth for reading public events
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $this->logger->debug('Received AUTH challenge from relay (ignoring for read-only subscription)', [
-                            'relay' => $relayUrl,
-                            'challenge' => $decodedArray[1] ?? 'no challenge'
-                        ]);
+                        // NIP-42 auth challenge - handle using shared handler
+                        $challenge = $handler->extractAuthChallenge(json_decode($resp->getContent()));
+                        if ($challenge) {
+                            $this->logger->debug('Received AUTH challenge, responding with AUTH', [
+                                'relay' => $relayUrl
+                            ]);
+                            $handler->handleAuth($relay, $client, $challenge);
+                            // Re-send subscription after AUTH
+                            $client->text($payload);
+                        }
                         break;
 
                     default:
@@ -535,13 +530,8 @@ class NostrRelayPool
                 }
 
             } catch (\Throwable $e) {
-                $errorMessage = strtolower($e->getMessage());
-                $errorClass = strtolower(get_class($e));
-
                 // Timeouts and connection errors are normal when waiting for new events - just continue
-                if (stripos($errorMessage, 'timeout') !== false ||
-                    stripos($errorClass, 'timeout') !== false ||
-                    stripos($errorMessage, 'connection operation') !== false) {
+                if ($handler->isTimeoutError($e)) {
                     if ($eoseReceived) {
                         // Only log timeout every 60 seconds to avoid spam
                         static $lastArticleTimeoutLog = 0;
@@ -556,9 +546,7 @@ class NostrRelayPool
                 }
 
                 // Unparseable messages and bad msg errors - log and continue
-                if (stripos($errorMessage, 'bad msg') !== false ||
-                    stripos($errorMessage, 'unparseable') !== false ||
-                    stripos($errorMessage, 'invalid') !== false) {
+                if ($handler->isBadMessageError($e)) {
                     $this->logger->debug('Skipping invalid message from relay, continuing', [
                         'relay' => $relayUrl,
                         'error' => $e->getMessage()
