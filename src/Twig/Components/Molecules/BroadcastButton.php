@@ -9,4 +9,5 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 final class BroadcastButton
 {
     public Article $article;
+    public ?array $relays = null;
 }

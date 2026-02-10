@@ -3,7 +3,8 @@ import { Controller } from '@hotwired/stimulus';
 export default class extends Controller {
     static values = {
         articleId: Number,
-        coordinate: String
+        coordinate: String,
+        relays: Array
     };
 
     async broadcast(event) {
@@ -17,6 +18,7 @@ export default class extends Controller {
             const payload = {};
             if (this.hasArticleIdValue) payload.article_id = this.articleIdValue;
             if (this.hasCoordinateValue) payload.coordinate = this.coordinateValue;
+            if (this.hasRelaysValue && this.relaysValue.length > 0) payload.relays = this.relaysValue;
 
             const response = await fetch('/api/broadcast-article', {
                 method: 'POST',

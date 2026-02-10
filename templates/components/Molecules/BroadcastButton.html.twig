@@ -2,7 +2,10 @@
     <div class="broadcast-button-wrapper"
          data-controller="ui--article-broadcast"
          data-ui--article-broadcast-article-id-value="{{ article.id }}"
-         data-ui--article-broadcast-coordinate-value="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}">
+         data-ui--article-broadcast-coordinate-value="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}"
+         {% if relays is defined and relays is not null %}
+         data-ui--article-broadcast-relays-value="{{ relays|json_encode|e('html_attr') }}"
+         {% endif %}>
         <button class="btn broadcast-article-btn"
                 data-action="click->ui--article-broadcast#broadcast"
                 title="Broadcast this article to your relays">

@@ -40,27 +40,20 @@ class ArticleBroadcastController extends AbstractController
                 ], 400);
             }
 
-        // Accept either article ID or coordinate
-        $articleId = $data['article_id'] ?? null;
-        $coordinate = $data['coordinate'] ?? null;
-        $relays = $data['relays'] ?? []; // Optional: specific relays to broadcast to
-        // Default to user's write relays
-        if (empty($relays)) {
-            $user = $this->getUser();
-            if (!$user) {
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Authentication required to broadcast articles'
-                ], 401);
-            }
-            // First try to get relays from User entity (persisted in DB)
-            $storedRelays = $user->getRelays();
-            if (!empty($storedRelays['write'] ?? $storedRelays['all'] ?? null)) {
-                // Prefer write relays for publishing, fallback to all
-                $relays = $storedRelays['write'] ?? $storedRelays['all'] ?? [];
-                $this->logger->debug('Using stored relays from User entity', ['relay_count' => count($relays)]);
-            } else {
-                // Fallback to AuthorRelayService (cached with fallbacks, non-blocking)
+            // Accept either article ID or coordinate
+            $articleId = $data['article_id'] ?? null;
+            $coordinate = $data['coordinate'] ?? null;
+            $relays = $data['relays'] ?? []; // Optional: specific relays to broadcast to
+            // Default to user's write relays
+            if (empty($relays)) {
+                $user = $this->getUser();
+                if (!$user) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'error' => 'Authentication required to broadcast articles'
+                    ], 401);
+                }
+                // Fallback to AuthorRelayService
                 try {
                     $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
                     $relays = $this->authorRelayService->getRelaysForPublishing($pubkeyHex);
@@ -69,53 +62,52 @@ class ArticleBroadcastController extends AbstractController
                     $relays = $this->authorRelayService->getFallbackRelays();
                 }
             }
-        }
 
-        // Find the article
-        $article = null;
+            // Find the article
+            $article = null;
 
-        if ($articleId) {
-            // Find by database ID
-            $article = $this->articleRepository->find($articleId);
-        } elseif ($coordinate) {
-            // Find by coordinate (kind:pubkey:slug)
-            $parts = explode(':', $coordinate, 3);
-            if (count($parts) === 3) {
-                [, $pubkey, $slug] = $parts;
+            if ($articleId) {
+                // Find by database ID
+                $article = $this->articleRepository->find($articleId);
+            } elseif ($coordinate) {
+                // Find by coordinate (kind:pubkey:slug)
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) === 3) {
+                    [, $pubkey, $slug] = $parts;
 
-                $article = $this->articleRepository->createQueryBuilder('a')
-                    ->where('a.pubkey = :pubkey')
-                    ->andWhere('a.slug = :slug')
-                    ->setParameter('pubkey', $pubkey)
-                    ->setParameter('slug', $slug)
-                    ->orderBy('a.createdAt', 'DESC')
-                    ->setMaxResults(1)
-                    ->getQuery()
-                    ->getOneOrNullResult();
+                    $article = $this->articleRepository->createQueryBuilder('a')
+                        ->where('a.pubkey = :pubkey')
+                        ->andWhere('a.slug = :slug')
+                        ->setParameter('pubkey', $pubkey)
+                        ->setParameter('slug', $slug)
+                        ->orderBy('a.createdAt', 'DESC')
+                        ->setMaxResults(1)
+                        ->getQuery()
+                        ->getOneOrNullResult();
+                }
             }
-        }
 
-        if (!$article) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Article not found',
-                'article_id' => $articleId,
-                'coordinate' => $coordinate
-            ], 404);
-        }
+            if (!$article) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Article not found',
+                    'article_id' => $articleId,
+                    'coordinate' => $coordinate
+                ], 404);
+            }
 
-        // Get the raw event data
-        $rawEvent = $article->getRaw();
+            // Get the raw event data
+            $rawEvent = $article->getRaw();
 
-        if (!$rawEvent) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Article does not have raw event data',
-                'article_id' => $article->getId()
-            ], 400);
-        }
+            if (!$rawEvent) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Article does not have raw event data',
+                    'article_id' => $article->getId()
+                ], 400);
+            }
 
-        // Reconstruct the Event object from raw data
+            // Reconstruct the Event object from raw data
             $event = Event::fromVerified((object)$rawEvent);
 
             $this->logger->info('Broadcasting article to relays', [

@@ -117,7 +117,9 @@
                     {% endfor %}
                 {% endif %}
                 {% if app.user and not isProtected %}
-                    <twig:Molecules:BroadcastButton :article="article" />
+                    {% set userRelays = app.user.relays %}
+                    {% set writeRelays = userRelays is not null and userRelays.write is defined ? userRelays.write : (userRelays is not null and userRelays.all is defined ? userRelays.all : null) %}
+                    <twig:Molecules:BroadcastButton :article="article" :relays="writeRelays" />
                 {% endif %}
             </div>
         {% endif %}
