@@ -2,6 +2,7 @@
     <div class="panel-section">
         <p>Your article will be published to the following relays.</p>
         <small>You'll be able to select a subset in the future.</small>
+        <br>
         {% set relays = app.user.relays %}
         {% if relays %}
             {# Handle both flat array and nested {write: [], read: [], all: []} structure #}
@@ -19,5 +20,10 @@
             <p>Loading relays...</p>
             <small>Refresh the page if relays don't appear shortly.</small>
         {% endif %}
+
+        <span>Default relay:</span>
+        <ul class="list-unstyled">
+            <li><pre>wss://relay.decentnewsroom.com</pre></li>
+        </ul>
     </div>
 {% endif %}

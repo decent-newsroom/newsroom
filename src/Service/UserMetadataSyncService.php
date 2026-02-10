@@ -49,7 +49,7 @@ class UserMetadataSyncService
 
             if (!$hasValidRelays) {
                 // Use non-blocking mode to avoid slowing down login
-                $relays = $this->authorRelayService->getAuthorRelays($hexPubkey, false, true);
+                $relays = $this->authorRelayService->getAuthorRelays($hexPubkey, false);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $this->logger->debug("Synced relays for user: {$npub}", [

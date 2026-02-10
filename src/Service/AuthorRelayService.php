@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Enum\KindsEnum;
 use App\Service\Nostr\NostrRelayPool;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -17,7 +18,7 @@ use swentel\nostr\Subscription\Subscription;
  */
 class AuthorRelayService
 {
-    private const FALLBACK_RELAYS = [
+    public const FALLBACK_RELAYS = [
         'wss://relay.decentnewsroom.com'
     ];
 
@@ -39,10 +40,9 @@ class AuthorRelayService
     /**
      * Get relay list for an author (NIP-65 kind 10002)
      * @param bool $forceRefresh Force a network fetch even if cached
-     * @param bool $nonBlocking If true, return fallbacks immediately on cache miss (no network call)
      * @return array{read: string[], write: string[], all: string[]}
      */
-    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false, bool $nonBlocking = false): array
+    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false): array
     {
         $cacheKey = 'author_relays_' . $pubkey;
 
@@ -52,15 +52,9 @@ class AuthorRelayService
                 if ($cached->isHit()) {
                     return $cached->get();
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception|InvalidArgumentException $e) {
                 $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
             }
-        }
-
-        // In non-blocking mode, return fallbacks immediately on cache miss
-        if ($nonBlocking) {
-            $this->logger->debug('Non-blocking mode: returning fallback relays', ['pubkey' => substr($pubkey, 0, 8)]);
-            return ['read' => self::FALLBACK_RELAYS, 'write' => self::FALLBACK_RELAYS, 'all' => self::FALLBACK_RELAYS];
         }
 
         $relayList = $this->fetchRelayList($pubkey);
@@ -70,7 +64,7 @@ class AuthorRelayService
             $cacheItem->set($relayList);
             $cacheItem->expiresAfter(self::CACHE_TTL);
             $this->cache->save($cacheItem);
-        } catch (\Exception $e) {
+        } catch (\Exception|InvalidArgumentException $e) {
             $this->logger->warning('Cache save error', ['error' => $e->getMessage()]);
         }
 

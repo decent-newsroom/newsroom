@@ -8,6 +8,7 @@ use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
+use App\Factory\ArticleFactory;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
 use App\Service\AuthorRelayService;
@@ -17,7 +18,6 @@ use App\Service\Nostr\NostrEventParser;
 use App\Util\NostrKeyUtil;
 use App\Message\UpdateProfileProjectionMessage;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
@@ -93,9 +93,9 @@ class EditorController extends AbstractController
             $storedRelays = $user->getRelays();
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
-            if (!$hasValidRelays) {
+            if (!$hasValidRelays || $storedRelays['all'] === AuthorRelayService::FALLBACK_RELAYS) {
                 // Use non-blocking mode to avoid timeout - returns fallbacks immediately on cache miss
-                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, true);
+                $relays = $authorRelayService->getAuthorRelays($currentPubkey, true);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
@@ -263,11 +263,11 @@ class EditorController extends AbstractController
         Request $request,
         EntityManagerInterface $entityManager,
         NostrClient $nostrClient,
-        CacheItemPoolInterface $articlesCache,
         LoggerInterface $logger,
         NostrEventParser $eventParser,
         UserEntityRepository $userRepository,
-        AuthorRelayService $authorRelayService
+        AuthorRelayService $authorRelayService,
+        ArticleFactory $articleFactory
     ): JsonResponse {
         try {
             // Get JSON data
@@ -276,17 +276,9 @@ class EditorController extends AbstractController
                 return new JsonResponse(['error' => 'Invalid request data'], 400);
             }
 
-            /* @var array $signedEvent */
-            $signedEvent = $data['event'];
+            $signedEvent = (object)$data['event'];
             // Convert the signed event array to a proper Event object
-            $eventObj = new Event();
-            $eventObj->setId($signedEvent['id']);
-            $eventObj->setPublicKey($signedEvent['pubkey']);
-            $eventObj->setCreatedAt($signedEvent['created_at']);
-            $eventObj->setKind($signedEvent['kind']);
-            $eventObj->setTags($signedEvent['tags']);
-            $eventObj->setContent($signedEvent['content']);
-            $eventObj->setSignature($signedEvent['sig']);
+            $eventObj = Event::fromVerified($signedEvent);
 
             if (!$eventObj->verify()) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
@@ -295,27 +287,14 @@ class EditorController extends AbstractController
             $formData = $data['formData'] ?? [];
 
             // Extract article data from the signed event
-            $articleData = $this->extractArticleDataFromEvent($signedEvent, $formData);
+            // $articleData = $this->extractArticleDataFromEvent($signedEvent, $formData);
 
             // Determine if this is a draft based on the event kind
             $isDraft = ($signedEvent['kind'] === KindsEnum::LONGFORM_DRAFT->value);
             $kind = $isDraft ? KindsEnum::LONGFORM_DRAFT : KindsEnum::LONGFORM;
 
             // Create new article
-            $article = new Article();
-            $article->setPubkey($signedEvent['pubkey']);
-            $article->setKind($kind);
-            $article->setEventId($signedEvent['id']);
-            $article->setSlug($articleData['slug']);
-            $article->setTitle($articleData['title']);
-            $article->setSummary($articleData['summary']);
-            $article->setContent($articleData['content']);
-            $article->setImage($articleData['image']);
-            $article->setTopics($articleData['topics']);
-            $article->setSig($signedEvent['sig']);
-            $article->setRaw($signedEvent);
-            $article->setCreatedAt(new \DateTimeImmutable('@' . $signedEvent['created_at']));
-            $article->setPublishedAt(new \DateTimeImmutable());
+            $article = $articleFactory->createFromLongFormContentEvent($eventObj);
 
             // Parse and store advanced metadata
             $advancedMetadata = $eventParser->parseAdvancedMetadata($signedEvent['tags']);
@@ -351,10 +330,6 @@ class EditorController extends AbstractController
                 }
             }
 
-            // Clear relevant caches
-            $cacheKey = 'article_' . $article->getEventId();
-            $articlesCache->delete($cacheKey);
-
             /** @var User $user */
             $user = $this->getUser();
             $relays = [];
@@ -378,7 +353,6 @@ class EditorController extends AbstractController
             }
 
             // Publish to Nostr relays
-            $relayResults = [];
             try {
                 $rawResults = $nostrClient->publishEvent($eventObj, $relays);
                 $logger->info('Published to Nostr relays', [
@@ -418,6 +392,7 @@ class EditorController extends AbstractController
             ]);
 
         } catch (\Exception $e) {
+            $logger->error('Failed to publish to Nostr relays: ' . $e->getMessage());
             return new JsonResponse([
                 'error' => 'Publishing failed: ' . $e->getMessage()
             ], 500);

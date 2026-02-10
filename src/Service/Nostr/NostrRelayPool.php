@@ -182,124 +182,42 @@ class NostrRelayPool
             return [];
         }
 
-        $responses = [];
-        foreach ($relays as $relay) {
-            $relayResponses = [];
-            try {
-                $message = $messageBuilder();
-                $payload = $message->generate();
+        // Use TweakedRequest for proper NIP-42 AUTH, PING/PONG, and CLOSE handling
+        $message = $messageBuilder();
+        $relaySet = new \swentel\nostr\Relay\RelaySet();
+        $relaySet->setRelays($relays);
 
-                $this->logger->info('Sending request to relay ' . $relay->getUrl(), [
-                    'relay' => $relay->getUrl(),
-                    'subscription_id' => $subscriptionId
-                ]);
+        $request = new \App\Util\NostrPhp\TweakedRequest($relaySet, $message, $this->logger);
+        $request->setTimeout($timeout);
 
-                // Ensure relay is connected
-                if (!$relay->isConnected()) {
-                    $relay->connect();
+        $this->logger->info('Sending request to relays via TweakedRequest', [
+            'relay_count' => count($relays),
+            'relays' => array_map(fn($r) => $r->getUrl(), $relays),
+            'subscription_id' => $subscriptionId
+        ]);
+
+        try {
+            $responses = $request->send();
+
+            // Update last connected time for all relays that returned responses
+            foreach ($relays as $relay) {
+                $url = $relay->getUrl();
+                if (isset($responses[$url])) {
+                    $this->lastConnected[$url] = time();
+                    // Reset connection attempts on success
+                    $this->connectionAttempts[$url] = 0;
                 }
+            }
 
-                $client = $relay->getClient();
-                $client->setTimeout(150); // 150 seconds timeout for receiving
+            return $responses;
+        } catch (\Throwable $e) {
+            $this->logger->error('Error in sendToRelays via TweakedRequest', [
+                'error' => $e->getMessage(),
+                'class' => get_class($e)
+            ]);
 
-                // Send the request
-                $client->text($payload);
-
-                // Receive and parse responses
-                while ($resp = $client->receive()) {
-                    // Handle PING/PONG
-                    if ($resp instanceof \WebSocket\Message\Ping) {
-                        $client->send(new \WebSocket\Message\Pong());
-                        continue;
-                    }
-
-                    if (!$resp instanceof \WebSocket\Message\Text) {
-                        continue;
-                    }
-
-                    $decoded = json_decode($resp->getContent());
-                    if (!$decoded) {
-                        $this->logger->info('Failed to decode response from relay', [
-                            'relay' => $relay->getUrl(),
-                            'content' => $resp->getContent()
-                        ]);
-                        continue;
-                    }
-
-                    $relayResponse = RelayResponse::create($decoded);
-                    $relayResponses[] = $relayResponse;
-
-                    // Check for EOSE (End of Stored Events) or CLOSED
-                    if (in_array($relayResponse->type, ['EOSE', 'CLOSED'])) {
-                        $this->logger->info('Received EOSE/CLOSED from relay', [
-                            'relay' => $relay->getUrl(),
-                            'type' => $relayResponse->type
-                        ]);
-                        break;
-                    }
-                }
-
-                // Key responses by relay URL so processResponse can identify which relay they came from
-                $responses[$relay->getUrl()] = $relayResponses;
-
-                // If subscription ID provided, send CLOSE message to clean up
-                if ($subscriptionId !== null) {
-                    try {
-                        $closeMessage = new \swentel\nostr\Message\CloseMessage($subscriptionId);
-                        $client->text($closeMessage->generate());
-                        $this->logger->debug('Sent CLOSE message to relay', [
-                            'relay' => $relay->getUrl(),
-                            'subscription_id' => $subscriptionId
-                        ]);
-                    } catch (\Throwable $closeError) {
-                        $this->logger->warning('Failed to send CLOSE message', [
-                            'relay' => $relay->getUrl(),
-                            'subscription_id' => $subscriptionId,
-                            'error' => $closeError->getMessage()
-                        ]);
-                    }
-                }
-
-                // Update last connected time on successful send
-                $this->lastConnected[$relay->getUrl()] = time();
-
-            } catch (\Exception $e) {
-                // If this is a timeout, treat as normal (all events received)
-                if (stripos($e->getMessage(), 'timeout') !== false) {
-                    $this->logger->error('Relay timeout (normal - all events received)', [
-                        'relay' => $relay->getUrl()
-                    ]);
-                    $responses[$relay->getUrl()] = $relayResponses;
-                    $this->lastConnected[$relay->getUrl()] = time();
-                } else {
-                    // Log the error but continue with other relays instead of throwing
-                    $this->logger->error('Error sending to relay (continuing with others)', [
-                        'relay' => $relay->getUrl(),
-                        'error' => $e->getMessage(),
-                        'class' => get_class($e)
-                    ]);
-
-                    // Track failed attempts
-                    $url = $relay->getUrl();
-                    $this->connectionAttempts[$url] = ($this->connectionAttempts[$url] ?? 0) + 1;
-
-                    // If too many failures, remove from pool
-                    if ($this->connectionAttempts[$url] >= self::MAX_RETRIES) {
-                        $this->logger->warning('Removing relay from pool due to repeated failures', [
-                            'relay' => $url,
-                            'attempts' => $this->connectionAttempts[$url]
-                        ]);
-                        unset($this->relays[$url]);
-                    }
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error('Error sending to relay', [
-                    'relay' => $relay->getUrl(),
-                    'error' => $e->getMessage(),
-                    'class' => get_class($e)
-                ]);
-
-                // Track failed attempts
+            // Track failed attempts for all relays
+            foreach ($relays as $relay) {
                 $url = $relay->getUrl();
                 $this->connectionAttempts[$url] = ($this->connectionAttempts[$url] ?? 0) + 1;
 
@@ -312,9 +230,9 @@ class NostrRelayPool
                     unset($this->relays[$url]);
                 }
             }
-        }
 
-        return $responses;
+            return [];
+        }
     }
 
     /**
