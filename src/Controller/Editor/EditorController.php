@@ -276,9 +276,9 @@ class EditorController extends AbstractController
                 return new JsonResponse(['error' => 'Invalid request data'], 400);
             }
 
-            $signedEvent = (object)$data['event'];
+            $signedEvent = $data['event'];
             // Convert the signed event array to a proper Event object
-            $eventObj = Event::fromVerified($signedEvent);
+            $eventObj = Event::fromVerified((object)$signedEvent);
 
             if (!$eventObj->verify()) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
