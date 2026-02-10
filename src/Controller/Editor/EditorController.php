@@ -294,7 +294,7 @@ class EditorController extends AbstractController
             $kind = $isDraft ? KindsEnum::LONGFORM_DRAFT : KindsEnum::LONGFORM;
 
             // Create new article
-            $article = $articleFactory->createFromLongFormContentEvent($eventObj);
+            $article = $articleFactory->createFromLongFormContentEvent((object)$eventObj->toArray());
 
             // Parse and store advanced metadata
             $advancedMetadata = $eventParser->parseAdvancedMetadata($signedEvent['tags']);
