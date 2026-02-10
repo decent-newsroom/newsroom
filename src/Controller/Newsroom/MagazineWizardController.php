@@ -90,7 +90,8 @@ class MagazineWizardController extends AbstractController
         }
 
         // Filter out categories that reference existing lists (they already have articles)
-        $editableCategories = array_filter($draft->categories, fn($cat) => !$cat->isExistingList());
+        // Use array_values to reindex so form field indices are sequential (0, 1, 2...)
+        $editableCategories = array_values(array_filter($draft->categories, fn($cat) => !$cat->isExistingList()));
 
         // If all categories are existing lists, skip to review
         if (empty($editableCategories)) {
@@ -503,11 +504,12 @@ class MagazineWizardController extends AbstractController
                 $helper = new \swentel\nostr\Nip19\Nip19Helper();
                 $decoded = $helper->decode($input);
 
-                if (!isset($decoded['kind'], $decoded['pubkey'], $decoded['identifier'])) {
+                // The library returns 'author' (not 'pubkey') for naddr
+                if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
                     return null;
                 }
 
-                return sprintf('%d:%s:%s', $decoded['kind'], $decoded['pubkey'], $decoded['identifier']);
+                return sprintf('%d:%s:%s', $decoded['kind'], $decoded['author'], $decoded['identifier']);
             } catch (\Throwable $e) {
                 return null;
             }

@@ -516,11 +516,12 @@ class ReadingListController extends AbstractController
             $helper = new \swentel\nostr\Nip19\Nip19Helper();
             $decoded = $helper->decode($naddr);
 
-            if (!isset($decoded['kind'], $decoded['pubkey'], $decoded['identifier'])) {
+            // The library returns 'author' (not 'pubkey') for naddr
+            if (!isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
                 return null;
             }
 
-            return sprintf('%d:%s:%s', $decoded['kind'], $decoded['pubkey'], $decoded['identifier']);
+            return sprintf('%d:%s:%s', $decoded['kind'], $decoded['author'], $decoded['identifier']);
         } catch (\Throwable $e) {
             return null;
         }
