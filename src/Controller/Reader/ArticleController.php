@@ -8,6 +8,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use League\CommonMark\Exception\CommonMarkException;
@@ -21,6 +22,44 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class ArticleController  extends AbstractController
 {
+    public function __construct(
+        private readonly VanityNameService $vanityNameService,
+    ) {}
+
+    /**
+     * Resolve vanity name to npub, or redirect npub to vanity if exists
+     * @return string|Response|array Returns npub string, Response redirect, or array with npub and vanity info
+     */
+    private function resolveVanityOrRedirect(?string $npub, ?string $vanity, string $routeName, array $params = []): string|Response|array
+    {
+        if ($vanity !== null) {
+            // Vanity name provided, resolve it to npub and return both
+            $vanityObj = $this->vanityNameService->getActiveByVanityName($vanity);
+            if ($vanityObj === null) {
+                throw $this->createNotFoundException('Profile not found.');
+            }
+            return [
+                'npub' => $vanityObj->getNpub(),
+                'vanity' => $vanity,
+                'useVanity' => true
+            ];
+        }
+
+        if ($npub !== null) {
+            // Npub provided, check if it has a vanity name and redirect
+            $vanityObj = $this->vanityNameService->getActiveByNpub($npub);
+            if ($vanityObj !== null) {
+                return $this->redirectToRoute($routeName, array_merge(['vanity' => $vanityObj->getVanityName()], $params), 301);
+            }
+            return [
+                'npub' => $npub,
+                'vanity' => null,
+                'useVanity' => false
+            ];
+        }
+
+        throw $this->createNotFoundException('Profile not found.');
+    }
     /**
      * @throws \Exception
      */
@@ -157,22 +196,31 @@ class ArticleController  extends AbstractController
         ]);
     }
 
+    #[Route('/{vanity}/d/{slug}/draft', name: 'author-vanity-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/p/{npub}/d/{slug}/draft', name: 'author-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorDraft(
-        $npub,
         $slug,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
         Converter $converter,
         LoggerInterface $logger,
         HighlightService $highlightService,
-        NostrEventParser $eventParser
+        NostrEventParser $eventParser,
+        $npub = null,
+        $vanity = null
     ): Response
     {
         // Drafts require authentication
         if (!$this->getUser()) {
             throw $this->createAccessDeniedException('You must be logged in to view drafts.');
         }
+
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-draft-slug', ['slug' => $slug]);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
 
         set_time_limit(300);
         ini_set('max_execution_time', '300');
@@ -248,18 +296,27 @@ class ArticleController  extends AbstractController
         ]);
     }
 
+    #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
-        $npub,
         $slug,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
         Converter $converter,
         LoggerInterface $logger,
         HighlightService $highlightService,
-        NostrEventParser $eventParser
+        NostrEventParser $eventParser,
+        $npub = null,
+        $vanity = null
     ): Response
     {
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-article-slug', ['slug' => $slug]);
+        if ($resolved instanceof Response) {
+            return $resolved;
+        }
+
+        $npub = $resolved['npub'];
+
         set_time_limit(300);
         ini_set('max_execution_time', '300');
         $slug = urldecode($slug);
