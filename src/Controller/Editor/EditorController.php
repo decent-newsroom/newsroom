@@ -401,7 +401,69 @@ class EditorController extends AbstractController
             ]);
 
         } catch (\Exception $e) {
-            $logger->error('Failed to publish to Nostr relays: ' . $e->getMessage());
+            $logger->error('Error during publish process', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Check if the article was saved to the database despite the error
+            // This handles timeout scenarios where the article persisted but relay publishing timed out
+            try {
+                if (isset($signedEvent) && isset($signedEvent['tags'])) {
+                    // Extract slug from event tags
+                    $slug = null;
+                    foreach ($signedEvent['tags'] as $tag) {
+                        if (is_array($tag) && count($tag) >= 2 && $tag[0] === 'd') {
+                            $slug = $tag[1];
+                            break;
+                        }
+                    }
+
+                    // Extract pubkey and check if article exists in DB
+                    if ($slug && isset($signedEvent['pubkey'])) {
+                        $isDraft = ($signedEvent['kind'] === KindsEnum::LONGFORM_DRAFT->value);
+                        $kind = $isDraft ? KindsEnum::LONGFORM_DRAFT : KindsEnum::LONGFORM;
+
+                        $savedArticle = $entityManager->getRepository(Article::class)
+                            ->findOneBy([
+                                'slug' => $slug,
+                                'pubkey' => $signedEvent['pubkey'],
+                                'kind' => $kind
+                            ]);
+
+                        if ($savedArticle) {
+                            // Article was saved! Return success with warning about relay publish
+                            $logger->info('Article found in DB despite error - likely timeout during relay publish', [
+                                'slug' => $slug,
+                                'article_id' => $savedArticle->getId()
+                            ]);
+
+                            $redirectUrl = null;
+                            if (!$isDraft) {
+                                $redirectUrl = $this->generateUrl('article-slug', ['slug' => $savedArticle->getSlug()]);
+                            }
+
+                            return new JsonResponse([
+                                'success' => true,
+                                'message' => $isDraft
+                                    ? 'Draft saved successfully (relay publishing timed out)'
+                                    : 'Article saved successfully (relay publishing may still be in progress)',
+                                'articleId' => $savedArticle->getId(),
+                                'slug' => $savedArticle->getSlug(),
+                                'isDraft' => $isDraft,
+                                'redirectUrl' => $redirectUrl,
+                                'warning' => 'The article was saved locally. Relay publishing may have timed out.',
+                                'relayResults' => ['error' => 'Timeout during relay publish']
+                            ]);
+                        }
+                    }
+                }
+            } catch (\Exception $fallbackError) {
+                // If the fallback check fails, log it but continue to return the original error
+                $logger->error('Fallback article check failed', ['error' => $fallbackError->getMessage()]);
+            }
+
+            // Article was not found in DB or we couldn't check - return original error
             return new JsonResponse([
                 'error' => 'Publishing failed: ' . $e->getMessage()
             ], 500);
