@@ -9,7 +9,7 @@
     </div>
   {% endif %}
 
-  {{ form_start(form) }}
+  {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
 
   {% for cat in form.categories %}
     <fieldset class="mb-3">
