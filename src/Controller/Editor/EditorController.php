@@ -342,6 +342,10 @@ class EditorController extends AbstractController
             /** @var User $user */
             $user = $this->getUser();
             $relays = [];
+
+            // Get pubkey from event for fallback (in case session expired)
+            $eventPubkeyHex = $signedEvent['pubkey'] ?? null;
+
             if ($user) {
                 // First try to get relays from User entity (persisted in DB)
                 $storedRelays = $user->getRelays();
@@ -359,6 +363,36 @@ class EditorController extends AbstractController
                         $relays = $authorRelayService->getFallbackRelays();
                     }
                 }
+            } elseif ($eventPubkeyHex) {
+                // Session expired but we have the pubkey from the signed event
+                // Try to get relays from the User entity in database
+                $logger->info('User session expired, attempting to get relays from event pubkey', ['pubkey' => $eventPubkeyHex]);
+                try {
+                    $key = new Key();
+                    $eventNpub = $key->convertPublicKeyToBech32($eventPubkeyHex);
+                    $eventUser = $userRepository->findOneBy(['npub' => $eventNpub]);
+
+                    if ($eventUser) {
+                        $storedRelays = $eventUser->getRelays();
+                        if (!empty($storedRelays['write'] ?? $storedRelays['all'] ?? null)) {
+                            $relays = $storedRelays['write'] ?? $storedRelays['all'] ?? [];
+                            $logger->debug('Using stored relays from event user entity', ['relay_count' => count($relays)]);
+                        }
+                    }
+
+                    // If we still don't have relays, fetch from AuthorRelayService
+                    if (empty($relays)) {
+                        $relays = $authorRelayService->getRelaysForPublishing($eventPubkeyHex);
+                        $logger->debug('Fetched relays from AuthorRelayService for event pubkey', ['relay_count' => count($relays)]);
+                    }
+                } catch (\Exception $e) {
+                    $logger->warning('Failed to get relays from event pubkey, using fallbacks', ['error' => $e->getMessage()]);
+                    $relays = $authorRelayService->getFallbackRelays();
+                }
+            } else {
+                // No user and no pubkey in event - use fallbacks
+                $logger->warning('No user session and no pubkey in event, using fallback relays');
+                $relays = $authorRelayService->getFallbackRelays();
             }
 
             // Publish to Nostr relays
