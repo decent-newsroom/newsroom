@@ -25,7 +25,13 @@ export default class extends Controller {
   }
 
   connect() {
-      this.dropAreaTarget.addEventListener('click', () => this.fileInputTarget.click());
+      this.dropAreaTarget.addEventListener('click', (e) => {
+          if (e.target && e.target.closest('input[type="file"]')) {
+              return;
+          }
+          this.fileInputTarget.click();
+      });
+      this.fileInputTarget.addEventListener('click', (e) => e.stopPropagation());
       this.fileInputTarget.addEventListener('change', (e) => this.handleFile(e.target.files[0]));
       this.dropAreaTarget.addEventListener('dragover', (e) => {
           e.preventDefault();
@@ -35,20 +41,51 @@ export default class extends Controller {
           e.preventDefault();
           this.dropAreaTarget.classList.remove('dragover');
       });
-      this.dropAreaTarget.addEventListener('drop', (e) => {
-          e.preventDefault();
-          this.dropAreaTarget.classList.remove('dragover');
-          if (e.dataTransfer.files.length > 0) {
-              this.handleFile(e.dataTransfer.files[0]);
-          }
-      });
+      this.dropAreaTarget.addEventListener('drop', (e) => this.handleDrop(e));
+
+      if (this.hasDialogTarget) {
+          this.dialogTarget.addEventListener('dragover', (e) => e.preventDefault());
+          this.dialogTarget.addEventListener('drop', (e) => this.handleDrop(e));
+      }
       // Ensure initial visibility states
       this.hideProgress();
       this.clearError();
   }
 
+  handleDrop(e) {
+      e.preventDefault();
+      if (this.hasDropAreaTarget) {
+          this.dropAreaTarget.classList.remove('dragover');
+      }
+      const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+      if (!files || files.length === 0) {
+          this.showError('No file detected in drop.');
+          return;
+      }
+      const file = files[0];
+
+      if (this.hasFileInputTarget) {
+          try {
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              this.fileInputTarget.files = dt.files;
+          } catch (_) {
+              // Some browsers restrict programmatic file assignment.
+          }
+      }
+
+      this.handleFile(file);
+  }
+
   async handleFile(file) {
-      if (!file) return;
+      if (!file || !(file instanceof File)) {
+          this.showError('No file selected.');
+          return;
+      }
+      if (!this.hasProviderTarget) {
+          this.showError('Upload provider is not configured.');
+          return;
+      }
       this.clearError();
       this.showProgress('Preparing upload...');
       try {
@@ -66,7 +103,11 @@ export default class extends Controller {
               return;
           }
           // Determine provider
-          const provider = this.providerTarget.value;
+          const provider = (this.providerTarget.value || '').trim();
+          if (!provider) {
+              this.showError('Please select an upload provider.');
+              return;
+          }
 
           // Map provider -> upstream endpoint used for signing the NIP-98 event
           const upstreamMap = {
