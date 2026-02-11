@@ -367,6 +367,15 @@ export default class extends Controller {
     const existingSlug = (this.element.dataset.slug || '').trim();
     const slug = existingSlug || this.generateSlug(String(title));
 
+    // Update slug field with generated slug if it was generated (not from container dataset)
+    if (!existingSlug && slug) {
+      const slugInput = document.querySelector('input[name="editor[slug]"]');
+      if (slugInput && !slugInput.value) {
+        slugInput.value = slug;
+        console.log('[nostr-publish] Updated slug field with generated slug:', slug);
+      }
+    }
+
     return {
       title: String(title),
       summary: String(summary),
