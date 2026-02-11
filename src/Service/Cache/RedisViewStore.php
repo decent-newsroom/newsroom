@@ -19,7 +19,7 @@ class RedisViewStore
     private const KEY_USER_ARTICLES = 'view:user:articles:%s'; // sprintf with pubkey
     private const KEY_PROFILE_TAB = 'view:profile:tab:%s:%s'; // sprintf with pubkey and tab
 
-    private const DEFAULT_TTL = 3600; // 1 hour
+    private const DEFAULT_TTL = 300; // 5 minutes
 
     // Stale-while-revalidate TTLs
     private const PROFILE_STALE_TTL = 60; // Consider stale after 1 minute

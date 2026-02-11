@@ -17,6 +17,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Util\NostrKeyUtil;
 use App\Message\UpdateProfileProjectionMessage;
+use App\Message\RevalidateProfileCacheMessage;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
@@ -267,7 +268,9 @@ class EditorController extends AbstractController
         NostrEventParser $eventParser,
         UserEntityRepository $userRepository,
         AuthorRelayService $authorRelayService,
-        ArticleFactory $articleFactory
+        ArticleFactory $articleFactory,
+        RedisViewStore $redisViewStore,
+        MessageBusInterface $messageBus
     ): JsonResponse {
         try {
             // Get JSON data
@@ -328,6 +331,12 @@ class EditorController extends AbstractController
                     $entityManager->flush();
                     $logger->info('Granted ROLE_WRITER to user', ['npub' => $publisherNpub]);
                 }
+
+                $redisViewStore->invalidateUserArticles($signedEvent['pubkey']);
+                $redisViewStore->invalidateProfileTabs($signedEvent['pubkey']);
+
+                $messageBus->dispatch(new RevalidateProfileCacheMessage($signedEvent['pubkey'], 'articles', true));
+                $messageBus->dispatch(new RevalidateProfileCacheMessage($signedEvent['pubkey'], 'overview', true));
             }
 
             /** @var User $user */
