@@ -19,7 +19,7 @@ class CategoryArticlesType extends AbstractType
             ->add('title', TextType::class, [
                 'label' => 'Category',
                 'required' => true,
-                'attr' => ['readonly' => true],
+                'disabled' => true,
             ])
             ->add('articles', CollectionType::class, [
                 'entry_type' => TextType::class,

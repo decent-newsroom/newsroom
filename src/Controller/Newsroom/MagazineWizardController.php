@@ -143,6 +143,9 @@ class MagazineWizardController extends AbstractController
 
             $this->saveDraft($request, $draft);
             return $this->redirectToRoute('mag_wizard_review');
+        } elseif ($form->isSubmitted() && !$form->isValid()) {
+            // Add flash message for debugging
+            $this->addFlash('error', 'Form validation failed. Please check the fields above.');
         }
 
         return $this->render('magazine/magazine_articles.html.twig', [

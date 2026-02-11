@@ -10,6 +10,7 @@
   {% endif %}
 
   {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
+  {{ form_errors(form) }}
 
   {% for cat in form.categories %}
     <fieldset class="mb-3">
@@ -21,7 +22,7 @@
           <label class="form-label">Article coordinates</label>
           <ul {{ stimulus_target('ui--form-collection', 'collectionContainer') }} class="list-unstyled">
             {% for art in cat.articles %}
-              <li class="mb-2">{{ form_widget(art, {attr: {placeholder: 'kind:pubkey|npub:slug'}}) }}</li>
+              <li class="mb-2">{{ form_widget(art, {attr: {placeholder: 'kind:pubkey:slug'}}) }}</li>
             {% endfor %}
           </ul>
           <button class="btn btn-sm btn-secondary" type="button" {{ stimulus_action('ui--form-collection', 'addCollectionElement') }}>Add coordinate</button>
@@ -31,8 +32,8 @@
 
   <div class="actions mt-3 d-flex flex-row gap-2">
     <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
-    <button class="btn btn-primary">Next: Review & Sign</button>
+    <button class="btn btn-primary" type="submit">Next: Review & Sign</button>
   </div>
 
-  {{ form_end(form, {'render_rest': false}) }}
+  {{ form_end(form) }}
 {% endblock %}
