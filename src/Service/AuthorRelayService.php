@@ -40,9 +40,10 @@ class AuthorRelayService
     /**
      * Get relay list for an author (NIP-65 kind 10002)
      * @param bool $forceRefresh Force a network fetch even if cached
+     * @param bool $nonBlocking If true, return fallbacks immediately on cache miss instead of blocking on network fetch
      * @return array{read: string[], write: string[], all: string[]}
      */
-    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false): array
+    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false, bool $nonBlocking = false): array
     {
         $cacheKey = 'author_relays_' . $pubkey;
 
@@ -55,6 +56,16 @@ class AuthorRelayService
             } catch (\Exception|InvalidArgumentException $e) {
                 $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
             }
+        }
+
+        // If non-blocking mode and cache missed, return fallbacks immediately
+        if ($nonBlocking && !$forceRefresh) {
+            $this->logger->info('Non-blocking mode: returning fallbacks on cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
+            return [
+                'read' => self::FALLBACK_RELAYS,
+                'write' => self::FALLBACK_RELAYS,
+                'all' => self::FALLBACK_RELAYS
+            ];
         }
 
         $relayList = $this->fetchRelayList($pubkey);

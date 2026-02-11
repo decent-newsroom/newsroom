@@ -160,7 +160,7 @@ class NostrClient
         return $events[0];
     }
 
-    public function publishEvent(Event $event, array $relays): array
+    public function publishEvent(Event $event, array $relays, int $timeout = 30): array
     {
         $eventMessage = new EventMessage($event);
         // If no relays, fetch relays for user then post to those
@@ -174,15 +174,51 @@ class NostrClient
         // Use relay pool instead of creating new Relay instances
         $relaySet = $this->createRelaySet($relays);
         $relaySet->setMessage($eventMessage);
+
         try {
             $this->logger->info('Publishing event to relays', [
                 'event_id' => $event->getId(),
-                'relays' => $relays
+                'relay_count' => count($relays),
+                'relays' => $relays,
+                'timeout' => $timeout
             ]);
-            return $relaySet->send();
+
+            // Publish with timeout protection
+            $startTime = microtime(true);
+            $results = [];
+
+            // Set timeout on relay clients before sending
+            foreach ($relaySet->getRelays() as $relay) {
+                try {
+                    $client = $relay->getClient();
+                    if (method_exists($client, 'setTimeout')) {
+                        $client->setTimeout($timeout);
+                    }
+                } catch (\Exception $e) {
+                    $this->logger->debug('Could not set timeout on relay client', [
+                        'relay' => $relay->getUrl(),
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Send to all relays
+            $results = $relaySet->send();
+
+            $duration = microtime(true) - $startTime;
+            $this->logger->info('Completed relay publish', [
+                'event_id' => $event->getId(),
+                'duration' => round($duration, 2),
+                'result_count' => count($results)
+            ]);
+
+            return $results;
+
         } catch (\Exception $e) {
-            $this->logger->error('Error logging publish event', [
-                'error' => $e->getMessage()
+            $this->logger->error('Error publishing event to relays', [
+                'event_id' => $event->getId(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return [];
         }

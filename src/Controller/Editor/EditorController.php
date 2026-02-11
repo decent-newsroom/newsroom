@@ -272,6 +272,9 @@ class EditorController extends AbstractController
         RedisViewStore $redisViewStore,
         MessageBusInterface $messageBus
     ): JsonResponse {
+        // Increase execution time limit for relay publishing (60 seconds)
+        set_time_limit(60);
+
         try {
             // Get JSON data
             $data = json_decode($request->getContent(), true);
@@ -397,7 +400,8 @@ class EditorController extends AbstractController
 
             // Publish to Nostr relays
             try {
-                $rawResults = $nostrClient->publishEvent($eventObj, $relays);
+                // Use shorter timeout (10s) to fail faster - article is already saved locally
+                $rawResults = $nostrClient->publishEvent($eventObj, $relays, 10);
                 $logger->info('Published to Nostr relays', [
                     'event_id' => $eventObj->getId(),
                     'results' => $rawResults
@@ -413,7 +417,8 @@ class EditorController extends AbstractController
                     'event_id' => $eventObj->getId()
                 ]);
                 $relayResults = [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
+                    'warning' => 'Article saved locally but relay publishing failed'
                 ];
             }
 
