@@ -50,8 +50,8 @@
     {% endif %}
 
     {# Fallback to author image if available #}
-    {% if ogImage is null and author and (author.image ?? false) %}
-        {% set ogImage = author.image %}
+    {% if ogImage is null and author and (author.picture ?? false) %}
+        {% set ogImage = author.picture %}
     {% endif %}
 
     {# Use default icon if no image found #}

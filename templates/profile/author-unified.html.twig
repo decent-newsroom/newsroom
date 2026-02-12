@@ -4,8 +4,8 @@
     <meta property="og:title" content="{{ author.name ?? author.display_name ?? npub }} - Newsroom">
     <meta property="og:type" content="profile">
     <meta property="og:url" content="{{ app.request.uri }}">
-    {% if author.image %}
-        <meta property="og:image" content="{{ author.image }}">
+    {% if author.picture %}
+        <meta property="og:image" content="{{ author.picture }}">
     {% endif %}
     {% if author.about %}
         <meta property="og:description" content="{{ author.about|striptags|u.truncate(159,'…')|e }}">
@@ -22,8 +22,8 @@
             "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
             "identifier": {{ npub|json_encode|raw }},
             "url": "{{ url(routePrefix ~ 'profile', useVanity ? {'vanity': profileId} : {'npub': profileId}) }}",
-            {% if author.image %}
-            "image": {{ author.image|json_encode|raw }},
+            {% if author.picture %}
+            "image": {{ author.picture|json_encode|raw }},
             {% endif %}
             {% if author.about %}
             "description": {{ author.about|striptags|json_encode|raw }},

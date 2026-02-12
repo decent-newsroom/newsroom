@@ -27,8 +27,8 @@
         "url": "{{ url('author-profile', {'npub': npub}) }}",
         "identifier": {{ npub|json_encode|raw }},
         {% endif %}
-        {% if author.image %}
-        "image": {{ author.image|json_encode|raw }}
+        {% if author.picture %}
+        "image": {{ author.picture|json_encode|raw }}
         {% endif %}
     },
     {% endif %}
@@ -109,8 +109,8 @@
     "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
     "identifier": {{ npub|json_encode|raw }},
     "url": "{{ url('author-profile', {'npub': npub}) }}",
-    {% if author.image %}
-    "image": {{ author.image|json_encode|raw }},
+    {% if author.picture %}
+    "image": {{ author.picture|json_encode|raw }},
     {% endif %}
     {% if author.about %}
     "description": {{ author.about|striptags|json_encode|raw }},
