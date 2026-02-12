@@ -1,11 +1,23 @@
 {% extends 'layout.html.twig' %}
 
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
 {% block ogtags %}
     <meta property="og:title" content="{{ list.title }} - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="{{ list.summary ?? '' }}">
     <meta property="og:site_name" content="Newsroom">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Reading Lists", "url": url('lists')},
+        {"name": list.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
 
     {# JSON-LD Structured Data for Reading List #}
     <script type="application/ld+json">
@@ -18,36 +30,21 @@
         {% endif %}
         "url": {{ app.request.uri|json_encode|raw }},
         {% if list.pubkey %}
-        "author": {
-            "@type": "Person",
-            "identifier": {{ list.pubkey|toNpub|json_encode|raw }}
-        },
+        "author": {{ jsonld.person({'name': list.pubkey|toNpub}, list.pubkey|toNpub)|raw }},
         {% endif %}
         {% if articles is not empty %}
         "numberOfItems": {{ articles|length }},
         "itemListElement": [
             {% for article in articles %}
             {% if article.slug is not empty and article.title is not empty %}
-            {
-                "@type": "ListItem",
-                "position": {{ loop.index }},
-                "item": {
-                    "@type": "NewsArticle",
-                    "headline": {{ article.title|json_encode|raw }},
-                    {% if article.summary %}
-                    "description": {{ article.summary|striptags|json_encode|raw }},
-                    {% endif %}
-                    {% if article.image %}
-                    "image": {{ article.image|json_encode|raw }},
-                    {% endif %}
-                    "url": "{{ url('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}"
-                }
-            }{% if not loop.last %},{% endif %}
+            {{ jsonld.articleListItem(article, loop.index, true)|raw }}{% if not loop.last %},{% endif %}
             {% endif %}
             {% endfor %}
         ]
         {% endif %}
     }
+    </script>
+{% endblock %}
     </script>
 {% endblock %}
 

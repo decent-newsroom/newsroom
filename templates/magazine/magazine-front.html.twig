@@ -1,5 +1,7 @@
 {% extends 'layout.html.twig' %}
 
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
 {% block ogtags %}
     <meta property="og:title" content="{{ magazine.title }} - Newsroom">
     <meta property="og:type" content="website">
@@ -14,6 +16,16 @@
 
     {# Link to machine-readable manifest #}
     <link rel="alternate" type="application/json" href="{{ url('magazine-manifest', {'mag': mag}) }}" title="Magazine Manifest">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
 
     {# JSON-LD Structured Data for Magazine/Periodical #}
     <script type="application/ld+json">
@@ -31,11 +43,7 @@
         {% if magazine.language %}
         "inLanguage": {{ magazine.language|json_encode|raw }},
         {% endif %}
-        "publisher": {
-            "@type": "Organization",
-            "name": "Newsroom",
-            "url": "{{ url('home') }}"
-        },
+        "publisher": {{ jsonld.organization()|raw }},
         "distribution": {
             "@type": "DataDownload",
             "encodingFormat": "application/json",

@@ -1,0 +1,172 @@
+{# JSON-LD Reusable Macros for Structured Data #}
+
+{#
+  Macro: NewsArticle Schema
+  Usage: {{ jsonld.article(article, author, npub, canonical) }}
+#}
+{% macro article(article, author, npub, canonical) %}
+{
+    "@type": "NewsArticle",
+    "headline": {{ article.title|json_encode|raw }},
+    {% if article.summary %}
+    "description": {{ article.summary|striptags|json_encode|raw }},
+    {% endif %}
+    {% if article.image %}
+    "image": {{ article.image|json_encode|raw }},
+    {% endif %}
+    {% if article.createdAt %}
+    "datePublished": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
+    "dateCreated": "{{ article.createdAt|date('c') }}",
+    "dateModified": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
+    {% endif %}
+    {% if author %}
+    "author": {
+        "@type": "Person",
+        "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
+        {% if npub %}
+        "url": "{{ url('author-profile', {'npub': npub}) }}",
+        "identifier": {{ npub|json_encode|raw }},
+        {% endif %}
+        {% if author.image %}
+        "image": {{ author.image|json_encode|raw }}
+        {% endif %}
+    },
+    {% endif %}
+    "publisher": {{ _self.organization()|raw }},
+    {% if canonical %}
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": {{ canonical|json_encode|raw }}
+    },
+    "url": {{ canonical|json_encode|raw }},
+    {% endif %}
+    {% if article.topics is defined and article.topics|length > 0 %}
+    "keywords": {{ article.topics|join(', ')|json_encode|raw }},
+    "about": [
+        {% for topic in article.topics %}
+        {
+            "@type": "Thing",
+            "name": {{ topic|json_encode|raw }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ],
+    {% endif %}
+    "inLanguage": "en",
+    "isAccessibleForFree": true
+}
+{% endmacro %}
+
+{#
+  Macro: ListItem for articles in collections
+  Usage: {{ jsonld.articleListItem(article, position, includeAuthor) }}
+#}
+{% macro articleListItem(article, position, includeAuthor) %}
+{
+    "@type": "ListItem",
+    "position": {{ position }},
+    "item": {
+        "@type": "NewsArticle",
+        "headline": {{ article.title|json_encode|raw }},
+        {% if article.summary %}
+        "description": {{ article.summary|striptags|json_encode|raw }},
+        {% endif %}
+        {% if article.image %}
+        "image": {{ article.image|json_encode|raw }},
+        {% endif %}
+        {% if article.createdAt %}
+        "datePublished": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
+        {% endif %}
+        {% if includeAuthor and article.pubkey %}
+        "author": {
+            "@type": "Person",
+            "identifier": {{ article.pubkey|toNpub|json_encode|raw }}
+        },
+        {% endif %}
+        "url": "{{ url('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}"
+    }
+}
+{% endmacro %}
+
+{#
+  Macro: Organization (Publisher)
+  Usage: {{ jsonld.organization() }}
+#}
+{% macro organization() %}
+{
+    "@type": "Organization",
+    "name": "Newsroom",
+    "url": "{{ url('home') }}"
+}
+{% endmacro %}
+
+{#
+  Macro: Person Schema
+  Usage: {{ jsonld.person(author, npub) }}
+#}
+{% macro person(author, npub) %}
+{
+    "@type": "Person",
+    "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
+    "identifier": {{ npub|json_encode|raw }},
+    "url": "{{ url('author-profile', {'npub': npub}) }}",
+    {% if author.image %}
+    "image": {{ author.image|json_encode|raw }},
+    {% endif %}
+    {% if author.about %}
+    "description": {{ author.about|striptags|json_encode|raw }},
+    {% endif %}
+    {% if author.nip05 %}
+    "email": {{ author.nip05|json_encode|raw }},
+    {% endif %}
+    {% if author.website %}
+    "sameAs": {{ author.website|json_encode|raw }}
+    {% endif %}
+}
+{% endmacro %}
+
+{#
+  Macro: BreadcrumbList
+  Usage: {{ jsonld.breadcrumbs(items) }}
+  items format: [{"name": "Home", "url": "/"}, {"name": "Category", "url": "/cat"}]
+#}
+{% macro breadcrumbs(items) %}
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        {% for item in items %}
+        {
+            "@type": "ListItem",
+            "position": {{ loop.index }},
+            "name": {{ item.name|json_encode|raw }},
+            "item": {{ item.url|json_encode|raw }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+}
+{% endmacro %}
+
+{#
+  Macro: WebSite with SearchAction
+  Usage: {{ jsonld.website() }}
+#}
+{% macro website() %}
+{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Newsroom",
+    "alternateName": "Decent Newsroom",
+    "description": "Decentralised Newsroom - the future of journalism",
+    "url": "{{ url('home') }}",
+    "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+    },
+    "publisher": {{ _self.organization()|raw }}
+}
+{% endmacro %}
+

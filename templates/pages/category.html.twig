@@ -1,11 +1,24 @@
 {% extends 'layout.html.twig' %}
 
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
 {% block ogtags %}
     <meta property="og:title" content="{{ category.title }} - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="{{ category.summary ?? '' }}">
     <meta property="og:site_name" content="Newsroom">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title, "url": url('magazine-index', {'mag': mag})},
+        {"name": category.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
 
     {# JSON-LD Structured Data for Category/Collection Page #}
     <script type="application/ld+json">
@@ -18,9 +31,9 @@
         {% endif %}
         "url": {{ app.request.uri|json_encode|raw }},
         "isPartOf": {
-            "@type": "WebSite",
-            "name": "Newsroom",
-            "url": "{{ url('home') }}"
+            "@type": "Periodical",
+            "name": {{ magazine.title|json_encode|raw }},
+            "url": "{{ url('magazine-index', {'mag': mag}) }}"
         },
         {% if list is defined and list|length > 0 %}
         "mainEntity": {
@@ -29,21 +42,7 @@
             "itemListElement": [
                 {% for item in list %}
                 {% if item.slug is not empty and item.title is not empty %}
-                {
-                    "@type": "ListItem",
-                    "position": {{ loop.index }},
-                    "item": {
-                        "@type": "NewsArticle",
-                        "headline": {{ item.title|json_encode|raw }},
-                        {% if item.summary %}
-                        "description": {{ item.summary|striptags|json_encode|raw }},
-                        {% endif %}
-                        {% if item.image %}
-                        "image": {{ item.image|json_encode|raw }},
-                        {% endif %}
-                        "url": "{{ url('magazine-category-article', {slug: item.slug, cat: index, mag: mag}) }}"
-                    }
-                }{% if not loop.last %},{% endif %}
+                {{ jsonld.articleListItem(item, loop.index, true)|raw }}{% if not loop.last %},{% endif %}
                 {% endif %}
                 {% endfor %}
             ]

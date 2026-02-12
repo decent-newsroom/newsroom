@@ -1,5 +1,7 @@
 {% extends 'layout.html.twig' %}
 
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
 {% block ogtags %}
     <meta property="og:title" content="Latest Articles - Newsroom">
     <meta property="og:type" content="website">
@@ -26,21 +28,7 @@
             "itemListElement": [
                 {% for article in articles %}
                 {% if article.slug is not empty and article.title is not empty %}
-                {
-                    "@type": "ListItem",
-                    "position": {{ loop.index }},
-                    "item": {
-                        "@type": "NewsArticle",
-                        "headline": {{ article.title|json_encode|raw }},
-                        {% if article.summary %}
-                        "description": {{ article.summary|striptags|json_encode|raw }},
-                        {% endif %}
-                        {% if article.image %}
-                        "image": {{ article.image|json_encode|raw }},
-                        {% endif %}
-                        "url": "{{ url('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}"
-                    }
-                }{% if not loop.last %},{% endif %}
+                {{ jsonld.articleListItem(article, loop.index, true)|raw }}{% if not loop.last %},{% endif %}
                 {% endif %}
                 {% endfor %}
             ]

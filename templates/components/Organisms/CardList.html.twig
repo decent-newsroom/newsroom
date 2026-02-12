@@ -1,3 +1,23 @@
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{# Optional: Output JSON-LD for the list if requested #}
+{% if includeJsonLd|default(false) %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "numberOfItems": {{ list|length }},
+    "itemListElement": [
+        {% for item in list %}
+        {% if item.slug is not empty and item.title is not empty %}
+        {{ jsonld.articleListItem(item, loop.index, true)|raw }}{% if not loop.last %},{% endif %}
+        {% endif %}
+        {% endfor %}
+    ]
+}
+</script>
+{% endif %}
+
 <div {{ attributes }}>
     {% set is_author_profile = is_author_profile|default(false) %}
     {% for item in list %}
