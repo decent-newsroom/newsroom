@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { getSigner } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
   static targets = ["dialog", "dropArea", "fileInput", "progress", "error", "provider"];
@@ -89,15 +90,18 @@ export default class extends Controller {
       this.clearError();
       this.showProgress('Preparing upload...');
       try {
-          // NIP98: get signed HTTP Auth event from window.nostr
-          if (!window.nostr || !window.nostr.signEvent) {
-              this.showError('Nostr extension not found.');
+          // NIP98: get signed HTTP Auth event from signer (extension or bunker)
+          let signer;
+          try {
+              signer = await getSigner();
+          } catch (e) {
+              this.showError('No Nostr signer available: ' + e.message);
               return;
           }
           // Request pubkey first - required by some extensions (e.g., nos2x-fox) to determine active profile
           let pubkey;
           try {
-              pubkey = await window.nostr.getPublicKey();
+              pubkey = await signer.getPublicKey();
           } catch (e) {
               this.showError('Failed to get public key: ' + e.message);
               return;
@@ -130,7 +134,7 @@ export default class extends Controller {
               ],
               content: ""
           };
-          const signed = await window.nostr.signEvent(event);
+          const signed = await signer.signEvent(event);
           const signedJson = JSON.stringify(signed);
           const authHeader = 'Nostr ' + this.base64Encode(signedJson);
           // Prepare form data
