@@ -263,9 +263,11 @@ export default class extends Controller {
       } else {
         this.showSuccess('Article published successfully!');
         // Redirect to article page after short delay
-        setTimeout(() => {
-          window.location.href = `/article/d/${encodeURIComponent(result.slug || nostrEvent.tags?.find(t => t[0] === 'd')?.[1] || '')}`;
-        }, 2000);
+        if (result.redirectUrl) {
+          setTimeout(() => {
+            window.location.href = result.redirectUrl;
+          }, 2000);
+        }
       }
 
     } catch (error) {
