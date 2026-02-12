@@ -1,5 +1,33 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="Multimedia - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="Discovery through serendipity - explore multimedia content">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Media Discovery Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "Multimedia",
+        "description": "Discovery through serendipity - explore multimedia content",
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "Multimedia Content"
+        }
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
     <twig:Atoms:PageHeading heading="Multimedia" tagline="Discovery through serendipity"/>
 

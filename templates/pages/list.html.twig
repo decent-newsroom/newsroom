@@ -6,6 +6,49 @@
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="{{ list.summary ?? '' }}">
     <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Reading List #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": {{ list.title|json_encode|raw }},
+        {% if list.summary %}
+        "description": {{ list.summary|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        {% if list.pubkey %}
+        "author": {
+            "@type": "Person",
+            "identifier": {{ list.pubkey|toNpub|json_encode|raw }}
+        },
+        {% endif %}
+        {% if articles is not empty %}
+        "numberOfItems": {{ articles|length }},
+        "itemListElement": [
+            {% for article in articles %}
+            {% if article.slug is not empty and article.title is not empty %}
+            {
+                "@type": "ListItem",
+                "position": {{ loop.index }},
+                "item": {
+                    "@type": "NewsArticle",
+                    "headline": {{ article.title|json_encode|raw }},
+                    {% if article.summary %}
+                    "description": {{ article.summary|striptags|json_encode|raw }},
+                    {% endif %}
+                    {% if article.image %}
+                    "image": {{ article.image|json_encode|raw }},
+                    {% endif %}
+                    "url": "{{ url('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}"
+                }
+            }{% if not loop.last %},{% endif %}
+            {% endif %}
+            {% endfor %}
+        ]
+        {% endif %}
+    }
+    </script>
 {% endblock %}
 
 {% block body %}

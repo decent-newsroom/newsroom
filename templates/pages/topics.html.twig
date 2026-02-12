@@ -1,5 +1,54 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="{% if selectedTopic %}{{ topics[selectedTopic].name }} - {% endif %}Topics - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{% if selectedTopic %}Explore articles about {{ topics[selectedTopic].name }}{% else %}Explore topics and discover articles on Newsroom{% endif %}">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Topics Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "{% if selectedTopic %}{{ topics[selectedTopic].name }}{% else %}Topics{% endif %}",
+        "description": "{% if selectedTopic %}Explore articles about {{ topics[selectedTopic].name }}{% else %}Explore topics and discover articles on Newsroom{% endif %}",
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        }{% if selectedTopic and articles is not empty %},
+        "about": {
+            "@type": "Thing",
+            "name": {{ topics[selectedTopic].name|json_encode|raw }}
+        },
+        "mainEntity": {
+            "@type": "ItemList",
+            "numberOfItems": {{ articles|length }},
+            "itemListElement": [
+                {% for article in articles %}
+                {
+                    "@type": "ListItem",
+                    "position": {{ loop.index }},
+                    "item": {
+                        "@type": "NewsArticle",
+                        "headline": {{ article.title|json_encode|raw }},
+                        {% if article.summary %}
+                        "description": {{ article.summary|striptags|json_encode|raw }},
+                        {% endif %}
+                        "url": "{{ url('article-slug', {slug: article.slug}) }}"
+                    }
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ]
+        }
+        {% endif %}
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
 <h1>Explore Topics</h1>
 <p>Select a topic to view the 10 most recent articles related to it.</p>

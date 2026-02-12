@@ -2,6 +2,63 @@
 
 {% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
 
+{% block ogtags %}
+    {{ parent() }}
+    <meta property="og:title" content="Decent Newsroom — A decentralized platform for collaborative publishing">
+    <meta property="og:description" content="Explore, publish articles, and create magazines on Nostr">
+    <meta property="og:url" content="{{ url('home') }}">
+
+    {# Override default WebSite schema with more detailed home page schema #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Newsroom",
+        "alternateName": "Decent Newsroom",
+        "description": "A decentralized platform for collaborative publishing on Nostr",
+        "url": "{{ url('home') }}",
+        "headline": "Explore, publish articles, and create magazines",
+        "about": [
+            {
+                "@type": "Thing",
+                "name": "Decentralized Publishing"
+            },
+            {
+                "@type": "Thing",
+                "name": "Nostr Protocol"
+            },
+            {
+                "@type": "Thing",
+                "name": "Digital Magazines"
+            }
+        ],
+        "potentialAction": [
+            {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+            },
+            {
+                "@type": "ReadAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": "{{ url('newsstand') }}"
+                },
+                "name": "Browse Newsstand"
+            }
+        ],
+        "publisher": {
+            "@type": "Organization",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        }
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
 
     <section class="ln-hero d-flex gap-3 center">

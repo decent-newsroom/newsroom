@@ -1,5 +1,29 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="Highlights - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="Noteworthy passages highlighted by the community">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Highlights Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "Highlights",
+        "description": "Noteworthy passages highlighted by the community",
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        }
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
     <twig:Atoms:PageHeading
         heading="Highlights"

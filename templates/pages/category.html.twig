@@ -6,6 +6,51 @@
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="{{ category.summary ?? '' }}">
     <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Category/Collection Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": {{ category.title|json_encode|raw }},
+        {% if category.summary %}
+        "description": {{ category.summary|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        {% if list is defined and list|length > 0 %}
+        "mainEntity": {
+            "@type": "ItemList",
+            "numberOfItems": {{ list|length }},
+            "itemListElement": [
+                {% for item in list %}
+                {% if item.slug is not empty and item.title is not empty %}
+                {
+                    "@type": "ListItem",
+                    "position": {{ loop.index }},
+                    "item": {
+                        "@type": "NewsArticle",
+                        "headline": {{ item.title|json_encode|raw }},
+                        {% if item.summary %}
+                        "description": {{ item.summary|striptags|json_encode|raw }},
+                        {% endif %}
+                        {% if item.image %}
+                        "image": {{ item.image|json_encode|raw }},
+                        {% endif %}
+                        "url": "{{ url('magazine-category-article', {slug: item.slug, cat: index, mag: mag}) }}"
+                    }
+                }{% if not loop.last %},{% endif %}
+                {% endif %}
+                {% endfor %}
+            ]
+        }
+        {% endif %}
+    }
+    </script>
 {% endblock %}
 
 {% block body %}

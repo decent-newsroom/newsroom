@@ -1,5 +1,55 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="Latest Articles - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="Fresh off the presses - the latest articles on Newsroom">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Latest Articles #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "Latest Articles",
+        "description": "Fresh off the presses - the latest articles on Newsroom",
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        }{% if articles is not empty %},
+        "mainEntity": {
+            "@type": "ItemList",
+            "numberOfItems": {{ articles|length }},
+            "itemListElement": [
+                {% for article in articles %}
+                {% if article.slug is not empty and article.title is not empty %}
+                {
+                    "@type": "ListItem",
+                    "position": {{ loop.index }},
+                    "item": {
+                        "@type": "NewsArticle",
+                        "headline": {{ article.title|json_encode|raw }},
+                        {% if article.summary %}
+                        "description": {{ article.summary|striptags|json_encode|raw }},
+                        {% endif %}
+                        {% if article.image %}
+                        "image": {{ article.image|json_encode|raw }},
+                        {% endif %}
+                        "url": "{{ url('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}"
+                    }
+                }{% if not loop.last %},{% endif %}
+                {% endif %}
+                {% endfor %}
+            ]
+        }
+        {% endif %}
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
     <twig:Atoms:PageHeading heading="Latest Articles" tagline="Fresh off the presses"/>
 

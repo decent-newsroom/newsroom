@@ -1,5 +1,41 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="Newsstand - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="Browse magazines for the digital age on Newsroom">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# Link to machine-readable magazines manifest #}
+    <link rel="alternate" type="application/json" href="{{ url('magazines-manifest') }}" title="Magazines Catalog">
+
+    {# JSON-LD Structured Data for Newsstand #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "Newsstand",
+        "description": "Browse magazines for the digital age",
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "Digital Magazines"
+        },
+        "distribution": {
+            "@type": "DataDownload",
+            "encodingFormat": "application/json",
+            "contentUrl": "{{ url('magazines-manifest') }}"
+        }
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">

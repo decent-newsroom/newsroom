@@ -17,6 +17,31 @@
 
     {% block ogtags %}
         <meta property="og:image" content="{{ asset('icons/favicon.ico') }}" />
+
+        {# Default JSON-LD for WebSite - can be overridden in child templates #}
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "alternateName": "Decent Newsroom",
+            "description": "Decentralised Newsroom - the future of journalism",
+            "url": "{{ url('home') }}",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                    "@type": "EntryPoint",
+                    "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "Newsroom",
+                "url": "{{ url('home') }}"
+            }
+        }
+        </script>
     {% endblock %}
 
     {% block stylesheets %}{% endblock %}

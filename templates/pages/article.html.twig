@@ -9,6 +9,56 @@
     {% endif %}
     <meta property="og:description" content="{{ article.summary|striptags|u.truncate(159,'…')|e }}">
     <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Article #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": {{ article.title|json_encode|raw }},
+        "description": {{ article.summary|striptags|json_encode|raw }},
+        {% if article.image %}
+        "image": {{ article.image|json_encode|raw }},
+        {% endif %}
+        "datePublished": "{{ article.publishedAt ? article.publishedAt|date('c') : article.createdAt|date('c') }}",
+        {% if article.publishedAt %}
+        "dateCreated": "{{ article.createdAt|date('c') }}",
+        {% endif %}
+        "dateModified": "{{ article.publishedAt ? article.publishedAt|date('c') : article.createdAt|date('c') }}",
+        "author": {
+            "@type": "Person",
+            "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
+            "url": "{{ url('author-profile', {'npub': npub}) }}",
+            {% if author.image %}
+            "image": {{ author.image|json_encode|raw }},
+            {% endif %}
+            "identifier": {{ npub|json_encode|raw }}
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": {{ canonical|json_encode|raw }}
+        },
+        "url": {{ canonical|json_encode|raw }},
+        {% if article.topics is defined and article.topics|length > 0 %}
+        "keywords": {{ article.topics|join(', ')|json_encode|raw }},
+        "about": [
+            {% for topic in article.topics %}
+            {
+                "@type": "Thing",
+                "name": {{ topic|json_encode|raw }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        {% endif %}
+        "inLanguage": "en",
+        "isAccessibleForFree": true
+    }
+    </script>
 {% endblock %}
 
 {% block body %}

@@ -24,6 +24,7 @@ use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -46,6 +47,95 @@ class DefaultController extends AbstractController
     public function newsstand(): Response
     {
         return $this->render('pages/newsstand.html.twig');
+    }
+
+    /**
+     * Global magazines manifest - lists all available magazines
+     */
+    #[Route('/magazines/manifest.json', name: 'magazines-manifest')]
+    public function magazinesManifest(
+        EntityManagerInterface $entityManager,
+        LoggerInterface $logger
+    ): JsonResponse
+    {
+        try {
+            // Get all magazine indices from database
+            $nzines = $entityManager->getRepository(Event::class)->findBy(
+                ['kind' => KindsEnum::PUBLICATION_INDEX],
+                ['createdAt' => 'DESC']
+            );
+
+            // Group by slug and keep only the latest version of each
+            $magazinesBySlug = [];
+            foreach ($nzines as $magazine) {
+                $slug = $magazine->getSlug();
+                if (!isset($magazinesBySlug[$slug]) ||
+                    $magazine->getCreatedAt() > $magazinesBySlug[$slug]->getCreatedAt()) {
+                    $magazinesBySlug[$slug] = $magazine;
+                }
+            }
+
+            $magazines = [];
+            foreach ($magazinesBySlug as $slug => $magazine) {
+                // Count categories
+                $categoryCount = 0;
+                if ($magazine->getTags()) {
+                    foreach ($magazine->getTags() as $tag) {
+                        if (isset($tag[0]) && $tag[0] === 'a') {
+                            $categoryCount++;
+                        }
+                    }
+                }
+
+                $magazines[] = [
+                    'slug' => $slug,
+                    'title' => $magazine->getTitle(),
+                    'summary' => $magazine->getSummary(),
+                    'image' => $magazine->getImage(),
+                    'language' => $magazine->getLanguage(),
+                    'pubkey' => $magazine->getPubkey(),
+                    'createdAt' => $magazine->getCreatedAt()->format('c'),
+                    'categoryCount' => $categoryCount,
+                    'url' => $this->generateUrl('magazine-index', ['mag' => $slug], 0),
+                    'manifestUrl' => $this->generateUrl('magazine-manifest', ['mag' => $slug], 0),
+                ];
+            }
+
+            // Sort by title
+            usort($magazines, function ($a, $b) {
+                return strcasecmp($a['title'], $b['title']);
+            });
+
+            $manifest = [
+                '@context' => 'https://schema.org',
+                '@type' => 'DataCatalog',
+                'name' => 'Newsroom Magazines',
+                'description' => 'Collection of all magazines available on Newsroom',
+                'version' => '1.0',
+                'generatedAt' => (new \DateTime())->format('c'),
+                'url' => $this->generateUrl('newsstand', [], 0),
+                'dataset' => $magazines,
+                'stats' => [
+                    'totalMagazines' => count($magazines),
+                    'totalCategories' => array_sum(array_column($magazines, 'categoryCount')),
+                ],
+            ];
+
+            return new JsonResponse($manifest, 200, [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => 'public, max-age=600', // Cache for 10 minutes
+            ]);
+
+        } catch (\Exception $e) {
+            $logger->error('Failed to generate magazines manifest', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new JsonResponse([
+                'error' => 'Failed to generate manifest',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -266,6 +356,170 @@ class DefaultController extends AbstractController
             'magazine' => $magazine,
             'mag' => $mag,
         ]);
+    }
+
+    /**
+     * Magazine manifest - exposes complete magazine structure as JSON
+     * @throws InvalidArgumentException
+     */
+    #[Route('/mag/{mag}/manifest.json', name: 'magazine-manifest')]
+    public function magManifest(
+        string $mag,
+        EntityManagerInterface $entityManager,
+        RedisCacheService $redisCacheService,
+        ArticleSearchInterface $articleSearch,
+        LoggerInterface $logger
+    ): JsonResponse
+    {
+        try {
+            // Get latest magazine index by slug from database
+            $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+
+            // Filter by slug
+            $nzines = array_filter($nzines, function ($index) use ($mag) {
+                return $index->getSlug() === $mag;
+            });
+
+            if (count($nzines) === 0) {
+                return new JsonResponse(['error' => 'Magazine not found'], 404);
+            }
+
+            // Sort by createdAt, keep newest
+            usort($nzines, function ($a, $b) {
+                return $b->getCreatedAt() <=> $a->getCreatedAt();
+            });
+
+            $magazine = array_shift($nzines);
+            $raw = $magazine->getRaw();
+
+            // Build manifest structure
+            $manifest = [
+                '@context' => 'https://schema.org',
+                '@type' => 'Periodical',
+                'version' => '1.0',
+                'generatedAt' => (new \DateTime())->format('c'),
+                'magazine' => [
+                    'id' => $magazine->getId(),
+                    'slug' => $magazine->getSlug(),
+                    'title' => $magazine->getTitle(),
+                    'summary' => $magazine->getSummary(),
+                    'image' => $magazine->getImage(),
+                    'language' => $magazine->getLanguage(),
+                    'pubkey' => $magazine->getPubkey(),
+                    'createdAt' => $magazine->getCreatedAt()->format('c'),
+                    'url' => $this->generateUrl('magazine-index', ['mag' => $mag], 0),
+                ],
+                'categories' => [],
+            ];
+
+            // Extract category tags from magazine
+            $categoryTags = [];
+            if ($magazine->getTags()) {
+                foreach ($magazine->getTags() as $tag) {
+                    if (isset($tag[0]) && $tag[0] === 'a') {
+                        $categoryTags[] = $tag;
+                    }
+                }
+            }
+
+            // Build each category with its articles
+            foreach ($categoryTags as $catTag) {
+                $catSlug = $catTag[3] ?? null;
+                if (!$catSlug) {
+                    continue;
+                }
+
+                // Fetch category details
+                $sql = "SELECT e.* FROM event e
+                        WHERE e.tags::jsonb @> ?::jsonb
+                        ORDER BY e.created_at DESC
+                        LIMIT 1";
+
+                $conn = $entityManager->getConnection();
+                $result = $conn->executeQuery($sql, [
+                    json_encode([['d', $catSlug]])
+                ]);
+
+                $eventData = $result->fetchAssociative();
+                if (!$eventData) {
+                    continue;
+                }
+
+                $category = Event::fromArray($eventData);
+                $categoryArticles = [];
+
+                // Get articles for this category
+                try {
+                    $coordinates = [];
+                    foreach ($category->getTags() as $tag) {
+                        if ($tag[0] === 'a' && isset($tag[1]) && isset($tag[3])) {
+                            $coordinates[] = $tag[1] . ':' . $tag[2] . ':' . $tag[3];
+                        }
+                    }
+
+                    if (!empty($coordinates)) {
+                        $results = $articleSearch->findByCoordinates($coordinates);
+                        foreach ($results as $article) {
+                            $categoryArticles[] = [
+                                'title' => $article->title ?? null,
+                                'slug' => $article->slug ?? null,
+                                'summary' => $article->summary ?? null,
+                                'image' => $article->image ?? null,
+                                'pubkey' => $article->pubkey ?? null,
+                                'createdAt' => isset($article->createdAt) ? $article->createdAt->format('c') : null,
+                                'publishedAt' => isset($article->publishedAt) ? $article->publishedAt->format('c') : null,
+                                'topics' => $article->topics ?? [],
+                                'url' => $this->generateUrl('magazine-category-article', [
+                                    'slug' => $article->slug,
+                                    'cat' => $catSlug,
+                                    'mag' => $mag
+                                ], 0),
+                            ];
+                        }
+                    }
+                } catch (\Exception $e) {
+                    $logger->warning('Failed to fetch articles for category in manifest', [
+                        'category' => $catSlug,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                $manifest['categories'][] = [
+                    'slug' => $catSlug,
+                    'title' => $category->getTitle(),
+                    'summary' => $category->getSummary(),
+                    'image' => $category->getImage(),
+                    'url' => $this->generateUrl('magazine-category', [
+                        'mag' => $mag,
+                        'slug' => $catSlug
+                    ], 0),
+                    'articleCount' => count($categoryArticles),
+                    'articles' => $categoryArticles,
+                ];
+            }
+
+            // Add metadata
+            $manifest['stats'] = [
+                'totalCategories' => count($manifest['categories']),
+                'totalArticles' => array_sum(array_column($manifest['categories'], 'articleCount')),
+            ];
+
+            return new JsonResponse($manifest, 200, [
+                'Content-Type' => 'application/json',
+                'Cache-Control' => 'public, max-age=300', // Cache for 5 minutes
+            ]);
+
+        } catch (\Exception $e) {
+            $logger->error('Failed to generate magazine manifest', [
+                'magazine' => $mag,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new JsonResponse([
+                'error' => 'Failed to generate manifest',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

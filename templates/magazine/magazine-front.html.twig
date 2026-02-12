@@ -1,5 +1,50 @@
 {% extends 'layout.html.twig' %}
 
+{% block ogtags %}
+    <meta property="og:title" content="{{ magazine.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if magazine.image %}
+        <meta property="og:image" content="{{ magazine.image }}">
+    {% endif %}
+    {% if magazine.summary %}
+        <meta property="og:description" content="{{ magazine.summary }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+
+    {# Link to machine-readable manifest #}
+    <link rel="alternate" type="application/json" href="{{ url('magazine-manifest', {'mag': mag}) }}" title="Magazine Manifest">
+
+    {# JSON-LD Structured Data for Magazine/Periodical #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Periodical",
+        "name": {{ magazine.title|json_encode|raw }},
+        {% if magazine.summary %}
+        "description": {{ magazine.summary|json_encode|raw }},
+        {% endif %}
+        {% if magazine.image %}
+        "image": {{ magazine.image|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        {% if magazine.language %}
+        "inLanguage": {{ magazine.language|json_encode|raw }},
+        {% endif %}
+        "publisher": {
+            "@type": "Organization",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        "distribution": {
+            "@type": "DataDownload",
+            "encodingFormat": "application/json",
+            "contentUrl": "{{ url('magazine-manifest', {'mag': mag}) }}"
+        }
+    }
+    </script>
+{% endblock %}
+
 {% block body %}
     <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" />
 
