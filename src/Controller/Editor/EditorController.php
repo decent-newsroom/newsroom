@@ -426,7 +426,12 @@ class EditorController extends AbstractController
             // Generate URL for the published article
             $redirectUrl = null;
             if (!$isDraft) {
-                $redirectUrl = $this->generateUrl('article-slug', ['slug' => $article->getSlug()]);
+                $key = new Key();
+                $npub = $key->convertPublicKeyToBech32($article->getPubkey());
+                $redirectUrl = $this->generateUrl('author-article-slug', [
+                    'npub' => $npub,
+                    'slug' => $article->getSlug()
+                ]);
             }
 
             return new JsonResponse([
@@ -479,7 +484,12 @@ class EditorController extends AbstractController
 
                             $redirectUrl = null;
                             if (!$isDraft) {
-                                $redirectUrl = $this->generateUrl('article-slug', ['slug' => $savedArticle->getSlug()]);
+                                $key = new Key();
+                                $npub = $key->convertPublicKeyToBech32($savedArticle->getPubkey());
+                                $redirectUrl = $this->generateUrl('author-article-slug', [
+                                    'npub' => $npub,
+                                    'slug' => $savedArticle->getSlug()
+                                ]);
                             }
 
                             return new JsonResponse([
