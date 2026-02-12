@@ -196,8 +196,8 @@ class ArticleController  extends AbstractController
         ]);
     }
 
-    #[Route('/{vanity}/d/{slug}/draft', name: 'author-vanity-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/p/{npub}/d/{slug}/draft', name: 'author-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
+    #[Route('/{vanity}/d/{slug}/draft', name: 'author-vanity-draft-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorDraft(
         $slug,
         EntityManagerInterface $entityManager,
@@ -296,8 +296,8 @@ class ArticleController  extends AbstractController
         ]);
     }
 
-    #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
+    #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
         $slug,
         EntityManagerInterface $entityManager,
