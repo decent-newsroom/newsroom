@@ -208,7 +208,11 @@ class MagazineWizardController extends AbstractController
         if ($draft->title) { $magTags[] = ['title', $draft->title]; }
         if ($draft->summary) { $magTags[] = ['summary', $draft->summary]; }
         if ($draft->imageUrl) { $magTags[] = ['image', $draft->imageUrl]; }
-        if ($draft->language) { $magTags[] = ['l', $draft->language]; }
+        if ($draft->language) {
+            // NIP-32 compliant language labeling using ISO-639-1
+            $magTags[] = ['L', 'ISO-639-1'];
+            $magTags[] = ['l', $draft->language, 'ISO-639-1'];
+        }
         foreach ($draft->tags as $t) { $magTags[] = ['t', $t]; }
 
         // Add category coordinates as 'a' tags

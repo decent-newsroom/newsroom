@@ -134,6 +134,26 @@ class Event
         return null;
     }
 
+    public function getLanguage(): ?string
+    {
+        // First check for simple 'language' tag (non-standard but may exist)
+        foreach ($this->getTags() as $tag) {
+            if ($tag[0] === 'language' && isset($tag[1])) {
+                return $tag[1];
+            }
+        }
+
+        // Check for NIP-32 labeled language (ISO-639-1)
+        // Look for 'l' tag with 'ISO-639-1' namespace
+        foreach ($this->getTags() as $tag) {
+            if ($tag[0] === 'l' && isset($tag[1]) && isset($tag[2]) && $tag[2] === 'ISO-639-1') {
+                return $tag[1];
+            }
+        }
+
+        return null;
+    }
+
     public function getSlug(): ?string
     {
         foreach ($this->getTags() as $tag) {
@@ -180,6 +200,14 @@ class Event
         }
 
         return null;
+    }
+
+    /**
+     * Get image URL from event tags (alias for getMediaUrl for template compatibility)
+     */
+    public function getImage(): ?string
+    {
+        return $this->getMediaUrl();
     }
 
     /**
