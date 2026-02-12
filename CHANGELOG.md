@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v0.0.9
+Starting to look like a real product, isn't it?
+
+- Introduced Vanity Names (NIP-05).
+- Introduced Active Indexing.
+- Updated static pages to reflect changes.
+- Updated relay communications.
+- Added JSON-LD metadata to article and magazine pages.
+- Added a "Support" card.
+- [Bug] Fixed a host of bugs in the article and magazine publishing process.
+
 ## v0.0.8
 Toast on toast, and event in event.
 
