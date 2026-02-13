@@ -3,20 +3,26 @@
 namespace App\UnfoldBundle\Content;
 
 use App\Service\Nostr\NostrClient;
+use App\UnfoldBundle\Cache\StaleWhileRevalidateCache;
 use App\UnfoldBundle\Config\SiteConfig;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 
 /**
  * Provides content by traversing the magazine event tree
+ *
+ * Uses stale-while-revalidate caching to prevent timeouts:
+ * - Fresh cache (< 5 min): serve immediately
+ * - Stale cache (< 1 hour): serve immediately, refresh in background
+ * - Expired cache (> 1 hour): try refresh with fallback to stale
  */
 class ContentProvider
 {
-    private const CACHE_TTL = 300; // 5 minutes
+    private const FRESH_TTL = 300;   // 5 minutes - serve without revalidation
+    private const STALE_TTL = 3600;  // 1 hour - serve stale while revalidating
 
     public function __construct(
         private readonly NostrClient $nostrClient,
-        private readonly CacheItemPoolInterface $unfoldCache,
+        private readonly StaleWhileRevalidateCache $swrCache,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -28,12 +34,22 @@ class ContentProvider
     public function getCategories(SiteConfig $site): array
     {
         $cacheKey = 'categories_' . md5($site->naddr);
-        $cacheItem = $this->unfoldCache->getItem($cacheKey);
 
-        if ($cacheItem->isHit()) {
-            return $cacheItem->get();
-        }
+        return $this->swrCache->get(
+            $cacheKey,
+            fn() => $this->fetchAllCategories($site),
+            self::FRESH_TTL,
+            self::STALE_TTL,
+            [] // Return empty array on failure
+        );
+    }
 
+    /**
+     * Fetch all categories (internal fetcher for cache)
+     * @return CategoryData[]
+     */
+    private function fetchAllCategories(SiteConfig $site): array
+    {
         $categories = [];
 
         foreach ($site->categories as $coordinate) {
@@ -43,9 +59,6 @@ class ContentProvider
             }
         }
 
-        $cacheItem->set($categories);
-        $cacheItem->expiresAfter(self::CACHE_TTL);
-        $this->unfoldCache->save($cacheItem);
 
         return $categories;
     }
@@ -58,12 +71,22 @@ class ContentProvider
     public function getCategoryPosts(string $categoryCoordinate): array
     {
         $cacheKey = 'category_posts_' . md5($categoryCoordinate);
-        $cacheItem = $this->unfoldCache->getItem($cacheKey);
 
-        if ($cacheItem->isHit()) {
-            return $cacheItem->get();
-        }
+        return $this->swrCache->get(
+            $cacheKey,
+            fn() => $this->fetchCategoryPostsInternal($categoryCoordinate),
+            self::FRESH_TTL,
+            self::STALE_TTL,
+            [] // Return empty array on failure
+        );
+    }
 
+    /**
+     * Fetch category posts (internal fetcher for cache)
+     * @return PostData[]
+     */
+    private function fetchCategoryPostsInternal(string $categoryCoordinate): array
+    {
         // First fetch the category to get article coordinates
         $category = $this->fetchCategoryByCoordinate($categoryCoordinate);
         if ($category === null) {
@@ -78,9 +101,6 @@ class ContentProvider
             }
         }
 
-        $cacheItem->set($posts);
-        $cacheItem->expiresAfter(self::CACHE_TTL);
-        $this->unfoldCache->save($cacheItem);
 
         return $posts;
     }
@@ -93,12 +113,22 @@ class ContentProvider
     public function getHomePosts(SiteConfig $site, int $limit = 3): array
     {
         $cacheKey = 'home_posts_' . md5($site->naddr) . '_' . $limit;
-        $cacheItem = $this->unfoldCache->getItem($cacheKey);
 
-        if ($cacheItem->isHit()) {
-            return $cacheItem->get();
-        }
+        return $this->swrCache->get(
+            $cacheKey,
+            fn() => $this->fetchHomePostsInternal($site, $limit),
+            self::FRESH_TTL,
+            self::STALE_TTL,
+            [] // Return empty array on failure
+        );
+    }
 
+    /**
+     * Fetch home posts (internal fetcher for cache)
+     * @return PostData[]
+     */
+    private function fetchHomePostsInternal(SiteConfig $site, int $limit): array
+    {
         $allPosts = [];
         $categories = $this->getCategories($site);
 
@@ -107,9 +137,6 @@ class ContentProvider
             $allPosts = array_merge($allPosts, array_slice($categoryPosts, 0, $limit));
         }
 
-        $cacheItem->set($allPosts);
-        $cacheItem->expiresAfter(self::CACHE_TTL);
-        $this->unfoldCache->save($cacheItem);
 
         return $allPosts;
     }
@@ -213,11 +240,12 @@ class ContentProvider
      */
     public function invalidateSiteCache(SiteConfig $site): void
     {
-        $this->unfoldCache->deleteItem('categories_' . md5($site->naddr));
-        $this->unfoldCache->deleteItem('home_posts_' . md5($site->naddr) . '_10');
+        $this->swrCache->invalidate('categories_' . md5($site->naddr));
+        $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_10');
+        $this->swrCache->invalidate('home_posts_' . md5($site->naddr) . '_3');
 
         foreach ($site->categories as $coordinate) {
-            $this->unfoldCache->deleteItem('category_posts_' . md5($coordinate));
+            $this->swrCache->invalidate('category_posts_' . md5($coordinate));
         }
 
         $this->logger->info('Invalidated site content cache', ['naddr' => $site->naddr]);

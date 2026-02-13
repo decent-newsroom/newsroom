@@ -7,7 +7,9 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Maps subdomains to Nostr magazine naddrs for Unfold rendering
+ * Maps subdomains to Nostr magazine coordinates for Unfold rendering
+ *
+ * Coordinate format: kind:pubkey:identifier (e.g., 30040:abc123....:my-magazine)
  */
 #[ORM\Entity(repositoryClass: UnfoldSiteRepository::class)]
 #[ORM\Table(name: 'unfold_site')]
@@ -22,8 +24,12 @@ class UnfoldSite
     #[ORM\Column(length: 255, unique: true)]
     private string $subdomain;
 
+    /**
+     * Magazine coordinate in format: kind:pubkey:identifier
+     * Example: 30040:abc123...:my-magazine-slug
+     */
     #[ORM\Column(length: 500)]
-    private string $naddr;
+    private string $coordinate;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
@@ -60,14 +66,32 @@ class UnfoldSite
         return $this;
     }
 
-    public function getNaddr(): string
+    public function getCoordinate(): string
     {
-        return $this->naddr;
+        return $this->coordinate;
     }
 
+    public function setCoordinate(string $coordinate): static
+    {
+        $this->coordinate = $coordinate;
+
+        return $this;
+    }
+
+    /**
+     * @deprecated Use getCoordinate() instead
+     */
+    public function getNaddr(): string
+    {
+        return $this->coordinate;
+    }
+
+    /**
+     * @deprecated Use setCoordinate() instead
+     */
     public function setNaddr(string $naddr): static
     {
-        $this->naddr = $naddr;
+        $this->coordinate = $naddr;
 
         return $this;
     }

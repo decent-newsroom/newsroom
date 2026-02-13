@@ -22,6 +22,8 @@ parameters:
     
     # Unfold subdomain routing
     unfold_host: '%env(UNFOLD_HOST)%'
+    base_domain: '%env(default:server_name_default:BASE_DOMAIN)%'
+    server_name_default: '%env(SERVER_NAME)%'
 
 services:
     # default configuration for services in *this* file
@@ -149,17 +151,25 @@ services:
         factory: ['@App\Service\Search\UserSearchFactory', 'create']
 
     # UnfoldBundle services
+    App\UnfoldBundle\Cache\StaleWhileRevalidateCache:
+        arguments:
+            $cache: '@unfold.cache'
+
     App\UnfoldBundle\Config\SiteConfigLoader:
         arguments:
-            $unfoldCache: '@unfold.cache'
+            $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
 
     App\UnfoldBundle\Content\ContentProvider:
         arguments:
-            $unfoldCache: '@unfold.cache'
+            $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
 
     App\UnfoldBundle\Http\HostResolver: ~
     
     App\UnfoldBundle\Http\RouteMatcher: ~
+    
+    App\UnfoldBundle\EventListener\UnfoldRequestListener:
+        arguments:
+            $baseDomain: '%base_domain%'
     
     App\UnfoldBundle\Theme\ContextBuilder:
         arguments:

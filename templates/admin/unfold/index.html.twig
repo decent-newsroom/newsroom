@@ -14,14 +14,14 @@
     {% for message in app.flashes('success') %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert">X</button>
         </div>
     {% endfor %}
 
     {% for message in app.flashes('error') %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert">X</button>
         </div>
     {% endfor %}
 
@@ -36,7 +36,7 @@
                 <thead>
                     <tr>
                         <th>Subdomain</th>
-                        <th>AppData naddr</th>
+                        <th>Magazine Coordinate</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
@@ -47,11 +47,16 @@
                         <td>
                             <strong>{{ site.subdomain }}</strong>
                             <br>
-                            <small class="text-muted">{{ site.subdomain }}.yourdomain.com</small>
+                            <a href="http://{{ site.subdomain }}.{{ app.request.host }}"
+                               target="_blank"
+                               class="text-muted small">
+                                {{ site.subdomain }}.{{ app.request.host }}
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
                         </td>
                         <td>
                             <code class="small" style="word-break: break-all;">
-                                {{ site.naddr|length > 40 ? site.naddr[:40] ~ '...' : site.naddr }}
+                                {{ site.coordinate|length > 50 ? site.coordinate[:50] ~ '...' : site.coordinate }}
                             </code>
                         </td>
                         <td>
@@ -60,20 +65,20 @@
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ path('admin_unfold_edit', {id: site.id}) }}"
-                                   class="btn btn-outline-primary" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                   class="btn mb-0" title="Edit">
+                                    Edit
                                 </a>
                                 <a href="{{ path('admin_unfold_preview', {id: site.id}) }}"
-                                   class="btn btn-outline-secondary" title="Preview">
-                                    <i class="bi bi-eye"></i>
+                                   class="btn mb-0" title="Preview">
+                                    Preview
                                 </a>
                                 <form action="{{ path('admin_unfold_delete', {id: site.id}) }}"
                                       method="post"
-                                      class="d-inline"
+                                      class="d-inline mb-0"
                                       onsubmit="return confirm('Are you sure you want to delete this site?');">
                                     <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ site.id) }}">
                                     <button type="submit" class="btn btn-outline-danger" title="Delete">
-                                        <i class="bi bi-trash"></i>
+                                        Delete
                                     </button>
                                 </form>
                             </div>
@@ -89,10 +94,14 @@
         <h5>How it works</h5>
         <ol class="text-muted">
             <li>Create a root magazine event (kind 30040) with your categories and articles</li>
-            <li>Create an AppData event (kind 30078) linking the magazine to a theme</li>
-            <li>Add a subdomain mapping here to route requests to your magazine</li>
-            <li>Configure DNS to point the subdomain to this server</li>
+            <li>Click "New Site" and select your magazine from the dropdown</li>
+            <li>Configure your reverse proxy to forward the subdomain to this server</li>
+            <li>Add a DNS record pointing the subdomain to your server</li>
         </ol>
+        <p class="text-muted small">
+            <strong>Note:</strong> Subdomains are resolved dynamically from this database table.
+            No code changes or restarts required when adding new sites.
+        </p>
     </div>
 </div>
 {% endblock %}

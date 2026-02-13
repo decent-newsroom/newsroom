@@ -34,3 +34,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Runs every 10 minutes to keep magazine projections up-to-date
 */10 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
 
+# Warm Unfold site caches
+# Runs every 30 minutes to keep subdomain magazine pages loading quickly
+*/30 * * * * /app/docker/cron/unfold_cache_warm.sh >> /var/log/cron-unfold-cache.log 2>&1
+

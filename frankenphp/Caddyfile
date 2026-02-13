@@ -10,8 +10,18 @@ frankenphp {
 
 {$CADDY_EXTRA_CONFIG}
 
-# Support subdomain for Unfold
-{$SUPPORT_DOMAIN:support.localhost} {
+# Dynamic Unfold subdomains - accepts any host the proxy forwards
+# Your external proxy handles TLS and routes specific subdomains to this container
+# The UnfoldBundle's HostResolver handles subdomain → site mapping from the database
+#
+# For production behind a proxy:
+#   - Proxy forwards configured subdomains (e.g., magazine1.example.com, magazine2.example.com)
+#   - This block accepts them all and lets Symfony handle the routing
+#   - No wildcard certificate needed - proxy handles TLS
+#
+# For local development:
+#   - Matches *.localhost subdomains directly
+{$UNFOLD_SERVER_NAME:*.localhost} {
     log {
         {$CADDY_SERVER_LOG_OPTIONS}
     }
@@ -23,9 +33,7 @@ frankenphp {
     rewrite @phpRoute index.php
 
     @frontController path index.php
-    php @frontController {
-        env UNFOLD_SUBDOMAIN support
-    }
+    php @frontController
 
     file_server
 }

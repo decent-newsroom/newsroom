@@ -31,22 +31,30 @@ class SiteController
     public function __invoke(Request $request): Response
     {
         // 1. Resolve host to UnfoldSite
-        $unfoldSite = $this->hostResolver->resolve();
+        // First check if the request listener already resolved it
+        $unfoldSite = $request->attributes->get('_unfold_site');
+
+        // Fall back to HostResolver if not pre-resolved (for direct access)
+        if ($unfoldSite === null) {
+            $unfoldSite = $this->hostResolver->resolve();
+        }
 
         if ($unfoldSite === null) {
             throw new NotFoundHttpException('Site not found for this subdomain');
         }
 
-        // 2. Load SiteConfig directly from magazine naddr (kind 30040)
-        try {
-            $siteConfig = $this->siteConfigLoader->loadFromMagazine($unfoldSite->getNaddr());
-        } catch (\RuntimeException|\InvalidArgumentException $e) {
-            $this->logger->error('Failed to load site config', [
+        // 2. Load SiteConfig from magazine coordinate (kind 30040)
+        // SiteConfigLoader returns a placeholder config if fetch fails, so no exception handling needed
+        $siteConfig = $this->siteConfigLoader->loadFromCoordinate($unfoldSite->getCoordinate());
+
+        // Check if we got a placeholder config (content still loading)
+        $isPlaceholder = $siteConfig->title === 'Loading...' || empty($siteConfig->pubkey);
+
+        if ($isPlaceholder) {
+            $this->logger->warning('Serving placeholder config - content may still be loading', [
                 'subdomain' => $unfoldSite->getSubdomain(),
-                'naddr' => $unfoldSite->getNaddr(),
-                'error' => $e->getMessage(),
+                'coordinate' => $unfoldSite->getCoordinate(),
             ]);
-            throw new NotFoundHttpException('Site configuration could not be loaded');
         }
 
         // 3. Set theme from SiteConfig (theme comes from AppData event)
@@ -60,11 +68,21 @@ class SiteController
         $path = $request->getPathInfo();
         $route = $this->routeMatcher->match($path, $siteConfig, $categories);
 
+        // Log route matching for debugging
+        $this->logger->debug('Unfold route matched', [
+            'subdomain' => $unfoldSite->getSubdomain(),
+            'path' => $path,
+            'route_type' => $route['type'],
+            'categories_count' => count($categories),
+            'site_title' => $siteConfig->title,
+        ]);
+
         // 6. Build context and render based on page type
         return match ($route['type']) {
             RouteMatcher::PAGE_HOME => $this->renderHome($siteConfig, $categories),
             RouteMatcher::PAGE_CATEGORY => $this->renderCategory($siteConfig, $categories, $route),
             RouteMatcher::PAGE_POST => $this->renderPost($siteConfig, $categories, $route),
+            RouteMatcher::PAGE_NOT_FOUND => throw new NotFoundHttpException('Page not found'),
             default => throw new NotFoundHttpException('Page not found'),
         };
     }

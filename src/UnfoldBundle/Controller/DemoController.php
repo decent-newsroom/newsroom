@@ -22,7 +22,14 @@ class DemoController extends AbstractController
     public function index(Request $request): Response
     {
         $host = $request->getHost();
-        $unfoldSite = $this->hostResolver->resolve();
+
+        // First check if the request listener already resolved it
+        $unfoldSite = $request->attributes->get('_unfold_site');
+
+        // Fall back to HostResolver if not pre-resolved (for direct access)
+        if ($unfoldSite === null) {
+            $unfoldSite = $this->hostResolver->resolve();
+        }
 
         return $this->render('@Unfold/demo.html.twig', [
             'host' => $host,

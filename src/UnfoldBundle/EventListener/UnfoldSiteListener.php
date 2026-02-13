@@ -21,15 +21,20 @@ class UnfoldSiteListener
 
     public function postPersist(UnfoldSite $site): void
     {
-        // Warm cache when a new site is created
-        $this->cacheWarmer->warmSite($site);
+        // Don't warm cache synchronously on creation - it can cause timeouts
+        // Cache will be populated on first request (SWR cache with placeholder fallback)
+        // Or run: bin/console unfold:cache:warm manually/via cron
     }
 
     public function postUpdate(UnfoldSite $site): void
     {
-        // Invalidate old cache and warm new cache when site is updated
+        // Invalidate cache when site is updated
+        // Cache will be warmed on first request (stale-while-revalidate will serve placeholder)
         $this->cacheWarmer->invalidateSite($site);
-        $this->cacheWarmer->warmSite($site);
+
+        // Don't warm synchronously - it can cause timeouts if relays are slow
+        // Instead, rely on SWR cache to populate on first request
+        // Or run: bin/console unfold:cache:warm manually/via cron
     }
 
     public function preRemove(UnfoldSite $site): void

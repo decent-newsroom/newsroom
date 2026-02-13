@@ -45,12 +45,25 @@ class HostResolver
     }
 
     /**
+     * Get the subdomain from the current request (public accessor)
+     */
+    public function getSubdomainFromRequest(): ?string
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request === null) {
+            return null;
+        }
+
+        return $this->extractSubdomain($request->getHost());
+    }
+
+    /**
      * Extract subdomain from a full host string
      * e.g., "support.example.com" → "support"
      *       "example.com" → null
      *       "localhost" → null
      */
-    private function extractSubdomain(string $host): ?string
+    public function extractSubdomain(string $host): ?string
     {
         // Remove port if present
         $host = strtok($host, ':');

@@ -1,0 +1,150 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Edit: {{ site.subdomain }} - Unfold Sites{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+    <h1 class="mb-4">Edit Unfold Site</h1>
+
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert">X</button>
+        </div>
+    {% endfor %}
+
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert">X</button>
+        </div>
+    {% endfor %}
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Site Configuration</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ path('admin_unfold_edit', {id: site.id}) }}">
+                <div class="mb-3">
+                    <label for="subdomain" class="form-label">Subdomain</label>
+                    <div class="input-group">
+                        <input type="text"
+                               class="form-control"
+                               id="subdomain"
+                               name="subdomain"
+                               value="{{ site.subdomain }}"
+                               pattern="[a-z0-9\-]+"
+                               required>
+                        <span class="input-group-text">.{{ app.request.host }}</span>
+                    </div>
+                    <div class="form-text">
+                        Lowercase letters, numbers, and hyphens only.
+                        This will be accessible at <code>{{ site.subdomain }}.{{ app.request.host }}</code>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="magazine_select" class="form-label">Magazine</label>
+
+                    {# Magazine selector #}
+                    {% if magazines is defined and magazines is not empty %}
+                    <select class="form-select" id="magazine_select">
+                        <option value="">-- Select a magazine --</option>
+                        {% for mag in magazines %}
+                        <option value="{{ mag.coordinate }}" {{ site.coordinate == mag.coordinate ? 'selected' : '' }}>
+                            {{ mag.title }} ({{ mag.slug }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+
+                    {# Hidden field for form submission #}
+                    <input type="hidden"
+                           id="coordinate"
+                           name="coordinate"
+                           value="{{ site.coordinate }}">
+
+                    {# Show current coordinate as read-only feedback #}
+                    <div class="mt-2 small text-muted">
+                        <strong>Coordinate:</strong> <code id="coordinate_display">{{ site.coordinate }}</code>
+                    </div>
+                </div>
+
+
+                <div class="mb-4">
+                    <label class="form-label">Site Info</label>
+                    <div class="text-muted small">
+                        <p class="mb-1"><strong>Created:</strong> {{ site.createdAt|date('F j, Y \\a\\t g:i a') }}</p>
+                        <p class="mb-0"><strong>Last Updated:</strong> {{ site.updatedAt|date('F j, Y \\a\\t g:i a') }}</p>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Save Changes
+                    </button>
+                    <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                    <a href="http://{{ site.subdomain }}.{{ app.request.host }}"
+                       target="_blank"
+                       class="btn btn-outline-info ms-auto">
+                        <i class="bi bi-box-arrow-up-right"></i> Visit Site
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">Danger Zone</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">
+                Deleting this site will remove the subdomain mapping. The magazine content on Nostr will not be affected.
+            </p>
+            <form action="{{ path('admin_unfold_delete', {id: site.id}) }}"
+                  method="post"
+                  onsubmit="return confirm('Are you sure you want to delete this site? This action cannot be undone.');">
+                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ site.id) }}">
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash"></i> Delete Site
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const select = document.getElementById('magazine_select');
+    const input = document.getElementById('coordinate');
+    const display = document.getElementById('coordinate_display');
+
+    console.log('[Unfold Edit] Initializing:', { select: !!select, input: !!input, display: !!display });
+
+    if (select && input) {
+        select.addEventListener('change', function() {
+            const newValue = this.value;
+            console.log('[Unfold Edit] Selection changed:', newValue);
+
+            input.value = newValue;
+            if (display) {
+                display.textContent = newValue || '(none selected)';
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}
+
+{% block aside %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
+        <li class="breadcrumb-item active">Edit: {{ site.subdomain }}</li>
+    </ol>
+</nav>
+{% endblock %}

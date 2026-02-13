@@ -16,6 +16,15 @@ class RouteMatcher
     public const PAGE_NOT_FOUND = 'not_found';
 
     /**
+     * Common static file extensions that should return 404 quickly
+     */
+    private const STATIC_FILE_EXTENSIONS = [
+        'ico', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp',
+        'css', 'js', 'map', 'woff', 'woff2', 'ttf', 'eot',
+        'txt', 'xml', 'json', 'webmanifest',
+    ];
+
+    /**
      * Match a URL path to a page type and extract parameters
      *
      * @return array{type: string, slug?: string, category?: CategoryData}
@@ -23,6 +32,11 @@ class RouteMatcher
     public function match(string $path, SiteConfig $site, array $categories): array
     {
         $path = '/' . ltrim($path, '/');
+
+        // Quick reject for static file requests (favicon.ico, robots.txt, etc.)
+        if ($this->isStaticFileRequest($path)) {
+            return ['type' => self::PAGE_NOT_FOUND];
+        }
 
         // Home page
         if ($path === '/' || $path === '') {
@@ -57,6 +71,20 @@ class RouteMatcher
         }
 
         return ['type' => self::PAGE_NOT_FOUND];
+    }
+
+    /**
+     * Check if the path looks like a static file request
+     */
+    private function isStaticFileRequest(string $path): bool
+    {
+        // Check for file extension
+        if (preg_match('/\.([a-z0-9]+)$/i', $path, $matches)) {
+            $extension = strtolower($matches[1]);
+            return in_array($extension, self::STATIC_FILE_EXTENSIONS, true);
+        }
+
+        return false;
     }
 }
 

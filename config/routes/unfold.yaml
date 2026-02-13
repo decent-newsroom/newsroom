@@ -1,6 +1,7 @@
-# Unfold Bundle Routes - subdomain-based site rendering
-# These routes only match on the configured unfold_host parameter
+# Unfold Bundle Routes - dynamic subdomain-based site rendering
+# NOTE: These routes have no static host constraint.
+# The UnfoldRequestListener validates subdomains dynamically against the database
+# and only allows requests for registered UnfoldSite subdomains to proceed.
 
 unfold_bundle:
     resource: '@UnfoldBundle/Resources/config/routes.yaml'
-    host: '%unfold_host%'

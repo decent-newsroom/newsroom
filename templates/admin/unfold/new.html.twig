@@ -4,13 +4,6 @@
 
 {% block body %}
 <div class="container py-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
-            <li class="breadcrumb-item active">New Site</li>
-        </ol>
-    </nav>
-
     <h1 class="mb-4">Create New Unfold Site</h1>
 
     <div class="row">
@@ -31,26 +24,38 @@
                                        id="subdomain"
                                        name="subdomain"
                                        placeholder="mymagazine"
-                                       pattern="[a-z0-9-]+"
+                                       pattern="[a-z0-9\-]+"
                                        required>
-                                <span class="input-group-text">.yourdomain.com</span>
+                                <span class="input-group-text">.{{ app.request.host }}</span>
                             </div>
                             <div class="form-text">Only lowercase letters, numbers, and hyphens allowed. This will also be used as the event identifier (d-tag).</div>
                         </div>
 
-                        {# Step 2: Magazine naddr #}
+                        {# Step 2: Magazine Selection #}
                         <div class="mb-4">
-                            <label for="magazine_naddr" class="form-label">Magazine naddr <span class="text-danger">*</span></label>
-                            <input type="text"
-                                   class="form-control font-monospace"
-                                   id="magazine_naddr"
-                                   name="magazine_naddr"
-                                   placeholder="naddr1..."
-                                   required>
-                            <div class="form-text">
-                                The naddr of your root magazine event (kind 30040).
-                                You can find this in the magazine editor or by looking up your magazine event.
+                            <label for="magazine_select" class="form-label">Select Magazine <span class="text-danger">*</span></label>
+                            {% if magazines is not empty %}
+                            <select class="form-select" id="magazine_select" name="magazine_select" required>
+                                <option value="">-- Choose a magazine --</option>
+                                {% for mag in magazines %}
+                                <option value="{{ mag.coordinate }}"
+                                        data-title="{{ mag.title }}"
+                                        data-slug="{{ mag.slug }}">
+                                    {{ mag.title }} ({{ mag.slug }})
+                                </option>
+                                {% endfor %}
+                            </select>
+
+                            {# Show selected coordinate as feedback #}
+                            <div id="selected_coordinate_display" class="mt-2 small text-muted" style="display: none;">
+                                <strong>Coordinate:</strong> <code id="selected_coordinate_text"></code>
                             </div>
+                            {% else %}
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                No magazines found. Please create and publish a magazine first.
+                            </div>
+                            {% endif %}
                         </div>
 
                         {# Step 3: Theme Selection #}
@@ -81,7 +86,7 @@
 
                             <div data-nostr--nostr-single-sign-target="status"></div>
 
-                            <div class="d-flex gap-2">
+                            <div class="actions">
                                 <button type="button"
                                         class="btn btn-primary"
                                         data-nostr--nostr-single-sign-target="publishButton"
@@ -113,11 +118,12 @@
   "content": "Unfold App Config...",
   "tags": [
     ["d", "subdomain"],
-    ["a", "30040:pubkey:slug"],
+    ["a", "30040:&lt;pubkey&gt;:&lt;slug&gt;"],
     ["theme", "casper"],
     ["alt", "Unfold App Config"]
   ]
 }</code></pre>
+                    <p class="small text-muted">The "a" tag contains a coordinate (kind:pubkey:identifier), not an naddr.</p>
 
                     <h6>Requirements</h6>
                     <ul class="mb-0">
@@ -134,22 +140,46 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const subdomainInput = document.getElementById('subdomain');
-    const magazineInput = document.getElementById('magazine_naddr');
+    const magazineSelect = document.getElementById('magazine_select');
+    const coordinateDisplay = document.getElementById('selected_coordinate_display');
+    const coordinateText = document.getElementById('selected_coordinate_text');
     const themeSelect = document.getElementById('theme');
     const previewEl = document.getElementById('eventPreview');
     const signerContainer = document.getElementById('signerContainer');
 
+    // Current coordinate for the event
+    let currentCoordinate = '';
+
+    // Update coordinate when magazine is selected
+    if (magazineSelect) {
+        magazineSelect.addEventListener('change', function() {
+            currentCoordinate = this.value; // Value is already the coordinate
+
+            // Show coordinate feedback
+            if (coordinateDisplay && coordinateText && currentCoordinate) {
+                coordinateDisplay.style.display = 'block';
+                coordinateText.textContent = currentCoordinate;
+            } else if (coordinateDisplay) {
+                coordinateDisplay.style.display = 'none';
+            }
+
+            updateEventPreview();
+        });
+    }
+
     function updateEventPreview() {
         const subdomain = subdomainInput.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '') || 'my-site';
-        const magazineNaddr = magazineInput.value.trim();
         const theme = themeSelect.value;
+
+        // Use coordinate for 'a' tag (format: kind:pubkey:identifier)
+        const aTagValue = currentCoordinate || '<kind:pubkey:identifier>';
 
         const event = {
             kind: 30078,
             created_at: Math.floor(Date.now() / 1000),
             tags: [
                 ["d", subdomain],
-                ["a", magazineNaddr || "<magazine-naddr>"],
+                ["a", aTagValue],
                 ["theme", theme],
                 ["alt", "Unfold App Config"]
             ],
@@ -158,8 +188,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         previewEl.textContent = JSON.stringify(event, null, 2);
 
-        // Update the Stimulus controller's event value
-        signerContainer.dataset.nostrNostrSingleSignEventValue = JSON.stringify(event);
+        // Build the event for the signer (without created_at - signer adds it)
+        const eventForSigner = {
+            kind: 30078,
+            tags: [
+                ["d", subdomain],
+                ["a", aTagValue],
+                ["theme", theme],
+                ["alt", "Unfold App Config"]
+            ],
+            content: "Unfold App Config for '" + subdomain + "'"
+        };
+
+        // Update the Stimulus controller's event value using setAttribute
+        // (dataset camelCase conversion doesn't work reliably for nested namespaces)
+        signerContainer.setAttribute('data-nostr--nostr-single-sign-event-value', JSON.stringify(eventForSigner));
 
         // Also store subdomain for the publish request
         signerContainer.dataset.unfoldSubdomain = subdomain;
@@ -167,36 +210,67 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update preview on input changes
     subdomainInput.addEventListener('input', updateEventPreview);
-    magazineInput.addEventListener('input', updateEventPreview);
     themeSelect.addEventListener('change', updateEventPreview);
 
     // Initial preview
     updateEventPreview();
 
-    // Override the publish to include subdomain
-    const originalPublish = signerContainer.querySelector('[data-action*="signAndPublish"]');
-    if (originalPublish) {
-        originalPublish.addEventListener('click', function(e) {
+    // Override the publish button to dispatch nostr:sign event with correct data
+    const publishButton = signerContainer.querySelector('[data-action*="signAndPublish"]');
+    if (publishButton) {
+        // Remove the original Stimulus action and handle it ourselves
+        publishButton.removeAttribute('data-action');
+
+        publishButton.addEventListener('click', function(e) {
+            e.preventDefault();
+
             // Validate form first
             const subdomain = subdomainInput.value.trim();
-            const magazineNaddr = magazineInput.value.trim();
 
             if (!subdomain) {
-                e.preventDefault();
-                e.stopPropagation();
                 alert('Please enter a subdomain.');
                 subdomainInput.focus();
-                return false;
+                return;
             }
 
-            if (!magazineNaddr || !magazineNaddr.startsWith('naddr')) {
-                e.preventDefault();
-                e.stopPropagation();
-                alert('Please enter a valid magazine naddr (should start with "naddr").');
-                magazineInput.focus();
-                return false;
+            if (!currentCoordinate) {
+                alert('Please select a magazine.');
+                if (magazineSelect) magazineSelect.focus();
+                return;
             }
-        }, true);
+
+            // Validate coordinate format (kind:pubkey:identifier)
+            const coordParts = currentCoordinate.split(':');
+            if (coordParts.length !== 3) {
+                alert('Invalid coordinate format. Expected: kind:pubkey:identifier');
+                return;
+            }
+
+            // Build the event to sign
+            const eventToSign = {
+                kind: 30078,
+                tags: [
+                    ["d", subdomain],
+                    ["a", currentCoordinate],
+                    ["theme", themeSelect.value],
+                    ["alt", "Unfold App Config"]
+                ],
+                content: "Unfold App Config for '" + subdomain + "'"
+            };
+
+            // Store subdomain for the fetch interceptor
+            signerContainer.dataset.unfoldSubdomain = subdomain;
+
+            // Dispatch nostr:sign event which the controller listens for
+            const signEvent = new CustomEvent('nostr:sign', {
+                bubbles: true,
+                detail: {
+                    nostrEvent: eventToSign,
+                    formData: { subdomain: subdomain }
+                }
+            });
+            signerContainer.dispatchEvent(signEvent);
+        });
     }
 });
 
@@ -220,3 +294,11 @@ window.fetch = function(url, options) {
 </script>
 {% endblock %}
 
+{% block aside %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
+        <li class="breadcrumb-item active">New Site</li>
+    </ol>
+</nav>
+{% endblock %}

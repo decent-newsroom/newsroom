@@ -1,11 +1,14 @@
 # Unfold Bundle Routes
 # Mount these routes for subdomain-based site rendering
+# These routes only match when UnfoldRequestListener has identified a valid Unfold subdomain
+# The listener sets _unfold_site request attribute for registered subdomains
 
 # Demo route for testing subdomain setup
 unfold_demo:
     path: /demo
     controller: App\UnfoldBundle\Controller\DemoController::index
     methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
 
 # Theme assets route - must come before catch-all
 unfold_theme_assets:
@@ -15,6 +18,7 @@ unfold_theme_assets:
         theme: '[a-zA-Z0-9_-]+'
         path: '.+'
     methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
 
 # Main site controller - catch-all
 unfold_site:
@@ -24,4 +28,5 @@ unfold_site:
         path: '.*'
     defaults:
         path: ''
+    condition: "request.attributes.has('_unfold_site')"
 

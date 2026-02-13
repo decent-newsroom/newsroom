@@ -1,0 +1,97 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Preview: {{ site.subdomain }} - Unfold Sites{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Site Configuration</h5>
+            <div class="btn-group btn-group-sm">
+                <a href="{{ path('admin_unfold_edit', {id: site.id}) }}" class="btn btn-outline-primary">
+                    Edit
+                </a>
+                <a href="http://{{ site.subdomain }}.{{ app.request.host }}"
+                   target="_blank"
+                   class="btn btn-outline-secondary">
+                     Visit Site
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <table class="table table-borderless">
+                <tr>
+                    <th style="width: 200px;">Subdomain</th>
+                    <td>
+                        <strong>{{ site.subdomain }}</strong>
+                        <br>
+                        <small class="text-muted">{{ site.subdomain }}.{{ app.request.host }}</small>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Magazine Coordinate</th>
+                    <td>
+                        <code class="small" style="word-break: break-all;">{{ site.coordinate }}</code>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Created</th>
+                    <td>{{ site.createdAt|date('F j, Y \\a\\t g:i a') }}</td>
+                </tr>
+                <tr>
+                    <th>Last Updated</th>
+                    <td>{{ site.updatedAt|date('F j, Y \\a\\t g:i a') }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Setup Instructions</h5>
+        </div>
+        <div class="card-body">
+            <h6>1. DNS Configuration</h6>
+            <p class="text-muted">Add a DNS A record pointing the subdomain to your server:</p>
+            <pre class="bg-light p-3 rounded"><code>{{ site.subdomain }}.{{ app.request.host }}.  IN  A  &lt;your-server-ip&gt;</code></pre>
+
+            <h6 class="mt-4">2. Reverse Proxy Configuration</h6>
+            <p class="text-muted">Add the subdomain to your reverse proxy (nginx, Traefik, etc.):</p>
+            <pre class="bg-light p-3 rounded"><code>server {
+    server_name {{ site.subdomain }}.{{ app.request.host }};
+
+    location / {
+        proxy_pass http://newsroom-container:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</code></pre>
+
+            <h6 class="mt-4">3. Test the Site</h6>
+            <p class="text-muted">
+                Once DNS and proxy are configured, visit
+                <a href="http://{{ site.subdomain }}.{{ app.request.host }}" target="_blank">
+                    {{ site.subdomain }}.{{ app.request.host }}
+                </a>
+                to verify the site is working.
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ path('admin_unfold_index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Sites
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block aside %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ path('admin_unfold_index') }}">Unfold Sites</a></li>
+        <li class="breadcrumb-item active">{{ site.subdomain }}</li>
+    </ol>
+</nav>
+{% endblock %}
