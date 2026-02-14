@@ -62,7 +62,7 @@ class DefaultController extends AbstractController
             // Get all magazine indices from database
             $nzines = $entityManager->getRepository(Event::class)->findBy(
                 ['kind' => KindsEnum::PUBLICATION_INDEX],
-                ['createdAt' => 'DESC']
+                ['created_at' => 'DESC']
             );
 
             // Group by slug and keep only the latest version of each
@@ -367,7 +367,6 @@ class DefaultController extends AbstractController
         string $mag,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
-        ArticleSearchInterface $articleSearch,
         LoggerInterface $logger
     ): JsonResponse
     {
@@ -390,7 +389,6 @@ class DefaultController extends AbstractController
             });
 
             $magazine = array_shift($nzines);
-            $raw = $magazine->getRaw();
 
             // Build manifest structure
             $manifest = [
@@ -422,12 +420,25 @@ class DefaultController extends AbstractController
                 }
             }
 
+            $logger->info('Found category tags in magazine', [
+                'magazine' => $mag,
+                'categoryTags' => $categoryTags
+            ]);
+
             // Build each category with its articles
             foreach ($categoryTags as $catTag) {
-                $catSlug = $catTag[3] ?? null;
-                if (!$catSlug) {
+                // Parse coordinate from tag[1]: "kind:pubkey:d-identifier"
+                $coordinate = $catTag[1] ?? null;
+                if (!$coordinate) {
                     continue;
                 }
+
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+
+                $catSlug = $parts[2]; // The d-identifier is the category slug
 
                 // Fetch category details
                 $sql = "SELECT e.* FROM event e
@@ -445,36 +456,63 @@ class DefaultController extends AbstractController
                     continue;
                 }
 
-                $category = Event::fromArray($eventData);
+                // Create Event entity from database result
+                $category = new Event();
+                $category->setId($eventData['id']);
+                $category->setEventId($eventData['event_id']);
+                $category->setKind((int)$eventData['kind']);
+                $category->setPubkey($eventData['pubkey']);
+                $category->setContent($eventData['content']);
+                $category->setCreatedAt((int)$eventData['created_at']);
+                $category->setTags(json_decode($eventData['tags'], true) ?? []);
+                $category->setSig($eventData['sig']);
+
                 $categoryArticles = [];
 
                 // Get articles for this category
                 try {
                     $coordinates = [];
                     foreach ($category->getTags() as $tag) {
-                        if ($tag[0] === 'a' && isset($tag[1]) && isset($tag[3])) {
-                            $coordinates[] = $tag[1] . ':' . $tag[2] . ':' . $tag[3];
+                        if ($tag[0] === 'a' && isset($tag[1])) {
+                            $coordinates[] = $tag[1]; // Store full coordinate (kind:pubkey:slug)
                         }
                     }
 
                     if (!empty($coordinates)) {
-                        $results = $articleSearch->findByCoordinates($coordinates);
-                        foreach ($results as $article) {
-                            $categoryArticles[] = [
-                                'title' => $article->title ?? null,
-                                'slug' => $article->slug ?? null,
-                                'summary' => $article->summary ?? null,
-                                'image' => $article->image ?? null,
-                                'pubkey' => $article->pubkey ?? null,
-                                'createdAt' => isset($article->createdAt) ? $article->createdAt->format('c') : null,
-                                'publishedAt' => isset($article->publishedAt) ? $article->publishedAt->format('c') : null,
-                                'topics' => $article->topics ?? [],
-                                'url' => $this->generateUrl('magazine-category-article', [
-                                    'slug' => $article->slug,
-                                    'cat' => $catSlug,
-                                    'mag' => $mag
-                                ], 0),
-                            ];
+                        // Query database directly for each coordinate
+                        $articleRepo = $entityManager->getRepository(Article::class);
+
+                        foreach ($coordinates as $coord) {
+                            $parts = explode(':', $coord, 3);
+                            if (count($parts) !== 3) {
+                                continue;
+                            }
+
+                            [$kind, $pubkey, $slug] = $parts;
+
+                            // Find article by pubkey and slug
+                            $article = $articleRepo->findOneBy(
+                                ['pubkey' => $pubkey, 'slug' => $slug],
+                                ['createdAt' => 'DESC']
+                            );
+
+                            if ($article) {
+                                $categoryArticles[] = [
+                                    'title' => $article->getTitle(),
+                                    'slug' => $article->getSlug(),
+                                    'summary' => $article->getSummary(),
+                                    'image' => $article->getImage(),
+                                    'pubkey' => $article->getPubkey(),
+                                    'createdAt' => $article->getCreatedAt() ? $article->getCreatedAt()->format('c') : null,
+                                    'publishedAt' => $article->getPublishedAt() ? $article->getPublishedAt()->format('c') : null,
+                                    'topics' => $article->getTopics(),
+                                    'url' => $this->generateUrl('magazine-category-article', [
+                                        'slug' => $article->getSlug(),
+                                        'cat' => $catSlug,
+                                        'mag' => $mag
+                                    ], 0),
+                                ];
+                            }
                         }
                     }
                 } catch (\Exception $e) {
