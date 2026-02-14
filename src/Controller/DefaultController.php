@@ -688,7 +688,10 @@ class DefaultController extends AbstractController
         $revisions = count($articles);
 
         if ($revisions === 0) {
-            throw $this->createNotFoundException('The article could not be found');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The article could not be found.',
+                'searchQuery' => $slug
+            ]);
         }
 
         if ($revisions > 1) {

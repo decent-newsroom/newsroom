@@ -1,0 +1,32 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Article Not Found - Decent Newsroom{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="Article Not Found" />
+    <div class="w-container">
+        <section class="text-center mb-5">
+            {% if message %}
+                <div class="alert alert-info">
+                    {{ message }}
+                </div>
+            {% endif %}
+
+            <div class="notice info mt-4 mb-5">
+                <h3 class="h5 mb-3">Try searching or paste a Nostr address (naddr)</h3>
+                <p>
+                    If you have the article's Nostr address (naddr), paste it in the search box below.
+                    We'll attempt to fetch it from the relays and add it to our index.
+                </p>
+            </div>
+        </section>
+
+        <section class="search-section">
+            <twig:SearchComponent :query="searchQuery" />
+        </section>
+
+        <section class="text-center mt-5">
+            <a href="{{ path('home') }}" class="btn btn-secondary">Return to Homepage</a>
+        </section>
+    </div>
+{% endblock %}

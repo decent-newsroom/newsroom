@@ -36,7 +36,10 @@ class ArticleController  extends AbstractController
             // Vanity name provided, resolve it to npub and return both
             $vanityObj = $this->vanityNameService->getActiveByVanityName($vanity);
             if ($vanityObj === null) {
-                throw $this->createNotFoundException('Profile not found.');
+                return $this->render('pages/article_not_found.html.twig', [
+                    'message' => 'Profile not found for vanity name: ' . $vanity,
+                    'searchQuery' => $vanity
+                ]);
             }
             return [
                 'npub' => $vanityObj->getNpub(),
@@ -58,11 +61,11 @@ class ArticleController  extends AbstractController
             ];
         }
 
-        throw $this->createNotFoundException('Profile not found.');
+        return $this->render('pages/article_not_found.html.twig', [
+            'message' => 'Profile not found.',
+            'searchQuery' => ''
+        ]);
     }
-    /**
-     * @throws \Exception
-     */
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
     {
@@ -70,7 +73,10 @@ class ArticleController  extends AbstractController
         $decoded = new Bech32($naddr);
 
         if ($decoded->type !== 'naddr') {
-            throw new \Exception('Invalid naddr');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'Invalid Nostr address (naddr). Please check the address and try again.',
+                'searchQuery' => $naddr
+            ]);
         }
 
         /** @var NAddr $data */
@@ -81,7 +87,10 @@ class ArticleController  extends AbstractController
         $kind = $data->kind;
 
         if ($kind !== KindsEnum::LONGFORM->value) {
-            throw new \Exception('Not a long form article');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'This is not a long-form article. Only long-form articles (kind 30023) are supported.',
+                'searchQuery' => $naddr
+            ]);
         }
 
         $found = $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
@@ -96,14 +105,20 @@ class ArticleController  extends AbstractController
 
         // Provide a more informative error message
         if (!$found) {
-            throw new \Exception(sprintf(
-                'No article found for slug "%s" by author %s. The article may not exist or the relays may be offline.',
-                $slug,
-                substr($author, 0, 8) . '...'
-            ));
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => sprintf(
+                    'No article found for slug "%s" by author %s. The article may not exist or the relays may be offline.',
+                    $slug,
+                    substr($author, 0, 8) . '...'
+                ),
+                'searchQuery' => $naddr
+            ]);
         }
 
-        throw new \Exception('Article was retrieved from relays but could not be saved to the database.');
+        return $this->render('pages/article_not_found.html.twig', [
+            'message' => 'Article was retrieved from relays but could not be saved to the database.',
+            'searchQuery' => $naddr
+        ]);
     }
 
 
@@ -128,7 +143,10 @@ class ArticleController  extends AbstractController
         ], ['createdAt' => 'DESC']);
 
         if (!$draft) {
-            throw $this->createNotFoundException('Draft not found or you do not have permission to view it.');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'Draft not found or you do not have permission to view it.',
+                'searchQuery' => $slug
+            ]);
         }
 
         // Redirect to the full author-draft-slug route
@@ -152,7 +170,10 @@ class ArticleController  extends AbstractController
         $articles = $repository->findBy(['slug' => $slug], ['createdAt' => 'DESC']);
         $count = count($articles);
         if ($count === 0) {
-            throw $this->createNotFoundException('No articles found for this slug');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'No articles found for this slug. Try searching or pasting a Nostr address (naddr) below.',
+                'searchQuery' => $slug
+            ]);
         }
 
         // Group articles by author (pubkey)
@@ -237,7 +258,10 @@ class ArticleController  extends AbstractController
         $repository = $entityManager->getRepository(Article::class);
         $draft = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC']);
         if (!$draft) {
-            throw $this->createNotFoundException('The draft could not be found');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The draft could not be found. It may have been deleted or published.',
+                'searchQuery' => $slug
+            ]);
         }
 
         // Parse advanced metadata from raw event for zap splits etc.
@@ -325,7 +349,10 @@ class ArticleController  extends AbstractController
         $repository = $entityManager->getRepository(Article::class);
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
         if (!$article) {
-            throw $this->createNotFoundException('The article could not be found');
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The article could not be found.',
+                'searchQuery' => $slug
+            ]);
         }
 
         // Parse advanced metadata from raw event for zap splits etc.
