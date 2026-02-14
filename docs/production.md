@@ -38,6 +38,61 @@ Then create a DNS record of type `A` for your domain name pointing to the IP add
 your-domain-name.example.com.  IN  A     207.154.233.113
 ```
 
+### Wildcard DNS for Dynamic Subdomains (Unfold)
+
+If you want to host multiple magazines on dynamic subdomains (e.g., `magazine1.example.com`, `magazine2.example.com`), you'll need to configure wildcard DNS:
+
+```dns
+your-domain.com.      IN  A     207.154.233.113
+*.your-domain.com.    IN  A     207.154.233.113
+relay.your-domain.com IN  A     207.154.233.113
+```
+
+This allows any subdomain to resolve to your server. The Symfony application will then look up the subdomain in the database (`unfold_site` table) and serve the appropriate content.
+
+**Environment Configuration:**
+
+```dotenv
+# In .env.prod.local
+BASE_DOMAIN=your-domain.com
+SERVER_NAME=your-domain.com
+RELAY_DOMAIN=relay.your-domain.com
+```
+
+**Wildcard TLS Certificates:**
+
+Caddy can automatically provision wildcard TLS certificates using the DNS-01 challenge. This requires API access to your DNS provider. See [Caddy's ACME DNS documentation](https://caddyserver.com/docs/automatic-https#dns-challenge) for provider-specific configuration.
+
+For DigitalOcean DNS, add to your `compose.prod.yaml`:
+
+```yaml
+services:
+    php:
+        environment:
+            - DO_AUTH_TOKEN=your-digitalocean-api-token
+            - CADDY_GLOBAL_OPTIONS=acme_dns digitalocean $DO_AUTH_TOKEN
+```
+
+### Using a Reverse Proxy (Recommended for Production)
+
+If you have an external reverse proxy (nginx, Traefik, Cloudflare, etc.) handling TLS:
+
+1. **Configure your proxy** to forward specific subdomains to the Docker container
+2. **Set Caddy to accept any host** the proxy forwards:
+
+```dotenv
+# In .env.prod.local
+SERVER_NAME=:80
+BASE_DOMAIN=your-domain.com
+```
+
+3. **Add subdomains to your proxy** when you create new magazines in the admin panel
+4. **Add the subdomain to the database** via Admin → Unfold Sites
+
+The `UnfoldRequestListener` extracts the subdomain from the Host header, looks it up in the `unfold_site` table, and routes to the appropriate magazine content.
+
+> **Note:** Do NOT set `UNFOLD_SERVER_NAME` when using `SERVER_NAME=:80` as it will cause an "ambiguous site definition" error in Caddy.
+
 Example with the DigitalOcean Domains service ("Networking" > "Domains"):
 
 ![Configuring DNS on DigitalOcean](digitalocean-dns.png)

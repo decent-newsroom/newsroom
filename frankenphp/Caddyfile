@@ -10,38 +10,22 @@ frankenphp {
 
 {$CADDY_EXTRA_CONFIG}
 
-# Dynamic Unfold subdomains - accepts any host the proxy forwards
-# Your external proxy handles TLS and routes specific subdomains to this container
-# The UnfoldBundle's HostResolver handles subdomain → site mapping from the database
-#
-# For production behind a proxy:
-#   - Proxy forwards configured subdomains (e.g., magazine1.example.com, magazine2.example.com)
-#   - This block accepts them all and lets Symfony handle the routing
-#   - No wildcard certificate needed - proxy handles TLS
-#
-# For local development:
-#   - Matches *.localhost subdomains directly
-{$UNFOLD_SERVER_NAME:*.localhost} {
-    log {
-        {$CADDY_SERVER_LOG_OPTIONS}
-    }
-
-    root /app/public
-    encode zstd br gzip
-
-    @phpRoute not file {path}
-    rewrite @phpRoute index.php
-
-    @frontController path index.php
-    php @frontController
-
-    file_server
-}
-
-# Main site block - handles both main domain and relay subdomain
+# Combined site block - handles main domain, relay subdomain, and Unfold subdomains
 # Configure via environment variables:
 #   SERVER_NAME - main site (e.g., "example.com" or ":80" for catch-all behind proxy)
 #   RELAY_DOMAIN - relay subdomain (e.g., "relay.example.com")
+#   UNFOLD_SERVER_NAME - Unfold subdomains (e.g., "*.localhost" for dev, omit for prod when SERVER_NAME is :80)
+#
+# For production behind a proxy:
+#   - Set SERVER_NAME=:80 (accepts all traffic from proxy)
+#   - Set RELAY_DOMAIN=relay.yourdomain.com
+#   - Do NOT set UNFOLD_SERVER_NAME (it would conflict with SERVER_NAME=:80)
+#   - Your proxy handles TLS and routes all subdomains to this container
+#
+# For local development:
+#   - Set SERVER_NAME=localhost
+#   - Set RELAY_DOMAIN=relay.localhost
+#   - Set UNFOLD_SERVER_NAME=*.localhost (handles Unfold subdomains separately)
 {$SERVER_NAME:localhost} {
 	log {
 		{$CADDY_SERVER_LOG_OPTIONS}
@@ -60,7 +44,7 @@ frankenphp {
 		reverse_proxy strfry:7777
 	}
 
-	# Main application
+	# Main application (handles both main site and Unfold subdomains via Symfony routing)
 	handle {
 
 		root /app/public
@@ -101,8 +85,36 @@ frankenphp {
 	}
 }
 
+# Optional separate Unfold subdomain block for development
+# Only used when UNFOLD_SERVER_NAME is set (typically "*.localhost" for local dev)
+# In production behind a proxy with SERVER_NAME=:80, this should be left unset
+{$UNFOLD_SERVER_NAME:} {
+    log {
+        {$CADDY_SERVER_LOG_OPTIONS}
+    }
+
+    root /app/public
+    encode zstd br gzip
+
+    @phpRoute not file {path}
+    rewrite @phpRoute index.php
+
+    @frontController path index.php
+    php @frontController
+
+    file_server
+}
+
 # Documentation:
-# - To use with an external proxy (no TLS from Caddy):
-#   Set CADDY_AUTO_HTTPS=off, SERVER_NAME=:80, RELAY_DOMAIN=relay.yourdomain.com
-# - To let Caddy manage HTTPS (no external proxy):
-#   Set CADDY_AUTO_HTTPS=on, SERVER_NAME=yourdomain.com, RELAY_DOMAIN=relay.yourdomain.com
+# - Production behind external proxy (proxy handles TLS):
+#   Set SERVER_NAME=:80, RELAY_DOMAIN=relay.yourdomain.com
+#   Do NOT set UNFOLD_SERVER_NAME (would conflict with SERVER_NAME=:80)
+#   External proxy routes all domains/subdomains → this container
+#
+# - Standalone production (Caddy manages HTTPS):
+#   Set SERVER_NAME=yourdomain.com, RELAY_DOMAIN=relay.yourdomain.com
+#   Do NOT set UNFOLD_SERVER_NAME (Symfony handles subdomain routing)
+#
+# - Local development:
+#   Set SERVER_NAME=localhost, RELAY_DOMAIN=relay.localhost
+#   Set UNFOLD_SERVER_NAME=*.localhost (separate block for Unfold subdomains)
