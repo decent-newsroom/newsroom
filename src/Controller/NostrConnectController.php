@@ -31,7 +31,7 @@ class NostrConnectController
         $pubkey = $key->getPublicKey($privkey);
 
         // Relay list (extendable later; keep first as primary for backward compatibility)
-        $relays = ['wss://relay.nsec.app'];
+        $relays = ['wss://relay.nsec.app','wss://relay.decentnewsroom.com'];
 
         // Short secret (remote signer should return as result of its connect response)
         $secret = substr(bin2hex(random_bytes(8)), 0, 12); // 12 hex chars (~48 bits truncated)
