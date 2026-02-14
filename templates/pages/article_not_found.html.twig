@@ -5,14 +5,14 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="Article Not Found" />
     <div class="w-container">
-        <section class="text-center mb-5">
+        <section class="text-center">
             {% if message %}
                 <div class="alert alert-info">
                     {{ message }}
                 </div>
             {% endif %}
 
-            <div class="notice info mt-4 mb-5">
+            <div class="notice info mt-4">
                 <h3 class="h5 mb-3">Try searching or paste a Nostr address (naddr)</h3>
                 <p>
                     If you have the article's Nostr address (naddr), paste it in the search box below.
