@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.0.10
+Publications as first-class citizens.
+
+- Introduced publications on subdomains MVP.
+- [Bug] Fixed image upload in the editor.
+- [Bug] Fixed routing for vanity names.
+
+
 ## v0.0.9
 Starting to look like a real product, isn't it?
 
