@@ -100,7 +100,10 @@ class ArticleController  extends AbstractController
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
         // If found, redirect to the article page
         if ($slug && $article) {
-            return $this->redirectToRoute('article-slug', ['slug' => $slug]);
+            // Convert pubkey to npub for proper redirect
+            $keys = new Key();
+            $npub = $keys->convertPublicKeyToBech32($author);
+            return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
         }
 
         // Provide a more informative error message
