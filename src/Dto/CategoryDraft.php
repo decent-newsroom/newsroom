@@ -41,4 +41,12 @@ class CategoryDraft
     {
         return $this->existingListCoordinate !== null && $this->existingListCoordinate !== '';
     }
+
+    /**
+     * Returns true if this category is completely empty (no title and no coordinate)
+     */
+    public function isEmpty(): bool
+    {
+        return empty($this->title) && empty($this->existingListCoordinate);
+    }
 }

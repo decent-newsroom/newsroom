@@ -59,6 +59,12 @@ class MagazineWizardController extends AbstractController
                 $draft->slug = $this->slugifyWithRandom($draft->title);
             }
 
+            // Filter out completely empty categories (defensive check)
+            $draft->categories = array_values(array_filter($draft->categories, function($cat) {
+                return !$cat->isEmpty();
+            }));
+
+
             // Process categories: either existing lists or new ones
             foreach ($draft->categories as $cat) {
                 if ($cat->existingListCoordinate && $cat->existingListCoordinate !== '') {

@@ -4,6 +4,10 @@
     <twig:Atoms:PageHeading heading="Magazine Setup" tagline="Define the basics of your magazine"/>
 
   {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
+
+  {# Display form-level errors #}
+  {{ form_errors(form) }}
+
   {{ form_row(form.title) }}
   {{ form_row(form.summary) }}
   {{ form_row(form.imageUrl) }}
@@ -11,6 +15,10 @@
   {{ form_row(form.tags) }}
 
   <h3>Categories</h3>
+
+  {# Display category collection errors #}
+  {{ form_errors(form.categories) }}
+
   <div class="alert alert-info mb-3">
     <strong>Tip:</strong><span>You can either create new categories OR attach existing reading lists.
     To attach an existing list, fill in the "Use existing list" field with its coordinate (format: 30040:pubkey:slug).

@@ -11,6 +11,9 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class MagazineSetupType extends AbstractType
@@ -56,6 +59,31 @@ class MagazineSetupType extends AbstractType
         ;
 
         $builder->get('tags')->addModelTransformer($this->transformer);
+
+        // Filter out empty categories before validation and validate count after
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) {
+            $data = $event->getData();
+            if (isset($data['categories']) && is_array($data['categories'])) {
+                $data['categories'] = array_values(array_filter($data['categories'], function($cat) {
+                    $hasTitle = !empty($cat['title']);
+                    $hasCoordinate = !empty($cat['existingListCoordinate']);
+                    return $hasTitle || $hasCoordinate;
+                }));
+                $event->setData($data);
+            }
+        });
+
+        // Validate that at least one category remains after filtering
+        $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event) {
+            $form = $event->getForm();
+            $data = $form->getData();
+
+            if ($data instanceof MagazineDraft && empty($data->categories)) {
+                $form->get('categories')->addError(
+                    new FormError('Please add at least one category for your magazine.')
+                );
+            }
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

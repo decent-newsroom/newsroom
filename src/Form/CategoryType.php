@@ -35,6 +35,7 @@ class CategoryType extends AbstractType
             ->add('title', TextType::class, [
                 'label' => 'Category title',
                 'required' => false,
+                'empty_data' => '',
                 'help' => 'Only needed if creating a new category (ignored for existing lists)',
             ])
             ->add('summary', TextType::class, [
