@@ -107,3 +107,38 @@
         font-size: 0.85rem;
     }
 }
+
+/* Chapter placeholder specific styles */
+.fetch-chapter-btn {
+    margin-top: var(--spacing-2);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: transparent;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.fetch-chapter-btn:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.fetch-chapter-btn:active {
+    transform: scale(0.98);
+}
+
+.fetch-chapter-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.fetch-chapter-btn svg {
+    flex-shrink: 0;
+}
+

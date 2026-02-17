@@ -100,6 +100,33 @@ blockquote > p {
     padding-left: var(--spacing-5);
 }
 
+.article-main blockquote br,
+.chapter-content blockquote br {
+    content: "";
+    display: block;
+    margin-bottom: 0;
+}
+
+/* Blockquote footer (attribution) */
+.article-main blockquote .blockquote-footer,
+.chapter-content blockquote .blockquote-footer {
+    margin-top: var(--spacing-3);
+    font-size: 0.9em;
+    color: var(--color-text-muted, #666);
+    text-align: right;
+    background: none;
+}
+
+.article-main blockquote .blockquote-footer::before,
+.chapter-content blockquote .blockquote-footer::before {
+    content: "— ";
+}
+
+.article-main blockquote .blockquote-footer cite,
+.chapter-content blockquote .blockquote-footer cite {
+    font-style: italic;
+}
+
 blockquote > * {
     padding-left: var(--spacing-5);
 }
@@ -206,3 +233,138 @@ article .card {
 article p > img {
     display: block;
 }
+
+/* AsciiDoc-specific styles */
+.article-main .text-center,
+.chapter-content .text-center,
+#editor .ql-editor .text-center {
+    text-align: center;
+}
+
+.article-main aside.sidebar,
+.chapter-content aside.sidebar {
+    background-color: var(--color-bg-light, #f9f9f9);
+    border-left: 4px solid var(--color-primary);
+    padding: var(--spacing-3);
+    margin: var(--spacing-4) 0;
+    border-radius: 4px;
+}
+
+.article-main aside.sidebar p:first-child,
+.chapter-content aside.sidebar p:first-child {
+    margin-top: 0;
+}
+
+.article-main aside.sidebar p:last-child,
+.chapter-content aside.sidebar p:last-child {
+    margin-bottom: 0;
+}
+
+/* Admonition blocks (NOTE, TIP, WARNING, IMPORTANT, CAUTION) */
+.article-main .admonition,
+.chapter-content .admonition {
+    padding: var(--spacing-3);
+    margin: var(--spacing-4) 0;
+    border-radius: 4px;
+    border-left: 4px solid;
+}
+
+.article-main .admonition-title,
+.chapter-content .admonition-title {
+    font-weight: bold;
+    margin-bottom: var(--spacing-2);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.article-main .admonition-content,
+.chapter-content .admonition-content {
+    margin: 0;
+}
+
+.article-main .admonition-content p:first-child,
+.chapter-content .admonition-content p:first-child {
+    margin-top: 0;
+}
+
+.article-main .admonition-content p:last-child,
+.chapter-content .admonition-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Admonition type colors */
+.article-main .admonition-note,
+.chapter-content .admonition-note {
+    background-color: #e3f2fd;
+    border-left-color: #2196f3;
+}
+
+.article-main .admonition-tip,
+.chapter-content .admonition-tip {
+    background-color: #f1f8e9;
+    border-left-color: #8bc34a;
+}
+
+.article-main .admonition-warning,
+.chapter-content .admonition-warning {
+    background-color: #fff3e0;
+    border-left-color: #ff9800;
+}
+
+.article-main .admonition-important,
+.chapter-content .admonition-important {
+    background-color: #fce4ec;
+    border-left-color: #e91e63;
+}
+
+.article-main .admonition-caution,
+.chapter-content .admonition-caution {
+    background-color: #ffebee;
+    border-left-color: #f44336;
+}
+
+/* Admonition attribution */
+.article-main .admonition-attribution,
+.chapter-content .admonition-attribution {
+    margin-top: var(--spacing-2);
+    font-style: italic;
+    color: var(--color-text-muted, #666);
+    text-align: right;
+}
+
+/* Admonition images */
+.article-main .admonition-image,
+.chapter-content .admonition-image {
+    max-width: 100%;
+    height: auto;
+    margin: var(--spacing-2) 0;
+    border-radius: 4px;
+}
+
+/* Audio blocks */
+.article-main .audio-block,
+.chapter-content .audio-block,
+.article-main .admonition-audio,
+.chapter-content .admonition-audio {
+    margin: var(--spacing-3) 0;
+}
+
+.article-main .audio-block audio,
+.chapter-content .audio-block audio,
+.article-main .admonition-audio audio,
+.chapter-content .admonition-audio audio {
+    width: 100%;
+    max-width: 100%;
+}
+
+.article-main .audio-block figcaption,
+.chapter-content .audio-block figcaption,
+.article-main .admonition-audio figcaption,
+.chapter-content .admonition-audio figcaption {
+    margin-top: var(--spacing-1);
+    font-size: 0.9em;
+    color: var(--color-text-muted, #666);
+    font-style: italic;
+}
+
