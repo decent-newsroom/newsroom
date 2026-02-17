@@ -6,7 +6,7 @@ import * as nip44 from 'nostr-tools/nip44';
 import { setRemoteSignerSession } from './signer_manager.js';
 
 export default class extends Controller {
-  static targets = ['qr', 'status'];
+  static targets = ['qr', 'status', 'uriInput', 'copyButton'];
 
   connect() {
     this._localSecretKeyHex = null;
@@ -40,6 +40,10 @@ export default class extends Controller {
 
       if (this.hasQrTarget) {
         this.qrTarget.innerHTML = `<img alt="Amber pairing QR" src="${data.qr}" style="width:260px;height:260px;" />`;
+      }
+
+      if (this.hasUriInputTarget) {
+        this.uriInputTarget.value = this._uri;
       }
 
       this._checkClientPubkeyIntegrity();
@@ -182,6 +186,46 @@ export default class extends Controller {
     } catch (e) {
       console.error('[amber-connect] auth error', e);
       this._setStatus('Auth error: ' + (e.message || 'unknown'));
+    }
+  }
+
+  async copyUri() {
+    if (!this._uri) {
+      console.warn('[amber-connect] No URI to copy');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(this._uri);
+
+      // Visual feedback
+      if (this.hasCopyButtonTarget) {
+        const originalText = this.copyButtonTarget.textContent;
+        this.copyButtonTarget.textContent = 'Copied!';
+        this.copyButtonTarget.classList.add('btn-success');
+        this.copyButtonTarget.classList.remove('btn-outline-secondary');
+
+        setTimeout(() => {
+          this.copyButtonTarget.textContent = originalText;
+          this.copyButtonTarget.classList.remove('btn-success');
+          this.copyButtonTarget.classList.add('btn-outline-secondary');
+        }, 2000);
+      }
+
+      console.log('[amber-connect] URI copied to clipboard');
+    } catch (e) {
+      console.error('[amber-connect] Failed to copy URI:', e);
+
+      // Fallback: select the text
+      if (this.hasUriInputTarget) {
+        this.uriInputTarget.select();
+        try {
+          document.execCommand('copy');
+          console.log('[amber-connect] URI copied using fallback method');
+        } catch (fallbackError) {
+          console.error('[amber-connect] Fallback copy also failed:', fallbackError);
+        }
+      }
     }
   }
 
