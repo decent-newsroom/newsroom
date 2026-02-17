@@ -1,0 +1,109 @@
+{% extends 'layout.html.twig' %}
+
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{% block title %}{{ chapter.title }} - {{ magazine.title|default(mag) }} - Newsroom{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ chapter.title }} - {{ magazine.title|default(mag) }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if chapter.image %}
+        <meta property="og:image" content="{{ chapter.image }}">
+    {% endif %}
+    {% if chapter.summary %}
+        <meta property="og:description" content="{{ chapter.summary }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title|default(mag), "url": url('magazine-index', {'mag': mag})},
+        {"name": chapter.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
+
+    {# JSON-LD for Chapter/Article #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": {{ chapter.title|json_encode|raw }},
+        {% if chapter.summary %}
+        "description": {{ chapter.summary|json_encode|raw }},
+        {% endif %}
+        {% if chapter.image %}
+        "image": {{ chapter.image|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        "datePublished": {{ chapter.createdAt|date('c')|json_encode|raw }},
+        {% if author %}
+        "author": {
+            "@type": "Person",
+            "name": {{ (author.name ?? author.display_name ?? 'Unknown')|json_encode|raw }}
+            {% if author.picture %}
+            , "image": {{ author.picture|json_encode|raw }}
+            {% endif %}
+        },
+        {% endif %}
+        "publisher": {{ jsonld.organization()|raw }},
+        "isPartOf": {
+            "@type": "Periodical",
+            "name": {{ magazine.title|default(mag)|json_encode|raw }},
+            "url": {{ url('magazine-index', {'mag': mag})|json_encode|raw }}
+        }
+    }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <article class="w-container">
+        <div class="card">
+            {# Back to magazine link #}
+            <div class="mb-3">
+                <a href="{{ path('magazine-index', {mag: mag}) }}" class="btn btn-sm">
+                    ← Back to {{ magazine.title|default(mag) }}
+                </a>
+            </div>
+
+            {# Chapter header with optional cover image #}
+            {% if chapter.image %}
+                <div class="card-header">
+                    <img src="{{ chapter.image }}" alt="Cover image for {{ chapter.title }}" class="img-fluid">
+                </div>
+            {% endif %}
+
+            <div class="card-body">
+                <h1 class="card-title">{{ chapter.title }}</h1>
+
+                {# Chapter metadata #}
+                {% if chapter.summary %}
+                    <p class="lede">{{ chapter.summary }}</p>
+                {% endif %}
+
+                {# Author info #}
+                {% if author %}
+                    <div class="byline mb-4">
+                        <span>
+                            <small>by</small>
+                            <twig:Molecules:UserFromNpub :ident="npub" />
+                        </span>
+                        <span class="text-muted">
+                            <small>{{ chapter.createdAt|date('F j, Y') }}</small>
+                        </span>
+                    </div>
+                {% endif %}
+
+                {# Chapter content (processed AsciiDoc/Markdown as HTML) #}
+                <div class="chapter-content">
+                    {{ content|raw }}
+                </div>
+            </div>
+        </div>
+    </article>
+{% endblock %}
+

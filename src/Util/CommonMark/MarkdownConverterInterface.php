@@ -8,7 +8,11 @@ namespace App\Util\CommonMark;
 interface MarkdownConverterInterface
 {
     /**
-     * Convert markdown content to HTML
+     * Convert markdown/asciidoc content to HTML
+     *
+     * @param string $content Content to convert
+     * @param string|null $format Optional format specification ('markdown', 'asciidoc', or null for auto-detect)
+     * @return string Converted HTML
      */
-    public function convertToHTML(string $markdown): string;
+    public function convertToHTML(string $content, ?string $format = null): string;
 }

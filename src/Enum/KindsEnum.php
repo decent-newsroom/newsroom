@@ -21,7 +21,8 @@ enum KindsEnum: int
     case CURATION_PICTURES = 30006; // NIP-51, Picture curation sets
     case LONGFORM = 30023; // NIP-23
     case LONGFORM_DRAFT = 30024; // NIP-23
-    case PUBLICATION_INDEX = 30040;
+    case PUBLICATION_INDEX = 30040; // NKBIP-01
+    case PUBLICATION_CONTENT = 30041; // NKBIP-01
     case ZAP_RECEIPT = 9735; // NIP-57, Zaps
     case HIGHLIGHTS = 9802;
     case RELAY_LIST = 10002; // NIP-65, Relay list metadata

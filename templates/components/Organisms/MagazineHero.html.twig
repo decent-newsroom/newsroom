@@ -6,17 +6,29 @@
                 <p class="eyebrow">{{ magazine.summary }}</p>
             {% endif %}
             <div>by <twig:Molecules:UserFromNpub :ident="magazine.pubkey" /></div>
+
+            {# Action buttons #}
+            {% if this.categoryTags is not empty %}
+                <div class="mt-4">
+                    <a href="{{ path('magazine-read', {mag: mag}) }}" class="btn btn-primary">
+                        Read All Chapters
+                    </a>
+                </div>
+            {% endif %}
         </div>
         <div class="container mb-5">
-            {# Use computed property via this.categoryTags #}
-            {% if this.categoryTags is not empty %}
+            {# Use computed property via this.categoryTags (includes both categories and chapters) #}
+            {# Only show links if there are fewer than 10 items to avoid clutter #}
+            {% if this.categoryTags is not empty and this.categoryTags|length < 10 %}
                 <ul class="list-unstyled d-flex flex-row flex-wrap gap-3 justify-content-center mt-3">
                     {% for catTag in this.categoryTags %}
                         <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
                     {% endfor %}
                 </ul>
+            {% elseif this.categoryTags|length >= 10 %}
+                <p class="text-muted mt-4">{{ this.categoryTags|length }} categories or chapters available</p>
             {% else %}
-                <p class="text-muted mt-4">No categories yet.</p>
+                <p class="text-muted mt-4">No categories or chapters yet.</p>
             {% endif %}
         </div>
     </section>

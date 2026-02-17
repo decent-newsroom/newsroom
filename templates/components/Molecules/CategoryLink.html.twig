@@ -1,5 +1,11 @@
 {% if mag is defined and mag and slug %}
-    {% set catPath = path('magazine-category', { 'mag': mag, 'slug': slug }) %}
+    {% if this.isChapter %}
+        {% set catPath = path('magazine-chapter', { 'mag': mag, 'slug': slug }) %}
+    {% elseif this.isCategory %}
+        {% set catPath = path('magazine-category', { 'mag': mag, 'slug': slug }) %}
+    {% else %}
+        {% set catPath = '#' %}
+    {% endif %}
 {% else %}
     {% set catPath = '#' %}
 {% endif %}

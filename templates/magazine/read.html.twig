@@ -1,0 +1,196 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ magazine.title }} - Read{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        header.chapter-header {
+            position: relative;
+        }
+
+        .chapter-full {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .chapter-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--color-text);
+        }
+
+        .chapter-summary {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .chapter-meta {
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--color-border, #e0e0e0);
+            margin-bottom: 2rem;
+        }
+
+        .chapter-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+
+        .chapter-separator {
+            border: none;
+            border-top: 3px double var(--color-border, #e0e0e0);
+            margin: 3rem auto;
+            max-width: 200px;
+        }
+
+        .chapter-placeholder {
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+        }
+
+        @media print {
+            .chapter-meta,
+            .magazine-read-header .btn,
+            .chapter-placeholder,
+            button,
+            script {
+                display: none !important;
+            }
+
+            .chapter-separator {
+                page-break-after: always;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="w-container">
+        {# Magazine header #}
+        <div class="magazine-read-header my-5 text-center">
+            <h1 class="display-4">{{ magazine.title }}</h1>
+            {% if magazine.summary %}
+                <p class="lead text-muted">{{ magazine.summary }}</p>
+            {% endif %}
+            <div class="mt-4">
+                <a href="{{ path('magazine-index', {mag: mag}) }}" class="btn btn-outline-secondary">
+                    ← Back to Magazine
+                </a>
+            </div>
+        </div>
+
+        {# Chapters content #}
+        <div class="chapters-content">
+            {# Debug: Show chapter count #}
+            {% if chapters is empty %}
+                <div class="alert alert-info text-center">
+                    <p>No chapters found in this magazine yet.</p>
+                    <p class="text-muted small">Magazine tags: {{ magazine.tags|length }} total tags</p>
+                </div>
+            {% endif %}
+
+            {% for chapter in chapters %}
+                {% if chapter.fetched %}
+                    {# Full chapter content #}
+                    <article class="chapter-full mb-5 pb-5">
+                        <header class="chapter-header mb-4">
+                            {% if chapter.event.title %}
+                                <h2 class="chapter-title">{{ chapter.event.title }}</h2>
+                            {% endif %}
+                            {% if chapter.event.summary %}
+                                <p class="chapter-summary text-muted">{{ chapter.event.summary }}</p>
+                            {% endif %}
+                            <div class="chapter-meta text-muted small">
+                                <a href="{{ path('magazine-chapter', {mag: mag, slug: chapter.event.slug}) }}"
+                                   class="text-decoration-none">
+                                    View chapter page →
+                                </a>
+                            </div>
+                        </header>
+
+                        <div class="chapter-content">
+                            {{ chapter.content|raw }}
+                        </div>
+                    </article>
+
+                    {# Chapter separator #}
+                    <hr class="chapter-separator my-5">
+                {% else %}
+                    {# Placeholder card for unfetched chapter #}
+                    <div class="chapter-placeholder card card-placeholder mb-5">
+                        <div class="card-body text-center p-5">
+                            <h3 class="h4 mb-3">{{ chapter.slug }}</h3>
+                            <p class="text-muted mb-4">This chapter has not been fetched from relays yet</p>
+                            <button class="btn btn-primary fetch-chapter-btn"
+                                    data-coordinate="{{ chapter.coordinate }}"
+                                    onclick="fetchChapter(this)">
+                                Fetch Chapter
+                            </button>
+                            <div class="spinner-border spinner-border-sm ms-2 hidden" role="status">
+                                <span class="hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="chapter-separator my-5">
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {# Back to top button #}
+        <div class="text-center my-5">
+            <a href="#" class="btn btn-outline-secondary">↑ Back to Top</a>
+            <a href="{{ path('magazine-index', {mag: mag}) }}" class="btn btn-outline-secondary">
+                ← Back to Magazine
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        async function fetchChapter(button) {
+            const coordinate = button.getAttribute('data-coordinate');
+            const spinner = button.nextElementSibling;
+
+            // Disable button and show spinner
+            button.disabled = true;
+            spinner.classList.remove('hidden');
+            button.textContent = 'Fetching...';
+
+            try {
+                const response = await fetch('/api/fetch-chapter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ coordinate: coordinate })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Reload the page to show the fetched chapter
+                    window.location.reload();
+                } else {
+                    alert('Failed to fetch chapter: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    spinner.classList.add('hidden');
+                    button.textContent = 'Fetch Chapter';
+                }
+            } catch (error) {
+                console.error('Error fetching chapter:', error);
+                alert('Error fetching chapter. Please try again.');
+                button.disabled = false;
+                spinner.classList.add('hidden');
+                button.textContent = 'Fetch Chapter';
+            }
+        }
+    </script>
+{% endblock %}

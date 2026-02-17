@@ -352,9 +352,306 @@ class DefaultController extends AbstractController
 
         $magazine = array_shift($nzines);
 
+        // Extract 'a' tags and categorize them by kind (30040 vs 30041)
+        $categoryTags = [];
+        $chapterCoordinates = [];
+
+        if ($magazine->getTags()) {
+            foreach ($magazine->getTags() as $tag) {
+                if (isset($tag[0]) && $tag[0] === 'a' && isset($tag[1])) {
+                    $parts = explode(':', $tag[1], 3);
+                    if (count($parts) === 3) {
+                        $kind = (int)$parts[0];
+                        if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
+                            // This is a category (30040)
+                            $categoryTags[] = $tag;
+                        } elseif ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
+                            // This is a chapter (30041)
+                            $chapterCoordinates[] = $tag[1]; // Store the full coordinate
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fetch chapter events and create placeholders for missing ones
+        $chapters = [];
+        if (!empty($chapterCoordinates)) {
+            foreach ($chapterCoordinates as $coordinate) {
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) === 3) {
+                    $kind = (int)$parts[0];
+                    $pubkey = $parts[1];
+                    $slug = $parts[2];
+
+                    // Query for the chapter by d-tag (slug)
+                    $sql = "SELECT e.* FROM event e
+                            WHERE e.tags::jsonb @> ?::jsonb
+                            AND e.kind = ?
+                            ORDER BY e.created_at DESC
+                            LIMIT 1";
+
+                    $conn = $entityManager->getConnection();
+                    $result = $conn->executeQuery($sql, [
+                        json_encode([['d', $slug]]),
+                        KindsEnum::PUBLICATION_CONTENT->value
+                    ]);
+
+                    $eventData = $result->fetchAssociative();
+                    if ($eventData) {
+                        // Chapter exists in database
+                        $chapter = new Event();
+                        $chapter->setId($eventData['id']);
+                        $chapter->setEventId($eventData['event_id']);
+                        $chapter->setKind((int)$eventData['kind']);
+                        $chapter->setPubkey($eventData['pubkey']);
+                        $chapter->setContent($eventData['content']);
+                        $chapter->setCreatedAt((int)$eventData['created_at']);
+                        $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
+                        $chapter->setSig($eventData['sig']);
+                        $chapters[] = [
+                            'event' => $chapter,
+                            'coordinate' => $coordinate,
+                            'fetched' => true,
+                        ];
+                    } else {
+                        // Chapter not fetched yet - create placeholder
+                        $chapters[] = [
+                            'event' => null,
+                            'coordinate' => $coordinate,
+                            'slug' => $slug,
+                            'pubkey' => $pubkey,
+                            'kind' => $kind,
+                            'fetched' => false,
+                        ];
+                    }
+                }
+            }
+        }
+
         return $this->render('magazine/magazine-front.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
+            'categoryTags' => $categoryTags,
+            'chapters' => $chapters,
+        ]);
+    }
+
+    /**
+     * Display all chapters in sequence like an ebook
+     */
+    #[Route('/mag/{mag}/read', name: 'magazine-read')]
+    public function magRead(
+        string $mag,
+        EntityManagerInterface $entityManager,
+        RedisCacheService $redisCacheService,
+        Converter $converter,
+        CacheItemPoolInterface $articlesCache,
+        LoggerInterface $logger
+    ): Response
+    {
+        // Get latest magazine index by slug from database (same as magIndex)
+        $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+
+        // Filter by slug
+        $nzines = array_filter($nzines, function ($index) use ($mag) {
+            return $index->getSlug() === $mag;
+        });
+
+        if (count($nzines) === 0) {
+            throw $this->createNotFoundException('Magazine not found');
+        }
+
+        // Sort by createdAt, keep newest
+        usort($nzines, function ($a, $b) {
+            return $b->getCreatedAt() <=> $a->getCreatedAt();
+        });
+
+        $magazine = array_shift($nzines);
+
+        // Extract chapter coordinates from magazine
+        $chapterCoordinates = [];
+        if ($magazine->getTags()) {
+            foreach ($magazine->getTags() as $tag) {
+                if (isset($tag[0]) && $tag[0] === 'a' && isset($tag[1])) {
+                    $parts = explode(':', $tag[1], 3);
+                    if (count($parts) === 3) {
+                        $kind = (int)$parts[0];
+                        if ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
+                            $chapterCoordinates[] = $tag[1];
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fetch and process all chapters
+        $chapters = [];
+        foreach ($chapterCoordinates as $coordinate) {
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) === 3) {
+                $kind = (int)$parts[0];
+                $pubkey = $parts[1];
+                $slug = $parts[2];
+
+                // Query for the chapter by d-tag (slug)
+                $sql = "SELECT e.* FROM event e
+                        WHERE e.tags::jsonb @> ?::jsonb
+                        AND e.kind = ?
+                        ORDER BY e.created_at DESC
+                        LIMIT 1";
+
+                $conn = $entityManager->getConnection();
+                $result = $conn->executeQuery($sql, [
+                    json_encode([['d', $slug]]),
+                    KindsEnum::PUBLICATION_CONTENT->value
+                ]);
+
+                $eventData = $result->fetchAssociative();
+
+                if ($eventData) {
+                    // Chapter exists - create event and process content
+                    $chapter = new Event();
+                    $chapter->setId($eventData['id']);
+                    $chapter->setEventId($eventData['event_id']);
+                    $chapter->setKind((int)$eventData['kind']);
+                    $chapter->setPubkey($eventData['pubkey']);
+                    $chapter->setContent($eventData['content']);
+                    $chapter->setCreatedAt((int)$eventData['created_at']);
+                    $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
+                    $chapter->setSig($eventData['sig']);
+
+                    // Process AsciiDoc content with caching
+                    $cacheKey = 'chapter_' . $chapter->getId();
+                    $cacheItem = $articlesCache->getItem($cacheKey);
+                    if (!$cacheItem->isHit()) {
+                        try {
+                            $html = $converter->convertAsciiDocToHTML($chapter->getContent());
+                            $cacheItem->set($html);
+                            $articlesCache->save($cacheItem);
+                        } catch (\Exception $e) {
+                            $logger->error('Failed to convert chapter content', [
+                                'chapter_id' => $chapter->getId(),
+                                'error' => $e->getMessage()
+                            ]);
+                            $cacheItem->set('<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>');
+                            $articlesCache->save($cacheItem);
+                        }
+                    }
+
+                    $chapters[] = [
+                        'event' => $chapter,
+                        'content' => $cacheItem->get(),
+                        'coordinate' => $coordinate,
+                        'fetched' => true,
+                    ];
+                } else {
+                    // Chapter not fetched yet - placeholder
+                    $chapters[] = [
+                        'event' => null,
+                        'coordinate' => $coordinate,
+                        'slug' => $slug,
+                        'pubkey' => $pubkey,
+                        'kind' => $kind,
+                        'fetched' => false,
+                    ];
+                }
+            }
+        }
+
+        return $this->render('magazine/read.html.twig', [
+            'magazine' => $magazine,
+            'mag' => $mag,
+            'chapters' => $chapters,
+        ]);
+    }
+
+    /**
+     * Display a single chapter (30041) within a magazine
+     */
+    #[Route('/mag/{mag}/chapter/{slug}', name: 'magazine-chapter', requirements: ['slug' => '.+'])]
+    public function magChapter(
+        string $mag,
+        string $slug,
+        EntityManagerInterface $entityManager,
+        RedisCacheService $redisCacheService,
+        Converter $converter,
+        CacheItemPoolInterface $articlesCache,
+        LoggerInterface $logger
+    ): Response
+    {
+        $magazine = $redisCacheService->getMagazineIndex($mag);
+
+        // Decode slug if it's URL encoded
+        $slug = urldecode($slug);
+
+        // Find the chapter by slug and kind
+        $sql = "SELECT e.* FROM event e
+                WHERE e.tags::jsonb @> ?::jsonb
+                AND e.kind = ?
+                ORDER BY e.created_at DESC
+                LIMIT 1";
+
+        $conn = $entityManager->getConnection();
+        $result = $conn->executeQuery($sql, [
+            json_encode([['d', $slug]]),
+            KindsEnum::PUBLICATION_CONTENT->value
+        ]);
+
+        $eventData = $result->fetchAssociative();
+
+        if (!$eventData) {
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The chapter could not be found.',
+                'searchQuery' => $slug
+            ]);
+        }
+
+        // Create Event entity
+        $chapter = new Event();
+        $chapter->setId($eventData['id']);
+        $chapter->setEventId($eventData['event_id']);
+        $chapter->setKind((int)$eventData['kind']);
+        $chapter->setPubkey($eventData['pubkey']);
+        $chapter->setContent($eventData['content']);
+        $chapter->setCreatedAt((int)$eventData['created_at']);
+        $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
+        $chapter->setSig($eventData['sig']);
+
+        // Process AsciiDoc content to HTML with caching
+        // Kind 30041 (PUBLICATION_CONTENT) uses AsciiDoc by spec
+        $cacheKey = 'chapter_' . $chapter->getId();
+        $cacheItem = $articlesCache->getItem($cacheKey);
+        if (!$cacheItem->isHit()) {
+            try {
+                // Force AsciiDoc parsing for kind 30041
+                $html = $converter->convertAsciiDocToHTML($chapter->getContent());
+                $cacheItem->set($html);
+                $articlesCache->save($cacheItem);
+            } catch (\Exception $e) {
+                $logger->error('Failed to convert chapter content', [
+                    'chapter_id' => $chapter->getId(),
+                    'error' => $e->getMessage()
+                ]);
+                // Fallback to raw content wrapped in <pre>
+                $cacheItem->set('<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>');
+                $articlesCache->save($cacheItem);
+            }
+        }
+
+        // Get author metadata
+        $key = new Key();
+        $npub = $key->convertPublicKeyToBech32($chapter->getPubkey());
+        $authorMetadata = $redisCacheService->getMetadata($chapter->getPubkey());
+        $author = $authorMetadata->toStdClass();
+
+        return $this->render('magazine/chapter.html.twig', [
+            'magazine' => $magazine,
+            'mag' => $mag,
+            'chapter' => $chapter,
+            'content' => $cacheItem->get(),
+            'author' => $author,
+            'npub' => $npub,
         ]);
     }
 
@@ -408,14 +705,24 @@ class DefaultController extends AbstractController
                     'url' => $this->generateUrl('magazine-index', ['mag' => $mag], 0),
                 ],
                 'categories' => [],
+                'chapters' => [],
             ];
 
-            // Extract category tags from magazine
+            // Extract category tags (30040) and chapter coordinates (30041) from magazine
             $categoryTags = [];
+            $chapterCoordinates = [];
             if ($magazine->getTags()) {
                 foreach ($magazine->getTags() as $tag) {
-                    if (isset($tag[0]) && $tag[0] === 'a') {
-                        $categoryTags[] = $tag;
+                    if (isset($tag[0]) && $tag[0] === 'a' && isset($tag[1])) {
+                        $parts = explode(':', $tag[1], 3);
+                        if (count($parts) === 3) {
+                            $kind = (int)$parts[0];
+                            if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
+                                $categoryTags[] = $tag;
+                            } elseif ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
+                                $chapterCoordinates[] = $tag[1];
+                            }
+                        }
                     }
                 }
             }
@@ -536,10 +843,62 @@ class DefaultController extends AbstractController
                 ];
             }
 
+            // Build each chapter from coordinates
+            foreach ($chapterCoordinates as $coordinate) {
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+
+                $chapterSlug = $parts[2];
+
+                // Fetch chapter details
+                $sql = "SELECT e.* FROM event e
+                        WHERE e.tags::jsonb @> ?::jsonb
+                        AND e.kind = ?
+                        ORDER BY e.created_at DESC
+                        LIMIT 1";
+
+                $conn = $entityManager->getConnection();
+                $result = $conn->executeQuery($sql, [
+                    json_encode([['d', $chapterSlug]]),
+                    KindsEnum::PUBLICATION_CONTENT->value
+                ]);
+
+                $eventData = $result->fetchAssociative();
+                if (!$eventData) {
+                    continue;
+                }
+
+                // Create Event entity from database result
+                $chapter = new Event();
+                $chapter->setId($eventData['id']);
+                $chapter->setEventId($eventData['event_id']);
+                $chapter->setKind((int)$eventData['kind']);
+                $chapter->setPubkey($eventData['pubkey']);
+                $chapter->setContent($eventData['content']);
+                $chapter->setCreatedAt((int)$eventData['created_at']);
+                $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
+                $chapter->setSig($eventData['sig']);
+
+                $manifest['chapters'][] = [
+                    'slug' => $chapterSlug,
+                    'title' => $chapter->getTitle(),
+                    'summary' => $chapter->getSummary(),
+                    'image' => $chapter->getImage(),
+                    'createdAt' => (new \DateTime())->setTimestamp($chapter->getCreatedAt())->format('c'),
+                    'url' => $this->generateUrl('magazine-chapter', [
+                        'mag' => $mag,
+                        'slug' => $chapterSlug
+                    ], 0),
+                ];
+            }
+
             // Add metadata
             $manifest['stats'] = [
                 'totalCategories' => count($manifest['categories']),
                 'totalArticles' => array_sum(array_column($manifest['categories'], 'articleCount')),
+                'totalChapters' => count($manifest['chapters']),
             ];
 
             return new JsonResponse($manifest, 200, [

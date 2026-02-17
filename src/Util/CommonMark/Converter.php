@@ -7,6 +7,7 @@ use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
+use App\Util\AsciiDoc\AsciiDocConverter;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
 use App\Util\NostrKeyUtil;
@@ -50,13 +51,76 @@ readonly class Converter implements MarkdownConverterInterface
         private TwigEnvironment $twig,
         private NostrKeyUtil $nostrKeyUtil,
         private ArticleFactory $articleFactory,
-        private ArticleRepository $articleRepository
+        private ArticleRepository $articleRepository,
+        private AsciiDocConverter $asciidocConverter
     ) {}
 
     /**
      * @throws CommonMarkException
      */
-    public function convertToHTML(string $markdown): string
+    public function convertToHTML(string $content, ?string $format = null): string
+    {
+        // If format is explicitly specified, use it
+        if ($format === 'asciidoc') {
+            $html = $this->asciidocConverter->convert($content);
+            return $this->processNostrLinks($html);
+        }
+
+        if ($format === 'markdown') {
+            return $this->convertMarkdownToHTML($content);
+        }
+
+        // Otherwise, auto-detect if content is AsciiDoc or Markdown
+        if ($this->isAsciiDoc($content)) {
+            $html = $this->asciidocConverter->convert($content);
+            return $this->processNostrLinks($html);
+        }
+
+        // Default to Markdown
+        return $this->convertMarkdownToHTML($content);
+    }
+
+    /**
+     * Convert AsciiDoc content to HTML (forces AsciiDoc parser)
+     * @throws CommonMarkException
+     */
+    public function convertAsciiDocToHTML(string $content): string
+    {
+        return $this->convertToHTML($content, 'asciidoc');
+    }
+
+    /**
+     * Detect if content is likely AsciiDoc
+     */
+    private function isAsciiDoc(string $content): bool
+    {
+        // Check for common AsciiDoc patterns that are not valid Markdown
+        $asciidocPatterns = [
+            '/^\[\.[\w\-]+\]/m',           // Attribute lists like [.text-center]
+            '/^\[quote\]/m',                // Quote blocks
+            '/^={2,}\s+/m',                 // Section titles (== Title)
+            '/^====+$/m',                   // Block delimiters
+            '/^____+$/m',                   // Quote block delimiters
+            '/^----+$/m',                   // Literal block delimiters
+            '/^\*\*\*\*+$/m',               // Sidebar delimiters
+            '/^\.{2,}\s+/m',                // Ordered list with dots
+            '/^image::/m',                  // Image macro
+        ];
+
+        foreach ($asciidocPatterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Convert Markdown to HTML (original method)
+     * @throws CommonMarkException
+     */
+    private function convertMarkdownToHTML(string $markdown): string
     {
         $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
