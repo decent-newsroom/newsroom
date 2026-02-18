@@ -1,0 +1,105 @@
+﻿﻿{% extends 'layout.html.twig' %}
+{% block title %}Publication Subdomain Subscriptions | Admin{% endblock %}
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Publication Subdomain Subscriptions</h1>
+    </div>
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="d-flex gap-3 align-items-end flex-wrap">
+                <div>
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                            <option value="{{ status.value }}" {{ currentStatus == status.value ? 'selected' : '' }}>
+                                {{ status.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label for="q" class="form-label">Search</label>
+                    <input type="text" name="q" id="q" class="form-control" placeholder="Search by subdomain or npub..." value="{{ searchQuery }}">
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{{ path('admin_publication_subdomain_index') }}" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Subdomain</th>
+                    <th>User (npub)</th>
+                    <th>Magazine</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Expires</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscription in subscriptions %}
+                    <tr>
+                        <td>
+                            <a href="{{ path('admin_publication_subdomain_show', {id: subscription.id}) }}">
+                                <strong>{{ subscription.subdomain }}</strong>
+                            </a>
+                            <br>
+                            <small class="text-muted">{{ subscription.subdomain }}.{{ baseDomain }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ path('author-profile', {npub: subscription.npub}) }}" title="{{ subscription.npub }}">
+                                {{ subscription.npub|slice(0, 12) }}...
+                            </a>
+                        </td>
+                        <td>
+                            <code style="font-size: 0.75rem;">{{ subscription.magazineCoordinate|slice(0, 30) }}...</code>
+                        </td>
+                        <td>
+                            <span class="badge {{ subscription.status.badgeClass }}">
+                                {{ subscription.status.label }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if subscription.startedAt %}
+                                {{ subscription.startedAt|date('Y-m-d') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if subscription.expiresAt %}
+                                {{ subscription.expiresAt|date('Y-m-d') }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ subscription.createdAt|date('Y-m-d') }}</td>
+                        <td>
+                            <a href="{{ path('admin_publication_subdomain_show', {id: subscription.id}) }}" class="btn btn-sm btn-primary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No subscriptions found</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

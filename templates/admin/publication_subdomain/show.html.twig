@@ -1,0 +1,137 @@
+﻿﻿{% extends 'layout.html.twig' %}
+{% block title %}Publication Subdomain Subscription #{{ subscription.id }} | Admin{% endblock %}
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Publication Subdomain Subscription #{{ subscription.id }}</h1>
+        <a href="{{ path('admin_publication_subdomain_index') }}" class="btn btn-secondary">← Back to List</a>
+    </div>
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+    <div class="d-flex gap-4 flex-wrap">
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div class="card-header">
+                <h3>Subscription Details</h3>
+            </div>
+            <div class="card-body">
+                <dl class="details-list">
+                    <dt>ID</dt>
+                    <dd>{{ subscription.id }}</dd>
+                    <dt>Subdomain</dt>
+                    <dd>
+                        <strong>{{ subscription.subdomain }}.{{ baseDomain }}</strong>
+                        {% if subscription.status.value == 'active' %}
+                            <br>
+                            <small class="text-muted">(Manual DNS/proxy setup required before subdomain is accessible)</small>
+                        {% endif %}
+                    </dd>
+                    <dt>User npub</dt>
+                    <dd>
+                        <a href="{{ path('author-profile', {npub: subscription.npub}) }}">
+                            {{ subscription.npub }}
+                        </a>
+                    </dd>
+                    <dt>Magazine Coordinate</dt>
+                    <dd>
+                        <code style="word-break: break-all; font-size: 0.85rem;">{{ subscription.magazineCoordinate }}</code>
+                    </dd>
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge {{ subscription.status.badgeClass }}">
+                            {{ subscription.status.label }}
+                        </span>
+                    </dd>
+                    <dt>Started At</dt>
+                    <dd>
+                        {% if subscription.startedAt %}
+                            {{ subscription.startedAt|date('F j, Y H:i') }}
+                        {% else %}
+                            <span class="text-muted">Not started</span>
+                        {% endif %}
+                    </dd>
+                    <dt>Expires At</dt>
+                    <dd>
+                        {% if subscription.expiresAt %}
+                            {{ subscription.expiresAt|date('F j, Y H:i') }}
+                            {% if subscription.isExpired %}
+                                <span class="badge bg-danger">Expired</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </dd>
+                    <dt>Created At</dt>
+                    <dd>{{ subscription.createdAt|date('F j, Y H:i') }}</dd>
+                    <dt>Updated At</dt>
+                    <dd>{{ subscription.updatedAt|date('F j, Y H:i') }}</dd>
+                    {% if subscription.pendingInvoiceBolt11 %}
+                        <dt>Pending Invoice</dt>
+                        <dd>
+                            <code style="font-size: 0.7rem; word-break: break-all;">{{ subscription.pendingInvoiceBolt11|slice(0, 50) }}...</code>
+                        </dd>
+                    {% endif %}
+                    {% if subscription.paymentEventId %}
+                        <dt>Payment Event ID</dt>
+                        <dd>
+                            <code style="font-size: 0.8rem;">{{ subscription.paymentEventId }}</code>
+                        </dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div class="card-header">
+                <h3>Actions</h3>
+            </div>
+            <div class="card-body">
+                {% if subscription.status.value == 'pending' %}
+                    <form action="{{ path('admin_publication_subdomain_activate', {id: subscription.id}) }}" method="post" class="mb-3">
+                        <input type="hidden" name="_token" value="{{ csrf_token('admin_publication_subdomain_action') }}">
+                        <button type="submit" class="btn btn-success w-100">
+                            ✓ Activate Subscription
+                        </button>
+                    </form>
+                    <p class="text-muted small">
+                        Activate this subscription after verifying payment.
+                    </p>
+                {% elseif subscription.status.value == 'active' %}
+                    <div class="alert alert-success mb-3">
+                        <strong>✓ Subscription Active</strong>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Manual Setup Required</strong>
+                        <p style="margin: var(--spacing-2) 0 0; font-size: 0.9rem;">
+                            After activation, complete these steps:
+                        </p>
+                        <ol style="margin: var(--spacing-2) 0 0; padding-left: var(--spacing-4); font-size: 0.9rem;">
+                            <li>Configure DNS for <code>{{ subscription.subdomain }}.{{ baseDomain }}</code></li>
+                            <li>Update proxy routing (Caddy/nginx)</li>
+                            <li>Ensure HTTPS certificate is provisioned</li>
+                            <li>Test subdomain accessibility</li>
+                            <li>Notify user when live (within 48 hours)</li>
+                        </ol>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+.details-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-2) var(--spacing-3);
+}
+.details-list dt {
+    font-weight: bold;
+    color: var(--color-text-mid);
+}
+.details-list dd {
+    margin: 0;
+}
+</style>
+{% endblock %}

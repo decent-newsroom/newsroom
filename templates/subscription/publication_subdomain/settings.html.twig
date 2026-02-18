@@ -1,0 +1,130 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Settings - Publication Subdomain{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Publication Subdomain Settings" tagline="Manage your subscription" />
+
+    <div class="d-flex gap-4 flex-wrap">
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <div class="card-header">
+                <h3>Subscription Details</h3>
+            </div>
+            <div class="card-body">
+                <dl class="details-list">
+                    <dt>Subdomain</dt>
+                    <dd>
+                        <strong>{{ subscription.subdomain }}.{{ baseDomain }}</strong>
+                        {% if subscription.status.value == 'active' %}
+                            <br>
+                            <small class="text-muted">
+                                (DNS and proxy setup typically completes within 48 hours of activation)
+                            </small>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Magazine Coordinate</dt>
+                    <dd>
+                        <code style="word-break: break-all;">{{ subscription.magazineCoordinate }}</code>
+                    </dd>
+
+                    <dt>Status</dt>
+                    <dd>
+                        <span class="badge {{ subscription.status.badgeClass }}">
+                            {{ subscription.status.label }}
+                        </span>
+                    </dd>
+
+                    <dt>Started</dt>
+                    <dd>
+                        {% if subscription.startedAt %}
+                            {{ subscription.startedAt|date('F j, Y') }}
+                        {% else %}
+                            <span class="text-muted">Not started</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Expires</dt>
+                    <dd>
+                        {% if subscription.expiresAt %}
+                            {{ subscription.expiresAt|date('F j, Y') }}
+                            {% if subscription.isExpired %}
+                                <span class="badge bg-danger">Expired</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt>Created</dt>
+                    <dd>{{ subscription.createdAt|date('F j, Y') }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card" style="flex: 1; min-width: 300px; max-width: 500px;">
+            <div class="card-header">
+                <h3>Actions</h3>
+            </div>
+            <div class="card-body">
+                {% if subscription.status.value == 'active' %}
+                    <div class="alert alert-info mb-3">
+                        <strong>Setup in Progress</strong>
+                        <p style="margin: var(--spacing-2) 0 0;">
+                            Your subscription is active. We're configuring DNS, proxy routing, and HTTPS certificates.
+                            This manual process typically completes within <strong>48 hours</strong>.
+                        </p>
+                        <p style="margin: var(--spacing-2) 0 0;">
+                            You'll receive notification when <code>{{ subscription.subdomain }}.{{ baseDomain }}</code> is live.
+                        </p>
+                    </div>
+                    <p class="text-muted">
+                        Your subscription remains active until {{ subscription.expiresAt|date('F j, Y') }}.
+                    </p>
+                    <hr class="my-3">
+                    <p class="text-muted">
+                        To renew your subscription, contact support before expiration.
+                    </p>
+                {% elseif subscription.status.value == 'pending' %}
+                    <a href="{{ path('publication_subdomain_invoice') }}" class="btn btn-primary w-100 mb-3">
+                        Complete Payment
+                    </a>
+                    <p class="text-muted small">
+                        After payment, we'll verify and activate your subscription manually.
+                        Setup (DNS, proxy, HTTPS) follows within 48 hours.
+                    </p>
+                {% elseif subscription.status.value == 'expired' %}
+                    <p class="text-danger">
+                        Your subscription has expired. Contact support to renew.
+                    </p>
+                {% endif %}
+
+                <hr class="my-4">
+
+                <p class="text-muted small">
+                    Need help? <a href="https://support.decentnewsroom.com" target="_blank">Contact Support</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.details-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-2) var(--spacing-3);
+}
+
+.details-list dt {
+    font-weight: bold;
+    color: var(--color-text-mid);
+}
+
+.details-list dd {
+    margin: 0;
+}
+</style>
+{% endblock %}
+

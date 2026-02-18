@@ -1,53 +1,94 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
+{% block title %}Unfold — Run your magazine on Decent Newsroom{% endblock %}
 
 {% block body %}
 
     <section class="ln-hero d-flex gap-3 center">
         <h1 class="brand">Unfold</h1>
         <p class="eyebrow">by Decent Newsroom</p>
-        <p class="lede mb-5">Your magazine, your way.</p>
+        <p class="lede mb-5">
+            Build a structured web magazine from Nostr events.
+        </p>
     </section>
 
     <section class="d-flex gap-3 center ln-section--unfold">
         <div class="container mt-5">
-            <h2>Unfold is a skin for your magazine</h2>
+            <h2>Unfold your magazine</h2>
         </div>
         <div class="mb-5">
-            <p class="measure">Any magazine created on Decent Newsroom can be plugged in,
-                styled according to your wishes and deployed to a custom domain.</p>
-        </div>
-    </section>
-
-    <section class="d-flex gap-3 center ln-section--editor">
-        <div class="container mt-5">
-            <h2>The magic</h2>
-        </div>
-        <div class="mb-5">
-            <p class="measure">Whenever you update the events that define your magazine, by adding or removing categories and articles,
-                everything updates automagically.</p>
-            <p>No need to redeploy, to refresh, or clear any caches.</p>
-            <p>No downtime, no stress.</p>
+            <p class="measure">
+                Unfold renders your magazine definition
+                into a clean, structured web magazine — with navigation,
+                categories, and individual article pages.
+            </p>
+            <p class="measure">
+                When your underlying Nostr events change,
+                your magazine updates automatically.
+                No redeploys. No cache rituals.
+            </p>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--newsroom">
         <div class="container mt-5">
-            <h2>Unfold Lite</h2>
+            <h2>Hosted Unfold</h2>
         </div>
         <div class="mb-5">
-            <p class="measure">We also offer subdomains, if rolling out your own website feels daunting.</p>
+            <p class="measure">
+                Launch your magazine on a dedicated subdomain.
+                Production-ready hosting and Unfold rendering are handled for you.
+            </p>
+
+            <p class="measure">
+                <strong>120,000 sats / year</strong><br>
+                Annual managed hosting for one magazine.
+            </p>
+
+            <div class="cta-row">
+                <a class="btn btn--primary" href="{{ path('publication_subdomain_index') }}">
+                    Launch Your Magazine
+                </a>
+            </div>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--marketplace">
         <div class="container mt-5">
-            <h2>Interested?</h2>
+            <h2>See it in action</h2>
         </div>
         <div class="mb-5">
-            <p class="measure">Reach out to
-                <twig:Molecules:UserFromNpub ident="{{ project_npub }}" /> or
+            <p class="measure">
+                These are live magazines powered by Unfold:
+            </p>
+            <ul class="measure list-unstyled">
+                <li>
+                    Support Magazine at
+                    <a href="https://support.decentnewsroom.com/" target="_blank" rel="noopener">
+                        support.decentnewsroom.com
+                    </a>
+                </li>
+                <li>
+                    Newsroom Magazine at
+                    <a href="https://newsroommag.decentnewsroom.com/" target="_blank" rel="noopener">
+                        newsroommag.decentnewsroom.com
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="d-flex gap-3 center ln-section--editor">
+        <div class="container mt-5">
+            <h2>Advanced use</h2>
+        </div>
+        <div class="mb-5">
+            <p class="measure">
+                Unfold is a standalone magazine renderer at its core.
+                If you are exploring independent deployment or deeper customization,
+                reach out to
+                <twig:Molecules:UserFromNpub ident="{{ project_npub }}" />
+                or
                 <twig:Molecules:UserFromNpub ident="{{ dev_npub }}" />.
             </p>
         </div>

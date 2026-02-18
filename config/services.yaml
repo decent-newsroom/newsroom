@@ -203,6 +203,12 @@ services:
             $serverDomain: '%vanity_server_domain%'
             $recipientLud16: '%active_indexing_recipient_lud16%'
 
+    # Publication Subdomain Service
+    App\Service\PublicationSubdomainService:
+        arguments:
+            $baseDomain: '%base_domain%'
+            $recipientLud16: '%active_indexing_recipient_lud16%'
+
     # Reading List Workflow Service - bind the specific workflow
     App\Service\ReadingListWorkflowService:
         arguments:

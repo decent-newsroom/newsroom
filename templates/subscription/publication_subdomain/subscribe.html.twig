@@ -1,0 +1,55 @@
+﻿{% extends 'layout.html.twig' %}
+{% block title %}Subscribe - Publication Subdomain{% endblock %}
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Get Your Publication Subdomain" tagline="Choose your subdomain and magazine" />
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+    <div class="card" style="max-width: 700px; margin: 0 auto;">
+        <div class="card-body">
+            <form action="{{ path('publication_subdomain_create') }}" method="post" id="subdomainForm">
+                <input type="hidden" name="_token" value="{{ csrf_token('publication_subdomain_create') }}">
+                <div class="mb-4">
+                    <label for="subdomain" class="form-label">Choose Your Subdomain *</label>
+                    <div class="input-group">
+                        <input type="text"
+                               id="subdomain"
+                               name="subdomain"
+                               class="form-control"
+                               placeholder="yourmagazine"
+                               pattern="[a-z0-9\-]+"
+                               minlength="2"
+                               maxlength="50"
+                               required>
+                        <span class="input-group-text">.{{ baseDomain }}</span>
+                    </div>
+                    <small class="form-text text-muted">
+                        Lowercase letters, numbers, and hyphens only (2-50 characters)
+                    </small>
+                </div>
+                <div class="mb-4">
+                    <label for="magazine_coordinate" class="form-label">Magazine Coordinate *</label>
+                    <input type="text"
+                           id="magazine_coordinate"
+                           name="magazine_coordinate"
+                           class="form-control"
+                           placeholder="30040:pubkey:magazine-slug"
+                           required>
+                    <small class="form-text text-muted">
+                        Your magazine's Nostr coordinate (kind:pubkey:identifier). 
+                        <a href="{{ path('mag_wizard_setup') }}">Create a magazine</a> if you don't have one.
+                    </small>
+                </div>
+                <div class="alert alert-info">
+                    <strong>Payment:</strong> {{ priceInSats|number_format }} sats per year via Lightning
+                </div>
+                <hr>
+                <button type="submit" class="btn btn-primary w-100">
+                    Continue to Payment
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

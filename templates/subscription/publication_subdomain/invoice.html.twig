@@ -1,0 +1,79 @@
+﻿{% extends 'layout.html.twig' %}
+{% block title %}Invoice - Publication Subdomain{% endblock %}
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Complete Your Payment" tagline="Publication Subdomain Subscription" />
+    <p class="mb-4 text-center">
+        <a href="{{ path('publication_subdomain_index') }}">← Back to Publication Subdomain</a>
+    </p>
+    <div class="d-flex gap-4 flex-wrap justify-content-center">
+        <div class="card" style="flex: 1; max-width: 500px;">
+            <div style="text-align: center;">
+                <p class="mb-3">
+                    <strong>Subdomain:</strong> {{ subscription.subdomain }}.{{ baseDomain }}
+                </p>
+                <p class="mb-4">
+                    <strong style="font-size: 1.5rem;">Amount: {{ amount|number_format }} sats</strong>
+                </p>
+                {% if bolt11 is defined and bolt11 %}
+                    <div class="mb-4">
+                        {{ qrSvg|raw }}
+                    </div>
+                    <p class="mb-3">Scan the QR code or copy the invoice to pay with your Lightning wallet.</p>
+                    <div class="mb-4">
+                        <label class="form-label">Lightning Invoice:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ bolt11 }}" readonly id="invoice-input" style="font-size: 0.75rem;">
+                            <button class="btn btn-secondary" type="button" onclick="copyInvoice()">Copy</button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <a href="lightning:{{ bolt11 }}" class="btn btn-primary">
+                            ⚡ Open in Wallet
+                        </a>
+                    </div>
+                {% endif %}
+                <div class="alert alert-info" style="text-align: left; max-width: 460px; margin: 0 auto var(--spacing-3);">
+                    <strong>After payment:</strong>
+                    <ol style="margin: var(--spacing-2) 0 0; padding-left: var(--spacing-4);">
+                        <li>We'll verify your payment manually</li>
+                        <li>Your subscription will be activated</li>
+                        <li>Within <strong>48 hours</strong>, we'll configure DNS, proxy routing, and HTTPS</li>
+                        <li>You'll receive notification when your subdomain is live</li>
+                    </ol>
+                </div>
+                <p class="mb-3 text-muted">
+                    <small>If you have questions, contact support after payment confirmation.</small>
+                </p>
+
+                <hr style="margin: var(--spacing-4) 0;">
+
+                {# Cancel Option #}
+                <div class="mt-3 mb-2">
+                    <p style="color: var(--color-text-mid); margin-bottom: var(--spacing-2);">
+                        Changed your mind or want to choose a different subdomain?
+                    </p>
+                    <form action="{{ path('publication_subdomain_cancel') }}" method="post"
+                          onsubmit="return confirm('Cancel this pending subscription? You can create a new one with a different subdomain.');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('publication_subdomain_cancel') }}">
+                        <div class="actions">
+                            <button type="submit" class="btn btn-secondary">
+                                Cancel Pending Subscription
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyInvoice() {
+    const input = document.getElementById('invoice-input');
+    input.select();
+    document.execCommand('copy');
+    alert('Invoice copied to clipboard!');
+}
+</script>
+{% endblock %}
