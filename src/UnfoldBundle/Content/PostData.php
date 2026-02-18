@@ -16,6 +16,9 @@ readonly class PostData
      * @param int $publishedAt Unix timestamp
      * @param string $pubkey Author's hex pubkey
      * @param string $coordinate Article coordinate (kind:pubkey:slug)
+     * @param string|null $lud16 Lightning address (LUD-16)
+     * @param string|null $lud06 LNURL (LUD-06)
+     * @param array $zapSplits Zap split configuration
      */
     public function __construct(
         public string $slug,
@@ -26,6 +29,9 @@ readonly class PostData
         public int $publishedAt,
         public string $pubkey,
         public string $coordinate,
+        public ?string $lud16 = null,
+        public ?string $lud06 = null,
+        public array $zapSplits = [],
     ) {}
 
     /**
@@ -39,6 +45,9 @@ readonly class PostData
         $summary = '';
         $image = null;
         $publishedAt = $event->created_at ?? time();
+        $lud16 = null;
+        $lud06 = null;
+        $zapSplits = [];
 
         foreach ($tags as $tag) {
             if (!is_array($tag) || count($tag) < 2) {
@@ -51,6 +60,13 @@ readonly class PostData
                 'summary' => $summary = $tag[1],
                 'image', 'thumb' => $image = $tag[1],
                 'published_at' => $publishedAt = (int) $tag[1],
+                'lud16' => $lud16 = $tag[1],
+                'lud06' => $lud06 = $tag[1],
+                'zap' => $zapSplits[] = [
+                    'recipient' => $tag[1] ?? '',
+                    'relay' => $tag[2] ?? null,
+                    'weight' => isset($tag[3]) ? (int) $tag[3] : 1,
+                ],
                 default => null,
             };
         }
@@ -68,6 +84,9 @@ readonly class PostData
             publishedAt: $publishedAt,
             pubkey: $pubkey,
             coordinate: $coordinate,
+            lud16: $lud16,
+            lud06: $lud06,
+            zapSplits: $zapSplits,
         );
     }
 

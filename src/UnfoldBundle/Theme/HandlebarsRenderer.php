@@ -280,6 +280,11 @@ class HandlebarsRenderer
     private function getHelpers(): array
     {
         return [
+            // JSON encoding helper - for passing data to JavaScript
+            'json' => function ($data) {
+                return json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+            },
+
             // Date formatting helper
             'date' => function ($date, $options = null) {
                 $format = 'F j, Y';

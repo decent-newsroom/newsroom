@@ -11,13 +11,27 @@ unfold_demo:
     condition: "request.attributes.has('_unfold_site')"
 
 # Theme assets route - must come before catch-all
+# Uses /unfold-themes/ to avoid conflict with Symfony AssetMapper which handles /assets/
 unfold_theme_assets:
-    path: /assets/themes/{theme}/{path}
+    path: /unfold-themes/{theme}/{path}
     controller: App\UnfoldBundle\Controller\ThemeAssetController
     requirements:
         theme: '[a-zA-Z0-9_-]+'
         path: '.+'
     methods: [GET]
+    condition: "request.attributes.has('_unfold_site')"
+
+# API routes - must come before catch-all
+unfold_zap_api_invoice:
+    path: /unfold/api/zap/invoice
+    controller: App\UnfoldBundle\Controller\ZapApiController::createInvoice
+    methods: [POST]
+    condition: "request.attributes.has('_unfold_site')"
+
+unfold_zap_api_invoice_split:
+    path: /unfold/api/zap/invoice-split
+    controller: App\UnfoldBundle\Controller\ZapApiController::createInvoiceSplit
+    methods: [POST]
     condition: "request.attributes.has('_unfold_site')"
 
 # Main site controller - catch-all

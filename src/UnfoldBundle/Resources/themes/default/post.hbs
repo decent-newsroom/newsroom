@@ -14,6 +14,9 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
 
+    <!-- Zap functionality -->
+    <link rel="stylesheet" href="/unfold-themes/default/zap.css">
+
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
@@ -78,11 +81,33 @@
             <div class="post-content">
                 {{{post.html}}}
             </div>
+
+            {{#if post.zap}}
+            {{#if post.zap.lud16}}
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                <button
+                    class="zap-button"
+                    data-zap-button
+                    data-zap-pubkey="{{post.zap.pubkey}}"
+                    data-zap-lud16="{{post.zap.lud16}}"
+                    {{#if post.zap.lud06}}data-zap-lud06="{{post.zap.lud06}}"{{/if}}
+                    {{#if post.zap.splits}}data-zap-splits='{{json post.zap.splits}}'{{/if}}
+                    data-zap-recipient="{{post.primary_author.name}}"
+                >
+                    <span class="zap-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg></span>
+                    Zap{{#if post.zap.splits}} ({{post.zap.splits.length}} split){{/if}}
+                </button>
+            </div>
+            {{/if}}
+            {{/if}}
         </article>
     </main>
 
     {{> footer}}
 
+    <script src="/unfold-themes/default/zap.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             renderMathInElement(document.body, {

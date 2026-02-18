@@ -99,6 +99,19 @@ class ContextBuilder
             'slug' => $cat->slug,
         ], $categories);
 
+        // Get magazine creator's lightning address from metadata
+        $creatorMetadata = $this->redisCacheService->getMetadata($site->pubkey);
+        $creatorLud16 = $creatorMetadata->lud16;
+        $creatorLud06 = $creatorMetadata->lud06;
+
+        // Handle lud16/lud06 as arrays (take first element)
+        if (is_array($creatorLud16)) {
+            $creatorLud16 = !empty($creatorLud16) ? $creatorLud16[0] : null;
+        }
+        if (is_array($creatorLud06)) {
+            $creatorLud06 = !empty($creatorLud06) ? $creatorLud06[0] : null;
+        }
+
         return [
             'title' => $site->title,
             'description' => $site->description,
@@ -107,6 +120,9 @@ class ContextBuilder
             'navigation' => $navigation,
             'locale' => 'en',
             'members_enabled' => false,
+            'creator_pubkey' => $site->pubkey,
+            'creator_lud16' => $creatorLud16,
+            'creator_lud06' => $creatorLud06,
         ];
     }
 
@@ -165,6 +181,19 @@ class ContextBuilder
         $authorMetadata = $this->redisCacheService->getMetadata($post->pubkey);
         $authorName = $authorMetadata->displayName ?: $authorMetadata->name ?: 'Author';
 
+        // Use lightning address from post data first (if specified in article tags),
+        // otherwise fall back to author's metadata
+        $lud16 = $post->lud16 ?: $authorMetadata->lud16;
+        $lud06 = $post->lud06 ?: $authorMetadata->lud06;
+
+        // Handle lud16/lud06 as arrays (take first element)
+        if (is_array($lud16)) {
+            $lud16 = !empty($lud16) ? $lud16[0] : null;
+        }
+        if (is_array($lud06)) {
+            $lud06 = !empty($lud06) ? $lud06[0] : null;
+        }
+
         return [
             'id' => $post->coordinate,
             'slug' => $post->slug,
@@ -181,6 +210,12 @@ class ContextBuilder
                 'name' => $authorName,
                 'slug' => substr($post->pubkey, 0, 8),
                 'profile_image' => $authorMetadata->picture,
+            ],
+            'zap' => [
+                'pubkey' => $post->pubkey,
+                'lud16' => $lud16,
+                'lud06' => $lud06,
+                'splits' => $post->zapSplits,
             ],
         ];
     }
