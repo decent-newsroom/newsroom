@@ -45,12 +45,22 @@ class NostrConnectController
         $name = 'Decent Newsroom';
         $appUrl = $request->getSchemeAndHttpHost();
 
-        // Build query string: multiple relay params + secret + name + url
+        // Build query string: multiple relay params + secret + name + url + perms
         $queryParts = [];
         foreach ($relays as $r) {
             $queryParts[] = 'relay=' . rawurlencode($r);
         }
         $queryParts[] = 'secret=' . rawurlencode($secret);
+        // Request pre-approval for NIP-98 HTTP auth signing (kind 27235).
+        // Without this, bunkers like Amber prompt for each sign_event request,
+        // forcing the user to switch apps. On mobile, switching apps suspends
+        // WebSocket connections and the ephemeral kind-24133 response is lost.
+        $queryParts[] = 'secret=' . rawurlencode($secret);
+        // Request pre-approval for NIP-98 HTTP auth signing (kind 27235).
+        // Without this, bunkers like Amber prompt for each sign_event request,
+        // forcing the user to switch apps. On mobile, switching apps suspends
+        // WebSocket connections and the ephemeral kind-24133 response is lost.
+        $queryParts[] = 'perms=' . rawurlencode('sign_event:27235,get_public_key');
         $queryParts[] = 'name=' . rawurlencode($name);
         $queryParts[] = 'url=' . rawurlencode($appUrl);
         $query = implode('&', $queryParts);

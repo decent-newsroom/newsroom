@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getPublicKey } from 'nostr-tools';
+import { getPublicKey, SimplePool } from 'nostr-tools';
 import { hexToBytes } from 'nostr-tools/utils';
 import { BunkerSigner } from "nostr-tools/nip46";
 import { setRemoteSignerSession } from '../nostr/signer_manager.js';
@@ -15,9 +15,14 @@ export default class extends Controller {
     this._secret = null;
     this._signer = null;
     this._didAuth = false;
+    this._visibilityHandler = null;
   }
 
   disconnect() {
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
     try { this._signer?.close?.(); } catch (_) {}
   }
 
@@ -34,6 +39,10 @@ export default class extends Controller {
   closeDialog() {
     if (this.hasDialogTarget) {
       this.dialogTarget.style.display = 'none';
+      if (this._visibilityHandler) {
+        document.removeEventListener('visibilitychange', this._visibilityHandler);
+        this._visibilityHandler = null;
+      }
       try { this._signer?.close?.(); } catch (_) {}
       this._didAuth = false;
     }
@@ -56,17 +65,19 @@ export default class extends Controller {
       console.log('[signer-modal] Relays:', this._relays);
       console.log('[signer-modal] Client pubkey:', getPublicKey(this._localSecretKey));
 
-      // Use BunkerSigner.fromURI which handles the full nostrconnect:// flow:
-      // 1. Subscribes to the relays in the URI for kind 24133 events
-      // 2. Waits for the bunker to send a connect response with the secret
-      // 3. Sets up the ongoing subscription for RPC responses
-      // All in one atomic, tested operation using its own internal pool.
+      // Use BunkerSigner.fromURI which handles the full nostrconnect:// flow.
+      // Create a pool with enableReconnect so WebSocket connections survive mobile
+      // tab suspension: when user switches to a bunker app to approve, the browser
+      // suspends WebSockets; enableReconnect ensures they auto-reconnect when
+      // the user switches back, and nostr-tools re-sends REQ with a since filter
+      // so the signed response event is picked up.
+      const pool = new SimplePool({ enableReconnect: true });
       const CONNECTION_TIMEOUT = 120000; // 2 minutes
       console.log('[signer-modal] Starting BunkerSigner.fromURI (waiting for bunker connect response)...');
       const signerPromise = BunkerSigner.fromURI(
         this._localSecretKey,
         this._uri,
-        {},
+        { pool },
         CONNECTION_TIMEOUT
       );
 
