@@ -9,7 +9,8 @@
 
             {# Action buttons #}
             {% if this.categoryTags is not empty %}
-                <div class="mt-4">
+                {# TODO make it so that this is only shown if chapters are kind 30041, not 30040 #}
+                <div class="mt-4 hidden">
                     <a href="{{ path('magazine-read', {mag: mag}) }}" class="btn btn-primary">
                         Read All Chapters
                     </a>
@@ -18,8 +19,7 @@
         </div>
         <div class="container mb-5">
             {# Use computed property via this.categoryTags (includes both categories and chapters) #}
-            {# Only show links if there are fewer than 10 items to avoid clutter #}
-            {% if this.categoryTags is not empty and this.categoryTags|length < 10 %}
+            {% if this.categoryTags is not empty %}
                 <ul class="list-unstyled d-flex flex-row flex-wrap gap-3 justify-content-center mt-3">
                     {% for catTag in this.categoryTags %}
                         <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
