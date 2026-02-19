@@ -129,6 +129,11 @@ export default class extends Controller {
       );
 
       console.log('[signer-modal] ✅ BunkerSigner created successfully');
+
+      // CRITICAL: Call connect() to establish relay subscription for receiving responses
+      console.log('[signer-modal] Calling connect() to establish relay subscription...');
+      await this._signer.connect();
+      console.log('[signer-modal] ✅ BunkerSigner connected to relay!');
     } catch (error) {
       console.error('[signer-modal] ❌ Connection failed:', error.message);
       throw error;

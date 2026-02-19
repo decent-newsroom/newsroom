@@ -109,6 +109,11 @@ export default class extends Controller {
       );
 
       console.log('[amber-connect] ✅ BunkerSigner created successfully');
+
+      // CRITICAL: Call connect() to establish relay subscription for receiving responses
+      console.log('[amber-connect] Calling connect() to establish relay subscription...');
+      await this._signer.connect();
+      console.log('[amber-connect] ✅ BunkerSigner connected to relay!');
     } catch (error) {
       console.error('[amber-connect] ❌ Connection failed:', error.message);
       throw error;
