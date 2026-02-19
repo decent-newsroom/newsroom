@@ -60,11 +60,15 @@ export default class extends Controller {
 
       this._checkClientPubkeyIntegrity();
 
-      // Start listening for connection BEFORE showing QR/URI
+      // CRITICAL: Start creating signer and subscribing BEFORE showing QR/URI
       this._setStatus('Waiting for remote signer…');
+      console.log('[signer-modal] Starting signer creation BEFORE displaying QR...');
       const signerPromise = this._createSigner();
 
-      // Now show QR/URI after we're listening
+      // Small delay to ensure subscription is established
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Now show QR/URI after subscription is active
       if (this.hasQrTarget) {
         this.qrTarget.innerHTML = `<img alt="Amber pairing QR" src="${data.qr}" style="width:260px;height:260px;" />`;
       }
@@ -105,56 +109,82 @@ export default class extends Controller {
       this._pool = new SimplePool();
     }
 
-    const CONNECTION_TIMEOUT = 60000; // 60 seconds
+    const CONNECTION_TIMEOUT = 90000; // 90 seconds total
 
     try {
-      this._setStatus('Waiting for remote signer…');
       const clientPubkey = getPublicKey(this._localSecretKey);
 
-      // Wait for the connect event, then use fromBunker()
-      const bunkerPubkey = await this._waitForConnectEvent(clientPubkey, CONNECTION_TIMEOUT);
+      // WORKAROUND: Bunkers often ignore the relay list in the URI and use their own default relays
+      // So we subscribe to BOTH the URI relays AND common bunker relays
+      const subscriptionRelays = [
+        ...this._relays,  // Relays from our nostrconnect:// URI
+        'wss://relay.nsec.app',  // Common bunker relay
+        'wss://relay.primal.net',  // Common bunker relay
+        'wss://relay.damus.io',  // Common bunker relay
+        'wss://nos.lol',  // Common bunker relay
+        'wss://relay.snort.social',  // Common bunker relay
+      ];
 
-      // Create BunkerPointer for fromBunker()
+      // Remove duplicates
+      const uniqueRelays = [...new Set(subscriptionRelays)];
+
+      console.log('[signer-modal] 🔍 Subscribing for connect event immediately...');
+      console.log('[signer-modal] Client pubkey:', clientPubkey);
+      console.log('[signer-modal] URI relays:', this._relays);
+      console.log('[signer-modal] Subscribing to (including bunker defaults):', uniqueRelays);
+      console.log('[signer-modal] Expected secret:', this._secret);
+
+      // Subscribe to expanded relay list to catch event wherever bunker sends it
+      const bunkerPubkey = await this._waitForConnectEvent(clientPubkey, CONNECTION_TIMEOUT, uniqueRelays);
+
+      console.log('[signer-modal] 📍 Got bunker pubkey:', bunkerPubkey);
+
+      // Create BunkerPointer
       const bunkerPointer = {
         pubkey: bunkerPubkey,
         relays: this._relays,
         secret: this._secret
       };
 
-      // Use fromBunker() - we already handled the connect handshake
+      // Create signer with fromBunker
       this._signer = BunkerSigner.fromBunker(
         this._localSecretKey,
         bunkerPointer,
         { pool: this._pool }
       );
 
-      console.log('[signer-modal] ✅ BunkerSigner created successfully');
+      console.log('[signer-modal] ✅ BunkerSigner created!');
 
-      // CRITICAL: Call connect() to establish relay subscription for receiving responses
+      // Call connect() to establish relay subscription for receiving sign responses
       console.log('[signer-modal] Calling connect() to establish relay subscription...');
       await this._signer.connect();
       console.log('[signer-modal] ✅ BunkerSigner connected to relay!');
     } catch (error) {
       console.error('[signer-modal] ❌ Connection failed:', error.message);
-      throw error;
+      throw new Error('Connection to remote signer failed. Check: (1) Bunker has the URI, (2) Relay connectivity');
     }
   }
 
-  async _waitForConnectEvent(clientPubkey, timeout) {
+  async _waitForConnectEvent(clientPubkey, timeout, relays) {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         sub.close();
         reject(new Error(`Connection timed out after ${timeout/1000} seconds`));
       }, timeout);
 
-      // Start listening from a bit before now to catch events that might arrive during setup
-      const sinceTimestamp = Math.floor(Date.now() / 1000) - 10; // 10 seconds ago
+      console.log('[signer-modal] 🔍 Subscribing for connect event...');
+      console.log('[signer-modal] Client pubkey:', clientPubkey);
+      console.log('[signer-modal] Subscribing to relays:', relays);
+      console.log('[signer-modal] Expected secret:', this._secret);
 
       const sub = this._pool.subscribe(
-        this._relays,
-        { kinds: [24133], "#p": [clientPubkey], since: sinceTimestamp },
+        relays,
+        { kinds: [24133], "#p": [clientPubkey] },
         {
           onevent: async (event) => {
+            console.log('[signer-modal] 📨 Received kind 24133 event from:', event.pubkey);
+            console.log('[signer-modal] Event content (encrypted):', event.content.substring(0, 50) + '...');
+
             try {
               // Decrypt the NIP-44 encrypted content
               const conversationKey = nip44.v2.utils.getConversationKey(
@@ -162,22 +192,28 @@ export default class extends Controller {
                 event.pubkey
               );
               const decrypted = nip44.v2.decrypt(event.content, conversationKey);
+              console.log('[signer-modal] 🔓 Decrypted content:', decrypted);
+
               const parsed = JSON.parse(decrypted);
+              console.log('[signer-modal] 📋 Parsed message:', parsed);
 
               // Check if result matches our secret
               if (parsed.result === this._secret) {
-                console.log('[signer-modal] ✅ Connection established');
+                console.log('[signer-modal] ✅ Connection established - secret matches!');
                 clearTimeout(timeoutId);
                 sub.close();
                 resolve(event.pubkey);
+              } else {
+                console.warn('[signer-modal] ⚠️  Secret mismatch. Expected:', this._secret, 'Got:', parsed.result);
               }
             } catch (e) {
               // Decryption failed, keep waiting for correct event
-              console.warn('[signer-modal] Event decryption failed, waiting...', e.message);
+              console.warn('[signer-modal] ❌ Event decryption/parsing failed:', e.message);
+              console.warn('[signer-modal] Event:', event);
             }
           },
           oneose: () => {
-            console.log('[signer-modal] Waiting for remote signer response...');
+            console.log('[signer-modal] 📡 EOSE received. Waiting for remote signer response...');
           }
         }
       );
