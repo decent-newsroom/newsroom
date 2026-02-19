@@ -298,7 +298,7 @@
             const content = this.currentModal.querySelector('.zap-modal-content');
             content.innerHTML = `
                 <div class="zap-modal-header">
-                    <h3 class="zap-modal-title">⚡ Invoice Ready</h3>
+                    <h3 class="zap-modal-title">Invoice Ready</h3>
                     <button class="zap-close-btn" onclick="ZapHandler.closeModal()">Close</button>
                 </div>
 
