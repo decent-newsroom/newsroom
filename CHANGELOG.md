@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.0.11
+Mostly quality of life improvements.
+
+- Added basic zap invoices to UnfoldBundle.
+- Implemented AsciiDoc parser for kind 30041.
+- Updated footer.
+- Added nostrconnect uri to the signer flow, so you can log in on the same device.
+- [Bug] Fix a bug in magazine wizard, so now you get form errors instead of a broken page.
+
+
 ## v0.0.10
 Publications as first-class citizens.
 
