@@ -1,5 +1,4 @@
 // Shared signer manager for Nostr signers (remote and extension)
-import { SimplePool } from 'nostr-tools';
 import { BunkerSigner } from 'nostr-tools/nip46';
 import { hexToBytes } from 'nostr-tools/utils';
 
@@ -10,7 +9,6 @@ const CONNECTION_TIMEOUT_MS = 60000; // 60 seconds - event may arrive after EOSE
 
 let remoteSigner = null;
 let remoteSignerPromise = null;
-let remoteSignerPool = null;
 
 export async function getSigner(retryCount = 0) {
   // If remote signer session is active, use it
@@ -72,12 +70,9 @@ export function setRemoteSignerSession(session) {
 export function clearRemoteSignerSession() {
   console.log('[signer_manager] Clearing remote signer session');
   localStorage.removeItem(REMOTE_SIGNER_KEY);
+  try { remoteSigner?.close?.(); } catch (_) {}
   remoteSigner = null;
   remoteSignerPromise = null;
-  if (remoteSignerPool) {
-    try { remoteSignerPool.close?.([]); } catch (_) {}
-    remoteSignerPool = null;
-  }
 }
 
 export function getRemoteSignerSession() {
@@ -96,14 +91,6 @@ export function getRemoteSignerSession() {
 async function createRemoteSignerFromSession(session) {
   console.log('[signer_manager] ===== Recreating BunkerSigner from session =====');
 
-  // Reuse existing pool if available, otherwise create new one
-  if (!remoteSignerPool) {
-    console.log('[signer_manager] Creating new SimplePool');
-    remoteSignerPool = new SimplePool();
-  } else {
-    console.log('[signer_manager] Reusing existing SimplePool');
-  }
-
   const MAX_RETRIES = 3;
   let lastError = null;
 
@@ -113,55 +100,42 @@ async function createRemoteSignerFromSession(session) {
 
       console.log(`[signer_manager] Reconnection attempt ${attempt}/${MAX_RETRIES}`);
 
-      // NEW PATTERN: Use fromBunker() with stored BunkerPointer (preferred)
+      // PREFERRED: Use fromBunker() with stored BunkerPointer
+      // Per nostr-tools docs: fromBunker returns immediately, then call connect()
+      // BunkerSigner creates its own internal pool — do NOT pass an external one
       if (session.bunkerPointer) {
         console.log('[signer_manager] Using fromBunker() with stored BunkerPointer');
         console.log('[signer_manager] BunkerPointer pubkey:', session.bunkerPointer.pubkey);
         console.log('[signer_manager] BunkerPointer relays:', session.bunkerPointer.relays);
 
-        // fromBunker() is for reconnecting to an already-authorized bunker
-        // It doesn't wait for a new connect message like fromURI() does
-        // Convert hex privkey to Uint8Array
         signer = BunkerSigner.fromBunker(
           hexToBytes(session.privkey),
-          session.bunkerPointer,
-          { pool: remoteSignerPool }
+          session.bunkerPointer
         );
 
-        console.log('[signer_manager] ✅ BunkerSigner created from pointer!');
-
-        // CRITICAL: Call connect() to establish relay subscription for receiving responses
-        console.log('[signer_manager] Calling connect() to establish relay subscription...');
+        console.log('[signer_manager] ✅ BunkerSigner created from pointer');
+        console.log('[signer_manager] Calling connect() to re-establish relay subscription...');
         await signer.connect();
-        console.log('[signer_manager] ✅ Connected to remote signer relay!');
+        console.log('[signer_manager] ✅ Connected to remote signer!');
       }
-      // LEGACY PATTERN: Fallback to fromURI() for old sessions (backward compatibility)
+      // LEGACY: Fallback to fromURI() for old sessions without bunkerPointer
       else if (session.uri) {
-        console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern (session has no bunkerPointer)');
-        console.log('[signer_manager] Session URI:', session.uri);
-        console.log('[signer_manager] Session relays:', session.relays);
-        console.log('[signer_manager] Timeout:', CONNECTION_TIMEOUT_MS, 'ms');
+        console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern');
 
-        // fromURI returns a Promise and waits for kind 24133 event
-        // The 4th parameter sets maxWait on subscription to handle EOSE-before-EVENT
-        // Convert hex privkey to Uint8Array
+        // fromURI is async — it subscribes and waits for the bunker's connect response.
+        // Already fully connected when it resolves, no connect() call needed.
         signer = await BunkerSigner.fromURI(
           hexToBytes(session.privkey),
           session.uri,
-          { pool: remoteSignerPool },
-          CONNECTION_TIMEOUT_MS // Pass timeout as 4th parameter
+          {},
+          CONNECTION_TIMEOUT_MS
         );
         console.log('[signer_manager] ✅ BunkerSigner created from URI!');
-
-        // With fromURI, we need to call connect()
-        console.log('[signer_manager] Calling connect() to establish relay connection...');
-        await signer.connect();
-        console.log('[signer_manager] ✅ Connected to remote signer!');
       } else {
         throw new Error('Session missing both bunkerPointer and uri');
       }
 
-      // Test the signer to make sure it works
+      // Verify the signer works
       try {
         console.log('[signer_manager] Testing signer with getPublicKey...');
         const testPromise = signer.getPublicKey();
@@ -173,37 +147,23 @@ async function createRemoteSignerFromSession(session) {
         return signer;
       } catch (testError) {
         console.error('[signer_manager] ❌ Signer test failed:', testError);
+        try { signer.close(); } catch (_) {}
         throw new Error('Signer created but failed verification: ' + testError.message);
       }
     } catch (error) {
       lastError = error;
       console.error(`[signer_manager] ❌ Reconnection attempt ${attempt}/${MAX_RETRIES} failed:`, error.message);
 
-      // If this was the last attempt, give up
       if (attempt === MAX_RETRIES) {
         console.error('[signer_manager] All reconnection attempts failed');
-        // Clean up on final failure
-        if (remoteSignerPool) {
-          try {
-            console.log('[signer_manager] Closing pool after final failure');
-            remoteSignerPool.close?.([]);
-          } catch (_) {}
-          remoteSignerPool = null;
-        }
         remoteSigner = null;
         remoteSignerPromise = null;
         throw new Error(`Failed to reconnect after ${MAX_RETRIES} attempts: ${error.message}`);
       }
 
-      // Calculate exponential backoff delay: 2s, 4s, 8s...
       const retryDelay = RETRY_DELAY_MS * Math.pow(2, attempt - 1);
       console.log(`[signer_manager] Retrying in ${retryDelay}ms...`);
-
-      // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, retryDelay));
-
-      // DON'T reset the pool - the relay won't resend the stored event
-      console.log('[signer_manager] Retrying with same pool (relay already sent stored event)');
     }
   }
 }

@@ -11,10 +11,10 @@
     {% if article.summary %}
     "description": {{ article.summary|striptags|json_encode|raw }},
     {% endif %}
-    {% if article.image %}
+    {% if article.image is defined and article.image %}
     "image": {{ article.image|json_encode|raw }},
     {% endif %}
-    {% if article.createdAt %}
+    {% if article.createdAt is defined and article.createdAt %}
     "datePublished": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
     "dateCreated": "{{ article.createdAt|date('c') }}",
     "dateModified": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
@@ -27,7 +27,7 @@
         "url": "{{ url('author-profile', {'npub': npub}) }}",
         "identifier": {{ npub|json_encode|raw }},
         {% endif %}
-        {% if author.picture %}
+        {% if author.picture is defined and author.picture %}
         "image": {{ author.picture|json_encode|raw }}
         {% endif %}
     },
@@ -70,10 +70,10 @@
         {% if article.summary %}
         "description": {{ article.summary|striptags|json_encode|raw }},
         {% endif %}
-        {% if article.image %}
+        {% if article.image is defined and article.image %}
         "image": {{ article.image|json_encode|raw }},
         {% endif %}
-        {% if article.createdAt %}
+        {% if article.createdAt is defined and article.createdAt %}
         "datePublished": "{{ (article.publishedAt ?? article.createdAt)|date('c') }}",
         {% endif %}
         {% if includeAuthor and article.pubkey %}
@@ -109,16 +109,16 @@
     "name": {{ (author.name ?? author.display_name ?? npub)|json_encode|raw }},
     "identifier": {{ npub|json_encode|raw }},
     "url": "{{ url('author-profile', {'npub': npub}) }}",
-    {% if author.picture %}
-    "image": {{ author.picture|json_encode|raw }},
+    {% if author.image is defined and author.image %}
+    "image": {{ author.image|json_encode|raw }},
     {% endif %}
-    {% if author.about %}
+    {% if author.about is defined and author.about %}
     "description": {{ author.about|striptags|json_encode|raw }},
     {% endif %}
-    {% if author.nip05 %}
+    {% if author.nip05 is defined and author.nip05 %}
     "email": {{ author.nip05|json_encode|raw }},
     {% endif %}
-    {% if author.website %}
+    {% if author.website is defined and author.website %}
     "sameAs": {{ author.website|json_encode|raw }}
     {% endif %}
 }
