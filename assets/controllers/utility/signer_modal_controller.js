@@ -58,6 +58,13 @@ export default class extends Controller {
       this._relays = data.relays || [data.relay].filter(Boolean);
       this._secret = data.secret || null;
 
+      this._checkClientPubkeyIntegrity();
+
+      // Start listening for connection BEFORE showing QR/URI
+      this._setStatus('Waiting for remote signer…');
+      const signerPromise = this._createSigner();
+
+      // Now show QR/URI after we're listening
       if (this.hasQrTarget) {
         this.qrTarget.innerHTML = `<img alt="Amber pairing QR" src="${data.qr}" style="width:260px;height:260px;" />`;
       }
@@ -66,10 +73,10 @@ export default class extends Controller {
         this.uriInputTarget.value = this._uri;
       }
 
-      this._checkClientPubkeyIntegrity();
-
       this._setStatus('Scan with Amber (NIP-46)…');
-      await this._createSigner();
+
+      // Wait for the connection to complete
+      await signerPromise;
       this._setStatus('Remote signer connected. Authenticating…');
       await this._attemptAuth();
     } catch (e) {
@@ -135,9 +142,12 @@ export default class extends Controller {
         reject(new Error(`Connection timed out after ${timeout/1000} seconds`));
       }, timeout);
 
+      // Start listening from a bit before now to catch events that might arrive during setup
+      const sinceTimestamp = Math.floor(Date.now() / 1000) - 10; // 10 seconds ago
+
       const sub = this._pool.subscribe(
         this._relays,
-        { kinds: [24133], "#p": [clientPubkey] },
+        { kinds: [24133], "#p": [clientPubkey], since: sinceTimestamp },
         {
           onevent: async (event) => {
             try {
