@@ -127,18 +127,19 @@ export default class extends Controller {
       };
 
       // Create signer with fromBunker
+      // fromBunker() already calls setupSubscription() internally, which subscribes
+      // to the bunker's relays for kind 24133 responses. The signer is ready to use.
+      // NOTE: Do NOT call this._signer.connect() here! In the nostrconnect:// flow,
+      // the remote signer already acknowledged the connection by echoing our secret.
+      // Calling connect() would send a NEW "connect" RPC request to the bunker,
+      // which will hang because the secret is single-use and already consumed.
       this._signer = BunkerSigner.fromBunker(
         this._localSecretKey,
         bunkerPointer,
         { pool: this._pool }
       );
 
-      console.log('[amber-connect] ✅ BunkerSigner created!');
-
-      // Call connect() to establish relay subscription for receiving sign responses
-      console.log('[amber-connect] Calling connect() to establish relay subscription...');
-      await this._signer.connect();
-      console.log('[amber-connect] ✅ BunkerSigner connected to relay!');
+      console.log('[amber-connect] ✅ BunkerSigner created and subscription active!');
     } catch (error) {
       console.error('[amber-connect] ❌ Connection failed:', error.message);
       throw new Error('Connection to remote signer failed. Check: (1) Amber has the URI, (2) Relay connectivity');
@@ -148,21 +149,30 @@ export default class extends Controller {
   async _waitForConnectEvent(clientPubkey, timeout, relays) {
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
+        console.error('[amber-connect] ⏰ TIMEOUT after', timeout/1000, 'seconds');
+        console.error('[amber-connect] No connect event received on any of', relays.length, 'relays');
         sub.close();
         reject(new Error(`Connection timed out after ${timeout/1000} seconds`));
       }, timeout);
 
       console.log('[amber-connect] 🔍 Subscribing for connect event...');
       console.log('[amber-connect] Client pubkey:', clientPubkey);
-      console.log('[amber-connect] Subscribing to relays:', relays);
+      console.log('[amber-connect] Subscribing to', relays.length, 'relays:', relays);
       console.log('[amber-connect] Expected secret:', this._secret);
+
+      // Track which relays respond
+      const relayStatus = {};
+      relays.forEach(r => relayStatus[r] = 'connecting');
 
       const sub = this._pool.subscribe(
         relays,
         { kinds: [24133], "#p": [clientPubkey] },
         {
           onevent: async (event) => {
-            console.log('[amber-connect] 📨 Received kind 24133 event from:', event.pubkey);
+            console.log('[amber-connect] 📨 Received kind 24133 event!');
+            console.log('[amber-connect] From pubkey:', event.pubkey);
+            console.log('[amber-connect] Event ID:', event.id);
+            console.log('[amber-connect] Created at:', new Date(event.created_at * 1000).toISOString());
             console.log('[amber-connect] Event content (encrypted):', event.content.substring(0, 50) + '...');
 
             try {
@@ -184,19 +194,39 @@ export default class extends Controller {
                 sub.close();
                 resolve(event.pubkey);
               } else {
-                console.warn('[amber-connect] ⚠️  Secret mismatch. Expected:', this._secret, 'Got:', parsed.result);
+                console.warn('[amber-connect] ⚠️  Secret mismatch!');
+                console.warn('[amber-connect] Expected:', this._secret);
+                console.warn('[amber-connect] Got:', parsed.result);
+                console.warn('[amber-connect] This might be a response to an old connection attempt');
               }
             } catch (e) {
               // Decryption failed, keep waiting for correct event
-              console.warn('[amber-connect] ❌ Event decryption/parsing failed:', e.message);
-              console.warn('[amber-connect] Event:', event);
+              console.error('[amber-connect] ❌ Event decryption/parsing failed:', e.message);
+              console.error('[amber-connect] Full error:', e);
+              console.error('[amber-connect] Event pubkey:', event.pubkey);
+              console.error('[amber-connect] Our secret key (first 8 chars):', Array.from(this._localSecretKey).slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(''));
             }
           },
           oneose: () => {
-            console.log('[amber-connect] 📡 EOSE received. Waiting for remote signer response...');
+            console.log('[amber-connect] 📡 EOSE received on one or more relays');
+            console.log('[amber-connect] Subscription is active. Waiting for remote signer response...');
+            console.log('[amber-connect] If bunker says "ready", it should send the event now...');
+          },
+          onclose: (reasons) => {
+            console.log('[amber-connect] 🔌 Subscription closed');
+            if (reasons && reasons.length > 0) {
+              console.log('[amber-connect] Close reasons:', reasons);
+            }
           }
         }
       );
+
+      // Log relay connection status after a short delay
+      setTimeout(() => {
+        console.log('[amber-connect] 🌐 Relay connection check (after 2 seconds):');
+        console.log('[amber-connect] Pool has', Object.keys(this._pool._conn || {}).length, 'connections');
+        console.log('[amber-connect] Connected relays:', Object.keys(this._pool._conn || {}));
+      }, 2000);
     });
   }
 
