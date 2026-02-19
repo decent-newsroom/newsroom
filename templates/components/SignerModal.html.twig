@@ -6,7 +6,27 @@
       <button type="button" class="close" data-action="click->utility--signer-modal#closeDialog">&times;</button>
     </div>
     <div class="modal-body">
-      <p class="text-muted mb-3">Scan the QR below with a NIP-46 compatible bunker signer to pair a remote signing session.</p>
+      {# Bunker reconnect — for users who already have an active session #}
+      <div class="mb-4 p-3" style="background: var(--bg-muted, #f8f9fa); border-radius: 6px;">
+        <label for="signer-modal-bunker-input" class="small fw-bold d-block mb-1">Have an existing bunker session?</label>
+        <p class="small text-muted mb-2">Paste your <code>bunker://</code> connection string to reconnect.</p>
+        <div class="input-group input-group-sm">
+          <input type="text"
+                 id="signer-modal-bunker-input"
+                 class="form-control font-monospace small"
+                 data-utility--signer-modal-target="bunkerInput"
+                 style="font-size: 0.75rem;"
+                 placeholder="bunker://...">
+          <button class="btn btn-outline-secondary"
+                  type="button"
+                  data-action="click->utility--signer-modal#connectBunker">
+            Connect
+          </button>
+        </div>
+      </div>
+
+      <hr class="my-3">
+      <p class="text-muted mb-3">Or start a new pairing — scan the QR with a NIP-46 compatible bunker signer.</p>
       <div class="row">
         <div class="col-md-6 text-center mb-3">
           <div data-utility--signer-modal-target="qr" class="mb-2"></div>

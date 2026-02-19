@@ -8,6 +8,27 @@
   <p class="text-muted">Scan the QR below with a NIP-46 compatible bunker signer to pair a remote signing session. Keep this page open while pairing.</p>
   <div class="card">
     <div class="card-body" data-controller="nostr--amber-connect">
+      {# Bunker reconnect — for users who already have an active session #}
+      <div class="mb-4 p-3" style="background: #f8f9fa;">
+        <label for="amber-bunker-input" class="small fw-bold d-block mb-1">Have an existing bunker session?</label>
+        <p class="small text-muted mb-2">Paste your <code>bunker://</code> connection string to reconnect.</p>
+        <div class="input-group input-group-sm d-flex flex-row">
+          <input type="text"
+                 id="amber-bunker-input"
+                 class="form-control font-monospace small"
+                 data-nostr--amber-connect-target="bunkerInput"
+                 style="font-size: 0.75rem;"
+                 placeholder="bunker://...">
+          <button class="btn btn-outline-secondary"
+                  type="button"
+                  data-action="click->nostr--amber-connect#connectBunker">
+            Connect
+          </button>
+        </div>
+      </div>
+
+      <hr class="my-3">
+      <p class="text-muted mb-3">Or start a new pairing:</p>
       <div class="row">
         <div class="col-md-6 text-center mb-3">
           <div data-nostr--amber-connect-target="qr" class="mb-2"></div>

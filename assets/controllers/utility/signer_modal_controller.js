@@ -1,11 +1,11 @@
 import { Controller } from '@hotwired/stimulus';
-import { getPublicKey, SimplePool } from 'nostr-tools';
-import { hexToBytes } from 'nostr-tools/utils';
-import { BunkerSigner } from "nostr-tools/nip46";
+import { getPublicKey, SimplePool, generateSecretKey } from 'nostr-tools';
+import { hexToBytes, bytesToHex } from 'nostr-tools/utils';
+import { BunkerSigner, parseBunkerInput } from "nostr-tools/nip46";
 import { setRemoteSignerSession } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
-  static targets = ['dialog', 'qr', 'status', 'uriInput', 'copyButton'];
+  static targets = ['dialog', 'qr', 'status', 'uriInput', 'copyButton', 'bunkerInput'];
 
   connect() {
     this._localSecretKeyHex = null;
@@ -45,6 +45,55 @@ export default class extends Controller {
       }
       try { this._signer?.close?.(); } catch (_) {}
       this._didAuth = false;
+    }
+  }
+
+  /**
+   * Reconnect using a bunker:// URI from an existing bunker session.
+   * This is the bunker-initiated flow (Method 1):
+   *   parseBunkerInput() → fromBunker() → connect() → signEvent() → login
+   * Much more reliable on mobile since the bunker already has an active session
+   * and auto-approves requests — no app-switching needed during the RPC phase.
+   */
+  async connectBunker() {
+    const input = this.hasBunkerInputTarget ? this.bunkerInputTarget.value.trim() : '';
+    if (!input) {
+      this._setStatus('Please paste a bunker:// connection string.');
+      return;
+    }
+
+    try {
+      this._setStatus('Parsing bunker connection…');
+      const bunkerPointer = await parseBunkerInput(input);
+      if (!bunkerPointer) {
+        this._setStatus('Invalid bunker string. Expected bunker://… or a NIP-05 address.');
+        return;
+      }
+      console.log('[signer-modal] Parsed bunker pointer:', bunkerPointer);
+
+      // Generate a fresh local keypair for this session
+      const localSecretKey = generateSecretKey();
+      this._localSecretKey = localSecretKey;
+      this._localSecretKeyHex = bytesToHex(localSecretKey);
+      this._relays = bunkerPointer.relays;
+      this._secret = bunkerPointer.secret;
+
+      this._setStatus('Connecting to bunker…');
+      console.log('[signer-modal] Creating BunkerSigner.fromBunker with relays:', bunkerPointer.relays);
+
+      // fromBunker returns immediately, sets up subscription
+      this._signer = BunkerSigner.fromBunker(localSecretKey, bunkerPointer);
+
+      // connect() sends the "connect" RPC and waits for "ack"
+      console.log('[signer-modal] Calling connect()…');
+      await this._signer.connect();
+      console.log('[signer-modal] ✅ Connected to bunker! Pubkey:', this._signer.bp.pubkey);
+
+      this._setStatus('Connected. Authenticating…');
+      await this._attemptAuth();
+    } catch (e) {
+      console.error('[signer-modal] connectBunker error:', e);
+      this._setStatus('Bunker connection failed: ' + (e.message || 'unknown'));
     }
   }
 
