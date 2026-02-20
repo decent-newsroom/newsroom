@@ -18,17 +18,8 @@
 }
 
 .iu-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     background-color: var(--color-bg, #fff);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
-    max-width: 90%;
-    width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    z-index: 1001;
 }
 
 .iu-modal .modal-header {

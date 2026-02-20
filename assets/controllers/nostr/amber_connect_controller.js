@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getPublicKey, SimplePool, generateSecretKey } from 'nostr-tools';
+import { getPublicKey, SimplePool, generateSecretKey, finalizeEvent } from 'nostr-tools';
 import { hexToBytes, bytesToHex } from 'nostr-tools/utils';
 import { BunkerSigner, parseBunkerInput } from "nostr-tools/nip46";
 import { setRemoteSignerSession } from './signer_manager.js';
@@ -49,7 +49,10 @@ export default class extends Controller {
       // suspends WebSockets. enableReconnect ensures they auto-reconnect when
       // the user switches back, and nostr-tools re-sends REQ with a since filter
       // so the signed response event is picked up.
-      const pool = new SimplePool({ enableReconnect: true });
+      const pool = new SimplePool({
+        enableReconnect: true,
+        automaticallyAuth: () => (evt) => finalizeEvent(evt, this._localSecretKey)
+      });
       const CONNECTION_TIMEOUT = 120000; // 2 minutes
       console.log('[amber-connect] Starting BunkerSigner.fromURI (waiting for bunker connect response)...');
       const signerPromise = BunkerSigner.fromURI(
@@ -113,8 +116,16 @@ export default class extends Controller {
       this._setStatus('Connecting to bunker…');
       console.log('[amber-connect] Creating BunkerSigner.fromBunker with relays:', bunkerPointer.relays);
 
+      // Create a pool with enableReconnect for mobile resilience and
+      // automaticallyAuth so relays that require NIP-42 AUTH for kind 24133
+      // (like relay.nsec.app) get authenticated with our local client key.
+      const pool = new SimplePool({
+        enableReconnect: true,
+        automaticallyAuth: () => (evt) => finalizeEvent(evt, localSecretKey)
+      });
+
       // fromBunker returns immediately, sets up subscription
-      this._signer = BunkerSigner.fromBunker(localSecretKey, bunkerPointer);
+      this._signer = BunkerSigner.fromBunker(localSecretKey, bunkerPointer, { pool });
 
       // connect() sends the "connect" RPC and waits for "ack"
       console.log('[amber-connect] Calling connect()…');

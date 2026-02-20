@@ -1,4 +1,5 @@
 // Shared signer manager for Nostr signers (remote and extension)
+import { SimplePool, finalizeEvent } from 'nostr-tools';
 import { BunkerSigner } from 'nostr-tools/nip46';
 import { hexToBytes } from 'nostr-tools/utils';
 
@@ -102,16 +103,18 @@ async function createRemoteSignerFromSession(session) {
 
       // PREFERRED: Use fromBunker() with stored BunkerPointer
       // Per nostr-tools docs: fromBunker returns immediately, then call connect()
-      // BunkerSigner creates its own internal pool — do NOT pass an external one
       if (session.bunkerPointer) {
         console.log('[signer_manager] Using fromBunker() with stored BunkerPointer');
         console.log('[signer_manager] BunkerPointer pubkey:', session.bunkerPointer.pubkey);
         console.log('[signer_manager] BunkerPointer relays:', session.bunkerPointer.relays);
 
-        signer = BunkerSigner.fromBunker(
-          hexToBytes(session.privkey),
-          session.bunkerPointer
-        );
+        const secretKey = hexToBytes(session.privkey);
+        const pool = new SimplePool({
+          enableReconnect: true,
+          automaticallyAuth: () => (evt) => finalizeEvent(evt, secretKey)
+        });
+
+        signer = BunkerSigner.fromBunker(secretKey, session.bunkerPointer, { pool });
 
         console.log('[signer_manager] ✅ BunkerSigner created from pointer');
         console.log('[signer_manager] Calling connect() to re-establish relay subscription...');
@@ -122,12 +125,18 @@ async function createRemoteSignerFromSession(session) {
       else if (session.uri) {
         console.log('[signer_manager] ⚠️  Using legacy fromURI() pattern');
 
+        const secretKey = hexToBytes(session.privkey);
+        const pool = new SimplePool({
+          enableReconnect: true,
+          automaticallyAuth: () => (evt) => finalizeEvent(evt, secretKey)
+        });
+
         // fromURI is async — it subscribes and waits for the bunker's connect response.
         // Already fully connected when it resolves, no connect() call needed.
         signer = await BunkerSigner.fromURI(
-          hexToBytes(session.privkey),
+          secretKey,
           session.uri,
-          {},
+          { pool },
           CONNECTION_TIMEOUT_MS
         );
         console.log('[signer_manager] ✅ BunkerSigner created from URI!');

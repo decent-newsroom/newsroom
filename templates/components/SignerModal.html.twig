@@ -7,10 +7,10 @@
     </div>
     <div class="modal-body">
       {# Bunker reconnect — for users who already have an active session #}
-      <div class="mb-4 p-3" style="background: var(--bg-muted, #f8f9fa); border-radius: 6px;">
+      <div class="mb-4 p-3 hidden" style="background:  #f8f9fa;">
         <label for="signer-modal-bunker-input" class="small fw-bold d-block mb-1">Have an existing bunker session?</label>
         <p class="small text-muted mb-2">Paste your <code>bunker://</code> connection string to reconnect.</p>
-        <div class="input-group input-group-sm">
+        <div class="input-group input-group-sm d-flex flex-row">
           <input type="text"
                  id="signer-modal-bunker-input"
                  class="form-control font-monospace small"
