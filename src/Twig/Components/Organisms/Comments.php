@@ -3,6 +3,7 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Message\FetchCommentsMessage;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrLinkParser;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
@@ -38,22 +39,56 @@ final class Comments
     public function __construct(
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisCacheService $redisCacheService,
+        private readonly EventRepository $eventRepository,
         private readonly MessageBusInterface $bus,
     ) {}
 
     /**
-     * Mount the component with the current coordinate
+     * Mount the component with the current coordinate.
+     *
+     * Loads any existing comments straight from the database so the page
+     * renders immediately, then dispatches an async message so the worker
+     * can refresh from relays and push updates via Mercure.
      */
     public function mount(string $current): void
     {
         $this->current = $current;
-        $this->loading = true;
 
-        // Kick off (async) fetch to populate cache + publish Mercure
+        // ── 1. Immediate DB load ──────────────────────────────────────
+        try {
+            $dbEvents = $this->eventRepository->findCommentsByCoordinate($current);
+
+            if (!empty($dbEvents)) {
+                $this->list = array_map(function ($event) {
+                    return [
+                        'id'         => $event->getId(),
+                        'kind'       => $event->getKind(),
+                        'pubkey'     => $event->getPubkey(),
+                        'content'    => $event->getContent(),
+                        'created_at' => $event->getCreatedAt(),
+                        'tags'       => $event->getTags(),
+                        'sig'        => $event->getSig(),
+                    ];
+                }, $dbEvents);
+
+                // Hydrate author metadata from cache
+                $pubkeys = array_unique(array_filter(array_column($this->list, 'pubkey')));
+                $this->authorsMetadata = $this->redisCacheService->getMultipleMetadata($pubkeys);
+
+                $this->parseZaps();
+                $this->parseNostrLinks();
+            }
+        } catch (\Throwable) {
+            // DB unavailable – fall through to loading state
+        }
+
+        $this->loading = false;
+
+        // ── 2. Async relay refresh (may push Mercure update later) ────
         try {
             $this->bus->dispatch(new FetchCommentsMessage($current));
         } catch (ExceptionInterface) {
-            // Doing nothing for now
+            // transport unavailable – not critical
         }
     }
 

@@ -745,7 +745,7 @@ class NostrClient
         $responses = $this->relayPool->sendToRelays(
             $authorRelays,
             fn() => $requestMessage,
-            30, // timeout in seconds
+            10, // timeout in seconds — local relay responds fast
             $subscriptionId // close subscription after receiving responses
         );
 

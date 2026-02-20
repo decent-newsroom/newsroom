@@ -15,10 +15,10 @@ framework:
                     stream: '%kernel.environment%:messenger:async'   # dev/prod get different keys
                     group: '%kernel.environment%'
                     consumer: 'consumer-%kernel.environment%'
-                    stream_max_entries: 50000
-                    redeliver_timeout: 600
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    stream_max_entries: 10000
+                    redeliver_timeout: 300
+                    delete_after_ack: true
+                    delete_after_reject: true
             
             
             # Low-priority transport for profile updates - processed slower to not block main queue
@@ -28,10 +28,10 @@ framework:
                     stream: '%kernel.environment%:messenger:async_low'
                     group: '%kernel.environment%-low'
                     consumer: 'consumer-%kernel.environment%-low'
-                    stream_max_entries: 10000
-                    redeliver_timeout: 1200
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    stream_max_entries: 5000
+                    redeliver_timeout: 600
+                    delete_after_ack: true
+                    delete_after_reject: true
                 retry_strategy:
                     max_retries: 1
                     delay: 5000

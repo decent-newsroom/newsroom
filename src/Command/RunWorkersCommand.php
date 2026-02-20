@@ -143,7 +143,7 @@ class RunWorkersCommand extends Command
         if (!$input->getOption('without-messenger')) {
             $workers['messenger'] = [
                 'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async',
+                    'php', 'bin/console', 'messenger:consume', 'async', 'async_low_priority',
                     '-vv', '--memory-limit=256M', '--time-limit=3600'
                 ],
                 'description' => 'Messenger consumer worker'

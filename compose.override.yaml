@@ -66,8 +66,11 @@ services:
 ###< Redis ###
 
   worker:
+    volumes:
+      - ./:/app
+      - /app/vendor
     environment:
-      APP_ENV: prod
+      APP_ENV: dev
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}

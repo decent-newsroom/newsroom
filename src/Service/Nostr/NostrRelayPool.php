@@ -36,7 +36,7 @@ class NostrRelayPool
 
     private const MAX_RETRIES = 3;
     private const RETRY_DELAY = 5; // seconds
-    private const CONNECTION_TIMEOUT = 30; // seconds
+    private const CONNECTION_TIMEOUT = 15; // seconds
     private const KEEPALIVE_INTERVAL = 60; // seconds
 
     public function __construct(

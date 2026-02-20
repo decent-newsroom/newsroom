@@ -167,7 +167,8 @@ class FetchAuthorContentHandler
                     ]);
 
                     return new RequestMessage($subscriptionId, [$filter]);
-                }
+                },
+                10 // 10s timeout per content type — avoid blocking the consumer
             );
 
             $this->logger->info('📥 Received responses from relays', [
