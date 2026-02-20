@@ -23,13 +23,16 @@ class ResetMessengerStreamsCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be reset without making changes');
+        $this
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be reset without making changes')
+            ->addOption('cleanup', null, InputOption::VALUE_NONE, 'Delete consumer groups from other environments (e.g. stale prod groups on dev streams)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $dryRun = $input->getOption('dry-run');
+        $cleanup = $input->getOption('cleanup');
 
         $streams = [
             "{$this->environment}:messenger:async"     => $this->environment,
@@ -74,9 +77,26 @@ class ResetMessengerStreamsCommand extends Command
                 continue;
             }
 
+            if (!is_array($groups) || empty($groups)) {
+                $io->warning("No consumer groups on stream «{$stream}» — skipping");
+                continue;
+            }
+
             $found = false;
             foreach ($groups as $g) {
                 $name = $g['name'] ?? $g[1] ?? null;
+
+                // Clean up groups from other environments
+                if ($cleanup && $name !== $group) {
+                    if ($dryRun) {
+                        $io->note("Dry run — would delete stale group «{$name}» from stream «{$stream}»");
+                    } else {
+                        $redis->rawCommand('XGROUP', 'DESTROY', $stream, $name);
+                        $io->success("Deleted stale group «{$name}» from stream «{$stream}»");
+                    }
+                    continue;
+                }
+
                 if ($name !== $group) {
                     continue;
                 }
@@ -108,7 +128,5 @@ class ResetMessengerStreamsCommand extends Command
         return Command::SUCCESS;
     }
 }
-
-
 
 

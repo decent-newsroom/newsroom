@@ -17,8 +17,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%'
                     stream_max_entries: 10000
                     redeliver_timeout: 300
-                    delete_after_ack: true
-                    delete_after_reject: true
+                    delete_after_ack: false
+                    delete_after_reject: false
             
             
             # Low-priority transport for profile updates - processed slower to not block main queue
@@ -30,8 +30,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-low'
                     stream_max_entries: 5000
                     redeliver_timeout: 600
-                    delete_after_ack: true
-                    delete_after_reject: true
+                    delete_after_ack: false
+                    delete_after_reject: false
                 retry_strategy:
                     max_retries: 1
                     delay: 5000
