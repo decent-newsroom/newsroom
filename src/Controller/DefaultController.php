@@ -766,7 +766,7 @@ class DefaultController extends AbstractController
                 // Create Event entity from database result
                 $category = new Event();
                 $category->setId($eventData['id']);
-                $category->setEventId($eventData['event_id']);
+                $category->setEventId($eventData['event_id'] ?? $eventData['id']);
                 $category->setKind((int)$eventData['kind']);
                 $category->setPubkey($eventData['pubkey']);
                 $category->setContent($eventData['content']);
