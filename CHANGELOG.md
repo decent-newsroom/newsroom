@@ -3,6 +3,12 @@
 ## v0.0.11
 Mostly quality of life improvements.
 
+- Upgraded magazine wizard to a 4-step flow: Setup → Categories → Articles → Review & Sign.
+- Added live cover preview panel to the magazine setup step.
+- Added image upload support to the magazine setup and category steps.
+- Added sortable (drag-to-reorder) categories in the wizard.
+- Replaced raw naddr coordinate input with a dropdown of user's existing reading lists.
+- Added login prompt and desktop device recommendation to the wizard.
 - Added basic zap invoices to UnfoldBundle.
 - Implemented AsciiDoc parser for kind 30041.
 - Updated footer.

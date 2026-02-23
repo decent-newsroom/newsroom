@@ -1,65 +1,56 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Review & Sign</h1>
+  <twig:Atoms:PageHeading heading="Review & Sign" tagline="Step 4: Review, sign and publish your magazine"/>
+
+  {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 4 } %}
+
+  {% if not is_granted('ROLE_USER') %}
+    <div class="notice warning mb-4">
+      <p><strong>Login required:</strong> You need to <a href="{{ path('app_login') }}">log in</a> with your Nostr identity to sign and publish your magazine.</p>
+    </div>
+  {% endif %}
 
   <div class="notice info">
-    <p>Review the details below. When ready, click Sign & Publish. Your NIP-07 extension will be used to sign events.</p>
+      <p class="mb-2">This is a preview of your magazine.</p>
+      <p class="mb-2">Review the details below. You'll find the events also shown at the very bottom. When ready, click <code>Sign & Publish.</code></p>
+      <p>You'll be prompted to sign any newly-created categories and the main magazine event.</p>
   </div>
 
-  <section class="mb-4">
-    <h2>Magazine</h2>
-    <ul>
-      <li><strong>Title:</strong> {{ draft.title }}</li>
-      <li><strong>Summary:</strong> {{ draft.summary }}</li>
-      <li><strong>Image URL:</strong> {{ draft.imageUrl ?: '—' }}</li>
-      <li><strong>Language:</strong> {{ draft.language ?: '—' }}</li>
-      <li><strong>Tags:</strong> {{ draft.tags is defined and draft.tags|length ? draft.tags|join(', ') : '—' }}</li>
-      <li><strong>Slug:</strong> {{ draft.slug }}</li>
-    </ul>
-  </section>
+    <div class="wizard-preview-hero">
+      <twig:Organisms:MagazineHero
+        :preview="true"
+        :previewTitle="draft.title ?: null"
+        :previewSummary="draft.summary ?: null"
+        :previewImageUrl="draft.imageUrl ?: null"
+        :mag="draft.slug ?: 'preview'"
+      />
+    </div>
 
-  <section class="mb-4">
-    <h2>Categories</h2>
-    {% if draft.categories is defined and draft.categories|length %}
-      <ol>
-        {% for cat in draft.categories %}
-          <li>
-            <div>
-              <strong>{{ cat.title }}</strong> (slug: {{ cat.slug }})
-              {% if cat.existingListCoordinate %}
-                <span class="badge bg-info">Existing List</span>
-              {% else %}
-                <span class="badge bg-success">New Category</span>
-              {% endif %}
-              <br>
-              {% if cat.existingListCoordinate %}
-                <small>Reference: <code>{{ cat.existingListCoordinate }}</code></small><br>
-              {% endif %}
-              <em>{{ cat.summary }}</em><br>
-              <small>Tags: {{ cat.tags is defined and cat.tags|length ? cat.tags|join(', ') : '—' }}</small>
-              {% if cat.articles is defined and cat.articles|length %}
-                <div class="mt-2">
-                  <strong>Articles:</strong>
-                  <ul>
-                    {% for a in cat.articles %}
-                      <li><code>{{ a }}</code></li>
-                    {% endfor %}
-                  </ul>
-                </div>
-              {% else %}
-                <div class="mt-2"><small>No articles yet.</small></div>
-              {% endif %}
-            </div>
-          </li>
-        {% endfor %}
-      </ol>
-    {% else %}
-      <p>No categories.</p>
-    {% endif %}
-  </section>
 
-  <section class="mb-4">
+  {% if draft.categories is defined and draft.categories|length %}
+      <div class="w-container mb-3">
+      {% for cat in draft.categories %}
+          <div class="featured-cat mb-0"><small><b>{{ cat.title }}</b>{% if cat.summary %} &mdash; <em>{{ cat.summary }}</em>{% endif %}</small></div>
+
+        {% if cat.articles is defined and cat.articles|length %}
+          <div class="article-list p-2">
+            {% for coordinate in cat.articles %}
+              <twig:Organisms:ArticleFromCoordinate :coordinate="coordinate" />
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted ms-3">No articles in this category yet.</p>
+        {% endif %}
+    {% endfor %}
+      </div>
+  {% else %}
+    <section class="mb-4">
+      <p class="text-muted">No categories.</p>
+    </section>
+  {% endif %}
+
+  <section class="mb-1 pb-1">
     <details>
       <summary>Show event previews (JSON)</summary>
       <div class="mt-2">
@@ -80,11 +71,12 @@
     }) }}
   >
     <section class="mb-3">
-      <h3>Final magazine event (with category 'a' tags)</h3>
+      <h3>Final magazine event preview</h3>
       <pre class="small" data-nostr--nostr-index-sign-target="computedPreview"></pre>
     </section>
 
     <div class="d-flex flex-row gap-2 actions">
+      <a class="btn btn-secondary" href="{{ path(backRoute) }}">← Back</a>
       <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
       <button class="btn btn-primary" data-nostr--nostr-index-sign-target="publishButton" data-action="click->nostr--nostr-index-sign#signAndPublish">Sign & Publish</button>
     </div>

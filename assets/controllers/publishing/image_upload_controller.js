@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { getSigner } from '../nostr/signer_manager.js';
 
 export default class extends Controller {
-  static targets = ["dialog", "dropArea", "fileInput", "progress", "error", "provider"];
+  static targets = ["dialog", "dropArea", "fileInput", "progress", "error", "provider", "urlInput"];
 
   // Unicode-safe base64 encoder
   base64Encode(str) {
@@ -166,8 +166,15 @@ export default class extends Controller {
   }
 
   setImageField(url) {
-      // Find the image input in the form and set its value
-      const imageInput = document.querySelector('input[name$="[image]"]');
+      // Prefer the scoped urlInput target, then look within the controller scope,
+      // then fall back to a global selector
+      let imageInput;
+      if (this.hasUrlInputTarget) {
+          imageInput = this.urlInputTarget;
+      } else {
+          imageInput = this.element.closest('form')?.querySelector('input[name$="[image]"], input[name$="[imageUrl]"]')
+              || document.querySelector('input[name$="[image]"]');
+      }
       if (imageInput) {
           imageInput.value = url;
           imageInput.dispatchEvent(new Event('input', { bubbles: true }));

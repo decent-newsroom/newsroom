@@ -1,0 +1,22 @@
+{# Wizard progress indicator — shared across all magazine wizard steps #}
+{% set steps = [
+    { label: 'Magazine', route: 'mag_wizard_setup', number: 1 },
+    { label: 'Categories', route: 'mag_wizard_categories', number: 2 },
+    { label: 'Articles', route: 'mag_wizard_articles', number: 3 },
+    { label: 'Review', route: 'mag_wizard_review', number: 4 },
+] %}
+
+<nav class="wizard-steps mb-4" aria-label="Wizard progress">
+    <ol class="wizard-steps__list">
+        {% for step in steps %}
+            {% set isCurrent = app.request.attributes.get('_route') == step.route %}
+            {% set stepIndex = step.number %}
+            {% set isComplete = currentStep is defined and stepIndex < currentStep %}
+            <li class="wizard-steps__item{% if isCurrent %} wizard-steps__item--current{% endif %}{% if isComplete %} wizard-steps__item--complete{% endif %}">
+                <span class="wizard-steps__number">{{ step.number }}</span>
+                <span class="wizard-steps__label">{{ step.label }}</span>
+            </li>
+        {% endfor %}
+    </ol>
+</nav>
+

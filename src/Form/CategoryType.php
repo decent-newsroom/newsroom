@@ -7,7 +7,7 @@ namespace App\Form;
 use App\Dto\CategoryDraft;
 use App\Form\DataTransformer\CommaSeparatedToArrayTransformer;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -22,21 +22,29 @@ class CategoryType extends AbstractType
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        // Build choices for the existing list dropdown from user_lists option
+        $listChoices = ['— Create new category —' => ''];
+        foreach ($options['user_lists'] as $list) {
+            $coordinate = sprintf('30040:%s:%s', $list['pubkey'], $list['slug']);
+            $label = sprintf('%s (%s)', $list['title'], $list['type']);
+            $listChoices[$label] = $coordinate;
+        }
+
         $builder
-            ->add('existingListCoordinate', TextType::class, [
-                'label' => 'Use existing list (optional)',
+            ->add('existingListCoordinate', ChoiceType::class, [
+                'label' => 'Use existing list',
                 'required' => false,
-                'empty_data' => '',
-                'help' => 'To attach an existing reading list, enter its coordinate in format: 30040:pubkey:slug. Leave empty to create a new category below.',
+                'choices' => $listChoices,
+                'placeholder' => false,
                 'attr' => [
-                    'placeholder' => 'Example: 30040:abc123...:my-list-slug',
+                    'class' => 'category-source-select',
+                    'data-action' => 'change->ui--category-toggle#toggle',
                 ],
             ])
             ->add('title', TextType::class, [
                 'label' => 'Category title',
                 'required' => false,
                 'empty_data' => '',
-                'help' => 'Only needed if creating a new category (ignored for existing lists)',
             ])
             ->add('summary', TextType::class, [
                 'label' => 'Summary',
@@ -47,6 +55,9 @@ class CategoryType extends AbstractType
                 'label' => 'Cover image URL',
                 'required' => false,
                 'empty_data' => '',
+                'attr' => [
+                    'class' => 'category-image-url-input',
+                ],
             ])
             ->add('tags', TextType::class, [
                 'label' => 'Tags (comma separated)',
@@ -61,6 +72,7 @@ class CategoryType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => CategoryDraft::class,
+            'user_lists' => [],
             'constraints' => [
                 new Callback([$this, 'validateCategory']),
             ],

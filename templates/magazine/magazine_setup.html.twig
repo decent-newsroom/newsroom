@@ -1,46 +1,105 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <twig:Atoms:PageHeading heading="Magazine Setup" tagline="Define the basics of your magazine"/>
+    <twig:Atoms:PageHeading heading="Magazine Setup" tagline="Step 1: Define the basics of your magazine"/>
 
-  {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
+    {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 1 } %}
 
-  {# Display form-level errors #}
-  {{ form_errors(form) }}
+    {# Login prompt #}
+    {% if not isLoggedIn %}
+        <div class="notice info mb-4">
+            <p>You'll need a Nostr identity to publish your magazine.
+        </div>
+    {% endif %}
 
-  {{ form_row(form.title) }}
-  {{ form_row(form.summary) }}
-  {{ form_row(form.imageUrl) }}
-  {{ form_row(form.language) }}
-  {{ form_row(form.tags) }}
+    {# Desktop device suggestion #}
+    <div class="wizard-desktop-hint mb-3">
+        <p>📐 For the best experience, we recommend using a desktop device to create your magazine.</p>
+    </div>
 
-  <h3>Categories</h3>
+    <div class="wizard-setup-layout"
+         data-controller="ui--magazine-preview ui--wizard-autosave"
+         data-ui--wizard-autosave-key-value="mag_wizard_setup">
 
-  {# Display category collection errors #}
-  {{ form_errors(form.categories) }}
+        {# Autosave restore banner #}
+        <div class="wizard-autosave-banner hidden" data-ui--wizard-autosave-target="banner"></div>
 
-  <div class="alert alert-info mb-3">
-    <strong>Tip:</strong><span>You can either create new categories OR attach existing reading lists.
-    To attach an existing list, fill in the "Use existing list" field with its coordinate (format: 30040:pubkey:slug).
-          You can find coordinates of your reading lists at <a href="{{ path('reading_list_index') }}" target="_blank">your reading lists</a>.</span>
-  </div>
-  <div
-    {{ stimulus_controller('ui--form-collection') }}
-    data-ui--form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"
-    data-ui--form-collection-prototype-value="{{ form_widget(form.categories.vars.prototype)|e('html_attr') }}">
-    <ul class="list-unstyled" {{ stimulus_target('ui--form-collection', 'collectionContainer') }}>
-      {% for cat in form.categories %}
-        <li class="mb-3">{{ form_row(cat) }}</li>
-      {% endfor %}
-    </ul>
-      <div class="actions mt-3">
-          <button type="button" class="btn btn-secondary" {{ stimulus_action('ui--form-collection', 'addCollectionElement') }}>Add category</button>
-      </div>
-  </div>
+        {# Live preview — uses the real MagazineHero component in preview mode #}
+        <div class="wizard-preview-hero" data-ui--magazine-preview-target="preview">
+            <twig:Organisms:MagazineHero
+                :preview="true"
+                :previewTitle="draft.title ?: null"
+                :previewSummary="draft.summary ?: null"
+                :previewImageUrl="draft.imageUrl ?: null"
+                :mag="draft.slug ?: 'preview'"
+            />
+        </div>
 
-  <div class="mt-3 d-flex flex-row gap-2 actions">
-    <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
-    <button class="btn btn-primary">Next: Attach articles</button>
-  </div>
-  {{ form_end(form) }}
+        <div class="wizard-setup-form">
+            {{ form_start(form) }}
+
+            {{ form_errors(form) }}
+
+            {{ form_row(form.title) }}
+            {{ form_row(form.summary) }}
+
+            {# Image URL field with upload button #}
+            {{ form_row(form.imageUrl) }}
+
+            <div class="actions" data-controller="publishing--image-upload">
+                <button type="button"
+                        class="btn btn-secondary btn-sm"
+                        data-action="click->publishing--image-upload#openDialog">
+                    Upload Image
+                </button>
+
+                <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+                    <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+                    <div class="iu-modal">
+                        <div class="modal-header">
+                            <h5>Upload Image</h5>
+                            <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div>
+                                <label for="upload-provider">Upload to</label>
+                                <select id="upload-provider" data-publishing--image-upload-target="provider">
+                                    <option value="sovbit">files.sovbit.host</option>
+                                    <option value="nostrbuild">nostr.build</option>
+                                    <option value="nostrcheck">nostrcheck.me</option>
+                                </select>
+                            </div>
+                            <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                                <span>Drag &amp; drop or click to select an image</span>
+                                <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+                            </div>
+                            <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                            <div data-publishing--image-upload-target="error" class="upload-error"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{ form_row(form.language, {row_attr: {class: 'hidden'}}) }}
+            {{ form_row(form.tags) }}
+
+            <div class="mt-3 d-flex flex-row gap-2 actions align-items-center">
+                <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}" data-action="click->ui--wizard-autosave#clearAll">Cancel</a>
+                <button class="btn btn-primary">Next: Categories →</button>
+                <span class="wizard-autosave-status" data-ui--wizard-autosave-target="status"></span>
+            </div>
+
+            {{ form_end(form) }}
+        </div>
+
+    </div>
+
+    {% if isNewDraft %}
+    <script>
+        // Starting a fresh wizard — clear any stale autosave snapshots
+        ['mag_wizard_setup', 'mag_wizard_categories', 'mag_wizard_articles'].forEach(k => {
+            try { localStorage.removeItem(k); } catch(e) {}
+        });
+    </script>
+    {% endif %}
 {% endblock %}

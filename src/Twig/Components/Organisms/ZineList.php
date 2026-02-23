@@ -5,19 +5,34 @@ namespace App\Twig\Components\Organisms;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
 final class ZineList
 {
     public array $nzines = [];
+    public ?string $currentUserPubkey = null;
 
-    public function __construct(private readonly EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly TokenStorageInterface $tokenStorage,
+    ) {
     }
 
     public function mount(): void
     {
+        // Resolve current user's hex pubkey for ownership checks
+        $token = $this->tokenStorage->getToken();
+        $npub = $token?->getUserIdentifier();
+        if ($npub) {
+            try {
+                $key = new \swentel\nostr\Key\Key();
+                $this->currentUserPubkey = $key->convertToHex($npub);
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
 
         $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
 

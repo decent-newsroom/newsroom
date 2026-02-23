@@ -56,6 +56,7 @@ import './styles/04-pages/forum.css';
 import './styles/04-pages/highlights.css';
 import './styles/04-pages/discover.css';
 import './styles/04-pages/subscription.css';
+import './styles/04-pages/magazine-wizard.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

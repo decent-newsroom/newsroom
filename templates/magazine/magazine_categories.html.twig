@@ -1,0 +1,119 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="Magazine Categories" tagline="Step 2: Organize your magazine into categories"/>
+
+    {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 2 } %}
+
+    {{ form_start(form, {attr: {'data-controller': 'ui--wizard-autosave', 'data-ui--wizard-autosave-key-value': 'mag_wizard_categories'}}) }}
+
+    {# Autosave restore banner #}
+    <div class="wizard-autosave-banner hidden" data-ui--wizard-autosave-target="banner"></div>
+
+    {% for message in app.flashes('error') %}
+        <div class="notice error mb-3">
+            <p>{{ message }}</p>
+        </div>
+    {% endfor %}
+
+    <div class="notice info mb-3">
+        <p class="mb-1">Add categories to structure your magazine.</p>
+        {% if app.user %}
+            <p>You can create new categories or pick any from your existing Reading Lists. When using an existing Reading List, the magazine automatically inherits its articles.</p>
+        {% else %}
+            <p>Log in to populate the dropdown with your existing Reading Lists, or define new categories.</p>
+        {% endif %}
+    </div>
+
+    <div
+        data-controller="ui--form-collection ui--sortable"
+        data-ui--form-collection-index-value="{{ form.categories|length > 0 ? form.categories|last.vars.name + 1 : 0 }}"
+        data-ui--form-collection-prototype-value="{{ form_widget(form.categories.vars.prototype)|e('html_attr') }}"
+        data-ui--form-collection-wrap-sortable-value="true"
+    >
+        <ul class="list-unstyled wizard-category-list" data-ui--form-collection-target="collectionContainer" data-ui--sortable-target="list">
+            {% for cat in form.categories %}
+                <li class="wizard-category-item mb-3" data-ui--sortable-target="item">
+                    <div class="wizard-category-item__handle" title="Drag to reorder">
+                        ⠿
+                    </div>
+                    <div class="wizard-category-item__content">
+                        <div class="wizard-category-item__fields" data-controller="ui--category-toggle">
+                            {{ form_row(cat.existingListCoordinate) }}
+                            <div class="wizard-category-item__new-fields" data-ui--category-toggle-target="newFields">
+                                {{ form_row(cat.title) }}
+                                {{ form_row(cat.summary) }}
+
+                                {# Image URL field with upload button #}
+                                {{ form_row(cat.image) }}
+
+                                <div class="actions" data-controller="publishing--image-upload">
+                                    <button type="button"
+                                            class="btn btn-secondary btn-sm mt-2"
+                                            data-action="click->publishing--image-upload#openDialog">
+                                        Upload Category Image
+                                    </button>
+
+                                    <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+                                        <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+                                        <div class="iu-modal">
+                                            <div class="modal-header">
+                                                <h5>Upload Category Image</h5>
+                                                <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div>
+                                                    <label>Upload to</label>
+                                                    <select data-publishing--image-upload-target="provider">
+                                                        <option value="sovbit">files.sovbit.host</option>
+                                                        <option value="nostrbuild">nostr.build</option>
+                                                        <option value="nostrcheck">nostrcheck.me</option>
+                                                    </select>
+                                                </div>
+                                                <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                                                    <span>Drag &amp; drop or click to select an image</span>
+                                                    <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+                                                </div>
+                                                <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                                                <div data-publishing--image-upload-target="error" class="upload-error"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{ form_row(cat.tags) }}
+                            </div>
+
+                            {# Preview of selected image #}
+                            {% if cat.vars.data and cat.vars.data.image %}
+                                <div class="wizard-category-item__image-preview mt-2">
+                                    <img src="{{ cat.vars.data.image }}" alt="Category image preview" style="max-width:120px;max-height:80px;border-radius:4px;">
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-danger wizard-category-item__remove" data-action="click->ui--form-collection#removeCollectionElement" title="Remove category">
+                        ✕
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <div class="actions mt-3">
+            <button type="button" class="btn btn-secondary" data-action="click->ui--form-collection#addCollectionElement">
+                + Add category
+            </button>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex flex-row gap-2 actions align-items-center">
+        <a class="btn btn-secondary" href="{{ path('mag_wizard_setup') }}">← Back</a>
+        <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}" data-action="click->ui--wizard-autosave#clearAll">Cancel</a>
+        <button class="btn btn-primary" type="submit">Next: Attach articles →</button>
+        <span class="wizard-autosave-status" data-ui--wizard-autosave-target="status"></span>
+    </div>
+
+    {{ form_end(form) }}
+{% endblock %}
+
+

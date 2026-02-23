@@ -8,9 +8,11 @@ use App\Dto\CategoryDraft;
 use App\Dto\MagazineDraft;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
+use App\Form\MagazineCategoriesType;
 use App\Form\MagazineSetupType;
 use App\Message\ProjectMagazineMessage;
 use App\Service\Nostr\NostrClient;
+use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -29,6 +31,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Magazine Wizard Controller
  *
  * Handles the multi-step creation and editing of magazines.
+ * Steps: 1) Setup  2) Categories  3) Articles  4) Review & Sign
  * Magazines are hierarchical structures: Magazine -> Categories -> Articles
  * All represented as Nostr kind 30040 events with coordinate references.
  */
@@ -38,16 +41,20 @@ class MagazineWizardController extends AbstractController
 
     public function __construct(
         private readonly MessageBusInterface $messageBus,
+        private readonly ReadingListManager $readingListManager,
     ) {
     }
 
+    /**
+     * Step 1: Magazine metadata (title, summary, image, language, tags)
+     */
     #[Route('/magazine/wizard/setup', name: 'mag_wizard_setup')]
-    public function setup(Request $request, EntityManagerInterface $entityManager): Response
+    public function setup(Request $request): Response
     {
         $draft = $this->getDraft($request);
+        $isNewDraft = !$draft;
         if (!$draft) {
             $draft = new MagazineDraft();
-            $draft->categories = [new CategoryDraft()];
         }
 
         $form = $this->createForm(MagazineSetupType::class, $draft);
@@ -59,19 +66,66 @@ class MagazineWizardController extends AbstractController
                 $draft->slug = $this->slugifyWithRandom($draft->title);
             }
 
-            // Filter out completely empty categories (defensive check)
-            $draft->categories = array_values(array_filter($draft->categories, function($cat) {
+            $this->saveDraft($request, $draft);
+            return $this->redirectToRoute('mag_wizard_categories');
+        }
+
+        return $this->render('magazine/magazine_setup.html.twig', [
+            'form' => $form->createView(),
+            'draft' => $draft,
+            'isLoggedIn' => $this->isGranted('ROLE_USER'),
+            'isNewDraft' => $isNewDraft,
+        ]);
+    }
+
+    /**
+     * Step 2: Categories — add, reorder, choose from existing lists
+     */
+    #[Route('/magazine/wizard/categories', name: 'mag_wizard_categories')]
+    public function categories(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $draft = $this->getDraft($request);
+        if (!$draft) {
+            return $this->redirectToRoute('mag_wizard_setup');
+        }
+
+        // Ensure at least one empty category for new magazines
+        if (empty($draft->categories)) {
+            $draft->categories = [new CategoryDraft()];
+        }
+
+        // Fetch user's existing reading lists for the dropdown
+        $userLists = $this->readingListManager->getUserReadingLists();
+
+        $form = $this->createForm(MagazineCategoriesType::class, $draft, [
+            'user_lists' => $userLists,
+        ]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $draft = $form->getData();
+
+            // Filter out completely empty categories
+            $draft->categories = array_values(array_filter($draft->categories, function ($cat) {
                 return !$cat->isEmpty();
             }));
 
+            // Require at least one category
+            if (empty($draft->categories)) {
+                $this->addFlash('error', 'Please add at least one category for your magazine.');
+
+                // Re-seed with one empty category so the form renders an entry
+                $draft->categories = [new CategoryDraft()];
+                $this->saveDraft($request, $draft);
+
+                return $this->redirectToRoute('mag_wizard_categories');
+            }
 
             // Process categories: either existing lists or new ones
             foreach ($draft->categories as $cat) {
                 if ($cat->existingListCoordinate && $cat->existingListCoordinate !== '') {
-                    // Load metadata from existing list
                     $this->loadExistingListMetadata($cat, $entityManager);
                 } else {
-                    // Generate slug for new category
                     if (!$cat->slug) {
                         $cat->slug = $this->slugifyWithRandom($cat->title);
                     }
@@ -82,8 +136,9 @@ class MagazineWizardController extends AbstractController
             return $this->redirectToRoute('mag_wizard_articles');
         }
 
-        return $this->render('magazine/magazine_setup.html.twig', [
+        return $this->render('magazine/magazine_categories.html.twig', [
             'form' => $form->createView(),
+            'draft' => $draft,
         ]);
     }
 
@@ -180,9 +235,10 @@ class MagazineWizardController extends AbstractController
             $tags = [];
             $tags[] = ['d', $cat->slug];
             $tags[] = ['type', 'magazine'];
-            $tags[] = ['alt', 'This is a publication index event viewable on Decent Newsroom at decentnewsroom.com'];
+            $tags[] = ['alt', 'This is a publication viewable on Decent Newsroom at decentnewsroom.com'];
             if ($cat->title) { $tags[] = ['title', $cat->title]; }
             if ($cat->summary) { $tags[] = ['summary', $cat->summary]; }
+            if ($cat->image) { $tags[] = ['image', $cat->image]; }
             foreach ($cat->tags as $t) { $tags[] = ['t', $t]; }
             foreach ($cat->articles as $a) {
                 if (is_string($a) && $a !== '') { $tags[] = ['a', $a]; }
@@ -210,7 +266,7 @@ class MagazineWizardController extends AbstractController
         $magTags = [];
         $magTags[] = ['d', $draft->slug];
         $magTags[] = ['type', 'magazine'];
-        $magTags[] = ['alt', 'This is a publication index event viewable on Decent Newsroom at decentnewsroom.com'];
+        $magTags[] = ['alt', 'This is a publication viewable on Decent Newsroom at decentnewsroom.com'];
         if ($draft->title) { $magTags[] = ['title', $draft->title]; }
         if ($draft->summary) { $magTags[] = ['summary', $draft->summary]; }
         if ($draft->imageUrl) { $magTags[] = ['image', $draft->imageUrl]; }
@@ -241,11 +297,16 @@ class MagazineWizardController extends AbstractController
             'content' => '',
         ];
 
+        // Determine where "Back" should go: skip articles step if all categories are existing lists
+        $hasEditableCategories = !empty(array_filter($draft->categories, fn($cat) => !$cat->isExistingList()));
+        $backRoute = $hasEditableCategories ? 'mag_wizard_articles' : 'mag_wizard_categories';
+
         return $this->render('magazine/magazine_review.html.twig', [
             'draft' => $draft,
             'categoryEventsJson' => json_encode($categoryEvents, JSON_UNESCAPED_SLASHES),
             'magazineEventJson' => json_encode($magazineEvent, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
+            'backRoute' => $backRoute,
         ]);
     }
 
@@ -425,6 +486,7 @@ class MagazineWizardController extends AbstractController
                 $cat->slug = $catSlug;
                 $cat->title = $this->getTagValue($ctags, 'title') ?? '';
                 $cat->summary = $this->getTagValue($ctags, 'summary') ?? '';
+                $cat->image = $this->getTagValue($ctags, 'image') ?? '';
                 $cat->tags = $this->getAllTagValues($ctags, 't');
 
                 // If category pubkey differs from magazine pubkey, it's an existing list reference

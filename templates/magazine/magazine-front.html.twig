@@ -54,7 +54,7 @@
 {% endblock %}
 
 {% block body %}
-    <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" />
+    <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" :isOwner="isOwner|default(false)" />
 
     <section class="mb-5">
         {# Display chapters if available #}

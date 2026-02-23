@@ -429,11 +429,25 @@ class DefaultController extends AbstractController
             }
         }
 
+        // Check if current user owns this magazine
+        $isOwner = false;
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $key = new \swentel\nostr\Key\Key();
+                $currentPubkey = $key->convertToHex($user->getUserIdentifier());
+                $isOwner = ($currentPubkey === $magazine->getPubkey());
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
         return $this->render('magazine/magazine-front.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
             'categoryTags' => $categoryTags,
             'chapters' => $chapters,
+            'isOwner' => $isOwner,
         ]);
     }
 

@@ -1,0 +1,294 @@
+/* ===================================================================
+   Magazine Wizard — page-specific styles
+   =================================================================== */
+
+/* ── Autosave ───────────────────────────────────────────────────── */
+.wizard-autosave-banner {
+    display: flex;
+    flex-direction: row;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    background: var(--color-bg-light, #f9f9f9);
+    font-size: 0.85rem;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.wizard-autosave-status {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #999);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.wizard-autosave-status.is-visible {
+    opacity: 1;
+}
+
+/* ── Wizard steps indicator ─────────────────────────────────────── */
+.wizard-steps {
+    margin-inline: auto;
+    background: var(--color-bg);
+    width: 100%;
+    z-index: 1000;
+}
+
+.wizard-steps__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+}
+
+.wizard-steps__item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    font-size: var(--font-size-sm, 0.85rem);
+    color: var(--color-text-muted, #888);
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.wizard-steps__item--current {
+    color: var(--color-text, #111);
+    font-weight: 600;
+    border-bottom-color: var(--color-primary, #6366f1);
+}
+
+.wizard-steps__item--complete {
+    color: var(--color-text, #111);
+}
+
+.wizard-steps__item--complete .wizard-steps__number {
+    background: var(--color-primary, #6366f1);
+    color: #fff;
+}
+
+.wizard-steps__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--color-bg-muted, #e5e5e5);
+    color: var(--color-text-muted, #888);
+    flex-shrink: 0;
+}
+
+.wizard-steps__item--current .wizard-steps__number {
+    background: var(--color-primary, #6366f1);
+    color: #fff;
+}
+
+.wizard-steps__label {
+    white-space: nowrap;
+}
+
+/* ── Desktop hint (hidden on desktop, shown on mobile) ──────────── */
+.wizard-desktop-hint {
+    display: none;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    background: var(--color-bg-muted, #f5f5f5);
+    border-radius: 6px;
+    font-size: var(--font-size-sm, 0.85rem);
+    color: var(--color-text-muted, #666);
+}
+
+@media (max-width: 768px) {
+    .wizard-desktop-hint {
+        display: block;
+    }
+
+    .wizard-steps__label {
+        display: none;
+    }
+}
+
+/* ── Step 1: Setup layout (single column, preview on top) ───────── */
+.wizard-setup-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.wizard-setup-form {
+    min-width: 0;
+}
+
+/* ── Magazine hero preview watermark ────────────────────────────── */
+.magazine-hero--preview {
+    position: relative;
+}
+
+.magazine-hero__watermark {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-contrast, #999);
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+    background: var(--color-bg-primary);
+    padding: var(--spacing-1);
+}
+
+
+/* ── Step 2: Categories list ────────────────────────────────────── */
+.wizard-categories-intro {
+    font-size: var(--font-size-sm, 0.85rem);
+    color: var(--color-text-muted, #666);
+}
+
+.wizard-category-list {
+    max-width: 720px;
+}
+
+.wizard-category-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-radius: 6px;
+    background: var(--color-bg-light, #fff);
+    transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.wizard-category-item:hover {
+    border-color: var(--color-primary, #6366f1);
+}
+
+.wizard-category-item.is-dragging {
+    opacity: 0.9;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-primary, #6366f1);
+}
+
+.wizard-category-item--placeholder {
+    border: 2px dashed var(--color-primary, #6366f1);
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.wizard-category-item__handle {
+    cursor: grab;
+    user-select: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.25rem;
+    color: var(--color-text-muted, #aaa);
+    flex-shrink: 0;
+}
+
+.wizard-category-item__handle:active {
+    cursor: grabbing;
+}
+
+.wizard-category-item__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.wizard-category-item__remove {
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.wizard-category-item__image-preview {
+    display: inline-block;
+}
+
+.wizard-category-item__image-preview img {
+    border: 1px solid var(--color-border, #e0e0e0);
+}
+
+/* ── Step 3: Article search ─────────────────────────────────────── */
+.article-search-panel {
+    max-width: 100%;
+}
+
+.article-search-results-container {
+    margin-top: 0.5rem;
+    background: var(--color-bg-light, #fff);
+    border: var(--color-border) 1px solid;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.article-search-results {
+    margin: 0;
+    padding: 0;
+}
+
+.article-search-result {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border, #e0e0e0);
+}
+
+.article-search-result:last-child {
+    border-bottom: none;
+}
+
+.article-search-result:hover {
+    background: var(--color-bg-muted, #f9f9f9);
+}
+
+.article-search-result__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.article-search-result__title {
+    display: block;
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+.article-search-result__summary {
+    font-size: var(--font-size-sm, 0.8rem);
+    color: var(--color-text-muted, #666);
+    margin: 0.2rem 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.article-search-result__coordinate {
+    font-size: 0.7rem;
+    color: var(--color-text-muted, #999);
+    word-break: break-all;
+}
+
+.article-search-result__actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.article-search-result__category-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+}
+

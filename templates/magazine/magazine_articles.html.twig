@@ -1,39 +1,83 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Attach Articles</h1>
+  <twig:Atoms:PageHeading heading="Attach Articles" tagline="Step 3: Add articles to your categories"/>
+
+  {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 3 } %}
 
   {% if hasExistingLists is defined and hasExistingLists %}
-    <div class="alert alert-info">
-      <strong>Note:</strong> Some categories reference existing lists and will use their current articles. Only new categories are shown below.
+    <div class="notice info mb-3">
+      <p><strong>Note:</strong> Some categories reference existing lists and will use their current articles. Only new categories are shown below.</p>
     </div>
   {% endif %}
 
-  {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
-  {{ form_errors(form) }}
-
-  {% for cat in form.categories %}
-    <fieldset class="mb-3">
-        <div class="card-title mb-3">{{ form_row(cat.title) }}</div>
-        <div
-          {{ stimulus_controller('ui--form-collection') }}
-          data-ui--form-collection-index-value="{{ cat.articles|length > 0 ? cat.articles|last.vars.name + 1 : 0 }}"
-          data-ui--form-collection-prototype-value="{{ form_widget(cat.articles.vars.prototype)|e('html_attr') }}">
-          <label class="form-label">Article coordinates</label>
-          <ul {{ stimulus_target('ui--form-collection', 'collectionContainer') }} class="list-unstyled">
-            {% for art in cat.articles %}
-              <li class="mb-2">{{ form_widget(art, {attr: {placeholder: 'kind:pubkey:slug'}}) }}</li>
-            {% endfor %}
-          </ul>
-          <button class="btn btn-sm btn-secondary" type="button" {{ stimulus_action('ui--form-collection', 'addCollectionElement') }}>Add coordinate</button>
-        </div>
-    </fieldset>
-  {% endfor %}
-
-  <div class="actions mt-3 d-flex flex-row gap-2">
-    <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}">Cancel</a>
-    <button class="btn btn-primary" type="submit">Next: Review & Sign</button>
+   <div class="notice info mb-3">
+    <p class="mb-2">Articles can be added here, and can also be appended later.</p>
+       <p>When logged in, you'll find a dropdown 'Add to Reading List' at each article.
+           Magazine categories will also be among the listed Reading Lists.
+       Selecting a list will generate a new category event, with the article appended to the list, and send it to your signer.
+           When you sign, it will automatically be published to your relays and your Magazine will update with the new article.
+       </p>
   </div>
 
-  {{ form_end(form) }}
+  <div data-controller="ui--article-search">
+
+    {# Article search panel #}
+    <div class="article-search-panel mb-4">
+      <div class="d-flex flex-row gap-2 align-items-center">
+        <label class="search flex-fill">
+          <input type="search"
+                 placeholder="Search for articles to add…"
+                 data-ui--article-search-target="input"
+                 data-action="input->ui--article-search#onInput"
+          />
+        </label>
+        {% if is_granted('ROLE_USER') %}
+          <button type="button"
+                  class="btn btn-sm btn-secondary"
+                  data-action="click->ui--article-search#myArticles"
+          >My Articles</button>
+        {% endif %}
+      </div>
+      <div data-ui--article-search-target="results" class="article-search-results-container hidden"></div>
+    </div>
+
+    {{ form_start(form, {attr: {'data-controller': 'ui--wizard-autosave', 'data-ui--wizard-autosave-key-value': 'mag_wizard_articles'}}) }}
+
+    {# Autosave restore banner #}
+    <div class="wizard-autosave-banner hidden" data-ui--wizard-autosave-target="banner"></div>
+
+    {{ form_errors(form) }}
+
+    {% for cat in form.categories %}
+      <fieldset class="mb-3" data-category-index="{{ loop.index0 }}">
+          <div class="card-title mb-3">{{ form_row(cat.title) }}</div>
+          <div
+            {{ stimulus_controller('ui--form-collection') }}
+            data-ui--form-collection-index-value="{{ cat.articles|length > 0 ? cat.articles|last.vars.name + 1 : 0 }}"
+            data-ui--form-collection-prototype-value="{{ form_widget(cat.articles.vars.prototype)|e('html_attr') }}">
+            <label class="form-label">Article coordinates</label>
+            <ul {{ stimulus_target('ui--form-collection', 'collectionContainer') }} class="list-unstyled">
+              {% for art in cat.articles %}
+                <li class="mb-2">{{ form_widget(art, {attr: {placeholder: 'kind:pubkey:slug'}}) }}</li>
+              {% endfor %}
+            </ul>
+            <button class="btn btn-sm btn-secondary mt-2" type="button" {{ stimulus_action('ui--form-collection', 'addCollectionElement') }}>Add coordinate</button>
+          </div>
+      </fieldset>
+    {% endfor %}
+
+    <div class="actions mt-3 d-flex flex-row gap-2 align-items-center">
+      <a class="btn btn-secondary" href="{{ path('mag_wizard_categories') }}">← Back</a>
+      <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}" data-action="click->ui--wizard-autosave#clearAll">Cancel</a>
+      <button class="btn btn-primary" type="submit">Next: Review & Sign →</button>
+      <span class="wizard-autosave-status" data-ui--wizard-autosave-target="status"></span>
+    </div>
+
+    {% if form._token is defined %}
+      {{ form_row(form._token) }}
+    {% endif %}
+    {{ form_end(form, {render_rest: false}) }}
+
+  </div>
 {% endblock %}

@@ -373,7 +373,7 @@ class ReadingListController extends AbstractController
         $tags = [];
         $tags[] = ['d', $draft->slug];
         $tags[] = ['type', $type];
-        $tags[] = ['alt', 'This is a publication index event viewable on Decent Newsroom at decentnewsroom.com'];
+        $tags[] = ['alt', 'This is a publication viewable on Decent Newsroom at decentnewsroom.com'];
         if ($draft->title) { $tags[] = ['title', $draft->title]; }
         if ($draft->summary) { $tags[] = ['summary', $draft->summary]; }
         if ($draft->image) { $tags[] = ['image', $draft->image]; }

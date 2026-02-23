@@ -1,14 +1,66 @@
-<div {{ attributes }}>
+<div {{ attributes }} class="magazine-hero{% if preview|default(false) %} magazine-hero--preview{% endif %}">
+    {% if preview|default(false) %}
+        <span class="magazine-hero__watermark">Preview</span>
+    {% endif %}
+
+    {% if not preview|default(false) and magazine is defined and magazine %}
+        {# Floating ⋯ menu in the top-right corner #}
+        <div class="magazine-hero__menu" data-controller="utility--share-dropdown">
+            <button class="magazine-hero__menu-btn"
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    data-action="click->utility--share-dropdown#toggle"
+                    title="Magazine options">⋯</button>
+            <div data-utility--share-dropdown-target="menu"
+                 class="magazine-hero__menu-dropdown"
+                 style="display:none;">
+                <button class="magazine-hero__menu-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ magazine|naddrEncode }}">
+                    Copy Naddr
+                </button>
+                <button class="magazine-hero__menu-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ url('magazine-index', {mag: mag}) }}">
+                    Copy Link
+                </button>
+                {% if isOwner|default(false) %}
+                    <a href="{{ path('mag_wizard_edit', {slug: mag}) }}" class="magazine-hero__menu-item">
+                        Edit Magazine
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Cover image — shown when set via image tag or preview prop #}
+    {% set heroImage = this.displayImage %}
+    {% if heroImage %}
+        <div class="magazine-hero__cover">
+            <img src="{{ heroImage }}" alt="{{ this.displayTitle }}" class="magazine-hero__cover-img">
+        </div>
+    {% endif %}
+
     <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5">
-            <h1><a href="{{ path('magazine-index', {mag: mag}) }}">{{ magazine.title|default(magazine.slug|default(mag)) }}</a></h1>
-            {% if magazine.summary is defined and magazine.summary %}
-                <p class="eyebrow">{{ magazine.summary }}</p>
+        <div class="container mt-5 {% if preview|default(false) %}mb-5{% endif %}">
+            {% if preview is defined and preview %}
+                <h1>{{ this.displayTitle }}</h1>
+            {% else %}
+                <h1><a href="{{ path('magazine-index', {mag: mag}) }}">{{ this.displayTitle }}</a></h1>
             {% endif %}
-            <div>by <twig:Molecules:UserFromNpub :ident="magazine.pubkey" /></div>
+            {% set heroSummary = this.displaySummary %}
+            {% if heroSummary %}
+                <p class="eyebrow">{{ heroSummary }}</p>
+            {% endif %}
+            {% if not preview|default(false) and magazine is defined and magazine %}
+                <div>by <twig:Molecules:UserFromNpub :ident="magazine.pubkey" /></div>
+            {% endif %}
 
             {# Action buttons #}
-            {% if this.categoryTags is not empty %}
+            {% if not preview|default(false) and this.categoryTags is not empty %}
                 {# TODO make it so that this is only shown if chapters are kind 30041, not 30040 #}
                 <div class="mt-4 hidden">
                     <a href="{{ path('magazine-read', {mag: mag}) }}" class="btn btn-primary">
@@ -17,45 +69,21 @@
                 </div>
             {% endif %}
         </div>
-        <div class="container mb-5">
-            {# Use computed property via this.categoryTags (includes both categories and chapters) #}
-            {% if this.categoryTags is not empty %}
-                <ul class="list-unstyled d-flex flex-row flex-wrap gap-3 justify-content-center mt-3">
-                    {% for catTag in this.categoryTags %}
-                        <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
-                    {% endfor %}
-                </ul>
-            {% elseif this.categoryTags|length >= 10 %}
-                <p class="text-muted mt-4">{{ this.categoryTags|length }} categories or chapters available</p>
-            {% else %}
-                <p class="text-muted mt-4">No categories or chapters yet.</p>
-            {% endif %}
-        </div>
+        {% if not preview|default(false) %}
+            <div class="container mb-5">
+                {# Use computed property via this.categoryTags (includes both categories and chapters) #}
+                {% if this.categoryTags is not empty %}
+                    <ul class="list-unstyled d-flex flex-row flex-wrap gap-3 justify-content-center mt-3">
+                        {% for catTag in this.categoryTags %}
+                            <li class="list-inline-item"><twig:Molecules:CategoryLink :coordinate="catTag" :mag="mag" /></li>
+                        {% endfor %}
+                    </ul>
+                {% elseif this.categoryTags|length >= 10 %}
+                    <p class="text-muted mt-4">{{ this.categoryTags|length }} categories or chapters available</p>
+                {% else %}
+                    <p class="text-muted mt-4">No categories or chapters yet.</p>
+                {% endif %}
+            </div>
+        {% endif %}
     </section>
-    {# Add actions toolbar: share, zap, etc. #}
-    <div data-controller="utility--share-dropdown" class="dropdown share-dropdown hidden">
-        <button data-utility--share-dropdown-target="button"
-                class="btn btn-secondary"
-                id="shareBtn"
-                type="button"
-                aria-haspopup="true"
-                aria-expanded="false"
-                data-action="click->utility--share-dropdown#toggle">
-            Share
-        </button>
-        <div data-utility--share-dropdown-target="menu"
-             class="dropdown-menu"
-             id="shareDropdown"
-             style="display:none;position:absolute;z-index:1000;min-width:200px;">
-            <button class="dropdown-item"
-                    type="button"
-                    data-action="click->utility--share-dropdown#copy"
-                    data-copy="{{ magazine|naddrEncode }}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
-                </svg>
-                Naddr
-            </button>
-        </div>
-    </div>
 </div>
