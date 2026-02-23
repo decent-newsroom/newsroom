@@ -4,7 +4,9 @@ namespace App\Twig\Components\Organisms;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\MagazineRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use swentel\nostr\Key\Key;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
@@ -15,6 +17,7 @@ final class ZineList
     public ?string $currentUserPubkey = null;
 
     public function __construct(
+        private readonly MagazineRepository $magazineRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly TokenStorageInterface $tokenStorage,
     ) {
@@ -27,32 +30,34 @@ final class ZineList
         $npub = $token?->getUserIdentifier();
         if ($npub) {
             try {
-                $key = new \swentel\nostr\Key\Key();
+                $key = new Key();
                 $this->currentUserPubkey = $key->convertToHex($npub);
             } catch (\Throwable $e) {
                 // ignore
             }
         }
 
-        $nzines = $this->entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+        // Prefer Magazine entities; fall back to Event table
+        $this->nzines = $this->magazineRepository->findAllPublished();
+        if (!empty($this->nzines)) {
+            return;
+        }
 
-        // filter, only keep type === magazine
-        $filtered = array_filter($nzines, function ($index) {
-            // look for tags
+        // Fallback: filter Event entities (same legacy logic)
+        $allIndices = $this->entityManager->getRepository(Event::class)
+            ->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+
+        $filtered = array_filter($allIndices, function (Event $index) {
             $tags = $index->getTags();
             $isMagType = false;
             $isTopLevel = false;
             foreach ($tags as $tag) {
-                // only if tag 'type' with value 'magazine'
-                if ($tag[0] === 'type' && $tag[1] === 'magazine') {
+                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
                     $isMagType = true;
                 }
-                // and only contains other indices:
-                // a tags with kind 30040
-                if ($tag[0] === 'a' && $isTopLevel === false) {
-                    // tag format: ['a', 'kind:pubkey:slug']
-                    $parts = explode(':', $tag[1]);
-                    if ($parts[0] == (string)KindsEnum::PUBLICATION_INDEX->value) {
+                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
+                    $parts = explode(':', $tag[1] ?? '');
+                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
                         $isTopLevel = true;
                     }
                 }
@@ -60,7 +65,6 @@ final class ZineList
             return $isMagType && $isTopLevel;
         });
 
-        // Deduplicate by slug
         $uniqueNzines = [];
         foreach ($filtered as $nzine) {
             $slug = $nzine->getSlug();

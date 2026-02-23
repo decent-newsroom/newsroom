@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Message\ProjectMagazineMessage;
+use App\Entity\Event;
+use App\Enum\KindsEnum;
+use App\Service\MagazineProjector;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Redis as RedisClient;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -14,7 +16,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsCommand(
     name: 'app:project-magazines',
@@ -23,8 +24,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 class ProjectMagazinesCommand extends Command
 {
     public function __construct(
-        private readonly RedisClient $redis,
-        private readonly MessageBusInterface $messageBus,
+        private readonly MagazineProjector $projector,
+        private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -42,44 +43,79 @@ class ProjectMagazinesCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $specificSlug = $input->getArgument('slug');
-        $force = $input->getOption('force');
 
         if ($specificSlug) {
-            // Project a specific magazine
-            $io->info("Dispatching projection for magazine: $specificSlug");
-            $this->messageBus->dispatch(new ProjectMagazineMessage($specificSlug, $force));
-            $io->success('Projection message dispatched');
+            $io->info("Projecting magazine: $specificSlug");
+            $magazine = $this->projector->projectMagazine($specificSlug);
+            if ($magazine) {
+                $io->success("Projected: {$magazine->getTitle()} ({$specificSlug})");
+            } else {
+                $io->warning("Magazine not found or not a top-level magazine: $specificSlug");
+            }
             return Command::SUCCESS;
         }
 
-        // Read all magazine slugs from Redis set
-        try {
-            $slugs = $this->redis->sMembers('magazine_slugs');
+        // Find all top-level magazine events and project them
+        $allIndices = $this->em->getRepository(Event::class)->findBy([
+            'kind' => KindsEnum::PUBLICATION_INDEX,
+        ]);
 
-            if (empty($slugs)) {
-                $io->warning('No magazine slugs found in Redis');
-                return Command::SUCCESS;
+        // Deduplicate by slug, keeping newest
+        $bySlug = [];
+        foreach ($allIndices as $event) {
+            $slug = $event->getSlug();
+            if ($slug === null) {
+                continue;
             }
-
-            $io->info("Found " . count($slugs) . " magazine(s) to project");
-
-            foreach ($slugs as $slug) {
-                $io->writeln("  - Dispatching: $slug");
-                $this->messageBus->dispatch(new ProjectMagazineMessage($slug, $force));
-                $this->logger->info('Dispatched magazine projection', ['slug' => $slug]);
+            // Check if it's a magazine type
+            $tags = $event->getTags();
+            $isMagType = false;
+            $isTopLevel = false;
+            foreach ($tags as $tag) {
+                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
+                    $isMagType = true;
+                }
+                if (($tag[0] ?? '') === 'a') {
+                    $parts = explode(':', $tag[1] ?? '');
+                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
+                        $isTopLevel = true;
+                    }
+                }
             }
-
-            $io->success("Dispatched projection messages for " . count($slugs) . " magazine(s)");
-
-        } catch (\Throwable $e) {
-            $io->error("Failed to read magazine slugs: " . $e->getMessage());
-            $this->logger->error('Magazine projection command failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return Command::FAILURE;
+            if ($isMagType && $isTopLevel) {
+                if (!isset($bySlug[$slug]) || $event->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                    $bySlug[$slug] = $event;
+                }
+            }
         }
 
+        if (empty($bySlug)) {
+            $io->warning('No magazine events found');
+            return Command::SUCCESS;
+        }
+
+        $io->info(sprintf('Found %d magazine(s) to project', count($bySlug)));
+        $projected = 0;
+
+        foreach ($bySlug as $slug => $event) {
+            try {
+                $magazine = $this->projector->projectMagazine($slug);
+                if ($magazine) {
+                    $io->writeln("  ✓ {$magazine->getTitle()} ({$slug})");
+                    $projected++;
+                } else {
+                    $io->writeln("  ⚠ Skipped: {$slug}");
+                }
+            } catch (\Throwable $e) {
+                $io->writeln("  ✗ Failed: {$slug} — {$e->getMessage()}");
+                $this->logger->error('Magazine projection failed', [
+                    'slug' => $slug,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $io->success("Projected {$projected} of " . count($bySlug) . " magazine(s)");
         return Command::SUCCESS;
     }
 }

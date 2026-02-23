@@ -1,5 +1,27 @@
 <turbo-frame id="profile-tab-content">
     <div class="profile-overview-content">
+        {# Magazines Section #}
+        {% if authorMagazines|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="w-container">
+                    {% for mag in authorMagazines %}
+                        <div class="card p-3 ln-section--reader">
+                            <div class="card-body text-center">
+                                <h2 class="card-title">
+                                    <a href="{{ path('magazine-index', {mag: mag.slug}) }}" data-turbo-frame="_top">
+                                        {{ mag.title ?? mag.slug ?? 'Untitled Magazine' }}
+                                    </a>
+                                </h2>
+                                {% if mag.summary %}
+                                    <p class="lede">{{ mag.summary }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
         {# Recent Articles Section #}
         {% if recentArticles|default([])|length > 0 %}
             <div class="overview-section">
@@ -37,7 +59,7 @@
         {% endif %}
 
         {# Empty state #}
-        {% if recentArticles|default([])|length == 0 and recentMedia|default([])|length == 0 and recentHighlights|default([])|length == 0 %}
+        {% if authorMagazines|default([])|length == 0 and recentArticles|default([])|length == 0 and recentMedia|default([])|length == 0 and recentHighlights|default([])|length == 0 %}
             <div class="no-content">
                 {% if isOwner|default(false) %}
                     <p>You haven't published any content yet.</p>

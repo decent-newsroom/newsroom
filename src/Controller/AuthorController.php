@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Entity\Magazine;
 use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
@@ -769,6 +770,10 @@ class AuthorController extends AbstractController
         // Note: Background revalidation via RevalidateProfileCacheMessage
         // will dispatch FetchAuthorContentMessage asynchronously
 
+        // Get author's magazines
+        $authorMagazines = $this->getAuthorMagazines($pubkey, $em);
+
+
         // Get recent articles (limit to 3 for overview)
         $allArticles = $this->getAuthorArticles($pubkey, false, $viewStore, $viewFactory, $articleSearch);
         $recentArticles = array_slice($allArticles, 0, 3);
@@ -782,6 +787,7 @@ class AuthorController extends AbstractController
         $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 3);
 
         return [
+            'authorMagazines' => $authorMagazines,
             'recentArticles' => $recentArticles,
             'recentMedia' => $recentMedia,
             'recentHighlights' => $recentHighlights,
@@ -806,6 +812,59 @@ class AuthorController extends AbstractController
             'hasMore' => $paginatedData['hasMore'],
             'total' => $paginatedData['total'],
         ];
+    }
+
+    /**
+     * Get magazines published by the given pubkey.
+     * Tries the Magazine entity first; falls back to Event table if empty.
+     *
+     * @return array
+     */
+    private function getAuthorMagazines(string $pubkey, EntityManagerInterface $em): array
+    {
+        // Prefer projected Magazine entities
+        $magazines = $em->getRepository(Magazine::class)->findByPubkey($pubkey);
+        if (!empty($magazines)) {
+            return $magazines;
+        }
+
+        // Fallback: query Event table (same logic as ZineList used to use)
+        $allIndices = $em->getRepository(Event::class)->findBy([
+            'kind' => KindsEnum::PUBLICATION_INDEX,
+            'pubkey' => $pubkey,
+        ]);
+
+        $filtered = array_filter($allIndices, function (Event $event) {
+            $tags = $event->getTags();
+            $isMagType = false;
+            $isTopLevel = false;
+            foreach ($tags as $tag) {
+                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
+                    $isMagType = true;
+                }
+                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
+                    $parts = explode(':', $tag[1] ?? '');
+                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
+                        $isTopLevel = true;
+                    }
+                }
+            }
+            return $isMagType && $isTopLevel;
+        });
+
+        // Deduplicate by slug, keeping the newest
+        $bySlug = [];
+        foreach ($filtered as $mag) {
+            $slug = $mag->getSlug();
+            if ($slug === null) {
+                continue;
+            }
+            if (!isset($bySlug[$slug]) || $mag->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                $bySlug[$slug] = $mag;
+            }
+        }
+
+        return array_values($bySlug);
     }
 
     /**

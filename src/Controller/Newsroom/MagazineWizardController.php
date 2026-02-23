@@ -11,6 +11,7 @@ use App\Form\CategoryArticlesType;
 use App\Form\MagazineCategoriesType;
 use App\Form\MagazineSetupType;
 use App\Message\ProjectMagazineMessage;
+use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,6 +43,7 @@ class MagazineWizardController extends AbstractController
     public function __construct(
         private readonly MessageBusInterface $messageBus,
         private readonly ReadingListManager $readingListManager,
+        private readonly MagazineProjector $magazineProjector,
     ) {
     }
 
@@ -413,12 +415,22 @@ class MagazineWizardController extends AbstractController
             // Non-fatal: event is saved locally, relay publishing is best-effort
         }
 
-        // Dispatch projection message for top-level magazines
+        // Project magazine entity synchronously so it's immediately available
         if ($isTopLevelMagazine) {
             try {
-                $this->messageBus->dispatch(new ProjectMagazineMessage($slug));
+                $this->magazineProjector->projectMagazine($slug);
+                $logger->info('Magazine projected synchronously', ['slug' => $slug]);
             } catch (\Throwable $e) {
-                // Non-fatal: projection will be picked up by cron if async dispatch fails
+                $logger->warning('Synchronous magazine projection failed, dispatching async', [
+                    'slug' => $slug,
+                    'error' => $e->getMessage(),
+                ]);
+                // Fall back to async projection
+                try {
+                    $this->messageBus->dispatch(new ProjectMagazineMessage($slug));
+                } catch (\Throwable $e2) {
+                    // Non-fatal: projection will be picked up by cron
+                }
             }
         }
 

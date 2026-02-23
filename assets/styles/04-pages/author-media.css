@@ -369,6 +369,8 @@
     gap: 1.5rem;
 }
 
+/* Overview: Author magazines use the same .card .ln-section--reader styles as the newsstand */
+
 .profile-overview .overview-media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
