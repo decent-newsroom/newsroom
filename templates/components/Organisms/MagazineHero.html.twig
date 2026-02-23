@@ -4,31 +4,34 @@
     {% endif %}
 
     {% if not preview|default(false) and magazine is defined and magazine %}
-        {# Floating ⋯ menu in the top-right corner #}
-        <div class="magazine-hero__menu" data-controller="utility--share-dropdown">
-            <button class="magazine-hero__menu-btn"
+        {# Floating actions menu in the top-right corner #}
+        <div data-controller="utility--share-dropdown" class="dropdown share-dropdown magazine-hero__actions">
+            <button data-utility--share-dropdown-target="button"
+                    class="btn btn-secondary"
                     type="button"
                     aria-haspopup="true"
                     aria-expanded="false"
-                    data-action="click->utility--share-dropdown#toggle"
-                    title="Magazine options">⋯</button>
+                    data-action="click->utility--share-dropdown#toggle">
+                ⋯
+            </button>
             <div data-utility--share-dropdown-target="menu"
-                 class="magazine-hero__menu-dropdown"
-                 style="display:none;">
-                <button class="magazine-hero__menu-item"
-                        type="button"
-                        data-action="click->utility--share-dropdown#copy"
-                        data-copy="{{ magazine|naddrEncode }}">
-                    Copy Naddr
-                </button>
-                <button class="magazine-hero__menu-item"
+                 class="dropdown-menu dropdown-menu-end"
+                 style="display:none;position:absolute;z-index:1000;min-width:200px;">
+                <button class="dropdown-item"
                         type="button"
                         data-action="click->utility--share-dropdown#copy"
                         data-copy="{{ url('magazine-index', {mag: mag}) }}">
-                    Copy Link
+                    Newsroom Link
+                </button>
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ magazine|naddrEncode }}">
+                    Naddr
                 </button>
                 {% if isOwner|default(false) %}
-                    <a href="{{ path('mag_wizard_edit', {slug: mag}) }}" class="magazine-hero__menu-item">
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ path('mag_wizard_edit', {slug: mag}) }}">
                         Edit Magazine
                     </a>
                 {% endif %}

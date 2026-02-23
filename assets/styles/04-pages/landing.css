@@ -66,66 +66,14 @@
     object-fit: cover;
 }
 
-/* Magazine hero floating ⋯ menu */
-.magazine-hero__menu {
+/* Magazine hero floating actions menu */
+.magazine-hero__actions {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
     z-index: 10;
 }
 
-.magazine-hero__menu-btn {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    border: 1px solid var(--color-border, #ddd);
-    background: var(--color-bg, #fff);
-    color: var(--color-text, #333);
-    font-size: 1.2rem;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.75;
-    transition: opacity 0.15s;
-}
-
-.magazine-hero__menu-btn:hover {
-    opacity: 1;
-}
-
-.magazine-hero__menu-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 0.25rem;
-    min-width: 160px;
-    background: var(--color-bg, #fff);
-    border: 1px solid var(--color-border, #ddd);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 100;
-    overflow: hidden;
-}
-
-.magazine-hero__menu-item {
-    display: block;
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: none;
-    background: none;
-    color: var(--color-text, #333);
-    font-size: 0.85rem;
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.magazine-hero__menu-item:hover {
-    background: var(--color-bg-muted, #f5f5f5);
-}
 
 .ln-section--reader{
     background: var(--color-bg-light);
