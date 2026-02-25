@@ -51,56 +51,71 @@ class ForumController extends AbstractController
         /** @var User $user */
         $user = $this->getUser();
         if (!!$user && $articleSearch->isAvailable()) {
-            try {
-                $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                $interests = $nostrClient->getUserInterests($pubkey);
-                if (!empty($interests)) {
-                    try {
-                        $counts = $articleSearch->getTagCounts(array_values($interests)); // ['tag' => count]
-                    } catch (\Throwable $e) {
-                        // Search error - skip user interests
-                        $counts = [];
-                        $interests = [];
-                    }
-                    $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
-                    // Filter to only include subcategories that have tags in interests
-                    foreach ($userInterests as $catKey => $cat) {
-                        $subs = [];
-                        foreach ($cat['subcategories'] as $subKey => $sub) {
-                            $subTags = array_map('strtolower', $sub['tags']);
-                            if (array_intersect($subTags, $interests)) {
-                                $subs[$subKey] = $sub;
-                            }
-                        }
-                        if (!empty($subs)) {
-                            $userInterests[$catKey]['subcategories'] = $subs;
-                        } else {
-                            unset($userInterests[$catKey]);
-                        }
-                    }
-                    // All user interest combined
-                    $userInterests['interests'] = [
-                        'name' => 'Interests',
-                        'subcategories' => [],
-                    ];
-                    $userInterests['interests']['subcategories']['all'] = [
-                        'name' => 'All Interests',
-                        'tags' => [],
-                        'count' => 0,
-                    ];
-                    foreach ($interests as $tag) {
-                        $userInterests['interests']['subcategories']['all']['tags'][] = $tag;
-                        $userInterests['interests']['subcategories']['all']['count'] += $counts[strtolower($tag)] ?? 0;
-                    }
-                }
-            } catch (\Exception $e) {
-                // Ignore errors, just don't show user interests
-            }
+            $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch);
         }
 
         return $this->render('forum/index.html.twig', [
             'topics' => $categoriesWithCounts,
             'userInterests' => $userInterests,
+        ]);
+    }
+
+    /**
+     * My Interests – shows only the topics matching the user's interest tags (kind 10015),
+     * styled like the forum index, with paginated articles.
+     */
+    #[Route('/my-interests', name: 'my_interests')]
+    public function myInterests(
+        ArticleSearchInterface $articleSearch,
+        NostrClient $nostrClient,
+        Request $request,
+    ): Response {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('forum');
+        }
+
+        // Build the filtered interest categories
+        $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch);
+
+        // Collect all interest tags for the article listing
+        $interestTags = [];
+        if ($userInterests) {
+            foreach ($userInterests as $cat) {
+                foreach ($cat['subcategories'] as $sub) {
+                    foreach ($sub['tags'] as $tag) {
+                        $interestTags[] = strtolower($tag);
+                    }
+                }
+            }
+            $interestTags = array_values(array_unique($interestTags));
+        }
+
+        // Fetch articles matching the interest tags
+        $page = max(1, (int) $request->query->get('page', 1));
+        $perPage = 20;
+        $articles = [];
+
+        if (!empty($interestTags) && $articleSearch->isAvailable()) {
+            try {
+                $articles = $articleSearch->findByTopics($interestTags, $perPage * 10, 0);
+                $articles = $this->deduplicateArticles($articles);
+            } catch (\Throwable $e) {
+                // Search error - return empty articles
+            }
+        }
+
+        $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
+
+        $pager = new Pagerfanta(new ArrayAdapter($articles));
+        $pager->setMaxPerPage($perPage);
+        $pager->setCurrentPage($page);
+
+        return $this->render('forum/my_interests.html.twig', [
+            'userInterests' => $userInterests,
+            'articles' => $articlesPage,
+            'pager' => $pager,
         ]);
     }
 
@@ -417,5 +432,62 @@ class ForumController extends AbstractController
                 'created_at'   => $article->getCreatedAt()?->format('c'),
             ];
         }, $articles);
+    }
+
+    /**
+     * Build the user interests array for the given user.
+     * Extracted as a reusable helper for the index and myInterests actions.
+     */
+    private function buildUserInterests(User $user, NostrClient $nostrClient, ArticleSearchInterface $articleSearch)
+    {
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $interests = $nostrClient->getUserInterests($pubkey);
+            if (!empty($interests)) {
+                try {
+                    $counts = $articleSearch->getTagCounts(array_values($interests)); // ['tag' => count]
+                } catch (\Throwable $e) {
+                    // Search error - skip user interests
+                    $counts = [];
+                    $interests = [];
+                }
+                $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+                // Filter to only include subcategories that have tags in interests
+                foreach ($userInterests as $catKey => $cat) {
+                    $subs = [];
+                    foreach ($cat['subcategories'] as $subKey => $sub) {
+                        $subTags = array_map('strtolower', $sub['tags']);
+                        if (array_intersect($subTags, $interests)) {
+                            $subs[$subKey] = $sub;
+                        }
+                    }
+                    if (!empty($subs)) {
+                        $userInterests[$catKey]['subcategories'] = $subs;
+                    } else {
+                        unset($userInterests[$catKey]);
+                    }
+                }
+                // All user interest combined
+                $userInterests['interests'] = [
+                    'name' => 'Interests',
+                    'subcategories' => [],
+                ];
+                $userInterests['interests']['subcategories']['all'] = [
+                    'name' => 'All Interests',
+                    'tags' => [],
+                    'count' => 0,
+                ];
+                foreach ($interests as $tag) {
+                    $userInterests['interests']['subcategories']['all']['tags'][] = $tag;
+                    $userInterests['interests']['subcategories']['all']['count'] += $counts[strtolower($tag)] ?? 0;
+                }
+
+                return $userInterests;
+            }
+        } catch (\Exception $e) {
+            // Ignore errors, just don't show user interests
+        }
+
+        return null;
     }
 }

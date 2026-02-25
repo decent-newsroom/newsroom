@@ -596,8 +596,8 @@ class AuthorController extends AbstractController
      * @throws Exception
      * @throws InvalidArgumentException
      */
-    #[Route('/{vanity}/{tab}', name: 'author-vanity-profile-tab', requirements: ['tab' => 'overview|articles|media|highlights|drafts|bookmarks|stats'])]
-    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|bookmarks|stats'])]
+    #[Route('/{vanity}/{tab}', name: 'author-vanity-profile-tab', requirements: ['tab' => 'overview|articles|media|highlights|drafts|stats'])]
+    #[Route('/p/{npub}/{tab}', name: 'author-profile-tab', requirements: ['npub' => '^npub1.*', 'tab' => 'overview|articles|media|highlights|drafts|stats'])]
     public function profileTab(
         string $tab,
         Request $request,
@@ -634,7 +634,7 @@ class AuthorController extends AbstractController
         $isOwner = $currentUser && $currentUser->getUserIdentifier() === $npub;
 
         // Private tabs require ownership
-        $privateTabsRequireAuth = ['drafts', 'bookmarks', 'stats'];
+        $privateTabsRequireAuth = ['drafts', 'stats'];
         if (in_array($tab, $privateTabsRequireAuth) && !$isOwner) {
             // Check if this is a Turbo Frame request
             $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
@@ -701,9 +701,8 @@ class AuthorController extends AbstractController
                 $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
             }
         } else {
-            // Non-cacheable tabs (bookmarks, stats) - load synchronously
+            // Non-cacheable tabs (stats) - load synchronously
             $templateData = match($tab) {
-                'bookmarks' => $this->getBookmarksTabData($pubkey, $em, $messageBus),
                 'stats' => $this->getStatsTabData($npub, $visitRepository),
                 default => [],
             };
@@ -864,7 +863,24 @@ class AuthorController extends AbstractController
             }
         }
 
-        return array_values($bySlug);
+        // Convert Event entities to plain arrays for cache serialization
+        return array_values(array_map(function (Event $event) {
+            $title = null;
+            $summary = null;
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
+                    $summary = $tag[1];
+                }
+            }
+            return [
+                'slug' => $event->getSlug(),
+                'title' => $title,
+                'summary' => $summary,
+            ];
+        }, $bySlug));
     }
 
     /**
@@ -1050,156 +1066,6 @@ class AuthorController extends AbstractController
         return ['drafts' => array_values($slugMap)];
     }
 
-    /**
-     * Get bookmarks for the bookmarks tab (owner only)
-     */
-    private function getBookmarksTabData(string $pubkey, EntityManagerInterface $em, MessageBusInterface $messageBus): array
-    {
-        $repo = $em->getRepository(Event::class);
-
-        // Fetch all bookmark-related kinds: 10003 (standard), 30003 (sets), 30004/30005/30006 (curation)
-        $bookmarkKinds = [
-            KindsEnum::BOOKMARKS->value,         // 10003
-            KindsEnum::BOOKMARK_SETS->value,     // 30003
-            KindsEnum::CURATION_SET->value,      // 30004
-            KindsEnum::CURATION_VIDEOS->value,   // 30005
-            KindsEnum::CURATION_PICTURES->value  // 30006
-        ];
-
-        $events = $repo->createQueryBuilder('e')
-            ->where('e.pubkey = :pubkey')
-            ->andWhere('e.kind IN (:kinds)')
-            ->setParameter('pubkey', $pubkey)
-            ->setParameter('kinds', $bookmarkKinds)
-            ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(50)
-            ->getQuery()
-            ->getResult();
-
-        // Make note no events were found
-        if (empty($events)) {
-            $this->logger->info('📚 No bookmarks found in DB', [
-                'pubkey' => $pubkey,
-                'kinds' => $bookmarkKinds,
-            ]);
-        }
-
-        // Also dispatch message to fetch from user's home relays
-        // To update with new bookmarks since the user is clearly active if none found
-        // Or existing is older than 1 week
-        $weekAgo = time() - 7 * 24 * 60 * 60;
-        if (empty($events) || (isset($events[0]) && $events[0]->getCreatedAt() < $weekAgo)) {
-            $this->logger->info('📚 No bookmarks found in DB, dispatching fetch from user home relays', [
-                'pubkey' => $pubkey,
-                'kinds' => $bookmarkKinds,
-                'content_type' => 'BOOKMARKS',
-                'action' => 'DISPATCH_MESSAGE'
-            ]);
-
-            $envelope = $messageBus->dispatch(new FetchAuthorContentMessage(
-                $pubkey,
-                [AuthorContentType::BOOKMARKS],
-                0, // since = 0 (fetch all)
-                true // isOwner = true for private bookmarks
-            ));
-
-            $this->logger->info('📤 FetchAuthorContentMessage dispatched successfully', [
-                'pubkey' => $pubkey,
-                'stamps_count' => count($envelope->all()),
-                'message_class' => get_class($envelope->getMessage())
-            ]);
-        } else {
-            $this->logger->info('📚 Found existing bookmarks in DB', [
-                'pubkey' => $pubkey,
-                'count' => count($events),
-                'kinds_found' => array_unique(array_map(fn($e) => $e->getKind(), $events))
-            ]);
-        }
-
-        $bookmarks = [];
-        foreach ($events as $event) {
-            $identifier = null;
-            $title = null;
-            $summary = null;
-            $image = null;
-            $items = [];
-
-            foreach ($event->getTags() as $tag) {
-                if (!is_array($tag) || count($tag) < 2) {
-                    continue;
-                }
-
-                switch ($tag[0]) {
-                    case 'd':
-                        $identifier = $tag[1] ?? null;
-                        break;
-                    case 'title':
-                        $title = $tag[1] ?? null;
-                        break;
-                    case 'summary':
-                        $summary = $tag[1] ?? null;
-                        break;
-                    case 'image':
-                        $image = $tag[1] ?? null;
-                        break;
-                    case 'e':
-                        $eventId = $tag[1] ?? null;
-                        if ($eventId) {
-                            $eventIds[] = $eventId;
-                        }
-                        $items[] = [
-                            'type' => $tag[0],
-                            'value' => $eventId,
-                            'relay' => $tag[2] ?? null,
-                        ];
-                        break;
-                    case 'a':
-                        $coordinate = $tag[1] ?? null;
-                        if ($coordinate) {
-                            $articleCoordinates[] = $coordinate;
-                        }
-                        $items[] = [
-                            'type' => $tag[0],
-                            'value' => $coordinate,
-                            'relay' => $tag[2] ?? null,
-                        ];
-                        break;
-                    case 'p':
-                    case 't':
-                        $items[] = [
-                            'type' => $tag[0],
-                            'value' => $tag[1] ?? null,
-                            'relay' => $tag[2] ?? null,
-                        ];
-                        break;
-                }
-            }
-
-            // Determine the list type label based on kind
-            $listType = match($event->getKind()) {
-                KindsEnum::BOOKMARKS->value => 'Bookmarks',
-                KindsEnum::BOOKMARK_SETS->value => 'Bookmark Set',
-                KindsEnum::CURATION_SET->value => 'Curation Set (Articles/Notes)',
-                KindsEnum::CURATION_VIDEOS->value => 'Curation Set (Videos)',
-                KindsEnum::CURATION_PICTURES->value => 'Curation Set (Pictures)',
-                default => 'Unknown List',
-            };
-
-            $bookmarks[] = (object)[
-                'id' => $event->getId(),
-                'kind' => $event->getKind(),
-                'listType' => $listType,
-                'identifier' => $identifier,
-                'title' => $title,
-                'description' => $summary,
-                'image' => $image,
-                'items' => $items,
-                'createdAt' => $event->getCreatedAt(),
-            ];
-        }
-
-        return ['bookmarks' => $bookmarks];
-    }
 
     /**
      * Get visit statistics for the stats tab (owner only)

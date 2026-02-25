@@ -16,6 +16,11 @@ final class ArticleFromCoordinate
     public ?string $mag = null; // magazine slug (optional)
     public ?string $cat = null; // category slug (optional)
 
+    /** Parsed coordinate parts – available for the placeholder when article is not found */
+    public ?string $parsedKind = null;
+    public ?string $parsedPubkey = null;
+    public ?string $parsedSlug = null;
+
     public function __construct(
         private readonly ArticleRepository $articleRepository
     ) {}
@@ -32,6 +37,10 @@ final class ArticleFromCoordinate
         }
 
         [$kind, $pubkey, $slug] = $parts;
+
+        $this->parsedKind = $kind;
+        $this->parsedPubkey = $pubkey;
+        $this->parsedSlug = $slug;
 
         // Validate kind is numeric
         if (!is_numeric($kind)) {

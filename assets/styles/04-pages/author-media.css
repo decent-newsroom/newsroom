@@ -251,27 +251,10 @@
 }
 
 /* Bookmarks styles */
-.bookmarks-container .bookmarks-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-}
-
-.bookmark-item.card {
-    padding: 1.5rem;
-    background: #fff;
-}
-
 .bookmark-item h4 {
     margin: 0 0 1rem 0;
     font-size: 1.1rem;
     font-weight: 600;
-}
-
-.bookmark-items {
-    list-style: none;
-    padding: 0;
-    margin: 0;
 }
 
 .bookmark-items li {

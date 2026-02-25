@@ -100,6 +100,26 @@ main.static {
     margin: 10px 0;
 }
 
+/* Nav sections with dividers */
+.nav-section {
+    margin: 0;
+    padding: 0 0 0.25em;
+}
+
+.nav-section__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-mid, #888);
+    padding: 0.75em 10px 0.15em;
+}
+
+.nav-section .user-nav {
+    margin: 0;
+    padding: 0.25em 10px 0.5em;
+}
+
 /* Right sidebar */
 aside {
     display: flex;

@@ -93,7 +93,7 @@ COPY --link . ./
 RUN rm -Rf frankenphp/
 
 RUN set -eux; \
-	composer install --no-cache --prefer-dist --no-progress
+	composer install --no-cache --prefer-dist --no-progress --no-scripts
 
 RUN set -eux; \
 	mkdir -p var/cache var/log; \

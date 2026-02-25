@@ -3,6 +3,7 @@
 ## v0.0.11
 Mostly quality of life improvements.
 
+- Split sidebar navigation into segmented sections (Discover, Newsroom, Create) with divider labels.
 - Upgraded magazine wizard to a 4-step flow: Setup → Categories → Articles → Review & Sign.
 - Added live cover preview panel to the magazine setup step.
 - Added image upload support to the magazine setup and category steps.

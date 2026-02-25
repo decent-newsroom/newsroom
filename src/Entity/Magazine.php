@@ -17,7 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['slug'], name: 'idx_magazine_slug')]
 #[ORM\Index(columns: ['created_at'], name: 'idx_magazine_created_at')]
 #[ORM\Index(columns: ['published_at'], name: 'idx_magazine_published_at')]
-class Magazine
+class Magazine implements \JsonSerializable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: "IDENTITY")]
@@ -253,5 +253,26 @@ class Magazine
     {
         $this->updatedAt = new \DateTimeImmutable();
         return $this;
+    }
+
+    public function jsonSerialize(): array
+    {
+        return [
+            'id' => $this->id,
+            'slug' => $this->slug,
+            'title' => $this->title,
+            'summary' => $this->summary,
+            'image' => $this->image,
+            'language' => $this->language,
+            'tags' => $this->tags,
+            'categories' => $this->categories,
+            'contributors' => $this->contributors,
+            'relayPool' => $this->relayPool,
+            'containedKinds' => $this->containedKinds,
+            'createdAt' => $this->createdAt->format(\DateTimeInterface::ATOM),
+            'updatedAt' => $this->updatedAt->format(\DateTimeInterface::ATOM),
+            'publishedAt' => $this->publishedAt?->format(\DateTimeInterface::ATOM),
+            'pubkey' => $this->pubkey,
+        ];
     }
 }

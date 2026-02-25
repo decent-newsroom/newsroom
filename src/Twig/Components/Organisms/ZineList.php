@@ -16,6 +16,9 @@ final class ZineList
     public array $nzines = [];
     public ?string $currentUserPubkey = null;
 
+    /** Optional: when set, only magazines owned by this hex pubkey are shown. */
+    public ?string $pubkey = null;
+
     public function __construct(
         private readonly MagazineRepository $magazineRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -23,8 +26,9 @@ final class ZineList
     ) {
     }
 
-    public function mount(): void
+    public function mount($pubkey = null): void
     {
+        $this->pubkey = $pubkey;
         // Resolve current user's hex pubkey for ownership checks
         $token = $this->tokenStorage->getToken();
         $npub = $token?->getUserIdentifier();
@@ -35,6 +39,12 @@ final class ZineList
             } catch (\Throwable $e) {
                 // ignore
             }
+        }
+
+        // If filtering by a specific pubkey, return only their magazines
+        if ($this->pubkey) {
+            $this->nzines = $this->magazineRepository->findByPubkey($this->pubkey);
+            return;
         }
 
         // Prefer Magazine entities; fall back to Event table

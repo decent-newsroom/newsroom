@@ -6,6 +6,7 @@ namespace App\MessageHandler;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use App\Entity\Magazine;
 use App\Enum\AuthorContentType;
 use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
@@ -89,6 +90,9 @@ class RevalidateProfileCacheHandler
 
     private function buildOverviewData(string $pubkey, bool $isOwner): array
     {
+        // Get author's magazines
+        $authorMagazines = $this->getAuthorMagazines($pubkey);
+
         // Get recent articles
         $allArticles = $this->buildArticlesData($pubkey, false);
         $recentArticles = array_slice($allArticles['articles'] ?? [], 0, 3);
@@ -102,6 +106,7 @@ class RevalidateProfileCacheHandler
         $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 3);
 
         return [
+            'authorMagazines' => $authorMagazines,
             'recentArticles' => $recentArticles,
             'recentMedia' => $recentMedia,
             'recentHighlights' => $recentHighlights,
@@ -260,6 +265,75 @@ class RevalidateProfileCacheHandler
         }
 
         return ['drafts' => array_values($slugMap)];
+    }
+
+    /**
+     * Get magazines published by the given pubkey.
+     * Tries the Magazine entity first; falls back to Event table if empty.
+     * Returns plain arrays for cache serialization.
+     */
+    private function getAuthorMagazines(string $pubkey): array
+    {
+        // Prefer projected Magazine entities (already JsonSerializable)
+        $magazines = $this->em->getRepository(Magazine::class)->findBy(['pubkey' => $pubkey], ['updatedAt' => 'DESC']);
+        if (!empty($magazines)) {
+            return $magazines;
+        }
+
+        // Fallback: query Event table
+        $allIndices = $this->em->getRepository(Event::class)->findBy([
+            'kind' => KindsEnum::PUBLICATION_INDEX,
+            'pubkey' => $pubkey,
+        ]);
+
+        $filtered = array_filter($allIndices, function (Event $event) {
+            $tags = $event->getTags();
+            $isMagType = false;
+            $isTopLevel = false;
+            foreach ($tags as $tag) {
+                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
+                    $isMagType = true;
+                }
+                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
+                    $parts = explode(':', $tag[1] ?? '');
+                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
+                        $isTopLevel = true;
+                    }
+                }
+            }
+            return $isMagType && $isTopLevel;
+        });
+
+        // Deduplicate by slug, keeping the newest
+        $bySlug = [];
+        foreach ($filtered as $mag) {
+            $slug = $mag->getSlug();
+            if ($slug === null) {
+                continue;
+            }
+            if (!isset($bySlug[$slug]) || $mag->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
+                $bySlug[$slug] = $mag;
+            }
+        }
+
+        // Convert Event entities to plain arrays for cache serialization
+        return array_values(array_map(function (Event $event) {
+            $title = null;
+            $summary = null;
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
+                    $summary = $tag[1];
+                }
+            }
+            return [
+                'slug' => $event->getSlug(),
+                'title' => $title,
+                'summary' => $summary,
+            ];
+        }, $bySlug));
     }
 }
 

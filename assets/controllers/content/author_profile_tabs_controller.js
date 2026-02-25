@@ -16,7 +16,7 @@ export default class extends Controller {
     };
 
     // Map of content types to their Mercure topics
-    contentTypes = ['overview', 'articles', 'media', 'highlights', 'drafts', 'bookmarks'];
+    contentTypes = ['overview', 'articles', 'media', 'highlights', 'drafts'];
 
     connect() {
         console.log('[profile-tabs] Connected', {

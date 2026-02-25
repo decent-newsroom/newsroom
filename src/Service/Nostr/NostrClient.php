@@ -1741,6 +1741,30 @@ class NostrClient
     }
 
     /**
+     * Fetch bookmark events (kinds 10003, 30003, 30004, 30005, 30006) for a pubkey from relays.
+     * Returns the raw relay event objects (or empty array).
+     */
+    public function fetchBookmarks(string $pubkey): array
+    {
+        $request = $this->createNostrRequest(
+            kinds: [
+                KindsEnum::BOOKMARKS->value,
+                KindsEnum::BOOKMARK_SETS->value,
+                KindsEnum::CURATION_SET->value,
+                KindsEnum::CURATION_VIDEOS->value,
+                KindsEnum::CURATION_PICTURES->value,
+            ],
+            filters: ['authors' => [$pubkey]],
+            relaySet: $this->defaultRelaySet
+        );
+
+        return $this->processResponse($request->send(), function ($received) use ($pubkey) {
+            $this->logger->info('Getting bookmarks for pubkey', ['pubkey' => $pubkey]);
+            return $received;
+        });
+    }
+
+    /**
      * Fetch user's follow list (kind 3 event) from relays
      *
      * @param string $pubkey Hex-encoded pubkey

@@ -1,0 +1,55 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="Bookmarks" tagline="your saved content"/>
+
+    <div class="w-container">
+        {% if bookmarks|length > 0 %}
+            <div class="bookmarks-list d-flex">
+                {% for bookmark in bookmarks %}
+                    <div class="bookmark-item card">
+                        <div class="bookmark-header d-flex flex-row justify-content-between p-1 ln-section--newsstand">
+                            <span class="bookmark-kind-badge">{{ bookmark.listType }}</span>
+                            {% if bookmark.listType != 'Bookmarks' %}
+                                <h3>{{ bookmark.title ?? bookmark.identifier ?? 'Untitled List' }}</h3>
+                            {% endif %}
+                            <div class="bookmark-meta">
+                                <small>{{ bookmark.createdAt|date('M d, Y') }}</small>
+                            </div>
+                            {% if bookmark.description %}
+                                <p class="bookmark-description text-muted">{{ bookmark.description }}</p>
+                            {% endif %}
+                            {% if bookmark.image %}
+                                <img src="{{ bookmark.image }}" alt="{{ bookmark.title ?? 'List image' }}" class="bookmark-image" />
+                            {% endif %}
+                        </div>
+
+                        {% if bookmark.items|length > 0 %}
+                            <div class="bookmark-items-count p-1 ln-section--newsstand">
+                                <small>{{ bookmark.items|length }} item{{ bookmark.items|length > 1 ? 's' : '' }}</small>
+                            </div>
+
+                            <div class="bookmark-items-list">
+                                {% for item in bookmark.items %}
+                                    <twig:Organisms:BookmarkItemResolver
+                                        :type="item.type"
+                                        :value="item.value"
+                                        :relay="item.relay"
+                                    />
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-list text-muted">No items in this list</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-content mt-5">
+                <p>No bookmarks found.</p>
+                <small class="text-muted">Bookmark articles from your Nostr client and they will appear here.</small>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+

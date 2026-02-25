@@ -7,35 +7,38 @@
                 <header>
                     <button class="close" data-action="click->ui--sidebar-toggle#close" aria-label="Close left sidebar">✕</button>
                 </header>
-                <ul class="user-nav">
-                    <li>
-                        <a href="{{ path('newsstand') }}">Newsstand</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('discover') }}">Explore</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('forum') }}">Topics</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('media-discovery') }}">Multimedia</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('highlights') }}">Highlights</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('editor-create') }}">Write</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('reading_list_index') }}">Compose List</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('mag_wizard_setup') }}">Create Magazine</a>
-                    </li>
-                    <li>
-                        <a href="{{ path('home') }}">Overview</a>
-                    </li>
-                </ul>
+                <div class="nav-section">
+                    <div class="nav-section__label">Discover</div>
+                    <ul class="user-nav">
+                        <li><a href="{{ path('discover') }}">Articles</a></li>
+                        <li><a href="{{ path('forum') }}">Topics</a></li>
+                        <li><a href="{{ path('media-discovery') }}">Multimedia</a></li>
+                        <li><a href="{{ path('highlights') }}">Highlights</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section__label">Newsroom</div>
+                    <ul class="user-nav">
+                        <li><a href="{{ path('newsstand') }}">Newsstand</a></li>
+                        <li><a href="{{ path('lists') }}">Collections</a></li>
+                        {% if app.user %}
+                            <li><a href="{{ path('my_bookmarks') }}">Bookmarks</a></li>
+                            <li><a href="{{ path('my_magazines') }}">My Magazines</a></li>
+                            <li><a href="{{ path('reading_list_index') }}">My Reading Lists</a></li>
+                            <li><a href="{{ path('my_interests') }}">My Interests</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section__label">Create</div>
+                    <ul class="user-nav">
+                        <li><a href="{{ path('mag_wizard_setup') }}">Magazine</a></li>
+                        <li><a href="{{ path('reading_list_index') }}">Reading List</a></li>
+                        <li><a href="{{ path('editor-create') }}">Article</a></li>
+                    </ul>
+                </div>
                 <twig:UserMenu />
 
                 <div class="container mt-2 mb-2 text-end hidden">

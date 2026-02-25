@@ -5,18 +5,21 @@
             <div class="overview-section">
                 <div class="w-container">
                     {% for mag in authorMagazines %}
+                        {% set magSlug = mag.slug|default(null) %}
+                        {% if magSlug %}
                         <div class="card p-3 ln-section--reader">
                             <div class="card-body text-center">
                                 <h2 class="card-title">
-                                    <a href="{{ path('magazine-index', {mag: mag.slug}) }}" data-turbo-frame="_top">
-                                        {{ mag.title ?? mag.slug ?? 'Untitled Magazine' }}
+                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
+                                        {{ mag.title|default(magSlug) }}
                                     </a>
                                 </h2>
-                                {% if mag.summary %}
+                                {% if mag.summary|default(null) %}
                                     <p class="lede">{{ mag.summary }}</p>
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>

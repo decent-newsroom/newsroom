@@ -1,0 +1,37 @@
+<div {{ attributes }}>
+    {% if type == 'a' %}
+        <twig:Organisms:ArticleFromCoordinate :coordinate="value" />
+    {% elseif type == 'e' %}
+        {% if event %}
+            {% include 'partial/_bookmark_event_card.html.twig' with {event: event} %}
+        {% elseif error %}
+            <div class="bookmark-item-entry text-muted">
+                <span class="tag">e</span> - {{ error }}
+            </div>
+        {% else %}
+            <div class="bookmark-item-entry">
+                <span class="tag">e</span>
+                <span class="text-muted">{{ value|slice(0, 16) }}...</span>
+                <button
+                    class="btn btn-sm btn-outline-primary ms-2"
+                    data-action="live#action"
+                    data-live-action-param="fetchEvent"
+                >
+                    Fetch
+                </button>
+            </div>
+        {% endif %}
+    {% elseif type == 'p' %}
+        <div class="bookmark-item-entry">
+            <twig:Molecules:UserFromNpub ident="{{ value|toNpub }}" />
+        </div>
+    {% elseif type == 't' %}
+        <div class="bookmark-item-entry">
+            <a class="tag" href="{{ path('forum_tag', {tag: value}) }}">{{ value }}</a>
+        </div>
+    {% else %}
+        <div class="bookmark-item-entry text-muted">
+            <span class="tag">{{ type }}</span> - {{ value }}
+        </div>
+    {% endif %}
+</div>

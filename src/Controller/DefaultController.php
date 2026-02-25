@@ -50,6 +50,30 @@ class DefaultController extends AbstractController
     }
 
     /**
+     * My Magazines – newsstand filtered for the current user
+     */
+    #[Route('/my-magazines', name: 'my_magazines')]
+    public function myMagazines(): Response
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('newsstand');
+        }
+
+        $npub = $user->getUserIdentifier();
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+        } catch (\Throwable $e) {
+            return $this->redirectToRoute('newsstand');
+        }
+
+        return $this->render('pages/my-magazines.html.twig', [
+            'pubkey' => $pubkey,
+        ]);
+    }
+
+    /**
      * Global magazines manifest - lists all available magazines
      */
     #[Route('/magazines/manifest.json', name: 'magazines-manifest')]

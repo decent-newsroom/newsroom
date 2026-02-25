@@ -21,12 +21,18 @@
                         type="button"
                         data-action="click->utility--share-dropdown#copy"
                         data-copy="{{ url('magazine-index', {mag: mag}) }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
+                    </svg>
                     Newsroom Link
                 </button>
                 <button class="dropdown-item"
                         type="button"
                         data-action="click->utility--share-dropdown#copy"
                         data-copy="{{ magazine|naddrEncode }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
+                    </svg>
                     Naddr
                 </button>
                 {% if isOwner|default(false) %}
