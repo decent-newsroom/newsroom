@@ -3,6 +3,9 @@
 ## v0.0.11
 Mostly quality of life improvements.
 
+- Removed reading lists from the editor sidebar to reduce clutter; sidebar now shows only drafts and articles.
+- Added "My Content" page (`/my-content`) — a unified file-manager view for managing articles, drafts, and reading lists.
+- Added "My Content" link to the left navigation under the Newsroom section.
 - Split sidebar navigation into segmented sections (Discover, Newsroom, Create) with divider labels.
 - Upgraded magazine wizard to a 4-step flow: Setup → Categories → Articles → Review & Sign.
 - Added live cover preview panel to the magazine setup step.

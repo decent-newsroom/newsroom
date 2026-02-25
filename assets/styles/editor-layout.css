@@ -455,6 +455,23 @@ main.editor-layout {
     padding: 1.5rem 0;
 }
 
+.articlelist-manage-link {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface-dark, #f3f4f6);
+}
+
+.articlelist-manage-link a {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--primary, #2563eb);
+    text-decoration: none;
+}
+
+.articlelist-manage-link a:hover {
+    text-decoration: underline;
+}
+
 /* Filesystem-style reading list folders */
 .readinglist-fs {
     margin: 0;

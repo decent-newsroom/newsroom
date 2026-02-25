@@ -1,0 +1,444 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Filesystem Browser – My Content
+   Modelled after macOS Finder list-view / VS Code explorer
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Container ─────────────────────────────────────────────────────── */
+.fs {
+    max-width: 960px;
+    width: 100%;
+    margin: 2rem auto;
+    border: 1px solid var(--color-border, #3a3a3a);
+    overflow: hidden;
+    background: var(--color-bg, #1a1a1a);
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Menlo', 'Consolas', monospace;
+    font-size: 0.82rem;
+    color: var(--color-text, #f5f5f5);
+}
+
+/* ── Toolbar / breadcrumb bar ──────────────────────────────────────── */
+.fs-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-bg-light, #2a2a2a);
+    border-bottom: 1px solid var(--color-border, #3a3a3a);
+    gap: 0.75rem;
+}
+
+.fs-toolbar__path {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    color: var(--color-text-mid, #d8d8d8);
+    font-size: 0.8rem;
+    min-width: 0;
+}
+
+.fs-toolbar__segment {
+    padding: 0.15rem 0.35rem;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.fs-toolbar__segment--root {
+    color: var(--color-accent, #8FCB7E);
+}
+
+.fs-toolbar__sep {
+    color: var(--color-border, #3a3a3a);
+    padding: 0 0.1rem;
+}
+
+.fs-toolbar__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.fs-toolbar__btn {
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: inherit;
+    text-decoration: none;
+    color: var(--color-text, #f5f5f5);
+    background: transparent;
+    border: 1px solid var(--color-border, #3a3a3a);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+
+.fs-toolbar__btn:hover {
+    background: var(--color-bg-primary, #2e1f2e);
+    border-color: var(--color-accent, #8FCB7E);
+    color: var(--color-accent, #8FCB7E);
+}
+
+/* ── Row grid (shared across header, folders, files) ───────────────── */
+.fs-row {
+    display: grid;
+    grid-template-columns: 1fr 140px 90px 140px;
+    align-items: center;
+    padding: 0 0.75rem;
+    min-height: 30px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border, #3a3a3a) 50%, transparent);
+    gap: 0.25rem;
+}
+
+.fs-col {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fs-col--name {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.fs-col--date,
+.fs-col--size,
+.fs-col--kind {
+    color: var(--color-text-mid, #d8d8d8);
+    font-size: 0.78rem;
+}
+
+/* ── Column header row ─────────────────────────────────────────────── */
+.fs-row--head {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-mid, #d8d8d8);
+    background: var(--color-bg-light, #2a2a2a);
+    border-bottom: 1px solid var(--color-border, #3a3a3a);
+    min-height: 28px;
+    user-select: none;
+}
+
+.fs-row--head .fs-col {
+    opacity: 0.7;
+}
+
+/* ── Folder rows ───────────────────────────────────────────────────── */
+.fs-folder {
+    margin: 0;
+}
+
+.fs-folder > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fs-folder > summary::-webkit-details-marker {
+    display: none;
+}
+
+.fs-row--folder {
+    background: var(--color-bg-light, #2a2a2a);
+    font-weight: 600;
+}
+
+.fs-row--folder:hover {
+    background: color-mix(in srgb, var(--color-accent, #8FCB7E) 8%, var(--color-bg-light, #2a2a2a));
+}
+
+.fs-row--folder .fs-col--name {
+    color: var(--color-accent, #8FCB7E);
+}
+
+/* ── Chevron (▶ / ▼) ──────────────────────────────────────────────── */
+.fs-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid var(--color-text-mid, #d8d8d8);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+    margin-right: 0.15rem;
+}
+
+details[open] > summary .fs-chevron {
+    transform: rotate(90deg);
+}
+
+/* ── File children (indented) ──────────────────────────────────────── */
+.fs-folder__children {
+    /* No extra indent on the grid itself; icons provide visual nesting */
+}
+
+/* ── File rows ─────────────────────────────────────────────────────── */
+.fs-row--file:hover {
+    background: color-mix(in srgb, var(--color-primary, #5F7355) 12%, var(--color-bg, #1a1a1a));
+}
+
+.fs-row--file:active {
+    background: color-mix(in srgb, var(--color-primary, #5F7355) 20%, var(--color-bg, #1a1a1a));
+}
+
+/* ── Empty row ─────────────────────────────────────────────────────── */
+.fs-row--empty {
+    min-height: 28px;
+    padding-left: 1.75rem;
+}
+
+.fs-empty-msg {
+    font-style: italic;
+    color: var(--color-text-mid, #d8d8d8);
+    opacity: 0.5;
+}
+
+/* ── Sub-folders (reading lists as expandable directories) ─────────── */
+.fs-subfolder {
+    margin: 0;
+}
+
+.fs-subfolder > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fs-subfolder > summary::-webkit-details-marker {
+    display: none;
+}
+
+.fs-row--subfolder {
+    padding-left: 1.75rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--color-bg-light, #2a2a2a) 70%, var(--color-bg, #1a1a1a));
+}
+
+.fs-row--subfolder:hover {
+    background: color-mix(in srgb, var(--color-accent, #8FCB7E) 6%, var(--color-bg-light, #2a2a2a));
+}
+
+.fs-row--subfolder .fs-col--name {
+    color: var(--color-accent-400, #A5D692);
+}
+
+.fs-subfolder__children {
+    position: relative;
+}
+
+/* Tree-line on the left edge of nested children */
+.fs-subfolder__children::before {
+    content: '';
+    position: absolute;
+    left: 2.35rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: color-mix(in srgb, var(--color-border, #3a3a3a) 60%, transparent);
+    pointer-events: none;
+}
+
+.fs-row--nested-file:hover {
+    background: color-mix(in srgb, var(--color-primary, #5F7355) 12%, var(--color-bg, #1a1a1a));
+}
+
+.fs-row--nested-file:active {
+    background: color-mix(in srgb, var(--color-primary, #5F7355) 20%, var(--color-bg, #1a1a1a));
+}
+
+.fs-row--nested-empty {
+    min-height: 28px;
+    padding-left: 3rem;
+}
+
+/* ── File links ────────────────────────────────────────────────────── */
+.fs-link {
+    color: var(--color-text, #f5f5f5);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+a.fs-link:hover {
+    text-decoration: underline;
+    color: var(--color-accent, #8FCB7E);
+}
+
+/* ── Inline action buttons (↗ ✎ ⧉) ────────────────────────────────── */
+.fs-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.4em;
+    font-size: 0.85rem;
+    color: var(--color-text-mid, #d8d8d8);
+    background: none;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 0;
+    margin-left: 0.2rem;
+    transition: background 0.12s, color 0.12s;
+    vertical-align: middle;
+    font-family: inherit;
+}
+
+.fs-action:hover {
+    background: var(--color-bg-primary, #2e1f2e);
+    color: var(--color-accent, #8FCB7E);
+}
+
+/* ── Icons (pure CSS) ──────────────────────────────────────────────── */
+.fs-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    flex-shrink: 0;
+    font-size: 1em;
+    line-height: 1;
+}
+
+/* Folder – yellow */
+.fs-icon--folder::before {
+    content: '📁';
+    font-size: 1.05em;
+}
+
+details[open] > summary .fs-icon--folder::before {
+    content: '📂';
+}
+
+/* Draft – orange pencil square */
+.fs-icon--draft::before {
+    content: '📝';
+    font-size: 0.95em;
+}
+
+/* Article – green file */
+.fs-icon--article::before {
+    content: '📄';
+    font-size: 0.95em;
+}
+
+/* Reading list – bookmark stack */
+.fs-icon--readinglist::before {
+    content: '📑';
+    font-size: 0.95em;
+}
+
+/* Curation set – card index */
+.fs-icon--curation::before {
+    content: '🗂️';
+    font-size: 0.95em;
+}
+
+/* Video */
+.fs-icon--video::before {
+    content: '🎬';
+    font-size: 0.95em;
+}
+
+/* Image */
+.fs-icon--image::before {
+    content: '🖼️';
+    font-size: 0.95em;
+}
+
+/* Empty placeholder */
+.fs-icon--empty::before {
+    content: '∅';
+    font-size: 0.85em;
+    opacity: 0.4;
+}
+
+/* Missing / unresolved file */
+.fs-icon--missing::before {
+    content: '❓';
+    font-size: 0.85em;
+    opacity: 0.6;
+}
+
+/* Dimmed link for unresolved articles */
+.fs-link--dim {
+    opacity: 0.5;
+    font-style: italic;
+}
+
+/* ── Badges ────────────────────────────────────────────────────────── */
+.fs-badge {
+    display: inline-block;
+    padding: 0.05em 0.4em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 3px;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+    line-height: 1.4;
+}
+
+.fs-badge--warn {
+    background: #78570033;
+    color: #e8bb8d;
+    border: 1px solid #78570055;
+}
+
+/* ── Status bar ────────────────────────────────────────────────────── */
+.fs-statusbar {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.72rem;
+    color: var(--color-text-mid, #d8d8d8);
+    opacity: 0.7;
+    background: var(--color-bg-light, #2a2a2a);
+    border-top: 1px solid var(--color-border, #3a3a3a);
+}
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+    .fs {
+        margin: 1rem 0.5rem;
+        font-size: 0.78rem;
+    }
+
+    .fs-row {
+        grid-template-columns: 1fr 100px;
+        min-height: 34px;
+    }
+
+    /* Hide date & size columns on small screens */
+    .fs-col--date,
+    .fs-col--size {
+        display: none;
+    }
+
+    .fs-col--kind {
+        text-align: right;
+    }
+
+    .fs-toolbar__path {
+        font-size: 0.75rem;
+    }
+
+    .fs-row--subfolder {
+        padding-left: 1.25rem;
+    }
+
+    .fs-row--nested-file,
+    .fs-row--nested-empty {
+        padding-left: 2rem;
+    }
+
+    .fs-subfolder__children::before {
+        left: 1.6rem;
+    }
+}
+

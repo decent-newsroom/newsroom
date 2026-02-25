@@ -18,40 +18,9 @@
         >
             <div class="articlelist-content" data-articlelist-target="list">
                 {% if is_granted('ROLE_USER') %}
-                        {% if readingLists is defined and readingLists|length > 0 %}
-                            {% for list in readingLists %}
-                                <details class="mb-2">
-                                        <summary>
-                                            {{ list.title|default('Untitled List') }}
-                                            {% if list.summary is defined and list.summary %}
-                                                <span class="readinglist-summary">&mdash; {{ list.summary }}</span>
-                                            {% endif %}
-                                        </summary>
-                                        <ul class="list-unstyled">
-                                            {% if list.articles|length > 0 %}
-                                                {% for articleObj in list.articles %}
-                                                    {% set article = articleObj.article %}
-                                                    <li class="readinglist-article">
-                                                        <span class="article-icon" title="{{ article.kind == 30024 ? 'Draft' : 'Published' }}">
-                                                            {% if article.kind == 30024 %}
-                                                                <span style="color: orange; font-weight: bold;"></span><span class="article-kind">D</span>
-                                                            {% else %}
-                                                                <span style="color: #22c55e; font-weight: bold;"></span><span class="article-kind">A</span>
-                                                            {% endif %}
-                                                        </span>
-                                                        <a href="{{ path('editor-preview-npub-slug', {npub: article.pubkey|toNpub , slug: article.slug}) }}">
-                                                            {{ article.title|default(article.slug) }}
-                                                        </a>
-                                                        <span>by {{ articleObj.author.name }}</span>
-                                                    </li>
-                                                {% endfor %}
-                                            {% else %}
-                                                <li class="readinglist-empty">No articles in this list.</li>
-                                            {% endif %}
-                                        </ul>
-                                    </details>
-                            {% endfor %}
-                        {% endif %}
+                        <div class="articlelist-manage-link">
+                            <a href="{{ path('my_content') }}">Manage all content →</a>
+                        </div>
                         <ul class="list-unstyled">
                             {% for recent in recentArticles %}
                                 <li class="mb-2">

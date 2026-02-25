@@ -23,6 +23,7 @@
                         <li><a href="{{ path('newsstand') }}">Newsstand</a></li>
                         <li><a href="{{ path('lists') }}">Collections</a></li>
                         {% if app.user %}
+                            <li class="hidden"><a href="{{ path('my_content') }}">My Content</a></li>
                             <li><a href="{{ path('my_bookmarks') }}">Bookmarks</a></li>
                             <li><a href="{{ path('my_magazines') }}">My Magazines</a></li>
                             <li><a href="{{ path('reading_list_index') }}">My Reading Lists</a></li>

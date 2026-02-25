@@ -43,7 +43,6 @@ class EditorController extends AbstractController
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
-        RedisViewStore $redisViewStore,
         AuthorRelayService $authorRelayService,
         MessageBusInterface $messageBus,
         $slug = null
@@ -137,12 +136,6 @@ class EditorController extends AbstractController
             }
         }
 
-        $readingLists = [];
-        if ($user) {
-            $currentPubkey = $key->convertToHex($user->getUserIdentifier());
-            $readingLists = $redisViewStore->buildAndCacheUserReadingLists($entityManager, $currentPubkey);
-        }
-
         $form = $this->createForm(EditorType::class, $article, ['action' => $formAction]);
         // Populate advanced metadata form data
         if ($advancedMetadata) {
@@ -157,7 +150,6 @@ class EditorController extends AbstractController
             'form' => $form->createView(),
             'recentArticles' => $recentArticles,
             'drafts' => $drafts,
-            'readingLists' => $readingLists,
         ]);
     }
 
@@ -167,7 +159,6 @@ class EditorController extends AbstractController
         $slug,
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
-        RedisViewStore $redisViewStore,
         Request $request,
         NostrClient $nostrClient,
         AuthorRelayService $authorRelayService,
@@ -197,10 +188,9 @@ class EditorController extends AbstractController
         }
         $form->handleRequest($request);
 
-        // Load current user's recent articles, drafts, and reading lists for sidebar
+        // Load current user's recent articles, drafts for sidebar
         $recentArticles = [];
         $drafts = [];
-        $readingLists = [];
         $user = $this->getUser();
         if ($user) {
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
@@ -243,7 +233,6 @@ class EditorController extends AbstractController
                 return $carry;
             });
             $drafts = array_values($drafts ?? []);
-            $readingLists = $redisViewStore->buildAndCacheUserReadingLists($entityManager, $currentPubkey);
         }
 
         return $this->render('editor/layout.html.twig', [
@@ -251,7 +240,6 @@ class EditorController extends AbstractController
             'form' => $form->createView(),
             'recentArticles' => $recentArticles,
             'drafts' => $drafts,
-            'readingLists' => $readingLists,
         ]);
     }
 

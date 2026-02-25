@@ -53,7 +53,6 @@
         ></div>
         {# Insert the article list sidebar as the first grid column #}
         {% include 'editor/panels/_articlelist.html.twig' with {
-            readingLists: readingLists is defined ? readingLists : [],
             recentArticles: recentArticles is defined ? recentArticles : [],
             drafts: drafts is defined ? drafts : []
         } %}
