@@ -61,10 +61,14 @@ class MyContentController extends AbstractController
         // ── Reading lists & curation sets ─────────────────────────────────
         $readingLists = $this->fetchReadingLists($em, $pubkeyHex);
 
+        // ── Bookmarks ─────────────────────────────────────────────────────
+        $bookmarks = $this->fetchBookmarks($em, $pubkeyHex);
+
         return $this->render('my_content/index.html.twig', [
             'articles' => $articles,
             'drafts' => $drafts,
             'readingLists' => $readingLists,
+            'bookmarks' => $bookmarks,
         ]);
     }
 
@@ -167,6 +171,130 @@ class MyContentController extends AbstractController
         }
 
         return $lists;
+    }
+
+    /**
+     * Fetch bookmarks and bookmark sets for the given pubkey.
+     * Kinds: 10003 (Bookmarks), 30003 (Bookmark Sets).
+     *
+     * @return array<array{title: string, kind: int, type: string, createdAt: mixed, itemCount: int, items: array}>
+     */
+    private function fetchBookmarks(EntityManagerInterface $em, string $pubkeyHex): array
+    {
+        $repo = $em->getRepository(Event::class);
+
+        $events = $repo->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind IN (:kinds)')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kinds', [
+                KindsEnum::BOOKMARKS->value,      // 10003
+                KindsEnum::BOOKMARK_SETS->value,   // 30003
+            ])
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+
+        $bookmarks = [];
+        $seenIdentifiers = [];
+
+        foreach ($events as $ev) {
+            if (!$ev instanceof Event) {
+                continue;
+            }
+
+            $tags = $ev->getTags();
+            $kind = $ev->getKind();
+            $title = null;
+            $identifier = null;
+            $summary = null;
+            $items = [];
+
+            $typeLabel = match ($kind) {
+                KindsEnum::BOOKMARKS->value => 'Bookmarks',
+                KindsEnum::BOOKMARK_SETS->value => 'Bookmark Set',
+                default => 'Bookmarks',
+            };
+
+            foreach ($tags as $t) {
+                if (!is_array($t) || count($t) < 2) {
+                    continue;
+                }
+                switch ($t[0]) {
+                    case 'd':
+                        $identifier = (string)$t[1];
+                        break;
+                    case 'title':
+                        $title = (string)$t[1];
+                        break;
+                    case 'summary':
+                        $summary = (string)$t[1];
+                        break;
+                    case 'e':
+                        $items[] = ['type' => 'e', 'value' => $t[1], 'label' => substr($t[1], 0, 12) . '…', 'relay' => $t[2] ?? null];
+                        break;
+                    case 'a':
+                        $items[] = ['type' => 'a', 'value' => $t[1], 'label' => $t[1], 'relay' => $t[2] ?? null];
+                        break;
+                    case 'p':
+                        $items[] = ['type' => 'p', 'value' => $t[1], 'label' => substr($t[1], 0, 12) . '…'];
+                        break;
+                    case 't':
+                        $items[] = ['type' => 't', 'value' => $t[1], 'label' => '#' . $t[1]];
+                        break;
+                }
+            }
+
+            // Collapse 30003 by identifier (d-tag); 10003 is a singleton
+            $dedupeKey = $kind === KindsEnum::BOOKMARK_SETS->value
+                ? ($identifier ?: '__no_id__:' . $ev->getId())
+                : '__bookmarks_' . $kind;
+
+            if (isset($seenIdentifiers[$dedupeKey])) {
+                continue;
+            }
+            $seenIdentifiers[$dedupeKey] = true;
+
+            // Resolve 'a' tag coordinates to article titles
+            $aCoordinates = array_filter($items, fn($i) => $i['type'] === 'a');
+            $resolvedArticles = $this->resolveCoordinates(
+                $em,
+                array_map(fn($i) => $i['value'], $aCoordinates)
+            );
+            $resolvedByCoord = [];
+            foreach ($resolvedArticles as $r) {
+                $resolvedByCoord[$r['coordinate']] = $r;
+            }
+
+            // Enrich items with resolved titles
+            foreach ($items as &$item) {
+                if ($item['type'] === 'a' && isset($resolvedByCoord[$item['value']])) {
+                    $resolved = $resolvedByCoord[$item['value']];
+                    $item['label'] = $resolved['title'];
+                    $item['found'] = $resolved['found'];
+                    $item['slug'] = $resolved['slug'];
+                    $item['pubkey'] = $resolved['pubkey'];
+                } else {
+                    $item['found'] = $item['type'] !== 'a'; // non-'a' items are always "found"
+                }
+            }
+            unset($item);
+
+            $bookmarks[] = [
+                'id' => $ev->getId(),
+                'title' => $title ?: ($identifier ?: ($kind === KindsEnum::BOOKMARKS->value ? 'Bookmarks' : '(untitled)')),
+                'summary' => $summary,
+                'identifier' => $identifier,
+                'kind' => $kind,
+                'type' => $typeLabel,
+                'createdAt' => $ev->getCreatedAt(),
+                'itemCount' => count($items),
+                'items' => $items,
+            ];
+        }
+
+        return $bookmarks;
     }
 
     /**

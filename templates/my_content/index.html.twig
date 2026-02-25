@@ -31,7 +31,7 @@
             </span>
             <span class="fs-col fs-col--date">—</span>
             <span class="fs-col fs-col--size">{{ readingLists|length }} item{{ readingLists|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">Folder</span>
+            <span class="fs-col fs-col--kind">-</span>
         </summary>
         <div class="fs-folder__children">
             {% for item in readingLists %}
@@ -84,9 +84,15 @@
                         {% for article in item.articles %}
                             <div class="fs-row fs-row--nested-file">
                                 <span class="fs-col fs-col--name">
+                                    {% if article.found %}
                                     <a href="{{ path('editor-edit-slug', {slug: article.slug}) }}" class="fs-link{% if not article.found %} fs-link--dim{% endif %}" title="{{ article.coordinate }}">
                                         {{ article.title }}
                                     </a>
+                                    {% else %}
+                                    <span class="fs-link fs-link--dim" title="{{ article.coordinate }}">
+                                        {{ article.title }}
+                                    </span>
+                                    {% endif %}
                                 </span>
                                 <span class="fs-col fs-col--date">{{ article.createdAt ? article.createdAt|date('Y-m-d H:i') : '—' }}</span>
                                 <span class="fs-col fs-col--size">—</span>
@@ -120,6 +126,100 @@
         </div>
     </details>
 
+    {# ── /bookmarks ───────────────────────────────────────────────────── #}
+    <details class="fs-folder">
+        <summary class="fs-row fs-row--folder">
+            <span class="fs-col fs-col--name">
+                <span class="fs-chevron"></span>
+                <span class="fs-icon fs-icon--folder"></span>
+                bookmarks
+            </span>
+            <span class="fs-col fs-col--date">—</span>
+            <span class="fs-col fs-col--size">{{ bookmarks|length }} item{{ bookmarks|length != 1 ? 's' : '' }}</span>
+            <span class="fs-col fs-col--kind">-</span>
+        </summary>
+        <div class="fs-folder__children">
+            {% for bm in bookmarks %}
+                <details class="fs-subfolder">
+                    <summary class="fs-row fs-row--subfolder">
+                        <span class="fs-col fs-col--name">
+                            <span class="fs-chevron"></span>
+                            <span class="fs-icon fs-icon--bookmark"></span>
+                            <span class="fs-link" title="{{ bm.identifier ?: '' }}">
+                                {{ bm.title }}
+                            </span>
+                        </span>
+                        <span class="fs-col fs-col--date">{{ bm.createdAt|date('Y-m-d H:i') }}</span>
+                        <span class="fs-col fs-col--size">{{ bm.itemCount }} item{{ bm.itemCount != 1 ? 's' : '' }}</span>
+                        <span class="fs-col fs-col--kind">{{ bm.type }}</span>
+                    </summary>
+                    <div class="fs-subfolder__children">
+                        {% for item in bm.items %}
+                            <div class="fs-row fs-row--nested-file">
+                                <span class="fs-col fs-col--name">
+                                    {% if item.type == 'a' %}
+                                        {% if item.found is defined and item.found %}
+                                            <span class="fs-icon fs-icon--article"></span>
+                                            <a href="{{ path('editor-edit-slug', {slug: item.slug}) }}" class="fs-link" title="{{ item.value }}">
+                                                {{ item.label }}
+                                            </a>
+                                        {% else %}
+                                            <span class="fs-icon fs-icon--missing"></span>
+                                            <span class="fs-link fs-link--dim" title="{{ item.value }}">{{ item.label }}</span>
+                                        {% endif %}
+                                    {% elseif item.type == 'e' %}
+                                        <span class="fs-icon fs-icon--event"></span>
+                                        <a href="{{ path('nevent', {nevent: item.value|nEncode}) }}" class="fs-link" title="{{ item.value }}">{{ item.label }}</a>
+                                    {% elseif item.type == 'p' %}
+                                        <span class="fs-icon fs-icon--profile"></span>
+                                        <a href="{{ path('author-redirect', {pubkey: item.value}) }}" class="fs-link" title="{{ item.value }}">{{ item.value|toNpub|shortenNpub }}</a>
+                                    {% elseif item.type == 't' %}
+                                        <span class="fs-icon fs-icon--tag"></span>
+                                        <span class="fs-link">{{ item.label }}</span>
+                                    {% endif %}
+                                </span>
+                                <span class="fs-col fs-col--date">—</span>
+                                <span class="fs-col fs-col--size">—</span>
+                                <span class="fs-col fs-col--kind">
+                                    {% if item.type == 'a' %}
+                                        {% if item.found is defined and item.found %}
+                                            Article
+                                            <a href="{{ path('author-article-slug', {npub: item.pubkey|toNpub, slug: item.slug}) }}" class="fs-action" title="View">↗</a>
+                                        {% else %}
+                                            <span class="fs-badge fs-badge--warn">not indexed</span>
+                                        {% endif %}
+                                    {% elseif item.type == 'e' %}
+                                        Event
+                                        <a href="{{ path('nevent', {nevent: item.value|nEncode}) }}" class="fs-action" title="View event">↗</a>
+                                    {% elseif item.type == 'p' %}
+                                        Profile
+                                        <a href="{{ path('author-redirect', {pubkey: item.value}) }}" class="fs-action" title="View profile">↗</a>
+                                    {% elseif item.type == 't' %}
+                                        Tag
+                                    {% endif %}
+                                </span>
+                            </div>
+                        {% else %}
+                            <div class="fs-row fs-row--nested-empty">
+                                <span class="fs-col fs-col--name fs-empty-msg">
+                                    <span class="fs-icon fs-icon--empty"></span>
+                                    (no items)
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </details>
+            {% else %}
+                <div class="fs-row fs-row--empty">
+                    <span class="fs-col fs-col--name fs-empty-msg">
+                        <span class="fs-icon fs-icon--empty"></span>
+                        (no bookmarks)
+                    </span>
+                </div>
+            {% endfor %}
+        </div>
+    </details>
+
     {# ── /articles ────────────────────────────────────────────────────── #}
     <details class="fs-folder" open>
         <summary class="fs-row fs-row--folder">
@@ -130,7 +230,7 @@
             </span>
             <span class="fs-col fs-col--date">—</span>
             <span class="fs-col fs-col--size">{{ articles|length }} item{{ articles|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">Folder</span>
+            <span class="fs-col fs-col--kind">-</span>
         </summary>
         <div class="fs-folder__children">
             {% for article in articles %}
@@ -170,7 +270,7 @@
             </span>
             <span class="fs-col fs-col--date">—</span>
             <span class="fs-col fs-col--size">{{ drafts|length }} item{{ drafts|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">Folder</span>
+            <span class="fs-col fs-col--kind">-</span>
         </summary>
         <div class="fs-folder__children">
             {% for draft in drafts %}
@@ -199,7 +299,8 @@
     <div class="fs-statusbar">
         {{ drafts|length }} draft{{ drafts|length != 1 ? 's' : '' }},
         {{ articles|length }} article{{ articles|length != 1 ? 's' : '' }},
-        {{ readingLists|length }} list{{ readingLists|length != 1 ? 's' : '' }}
+        {{ readingLists|length }} list{{ readingLists|length != 1 ? 's' : '' }},
+        {{ bookmarks|length }} bookmark{{ bookmarks|length != 1 ? 's' : '' }}
     </div>
 </div>
 {% endblock %}
