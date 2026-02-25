@@ -224,6 +224,10 @@ class ReadingListController extends AbstractController
         $loadSlug = $request->query->get('load');
         if ($loadSlug) {
             $draft = $readingListManager->loadPublishedListIntoDraft($loadSlug);
+            if (!$draft) {
+                $this->addFlash('error', 'Reading list not found.');
+                return $this->redirectToRoute('read_wizard_setup');
+            }
             $this->saveDraft($request, $draft);
         } elseif (!$draft) {
             return $this->redirectToRoute('read_wizard_setup');

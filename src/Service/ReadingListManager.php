@@ -203,8 +203,8 @@ class ReadingListManager
         foreach ($events as $ev) {
             if (!$ev instanceof Event) continue;
             $tags = $ev->getTags();
-            $isReadingList = false;
             $eventSlug = null;
+            $hasMagazineReferences = false;
 
             // First pass: check if this is the right event
             foreach ($tags as $t) {
@@ -212,13 +212,19 @@ class ReadingListManager
                     if (($t[0] ?? null) === 'd') {
                         $eventSlug = (string)$t[1];
                     }
-                    if (($t[0] ?? null) === 'type' && in_array($t[1] ?? null, ['reading-list', 'category'])) {
-                        $isReadingList = true;
+                    // Check if this references other 30040 events (magazine index)
+                    if (($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
+                        $hasMagazineReferences = true;
                     }
                 }
             }
 
-            if ($isReadingList && $eventSlug === $slug) {
+            // Skip magazine indexes (events that reference other 30040 events)
+            if ($hasMagazineReferences) {
+                continue;
+            }
+
+            if ($eventSlug === $slug) {
                 // Found it! Parse into CategoryDraft
                 $draft = new CategoryDraft();
                 $draft->slug = $slug;
