@@ -36,6 +36,9 @@ RUN chmod 0644 /etc/cron.d/app-cron && \
 # Apply cron job
 RUN crontab /etc/cron.d/app-cron
 
+# Raise PHP memory limit for CLI cron jobs (default 128M is too low for Symfony console commands)
+RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/memory-limit.ini
+
 # Ensure PHP is in PATH for cron jobs
 ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
@@ -43,6 +46,13 @@ ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 RUN echo '#!/bin/bash\n\
 printenv | grep -E "^(APP_|DATABASE_|REDIS_|NOSTR_|MESSENGER_|ELASTICSEARCH_)" >> /etc/environment\n\
 echo "PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin" >> /etc/environment\n\
+# Pre-create log files so tail -f can follow them from the start\n\
+touch /var/log/cron-post-process.log /var/log/cron-backfill.log /var/log/cron-cache-articles.log \\\n\
+      /var/log/cron-fetch-highlights.log /var/log/cron-cache-highlights.log \\\n\
+      /var/log/cron-media-discovery.log /var/log/cron-magazine-projection.log \\\n\
+      /var/log/cron-unfold-cache.log\n\
+# Tail all log files to stdout so "docker compose logs cron" works\n\
+tail -F /var/log/cron-*.log &\n\
 cron -f' > /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Run cron in the foreground via entrypoint
