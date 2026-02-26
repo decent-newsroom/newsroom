@@ -38,6 +38,8 @@ import './styles/03-components/video-event.css';
 import './styles/03-components/search.css';
 import './styles/03-components/image-upload.css';
 import './styles/03-components/zaps.css';
+import './styles/03-components/back-to-top.css';
+import './styles/03-components/article-nav.css';
 
 // Toast notifications
 import './styles/toast.css';

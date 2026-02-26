@@ -12,6 +12,7 @@ use App\Service\Cache\RedisViewStore;
 use App\Service\MutedPubkeysService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\ReadingListNavigationService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\CommonMark\Converter;
@@ -1113,7 +1114,8 @@ class DefaultController extends AbstractController
                                EntityManagerInterface $entityManager,
                                Converter $converter,
                                LoggerInterface $logger,
-                               NostrEventParser $eventParser): Response
+                               NostrEventParser $eventParser,
+                               ReadingListNavigationService $readingListNavigation): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
@@ -1166,6 +1168,13 @@ class DefaultController extends AbstractController
             'slug' => $article->getSlug()
         ], 0);
 
+        // Find prev/next articles from reading lists
+        $listNav = null;
+        try {
+            $navCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            $listNav = $readingListNavigation->findNavigation($navCoordinate);
+        } catch (\Exception $e) {}
+
         return $this->render('pages/article.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
@@ -1175,7 +1184,8 @@ class DefaultController extends AbstractController
             'content' => $cacheItem->get(),
             'canEdit' => false,
             'canonical' => $canonical,
-            'advancedMetadata' => $advancedMetadata
+            'advancedMetadata' => $advancedMetadata,
+            'listNav' => $listNav,
         ]);
     }
 

@@ -1,0 +1,46 @@
+/**
+ * Article Prev/Next Navigation
+ * Navigation cards at the bottom of an article for browsing reading lists
+ */
+
+.article-prev-next {
+    margin-top: var(--spacing-5);
+    margin-bottom: var(--spacing-5);
+}
+
+.article-prev-next__heading {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-3);
+}
+
+.article-prev-next__grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.article-prev-next__item {
+    display: flex;
+    flex-direction: column;
+}
+
+.article-prev-next__label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-2);
+    font-weight: 600;
+}
+
+.article-prev-next__item .card {
+    flex: 1;
+}
+
+.article-prev-next__item .card .card-header img {
+    max-height: 140px;
+    object-fit: cover;
+}

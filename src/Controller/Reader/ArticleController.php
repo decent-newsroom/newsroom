@@ -8,6 +8,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -333,6 +334,7 @@ class ArticleController  extends AbstractController
         LoggerInterface $logger,
         HighlightService $highlightService,
         NostrEventParser $eventParser,
+        ReadingListNavigationService $readingListNavigation,
         $npub = null,
         $vanity = null
     ): Response
@@ -406,6 +408,14 @@ class ArticleController  extends AbstractController
             $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
             $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
         } catch (\Exception $e) {}
+
+        // Find prev/next articles from reading lists
+        $listNav = null;
+        try {
+            $navCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            $listNav = $readingListNavigation->findNavigation($navCoordinate);
+        } catch (\Exception $e) {}
+
         return $this->render('pages/article.html.twig', [
             'article' => $article,
             'author' => $author,
@@ -414,7 +424,8 @@ class ArticleController  extends AbstractController
             'canEdit' => $canEdit,
             'canonical' => $canonical,
             'highlights' => $highlights,
-            'advancedMetadata' => $advancedMetadata
+            'advancedMetadata' => $advancedMetadata,
+            'listNav' => $listNav,
         ]);
     }
 

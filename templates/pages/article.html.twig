@@ -252,6 +252,40 @@
         </pre>
         {% endif %}
 
+        {# Prev/Next article navigation from reading list #}
+        {% if listNav is defined and listNav is not null and (listNav.prevArticle or listNav.nextArticle) %}
+            <section class="article-prev-next" aria-label="Reading list navigation">
+                {% if listNav.listTitle %}
+                    <p class="article-prev-next__heading">
+                        More from
+                        {% if listNav.listSlug and listNav.listPubkey %}
+                            {% if listNav.listKind == 30040 %}
+                                <a href="{{ path('reading-list', { slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
+                            {% else %}
+                                <a href="{{ path('curation-set', { kind: listNav.listKind, slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
+                            {% endif %}
+                        {% else %}
+                            {{ listNav.listTitle }}
+                        {% endif %}
+                    </p>
+                {% endif %}
+                <div class="article-prev-next__grid">
+                    {% if listNav.nextArticle %}
+                        <div class="article-prev-next__item">
+                            <span class="article-prev-next__label">Next →</span>
+                            <twig:Molecules:Card :article="listNav.nextArticle" />
+                        </div>
+                    {% endif %}
+                    {% if listNav.prevArticle %}
+                        <div class="article-prev-next__item">
+                            <span class="article-prev-next__label">← Previous</span>
+                            <twig:Molecules:Card :article="listNav.prevArticle" />
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
         {% if not (isDraft is defined and isDraft) %}
         <twig:Organisms:CommentForm
             :publish_url="path('comment_publish')"
