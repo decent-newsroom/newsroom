@@ -3,6 +3,7 @@
 ## v0.0.12
 More metadata is better.  
 
+- Fixed article links on tag pages to use the correct `/p/{npub}/d/{slug}` URL format instead of `/article/d/{slug}`.
 - Removed the floating ReadingListQuickAdd widget (component, template, and CSS) — replaced by other functionality.
 - Added support for extra metadata tags on articles: source references (`r` tags) and media attachments (`imeta` tags) in the article editor, event builder, and event parser.
 - Display category/reading-list summaries on magazine front category headers, collections list cards, reading list pages, and Unfold category pages.

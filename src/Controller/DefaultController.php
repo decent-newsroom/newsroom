@@ -1164,7 +1164,8 @@ class DefaultController extends AbstractController
         }
 
         // set canonical url to this article as article-slug path
-        $canonical = $this->generateUrl('article-slug', [
+        $canonical = $this->generateUrl('author-article-slug', [
+            'npub' => $npub,
             'slug' => $article->getSlug()
         ], 0);
 
