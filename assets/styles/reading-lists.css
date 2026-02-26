@@ -101,13 +101,6 @@
     border-left: 3px solid #0dcaf0;
 }
 
-/* Floating Quick Add Widget */
-.reading-list-quick-add {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
-}
 
 /* Badge animations */
 .workflow-status-card .badge {

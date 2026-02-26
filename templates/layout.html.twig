@@ -51,10 +51,6 @@
         <main>
             {% block body %}{% endblock %}
 
-            {# Floating reading list quick add widget #}
-            {% if app.user %}
-                <twig:ReadingListQuickAddComponent />
-            {% endif %}
         </main>
         <div>
             <aside id="rightNav">
