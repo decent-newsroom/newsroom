@@ -1,12 +1,12 @@
 # CHANGELOG
 
 ## v0.0.12
-WIP 
+More metadata is better.  
 
 - Removed the floating ReadingListQuickAdd widget (component, template, and CSS) — replaced by other functionality.
 - Added support for extra metadata tags on articles: source references (`r` tags) and media attachments (`imeta` tags) in the article editor, event builder, and event parser.
 - Display category/reading-list summaries on magazine front category headers, collections list cards, reading list pages, and Unfold category pages.
-- Filter bot/RSS-type authors out of the Latest Articles feed (denylist + profile bot flag + RSS client tag).
+- Filter bot/RSS-type authors out of the Latest Articles feed (denylist + profile bot flag).
 - Added prev/next article navigation cards at the bottom of article pages when the article belongs to a reading list or curation set.
 - Added a floating "Back to top" button that appears when scrolling down on any page.
 
