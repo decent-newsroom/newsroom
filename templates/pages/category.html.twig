@@ -6,7 +6,7 @@
     <meta property="og:title" content="{{ category.title }} - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
-    <meta property="og:description" content="{{ category.summary ?? '' }}">
+    <meta property="og:description" content="{{ category.summary is defined ? (category.summary ?? '') : '' }}">
     <meta property="og:site_name" content="Newsroom">
 
     {# BreadcrumbList for navigation #}
@@ -26,7 +26,7 @@
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": {{ category.title|json_encode|raw }},
-        {% if category.summary %}
+        {% if category.summary is defined and category.summary %}
         "description": {{ category.summary|json_encode|raw }},
         {% endif %}
         "url": {{ app.request.uri|json_encode|raw }},

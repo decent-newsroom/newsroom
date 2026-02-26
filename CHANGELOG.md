@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.12
+
+- Display category/reading-list summaries on magazine front category headers, collections list cards, reading list pages, and Unfold category pages.
+
+
 ## v0.0.11
 Mostly quality of life improvements.
 

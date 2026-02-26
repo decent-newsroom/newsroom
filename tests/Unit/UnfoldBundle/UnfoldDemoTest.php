@@ -12,6 +12,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\NullLogger;
+use App\Service\Cache\RedisCacheService;
+use App\Dto\UserMetadata;
 
 /**
  * Demo test for Unfold theme rendering with default theme
@@ -49,7 +51,11 @@ class UnfoldDemoTest extends TestCase
         $cache->method('getItem')->willReturn($cacheItem);
         $cache->method('save')->willReturn(true);
 
-        $this->contextBuilder = new ContextBuilder($converter, $cache);
+        // Mock Redis cache service (used for author metadata + creator lightning address)
+        $redisCacheService = $this->createMock(RedisCacheService::class);
+        $redisCacheService->method('getMetadata')->willReturn(new UserMetadata());
+
+        $this->contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService);
     }
 
     public function testRenderHomePageWithDefaultTheme(): void
@@ -74,12 +80,14 @@ class UnfoldDemoTest extends TestCase
                 slug: 'tech',
                 title: 'Technology',
                 coordinate: '30040:abc123:tech',
+                summary: 'All things tech',
                 articleCoordinates: ['30023:abc123:hello-world', '30023:abc123:future-of-ai'],
             ),
             new CategoryData(
                 slug: 'culture',
                 title: 'Culture',
                 coordinate: '30040:abc123:culture',
+                summary: 'Arts and culture',
                 articleCoordinates: ['30023:abc123:art-review'],
             ),
         ];
@@ -154,6 +162,7 @@ class UnfoldDemoTest extends TestCase
                 slug: 'tech',
                 title: 'Technology',
                 coordinate: '30040:abc123:tech',
+                summary: 'All about tech',
                 articleCoordinates: ['30023:abc123:hello-world'],
             ),
         ];

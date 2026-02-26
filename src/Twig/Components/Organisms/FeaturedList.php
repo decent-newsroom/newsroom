@@ -14,6 +14,7 @@ final class FeaturedList
     public string $category;
     public string $catSlug;
     public string $title;
+    public ?string $summary = null;
     public array $list = [];
 
     public function __construct(
@@ -53,6 +54,9 @@ final class FeaturedList
         foreach ($tags as $tag) {
             if ($tag[0] === 'title') {
                 $this->title = $tag[1];
+            }
+            if ($tag[0] === 'summary') {
+                $this->summary = $tag[1];
             }
             if ($tag[0] === 'd') {
                 $this->catSlug = $tag[1];

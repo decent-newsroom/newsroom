@@ -8,13 +8,13 @@
           {% else %}
               <h1><a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">{{ item.title }}</a></h1>
           {% endif %}
+          {% if item.summary is defined and item.summary %}
+              <p class="eyebrow">{{ item.summary }}</p>
+          {% endif %}
           <div class="d-flex flex-row gap-2 align-items-center justify-content-center">
               <span class="badge bg-secondary">{{ item.type }}</span>
               <span class="badge bg-info text-dark">{{ item.itemCount }} item{{ item.itemCount != 1 ? 's' : '' }}</span>
           </div>
-          {% if item.summary is defined and item.summary %}
-              <p class="eyebrow">{{ item.summary }}</p>
-          {% endif %}
           <p>by <twig:Molecules:UserFromNpub :ident="item.pubkey" /></p>
       </div>
       {% endfor %}

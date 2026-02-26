@@ -62,6 +62,7 @@ class ContextBuilder
             'category' => [
                 'slug' => $category->slug,
                 'title' => $category->title,
+                'summary' => $category->summary,
                 'url' => '/' . $category->slug,
             ],
             'posts' => array_map([$this, 'buildPostListItemContext'], $posts),

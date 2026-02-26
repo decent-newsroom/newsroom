@@ -46,6 +46,9 @@
     <main>
         <div class="category-header">
             <h1>{{category.title}}</h1>
+            {{#if category.summary}}
+                <p class="site-description">{{category.summary}}</p>
+            {{/if}}
         </div>
 
         <div class="post-list">

@@ -1,7 +1,12 @@
 <div class="w-container">
     {% if list %}
         <div class="featured-cat">
-            <small><b>{{ title }}</b></small>
+            <small>
+                <a href="{{ path('magazine-category', { slug: catSlug, mag: mag }) }}">
+                    <b>{{ title }}</b>
+                </a>
+                {% if summary %} &mdash; <em>{{ summary }}</em>{% endif %}
+            </small>
         </div>
         <div {{ attributes }}>
             <div>
