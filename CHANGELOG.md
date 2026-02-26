@@ -3,6 +3,7 @@
 ## v0.0.12
 WIP 
 
+- Added support for extra metadata tags on articles: source references (`r` tags) and media attachments (`imeta` tags) in the article editor, event builder, and event parser.
 - Display category/reading-list summaries on magazine front category headers, collections list cards, reading list pages, and Unfold category pages.
 - Filter bot/RSS-type authors out of the Latest Articles feed (denylist + profile bot flag + RSS client tag).
 - Added prev/next article navigation cards at the bottom of article pages when the article belongs to a reading list or curation set.

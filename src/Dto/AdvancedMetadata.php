@@ -34,6 +34,16 @@ class AdvancedMetadata
     #[Assert\Valid]
     public array $zapSplits = [];
 
+    /** @var string[] Source/reference URLs (r tags) */
+    #[Assert\All([
+        new Assert\Url(message: 'Each source must be a valid URL'),
+    ])]
+    public array $sources = [];
+
+    /** @var MediaAttachment[] Media attachments (imeta tags) */
+    #[Assert\Valid]
+    public array $mediaAttachments = [];
+
     public ?string $contentWarning = null;
 
     public ?int $expirationTimestamp = null;
@@ -56,6 +66,32 @@ class AdvancedMetadata
         }
     }
 
+    public function addSource(string $url): void
+    {
+        $this->sources[] = $url;
+    }
+
+    public function removeSource(int $index): void
+    {
+        if (isset($this->sources[$index])) {
+            unset($this->sources[$index]);
+            $this->sources = array_values($this->sources);
+        }
+    }
+
+    public function addMediaAttachment(MediaAttachment $attachment): void
+    {
+        $this->mediaAttachments[] = $attachment;
+    }
+
+    public function removeMediaAttachment(int $index): void
+    {
+        if (isset($this->mediaAttachments[$index])) {
+            unset($this->mediaAttachments[$index]);
+            $this->mediaAttachments = array_values($this->mediaAttachments);
+        }
+    }
+
     public function getLicenseValue(): ?string
     {
         if ($this->license === 'custom') {
@@ -64,4 +100,3 @@ class AdvancedMetadata
         return $this->license !== '' ? $this->license : null;
     }
 }
-

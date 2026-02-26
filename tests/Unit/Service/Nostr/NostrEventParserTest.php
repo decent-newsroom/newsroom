@@ -164,5 +164,93 @@ class NostrEventParserTest extends TestCase
         // Unknown tags should be preserved in extraTags
         $this->assertCount(2, $metadata->extraTags);
     }
+
+    public function testParseSourceTags(): void
+    {
+        $tags = [
+            ['r', 'https://example.com/source-article'],
+            ['r', 'https://another.example.com/reference'],
+        ];
+
+        $metadata = $this->parser->parseAdvancedMetadata($tags);
+
+        $this->assertCount(2, $metadata->sources);
+        $this->assertEquals('https://example.com/source-article', $metadata->sources[0]);
+        $this->assertEquals('https://another.example.com/reference', $metadata->sources[1]);
+    }
+
+    public function testParseImetaTags(): void
+    {
+        $tags = [
+            ['imeta', 'm audio/mpeg', 'url https://anchor.fm/s/935aecc/podcast/play/116057189/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-1-26%2F418840879-44100-2-a8fd65ad61bb9.mp3'],
+        ];
+
+        $metadata = $this->parser->parseAdvancedMetadata($tags);
+
+        $this->assertCount(1, $metadata->mediaAttachments);
+        $this->assertEquals('audio/mpeg', $metadata->mediaAttachments[0]->mimeType);
+        $this->assertEquals(
+            'https://anchor.fm/s/935aecc/podcast/play/116057189/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-1-26%2F418840879-44100-2-a8fd65ad61bb9.mp3',
+            $metadata->mediaAttachments[0]->url
+        );
+    }
+
+    public function testParseMultipleImetaTags(): void
+    {
+        $tags = [
+            ['imeta', 'm audio/mpeg', 'url https://example.com/audio.mp3'],
+            ['imeta', 'm image/png', 'url https://example.com/image.png'],
+        ];
+
+        $metadata = $this->parser->parseAdvancedMetadata($tags);
+
+        $this->assertCount(2, $metadata->mediaAttachments);
+        $this->assertEquals('audio/mpeg', $metadata->mediaAttachments[0]->mimeType);
+        $this->assertEquals('https://example.com/audio.mp3', $metadata->mediaAttachments[0]->url);
+        $this->assertEquals('image/png', $metadata->mediaAttachments[1]->mimeType);
+        $this->assertEquals('https://example.com/image.png', $metadata->mediaAttachments[1]->url);
+    }
+
+    public function testSourceAndImetaTagsNotInExtraTags(): void
+    {
+        $tags = [
+            ['r', 'https://example.com/source'],
+            ['imeta', 'm audio/mpeg', 'url https://example.com/audio.mp3'],
+            ['custom-tag', 'custom-value'],
+        ];
+
+        $metadata = $this->parser->parseAdvancedMetadata($tags);
+
+        // r and imeta should NOT end up in extraTags
+        $this->assertCount(1, $metadata->extraTags);
+        $this->assertEquals('custom-tag', $metadata->extraTags[0][0]);
+
+        // They should be in their proper fields
+        $this->assertCount(1, $metadata->sources);
+        $this->assertCount(1, $metadata->mediaAttachments);
+    }
+
+    public function testRoundTripSourcesAndImeta(): void
+    {
+        $tags = [
+            ['d', 'test-article'],
+            ['title', 'Test Article'],
+            ['L', 'spdx.org/licenses'],
+            ['l', 'CC-BY-4.0', 'spdx.org/licenses'],
+            ['r', 'https://example.com/source'],
+            ['imeta', 'm audio/mpeg', 'url https://example.com/podcast.mp3'],
+            ['content-warning', 'spoilers'],
+        ];
+
+        $metadata = $this->parser->parseAdvancedMetadata($tags);
+
+        $this->assertEquals('CC-BY-4.0', $metadata->license);
+        $this->assertCount(1, $metadata->sources);
+        $this->assertEquals('https://example.com/source', $metadata->sources[0]);
+        $this->assertCount(1, $metadata->mediaAttachments);
+        $this->assertEquals('audio/mpeg', $metadata->mediaAttachments[0]->mimeType);
+        $this->assertEquals('https://example.com/podcast.mp3', $metadata->mediaAttachments[0]->url);
+        $this->assertEquals('spoilers', $metadata->contentWarning);
+    }
 }
 

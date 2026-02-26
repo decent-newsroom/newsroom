@@ -56,6 +56,35 @@ function isValidRelay(relay) {
     }
 }
 
+const MIME_TYPE_MAP = {
+    // Audio
+    mp3: 'audio/mpeg', ogg: 'audio/ogg', oga: 'audio/ogg', wav: 'audio/wav',
+    flac: 'audio/flac', aac: 'audio/aac', m4a: 'audio/mp4', opus: 'audio/opus', weba: 'audio/webm',
+    // Video
+    mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg',
+    mov: 'video/quicktime', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+    // Image
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', svg: 'image/svg+xml', avif: 'image/avif', bmp: 'image/bmp', ico: 'image/x-icon',
+    // Document
+    pdf: 'application/pdf', json: 'application/json', xml: 'application/xml',
+    zip: 'application/zip', gz: 'application/gzip', tar: 'application/x-tar',
+    // Text
+    txt: 'text/plain', html: 'text/html', htm: 'text/html', css: 'text/css', csv: 'text/csv', md: 'text/markdown',
+};
+
+function guessMimeType(url) {
+    try {
+        const pathname = new URL(url).pathname;
+        const ext = pathname.split('.').pop()?.toLowerCase();
+        return ext ? (MIME_TYPE_MAP[ext] || '') : '';
+    } catch {
+        // Fallback: try extracting extension from the raw string
+        const ext = url.split(/[?#]/)[0].split('.').pop()?.toLowerCase();
+        return ext ? (MIME_TYPE_MAP[ext] || '') : '';
+    }
+}
+
 export default class extends Controller {
     static targets = [
         'zapSplitsContainer',
@@ -65,7 +94,9 @@ export default class extends Controller {
         'customLicenseInput',
         'protectedCheckbox',
         'protectedWarning',
-        'expirationInput'
+        'expirationInput',
+        'sourcesContainer',
+        'mediaAttachmentsContainer'
     ];
 
     connect() {
@@ -156,6 +187,143 @@ export default class extends Controller {
         });
 
         this.updateZapShares();
+    }
+
+    /**
+     * Add a new source URL row
+     */
+    addSource(event) {
+        event.preventDefault();
+
+        const container = this.sourcesContainerTarget;
+        const prototype = container.dataset.prototype;
+
+        if (!prototype) {
+            console.error('No prototype found for sources');
+            return;
+        }
+
+        const index = parseInt(container.dataset.index || '0', 10);
+        const newForm = prototype.replace(/__name__/g, index.toString());
+
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('source-item', 'mb-3', 'd-flex', 'align-items-center', 'gap-2');
+        wrapper.dataset.index = index.toString();
+        wrapper.innerHTML = newForm;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.classList.add('btn', 'btn-sm', 'btn-danger');
+        deleteBtn.textContent = 'Remove';
+        deleteBtn.setAttribute('data-action', 'click->content--advanced-metadata#removeSource');
+        wrapper.appendChild(deleteBtn);
+
+        container.appendChild(wrapper);
+        container.dataset.index = (index + 1).toString();
+    }
+
+    /**
+     * Remove a source URL row
+     */
+    removeSource(event) {
+        event.preventDefault();
+        const wrapper = event.target.closest('.source-item');
+        if (wrapper) {
+            wrapper.remove();
+        }
+    }
+
+    /**
+     * Add a new media attachment row
+     */
+    addMediaAttachment(event) {
+        event.preventDefault();
+
+        const container = this.mediaAttachmentsContainerTarget;
+        const prototype = container.dataset.prototype;
+
+        if (!prototype) {
+            console.error('No prototype found for media attachments');
+            return;
+        }
+
+        const index = parseInt(container.dataset.index || '0', 10);
+        const newForm = prototype.replace(/__name__/g, index.toString());
+
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('media-attachment-item', 'mb-3');
+        wrapper.dataset.index = index.toString();
+
+        const row = document.createElement('div');
+        row.classList.add('row');
+        row.innerHTML = newForm;
+        wrapper.appendChild(row);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.classList.add('btn', 'btn-sm', 'btn-danger', 'mt-2');
+        deleteBtn.textContent = 'Remove';
+        deleteBtn.setAttribute('data-action', 'click->content--advanced-metadata#removeMediaAttachment');
+        wrapper.appendChild(deleteBtn);
+
+        container.appendChild(wrapper);
+        container.dataset.index = (index + 1).toString();
+
+        // Wire up MIME type auto-guess on URL input
+        this.attachMediaAttachmentListeners(wrapper);
+    }
+
+    /**
+     * Remove a media attachment row
+     */
+    removeMediaAttachment(event) {
+        event.preventDefault();
+        const wrapper = event.target.closest('.media-attachment-item');
+        if (wrapper) {
+            wrapper.remove();
+        }
+    }
+
+    /**
+     * Attach blur listener to a media attachment URL input for MIME guessing
+     */
+    attachMediaAttachmentListeners(wrapper) {
+        const urlInput = wrapper.querySelector('.media-attachment-url');
+        if (urlInput) {
+            urlInput.addEventListener('blur', () => this.guessAndFillMimeType(wrapper));
+            urlInput.addEventListener('change', () => this.guessAndFillMimeType(wrapper));
+        }
+    }
+
+    /**
+     * Auto-guess MIME type from URL and fill the MIME field (only if empty)
+     */
+    guessAndFillMimeType(wrapper) {
+        const urlInput = wrapper.querySelector('.media-attachment-url');
+        const mimeInput = wrapper.querySelector('.media-attachment-mime');
+        if (!urlInput || !mimeInput) return;
+
+        const url = urlInput.value.trim();
+        if (!url) return;
+
+        // Only auto-fill if MIME field is empty
+        if (mimeInput.value.trim()) return;
+
+        const guessed = guessMimeType(url);
+        if (guessed) {
+            mimeInput.value = guessed;
+        }
+    }
+
+    /**
+     * Event handler for MIME guess on existing (server-rendered) media attachment rows.
+     * Triggered via data-action="blur->content--advanced-metadata#guessMediaMimeType"
+     */
+    guessMediaMimeType(event) {
+        const wrapper = event.target.closest('.media-attachment-item');
+        if (wrapper) {
+            this.guessAndFillMimeType(wrapper);
+        }
     }
 
     /**

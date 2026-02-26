@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Nostr;
 
 use App\Dto\AdvancedMetadata;
+use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
@@ -199,6 +200,84 @@ class NostrEventBuilderTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->builder->convertToHex('invalid-pubkey');
+    }
+
+    public function testBuildSourceTags(): void
+    {
+        $article = new Article();
+        $article->setSlug('test');
+        $article->setTitle('Test');
+
+        $metadata = new AdvancedMetadata();
+        $metadata->sources = [
+            'https://example.com/source-article',
+            'https://another.example.com/reference',
+        ];
+
+        $tags = $this->builder->buildTags($article, $metadata);
+
+        $this->assertContains(['r', 'https://example.com/source-article'], $tags);
+        $this->assertContains(['r', 'https://another.example.com/reference'], $tags);
+    }
+
+    public function testBuildImetaTags(): void
+    {
+        $article = new Article();
+        $article->setSlug('test');
+        $article->setTitle('Test');
+
+        $metadata = new AdvancedMetadata();
+        $metadata->mediaAttachments = [
+            new MediaAttachment(
+                'https://anchor.fm/s/935aecc/podcast/play/116057189/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-1-26%2F418840879-44100-2-a8fd65ad61bb9.mp3',
+                'audio/mpeg'
+            ),
+        ];
+
+        $tags = $this->builder->buildTags($article, $metadata);
+
+        $this->assertContains([
+            'imeta',
+            'm audio/mpeg',
+            'url https://anchor.fm/s/935aecc/podcast/play/116057189/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2026-1-26%2F418840879-44100-2-a8fd65ad61bb9.mp3',
+        ], $tags);
+    }
+
+    public function testBuildMultipleImetaTags(): void
+    {
+        $article = new Article();
+        $article->setSlug('test');
+        $article->setTitle('Test');
+
+        $metadata = new AdvancedMetadata();
+        $metadata->mediaAttachments = [
+            new MediaAttachment('https://example.com/audio.mp3', 'audio/mpeg'),
+            new MediaAttachment('https://example.com/image.png', 'image/png'),
+        ];
+
+        $tags = $this->builder->buildTags($article, $metadata);
+
+        $this->assertContains(['imeta', 'm audio/mpeg', 'url https://example.com/audio.mp3'], $tags);
+        $this->assertContains(['imeta', 'm image/png', 'url https://example.com/image.png'], $tags);
+    }
+
+    public function testBuildEmptySourcesAndAttachmentsProducesNoTags(): void
+    {
+        $article = new Article();
+        $article->setSlug('test');
+        $article->setTitle('Test');
+
+        $metadata = new AdvancedMetadata();
+        $metadata->sources = [];
+        $metadata->mediaAttachments = [];
+
+        $tags = $this->builder->buildTags($article, $metadata);
+
+        // Should not contain r or imeta tags
+        foreach ($tags as $tag) {
+            $this->assertNotEquals('r', $tag[0]);
+            $this->assertNotEquals('imeta', $tag[0]);
+        }
     }
 }
 

@@ -11,6 +11,7 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -68,6 +69,37 @@ class AdvancedMetadataType extends AbstractType
                     'class' => 'zap-splits-collection',
                 ],
                 'help' => 'Configure multiple recipients for zaps (tips). Leave weights empty for equal distribution.',
+            ])
+            ->add('sources', CollectionType::class, [
+                'entry_type' => UrlType::class,
+                'entry_options' => [
+                    'label' => false,
+                    'attr' => [
+                        'class' => 'form-control source-url',
+                        'placeholder' => 'https://example.com/source-article',
+                    ],
+                ],
+                'allow_add' => true,
+                'allow_delete' => true,
+                'by_reference' => false,
+                'label' => 'Sources',
+                'required' => false,
+                'attr' => [
+                    'class' => 'sources-collection',
+                ],
+                'help' => 'Reference URLs for sources used in this article (r tags).',
+            ])
+            ->add('mediaAttachments', CollectionType::class, [
+                'entry_type' => MediaAttachmentType::class,
+                'allow_add' => true,
+                'allow_delete' => true,
+                'by_reference' => false,
+                'label' => 'Media attachments',
+                'required' => false,
+                'attr' => [
+                    'class' => 'media-attachments-collection',
+                ],
+                'help' => 'Attach media files with metadata (imeta tags).',
             ])
             ->add('contentWarning', TextType::class, [
                 'label' => 'Content warning',

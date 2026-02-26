@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Dto\AdvancedMetadata;
+use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
 use App\Entity\Article;
 use nostriphant\NIP19\Bech32;
@@ -118,6 +119,20 @@ class NostrEventBuilder
         // Protected event
         if ($metadata->isProtected) {
             $tags[] = ['-'];
+        }
+
+        // Sources (r tags)
+        foreach ($metadata->sources as $source) {
+            if (!empty($source)) {
+                $tags[] = ['r', $source];
+            }
+        }
+
+        // Media attachments (imeta tags)
+        foreach ($metadata->mediaAttachments as $attachment) {
+            if ($attachment instanceof MediaAttachment) {
+                $tags[] = $attachment->toTag();
+            }
         }
 
         // Extra tags (passthrough)

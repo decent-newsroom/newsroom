@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Dto\AdvancedMetadata;
+use App\Dto\MediaAttachment;
 use App\Dto\ZapSplit;
 use swentel\nostr\Key\Key;
 
@@ -69,6 +70,22 @@ class NostrEventParser
 
                 case '-':
                     $metadata->isProtected = true;
+                    $processedAdvancedTags[] = $tag;
+                    break;
+
+                case 'r':
+                    $url = $tag[1] ?? '';
+                    if (!empty($url)) {
+                        $metadata->sources[] = $url;
+                    }
+                    $processedAdvancedTags[] = $tag;
+                    break;
+
+                case 'imeta':
+                    $attachment = MediaAttachment::fromTag($tag);
+                    if ($attachment) {
+                        $metadata->mediaAttachments[] = $attachment;
+                    }
                     $processedAdvancedTags[] = $tag;
                     break;
 

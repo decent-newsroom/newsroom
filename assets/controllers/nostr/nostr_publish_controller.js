@@ -48,6 +48,31 @@ function buildAdvancedTags(metadata) {
     tags.push(['-']);
   }
 
+  // Sources (r tags)
+  if (metadata.sources && Array.isArray(metadata.sources)) {
+    for (const source of metadata.sources) {
+      if (source) {
+        tags.push(['r', source]);
+      }
+    }
+  }
+
+  // Media attachments (imeta tags)
+  if (metadata.mediaAttachments && Array.isArray(metadata.mediaAttachments)) {
+    for (const attachment of metadata.mediaAttachments) {
+      if (attachment.url || attachment.mimeType) {
+        const imetaTag = ['imeta'];
+        if (attachment.mimeType) {
+          imetaTag.push('m ' + attachment.mimeType);
+        }
+        if (attachment.url) {
+          imetaTag.push('url ' + attachment.url);
+        }
+        tags.push(imetaTag);
+      }
+    }
+  }
+
   return tags;
 }
 
@@ -401,6 +426,8 @@ export default class extends Controller {
       contentWarning: fd.get('editor[advancedMetadata][contentWarning]') || '',
       isProtected: fd.get('editor[advancedMetadata][isProtected]') === '1',
       zapSplits: [],
+      sources: [],
+      mediaAttachments: [],
     };
 
     // Parse expiration timestamp
@@ -438,6 +465,40 @@ export default class extends Controller {
           recipient: recipientHex,
           relay: relay ? String(relay) : undefined,
           weight: weight !== undefined && !isNaN(weight) ? weight : undefined,
+        });
+      }
+    }
+
+    // Collect sources (r tags)
+    const sourceIndices = new Set();
+    for (const key of fd.keys()) {
+      const match = key.match(/^editor\[advancedMetadata]\[sources]\[(\d+)]/);
+      if (match) {
+        sourceIndices.add(parseInt(match[1], 10));
+      }
+    }
+    for (const index of Array.from(sourceIndices).sort((a, b) => a - b)) {
+      const url = fd.get(`editor[advancedMetadata][sources][${index}]`);
+      if (url) {
+        metadata.sources.push(String(url));
+      }
+    }
+
+    // Collect media attachments (imeta tags)
+    const mediaIndices = new Set();
+    for (const key of fd.keys()) {
+      const match = key.match(/^editor\[advancedMetadata]\[mediaAttachments]\[(\d+)]/);
+      if (match) {
+        mediaIndices.add(parseInt(match[1], 10));
+      }
+    }
+    for (const index of Array.from(mediaIndices).sort((a, b) => a - b)) {
+      const url = fd.get(`editor[advancedMetadata][mediaAttachments][${index}][url]`) || '';
+      const mimeType = fd.get(`editor[advancedMetadata][mediaAttachments][${index}][mimeType]`) || '';
+      if (url || mimeType) {
+        metadata.mediaAttachments.push({
+          url: String(url),
+          mimeType: String(mimeType),
         });
       }
     }

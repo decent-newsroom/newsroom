@@ -301,7 +301,7 @@ main.editor-layout {
     overflow: hidden;
     margin-top: 0;
     padding: 0;
-    max-height: unset;
+    max-height: calc(100vh - 60px);
 }
 
 .editor-sidebar-tabs {
@@ -431,7 +431,7 @@ main.editor-layout {
     padding: 0;
     overflow-y: auto;
     height: 100%;
-    max-height: 100%;
+    max-height: calc(100vh - 60px);
     margin: 0;
     position: static;
 }

@@ -75,6 +75,71 @@
                 </div>
 
 
+                <h6>Sources</h6>
+                <p class="text-muted small">Add reference URLs for sources used in this article. These are published as <code>r</code> tags on the Nostr event.</p>
+
+                <div data-content--advanced-metadata-target="sourcesContainer"
+                     data-prototype="{{ form_widget(form.sources.vars.prototype)|e('html_attr') }}"
+                     data-index="{{ form.sources|length }}">
+                    {% for source in form.sources %}
+                        <div class="source-item mb-3 d-flex align-items-center gap-2" data-index="{{ loop.index0 }}">
+                            {{ form_widget(source) }}
+                            <button type="button"
+                                    class="btn btn-sm btn-danger"
+                                    data-action="click->content--advanced-metadata#removeSource">
+                                Remove
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-secondary"
+                            data-action="click->content--advanced-metadata#addSource">
+                        Add Source
+                    </button>
+                </div>
+
+
+                <h6>Media Attachments</h6>
+                <p class="text-muted small">Attach media files with metadata. These are published as <code>imeta</code> tags on the Nostr event.</p>
+
+                <div data-content--advanced-metadata-target="mediaAttachmentsContainer"
+                     data-prototype="{{ form_widget(form.mediaAttachments.vars.prototype)|e('html_attr') }}"
+                     data-index="{{ form.mediaAttachments|length }}">
+                    {% for attachment in form.mediaAttachments %}
+                        <div class="media-attachment-item mb-3" data-index="{{ loop.index0 }}">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    {{ form_row(attachment.url, {
+                                        'attr': {
+                                            'data-action': 'blur->content--advanced-metadata#guessMediaMimeType change->content--advanced-metadata#guessMediaMimeType'
+                                        }
+                                    }) }}
+                                </div>
+                                <div class="col-md-4">
+                                    {{ form_row(attachment.mimeType) }}
+                                </div>
+                            </div>
+                            <button type="button"
+                                    class="btn btn-sm btn-danger mt-2"
+                                    data-action="click->content--advanced-metadata#removeMediaAttachment">
+                                Remove
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-secondary"
+                            data-action="click->content--advanced-metadata#addMediaAttachment">
+                        Add Media Attachment
+                    </button>
+                </div>
+
+
                 <div class="row hidden">
                     <div class="col-md-6">
                         {{ form_row(form.contentWarning) }}
