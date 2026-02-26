@@ -29,7 +29,13 @@ class SiteConfigCacheWarmer
                 'coordinate' => $site->getCoordinate(),
             ]);
 
-            // 1. Load and cache the SiteConfig
+            // 1. Invalidate the SiteConfig cache first so loadFromCoordinate fetches fresh data.
+            //    Without this, a fresh/stale SWR entry would be returned as-is (the background
+            //    register_shutdown_function refresh never fires in console commands).
+            $this->logger->info('Invalidating existing SiteConfig cache...');
+            $this->siteConfigLoader->invalidateFromCoordinate($site->getCoordinate());
+
+            // 2. Load and cache the SiteConfig (forced fresh fetch because we just invalidated)
             $this->logger->info('Loading SiteConfig from coordinate...');
             $siteConfig = $this->siteConfigLoader->loadFromCoordinate($site->getCoordinate());
 
@@ -47,7 +53,11 @@ class SiteConfigCacheWarmer
                 'categories_count' => count($siteConfig->categories),
             ]);
 
-            // 2. Warm categories cache
+            // 3. Invalidate all content caches so category/post fetches are forced fresh
+            $this->logger->info('Invalidating existing content caches...');
+            $this->contentProvider->invalidateSiteCache($siteConfig);
+
+            // 4. Warm categories cache (forced fresh fetch)
             $this->logger->info('Loading categories...');
             $categories = $this->contentProvider->getCategories($siteConfig);
 
@@ -55,13 +65,13 @@ class SiteConfigCacheWarmer
                 $this->logger->warning('No categories found - may be placeholder data');
             }
 
-            // 3. Warm category posts cache for each category
+            // 5. Warm category posts cache for each category
             foreach ($categories as $category) {
                 $this->logger->info('Loading posts for category', ['category' => $category->slug]);
                 $this->contentProvider->getCategoryPosts($category->coordinate);
             }
 
-            // 4. Warm home posts cache
+            // 6. Warm home posts cache
             $this->logger->info('Loading home posts...');
             $this->contentProvider->getHomePosts($siteConfig, 3);
 
