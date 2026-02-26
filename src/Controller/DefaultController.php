@@ -28,6 +28,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 
 class DefaultController extends AbstractController
 {
@@ -258,7 +259,8 @@ class DefaultController extends AbstractController
         RedisCacheService $redisCacheService,
         NostrClient $nostrClient,
         RedisViewStore $viewStore,
-        MutedPubkeysService $mutedPubkeysService
+        MutedPubkeysService $mutedPubkeysService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
     ): Response
     {
         // Get muted pubkeys from database/cache
@@ -295,12 +297,14 @@ class DefaultController extends AbstractController
                 $articles = $nostrClient->getLatestLongFormArticles(50);
 
                 // Filter out excluded pubkeys
-                $articles = array_filter($articles, function($article) use ($excludedPubkeys) {
-                    if (method_exists($article, 'getPubkey')) {
-                        return !in_array($article->getPubkey(), $excludedPubkeys, true);
+                $articles = array_values(array_filter($articles, function ($article) use ($excludedPubkeys) {
+                    if (!method_exists($article, 'getPubkey')) {
+                        return true;
                     }
-                    return true;
-                });
+
+                    $pubkey = $article->getPubkey();
+                    return !($pubkey && in_array($pubkey, $excludedPubkeys, true));
+                }));
 
                 // Collect author pubkeys for metadata
                 $authorPubkeys = [];
@@ -1072,7 +1076,7 @@ class DefaultController extends AbstractController
 
             // Build ordered list based on original coordinates order
             foreach ($coordinates as $coordinate) {
-                $parts = explode(':', $coordinate,3);
+                $parts = explode(':', $coordinate, 3);
                 if (isset($slugMap[end($parts)])) {
                     $list[] = $slugMap[end($parts)];
                 }

@@ -1,8 +1,10 @@
 # CHANGELOG
 
 ## v0.0.12
+WIP 
 
 - Display category/reading-list summaries on magazine front category headers, collections list cards, reading list pages, and Unfold category pages.
+- Filter bot/RSS-type authors out of the Latest Articles feed (denylist + profile bot flag + RSS client tag).
 
 
 ## v0.0.11

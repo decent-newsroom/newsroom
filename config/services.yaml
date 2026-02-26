@@ -25,6 +25,10 @@ parameters:
     base_domain: '%env(default:server_name_default:BASE_DOMAIN)%'
     server_name_default: '%env(SERVER_NAME)%'
 
+    # Latest Articles: bot filtering (primary denylist comes from ROLE_MUTED)
+    newsroom.latest_articles.excluded_pubkeys: []
+    newsroom.latest_articles.exclude_bot_profiles: true
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -213,3 +217,8 @@ services:
     App\Service\ReadingListWorkflowService:
         arguments:
             $readingListWorkflow: '@state_machine.reading_list_workflow'
+
+    App\Service\LatestArticles\LatestArticlesExclusionPolicy:
+        arguments:
+            $excludedPubkeys: '%newsroom.latest_articles.excluded_pubkeys%'
+            $excludeBotProfiles: '%newsroom.latest_articles.exclude_bot_profiles%'

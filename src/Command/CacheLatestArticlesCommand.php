@@ -9,7 +9,8 @@ use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use swentel\nostr\Key\Key;
+use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
+use App\Service\MutedPubkeysService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,6 +28,8 @@ class CacheLatestArticlesCommand extends Command
         private readonly RedisCacheService $redisCacheService,
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
+        private readonly LatestArticlesExclusionPolicy $exclusionPolicy,
+        private readonly MutedPubkeysService $mutedPubkeysService,
     ) {
         parent::__construct();
     }
@@ -46,32 +49,24 @@ class CacheLatestArticlesCommand extends Command
     {
         $limit = (int) $input->getOption('limit');
 
-        // Define excluded pubkeys (bots, spam accounts)
-        $key = new Key();
-        $excludedPubkeys = [
-            $key->convertToHex('npub1etsrcjz24fqewg4zmjze7t5q8c6rcwde5zdtdt4v3t3dz2navecscjjz94'), // Bitcoin Magazine (News Bot)
-            $key->convertToHex('npub1m7szwpud3jh2k3cqe73v0fd769uzsj6rzmddh4dw67y92sw22r3sk5m3ys'), // No Bullshit Bitcoin (News Bot)
-            $key->convertToHex('npub13wke9s6njrmugzpg6mqtvy2d49g4d6t390ng76dhxxgs9jn3f2jsmq82pk'), // TFTC (News Bot)
-            $key->convertToHex('npub10akm29ejpdns52ca082skmc3hr75wmv3ajv4987c9lgyrfynrmdqduqwlx'), // Discreet Log (News Bot)
-            $key->convertToHex('npub13uvnw9qehqkds68ds76c4nfcn3y99c2rl9z8tr0p34v7ntzsmmzspwhh99'), // Batcoinz
-            $key->convertToHex('npub1fls5au5fxj6qj0t36sage857cs4tgfpla0ll8prshlhstagejtkqc9s2yl'), // AGORA Marketplace
-            $key->convertToHex('npub1t5d8kcn0hu8zmt6dpkgatd5hwhx76956g7qmdzwnca6fzgprzlhqnqks86'), // NSFW
-            $key->convertToHex('npub14l5xklll5vxzrf6hfkv8m6n2gqevythn5pqc6ezluespah0e8ars4279ss'), // LNgigs
-            $key->convertToHex('npub1sztw66ap7gdrwyaag7js8m3h0vxw9uv8k0j68t5sngjmsjgpqx9sm9wyaq'), // Now Playing bot
-        ];
-
         $output->writeln('<comment>Querying database for latest articles...</comment>');
 
+        // Muted pubkeys are always excluded from latest feeds.
+        $excludedPubkeys = $this->mutedPubkeysService->getMutedPubkeys();
+
         // Query database directly - get latest published articles, one per author
-        // Using DQL to get the most recent article per pubkey
         $qb = $this->articleRepository->createQueryBuilder('a');
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
-            ->andWhere('a.title IS NOT NULL')
-            ->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
-            ->setParameter('excludedPubkeys', $excludedPubkeys)
-            ->orderBy('a.createdAt', 'DESC')
-            ->setMaxResults($limit * 2); // Get more initially, will dedupe by author
+            ->andWhere('a.title IS NOT NULL');
+
+        if (!empty($excludedPubkeys)) {
+            $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
+                ->setParameter('excludedPubkeys', $excludedPubkeys);
+        }
+
+        $qb->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults($limit * 3); // fetch more to allow exclusions + dedupe
 
         /** @var Article[] $allArticles */
         $allArticles = $qb->getQuery()->getResult();
@@ -86,7 +81,6 @@ class CacheLatestArticlesCommand extends Command
                 continue;
             }
 
-            // Keep first (most recent) article per author
             if (!isset($articlesByAuthor[$pubkey])) {
                 $articlesByAuthor[$pubkey] = $article;
             }
@@ -109,12 +103,18 @@ class CacheLatestArticlesCommand extends Command
         $authorsMetadata = $this->redisCacheService->getMultipleMetadata($authorPubkeys);
         $output->writeln(sprintf('<info>✓ Fetched %d author profiles</info>', count($authorsMetadata)));
 
-        // Build Redis view objects - we now have exact Article entities!
+        // Build Redis view objects
         $output->writeln('<comment>Building Redis view objects...</comment>');
         $baseObjects = [];
+        $excludedCount = 0;
 
         foreach ($articles as $article) {
             $authorMeta = $authorsMetadata[$article->getPubkey()] ?? null;
+
+            if ($this->exclusionPolicy->shouldExclude($article, $authorMeta)) {
+                $excludedCount++;
+                continue;
+            }
 
             try {
                 $baseObject = $this->viewFactory->articleBaseObject($article, $authorMeta);
@@ -126,6 +126,10 @@ class CacheLatestArticlesCommand extends Command
                     $e->getMessage()
                 ));
             }
+        }
+
+        if ($excludedCount > 0) {
+            $output->writeln(sprintf('<comment>Excluded %d bot/RSS articles from latest feed</comment>', $excludedCount));
         }
 
         if (empty($baseObjects)) {
