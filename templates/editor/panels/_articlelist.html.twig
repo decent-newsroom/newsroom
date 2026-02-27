@@ -18,9 +18,11 @@
         >
             <div class="articlelist-content" data-articlelist-target="list">
                 {% if is_granted('ROLE_USER') %}
+                        {% if is_granted('ROLE_EDITOR') %}
                         <div class="articlelist-manage-link mb-2">
                             <a href="{{ path('my_content') }}">Manage all content →</a>
                         </div>
+                        {% endif %}
                         <ul class="list-unstyled">
                             {% for recent in recentArticles %}
                                 <li class="mb-2">
