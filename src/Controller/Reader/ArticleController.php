@@ -247,8 +247,7 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        set_time_limit(300);
-        ini_set('max_execution_time', '300');
+        set_time_limit(30);
         $slug = urldecode($slug);
         $key = new Key();
         $pubkey = $key->convertToHex($npub);
@@ -346,8 +345,7 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        set_time_limit(300);
-        ini_set('max_execution_time', '300');
+        set_time_limit(30);
         $slug = urldecode($slug);
         $key = new Key();
         $pubkey = $key->convertToHex($npub);

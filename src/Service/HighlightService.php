@@ -3,10 +3,12 @@
 namespace App\Service;
 
 use App\Entity\Highlight;
+use App\Message\RefreshArticleHighlightsMessage;
 use App\Repository\HighlightRepository;
 use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 class HighlightService
 {
@@ -17,7 +19,8 @@ class HighlightService
         private readonly EntityManagerInterface $entityManager,
         private readonly HighlightRepository $highlightRepository,
         private readonly NostrClient $nostrClient,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly MessageBusInterface $messageBus,
     ) {}
 
     /**
@@ -39,8 +42,13 @@ class HighlightService
         ]);
 
         if ($needsFullRefresh) {
-            $this->logger->info('Full refresh needed for highlights', ['coordinate' => $articleCoordinate]);
-            return $this->fullRefresh($articleCoordinate);
+            // Dispatch async refresh instead of blocking the web request.
+            // This prevents relay timeouts from causing 502 errors.
+            $this->logger->info('Dispatching async full refresh for highlights', ['coordinate' => $articleCoordinate]);
+            $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: true));
+
+            // Return whatever we have cached (may be empty for first visit)
+            return $this->getCachedHighlights($articleCoordinate);
         }
 
         // Check if we should top off with recent highlights
@@ -53,11 +61,12 @@ class HighlightService
         }
 
         if ($shouldTopOff) {
-            $this->logger->info('Topping off highlights with recent data', ['coordinate' => $articleCoordinate]);
-            $this->topOffHighlights($articleCoordinate);
+            // Dispatch async top-off instead of blocking
+            $this->logger->info('Dispatching async top-off for highlights', ['coordinate' => $articleCoordinate]);
+            $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: false));
         }
 
-        // Return cached highlights
+        // Return cached highlights immediately
         $cached = $this->getCachedHighlights($articleCoordinate);
         $this->logger->info('Returning cached highlights', [
             'coordinate' => $articleCoordinate,

@@ -23,9 +23,6 @@ class HighlightRepository extends ServiceEntityRepository
             ->setParameter('coordinate', $articleCoordinate)
             ->orderBy('h.createdAt', 'DESC');
 
-        // Debug: log the query and parameters
-        error_log('Querying highlights for coordinate: ' . $articleCoordinate);
-        error_log('SQL: ' . $qb->getQuery()->getSQL());
 
         return $qb->getQuery()->getResult();
     }
