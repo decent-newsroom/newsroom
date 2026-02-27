@@ -537,6 +537,111 @@ class NostrClient
         return !empty($events) ? $events[0] : null;
     }
 
+    /**
+     * Fetch multiple events by coordinate strings ("kind:pubkey:identifier") in batch.
+     *
+     * Groups coordinates by (kind, pubkey) and issues ONE relay request per group,
+     * filtering by all #d identifiers at once.  This avoids N×timeout serial fetches.
+     *
+     * @param string[] $coordinates  e.g. ["30040:abc123:my-cat", "30023:abc123:my-post"]
+     * @return array<string, object>  keyed by coordinate string
+     */
+    public function getEventsByCoordinates(array $coordinates): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        // Group identifiers by kind+pubkey so we can batch per group
+        $groups = [];
+        $coordMeta = [];
+        foreach ($coordinates as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $pubkey, $identifier] = $parts;
+            $groupKey = $kind . ':' . $pubkey;
+            $groups[$groupKey]['kind'] = (int) $kind;
+            $groups[$groupKey]['pubkey'] = $pubkey;
+            $groups[$groupKey]['identifiers'][] = $identifier;
+            $coordMeta[$coord] = ['kind' => (int) $kind, 'pubkey' => $pubkey, 'identifier' => $identifier];
+        }
+
+        $results = [];
+
+        foreach ($groups as $groupKey => $group) {
+            $kind = $group['kind'];
+            $pubkey = $group['pubkey'];
+            $identifiers = array_unique($group['identifiers']);
+
+            $this->logger->info('Batch fetching events', [
+                'kind' => $kind,
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+                'count' => count($identifiers),
+            ]);
+
+            // Pick relays: prefer local, then author relays
+            $relayUrls = [];
+            if ($this->nostrDefaultRelay) {
+                $relayUrls = [$this->nostrDefaultRelay];
+            } else {
+                $relayUrls = $this->getTopReputableRelaysForAuthor($pubkey);
+            }
+
+            $relaySet = $this->createRelaySet($relayUrls);
+
+            $request = $this->createNostrRequest(
+                kinds: [$kind],
+                filters: [
+                    'authors' => [$pubkey],
+                    'tag' => ['#d', $identifiers],
+                ],
+                relaySet: $relaySet
+            );
+
+            $events = $this->processResponse($request->send(), fn($e) => $e);
+
+            // If local relay returned nothing, fall back to public relays
+            if (empty($events) && $this->nostrDefaultRelay) {
+                $fallbackRelays = $this->getTopReputableRelaysForAuthor($pubkey);
+                if (!empty($fallbackRelays)) {
+                    $request = $this->createNostrRequest(
+                        kinds: [$kind],
+                        filters: [
+                            'authors' => [$pubkey],
+                            'tag' => ['#d', $identifiers],
+                        ],
+                        relaySet: $this->createRelaySet($fallbackRelays)
+                    );
+                    $events = $this->processResponse($request->send(), fn($e) => $e);
+                }
+            }
+
+            // Index returned events by their #d identifier
+            foreach ($events as $event) {
+                $dTag = null;
+                foreach ($event->tags ?? [] as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                        $dTag = $tag[1];
+                        break;
+                    }
+                }
+                if ($dTag === null) {
+                    continue;
+                }
+                $coordKey = $kind . ':' . $pubkey . ':' . $dTag;
+                // Keep newest if duplicates
+                if (!isset($results[$coordKey]) ||
+                    ($event->created_at ?? 0) > ($results[$coordKey]->created_at ?? 0)) {
+                    $results[$coordKey] = $event;
+                }
+            }
+        }
+
+        return $results;
+    }
+
     private function saveLongFormContent(mixed $filtered): void
     {
         foreach ($filtered as $wrapper) {

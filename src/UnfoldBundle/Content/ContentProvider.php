@@ -50,13 +50,20 @@ class ContentProvider
      */
     private function fetchAllCategories(SiteConfig $site): array
     {
-        $categories = [];
+        if (empty($site->categories)) {
+            return [];
+        }
 
+        // Batch-fetch all category events in one relay request per author group
+        $eventsMap = $this->nostrClient->getEventsByCoordinates($site->categories);
+
+        $categories = [];
         foreach ($site->categories as $coordinate) {
-            $category = $this->fetchCategoryByCoordinate($coordinate);
-            if ($category !== null) {
-                $categories[] = $category;
+            if (!isset($eventsMap[$coordinate])) {
+                $this->logger->warning('Category event not found (batch)', ['coordinate' => $coordinate]);
+                continue;
             }
+            $categories[] = CategoryData::fromEvent($eventsMap[$coordinate], $coordinate);
         }
 
 
@@ -93,12 +100,20 @@ class ContentProvider
             return [];
         }
 
+        if (empty($category->articleCoordinates)) {
+            return [];
+        }
+
+        // Batch-fetch all article events in one relay request per author group
+        $eventsMap = $this->nostrClient->getEventsByCoordinates($category->articleCoordinates);
+
         $posts = [];
         foreach ($category->articleCoordinates as $articleCoordinate) {
-            $post = $this->fetchPostByCoordinate($articleCoordinate);
-            if ($post !== null) {
-                $posts[] = $post;
+            if (!isset($eventsMap[$articleCoordinate])) {
+                $this->logger->warning('Post event not found (batch)', ['coordinate' => $articleCoordinate]);
+                continue;
             }
+            $posts[] = PostData::fromEvent($eventsMap[$articleCoordinate]);
         }
 
 
