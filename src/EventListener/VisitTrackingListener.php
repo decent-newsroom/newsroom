@@ -19,6 +19,7 @@ class VisitTrackingListener
         '/service-worker.js',
         '/manifest.webmanifest',
         '/robots.txt',
+        '/up',
         '/assets/',
         '/icons/',
     ];

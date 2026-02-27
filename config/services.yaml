@@ -78,6 +78,7 @@ services:
         calls:
             - connect:
                 - '%env(REDIS_HOST)%'
+                - '%env(int:REDIS_PORT)%'
             - auth:
                 - '%env(REDIS_PASSWORD)%'
     

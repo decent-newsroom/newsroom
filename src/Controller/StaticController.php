@@ -11,6 +11,16 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class StaticController extends AbstractController
 {
+    /**
+     * Lightweight healthcheck endpoint used by Docker HEALTHCHECK and load balancers.
+     * Must NOT touch sessions, cache, or the database so it always responds quickly.
+     */
+    #[Route('/up', name: 'healthcheck', methods: ['GET', 'HEAD'])]
+    public function healthcheck(): Response
+    {
+        return new Response('OK', 200, ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
+    }
+
     #[Route('/about')]
     public function about(): Response
     {
