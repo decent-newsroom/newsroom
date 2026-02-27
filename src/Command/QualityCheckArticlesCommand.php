@@ -39,21 +39,37 @@ class QualityCheckArticlesCommand extends Command
             $output->writeln('<error>Error fetching muted users: ' . $e->getMessage() . '</error>');
         }
 
-        $articles = $this->entityManager->getRepository(Article::class)->findBy(['indexStatus' => IndexStatusEnum::NOT_INDEXED]);
+        $batchSize = 100;
         $count = 0;
-        foreach ($articles as $article) {
+        $processed = 0;
+
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('a')
+            ->from(Article::class, 'a')
+            ->where('a.indexStatus = :status')
+            ->setParameter('status', IndexStatusEnum::NOT_INDEXED)
+            ->getQuery();
+
+        foreach ($query->toIterable() as $article) {
             if ($this->meetsCriteria($article)) {
-                $count += 1;
+                $count++;
                 $article->setIndexStatus(IndexStatusEnum::TO_BE_INDEXED);
             } else {
                 $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
             }
-            $this->entityManager->persist($article);
+            $processed++;
+
+            if ($processed % $batchSize === 0) {
+                $this->entityManager->flush();
+                $this->entityManager->clear();
+                $output->writeln(sprintf('Processed %d articles so far (%d marked for indexing)...', $processed, $count));
+            }
         }
 
         $this->entityManager->flush();
+        $this->entityManager->clear();
 
-        $output->writeln($count . ' articles marked for indexing successfully.');
+        $output->writeln(sprintf('%d articles processed, %d marked for indexing successfully.', $processed, $count));
 
         return Command::SUCCESS;
     }

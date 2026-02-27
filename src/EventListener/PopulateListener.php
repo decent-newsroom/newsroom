@@ -15,16 +15,27 @@ class PopulateListener
 
     public function postIndexPopulate(PostIndexPopulateEvent $event): void
     {
-        $articles = $this->entityManager->getRepository(Article::class)->findBy(['indexStatus' => IndexStatusEnum::TO_BE_INDEXED]);
+        $batchSize = 100;
+        $processed = 0;
 
-        foreach ($articles as $article) {
-            if ($article instanceof Article) {
-                $article->setIndexStatus(IndexStatusEnum::INDEXED);
-                $this->entityManager->persist($article);
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('a')
+            ->from(Article::class, 'a')
+            ->where('a.indexStatus = :status')
+            ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
+            ->getQuery();
+
+        foreach ($query->toIterable() as $article) {
+            $article->setIndexStatus(IndexStatusEnum::INDEXED);
+            $processed++;
+
+            if ($processed % $batchSize === 0) {
+                $this->entityManager->flush();
+                $this->entityManager->clear();
             }
         }
 
         $this->entityManager->flush();
-
+        $this->entityManager->clear();
     }
 }

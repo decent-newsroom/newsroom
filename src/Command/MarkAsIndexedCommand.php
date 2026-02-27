@@ -22,17 +22,30 @@ class MarkAsIndexedCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $articles = $this->entityManager->getRepository(Article::class)->findBy(['indexStatus' => IndexStatusEnum::TO_BE_INDEXED]);
+        $batchSize = 100;
         $count = 0;
-        foreach ($articles as $article) {
-            if ($article instanceof Article) {
-                $count += 1;
-                $article->setIndexStatus(IndexStatusEnum::INDEXED);
-                $this->entityManager->persist($article);
+        $processed = 0;
+
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('a')
+            ->from(Article::class, 'a')
+            ->where('a.indexStatus = :status')
+            ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
+            ->getQuery();
+
+        foreach ($query->toIterable() as $article) {
+            $count++;
+            $article->setIndexStatus(IndexStatusEnum::INDEXED);
+            $processed++;
+
+            if ($processed % $batchSize === 0) {
+                $this->entityManager->flush();
+                $this->entityManager->clear();
             }
         }
 
         $this->entityManager->flush();
+        $this->entityManager->clear();
 
         $output->writeln($count . ' articles marked as indexed successfully.');
 

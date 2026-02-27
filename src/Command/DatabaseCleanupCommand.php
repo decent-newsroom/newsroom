@@ -25,23 +25,33 @@ class
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $batchSize = 100;
+        $totalDeleted = 0;
 
-        $repository = $this->entityManager->getRepository(Article::class);
-        $items = $repository->findBy(['indexStatus' => IndexStatusEnum::DO_NOT_INDEX]);
+        // Delete in batches to avoid memory exhaustion and long-running transactions
+        do {
+            $articles = $this->entityManager->getRepository(Article::class)
+                ->findBy(['indexStatus' => IndexStatusEnum::DO_NOT_INDEX], null, $batchSize);
 
-        if (empty($items)) {
+            $batchCount = count($articles);
+            if ($batchCount === 0) {
+                break;
+            }
+
+            foreach ($articles as $item) {
+                $this->entityManager->remove($item);
+            }
+
+            $this->entityManager->flush();
+            $this->entityManager->clear();
+            $totalDeleted += $batchCount;
+        } while ($batchCount === $batchSize);
+
+        if ($totalDeleted === 0) {
             $output->writeln('<info>No items found.</info>');
-            return Command::SUCCESS;
+        } else {
+            $output->writeln('<comment>Deleted ' . $totalDeleted . ' items.</comment>');
         }
-
-        foreach ($items as $item) {
-            $this->entityManager->remove($item);
-        }
-
-        $this->entityManager->flush();
-
-        $output->writeln('<comment>Deleted ' . count($items) . ' items.</comment>');
-
 
         return Command::SUCCESS;
     }

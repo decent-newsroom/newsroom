@@ -25,24 +25,27 @@ class IndexArticlesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-
-        $articles = $this->entityManager->getRepository(Article::class)->findBy(['indexStatus' => IndexStatusEnum::TO_BE_INDEXED]);
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('a')
+            ->from(Article::class, 'a')
+            ->where('a.indexStatus = :status')
+            ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
+            ->getQuery();
 
         $batchCount = 0;
         $processedCount = 0;
+        $batchItems = [];
 
-        foreach ($articles as $item) {
+        foreach ($query->toIterable() as $item) {
             $batchCount++;
-
-            // Collect batch of entities for indexing
             $batchItems[] = $item;
 
-            // Process batch when limit is reached
             if ($batchCount >= self::BATCH_SIZE) {
                 $this->flushAndPersistBatch($batchItems);
                 $processedCount += $batchCount;
                 $batchCount = 0;
                 $batchItems = [];
+                $this->entityManager->clear();
             }
         }
 
@@ -50,6 +53,7 @@ class IndexArticlesCommand extends Command
         if (!empty($batchItems)) {
             $this->flushAndPersistBatch($batchItems);
             $processedCount += count($batchItems);
+            $this->entityManager->clear();
         }
 
         $output->writeln("$processedCount items indexed in Elasticsearch.");

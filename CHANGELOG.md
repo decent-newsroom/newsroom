@@ -2,6 +2,7 @@
 
 ## v0.0.13
 
+- Improved db handling of articles.
 - Updated bookmarks page with better fetch and styling.
 - Updated article loading.
 - Enabled frankenphp.
