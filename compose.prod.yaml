@@ -45,11 +45,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
-      # Enable FrankenPHP worker mode: PHP workers are kept alive across requests,
-      # dramatically reducing per-request overhead. Tune count to your CPU count.
-      # max_requests causes each worker to gracefully restart after N requests,
-      # which prevents slow memory leaks from causing OOM crashes / 502s.
-      FRANKENPHP_CONFIG: "worker ./public/index.php count ${FRANKENPHP_WORKER_COUNT:-4} max_requests ${FRANKENPHP_MAX_REQUESTS:-500}"
+      # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
+      FRANKENPHP_CONFIG: "worker ./public/index.php"
     ports:
       - target: 80
         published: 80
