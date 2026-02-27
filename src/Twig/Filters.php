@@ -118,16 +118,21 @@ class Filters extends AbstractExtension
 
     public function toNpub(string $hexPubKey): string
     {
-        $key = new Key();
-        return $key->convertPublicKeyToBech32($hexPubKey);
+        try {
+            $key = new Key();
+            return $key->convertPublicKeyToBech32($hexPubKey);
+        } catch (\Throwable) {
+            return $hexPubKey; // Return original hex if conversion fails
+        }
     }
 
-    /**
-     * @throws Exception
-     */
     public function toHex(string $npub): string
     {
-        $key = new Key();
-        return $key->convertToHex($npub);
+        try {
+            $key = new Key();
+            return $key->convertToHex($npub);
+        } catch (\Throwable) {
+            return $npub; // Return original string if conversion fails
+        }
     }
 }

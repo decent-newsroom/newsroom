@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.13
+
+- Updated bookmarks page with better fetch and styling.
+- Updated article loading.
+- Enabled frankenphp.
+
 ## v0.0.12
 More metadata is better.  
 

@@ -29,13 +29,18 @@
                                 <small>{{ bookmark.items|length }} item{{ bookmark.items|length > 1 ? 's' : '' }}</small>
                             </div>
 
-                            <div class="bookmark-items-list">
+                            <div class="bookmark-items-list mt-3">
                                 {% for item in bookmark.items %}
-                                    <twig:Organisms:BookmarkItemResolver
-                                        :type="item.type"
-                                        :value="item.value"
-                                        :relay="item.relay"
-                                    />
+                                    {% if item.type == 'e' and item.value and resolvedEvents[item.value] is defined %}
+                                        {# Event already in DB – render directly, no LiveComponent needed #}
+                                        {% include 'partial/_bookmark_event_card.html.twig' with {event: resolvedEvents[item.value]} %}
+                                    {% else %}
+                                        <twig:Organisms:BookmarkItemResolver
+                                            :type="item.type"
+                                            :value="item.value"
+                                            :relay="item.relay"
+                                        />
+                                    {% endif %}
                                 {% endfor %}
                             </div>
                         {% else %}

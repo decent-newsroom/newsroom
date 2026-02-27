@@ -33,8 +33,12 @@ class NostrKeyUtil
         if (!self::isNpub($npub)) {
             throw new \InvalidArgumentException('Not a valid npub');
         }
-        $key = new Key();
-        return $key->convertToHex($npub);
+        try {
+            $key = new Key();
+            return $key->convertToHex($npub);
+        } catch (\Throwable $e) {
+            throw new \InvalidArgumentException('Invalid npub: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -46,8 +50,12 @@ class NostrKeyUtil
         if (!self::isHexPubkey($pubkey)) {
             throw new \InvalidArgumentException('Not a valid hex pubkey');
         }
-        $key = new Key();
-        return $key->convertPublicKeyToBech32($pubkey);
+        try {
+            $key = new Key();
+            return $key->convertPublicKeyToBech32($pubkey);
+        } catch (\Throwable $e) {
+            throw new \InvalidArgumentException('Invalid pubkey: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     /**

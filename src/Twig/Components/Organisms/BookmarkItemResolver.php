@@ -54,7 +54,15 @@ final class BookmarkItemResolver
     public function mount(): void
     {
         if ($this->type === 'e' && $this->value) {
-            $this->event = $this->eventRepository->findById($this->value);
+            try {
+                $this->event = $this->eventRepository->findById($this->value);
+            } catch (\Throwable $e) {
+                $this->logger->warning('BookmarkItemResolver: failed to load event from DB', [
+                    'eventId' => $this->value,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->error = 'Failed to load event';
+            }
         }
     }
 
@@ -69,14 +77,14 @@ final class BookmarkItemResolver
             return;
         }
 
-        // Already resolved?
-        $this->event = $this->eventRepository->findById($this->value);
-        if ($this->event) {
-            $this->fetched = true;
-            return;
-        }
-
         try {
+            // Already resolved?
+            $this->event = $this->eventRepository->findById($this->value);
+            if ($this->event) {
+                $this->fetched = true;
+                return;
+            }
+
             $relays = $this->relay ? [$this->relay] : [];
             $raw = $this->nostrClient->getEventById($this->value, $relays);
 
@@ -89,6 +97,7 @@ final class BookmarkItemResolver
             // Persist so future loads are instant
             $event = new Event();
             $event->setId($raw->id);
+            $event->setEventId($raw->id);
             $event->setPubkey($raw->pubkey);
             $event->setKind($raw->kind);
             $event->setContent($raw->content ?? '');

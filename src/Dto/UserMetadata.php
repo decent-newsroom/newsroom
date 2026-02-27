@@ -68,7 +68,7 @@ class UserMetadata
     public static function createDefault(string $pubkeyHex): self
     {
         $npub = \App\Util\NostrKeyUtil::hexToNpub($pubkeyHex);
-        $defaultName = '@' . substr($npub, 5, 4) . '…' . substr($npub, -4);
+        $defaultName = substr($npub, 5, 4) . '…' . substr($npub, -4);
 
         return new self(name: $defaultName);
     }

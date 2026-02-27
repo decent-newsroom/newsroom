@@ -6,6 +6,7 @@ namespace App\Controller\Reader;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ class BookmarksController extends AbstractController
     public function index(
         EntityManagerInterface $em,
         NostrClient $nostrClient,
+        EventRepository $eventRepository,
     ): Response {
         $user = $this->getUser();
         if (!$user) {
@@ -41,8 +43,24 @@ class BookmarksController extends AbstractController
         $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
         $bookmarks = $this->loadBookmarks($pubkey, $em, $nostrClient);
 
+        // Batch-resolve all 'e'-type bookmark items from the DB in one query
+        $allEventIds = [];
+        foreach ($bookmarks as $bookmark) {
+            foreach ($bookmark->items as $item) {
+                if ($item['type'] === 'e' && !empty($item['value'])) {
+                    $allEventIds[] = $item['value'];
+                }
+            }
+        }
+
+        $resolvedEvents = [];
+        if (!empty($allEventIds)) {
+            $resolvedEvents = $eventRepository->findByIds(array_unique($allEventIds));
+        }
+
         return $this->render('pages/my-bookmarks.html.twig', [
             'bookmarks' => $bookmarks,
+            'resolvedEvents' => $resolvedEvents,
         ]);
     }
 
@@ -94,6 +112,7 @@ class BookmarksController extends AbstractController
             $persisted = [];
             foreach ($relayEvents as $raw) {
                 $event = new Event();
+                $event->setId($raw->id);
                 $event->setEventId($raw->id);
                 $event->setPubkey($raw->pubkey);
                 $event->setKind($raw->kind);

@@ -187,6 +187,32 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find multiple events by their IDs in a single query.
+     *
+     * @param string[] $ids Event IDs
+     * @return array<string, Event> Map of id => Event
+     */
+    public function findByIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $events = $this->createQueryBuilder('e')
+            ->where('e.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $map = [];
+        foreach ($events as $event) {
+            $map[$event->getId()] = $event;
+        }
+
+        return $map;
+    }
+
+    /**
      * Find event by naddr parameters (kind, pubkey, identifier)
      * Used for parameterized replaceable events (kinds 30000-39999)
      *

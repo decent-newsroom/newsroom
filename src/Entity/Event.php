@@ -249,10 +249,15 @@ class Event
 
     /**
      * Encode event ID as note1... format (NIP-19)
+     * Returns null when the ID cannot be encoded (e.g. invalid hex).
      */
-    public function encodeAsNote1(): string
+    public function encodeAsNote1(): ?string
     {
-        $nip19 = new Nip19Helper();
-        return $nip19->encodeNote($this->id);
+        try {
+            $nip19 = new Nip19Helper();
+            return $nip19->encodeNote($this->id);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

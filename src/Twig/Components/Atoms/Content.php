@@ -21,7 +21,7 @@ class Content
     {
         try {
             $this->parsed = $this->converter->convertToHTML($content);
-        } catch (CommonMarkException) {
+        } catch (\Throwable) {
             $this->parsed = $content;
         }
     }
