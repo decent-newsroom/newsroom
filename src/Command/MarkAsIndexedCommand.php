@@ -24,28 +24,21 @@ class MarkAsIndexedCommand extends Command
     {
         $batchSize = 100;
         $count = 0;
-        $processed = 0;
 
-        $query = $this->entityManager->createQueryBuilder()
-            ->select('a')
-            ->from(Article::class, 'a')
-            ->where('a.indexStatus = :status')
-            ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
-            ->getQuery();
+        do {
+            $articles = $this->entityManager->getRepository(Article::class)
+                ->findBy(['indexStatus' => IndexStatusEnum::TO_BE_INDEXED], ['id' => 'ASC'], $batchSize);
 
-        foreach ($query->toIterable() as $article) {
-            $count++;
-            $article->setIndexStatus(IndexStatusEnum::INDEXED);
-            $processed++;
+            $batchCount = count($articles);
 
-            if ($processed % $batchSize === 0) {
-                $this->entityManager->flush();
-                $this->entityManager->clear();
+            foreach ($articles as $article) {
+                $count++;
+                $article->setIndexStatus(IndexStatusEnum::INDEXED);
             }
-        }
 
-        $this->entityManager->flush();
-        $this->entityManager->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
+        } while ($batchCount === $batchSize);
 
         $output->writeln($count . ' articles marked as indexed successfully.');
 

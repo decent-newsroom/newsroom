@@ -25,36 +25,36 @@ class IndexArticlesCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $query = $this->entityManager->createQueryBuilder()
-            ->select('a')
-            ->from(Article::class, 'a')
-            ->where('a.indexStatus = :status')
-            ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
-            ->getQuery();
-
-        $batchCount = 0;
         $processedCount = 0;
-        $batchItems = [];
+        $lastId = 0;
 
-        foreach ($query->toIterable() as $item) {
-            $batchCount++;
-            $batchItems[] = $item;
+        // Fetch in batches using ID-based pagination (indexStatus is NOT changed here)
+        do {
+            $articles = $this->entityManager->createQueryBuilder()
+                ->select('a')
+                ->from(Article::class, 'a')
+                ->where('a.indexStatus = :status')
+                ->andWhere('a.id > :lastId')
+                ->setParameter('status', IndexStatusEnum::TO_BE_INDEXED)
+                ->setParameter('lastId', $lastId)
+                ->orderBy('a.id', 'ASC')
+                ->setMaxResults(self::BATCH_SIZE)
+                ->getQuery()
+                ->getResult();
 
-            if ($batchCount >= self::BATCH_SIZE) {
-                $this->flushAndPersistBatch($batchItems);
-                $processedCount += $batchCount;
-                $batchCount = 0;
-                $batchItems = [];
-                $this->entityManager->clear();
+            $batchCount = count($articles);
+            if ($batchCount === 0) {
+                break;
             }
-        }
 
-        // Process any remaining items
-        if (!empty($batchItems)) {
-            $this->flushAndPersistBatch($batchItems);
-            $processedCount += count($batchItems);
+            $this->flushAndPersistBatch($articles);
+            $processedCount += $batchCount;
+
+            // Track last ID for next batch
+            $lastId = end($articles)->getId();
+
             $this->entityManager->clear();
-        }
+        } while ($batchCount === self::BATCH_SIZE);
 
         $output->writeln("$processedCount items indexed in Elasticsearch.");
         return Command::SUCCESS;

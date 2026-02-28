@@ -43,31 +43,31 @@ class QualityCheckArticlesCommand extends Command
         $count = 0;
         $processed = 0;
 
-        $query = $this->entityManager->createQueryBuilder()
-            ->select('a')
-            ->from(Article::class, 'a')
-            ->where('a.indexStatus = :status')
-            ->setParameter('status', IndexStatusEnum::NOT_INDEXED)
-            ->getQuery();
+        // Process in batches — each batch fetches rows still matching NOT_INDEXED
+        // because flush() changes them, the next batch gets fresh unprocessed rows.
+        do {
+            $articles = $this->entityManager->getRepository(Article::class)
+                ->findBy(['indexStatus' => IndexStatusEnum::NOT_INDEXED], ['id' => 'ASC'], $batchSize);
 
-        foreach ($query->toIterable() as $article) {
-            if ($this->meetsCriteria($article)) {
-                $count++;
-                $article->setIndexStatus(IndexStatusEnum::TO_BE_INDEXED);
-            } else {
-                $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
+            $batchCount = count($articles);
+
+            foreach ($articles as $article) {
+                if ($this->meetsCriteria($article)) {
+                    $count++;
+                    $article->setIndexStatus(IndexStatusEnum::TO_BE_INDEXED);
+                } else {
+                    $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
+                }
+                $processed++;
             }
-            $processed++;
 
-            if ($processed % $batchSize === 0) {
-                $this->entityManager->flush();
-                $this->entityManager->clear();
+            $this->entityManager->flush();
+            $this->entityManager->clear();
+
+            if ($batchCount > 0) {
                 $output->writeln(sprintf('Processed %d articles so far (%d marked for indexing)...', $processed, $count));
             }
-        }
-
-        $this->entityManager->flush();
-        $this->entityManager->clear();
+        } while ($batchCount === $batchSize);
 
         $output->writeln(sprintf('%d articles processed, %d marked for indexing successfully.', $processed, $count));
 
