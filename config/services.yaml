@@ -171,7 +171,14 @@ services:
     App\UnfoldBundle\Http\HostResolver: ~
     
     App\UnfoldBundle\Http\RouteMatcher: ~
-    
+
+    # Retry on stale/lost database connections.
+    # Critical for FrankenPHP worker mode where PHP workers are long-lived
+    # and connections can go stale due to PostgreSQL idle timeouts.
+    App\Doctrine\Middleware\RetryOnConnectionLostMiddleware:
+        tags:
+            - { name: doctrine.middleware }
+
     App\UnfoldBundle\EventListener\UnfoldRequestListener:
         arguments:
             $baseDomain: '%base_domain%'
