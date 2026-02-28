@@ -54,10 +54,22 @@ This allows any subdomain to resolve to your server. The Symfony application wil
 
 ```dotenv
 # In .env.prod.local
+
+# Behind a reverse proxy (recommended):
+SERVER_NAME=:80
+CADDY_GLOBAL_OPTIONS=auto_https off
 BASE_DOMAIN=your-domain.com
-SERVER_NAME=your-domain.com
 RELAY_DOMAIN=relay.your-domain.com
+
+# Or standalone (Caddy manages HTTPS — wildcard is REQUIRED for subdomains):
+# SERVER_NAME=your-domain.com, *.your-domain.com
+# BASE_DOMAIN=your-domain.com
+# RELAY_DOMAIN=relay.your-domain.com
 ```
+
+> ⚠️ **Common 502 cause:** If you set `SERVER_NAME=your-domain.com` (without wildcard),
+> Caddy only accepts requests for that exact host. Subdomain requests like
+> `magazine1.your-domain.com` won't match and Caddy returns **502**.
 
 **Wildcard TLS Certificates:**
 
@@ -83,7 +95,9 @@ If you have an external reverse proxy (nginx, Traefik, Cloudflare, etc.) handlin
 ```dotenv
 # In .env.prod.local
 SERVER_NAME=:80
+CADDY_GLOBAL_OPTIONS=auto_https off
 BASE_DOMAIN=your-domain.com
+TRUSTED_HOSTS=^(.+\.)?your-domain\.com$
 ```
 
 3. **Add subdomains to your proxy** when you create new magazines in the admin panel

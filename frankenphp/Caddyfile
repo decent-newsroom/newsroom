@@ -22,9 +22,15 @@
 #   - Symfony's UnfoldRequestListener handles subdomain routing
 #
 # For standalone production (Caddy manages HTTPS):
-#   - Set SERVER_NAME=yourdomain.com (enables automatic Let's Encrypt TLS)
+#   - Set SERVER_NAME=yourdomain.com, *.yourdomain.com (must include wildcard for subdomains!)
 #   - Set RELAY_DOMAIN=relay.yourdomain.com
 #   - Symfony's UnfoldRequestListener handles subdomain routing
+#
+# ⚠️  IMPORTANT: If you set SERVER_NAME to a specific domain without a wildcard,
+#     subdomain requests (e.g., support.yourdomain.com) will NOT match this block
+#     and Caddy will return 502. Either:
+#     a) Use :80 behind a proxy (recommended), or
+#     b) Include both the domain AND wildcard: yourdomain.com, *.yourdomain.com
 #
 # For local development:
 #   - Set SERVER_NAME=localhost,*.localhost (matches both main and subdomains)
@@ -96,15 +102,16 @@
 
 # Configuration Examples:
 #
-# Production behind external proxy (proxy handles TLS):
+# Production behind external proxy (proxy handles TLS) — RECOMMENDED:
 #   SERVER_NAME=:80
+#   CADDY_GLOBAL_OPTIONS=auto_https off
 #   RELAY_DOMAIN=relay.yourdomain.com
 #   External proxy routes all domains/subdomains → this container on port 80
 #
 # Standalone production (Caddy manages HTTPS with Let's Encrypt):
-#   SERVER_NAME=yourdomain.com
+#   SERVER_NAME=yourdomain.com, *.yourdomain.com
 #   RELAY_DOMAIN=relay.yourdomain.com
-#   Caddy automatically obtains TLS certificates
+#   Caddy automatically obtains TLS certificates for domain + all subdomains
 #
 # Local development:
 #   SERVER_NAME=localhost,*.localhost

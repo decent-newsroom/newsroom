@@ -83,7 +83,7 @@ docker compose down
 |----------|---------|---------|-------------|
 | `APP_ENV` | `dev` | ⚠️ | Application environment. Use `dev` locally, `prod` for production |
 | `APP_SECRET` | `9e287f1ad...` | 🔒 | Secret key for CSRF tokens, cookies, etc. **Must be unique in production** |
-| `SERVER_NAME` | `localhost` | ⚠️ | Your domain name. Use `localhost` locally, `yourdomain.com` in production |
+| `SERVER_NAME` | `localhost` | ⚠️ | Your domain. Use `localhost` locally, `:80` behind a proxy, or `yourdomain.com, *.yourdomain.com` standalone |
 | `HTTP_PORT` | `8080` | ✅ | HTTP port. Default 8080 avoids conflicts locally. Use `80` in production |
 | `HTTPS_PORT` | `8443` | ✅ | HTTPS port. Default 8443 avoids conflicts locally. Use `443` in production |
 | `HTTP3_PORT` | `8443` | ✅ | HTTP/3 (QUIC) port. Should match HTTPS_PORT |
@@ -202,8 +202,8 @@ Create `.env.prod.local` with your production values:
 # Application
 APP_ENV=prod
 APP_SECRET=<generate-with-openssl-rand-hex-32>
-SERVER_NAME=yourdomain.com
-TRUSTED_HOSTS=^(yourdomain\.com|relay\.yourdomain\.com)$
+SERVER_NAME=:80
+TRUSTED_HOSTS=^(.+\.)?yourdomain\.com$
 
 # Database
 POSTGRES_DB=newsroom_db

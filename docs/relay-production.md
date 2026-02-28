@@ -29,7 +29,7 @@ NOSTR_DEFAULT_RELAY=ws://strfry:7777
 Update your environment to trust both domains:
 
 ```bash
-TRUSTED_HOSTS='^(decentnewsroom\.com|relay\.decentnewsroom\.com)$'
+TRUSTED_HOSTS='^(.+\.)?decentnewsroom\.com$'
 ```
 
 ### 3. Deploy
