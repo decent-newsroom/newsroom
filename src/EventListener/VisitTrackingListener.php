@@ -6,6 +6,7 @@ namespace App\EventListener;
 
 use App\Entity\Visit;
 use App\Repository\VisitRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -25,7 +26,8 @@ class VisitTrackingListener
     ];
 
     public function __construct(
-        private readonly VisitRepository $visitRepository
+        private readonly VisitRepository $visitRepository,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -45,25 +47,30 @@ class VisitTrackingListener
             }
         }
 
-        // Get session ID for all visitors (both logged-in and anonymous)
-        $sessionId = null;
-        if ($request->hasSession()) {
-            $session = $request->getSession();
-            // Start session if not already started to get/create a session ID
-            if (!$session->isStarted()) {
-                $session->start();
-            }
-            $sessionId = $session->getId();
-        }
-
-        // Create and save the visit record
-        $visit = new Visit($route, $sessionId);
-
+        // Entire tracking block is wrapped in try/catch so that a DB or Redis failure
+        // never crashes the FrankenPHP worker (which would produce a 502).
         try {
+            // Get session ID for all visitors (both logged-in and anonymous)
+            $sessionId = null;
+            if ($request->hasSession()) {
+                $session = $request->getSession();
+                // Start session if not already started to get/create a session ID
+                if (!$session->isStarted()) {
+                    $session->start();
+                }
+                $sessionId = $session->getId();
+            }
+
+            // Create and save the visit record
+            $visit = new Visit($route, $sessionId);
             $this->visitRepository->save($visit);
-        } catch (\Exception $e) {
-            // Silently fail to avoid breaking the request
-            // You could log this error if needed
+        } catch (\Throwable $e) {
+            // Silently fail — visit tracking must never break the actual request.
+            // Log at warning level so it's visible but not alarming.
+            $this->logger?->warning('VisitTrackingListener: failed to record visit', [
+                'route' => $route,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

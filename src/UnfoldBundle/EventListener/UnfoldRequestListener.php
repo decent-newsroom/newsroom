@@ -3,6 +3,7 @@
 namespace App\UnfoldBundle\EventListener;
 
 use App\Repository\UnfoldSiteRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -43,6 +44,7 @@ class UnfoldRequestListener
     public function __construct(
         private readonly UnfoldSiteRepository $unfoldSiteRepository,
         private readonly string $baseDomain,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     public function __invoke(RequestEvent $event): void
@@ -65,7 +67,17 @@ class UnfoldRequestListener
         }
 
         // Look up the subdomain in the database
-        $unfoldSite = $this->unfoldSiteRepository->findBySubdomain($subdomain);
+        // Wrapped in try/catch: a DB failure here (e.g., stale connection in worker mode)
+        // must not crash the worker and produce a 502. Instead, fall through to normal routing.
+        try {
+            $unfoldSite = $this->unfoldSiteRepository->findBySubdomain($subdomain);
+        } catch (\Throwable $e) {
+            $this->logger?->error('UnfoldRequestListener: DB lookup failed, falling through to normal routing', [
+                'subdomain' => $subdomain,
+                'error' => $e->getMessage(),
+            ]);
+            return;
+        }
 
         if ($unfoldSite !== null) {
             // Set request attributes so the SiteController can use them

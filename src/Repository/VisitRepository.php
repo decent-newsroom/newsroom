@@ -12,17 +12,29 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class VisitRepository extends ServiceEntityRepository
 {
+    private ManagerRegistry $registry;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Visit::class);
+        $this->registry = $registry;
     }
 
     public function save(Visit $visit, bool $flush = true): void
     {
-        $this->getEntityManager()->persist($visit);
+        $em = $this->getEntityManager();
+
+        // In FrankenPHP worker mode, a previous failed flush can leave the EntityManager
+        // closed. Reset it so subsequent requests in this worker aren't permanently broken.
+        if (!$em->isOpen()) {
+            $this->registry->resetManager();
+            $em = $this->getEntityManager();
+        }
+
+        $em->persist($visit);
 
         if ($flush) {
-            $this->getEntityManager()->flush();
+            $em->flush();
         }
     }
 

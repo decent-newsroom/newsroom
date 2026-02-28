@@ -8,6 +8,12 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+
+        # Retry on stale/lost database connections.
+        # Critical for FrankenPHP worker mode where PHP workers are long-lived
+        # and connections can go stale due to PostgreSQL idle timeouts.
+        middlewares:
+            - App\Doctrine\Middleware\RetryOnConnectionLostMiddleware
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true

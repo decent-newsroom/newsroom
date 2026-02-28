@@ -47,18 +47,6 @@ services:
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
       FRANKENPHP_CONFIG: "worker ./public/index.php"
-    ports:
-      - target: 80
-        published: 80
-        protocol: tcp
-      # HTTPS port - required when Caddy handles TLS (SERVER_NAME is a domain, not :80)
-      - target: 443
-        published: 443
-        protocol: tcp
-      # HTTP/3 (QUIC) - optional but recommended for performance
-      - target: 443
-        published: 443
-        protocol: udp
     volumes:
       # Caddy state (TLS certs, etc.). Safe to persist.
       - caddy_data:/data
