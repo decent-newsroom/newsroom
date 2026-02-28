@@ -70,7 +70,11 @@ class ArticleController  extends AbstractController
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
     {
-        set_time_limit(120); // 2 minutes
+        // IMPORTANT: this endpoint can be hit from external links and relays may be slow.
+        // Keeping a very long time limit behind a proxy tends to create intermittent 502s (proxy timeout).
+        // Use a short budget and fall back gracefully.
+        set_time_limit(10);
+
         $decoded = new Bech32($naddr);
 
         if ($decoded->type !== 'naddr') {
@@ -94,7 +98,13 @@ class ArticleController  extends AbstractController
             ]);
         }
 
-        $found = $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
+        $found = false;
+        try {
+            // Best-effort: try to fetch quickly. If relays are slow/offline, don't block the web request.
+            $found = (bool) $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
+        } catch (\Throwable) {
+            $found = false;
+        }
 
         // Check if anything is in the database now
         $repository = $em->getRepository(Article::class);
@@ -284,10 +294,18 @@ class ArticleController  extends AbstractController
         ]);
 
         if (!$htmlContent) {
-            // Fall back to converting on-the-fly and save for future requests
-            $htmlContent = $converter->convertToHTML($draft->getContent());
-            $draft->setProcessedHtml($htmlContent);
-            $entityManager->flush();
+            // Fall back to converting on-the-fly.
+            // Avoid flushing during a web request in FrankenPHP worker mode: if the DB connection is stale
+            // or flush fails, it may poison the EntityManager for subsequent requests in this worker.
+            try {
+                $htmlContent = $converter->convertToHTML($draft->getContent());
+                $draft->setProcessedHtml($htmlContent);
+            } catch (\Throwable $e) {
+                $logger->error('Error converting draft content to HTML', [
+                    'article_id' => $draft->getId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         $authorMetadata = $redisCacheService->getMetadata($draft->getPubkey());
@@ -303,11 +321,17 @@ class ArticleController  extends AbstractController
             }
         }
         $canonical = $this->generateUrl('author-draft-slug', ['npub' => $npub, 'slug' => $draft->getSlug()], 0);
+        // TEMP: Disable highlights lookup to diagnose slow/unstable article loads behind proxies.
+        // Re-enable by setting env HIGHLIGHTS_ENABLED=1.
         $highlights = [];
-        try {
-            $draftCoordinate = '30024:' . $draft->getPubkey() . ':' . $draft->getSlug();
-            $highlights = $highlightService->getHighlightsForArticle($draftCoordinate);
-        } catch (\Exception $e) {}
+        if ((string) ($_SERVER['HIGHLIGHTS_ENABLED'] ?? '') === '1') {
+            try {
+                $draftCoordinate = '30024:' . $draft->getPubkey() . ':' . $draft->getSlug();
+                $highlights = $highlightService->getHighlightsForArticle($draftCoordinate);
+            } catch (\Throwable $e) {
+                // Best-effort only
+            }
+        }
 
         // Reuse article.html.twig template - drafts use the same Article entity
         return $this->render('pages/article.html.twig', [
@@ -376,10 +400,10 @@ class ArticleController  extends AbstractController
 
         if (!$htmlContent) {
             try {
-                // Fall back to converting on-the-fly and save for future requests
+                // Fall back to converting on-the-fly.
+                // Avoid flushing during a web request in FrankenPHP worker mode for stability.
                 $htmlContent = $converter->convertToHTML($article->getContent());
                 $article->setProcessedHtml($htmlContent);
-                $entityManager->flush();
             } catch (\Exception|CommonMarkException $e) {
                 $logger->error('Error converting article content to HTML', [
                     'article_id' => $article->getId(),
@@ -401,11 +425,17 @@ class ArticleController  extends AbstractController
             }
         }
         $canonical = $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $article->getSlug()], 0);
+        // TEMP: Disable highlights lookup to diagnose slow/unstable article loads behind proxies.
+        // Re-enable by setting env HIGHLIGHTS_ENABLED=1.
         $highlights = [];
-        try {
-            $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
-        } catch (\Exception $e) {}
+        if ((string) ($_SERVER['HIGHLIGHTS_ENABLED'] ?? '') === '1') {
+            try {
+                $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+                $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+            } catch (\Throwable $e) {
+                // Best-effort only
+            }
+        }
 
         // Find prev/next articles from reading lists
         $listNav = null;

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Article;
 use App\Entity\Event;
+use Psr\Cache\CacheItemPoolInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -16,6 +17,7 @@ class ReadingListNavigationService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly CacheItemPoolInterface $cache,
     ) {}
 
     /**
@@ -34,6 +36,19 @@ class ReadingListNavigationService
      */
     public function findNavigation(string $articleCoordinate): ?array
     {
+        $cacheKey = 'reading_list_nav_' . md5($articleCoordinate);
+
+        try {
+            $item = $this->cache->getItem($cacheKey);
+            if ($item->isHit()) {
+                /** @var array|null $cached */
+                $cached = $item->get();
+                return $cached;
+            }
+        } catch (\Throwable $e) {
+            // Cache failures should never break the request
+        }
+
         // Use PostgreSQL JSON containment to find events whose tags contain an 'a' tag referencing this article
         $sql = "SELECT e.* FROM event e
                 WHERE e.tags::jsonb @> ?::jsonb
@@ -55,6 +70,8 @@ class ReadingListNavigationService
         if (empty($rows)) {
             return null;
         }
+
+        $resultValue = null;
 
         // Try each list until we find one with a resolvable prev/next
         foreach ($rows as $row) {
@@ -114,7 +131,7 @@ class ReadingListNavigationService
                 continue;
             }
 
-            return [
+            $resultValue = [
                 'listTitle' => $listTitle,
                 'listSlug' => $listSlug,
                 'listPubkey' => $row['pubkey'],
@@ -122,9 +139,20 @@ class ReadingListNavigationService
                 'prevArticle' => $prevArticle,
                 'nextArticle' => $nextArticle,
             ];
+
+            break;
         }
 
-        return null;
+        // Cache result (including null) briefly to protect DB under load.
+        try {
+            $item = $this->cache->getItem($cacheKey);
+            $item->set($resultValue);
+            $item->expiresAfter(300); // 5 minutes
+            $this->cache->save($item);
+        } catch (\Throwable $e) {
+        }
+
+        return $resultValue;
     }
 
     /**

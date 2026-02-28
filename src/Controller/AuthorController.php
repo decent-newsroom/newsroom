@@ -22,6 +22,7 @@ use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -39,6 +40,7 @@ class AuthorController extends AbstractController
         private readonly LoggerInterface $logger,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly VanityNameService $vanityNameService,
+        private readonly CacheItemPoolInterface $cache,
     ) {}
 
     /**
@@ -154,6 +156,22 @@ class AuthorController extends AbstractController
         $pubkey = $keyUtil->npubToHex($npub);
         $logger->info(sprintf('Reading list: pubkey=%s, slug=%s', $pubkey, $slug));
 
+        $cacheKey = 'author_reading_list_' . md5($pubkey . ':' . $slug);
+        try {
+            $cacheItem = $this->cache->getItem($cacheKey);
+            if ($cacheItem->isHit()) {
+                $cached = $cacheItem->get();
+                if (is_array($cached) && isset($cached['list'], $cached['articles'])) {
+                    return $this->render('pages/list.html.twig', [
+                        'list' => $cached['list'],
+                        'articles' => $cached['articles'],
+                    ]);
+                }
+            }
+        } catch (\Throwable) {
+            // Ignore cache failures
+        }
+
         // Find reading list by pubkey+slug, kind 30040 directly from database
         $repo = $em->getRepository(Event::class);
         $lists = $repo->findBy(['pubkey' => $pubkey, 'kind' => KindsEnum::PUBLICATION_INDEX], ['created_at' => 'DESC']);
@@ -187,42 +205,63 @@ class AuthorController extends AbstractController
         if (count($coordinates) > 0) {
             $articleRepo = $em->getRepository(Article::class);
 
-            // Query database directly for each coordinate
+            // Batch load by (pubkey, slug) to avoid N+1 queries.
+            // We still dedupe by latest createdAt per slug after fetching.
+            $want = [];
             foreach ($coordinates as $coord) {
                 $parts = explode(':', $coord, 3);
                 if (count($parts) === 3) {
-                    [$kind, $author, $articleSlug] = $parts;
+                    [, $author, $articleSlug] = $parts;
+                    $want[] = ['pubkey' => $author, 'slug' => $articleSlug, 'coord' => $coord];
+                }
+            }
 
-                    // Find the most recent event matching this coordinate
-                    $events = $articleRepo->findBy([
-                        'slug' => $articleSlug,
-                        'pubkey' => $author
-                    ], ['createdAt' => 'DESC']);
+            $foundMap = [];
+            if (!empty($want)) {
+                $pubkeys = array_values(array_unique(array_map(fn($w) => $w['pubkey'], $want)));
+                $slugs = array_values(array_unique(array_map(fn($w) => $w['slug'], $want)));
 
-                    $found = false;
-                    // Filter by slug and get the latest
-                    foreach ($events as $event) {
-                        if ($event->getSlug() === $articleSlug) {
-                            $articles[] = $event;
-                            $found = true;
-                            $logger->info('Found article in DB', ['coordinate' => $coord, 'title' => $event->getTitle()]);
-                            break; // Take the first match (most recent if ordered)
-                        }
+                // Fetch candidates in one query; we will select best match per (pubkey,slug).
+                $candidates = $articleRepo->createQueryBuilder('a')
+                    ->where('a.pubkey IN (:pubkeys)')
+                    ->andWhere('a.slug IN (:slugs)')
+                    ->setParameter('pubkeys', $pubkeys)
+                    ->setParameter('slugs', $slugs)
+                    ->orderBy('a.createdAt', 'DESC')
+                    ->getQuery()
+                    ->getResult();
+
+                foreach ($candidates as $cand) {
+                    if (!$cand instanceof Article) {
+                        continue;
                     }
-
-                    // If not found, add placeholder data
-                    if (!$found) {
-                        $placeholder = (object)[
-                            'pubkey' => $author,
-                            'slug' => $articleSlug,
-                            'coordinate' => $coord,
-                            'kind' => (int)$kind,
-                            'title' => null, // No title means CardPlaceholder will be used
-                        ];
-                        $articles[] = $placeholder;
-                        $logger->info('Article not found, adding placeholder', ['coordinate' => $coord]);
+                    $k = $cand->getPubkey() . ':' . $cand->getSlug();
+                    if (!isset($foundMap[$k])) {
+                        $foundMap[$k] = $cand;
                     }
                 }
+            }
+
+            foreach ($coordinates as $coord) {
+                $parts = explode(':', $coord, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+                [$kind, $author, $articleSlug] = $parts;
+                $k = $author . ':' . $articleSlug;
+                if (isset($foundMap[$k])) {
+                    $articles[] = $foundMap[$k];
+                    continue;
+                }
+
+                // If not found, add placeholder
+                $articles[] = (object)[
+                    'pubkey' => $author,
+                    'slug' => $articleSlug,
+                    'coordinate' => $coord,
+                    'kind' => (int) $kind,
+                    'title' => null,
+                ];
             }
         }
 
@@ -231,6 +270,14 @@ class AuthorController extends AbstractController
             'total_coordinates' => count($coordinates),
             'total_articles' => count($articles)
         ]);
+
+        try {
+            $cacheItem = $this->cache->getItem($cacheKey);
+            $cacheItem->set(['list' => $list, 'articles' => $articles]);
+            $cacheItem->expiresAfter(120);
+            $this->cache->save($cacheItem);
+        } catch (\Throwable) {
+        }
 
         return $this->render('pages/list.html.twig', [
             'list' => $list,

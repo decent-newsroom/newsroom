@@ -16,6 +16,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 class VanityNameService
 {
     private const CACHE_TTL = 300; // 5 minutes cache for NIP-05 response
+    private const LOOKUP_TTL = 300; // 5 minutes cache for vanity/npub lookups
 
     private readonly string $recipientPubkeyHex;
 
@@ -324,7 +325,11 @@ class VanityNameService
      */
     public function getActiveByVanityName(string $name): ?VanityName
     {
-        return $this->repository->findActiveByVanityName($name);
+        $cacheKey = 'vanity_active_by_name_' . strtolower($name);
+        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
+            $item->expiresAfter(self::LOOKUP_TTL);
+            return $this->repository->findActiveByVanityName($name);
+        });
     }
 
     /**
@@ -340,7 +345,11 @@ class VanityNameService
      */
     public function getActiveByNpub(string $npub): ?VanityName
     {
-        return $this->repository->findActiveByNpub($npub);
+        $cacheKey = 'vanity_active_by_npub_' . strtolower($npub);
+        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+            $item->expiresAfter(self::LOOKUP_TTL);
+            return $this->repository->findActiveByNpub($npub);
+        });
     }
 
     /**
@@ -348,7 +357,11 @@ class VanityNameService
      */
     public function getActiveByPubkeyHex(string $pubkeyHex): ?VanityName
     {
-        return $this->repository->findActiveByPubkeyHex($pubkeyHex);
+        $cacheKey = 'vanity_active_by_pubkey_' . strtolower($pubkeyHex);
+        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkeyHex) {
+            $item->expiresAfter(self::LOOKUP_TTL);
+            return $this->repository->findActiveByPubkeyHex($pubkeyHex);
+        });
     }
 
     /**
