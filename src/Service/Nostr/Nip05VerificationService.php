@@ -2,6 +2,7 @@
 
 namespace App\Service\Nostr;
 
+use App\Service\VanityNameService;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -12,8 +13,10 @@ readonly class Nip05VerificationService
     private const REQUEST_TIMEOUT = 5; // 5 seconds
 
     public function __construct(
-        private CacheInterface  $appCache,
-        private LoggerInterface $logger
+        private CacheInterface      $appCache,
+        private LoggerInterface     $logger,
+        private VanityNameService   $vanityNameService,
+        private string              $serverDomain = 'localhost',
     ) {
     }
 
@@ -41,6 +44,12 @@ readonly class Nip05VerificationService
         try {
             return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($localPart, $domain, $pubkeyHex, $nip05) {
                 $item->expiresAfter(self::CACHE_TTL);
+
+                // Short-circuit for our own domain: use VanityNameService directly
+                // instead of making an HTTP request to ourselves (which fails in Docker)
+                if ($this->isLocalDomain($domain)) {
+                    return $this->verifyLocal($localPart, $pubkeyHex, $nip05);
+                }
 
                 $wellKnownUrl = "https://{$domain}/.well-known/nostr.json?name=" . urlencode(strtolower($localPart));
 
@@ -111,6 +120,80 @@ readonly class Nip05VerificationService
             ]);
             return ['verified' => false, 'relays' => []];
         }
+    }
+
+    /**
+     * Check if the domain is our own server domain
+     */
+    private function isLocalDomain(string $domain): bool
+    {
+        // Normalise: strip port, lowercase, strip leading/trailing whitespace
+        $normalised = strtolower(trim($domain));
+        $serverDomain = strtolower(trim($this->serverDomain));
+
+        // SERVER_NAME may contain extra entries like "php:80" – take the first hostname
+        $serverDomains = array_map('trim', preg_split('/[,\s]+/', $serverDomain));
+
+        foreach ($serverDomains as $sd) {
+            // Strip port if present
+            $sd = preg_replace('/:\d+$/', '', $sd);
+            if ($sd === $normalised) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verify a NIP-05 identifier locally using the VanityNameService
+     * (avoids outbound HTTP request to our own domain from inside Docker)
+     */
+    private function verifyLocal(string $localPart, string $pubkeyHex, string $nip05): array
+    {
+        $data = $this->vanityNameService->getNip05Response(strtolower($localPart));
+
+        $normalizedLocalPart = strtolower($localPart);
+
+        if (!isset($data['names'][$normalizedLocalPart])) {
+            $this->logger->info('Local NIP-05 name not found', [
+                'nip05' => $nip05,
+                'localPart' => $normalizedLocalPart,
+            ]);
+            return ['verified' => false, 'relays' => []];
+        }
+
+        $returnedPubkey = $data['names'][$normalizedLocalPart];
+
+        if (!$this->isValidHexPubkey($returnedPubkey)) {
+            $this->logger->warning('Invalid pubkey format in local NIP-05 lookup', [
+                'nip05' => $nip05,
+                'pubkey' => $returnedPubkey,
+            ]);
+            return ['verified' => false, 'relays' => []];
+        }
+
+        if (strtolower($returnedPubkey) !== strtolower($pubkeyHex)) {
+            $this->logger->info('Pubkey mismatch in local NIP-05 verification', [
+                'nip05' => $nip05,
+                'expected' => $pubkeyHex,
+                'received' => $returnedPubkey,
+            ]);
+            return ['verified' => false, 'relays' => []];
+        }
+
+        $relays = [];
+        if (isset($data['relays'][$returnedPubkey]) && is_array($data['relays'][$returnedPubkey])) {
+            $relays = $data['relays'][$returnedPubkey];
+        }
+
+        $this->logger->info('Local NIP-05 verification successful', [
+            'nip05' => $nip05,
+            'pubkey' => $pubkeyHex,
+            'relays' => count($relays),
+        ]);
+
+        return ['verified' => true, 'relays' => $relays];
     }
 
     /**
