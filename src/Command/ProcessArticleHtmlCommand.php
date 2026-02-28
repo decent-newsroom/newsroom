@@ -32,7 +32,7 @@ class ProcessArticleHtmlCommand extends Command
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Force reprocessing of all articles (including those with existing HTML)')
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of articles to process', null)
             ->setHelp(
-                'This command processes markdown content to HTML for articles and caches the result in the database. ' .
+                'This command processes content to HTML for articles and caches the result in the database. ' .
                 'By default, it only processes articles that are missing processed HTML. ' .
                 'Use --force to reprocess all articles.'
             );
@@ -41,27 +41,25 @@ class ProcessArticleHtmlCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $force = $input->getOption('force');
+        $force = (bool) $input->getOption('force');
         $limit = $input->getOption('limit');
 
         $io->title('Article HTML Processing');
 
-        // Build query
-        $queryBuilder = $this->entityManager->createQueryBuilder()
-            ->select('a')
-            ->from(Article::class, 'a')
-            ->where('a.content IS NOT NULL');
+        $conn = $this->entityManager->getConnection();
 
+        // Fetch IDs only to avoid hydrating full entities (raw JSON fields can be huge).
+        $sql = 'SELECT id FROM article WHERE content IS NOT NULL';
         if (!$force) {
-            $queryBuilder->andWhere('a.processedHtml IS NULL');
+            $sql .= ' AND processed_html IS NULL';
         }
-
+        $sql .= ' ORDER BY id ASC';
         if ($limit) {
-            $queryBuilder->setMaxResults((int) $limit);
+            $sql .= ' LIMIT ' . (int) $limit;
         }
 
-        $articles = $queryBuilder->getQuery()->getResult();
-        $total = count($articles);
+        $articleIds = $conn->fetchFirstColumn($sql);
+        $total = count($articleIds);
 
         if ($total === 0) {
             $io->success('No articles to process.');
@@ -77,58 +75,46 @@ class ProcessArticleHtmlCommand extends Command
 
         $processed = 0;
         $failed = 0;
-        $batchSize = 20;
+        $batchSize = 50;
+        $inBatch = 0;
 
-        // Get article IDs upfront since we'll be clearing the entity manager
-        $articleIds = array_map(fn($article) => $article->getId(), $articles);
-        // Free memory from original query result
-        unset($articles);
-        $this->entityManager->clear();
-
-        foreach ($articleIds as $index => $articleId) {
+        foreach ($articleIds as $articleId) {
             try {
-                /** @var Article|null $article */
-                $article = $this->entityManager->find(Article::class, $articleId);
-                if (!$article || !$article->getContent()) {
+                // Fetch only the content column for processing.
+                $content = $conn->fetchOne('SELECT content FROM article WHERE id = ?', [$articleId]);
+                if (!is_string($content) || $content === '') {
+                    $progressBar->advance();
                     continue;
                 }
 
-                $html = $this->converter->convertToHTML($article->getContent());
-                $article->setProcessedHtml($html);
-                $processed++;
+                $html = $this->converter->convertToHTML($content);
 
-                // Flush and clear in batches for better performance
-                if (($index + 1) % $batchSize === 0) {
-                    $this->entityManager->flush();
+                $conn->executeStatement(
+                    'UPDATE article SET processed_html = :html WHERE id = :id',
+                    ['html' => $html, 'id' => $articleId]
+                );
+
+                $processed++;
+                $inBatch++;
+
+                // Keep memory stable over long runs.
+                if ($inBatch >= $batchSize) {
                     $this->entityManager->clear();
+                    $inBatch = 0;
                 }
-            } catch (\Exception|CommonMarkException $e) {
+            } catch (\Throwable $e) {
                 $failed++;
                 $io->writeln('');
-                $io->warning(sprintf(
-                    'Failed to process article ID %s: %s',
-                    $articleId,
-                    $e->getMessage()
-                ));
+                $io->warning(sprintf('Failed to process article ID %s: %s', $articleId, $e->getMessage()));
             }
 
             $progressBar->advance();
         }
 
-        // Final flush for remaining articles
-        $this->entityManager->flush();
-        $this->entityManager->clear();
-
         $progressBar->finish();
         $io->newLine(2);
 
-        // Summary
-        $io->success(sprintf(
-            'Processing complete: %d processed, %d failed',
-            $processed,
-            $failed
-        ));
-
+        $io->success(sprintf('Processing complete: %d processed, %d failed', $processed, $failed));
         if ($failed > 0) {
             $io->note('Some articles failed to process. Check the warnings above for details.');
         }
