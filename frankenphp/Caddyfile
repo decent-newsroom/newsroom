@@ -82,10 +82,6 @@
 		# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
 		header ?Permissions-Policy "browsing-topics=()"
 
-		# Prevent any CDN, proxy or browser from caching error responses.
-		# Without this, a transient 502 can be served to users long after the origin recovers.
-		@errorResponse status 4xx 5xx
-		header @errorResponse Cache-Control "no-store"
 
 		@phpRoute {
 			not path /.well-known/mercure*
@@ -97,6 +93,12 @@
 		php @frontController
 
 		file_server
+	}
+
+	# Prevent any CDN, proxy or browser from caching error responses.
+	# Without this, a transient 502 can be served to users long after the origin recovers.
+	handle_errors {
+		header Cache-Control "no-store"
 	}
 }
 
