@@ -31,10 +31,12 @@ class ProcessArticleHtmlCommand extends Command
         $this
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Force reprocessing of all articles (including those with existing HTML)')
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of articles to process', null)
+            ->addOption('delete-failed', null, InputOption::VALUE_NONE, 'Delete articles that fail HTML processing instead of skipping them')
             ->setHelp(
                 'This command processes content to HTML for articles and caches the result in the database. ' .
                 'By default, it only processes articles that are missing processed HTML. ' .
-                'Use --force to reprocess all articles.'
+                'Use --force to reprocess all articles. ' .
+                'Use --delete-failed to remove articles that cannot be processed (e.g. invalid npub data).'
             );
     }
 
@@ -43,8 +45,13 @@ class ProcessArticleHtmlCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $force = (bool) $input->getOption('force');
         $limit = $input->getOption('limit');
+        $deleteFailed = (bool) $input->getOption('delete-failed');
 
         $io->title('Article HTML Processing');
+
+        if ($deleteFailed) {
+            $io->caution('--delete-failed is active: articles that fail processing will be permanently deleted.');
+        }
 
         $conn = $this->entityManager->getConnection();
 
@@ -75,19 +82,32 @@ class ProcessArticleHtmlCommand extends Command
 
         $processed = 0;
         $failed = 0;
+        $deleted = 0;
+        $deletedIds = [];
         $batchSize = 50;
         $inBatch = 0;
 
         foreach ($articleIds as $articleId) {
             try {
-                // Fetch only the content column for processing.
-                $content = $conn->fetchOne('SELECT content FROM article WHERE id = ?', [$articleId]);
-                if (!is_string($content) || $content === '') {
+                // Fetch content and raw JSON for tag-based prefetching.
+                $row = $conn->fetchAssociative('SELECT content, raw FROM article WHERE id = ?', [$articleId]);
+                if (!$row || !is_string($row['content']) || $row['content'] === '') {
                     $progressBar->advance();
                     continue;
                 }
 
-                $html = $this->converter->convertToHTML($content);
+                $content = $row['content'];
+
+                // Extract tags from raw event JSON (p, e, a tags seed the bulk prefetch)
+                $tags = null;
+                if (!empty($row['raw'])) {
+                    $rawData = is_string($row['raw']) ? json_decode($row['raw'], true) : $row['raw'];
+                    if (is_array($rawData) && isset($rawData['tags']) && is_array($rawData['tags'])) {
+                        $tags = $rawData['tags'];
+                    }
+                }
+
+                $html = $this->converter->convertToHTML($content, null, $tags);
 
                 $conn->executeStatement(
                     'UPDATE article SET processed_html = :html WHERE id = :id',
@@ -104,8 +124,22 @@ class ProcessArticleHtmlCommand extends Command
                 }
             } catch (\Throwable $e) {
                 $failed++;
-                $io->writeln('');
-                $io->warning(sprintf('Failed to process article ID %s: %s', $articleId, $e->getMessage()));
+
+                if ($deleteFailed) {
+                    try {
+                        $conn->executeStatement('DELETE FROM article WHERE id = ?', [$articleId]);
+                        $deleted++;
+                        $deletedIds[] = $articleId;
+                        $io->writeln('');
+                        $io->warning(sprintf('Deleted article ID %s: %s', $articleId, $e->getMessage()));
+                    } catch (\Throwable $deleteEx) {
+                        $io->writeln('');
+                        $io->error(sprintf('Failed to delete article ID %s: %s', $articleId, $deleteEx->getMessage()));
+                    }
+                } else {
+                    $io->writeln('');
+                    $io->warning(sprintf('Failed to process article ID %s: %s', $articleId, $e->getMessage()));
+                }
             }
 
             $progressBar->advance();
@@ -115,8 +149,13 @@ class ProcessArticleHtmlCommand extends Command
         $io->newLine(2);
 
         $io->success(sprintf('Processing complete: %d processed, %d failed', $processed, $failed));
-        if ($failed > 0) {
-            $io->note('Some articles failed to process. Check the warnings above for details.');
+
+        if ($deleted > 0) {
+            $io->warning(sprintf('%d article(s) were deleted: IDs %s', $deleted, implode(', ', $deletedIds)));
+        }
+
+        if ($failed > 0 && !$deleteFailed) {
+            $io->note('Some articles failed to process. Check the warnings above for details, or re-run with --delete-failed to remove them.');
         }
 
         return Command::SUCCESS;

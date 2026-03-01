@@ -567,24 +567,26 @@ class DefaultController extends AbstractController
                     // Process AsciiDoc content with caching
                     $cacheKey = 'chapter_' . $chapter->getId();
                     $cacheItem = $articlesCache->getItem($cacheKey);
-                    if (!$cacheItem->isHit()) {
+                    $chapterHtml = null;
+                    if ($cacheItem->isHit()) {
+                        $chapterHtml = $cacheItem->get();
+                    } else {
                         try {
-                            $html = $converter->convertAsciiDocToHTML($chapter->getContent());
-                            $cacheItem->set($html);
+                            $chapterHtml = $converter->convertAsciiDocToHTML($chapter->getContent());
+                            $cacheItem->set($chapterHtml);
                             $articlesCache->save($cacheItem);
                         } catch (\Exception $e) {
                             $logger->error('Failed to convert chapter content', [
                                 'chapter_id' => $chapter->getId(),
                                 'error' => $e->getMessage()
                             ]);
-                            $cacheItem->set('<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>');
-                            $articlesCache->save($cacheItem);
+                            $chapterHtml = '<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>';
                         }
                     }
 
                     $chapters[] = [
                         'event' => $chapter,
-                        'content' => $cacheItem->get(),
+                        'content' => $chapterHtml,
                         'coordinate' => $coordinate,
                         'fetched' => true,
                     ];
@@ -665,20 +667,22 @@ class DefaultController extends AbstractController
         // Kind 30041 (PUBLICATION_CONTENT) uses AsciiDoc by spec
         $cacheKey = 'chapter_' . $chapter->getId();
         $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
+        $chapterHtml = null;
+        if ($cacheItem->isHit()) {
+            $chapterHtml = $cacheItem->get();
+        } else {
             try {
                 // Force AsciiDoc parsing for kind 30041
-                $html = $converter->convertAsciiDocToHTML($chapter->getContent());
-                $cacheItem->set($html);
+                $chapterHtml = $converter->convertAsciiDocToHTML($chapter->getContent());
+                $cacheItem->set($chapterHtml);
                 $articlesCache->save($cacheItem);
             } catch (\Exception $e) {
                 $logger->error('Failed to convert chapter content', [
                     'chapter_id' => $chapter->getId(),
                     'error' => $e->getMessage()
                 ]);
-                // Fallback to raw content wrapped in <pre>
-                $cacheItem->set('<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>');
-                $articlesCache->save($cacheItem);
+                // Fallback to raw content wrapped in <pre> — not cached so it retries next time
+                $chapterHtml = '<pre>' . htmlspecialchars($chapter->getContent()) . '</pre>';
             }
         }
 
@@ -692,7 +696,7 @@ class DefaultController extends AbstractController
             'magazine' => $magazine,
             'mag' => $mag,
             'chapter' => $chapter,
-            'content' => $cacheItem->get(),
+            'content' => $chapterHtml,
             'author' => $author,
             'npub' => $npub,
         ]);
@@ -1144,11 +1148,27 @@ class DefaultController extends AbstractController
 
         $article = $articles[0];
 
-        $cacheKey = 'article_' . $article->getEventId();
-        $cacheItem = $articlesCache->getItem($cacheKey);
-        if (!$cacheItem->isHit()) {
-            $cacheItem->set($converter->convertToHTML($article->getContent()));
-            $articlesCache->save($cacheItem);
+        // Use pre-processed HTML from database if available, otherwise convert on-the-fly
+        $htmlContent = $article->getProcessedHtml();
+        if (!$htmlContent) {
+            $cacheKey = 'article_' . $article->getEventId();
+            $cacheItem = $articlesCache->getItem($cacheKey);
+            if ($cacheItem->isHit()) {
+                $htmlContent = $cacheItem->get();
+            } else {
+                try {
+                    $htmlContent = $converter->convertToHTML($article->getContent(), null, $article->getRaw()['tags'] ?? null);
+                    $cacheItem->set($htmlContent);
+                    $articlesCache->save($cacheItem);
+                } catch (\Throwable $e) {
+                    $logger->error('Failed to convert article content to HTML', [
+                        'article_id' => $article->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Render escaped content for this request only — don't cache so it retries next time.
+                    $htmlContent = nl2br(htmlspecialchars($article->getContent(), ENT_QUOTES, 'UTF-8'));
+                }
+            }
         }
 
         $key = new Key();
@@ -1182,7 +1202,7 @@ class DefaultController extends AbstractController
             'article' => $article,
             'author' => $author,
             'npub' => $npub,
-            'content' => $cacheItem->get(),
+            'content' => $htmlContent,
             'canEdit' => false,
             'canonical' => $canonical,
             'advancedMetadata' => $advancedMetadata,

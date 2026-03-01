@@ -12,7 +12,8 @@ interface MarkdownConverterInterface
      *
      * @param string $content Content to convert
      * @param string|null $format Optional format specification ('markdown', 'asciidoc', or null for auto-detect)
+     * @param array|null $tags Optional Nostr event tags to seed bulk prefetch (each element: [tagName, value, ...])
      * @return string Converted HTML
      */
-    public function convertToHTML(string $content, ?string $format = null): string;
+    public function convertToHTML(string $content, ?string $format = null, ?array $tags = null): string;
 }

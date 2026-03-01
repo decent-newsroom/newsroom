@@ -9,6 +9,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\AsciiDoc\AsciiDocConverter;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
+use App\Util\CommonMark\NostrSchemeExtension\NostrPrefetchedData;
 use App\Util\CommonMark\NostrSchemeExtension\NostrSchemeExtension;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Environment\Environment;
@@ -34,7 +35,7 @@ use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
 use Twig\Environment as TwigEnvironment;
 
-readonly class Converter implements MarkdownConverterInterface
+class Converter implements MarkdownConverterInterface
 {
     /** Match any nostr:* bech link (used for batching) */
     private const RE_ALL_NOSTR = '~nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\s<>()\[\]{}"\'`.,;:!?]*~i';
@@ -45,39 +46,53 @@ readonly class Converter implements MarkdownConverterInterface
     /** Bare-text nostr links, defensive against href immediate prefix */
     private const RE_BARE_NOSTR = '~(?<!href=")(?<!href=\')nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[^\s<>()\[\]{}"\'`.,;:!?]*~i';
 
+    /** Holds the pre-fetched data for the current conversion run. */
+    private ?NostrPrefetchedData $prefetchedData = null;
+
     public function __construct(
-        private RedisCacheService $redisCacheService,
-        private NostrClient $nostrClient,
-        private TwigEnvironment $twig,
-        private NostrKeyUtil $nostrKeyUtil,
-        private ArticleFactory $articleFactory,
-        private ArticleRepository $articleRepository,
-        private AsciiDocConverter $asciidocConverter
+        private readonly RedisCacheService $redisCacheService,
+        private readonly NostrClient $nostrClient,
+        private readonly TwigEnvironment $twig,
+        private readonly NostrKeyUtil $nostrKeyUtil,
+        private readonly ArticleFactory $articleFactory,
+        private readonly ArticleRepository $articleRepository,
+        private readonly AsciiDocConverter $asciidocConverter
     ) {}
 
     /**
+     * @param string      $content The raw content to convert
+     * @param string|null $format  Optional format specification ('markdown', 'asciidoc', or null for auto-detect)
+     * @param array|null  $tags    Optional Nostr event tags (e.g. from raw JSON) to seed the prefetch
      * @throws CommonMarkException
      */
-    public function convertToHTML(string $content, ?string $format = null): string
+    public function convertToHTML(string $content, ?string $format = null, ?array $tags = null): string
     {
-        // If format is explicitly specified, use it
-        if ($format === 'asciidoc') {
-            $html = $this->asciidocConverter->convert($content);
-            return $this->processNostrLinks($html);
-        }
+        // Bulk prefetch all referenced nostr entities before any conversion
+        $this->prefetchedData = $this->prefetchNostrData($content, $tags);
 
-        if ($format === 'markdown') {
+        try {
+            // If format is explicitly specified, use it
+            if ($format === 'asciidoc') {
+                $html = $this->asciidocConverter->convert($content);
+                return $this->processNostrLinks($html);
+            }
+
+            if ($format === 'markdown') {
+                return $this->convertMarkdownToHTML($content);
+            }
+
+            // Otherwise, auto-detect if content is AsciiDoc or Markdown
+            if ($this->isAsciiDoc($content)) {
+                $html = $this->asciidocConverter->convert($content);
+                return $this->processNostrLinks($html);
+            }
+
+            // Default to Markdown
             return $this->convertMarkdownToHTML($content);
+        } finally {
+            // Clear per-run state so no stale data leaks between calls.
+            $this->prefetchedData = null;
         }
-
-        // Otherwise, auto-detect if content is AsciiDoc or Markdown
-        if ($this->isAsciiDoc($content)) {
-            $html = $this->asciidocConverter->convert($content);
-            return $this->processNostrLinks($html);
-        }
-
-        // Default to Markdown
-        return $this->convertMarkdownToHTML($content);
     }
 
     /**
@@ -143,7 +158,7 @@ readonly class Converter implements MarkdownConverterInterface
         $env->addExtension(new SmartPunctExtension());
         $env->addExtension(new EmbedExtension());
         $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
-        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData));
         $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
@@ -169,17 +184,43 @@ readonly class Converter implements MarkdownConverterInterface
         $uniqueLinks = array_values(array_unique($mAll[0]));
         [$eventIds, $pubkeyHexes, $naddrCoords] = $this->collectBatchKeys($uniqueLinks);
 
-        // 2) Batch fetch events (map: id => event)
-        $eventsById = $this->fetchEventsById($eventIds, $pubkeyHexes);
+        // 2) Reuse prefetched data, only fetch what's missing
+        $eventsById   = $this->prefetchedData ? $this->prefetchedData->getAllEvents() : [];
+        $metadataByHex = $this->prefetchedData ? $this->prefetchedData->getAllMetadata() : [];
+        $eventsByNaddr = $this->prefetchedData ? $this->prefetchedData->getAllNaddrEvents() : [];
 
-        // 3) Batch fetch metadata (map: hex => profile)
-        $metadataByHex = $this->fetchMetadataByHex(array_keys($pubkeyHexes));
+        // Fetch any event IDs not already prefetched
+        $missingEventIds = array_diff_key($eventIds, $eventsById);
+        if (!empty($missingEventIds)) {
+            $extra = $this->fetchEventsById($missingEventIds, $pubkeyHexes);
+            $eventsById = array_merge($eventsById, $extra);
+        }
 
-        // 4) Replace anchors (inline by default, card if data-embed or class)
-        $content = $this->replaceNostrAnchors($content, $eventsById, $metadataByHex);
+        // Fetch naddr coordinates not already prefetched
+        $missingNaddrCoords = [];
+        foreach ($naddrCoords as $bech => $coord) {
+            $coordKey = $coord['kind'] . ':' . $coord['pubkey'] . ':' . $coord['identifier'];
+            if (!isset($eventsByNaddr[$coordKey])) {
+                $missingNaddrCoords[] = $coordKey;
+            }
+        }
+        if (!empty($missingNaddrCoords)) {
+            $extra = $this->fetchEventsByNaddr($missingNaddrCoords, $pubkeyHexes);
+            $eventsByNaddr = array_merge($eventsByNaddr, $extra);
+        }
 
-        // 5) Replace bare text only in text nodes
-        $content = $this->replaceBareTextNostr($content, $eventsById, $metadataByHex);
+        // Fetch any pubkey metadata not already prefetched
+        $missingHexes = array_diff(array_keys($pubkeyHexes), array_keys($metadataByHex));
+        if (!empty($missingHexes)) {
+            $extra = $this->fetchMetadataByHex($missingHexes);
+            $metadataByHex = array_merge($metadataByHex, $extra);
+        }
+
+        // 3) Replace anchors (inline by default, card if data-embed or class)
+        $content = $this->replaceNostrAnchors($content, $eventsById, $metadataByHex, $eventsByNaddr);
+
+        // 4) Replace bare text only in text nodes
+        $content = $this->replaceBareTextNostr($content, $eventsById, $metadataByHex, $eventsByNaddr);
 
         return $content;
     }
@@ -284,9 +325,9 @@ readonly class Converter implements MarkdownConverterInterface
     }
 
     /** Replace <a href="nostr:...">…</a> with inline links by default (card if opted in) */
-    private function replaceNostrAnchors(string $content, array $eventsById, array $metadataByHex): string
+    private function replaceNostrAnchors(string $content, array $eventsById, array $metadataByHex, array $eventsByNaddr = []): string
     {
-        return preg_replace_callback(self::RE_NOSTR_ANCHOR, function ($m) use ($eventsById, $metadataByHex) {
+        return preg_replace_callback(self::RE_NOSTR_ANCHOR, function ($m) use ($eventsById, $metadataByHex, $eventsByNaddr) {
             $nostrUrl = $m['nostr'];
             $bech     = substr($nostrUrl, 6);
             $attrsAll = trim(($m['attrs'] ?? '') . ' ' . ($m['attrs2'] ?? ''));
@@ -303,7 +344,7 @@ readonly class Converter implements MarkdownConverterInterface
 
             try {
                 $decoded = new Bech32($bech);
-                return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, $inner, $preferInline);
+                return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, $inner, $preferInline, $eventsByNaddr);
             } catch (\Throwable) {
                 return $m[0]; // keep original anchor on error
             }
@@ -311,7 +352,7 @@ readonly class Converter implements MarkdownConverterInterface
     }
 
     /** Replace bare-text nostr links in text nodes only */
-    private function replaceBareTextNostr(string $content, array $eventsById, array $metadataByHex): string
+    private function replaceBareTextNostr(string $content, array $eventsById, array $metadataByHex, array $eventsByNaddr = []): string
     {
         $parts = preg_split('~(<[^>]+>)~', $content, -1, PREG_SPLIT_DELIM_CAPTURE);
         if ($parts === false) {
@@ -324,13 +365,13 @@ readonly class Converter implements MarkdownConverterInterface
                 continue;
             }
 
-            $parts[$i] = preg_replace_callback(self::RE_BARE_NOSTR, function ($mm) use ($eventsById, $metadataByHex) {
+            $parts[$i] = preg_replace_callback(self::RE_BARE_NOSTR, function ($mm) use ($eventsById, $metadataByHex, $eventsByNaddr) {
                 $nostrUrl = $mm[0];
                 $bech     = substr($nostrUrl, 6);
                 try {
                     $decoded = new Bech32($bech);
                     // Bare text can render cards (preferInline = false)
-                    return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, null, false);
+                    return $this->renderNostrLink($decoded, $bech, $metadataByHex, $eventsById, null, false, $eventsByNaddr);
                 } catch (\Throwable) {
                     return $nostrUrl;
                 }
@@ -342,20 +383,20 @@ readonly class Converter implements MarkdownConverterInterface
 
     /**
      * Renders a single nostr reference to HTML.
-     * - $eventsById: event.id => event
-     * - $eventsByNaddr: bech => event
      * - $metadataByHex: authorHex => profile
+     * - $eventsById: event.id => event
      * - $displayText: preserve original anchor text if provided
      * - $preferInline: true for inline <a>, false to allow cards
+     * - $eventsByNaddr: "kind:pubkey:d-tag" => event (from naddr batch fetch)
      */
     private function renderNostrLink(
         Bech32 $decoded,
         string $bechEncoded,
         array $metadataByHex,
         array $eventsById,
-        array $eventsByNaddr,
         ?string $displayText = null,
-        bool $preferInline = false
+        bool $preferInline = false,
+        array $eventsByNaddr = [],
     ): string {
         switch ($decoded->type) {
             case 'npub': {
@@ -432,7 +473,8 @@ readonly class Converter implements MarkdownConverterInterface
             case 'naddr': {
                 /** @var NAddr $obj */
                 $obj   = $decoded->data;
-                $event = $eventsByNaddr[$bechEncoded] ?? null;
+                $coordKey = $obj->kind . ':' . $obj->pubkey . ':' . $obj->identifier;
+                $event = $eventsByNaddr[$coordKey] ?? null;
 
                 // Inline if requested (anchors) or if we don't have event data
                 if ($preferInline || !$event) {
@@ -478,6 +520,136 @@ readonly class Converter implements MarkdownConverterInterface
 
             default:
                 return $this->e($bechEncoded);
+        }
+    }
+
+    /**
+     * Pre-fetch all Nostr entities referenced in the content and optional event tags.
+     * Returns a NostrPrefetchedData object that both the CommonMark inline parsers
+     * and the post-HTML processNostrLinks() phase can read from.
+     *
+     * @param string     $content Raw article content (Markdown/AsciiDoc)
+     * @param array|null $tags    Optional Nostr event tags (each element: [tagName, value, ...])
+     */
+    private function prefetchNostrData(string $content, ?array $tags = null): NostrPrefetchedData
+    {
+        $pubkeyHexes = []; // hex => 1
+        $eventIds    = []; // id  => 1
+        $naddrCoords = []; // "kind:pubkey:d-tag" => 1
+
+        // --- 1. Extract references from event tags (p, e, a) ---
+        if ($tags) {
+            foreach ($tags as $tag) {
+                if (!is_array($tag) || empty($tag[0]) || !isset($tag[1])) {
+                    continue;
+                }
+                switch ($tag[0]) {
+                    case 'p':
+                        if (NostrKeyUtil::isHexPubkey($tag[1])) {
+                            $pubkeyHexes[$tag[1]] = 1;
+                        }
+                        break;
+                    case 'e':
+                        if (preg_match('/^[a-fA-F0-9]{64}$/', $tag[1])) {
+                            $eventIds[$tag[1]] = 1;
+                        }
+                        break;
+                    case 'a':
+                        // Format: "kind:pubkey:d-tag"
+                        $parts = explode(':', $tag[1], 3);
+                        if (count($parts) === 3 && NostrKeyUtil::isHexPubkey($parts[1])) {
+                            $naddrCoords[$tag[1]] = 1;
+                            $pubkeyHexes[$parts[1]] = 1;
+                        }
+                        break;
+                }
+            }
+        }
+
+        // --- 2. Scan content for nostr: bech32 references ---
+        preg_match_all(self::RE_ALL_NOSTR, $content, $mAll);
+        if (!empty($mAll[0])) {
+            $uniqueLinks = array_values(array_unique($mAll[0]));
+            foreach ($uniqueLinks as $link) {
+                $bech = substr($link, 6);
+                try {
+                    $decoded = new Bech32($bech);
+                    switch ($decoded->type) {
+                        case 'npub':
+                            $hex = $this->nostrKeyUtil->npubToHex($bech);
+                            $pubkeyHexes[$hex] = 1;
+                            break;
+                        case 'nprofile':
+                            /** @var NProfile $obj */
+                            $obj = $decoded->data;
+                            $pubkeyHexes[$obj->pubkey] = 1;
+                            break;
+                        case 'note':
+                            /** @var Note $obj */
+                            $obj = $decoded->data;
+                            $eventIds[$obj->data] = 1;
+                            break;
+                        case 'nevent':
+                            /** @var NEvent $obj */
+                            $obj = $decoded->data;
+                            $eventIds[$obj->id] = 1;
+                            break;
+                        case 'naddr':
+                            /** @var NAddr $obj */
+                            $obj = $decoded->data;
+                            $coordKey = $obj->kind . ':' . $obj->pubkey . ':' . $obj->identifier;
+                            $naddrCoords[$coordKey] = 1;
+                            $pubkeyHexes[$obj->pubkey] = 1;
+                            break;
+                    }
+                } catch (\Throwable) {
+                    // skip invalid
+                }
+            }
+        }
+
+        // --- 3. Batch fetch events by ID ---
+        $eventsById = $this->fetchEventsById($eventIds, $pubkeyHexes);
+
+        // --- 4. Batch fetch naddr events by coordinate ---
+        $eventsByNaddr = $this->fetchEventsByNaddr(array_keys($naddrCoords), $pubkeyHexes);
+
+        // Collect pubkeys from fetched naddr events as well
+        foreach ($eventsByNaddr as $event) {
+            if ($event && !empty($event->pubkey)) {
+                $pubkeyHexes[$event->pubkey] = 1;
+            }
+        }
+
+        // --- 5. Batch fetch all metadata ---
+        $metadataByHex = $this->fetchMetadataByHex(array_keys($pubkeyHexes));
+
+        return new NostrPrefetchedData($metadataByHex, $eventsById, $eventsByNaddr);
+    }
+
+    /**
+     * Batch fetch events by naddr coordinate strings ("kind:pubkey:d-tag").
+     *
+     * @param string[] $coordinates Array of "kind:pubkey:d-tag" strings
+     * @param array<string,int> $pubkeyHexes  Updated in-place with discovered pubkeys
+     * @return array<string, object|null>  coordKey => event
+     */
+    private function fetchEventsByNaddr(array $coordinates, array &$pubkeyHexes): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        try {
+            $results = $this->nostrClient->getEventsByCoordinates($coordinates);
+            foreach ($results as $event) {
+                if (!empty($event->pubkey)) {
+                    $pubkeyHexes[$event->pubkey] = 1;
+                }
+            }
+            return $results;
+        } catch (\Throwable) {
+            return [];
         }
     }
 

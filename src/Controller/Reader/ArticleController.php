@@ -298,7 +298,7 @@ class ArticleController  extends AbstractController
             // Avoid flushing during a web request in FrankenPHP worker mode: if the DB connection is stale
             // or flush fails, it may poison the EntityManager for subsequent requests in this worker.
             try {
-                $htmlContent = $converter->convertToHTML($draft->getContent());
+                $htmlContent = $converter->convertToHTML($draft->getContent(), null, $draft->getRaw()['tags'] ?? null);
                 $draft->setProcessedHtml($htmlContent);
             } catch (\Throwable $e) {
                 $logger->error('Error converting draft content to HTML', [
@@ -402,7 +402,7 @@ class ArticleController  extends AbstractController
             try {
                 // Fall back to converting on-the-fly.
                 // Avoid flushing during a web request in FrankenPHP worker mode for stability.
-                $htmlContent = $converter->convertToHTML($article->getContent());
+                $htmlContent = $converter->convertToHTML($article->getContent(), null, $article->getRaw()['tags'] ?? null);
                 $article->setProcessedHtml($htmlContent);
             } catch (\Exception|CommonMarkException $e) {
                 $logger->error('Error converting article content to HTML', [

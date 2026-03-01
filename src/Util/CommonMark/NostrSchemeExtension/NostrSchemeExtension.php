@@ -20,16 +20,17 @@ class NostrSchemeExtension  implements ExtensionInterface
         private readonly Environment $twig,
         private readonly NostrKeyUtil $nostrKeyUtil,
         private readonly ArticleFactory $articleFactory,
-        private readonly ArticleRepository $articleRepository
+        private readonly ArticleRepository $articleRepository,
+        private readonly ?NostrPrefetchedData $prefetchedData = null,
     ) {
     }
 
     public function register(EnvironmentBuilderInterface $environment): void
     {
         $environment
-            ->addInlineParser(new NostrMentionParser($this->redisCacheService, $this->nostrKeyUtil), 200)
-            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository), 199)
-            ->addInlineParser(new NostrRawNpubParser($this->redisCacheService, $this->nostrKeyUtil), 198)
+            ->addInlineParser(new NostrMentionParser($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData), 200)
+            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData), 199)
+            ->addInlineParser(new NostrRawNpubParser($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData), 198)
 
             ->addRenderer(NostrSchemeData::class, new NostrEventRenderer(), 3)
             ->addRenderer(NostrEmbeddedCard::class, new NostrEmbeddedCardRenderer(), 2)

@@ -29,7 +29,8 @@ class NostrSchemeParser  implements InlineParserInterface
         private readonly Environment       $twig,
         private readonly NostrKeyUtil      $keyUtil,
         private readonly ArticleFactory    $articleFactory,
-        private readonly ArticleRepository $articleRepository
+        private readonly ArticleRepository $articleRepository,
+        private readonly ?NostrPrefetchedData $prefetchedData = null,
     )
     {
     }
@@ -57,7 +58,12 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'npub':
                     /** @var NPub $object */
                     $object = $decoded->data;
-                    $profile = $this->redisCacheService->getMetadata($this->keyUtil->npubToHex($bechEncoded));
+                    $hex = $this->keyUtil->npubToHex($bechEncoded);
+                    if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
+                        $profile = $this->prefetchedData->getMetadata($hex);
+                    } else {
+                        $profile = $this->redisCacheService->getMetadata($hex);
+                    }
                     if (isset($profile->name)) {
                         $inlineContext->getContainer()->appendChild(new NostrMentionLink($profile->name, $bechEncoded));
                     } else {
@@ -72,8 +78,12 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'note':
                     /** @var Note $decodedEvent */
                     $decodedEvent = $decoded->data;
-                    // Fetch the actual event data using the same logic as EventController
-                    $event = $this->nostrClient->getEventById($decodedEvent->data);
+                    // Use prefetched event data if available, otherwise fetch individually
+                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->data)) {
+                        $event = $this->prefetchedData->getEvent($decodedEvent->data);
+                    } else {
+                        $event = $this->nostrClient->getEventById($decodedEvent->data);
+                    }
                     // If note is kind 20
                     // Render the embedded picture card
                     if (!$event || $event->kind !== 20) {
@@ -92,11 +102,19 @@ class NostrSchemeParser  implements InlineParserInterface
                     /** @var NEvent $decodedEvent */
                     $decodedEvent = $decoded->data;
 
-                    // Fetch the actual event data using the same logic as EventController
-                    $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
+                    // Use prefetched event data if available, otherwise fetch individually
+                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->id)) {
+                        $event = $this->prefetchedData->getEvent($decodedEvent->id);
+                    } else {
+                        $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
+                    }
 
                     if ($event) {
-                        $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
+                        if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($event->pubkey)) {
+                            $authorMetadata = $this->prefetchedData->getMetadata($event->pubkey);
+                        } else {
+                            $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
+                        }
 
                         // Render the embedded event card
                         $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
@@ -132,7 +150,7 @@ class NostrSchemeParser  implements InlineParserInterface
 
                             if ($article) {
                                 // Article found in database - render directly without relay fetch
-                                $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
+                                $authorMetadata = $this->resolveMetadata($pubkey);
                                 $authorsMetadata = [$pubkey => $authorMetadata->toStdClass()];
 
                                 $articleCardHtml = $this->twig->render('components/Molecules/Card.html.twig', [
@@ -152,18 +170,23 @@ class NostrSchemeParser  implements InlineParserInterface
                         }
                     }
 
-                    // Not in database or not kind 30023 - fetch from relay
-                    $event = $this->nostrClient->getEventByNaddr([
-                        'kind' => $kind,
-                        'pubkey' => $pubkey,
-                        'identifier' => $identifier,
-                        'relays' => $relays
-                    ]);
+                    // Check prefetched naddr events first, then fall back to relay
+                    $coordKey = $kind . ':' . $pubkey . ':' . $identifier;
+                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEventByNaddr($coordKey)) {
+                        $event = $this->prefetchedData->getEventByNaddr($coordKey);
+                    } else {
+                        $event = $this->nostrClient->getEventByNaddr([
+                            'kind' => $kind,
+                            'pubkey' => $pubkey,
+                            'identifier' => $identifier,
+                            'relays' => $relays
+                        ]);
+                    }
 
                     if ($event && (int) $event->kind === 30023) {
                         // For longform articles (kind 30023), render article card
                         try {
-                            $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
+                            $authorMetadata = $this->resolveMetadata($event->pubkey);
 
                             // Convert event to Article entity using ArticleFactory
                             $article = $this->articleFactory->createFromLongFormContentEvent($event);
@@ -187,7 +210,7 @@ class NostrSchemeParser  implements InlineParserInterface
                         }
                     } else if ($event) {
                         // For other addressable events, render generic event card
-                        $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
+                        $authorMetadata = $this->resolveMetadata($event->pubkey);
 
                         $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
                             'event' => $event,
@@ -215,5 +238,17 @@ class NostrSchemeParser  implements InlineParserInterface
         $cursor->advanceBy(strlen($fullMatch));
 
         return true;
+    }
+
+    /**
+     * Resolve metadata from prefetched data or fall back to Redis.
+     */
+    private function resolveMetadata(string $hex): object
+    {
+        if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
+            return $this->prefetchedData->getMetadata($hex);
+        }
+
+        return $this->redisCacheService->getMetadata($hex);
     }
 }
