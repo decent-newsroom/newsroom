@@ -326,10 +326,15 @@ class VanityNameService
     public function getActiveByVanityName(string $name): ?VanityName
     {
         $cacheKey = 'vanity_active_by_name_' . strtolower($name);
-        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
-            $item->expiresAfter(self::LOOKUP_TTL);
+        try {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
+                $item->expiresAfter(self::LOOKUP_TTL);
+                return $this->repository->findActiveByVanityName($name);
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('Cache unavailable for vanity name lookup, falling back to database', ['name' => $name, 'error' => $e->getMessage()]);
             return $this->repository->findActiveByVanityName($name);
-        });
+        }
     }
 
     /**
@@ -346,10 +351,15 @@ class VanityNameService
     public function getActiveByNpub(string $npub): ?VanityName
     {
         $cacheKey = 'vanity_active_by_npub_' . strtolower($npub);
-        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
-            $item->expiresAfter(self::LOOKUP_TTL);
+        try {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($npub) {
+                $item->expiresAfter(self::LOOKUP_TTL);
+                return $this->repository->findActiveByNpub($npub);
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('Cache unavailable for vanity npub lookup, falling back to database', ['npub' => $npub, 'error' => $e->getMessage()]);
             return $this->repository->findActiveByNpub($npub);
-        });
+        }
     }
 
     /**
@@ -358,10 +368,15 @@ class VanityNameService
     public function getActiveByPubkeyHex(string $pubkeyHex): ?VanityName
     {
         $cacheKey = 'vanity_active_by_pubkey_' . strtolower($pubkeyHex);
-        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkeyHex) {
-            $item->expiresAfter(self::LOOKUP_TTL);
+        try {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($pubkeyHex) {
+                $item->expiresAfter(self::LOOKUP_TTL);
+                return $this->repository->findActiveByPubkeyHex($pubkeyHex);
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('Cache unavailable for vanity pubkey lookup, falling back to database', ['pubkeyHex' => $pubkeyHex, 'error' => $e->getMessage()]);
             return $this->repository->findActiveByPubkeyHex($pubkeyHex);
-        });
+        }
     }
 
     /**
@@ -389,11 +404,12 @@ class VanityNameService
     {
         $cacheKey = 'nip05_response' . ($name !== null ? '_' . strtolower($name) : '_all');
 
-        return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
-            $item->expiresAfter(self::CACHE_TTL);
+        try {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
+                $item->expiresAfter(self::CACHE_TTL);
 
-            $names = [];
-            $relays = [];
+                $names = [];
+                $relays = [];
 
             if ($name !== null) {
                 // Single name lookup
@@ -421,7 +437,35 @@ class VanityNameService
             }
 
             return $response;
-        });
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('Cache unavailable for NIP-05 response, falling back to database', ['name' => $name, 'error' => $e->getMessage()]);
+            // Duplicate the logic without cache
+            $names = [];
+            $relays = [];
+            if ($name !== null) {
+                $vanityName = $this->repository->findActiveByVanityName($name);
+                if ($vanityName !== null) {
+                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
+                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
+                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
+                    }
+                }
+            } else {
+                $activeNames = $this->repository->findAllActive();
+                foreach ($activeNames as $vanityName) {
+                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
+                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
+                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
+                    }
+                }
+            }
+            $response = ['names' => $names];
+            if (!empty($relays)) {
+                $response['relays'] = $relays;
+            }
+            return $response;
+        }
     }
 
     /**

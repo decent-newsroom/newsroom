@@ -77,7 +77,7 @@ class RedisCacheService
                     return $cached;
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Error checking cache for user metadata.', ['exception' => $e]);
         }
 
@@ -91,7 +91,7 @@ class RedisCacheService
                 $this->logger->debug('Retrieved metadata from database', ['pubkey' => substr($pubkey, 0, 8)]);
                 return UserMetadata::fromUserEntity($user);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Error fetching user from database.', ['exception' => $e, 'pubkey' => substr($pubkey, 0, 8)]);
         }
 
@@ -99,7 +99,7 @@ class RedisCacheService
         try {
             $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
             $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->logger->error('Error dispatching async profile fetch.', ['exception' => $e]);
         }
 
@@ -126,28 +126,34 @@ class RedisCacheService
         $cacheKeys = array_map(fn($pubkey) => $this->getUserCacheKey($pubkey), $pubkeys);
         $pubkeyMap = array_combine($cacheKeys, $pubkeys);
 
-        // Get all cached items
-        $items = $this->npubCache->getItems($cacheKeys);
+        // Get all cached items — Redis may be unreachable
         $missedPubkeys = [];
+        try {
+            $items = $this->npubCache->getItems($cacheKeys);
 
-        foreach ($items as $cacheKey => $item) {
-            $pubkey = $pubkeyMap[$cacheKey];
-            if ($item->isHit()) {
-                $cached = $item->get();
+            foreach ($items as $cacheKey => $item) {
+                $pubkey = $pubkeyMap[$cacheKey];
+                if ($item->isHit()) {
+                    $cached = $item->get();
 
-                // Handle legacy stdClass format
-                if ($cached instanceof \stdClass) {
-                    $result[$pubkey] = UserMetadata::fromStdClass($cached);
-                } elseif ($cached instanceof UserMetadata) {
-                    $result[$pubkey] = $cached;
+                    // Handle legacy stdClass format
+                    if ($cached instanceof \stdClass) {
+                        $result[$pubkey] = UserMetadata::fromStdClass($cached);
+                    } elseif ($cached instanceof UserMetadata) {
+                        $result[$pubkey] = $cached;
+                    } else {
+                        // Invalid cached data
+                        $missedPubkeys[] = $pubkey;
+                    }
                 } else {
-                    // Invalid cached data
+                    // Track cache misses
                     $missedPubkeys[] = $pubkey;
                 }
-            } else {
-                // Track cache misses
-                $missedPubkeys[] = $pubkey;
             }
+        } catch (\Throwable $e) {
+            $this->logger->error('Redis unavailable in getMultipleMetadata, falling back to database', ['error' => $e->getMessage()]);
+            // Treat all pubkeys as cache misses
+            $missedPubkeys = $pubkeys;
         }
 
         // Try to fetch missed pubkeys from database
@@ -173,7 +179,7 @@ class RedisCacheService
                         'count' => count($foundPubkeys)
                     ]);
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->logger->error('Error fetching users from database in batch.', [
                     'exception' => $e->getMessage()
                 ]);
@@ -193,7 +199,7 @@ class RedisCacheService
                     'count' => count($missedPubkeys),
                     'sample' => substr($missedPubkeys[0] ?? '', 0, 8)
                 ]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $this->logger->error('Error dispatching batch profile fetch.', [
                     'error' => $e->getMessage(),
                     'count' => count($missedPubkeys)

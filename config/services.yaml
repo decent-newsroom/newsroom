@@ -53,6 +53,13 @@ services:
         arguments:
             - '%env(DATABASE_URL)%'
 
+    # Resilient Redis session handler — degrades gracefully (anonymous user)
+    # instead of producing 502 errors when Redis is unreachable.
+    App\Session\ResilientRedisSessionHandler:
+        arguments:
+            $redis: '@Redis'
+            $logger: '@logger'
+
     # 
     FOS\ElasticaBundle\Finder\FinderInterface:
         alias: fos_elastica.finder.articles

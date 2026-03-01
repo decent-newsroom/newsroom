@@ -5,7 +5,7 @@ framework:
 
     # Note that the session will be started ONLY if you read or write from it.
     session:
-        handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
+        handler_id: App\Session\ResilientRedisSessionHandler
         cookie_secure: auto
         cookie_samesite: lax
         cookie_lifetime: 0 # Session cookie will expire when the browser is closed
