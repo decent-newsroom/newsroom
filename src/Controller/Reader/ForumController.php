@@ -6,14 +6,19 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Entity\User;
+use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
+use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
+use Psr\Log\LoggerInterface;
+use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -79,6 +84,19 @@ class ForumController extends AbstractController
         // Build the filtered interest categories
         $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch);
 
+        // Get raw interest tags for the editor
+        $currentInterestTags = [];
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $currentInterestTags = $nostrClient->getUserInterests($pubkey);
+        } catch (\Exception $e) {
+            // Ignore errors
+        }
+
+        // Build popular tags grouped by category for the editor
+        $popularTags = ForumTopics::allUniqueTags();
+        $groupedTags = ForumTopics::groupedTags();
+
         // Collect all interest tags for the article listing
         $interestTags = [];
         if ($userInterests) {
@@ -116,6 +134,9 @@ class ForumController extends AbstractController
             'userInterests' => $userInterests,
             'articles' => $articlesPage,
             'pager' => $pager,
+            'popularTags' => $popularTags,
+            'groupedTags' => $groupedTags,
+            'currentInterestTags' => $currentInterestTags,
         ]);
     }
 
@@ -330,6 +351,109 @@ class ForumController extends AbstractController
     }
 
     // ---------- Helpers ----------
+
+    /**
+     * Publish a kind 10015 interests event.
+     * Receives a signed event from the frontend, validates it, and broadcasts to relays.
+     */
+    #[Route('/api/interests/publish', name: 'api_interests_publish', methods: ['POST'])]
+    public function publishInterests(
+        Request $request,
+        NostrClient $nostrClient,
+        AuthorRelayService $authorRelayService,
+        LoggerInterface $logger,
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            if (!$data || !isset($data['event'])) {
+                return new JsonResponse(['error' => 'Invalid request data'], 400);
+            }
+
+            $signedEvent = $data['event'];
+
+            // Validate required fields
+            if (!isset($signedEvent['id'], $signedEvent['pubkey'], $signedEvent['created_at'],
+                       $signedEvent['kind'], $signedEvent['tags'], $signedEvent['sig'])) {
+                return new JsonResponse(['error' => 'Missing required event fields'], 400);
+            }
+
+            // Validate kind
+            if ((int) $signedEvent['kind'] !== KindsEnum::INTERESTS->value) {
+                return new JsonResponse(['error' => 'Invalid event kind, expected ' . KindsEnum::INTERESTS->value], 400);
+            }
+
+            // Convert to Event object
+            $eventObj = new Event();
+            $eventObj->setId($signedEvent['id']);
+            $eventObj->setPublicKey($signedEvent['pubkey']);
+            $eventObj->setCreatedAt($signedEvent['created_at']);
+            $eventObj->setKind($signedEvent['kind']);
+            $eventObj->setTags($signedEvent['tags']);
+            $eventObj->setContent($signedEvent['content'] ?? '');
+            $eventObj->setSignature($signedEvent['sig']);
+
+            // Verify signature
+            if (!$eventObj->verify()) {
+                return new JsonResponse(['error' => 'Event signature verification failed'], 400);
+            }
+
+            // Collect relays for publishing
+            $pubkey = $signedEvent['pubkey'];
+            $relays = $authorRelayService->getRelaysForPublishing($pubkey);
+
+            $logger->info('Publishing interests event', [
+                'event_id' => $signedEvent['id'],
+                'pubkey' => $pubkey,
+                'tag_count' => count(array_filter($signedEvent['tags'], fn($t) => $t[0] === 't')),
+                'relay_count' => count($relays),
+            ]);
+
+            // Publish to relays (empty array lets NostrClient fetch author's relays)
+            $relayResults = $nostrClient->publishEvent($eventObj, $relays);
+
+            // Transform results
+            $successCount = 0;
+            $failCount = 0;
+            $relayStatuses = [];
+
+            foreach ($relayResults as $relayUrl => $result) {
+                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
+                if ($isSuccess) {
+                    $successCount++;
+                } else {
+                    $failCount++;
+                }
+                $relayStatuses[] = [
+                    'relay' => $relayUrl,
+                    'success' => $isSuccess,
+                ];
+            }
+
+            $logger->info('Interests event published', [
+                'event_id' => $signedEvent['id'],
+                'success_count' => $successCount,
+                'fail_count' => $failCount,
+            ]);
+
+            return new JsonResponse([
+                'status' => 'ok',
+                'event_id' => $signedEvent['id'],
+                'relayResults' => $relayStatuses,
+            ]);
+
+        } catch (\Exception $e) {
+            $logger->error('Error publishing interests event', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return new JsonResponse([
+                'error' => 'Failed to publish interests: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ---------- Private helpers ----------
 
     /**
      * Flatten all tags from the taxonomy into a unique set.

@@ -1,8 +1,109 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <twig:Atoms:PageHeading heading="My Interests" tagline="Topics you follow"/>
+    <twig:Atoms:PageHeading heading="My Interests"/>
 
+    {# ── Interests Editor ── #}
+    <div class="interests-editor-wrapper"
+         {{ stimulus_controller('nostr--nostr-interests', {
+             publishUrl: path('api_interests_publish'),
+             currentTags: currentInterestTags|default([]),
+             groupedTags: groupedTags|default([]),
+         }) }}>
+
+        {# Toggle editor button #}
+        <div class="container mt-3 mb-3">
+            <button class="btn btn--secondary"
+                    type="button"
+                    data-action="click->nostr--nostr-interests#toggleEditor">
+                {% if currentInterestTags is not empty %}
+                    Edit My Interests
+                {% else %}
+                    Choose My Interests
+                {% endif %}
+            </button>
+        </div>
+
+        {# Editor panel (hidden by default) #}
+        <div class="interests-editor"
+             data-nostr--nostr-interests-target="editor">
+
+            <div class="interests-editor__inner">
+                <h3>
+                    {% if currentInterestTags is not empty %}
+                        Edit your interests
+                    {% else %}
+                        Choose your interests
+                    {% endif %}
+                </h3>
+                <p class="text-muted">
+                    Select tags from the popular topics below, or add your own custom tags.
+                    Your interests will be published as a kind 10015 event to Nostr.
+                </p>
+
+                {# Selected tags display #}
+                <div class="interests-selected">
+                    <h4>Selected Tags</h4>
+                    <div class="interests-selected__list"
+                         data-nostr--nostr-interests-target="selectedList">
+                        <span class="text-muted">No tags selected</span>
+                    </div>
+                </div>
+
+                {# Custom tag input #}
+                <div class="interests-custom">
+                    <label for="interests-custom-input">Add custom tags</label>
+                    <div class="interests-custom__row">
+                        <input type="text"
+                               id="interests-custom-input"
+                               class="form-control"
+                               placeholder="e.g. cooking, gardening"
+                               data-nostr--nostr-interests-target="customInput"
+                               data-action="keydown->nostr--nostr-interests#addCustomTag" />
+                        <button type="button"
+                                class="btn btn--secondary"
+                                data-action="click->nostr--nostr-interests#addCustomTag">
+                            Add
+                        </button>
+                    </div>
+                </div>
+
+                {# Popular tags grouped by category #}
+                <div class="interests-popular"
+                     data-nostr--nostr-interests-target="tagChips">
+                    <h4>Popular Tags</h4>
+                    {% for group in groupedTags|default([]) %}
+                        <div class="interests-category">
+                            <h5>{{ group.name }}</h5>
+                            <div class="interests-chips">
+                                {% for tag in group.tags %}
+                                    <button type="button"
+                                            class="interests-chip"
+                                            data-tag="{{ tag }}"
+                                            data-action="click->nostr--nostr-interests#toggleTag">
+                                        #{{ tag }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {# Publish button & status #}
+                <div class="interests-actions">
+                    <button type="button"
+                            class="btn btn--primary"
+                            data-nostr--nostr-interests-target="publishButton"
+                            data-action="click->nostr--nostr-interests#publish">
+                        Sign &amp; Publish Interests
+                    </button>
+                    <div data-nostr--nostr-interests-target="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Existing interests display ── #}
     {% if userInterests %}
         <div class="subcategories-grid">
             {% for catKey, category in userInterests %}
@@ -43,7 +144,7 @@
         <div class="container mt-5 mb-5">
             <p>You haven't published an interests list yet.</p>
             <p class="text-muted">
-                Publish a <strong>kind 10015</strong> interest list from your Nostr client to see personalised topics here.
+                Use the editor above to select your interests and publish them to Nostr.
                 Your interests will appear as tag-based topic cards with related articles.
             </p>
             <div class="cta-row mt-3">

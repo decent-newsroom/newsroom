@@ -6,6 +6,11 @@
 - Updated bookmarks page with better fetch and styling.
 - Updated article loading.
 - Enabled frankenphp.
+- Added interests editor on the My Interests page: users can create or edit their kind 10015 interests list by selecting popular tags or adding custom ones, then sign and publish to Nostr relays.
+- [Bug] Fixed Nip05 verification for own vanity names.
+- [Bug] Fixed uncertain math rendering with KaTeX.
+- [Bug] Fixed 502 errors on article pages for anonymous users.
+
 
 ## v0.0.12
 More metadata is better.  

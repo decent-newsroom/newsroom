@@ -6,6 +6,46 @@ namespace App\Util;
 
 class ForumTopics
 {
+    /**
+     * Get all unique tags across all categories as a flat array.
+     * @return string[]
+     */
+    public static function allUniqueTags(): array
+    {
+        $set = [];
+        foreach (self::TOPICS as $cat) {
+            foreach ($cat['subcategories'] as $sub) {
+                foreach ($sub['tags'] as $tag) {
+                    $set[strtolower($tag)] = true;
+                }
+            }
+        }
+        return array_keys($set);
+    }
+
+    /**
+     * Get tags grouped by category for UI display.
+     * Returns [ ['name' => 'Lifestyle', 'tags' => ['travel', ...]], ... ]
+     * @return array<int, array{name: string, tags: string[]}>
+     */
+    public static function groupedTags(): array
+    {
+        $groups = [];
+        foreach (self::TOPICS as $cat) {
+            $tags = [];
+            foreach ($cat['subcategories'] as $sub) {
+                foreach ($sub['tags'] as $tag) {
+                    $tags[strtolower($tag)] = true;
+                }
+            }
+            $groups[] = [
+                'name' => $cat['name'],
+                'tags' => array_keys($tags),
+            ];
+        }
+        return $groups;
+    }
+
     public const TOPICS = [
         // ─────────── LIFESTYLE ───────────
         'lifestyle' => [
