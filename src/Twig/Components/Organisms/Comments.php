@@ -87,8 +87,8 @@ final class Comments
         // ── 2. Async relay refresh (may push Mercure update later) ────
         try {
             $this->bus->dispatch(new FetchCommentsMessage($current));
-        } catch (ExceptionInterface) {
-            // transport unavailable – not critical
+        } catch (\Throwable) {
+            // transport unavailable (Redis down, etc.) – not critical
         }
     }
 

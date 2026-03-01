@@ -99,8 +99,12 @@ class HighlightsController extends AbstractController
             $highlightEvents = $this->eventRepository->findHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
 
             // Dispatch async message to fetch fresh highlights in background (fire and forget)
-            $this->messageBus->dispatch(new FetchHighlightsMessage(self::MAX_DISPLAY_HIGHLIGHTS));
-            $this->logger->debug('Dispatched async fetch for highlights');
+            try {
+                $this->messageBus->dispatch(new FetchHighlightsMessage(self::MAX_DISPLAY_HIGHLIGHTS));
+                $this->logger->debug('Dispatched async fetch for highlights');
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to dispatch highlights fetch', ['error' => $e->getMessage()]);
+            }
 
             // Process and enrich the highlights for display
             $highlights = $this->processHighlights($highlightEvents);

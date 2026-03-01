@@ -724,11 +724,15 @@ class AuthorController extends AbstractController
 
                 // If stale, trigger background revalidation
                 if ($cacheResult['isStale']) {
-                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
-                    $this->logger->debug('Profile cache stale, dispatched revalidation', [
-                        'pubkey' => substr($pubkey, 0, 8),
-                        'tab' => $tab,
-                    ]);
+                    try {
+                        $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                        $this->logger->debug('Profile cache stale, dispatched revalidation', [
+                            'pubkey' => substr($pubkey, 0, 8),
+                            'tab' => $tab,
+                        ]);
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Failed to dispatch profile revalidation', ['error' => $e->getMessage()]);
+                    }
                 }
             } else {
                 // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
@@ -745,7 +749,11 @@ class AuthorController extends AbstractController
                 $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
 
                 // Dispatch background revalidation to get fresh data from relays
-                $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                try {
+                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to dispatch profile revalidation on cache miss', ['error' => $e->getMessage()]);
+                }
             }
         } else {
             // Non-cacheable tabs (stats) - load synchronously
