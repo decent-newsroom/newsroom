@@ -359,26 +359,37 @@ readonly class Converter implements MarkdownConverterInterface
     ): string {
         switch ($decoded->type) {
             case 'npub': {
-                $hex     = $this->nostrKeyUtil->npubToHex($bechEncoded);
-                $profile = $metadataByHex[$hex] ?? null;
-                $label   = $displayText !== null && $displayText !== ''
-                    ? $displayText
-                    : (($profile->name ?? null) ?: $this->labelFromKey($bechEncoded));
+                try {
+                    $hex = $this->nostrKeyUtil->npubToHex($bechEncoded);
+                } catch (\Throwable) {
+                    // Invalid bech32 checksum or malformed npub in content.
+                    // Don't fail the whole article rendering/processing; just return the raw text.
+                    return $this->e($bechEncoded);
+                }
+                 $profile = $metadataByHex[$hex] ?? null;
+                 $label   = $displayText !== null && $displayText !== ''
+                     ? $displayText
+                     : (($profile->name ?? null) ?: $this->labelFromKey($bechEncoded));
 
-                return '<a href="/p/' . $this->e($bechEncoded) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
+                 return '<a href="/p/' . $this->e($bechEncoded) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
             }
 
             case 'nprofile': {
                 /** @var NProfile $obj */
                 $obj     = $decoded->data;
                 $hex     = $obj->pubkey;
-                $npub    = $this->nostrKeyUtil->hexToNpub($hex);
-                $profile = $metadataByHex[$hex] ?? null;
-                $label   = $displayText !== null && $displayText !== ''
-                    ? $displayText
-                    : (($profile->name ?? null) ?: $this->labelFromKey($npub));
+                try {
+                    $npub = $this->nostrKeyUtil->hexToNpub($hex);
+                } catch (\Throwable) {
+                    // Shouldn't happen, but keep processing resilient.
+                    return $this->e($bechEncoded);
+                }
+                 $profile = $metadataByHex[$hex] ?? null;
+                 $label   = $displayText !== null && $displayText !== ''
+                     ? $displayText
+                     : (($profile->name ?? null) ?: $this->labelFromKey($npub));
 
-                return '<a href="/p/' . $this->e($npub) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
+                 return '<a href="/p/' . $this->e($npub) . '" class="nostr-mention">@' . $this->e($label) . '</a>';
             }
 
             case 'note': {
