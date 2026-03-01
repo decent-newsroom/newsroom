@@ -15,7 +15,7 @@
                     </a>
                 </h2>
                 {% if item and item.summary %}
-                    <p class="lede">{{ item.summary }}</p>
+                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ item.summary }}</p>
                 {% endif %}
                 {# Category links from Magazine entity #}
                 {% if item.categories is defined and item.categories is not empty %}

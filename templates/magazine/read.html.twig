@@ -113,7 +113,9 @@
                             </div>
                         </header>
 
-                        <div class="chapter-content">
+                        <div class="chapter-content"
+                             data-controller="utility--katex"
+                             data-utility--katex-display-value="true">
                             {{ chapter.content|raw }}
                         </div>
                     </article>

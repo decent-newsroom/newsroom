@@ -15,7 +15,7 @@
                                     </a>
                                 </h2>
                                 {% if mag.summary|default(null) %}
-                                    <p class="lede">{{ mag.summary }}</p>
+                                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ mag.summary }}</p>
                                 {% endif %}
                             </div>
                         </div>

@@ -165,7 +165,9 @@
             {% endif %}
         </div>
         <div class="card-body">
-            <div class="lede">
+            <div class="lede"
+                 data-controller="utility--katex"
+                 data-utility--katex-display-value="false">
                 {{ article.summary }}
             </div>
 
@@ -211,6 +213,8 @@
             {% endif %}
 
             <div class="article-main"
+                 data-controller="utility--katex"
+                 data-utility--katex-display-value="true"
                  {% if highlights is defined and highlights|length > 0 %}
                  data-highlights="{{ highlights|json_encode|e('html_attr') }}"
                  {% endif %}>

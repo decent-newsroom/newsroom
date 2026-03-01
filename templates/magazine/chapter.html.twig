@@ -82,7 +82,7 @@
 
                 {# Chapter metadata #}
                 {% if chapter.summary %}
-                    <p class="lede">{{ chapter.summary }}</p>
+                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ chapter.summary }}</p>
                 {% endif %}
 
                 {# Author info #}
@@ -99,7 +99,9 @@
                 {% endif %}
 
                 {# Chapter content (processed AsciiDoc/Markdown as HTML) #}
-                <div class="chapter-content">
+                <div class="chapter-content"
+                     data-controller="utility--katex"
+                     data-utility--katex-display-value="true">
                     {{ content|raw }}
                 </div>
             </div>

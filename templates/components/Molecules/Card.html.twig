@@ -28,7 +28,7 @@
             <div class="card-body">
                     <h2 class="card-title line-clamp-5">{{ article.title }}</h2>
                     {% if article.summary %}
-                        <p class="lede line-clamp-5">
+                        <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
                             {{ article.summary }}
                         </p>
                     {% endif %}
