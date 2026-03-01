@@ -45,6 +45,11 @@ class VisitTrackingListener
 
     public function onKernelRequest(RequestEvent $event): void
     {
+        // Reset per-request state immediately. In FrankenPHP worker mode this
+        // listener is a singleton — without this, a crash before the response
+        // phase would leak newVisitorId into the next request.
+        $this->newVisitorId = null;
+
         if (!$event->isMainRequest()) {
             return;
         }
@@ -59,9 +64,6 @@ class VisitTrackingListener
         }
 
         try {
-            // For logged-in users, the session is already started by the security
-            // firewall — reuse the PHP session ID so visits link to their account.
-            // For anonymous users, use a lightweight cookie to avoid hitting Redis.
             $visitorId = null;
 
             // Only touch the session if a session cookie already exists.
@@ -98,20 +100,24 @@ class VisitTrackingListener
             return;
         }
 
+        $visitorId = $this->newVisitorId;
+        $this->newVisitorId = null;
+
         try {
-            $event->getResponse()->headers->setCookie(
-                Cookie::create(self::VISITOR_COOKIE)
-                    ->withValue($this->newVisitorId)
-                    ->withExpires(time() + self::VISITOR_COOKIE_TTL)
-                    ->withPath('/')
-                    ->withHttpOnly(true)
-                    ->withSameSite('lax')
-                    ->withSecure(true)
-            );
+            $response = $event->getResponse();
+            $response->headers->setCookie(new Cookie(
+                self::VISITOR_COOKIE,
+                $visitorId,
+                time() + self::VISITOR_COOKIE_TTL,
+                '/',
+                null,
+                null,   // secure — let Symfony decide based on request
+                true,   // httpOnly
+                false,  // raw
+                'lax'   // sameSite
+            ));
         } catch (\Throwable $e) {
             // Never crash for analytics
-        } finally {
-            $this->newVisitorId = null;
         }
     }
 }
