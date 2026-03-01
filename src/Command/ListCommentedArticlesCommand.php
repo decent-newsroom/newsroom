@@ -32,7 +32,7 @@ class ListCommentedArticlesCommand extends Command
                 COUNT(*) FILTER (WHERE e.kind = 1111)            AS comments,
                 COUNT(*) FILTER (WHERE e.kind = 9735)            AS zaps
             FROM event e,
-                 jsonb_array_elements(e.tags::jsonb) AS tag
+                 jsonb_array_elements(e.tags) AS tag
             WHERE e.kind IN (1111, 9735)
               AND tag->>0 = 'A'
             GROUP BY tag->>1

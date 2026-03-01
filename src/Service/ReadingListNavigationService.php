@@ -50,10 +50,12 @@ class ReadingListNavigationService
         }
 
         // Use PostgreSQL JSON containment to find events whose tags contain an 'a' tag referencing this article
+        // The tags column is jsonb, so the GIN index (idx_event_tags_gin) is used directly.
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 AND e.kind IN (30040, 30004)
-                ORDER BY e.created_at DESC";
+                ORDER BY e.created_at DESC
+                LIMIT 10";
 
         try {
             $conn = $this->em->getConnection();

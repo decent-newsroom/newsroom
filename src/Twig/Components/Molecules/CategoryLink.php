@@ -29,7 +29,7 @@ final class CategoryLink
 
             // Query the database for the event by slug and kind
             $sql = "SELECT e.* FROM event e
-                    WHERE e.tags::jsonb @> ?::jsonb
+                    WHERE e.tags @> ?::jsonb
                     AND e.kind = ?
                     ORDER BY e.created_at DESC
                     LIMIT 1";

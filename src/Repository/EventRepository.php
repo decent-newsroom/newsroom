@@ -17,15 +17,16 @@ class EventRepository extends ServiceEntityRepository
      * Build a JSON search condition for PostgreSQL
      * Searches for a value in the second element (index 1) of JSON array elements
      *
-     * @param string $column The JSON column to search (e.g., 'e.tags')
+     * @param string $column The JSON/JSONB column to search (e.g., 'e.tags')
      * @param string $paramPlaceholder The placeholder to use in the query (e.g., ':coordinate')
      * @return string The WHERE clause condition
      */
     private function buildJsonSearchCondition(string $column, string $paramPlaceholder): string
     {
         // PostgreSQL: Check if any array element has the value at position 1
+        // The tags column is native jsonb so no cast is needed.
         return "EXISTS (
-            SELECT 1 FROM jsonb_array_elements({$column}::jsonb) AS tag
+            SELECT 1 FROM jsonb_array_elements({$column}) AS tag
             WHERE tag->1 = to_jsonb({$paramPlaceholder}::text)
         )";
     }
@@ -230,7 +231,7 @@ class EventRepository extends ServiceEntityRepository
                 WHERE e.kind = :kind
                 AND e.pubkey = :pubkey
                 AND EXISTS (
-                    SELECT 1 FROM jsonb_array_elements(e.tags::jsonb) AS tag
+                    SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
                     WHERE tag->>0 = 'd' AND tag->>1 = :identifier
                 )
                 ORDER BY e.created_at DESC

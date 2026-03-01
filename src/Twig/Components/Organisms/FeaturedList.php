@@ -33,7 +33,7 @@ final class FeaturedList
 
         // Query the database for the latest category event by slug using native SQL
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 ORDER BY e.created_at DESC
                 LIMIT 1";
 

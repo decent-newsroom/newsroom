@@ -450,7 +450,7 @@ class MagazineWizardController extends AbstractController
     {
         // Load magazine event from database
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 LIMIT 1";
 
         $conn = $entityManager->getConnection();
@@ -625,7 +625,7 @@ class MagazineWizardController extends AbstractController
 
         // Query database for the list event
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 AND e.pubkey = ?
                 AND e.kind = 30040
                 ORDER BY e.created_at DESC

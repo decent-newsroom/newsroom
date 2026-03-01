@@ -415,7 +415,7 @@ class DefaultController extends AbstractController
 
                     // Query for the chapter by d-tag (slug)
                     $sql = "SELECT e.* FROM event e
-                            WHERE e.tags::jsonb @> ?::jsonb
+                            WHERE e.tags @> ?::jsonb
                             AND e.kind = ?
                             ORDER BY e.created_at DESC
                             LIMIT 1";
@@ -539,7 +539,7 @@ class DefaultController extends AbstractController
 
                 // Query for the chapter by d-tag (slug)
                 $sql = "SELECT e.* FROM event e
-                        WHERE e.tags::jsonb @> ?::jsonb
+                        WHERE e.tags @> ?::jsonb
                         AND e.kind = ?
                         ORDER BY e.created_at DESC
                         LIMIT 1";
@@ -632,7 +632,7 @@ class DefaultController extends AbstractController
 
         // Find the chapter by slug and kind
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 AND e.kind = ?
                 ORDER BY e.created_at DESC
                 LIMIT 1";
@@ -796,7 +796,7 @@ class DefaultController extends AbstractController
 
                 // Fetch category details
                 $sql = "SELECT e.* FROM event e
-                        WHERE e.tags::jsonb @> ?::jsonb
+                        WHERE e.tags @> ?::jsonb
                         ORDER BY e.created_at DESC
                         LIMIT 1";
 
@@ -901,7 +901,7 @@ class DefaultController extends AbstractController
 
                 // Fetch chapter details
                 $sql = "SELECT e.* FROM event e
-                        WHERE e.tags::jsonb @> ?::jsonb
+                        WHERE e.tags @> ?::jsonb
                         AND e.kind = ?
                         ORDER BY e.created_at DESC
                         LIMIT 1";
@@ -979,7 +979,7 @@ class DefaultController extends AbstractController
 
         // Query the database for the category event by slug using native SQL
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 ORDER BY e.created_at DESC
                 ";
 

@@ -213,7 +213,7 @@ class MagazineAdminController extends AbstractController
             SELECT * FROM event e
             WHERE e.kind = ?
             AND EXISTS (
-                SELECT 1 FROM json_array_elements(e.tags) AS tag_element
+                Select 1 FROM jsonb_array_elements(e.tags) AS tag_element
                 WHERE tag_element->>0 = 'd'
                 AND tag_element->>1 IN ({$placeholders})
             )
@@ -398,7 +398,7 @@ class MagazineAdminController extends AbstractController
         try {
             $conn = $em->getConnection();
             $sql = "SELECT e.* FROM event e
-                    WHERE e.tags::jsonb @> ?::jsonb
+                    WHERE e.tags @> ?::jsonb
                     LIMIT 1";
             $result = $conn->executeQuery($sql, [
                 json_encode([['d', 'newsroom-magazine-by-newsroom']])
@@ -430,7 +430,7 @@ class MagazineAdminController extends AbstractController
 
         $conn = $em->getConnection();
         $sql = "SELECT e.* FROM event e
-                WHERE e.tags::jsonb @> ?::jsonb
+                WHERE e.tags @> ?::jsonb
                 LIMIT 1";
 
         foreach ($slugs as $slug) {
