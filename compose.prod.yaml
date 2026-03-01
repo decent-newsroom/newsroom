@@ -45,8 +45,9 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
-      # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
-      FRANKENPHP_CONFIG: "worker ./public/index.php"
+      # FrankenPHP worker mode DISABLED for diagnostics.
+      # Re-enable once 502 root cause is identified:
+      # FRANKENPHP_CONFIG: "worker ./public/index.php"
     volumes:
       # Caddy state (TLS certs, etc.). Safe to persist.
       - caddy_data:/data
