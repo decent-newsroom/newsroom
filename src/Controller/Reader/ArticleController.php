@@ -444,17 +444,30 @@ class ArticleController  extends AbstractController
             $listNav = $readingListNavigation->findNavigation($navCoordinate);
         } catch (\Exception $e) {}
 
-        return $this->render('pages/article.html.twig', [
-            'article' => $article,
-            'author' => $author,
-            'npub' => $npub,
-            'content' => $htmlContent,
-            'canEdit' => $canEdit,
-            'canonical' => $canonical,
-            'highlights' => $highlights,
-            'advancedMetadata' => $advancedMetadata,
-            'listNav' => $listNav,
-        ]);
+        try {
+            return $this->render('pages/article.html.twig', [
+                'article' => $article,
+                'author' => $author,
+                'npub' => $npub,
+                'content' => $htmlContent,
+                'canEdit' => $canEdit,
+                'canonical' => $canonical,
+                'highlights' => $highlights,
+                'advancedMetadata' => $advancedMetadata,
+                'listNav' => $listNav,
+            ]);
+        } catch (\Throwable $e) {
+            $logger->critical('ARTICLE RENDER CRASHED', [
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => substr($e->getTraceAsString(), 0, 2000),
+                'slug' => $slug,
+                'is_anonymous' => $this->getUser() === null,
+            ]);
+            throw $e;
+        }
     }
 
 }
