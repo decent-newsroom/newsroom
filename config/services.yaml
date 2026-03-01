@@ -79,15 +79,13 @@ services:
     
 
     Redis:
-        # you can also use \RedisArray, \RedisCluster, \Relay\Relay or \Predis\Client classes
         class: Redis
-        lazy: true
-        calls:
-            - connect:
-                - '%env(REDIS_HOST)%'
-                - '%env(int:REDIS_PORT)%'
-            - auth:
-                - '%env(REDIS_PASSWORD)%'
+        factory: ['App\Factory\RedisFactory', 'create']
+        arguments:
+            $host: '%env(REDIS_HOST)%'
+            $port: '%env(int:REDIS_PORT)%'
+            $password: '%env(REDIS_PASSWORD)%'
+            $logger: '@logger'
     
 
     App\Provider\ArticleProvider:
