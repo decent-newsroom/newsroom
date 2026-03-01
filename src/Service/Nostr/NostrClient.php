@@ -387,49 +387,39 @@ class NostrClient
         // Ensure local relay is included in the relay list
         $relays = $this->relayPool->ensureLocalRelayInList($relays);
 
-        // Merge relays with reputable ones
-        $allRelays = array_unique(array_merge($relays, self::REPUTABLE_RELAYS));
-        // Loop over reputable relays and bail as soon as you get a valid event back
-        foreach ($allRelays as $reputableRelay) {
-            $this->logger->info('Trying reputable relay first', ['relay' => $reputableRelay]);
-            $request = $this->createNostrRequest(
-                kinds: [],
-                filters: ['ids' => [$eventId], 'limit' => 1],
-                relaySet: $this->createRelaySet([$reputableRelay]),
-                stopGap: $eventId
-            );
-            $events = $this->processResponse($request->send(), function($event) {
-                $this->logger->debug('Received event', ['event' => $event]);
-                return $event;
-            });
-            if (!empty($events)) {
-                return $events[0];
+        // Build a short list: provided relays first, then reputable ones, capped at 3 total.
+        $allRelays = array_values(array_unique(array_merge($relays, self::REPUTABLE_RELAYS)));
+        $allRelays = array_slice($allRelays, 0, 3);
+
+        // Loop and bail as soon as one relay returns the event
+        foreach ($allRelays as $relay) {
+            $this->logger->debug('Trying relay for event', ['relay' => $relay, 'event_id' => $eventId]);
+            try {
+                $request = $this->createNostrRequest(
+                    kinds: [],
+                    filters: ['ids' => [$eventId], 'limit' => 1],
+                    relaySet: $this->createRelaySet([$relay]),
+                    stopGap: $eventId
+                );
+                $events = $this->processResponse($request->send(), function($event) {
+                    $this->logger->debug('Received event', ['event' => $event]);
+                    return $event;
+                });
+                if (!empty($events)) {
+                    return $events[0];
+                }
+            } catch (\Throwable $e) {
+                $this->logger->debug('Relay failed for event lookup', [
+                    'relay' => $relay,
+                    'event_id' => $eventId,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
-        // Use provided relays or default if empty
-        $relaySet = empty($relays) ? $this->defaultRelaySet : $this->createRelaySet($relays);
-
-        // Create request using the helper method
-        $request = $this->createNostrRequest(
-            kinds: [],
-            filters: ['ids' => [$eventId]],
-            relaySet: $relaySet
-        );
-
-        // Process the response
-        $events = $this->processResponse($request->send(), function($event) {
-            $this->logger->debug('Received event', ['event' => $event]);
-            return $event;
-        });
-
-        if (empty($events)) {
-            return null;
-        }
-
-        // Return the first matching event
-        return $events[0];
+        return null;
     }
+
 
     /**
      * Get multiple events by their IDs

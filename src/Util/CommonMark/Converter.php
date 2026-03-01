@@ -446,6 +446,11 @@ class Converter implements MarkdownConverterInterface
                     ]);
                 }
 
+                // Placeholder if event data is missing and we're not forced inline
+                if (!$event && !$preferInline) {
+                    return $this->renderPlaceholder($bechEncoded, 'note', 'note', '/e/' . $this->e($bechEncoded));
+                }
+
                 $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
                 return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
             }
@@ -455,10 +460,15 @@ class Converter implements MarkdownConverterInterface
                 $obj   = $decoded->data;
                 $event = $eventsById[$obj->id] ?? null;
 
-                // Inline if requested (anchors) or if we don’t have event data
-                if ($preferInline || !$event) {
+                // Inline if requested (anchors)
+                if ($preferInline) {
                     $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
                     return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+                }
+
+                // Placeholder if event data is missing
+                if (!$event) {
+                    return $this->renderPlaceholder($bechEncoded, 'nevent', 'event', '/e/' . $this->e($bechEncoded));
                 }
 
                 // Otherwise render a rich card
@@ -476,15 +486,21 @@ class Converter implements MarkdownConverterInterface
                 $coordKey = $obj->kind . ':' . $obj->pubkey . ':' . $obj->identifier;
                 $event = $eventsByNaddr[$coordKey] ?? null;
 
-                // Inline if requested (anchors) or if we don't have event data
-                if ($preferInline || !$event) {
+                $isLongform = (int) $obj->kind === (int) KindsEnum::LONGFORM->value;
+                $href = $isLongform
+                    ? '/article/' . $this->e($bechEncoded)
+                    : '/e/' . $this->e($bechEncoded);
+
+                // Inline if requested (anchors)
+                if ($preferInline) {
                     $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
+                    return '<a href="' . $href . '" class="nostr-link">' . $this->e($text) . '</a>';
+                }
 
-                    if ((int) $obj->kind === (int) KindsEnum::LONGFORM->value) {
-                        return '<a href="/article/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
-                    }
-
-                    return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
+                // Placeholder if event data is missing
+                if (!$event) {
+                    $label = $isLongform ? 'article' : 'event';
+                    return $this->renderPlaceholder($bechEncoded, 'naddr', $label, $href);
                 }
 
                 // Otherwise render a rich card
@@ -651,6 +667,19 @@ class Converter implements MarkdownConverterInterface
         } catch (\Throwable) {
             return [];
         }
+    }
+
+    /**
+     * Render a nice placeholder card for a nostr reference whose event data couldn't be fetched.
+     */
+    private function renderPlaceholder(string $bech, string $type, string $label, string $href): string
+    {
+        return $this->twig->render('components/nostr_placeholder.html.twig', [
+            'bech'  => $bech,
+            'type'  => $type,
+            'label' => $label,
+            'href'  => $href,
+        ]);
     }
 
     private function labelFromKey(string $npub): string
