@@ -59,12 +59,21 @@ class VisitTrackingListener
         }
 
         try {
-            // Use a lightweight cookie for visitor continuity instead of starting
-            // a PHP session (which hits Redis and can cause 502s when Redis is down).
-            $visitorId = $request->cookies->get(self::VISITOR_COOKIE);
+            // For logged-in users, the session is already started by the security
+            // firewall — reuse the PHP session ID so visits link to their account.
+            // For anonymous users, use a lightweight cookie to avoid hitting Redis.
+            $visitorId = null;
+
+            if ($request->hasSession() && $request->getSession()->isStarted()) {
+                $visitorId = $request->getSession()->getId();
+            }
+
             if (!$visitorId) {
-                $visitorId = bin2hex(random_bytes(16));
-                $this->newVisitorId = $visitorId; // flag to set cookie in response
+                $visitorId = $request->cookies->get(self::VISITOR_COOKIE);
+                if (!$visitorId) {
+                    $visitorId = bin2hex(random_bytes(16));
+                    $this->newVisitorId = $visitorId;
+                }
             }
 
             $visit = new Visit($route, $visitorId);
