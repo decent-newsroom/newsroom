@@ -9,7 +9,7 @@ security:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
         main:
-            lazy: false
+            lazy: true
             stateless: false
             provider: user_dto_provider
             custom_authenticators:
