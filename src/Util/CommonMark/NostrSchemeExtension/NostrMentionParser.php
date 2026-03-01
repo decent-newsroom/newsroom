@@ -40,8 +40,15 @@ readonly class NostrMentionParser implements InlineParserInterface
         // Extract "npub" part from fullMatch
         $npubLink = substr($fullMatch, strpos($fullMatch, 'npub1'), -1);  // e.g., "npubXXXX"
 
+        try {
+            $hex = $this->nostrKeyUtil->npubToHex($npubLink);
+        } catch (\Throwable) {
+            // Invalid bech32 checksum or malformed npub – treat as plain text.
+            return false;
+        }
+
         if (empty($label)) {
-            $metadata = $this->redisCacheService->getMetadata($this->nostrKeyUtil->npubToHex($npubLink));
+            $metadata = $this->redisCacheService->getMetadata($hex);
             $label = $metadata->display_name ?? $metadata->name;
         }
 

@@ -33,7 +33,14 @@ readonly class NostrRawNpubParser implements InlineParserInterface
         // Get the match and extract relevant parts
         $fullMatch = $inlineContext->getFullMatch();
 
-        $meta = $this->redisCacheService->getMetadata($this->nostrKeyUtil->npubToHex($fullMatch));
+        try {
+            $hex = $this->nostrKeyUtil->npubToHex($fullMatch);
+        } catch (\Throwable) {
+            // Invalid bech32 checksum or malformed npub – treat as plain text.
+            return false;
+        }
+
+        $meta = $this->redisCacheService->getMetadata($hex);
 
         // Use shortened npub as default name, from first and last 8 characters of the fullMatch
         $name =  substr($fullMatch, 0, 8) . '...' . substr($fullMatch, -8);
