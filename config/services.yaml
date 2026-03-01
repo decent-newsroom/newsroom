@@ -59,6 +59,13 @@ services:
         arguments:
             $redis: '@Redis'
             $logger: '@logger'
+            $options:
+                # Redis key TTL in seconds. Without this, Symfony defaults to PHP's
+                # session.gc_maxlifetime (1440s = 24 min), causing sessions to vanish
+                # after brief inactivity even though cookie_lifetime is 0 (browser session).
+                # The TTL resets on every request (via updateTimestamp), so this is an
+                # *inactivity* timeout, not an absolute one.
+                ttl: 604800  # 7 days
 
     # 
     FOS\ElasticaBundle\Finder\FinderInterface:
