@@ -43,32 +43,41 @@ readonly class UserDTOProvider implements UserProviderInterface
             throw new \InvalidArgumentException('Invalid user type.');
         }
 
-        $this->logger->info('Refresh user.', ['user' => $user->getUserIdentifier()]);
+        try {
+            $this->logger->info('Refresh user.', ['user' => $user->getUserIdentifier()]);
 
-        // Reload user from database (fast operation)
-        $freshUser = $this->entityManager->getRepository(User::class)
-            ->findOneBy(['npub' => $user->getUserIdentifier()]);
+            // Reload user from database (fast operation)
+            $freshUser = $this->entityManager->getRepository(User::class)
+                ->findOneBy(['npub' => $user->getUserIdentifier()]);
 
-        if (!$freshUser) {
-            // Create minimal user entity if not found
-            $freshUser = new User();
-            $freshUser->setNpub($user->getUserIdentifier());
-            $this->entityManager->persist($freshUser);
-            $this->entityManager->flush();
+            if (!$freshUser) {
+                // Create minimal user entity if not found
+                $freshUser = new User();
+                $freshUser->setNpub($user->getUserIdentifier());
+                $this->entityManager->persist($freshUser);
+                $this->entityManager->flush();
 
-            $this->logger->info('Created new user during refresh', ['npub' => $user->getUserIdentifier()]);
+                $this->logger->info('Created new user during refresh', ['npub' => $user->getUserIdentifier()]);
+            }
+
+            // Trigger async profile update if we want to refresh metadata
+            try {
+                $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+            } catch (\Throwable $e) {
+                // Log but don't block refresh
+                $this->logger->error('Exception on dispatch during refresh: ' . $e->getMessage(), ['npub' => $user->getUserIdentifier()]);
+            }
+
+            return $freshUser;
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to refresh user, returning session user as-is', [
+                'npub' => $user->getUserIdentifier(),
+                'error' => $e->getMessage(),
+            ]);
+            // Return the original user from session rather than crashing → 502
+            return $user;
         }
-
-         // Trigger async profile update if we want to refresh metadata
-         try {
-             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-             $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
-         } catch (\Exception|ExceptionInterface $e) {
-            // Log but don't block refresh
-            $this->logger->error('Exception on dispatch during refresh: ' . $e->getMessage(), ['npub' => $user->getUserIdentifier()]);
-         }
-
-        return $freshUser;
     }
 
     /**

@@ -263,10 +263,10 @@ class User implements UserInterface, EquatableInterface
 
     public function __unserialize(array $data): void
     {
-        $this->id = $data['id'];
-        $this->npub = $data['npub'];
-        $this->roles = $data['roles'];
-        $this->metadata = $data['metadata'];
-        $this->relays = $data['relays'];
+        $this->id = $data['id'] ?? null;
+        $this->npub = $data['npub'] ?? null;
+        $this->roles = $data['roles'] ?? [];
+        $this->metadata = $data['metadata'] ?? null;
+        $this->relays = $data['relays'] ?? null;
     }
 }
