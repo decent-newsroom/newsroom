@@ -34,27 +34,32 @@ class CacheLatestArticlesCommand extends Command
         parent::__construct();
     }
 
+    private const TARGET_ARTICLES = 20;
+
     protected function configure(): void
     {
         $this->addOption(
             'limit',
             'l',
             InputOption::VALUE_OPTIONAL,
-            'Maximum number of articles to cache',
-            50
+            'Target number of human articles to cache (will fetch a larger pool and filter bots)',
+            self::TARGET_ARTICLES
         );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $limit = (int) $input->getOption('limit');
+        $target = (int) $input->getOption('limit');
 
         $output->writeln('<comment>Querying database for latest articles...</comment>');
 
         // Muted pubkeys are always excluded from latest feeds.
         $excludedPubkeys = $this->mutedPubkeysService->getMutedPubkeys();
 
-        // Query database directly - get latest published articles, one per author
+        // Fetch a large initial pool — most authors are bots/RSS, so we need
+        // many more candidates than the target to end up with enough human articles.
+        $fetchLimit = max($target * 15, 500);
+
         $qb = $this->articleRepository->createQueryBuilder('a');
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
@@ -66,7 +71,7 @@ class CacheLatestArticlesCommand extends Command
         }
 
         $qb->orderBy('a.createdAt', 'DESC')
-            ->setMaxResults($limit * 3); // fetch more to allow exclusions + dedupe
+            ->setMaxResults($fetchLimit);
 
         /** @var Article[] $allArticles */
         $allArticles = $qb->getQuery()->getResult();
@@ -86,29 +91,26 @@ class CacheLatestArticlesCommand extends Command
             }
         }
 
-        // Take only the requested limit
-        $articles = array_slice($articlesByAuthor, 0, $limit);
+        $output->writeln(sprintf('<info>Found %d unique authors</info>', count($articlesByAuthor)));
 
-        $output->writeln(sprintf('<info>Selected %d articles (one per author)</info>', count($articles)));
-
-        if (empty($articles)) {
+        if (empty($articlesByAuthor)) {
             $output->writeln('<error>No articles found matching criteria</error>');
             return Command::FAILURE;
         }
 
-        // Collect author pubkeys for metadata fetching
+        // Collect ALL author pubkeys for metadata fetching (needed for bot detection)
         $authorPubkeys = array_keys($articlesByAuthor);
 
         $output->writeln(sprintf('<comment>Fetching metadata for %d authors...</comment>', count($authorPubkeys)));
         $authorsMetadata = $this->redisCacheService->getMultipleMetadata($authorPubkeys);
         $output->writeln(sprintf('<info>✓ Fetched %d author profiles</info>', count($authorsMetadata)));
 
-        // Build Redis view objects
-        $output->writeln('<comment>Building Redis view objects...</comment>');
+        // Filter bots FIRST, then take the target number of human articles
+        $output->writeln('<comment>Filtering bots and building Redis view objects...</comment>');
         $baseObjects = [];
         $excludedCount = 0;
 
-        foreach ($articles as $article) {
+        foreach ($articlesByAuthor as $article) {
             $authorMeta = $authorsMetadata[$article->getPubkey()] ?? null;
 
             if ($this->exclusionPolicy->shouldExclude($article, $authorMeta)) {
@@ -126,6 +128,11 @@ class CacheLatestArticlesCommand extends Command
                     $e->getMessage()
                 ));
             }
+
+            // Stop once we have enough human articles
+            if (count($baseObjects) >= $target) {
+                break;
+            }
         }
 
         if ($excludedCount > 0) {
@@ -133,7 +140,7 @@ class CacheLatestArticlesCommand extends Command
         }
 
         if (empty($baseObjects)) {
-            $output->writeln('<error>No view objects created</error>');
+            $output->writeln('<error>No human articles found after filtering — all authors are bots!</error>');
             return Command::FAILURE;
         }
 
@@ -143,6 +150,7 @@ class CacheLatestArticlesCommand extends Command
 
         $output->writeln('');
         $output->writeln(sprintf('<info>✓ Successfully cached %d articles to Redis views</info>', count($baseObjects)));
+        $output->writeln(sprintf('<info>  (target: %d, excluded %d bots from %d unique authors)</info>', $target, $excludedCount, count($articlesByAuthor)));
         $output->writeln('<info>  Key: view:articles:latest</info>');
 
         return Command::SUCCESS;
