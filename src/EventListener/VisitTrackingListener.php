@@ -64,7 +64,13 @@ class VisitTrackingListener
             // For anonymous users, use a lightweight cookie to avoid hitting Redis.
             $visitorId = null;
 
-            if ($request->hasSession() && $request->getSession()->isStarted()) {
+            // Only touch the session if a session cookie already exists.
+            // This avoids triggering session start (and Redis) for anonymous visitors.
+            $sessionCookieName = \ini_get('session.name') ?: 'PHPSESSID';
+            if ($request->cookies->has($sessionCookieName)
+                && $request->hasSession()
+                && $request->getSession()->isStarted()
+            ) {
                 $visitorId = $request->getSession()->getId();
             }
 

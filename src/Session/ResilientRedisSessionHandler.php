@@ -5,51 +5,48 @@ declare(strict_types=1);
 namespace App\Session;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler;
 
 /**
- * Wraps RedisSessionHandler to prevent Redis failures from producing 502 errors.
+ * Redis-backed session handler that degrades gracefully when Redis is unreachable.
  *
- * When Redis is unreachable the security firewall cannot read the session token,
- * so Symfony treats the visitor as anonymous. This is an acceptable degradation
- * compared to a hard 502 that blocks the entire page.
+ * Instead of wrapping Symfony's RedisSessionHandler (which may not be available),
+ * this talks to the \Redis extension directly. When Redis is down, read() returns
+ * an empty string so the user appears anonymous — no 502.
  */
 class ResilientRedisSessionHandler implements \SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
-    private RedisSessionHandler $inner;
+    private \Redis $redis;
     private LoggerInterface $logger;
+    private string $prefix;
+    private int $ttl;
 
     public function __construct(\Redis $redis, LoggerInterface $logger, array $options = [])
     {
-        $this->inner = new RedisSessionHandler($redis, $options);
+        $this->redis = $redis;
         $this->logger = $logger;
+        $this->prefix = $options['prefix'] ?? 'sf_s';
+        $this->ttl = (int) ($options['ttl'] ?? (int) \ini_get('session.gc_maxlifetime'));
     }
 
     public function open(string $path, string $name): bool
     {
-        try {
-            return $this->inner->open($path, $name);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Redis session open failed, sessions degraded', ['error' => $e->getMessage()]);
-            return true;
-        }
+        return true;
     }
 
     public function close(): bool
     {
-        try {
-            return $this->inner->close();
-        } catch (\Throwable $e) {
-            return true;
-        }
+        return true;
     }
 
     public function read(string $id): string|false
     {
         try {
-            return $this->inner->read($id);
+            $data = $this->redis->get($this->prefix . $id);
+            return $data !== false ? $data : '';
         } catch (\Throwable $e) {
-            $this->logger->warning('Redis session read failed, user will appear anonymous', ['error' => $e->getMessage()]);
+            $this->logger->warning('Redis session read failed, user will appear anonymous', [
+                'error' => $e->getMessage(),
+            ]);
             return '';
         }
     }
@@ -57,9 +54,11 @@ class ResilientRedisSessionHandler implements \SessionHandlerInterface, \Session
     public function write(string $id, string $data): bool
     {
         try {
-            return $this->inner->write($id, $data);
+            return $this->redis->setex($this->prefix . $id, $this->ttl, $data);
         } catch (\Throwable $e) {
-            $this->logger->warning('Redis session write failed', ['error' => $e->getMessage()]);
+            $this->logger->warning('Redis session write failed', [
+                'error' => $e->getMessage(),
+            ]);
             return false;
         }
     }
@@ -67,7 +66,8 @@ class ResilientRedisSessionHandler implements \SessionHandlerInterface, \Session
     public function destroy(string $id): bool
     {
         try {
-            return $this->inner->destroy($id);
+            $this->redis->del($this->prefix . $id);
+            return true;
         } catch (\Throwable $e) {
             return true;
         }
@@ -75,17 +75,14 @@ class ResilientRedisSessionHandler implements \SessionHandlerInterface, \Session
 
     public function gc(int $max_lifetime): int|false
     {
-        try {
-            return $this->inner->gc($max_lifetime);
-        } catch (\Throwable $e) {
-            return 0;
-        }
+        // Redis handles expiry via TTL — nothing to garbage-collect.
+        return 0;
     }
 
     public function validateId(string $id): bool
     {
         try {
-            return $this->inner->validateId($id);
+            return (bool) $this->redis->exists($this->prefix . $id);
         } catch (\Throwable $e) {
             return false;
         }
@@ -94,7 +91,7 @@ class ResilientRedisSessionHandler implements \SessionHandlerInterface, \Session
     public function updateTimestamp(string $id, string $data): bool
     {
         try {
-            return $this->inner->updateTimestamp($id, $data);
+            return $this->redis->expire($this->prefix . $id, $this->ttl);
         } catch (\Throwable $e) {
             return false;
         }
