@@ -75,7 +75,9 @@
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
 
-		vulcain
+		# vulcain disabled — generates huge Link preload headers that can
+		# exceed upstream proxy header-buffer limits (→ 502).
+		# vulcain
 
 		{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
