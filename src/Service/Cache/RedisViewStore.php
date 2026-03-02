@@ -19,7 +19,8 @@ class RedisViewStore
     private const KEY_USER_ARTICLES = 'view:user:articles:%s'; // sprintf with pubkey
     private const KEY_PROFILE_TAB = 'view:profile:tab:%s:%s'; // sprintf with pubkey and tab
 
-    private const DEFAULT_TTL = 300; // 5 minutes
+    private const DEFAULT_TTL = 1200; // 20 minutes (must exceed cron interval for articles: 15min)
+    private const HIGHLIGHTS_TTL = 2400; // 40 minutes (must exceed cron interval for highlights: 30min)
 
     // Stale-while-revalidate TTLs
     private const PROFILE_STALE_TTL = 60; // Consider stale after 1 minute
@@ -55,7 +56,7 @@ class RedisViewStore
      */
     public function storeLatestHighlights(array $baseObjects): void
     {
-        $this->storeView(self::KEY_LATEST_HIGHLIGHTS, $baseObjects, self::DEFAULT_TTL);
+        $this->storeView(self::KEY_LATEST_HIGHLIGHTS, $baseObjects, self::HIGHLIGHTS_TTL);
     }
 
     /**
