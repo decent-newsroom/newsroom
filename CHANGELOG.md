@@ -10,6 +10,7 @@
 - [Bug] Fixed Nip05 verification for own vanity names.
 - [Bug] Fixed uncertain math rendering with KaTeX.
 - [Bug] Fixed 502 errors on article pages for anonymous users.
+- [Bug] Fixed too-short caching TTLs for articles and highlights, that caused empty highlights list.
 
 
 ## v0.0.12
