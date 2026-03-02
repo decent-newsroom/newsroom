@@ -83,6 +83,11 @@
 
 		# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
 		header ?Permissions-Policy "browsing-topics=()"
+		# Diagnostic: if a 502 response does NOT have this header, the proxy generated it
+		header X-Served-By "frankenphp"
+		# Strip Link preload headers — they can exceed proxy header-buffer limits (→ 502).
+		# Assets are already referenced in HTML via <link> and importmap tags.
+		header -Link
 
 
 		@phpRoute {
