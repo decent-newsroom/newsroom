@@ -45,6 +45,7 @@
         "symfony/mercure-bundle": "^0.4.2",
         "symfony/messenger": "7.4.*",
         "symfony/mime": "7.4.*",
+        "symfony/monolog-bundle": "^4.0",
         "symfony/property-access": "7.4.*",
         "symfony/property-info": "7.4.*",
         "symfony/redis-messenger": "7.4.*",
