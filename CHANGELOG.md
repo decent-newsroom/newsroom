@@ -2,6 +2,7 @@
 
 ## v0.0.13
 
+- Separated strfry relay into its own Docker Compose project (`compose.strfry.yaml`) so the app can be rebuilt and redeployed without restarting the relay.
 - Improved db handling of articles.
 - Updated bookmarks page with better fetch and styling.
 - Updated article loading.

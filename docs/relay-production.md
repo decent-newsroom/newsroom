@@ -34,16 +34,21 @@ TRUSTED_HOSTS='^(.+\.)?decentnewsroom\.com$'
 
 ### 3. Deploy
 
-The `compose.prod.yaml` file has been updated to include:
-- The `strfry` service for the Nostr relay
-- Environment variables `RELAY_DOMAIN` and `NOSTR_DEFAULT_RELAY` passed to the PHP/Caddy container
-- Dependency configuration so the PHP service waits for strfry to start
+The strfry relay runs in its own compose project (`compose.strfry.yaml`),
+separate from the main application services.
 
-Deploy or restart your services:
+Start or restart the relay:
 
 ```bash
-docker compose -f compose.prod.yaml up -d
+# Start strfry (creates the shared "newsroom" network)
+docker compose -f compose.strfry.yaml --env-file .env.prod.local up -d
+
+# Start/restart the app (if not already running)
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d
 ```
+
+> See [Strfry Separation](../documentation/Deployment/strfry-separation.md) for
+> the full deployment architecture and migration guide.
 
 ## How It Works
 
@@ -87,13 +92,14 @@ After deployment, you can test the relay:
 If you encounter certificate issues, check:
 - DNS records are properly configured and propagated
 - Firewall allows ports 80 and 443
-- Check Caddy logs: `docker compose -f compose.prod.yaml logs php`
+- Check Caddy logs: `docker compose -f compose.yaml -f compose.prod.yaml logs php`
 
 ### Relay Not Responding
 If the relay doesn't respond:
-- Check strfry is running: `docker compose -f compose.prod.yaml ps strfry`
-- Check strfry logs: `docker compose -f compose.prod.yaml logs strfry`
-- Verify internal connectivity: `docker compose -f compose.prod.yaml exec php curl http://strfry:7777`
+- Check strfry is running: `docker compose -f compose.strfry.yaml ps`
+- Check strfry logs: `docker compose -f compose.strfry.yaml logs strfry`
+- Verify internal connectivity: `docker compose exec php curl http://strfry:7777`
+- Verify both projects share the network: `docker network inspect newsroom`
 
 ## Port Mapping in Production
 

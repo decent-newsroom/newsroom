@@ -35,15 +35,22 @@ The default `.env.dist` file contains sensible defaults for local development. *
 ### 3. Build and Start the Containers
 
 ```bash
-# Build the images (first time or after Dockerfile changes)
+# Start the strfry relay first (creates the shared Docker network)
+docker compose -f compose.strfry.yaml up -d
+
+# Build the app images (first time or after Dockerfile changes)
 docker compose build
 
-# Start all services
+# Start all app services
 docker compose up -d
 
 # View logs (optional)
 docker compose logs -f
 ```
+
+> **Why two steps?** The strfry relay runs in its own compose project so it can
+> stay running while you rebuild/redeploy the app. See
+> [Strfry Separation](../documentation/Deployment/strfry-separation.md) for details.
 
 ### 4. Access the Application
 
@@ -60,7 +67,11 @@ docker compose logs -f
 ### Stopping the Application
 
 ```bash
+# Stop app services (strfry keeps running)
 docker compose down
+
+# Stop strfry too (if needed)
+docker compose -f compose.strfry.yaml down
 ```
 
 ---
@@ -233,10 +244,13 @@ Create these DNS A records pointing to your server's IP:
 ### 4. Build and Deploy
 
 ```bash
+# Start the strfry relay (creates the shared network, only needed once)
+docker compose -f compose.strfry.yaml --env-file .env.prod.local up -d
+
 # Build production images
 docker compose -f compose.yaml -f compose.prod.yaml build --no-cache
 
-# Start services
+# Start app services
 docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d --wait
 
 ```
@@ -244,8 +258,11 @@ docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local u
 ### 5. Verify Deployment
 
 ```bash
-# Check service status
+# Check app service status
 docker compose -f compose.yaml -f compose.prod.yaml ps
+
+# Check strfry status
+docker compose -f compose.strfry.yaml ps
 
 # View logs
 docker compose -f compose.yaml -f compose.prod.yaml logs -f
@@ -273,18 +290,24 @@ Your application should now be available at `https://yourdomain.com` with automa
 
 | File | Purpose |
 |------|---------|
-| `compose.yaml` | Base configuration, shared between environments |
+| `compose.strfry.yaml` | Strfry relay (standalone, creates the shared `newsroom` network) |
+| `compose.yaml` | Base app configuration, shared between environments |
 | `compose.override.yaml` | Development overrides (auto-loaded by Docker Compose) |
 | `compose.prod.yaml` | Production overrides (must be specified explicitly) |
 
+> The strfry relay is managed separately so it can stay running while you
+> rebuild/redeploy app services. See [Strfry Separation](../documentation/Deployment/strfry-separation.md).
+
 **Development command:**
 ```bash
+docker compose -f compose.strfry.yaml up -d   # Start relay (once)
 docker compose up -d  # Automatically uses compose.yaml + compose.override.yaml
 ```
 
 **Production command:**
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml up -d
+docker compose -f compose.strfry.yaml --env-file .env.prod.local up -d   # Start relay (once)
+docker compose -f compose.yaml -f compose.prod.yaml --env-file .env.prod.local up -d
 ```
 
 ---
@@ -433,11 +456,11 @@ dig yourdomain.com
 ### Relay Not Responding
 
 ```bash
-# Check strfry is running
-docker compose ps strfry
+# Check strfry is running (it's in its own compose project)
+docker compose -f compose.strfry.yaml ps
 
 # View relay logs
-docker compose logs strfry
+docker compose -f compose.strfry.yaml logs strfry
 
 # Test internal connectivity
 docker compose exec php curl http://strfry:7777

@@ -5,6 +5,9 @@
 # This file is automatically loaded by Docker Compose when running:
 #   docker compose up -d
 #
+# Prerequisites — start the strfry relay first (creates the shared network):
+#   docker compose -f compose.strfry.yaml up -d
+#
 # It adds development-specific features:
 #   - Source code bind mounts (live reload)
 #   - Xdebug support

@@ -1,0 +1,53 @@
+# =============================================================================
+# Strfry Relay - Standalone Compose Configuration
+# =============================================================================
+#
+# This file isolates the strfry relay so it can be managed independently
+# from the main application services.
+#
+# Usage:
+#   Start strfry (only needs to be done once, or when config changes):
+#     docker compose -f compose.strfry.yaml up -d
+#
+#   Production (with env file):
+#     docker compose -f compose.strfry.yaml --env-file .env.prod.local up -d
+#
+#   Rebuild strfry only when needed:
+#     docker compose -f compose.strfry.yaml pull
+#     docker compose -f compose.strfry.yaml up -d
+#
+#   View logs:
+#     docker compose -f compose.strfry.yaml logs -f strfry
+#
+# The main app services connect to strfry via the shared "newsroom" network.
+# =============================================================================
+
+services:
+  strfry:
+    image: dockurr/strfry:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - |
+        ./strfry relay /etc/strfry.conf &
+        ./strfry router /etc/router.conf &
+        wait
+    volumes:
+      - ./docker/strfry/strfry.conf:/etc/strfry.conf:ro
+      - ./docker/strfry/write-policy.sh:/app/write-policy.sh:ro
+      - ./docker/strfry/router.conf:/etc/router.conf:ro
+      - strfry_data:/var/lib/strfry
+    ports:
+      - "7777:7777"  # Expose for local testing (ws://localhost:7777)
+    networks:
+      - newsroom
+
+volumes:
+  strfry_data:
+
+networks:
+  newsroom:
+    name: newsroom
+    driver: bridge
+
