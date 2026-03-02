@@ -45,13 +45,79 @@ class VisitTrackingListener
 
     public function onKernelRequest(RequestEvent $event): void
     {
-        // TEMPORARILY DISABLED — diagnosing 502s for anonymous users
-        return;
+        // Reset per-request state immediately. In FrankenPHP worker mode this
+        // listener is a singleton — without this, a crash before the response
+        // phase would leak newVisitorId into the next request.
+        $this->newVisitorId = null;
+
+        if (!$event->isMainRequest()) {
+            return;
+        }
+
+        $request = $event->getRequest();
+        $route = $request->getPathInfo();
+
+        foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
+            if (str_starts_with($route, $excludedRoute)) {
+                return;
+            }
+        }
+
+        try {
+            $visitorId = null;
+
+            // Only touch the session if a session cookie already exists.
+            // This avoids triggering session start (and Redis) for anonymous visitors.
+            $sessionCookieName = \ini_get('session.name') ?: 'PHPSESSID';
+            if ($request->cookies->has($sessionCookieName)
+                && $request->hasSession()
+                && $request->getSession()->isStarted()
+            ) {
+                $visitorId = $request->getSession()->getId();
+            }
+
+            if (!$visitorId) {
+                $visitorId = $request->cookies->get(self::VISITOR_COOKIE);
+                if (!$visitorId) {
+                    $visitorId = bin2hex(random_bytes(16));
+                    $this->newVisitorId = $visitorId;
+                }
+            }
+
+            $visit = new Visit($route, $visitorId, $request->headers->get('referer'));
+            $this->visitRepository->save($visit);
+        } catch (\Throwable $e) {
+            $this->logger?->warning('VisitTrackingListener: failed to record visit', [
+                'route' => $route,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function onKernelResponse(ResponseEvent $event): void
     {
-        // TEMPORARILY DISABLED — diagnosing 502s for anonymous users
-        return;
+        if (!$event->isMainRequest() || $this->newVisitorId === null) {
+            return;
+        }
+
+        $visitorId = $this->newVisitorId;
+        $this->newVisitorId = null;
+
+        try {
+            $response = $event->getResponse();
+            $response->headers->setCookie(new Cookie(
+                self::VISITOR_COOKIE,
+                $visitorId,
+                time() + self::VISITOR_COOKIE_TTL,
+                '/',
+                null,
+                null,   // secure — let Symfony decide based on request
+                true,   // httpOnly
+                false,  // raw
+                'lax'   // sameSite
+            ));
+        } catch (\Throwable $e) {
+            // Never crash for analytics
+        }
     }
 }

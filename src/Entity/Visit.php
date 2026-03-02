@@ -23,10 +23,14 @@ class Visit
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $sessionId = null;
 
-    public function __construct(string $route, ?string $sessionId = null)
+    #[ORM\Column(length: 2048, nullable: true)]
+    private ?string $referer = null;
+
+    public function __construct(string $route, ?string $sessionId = null, ?string $referer = null)
     {
         $this->route = $route;
         $this->sessionId = $sessionId;
+        $this->referer = $referer;
         $this->visitedAt = new \DateTimeImmutable();
     }
 
@@ -59,6 +63,17 @@ class Visit
     public function setSessionId(?string $sessionId): self
     {
         $this->sessionId = $sessionId;
+        return $this;
+    }
+
+    public function getReferer(): ?string
+    {
+        return $this->referer;
+    }
+
+    public function setReferer(?string $referer): self
+    {
+        $this->referer = $referer;
         return $this;
     }
 }
