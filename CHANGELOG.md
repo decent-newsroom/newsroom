@@ -1,8 +1,14 @@
 # CHANGELOG
 
-## v0.0.13
+## v0.0.14
+Internationalization. 
 
 - Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
+
+
+## v0.0.13
+All improvements were gathered on the way, while trying to get rid of the persistent errors.
+
 - Improved db handling of articles.
 - Updated bookmarks page with better fetch and styling.
 - Updated article loading.
