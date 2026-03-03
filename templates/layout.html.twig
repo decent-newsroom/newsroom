@@ -5,45 +5,45 @@
         <div>
             <nav id="leftNav">
                 <header>
-                    <button class="close" data-action="click->ui--sidebar-toggle#close" aria-label="Close left sidebar">✕</button>
+                    <button class="close" data-action="click->ui--sidebar-toggle#close" aria-label="{{ 'nav.closeLeftSidebar'|trans }}">✕</button>
                 </header>
                 <div class="nav-section">
-                    <div class="nav-section__label">Discover</div>
+                    <div class="nav-section__label">{{ 'nav.discover'|trans }}</div>
                     <ul class="user-nav">
-                        <li><a href="{{ path('discover') }}">Articles</a></li>
-                        <li><a href="{{ path('forum') }}">Topics</a></li>
-                        <li><a href="{{ path('media-discovery') }}">Multimedia</a></li>
-                        <li><a href="{{ path('highlights') }}">Highlights</a></li>
+                        <li><a href="{{ path('discover') }}">{{ 'nav.articles'|trans }}</a></li>
+                        <li><a href="{{ path('forum') }}">{{ 'nav.topics'|trans }}</a></li>
+                        <li><a href="{{ path('media-discovery') }}">{{ 'nav.multimedia'|trans }}</a></li>
+                        <li><a href="{{ path('highlights') }}">{{ 'nav.highlights'|trans }}</a></li>
                     </ul>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section__label">Newsroom</div>
+                    <div class="nav-section__label">{{ 'nav.newsroom'|trans }}</div>
                     <ul class="user-nav">
-                        <li><a href="{{ path('newsstand') }}">Newsstand</a></li>
-                        <li><a href="{{ path('lists') }}">Collections</a></li>
+                        <li><a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a></li>
+                        <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
                         {% if app.user %}
-                            <li class="hidden"><a href="{{ path('my_content') }}">My Content</a></li>
-                            <li><a href="{{ path('my_bookmarks') }}">Bookmarks</a></li>
-                            <li><a href="{{ path('my_magazines') }}">My Magazines</a></li>
-                            <li><a href="{{ path('reading_list_index') }}">My Reading Lists</a></li>
-                            <li><a href="{{ path('my_interests') }}">My Interests</a></li>
+                            <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
+                            <li><a href="{{ path('my_bookmarks') }}">{{ 'nav.bookmarks'|trans }}</a></li>
+                            <li><a href="{{ path('my_magazines') }}">{{ 'nav.myMagazines'|trans }}</a></li>
+                            <li><a href="{{ path('reading_list_index') }}">{{ 'nav.myReadingLists'|trans }}</a></li>
+                            <li><a href="{{ path('my_interests') }}">{{ 'nav.myInterests'|trans }}</a></li>
                         {% endif %}
                     </ul>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section__label">Create</div>
+                    <div class="nav-section__label">{{ 'nav.create'|trans }}</div>
                     <ul class="user-nav">
-                        <li><a href="{{ path('mag_wizard_setup') }}">Magazine</a></li>
-                        <li><a href="{{ path('reading_list_index') }}">Reading List</a></li>
-                        <li><a href="{{ path('editor-create') }}">Article</a></li>
+                        <li><a href="{{ path('mag_wizard_setup') }}">{{ 'nav.magazine'|trans }}</a></li>
+                        <li><a href="{{ path('reading_list_index') }}">{{ 'nav.readingList'|trans }}</a></li>
+                        <li><a href="{{ path('editor-create') }}">{{ 'nav.article'|trans }}</a></li>
                     </ul>
                 </div>
                 <twig:UserMenu />
 
                 <div class="container mt-2 mb-2 text-end hidden">
-                    <a href="{{ path('feedback_form') }}" class="btn btn-outline-primary">Send Feedback</a>
+                    <a href="{{ path('feedback_form') }}" class="btn btn-outline-primary">{{ 'nav.sendFeedback'|trans }}</a>
                 </div>
                 {% block nav %}{% endblock %}
             </nav>
@@ -55,17 +55,17 @@
         <div>
             <aside id="rightNav">
                 <header>
-                    <button class="close" data-action="click->sidebar-toggle#close" aria-label="Close right sidebar">✕</button>
+                    <button class="close" data-action="click->sidebar-toggle#close" aria-label="{{ 'nav.closeRightSidebar'|trans }}">✕</button>
                 </header>
                 {% block aside %}
                     {# Contribution invitation section #}
                     {% if contribution_npub and contribution_lud16 %}
                         <div class="contribution-section mt-3 mb-3 p-3 border rounded bg-light">
                             <div class="text-center mb-2">
-                                <strong>Support this Project</strong>
+                                <strong>{{ 'contribution.title'|trans }}</strong>
                             </div>
                             <p class="small text-muted mb-2 text-center">
-                                Help us build the future of decentralized journalism
+                                {{ 'contribution.description'|trans }}
                             </p>
                             <div class="text-center">
                                 <twig:Molecules:ZapButton
@@ -85,8 +85,8 @@
             <button class="back-to-top-btn"
                     data-ui--back-to-top-target="button"
                     data-action="click->ui--back-to-top#scrollToTop"
-                    aria-label="Back to top"
-                    title="Back to top">
+                    aria-label="{{ 'nav.backToTop'|trans }}"
+                    title="{{ 'nav.backToTop'|trans }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="18 15 12 9 6 15"></polyline>
                 </svg>

@@ -1,0 +1,429 @@
+# ── Allgemein ──────────────────────────────────────────────────────
+text:
+    byline: 'Von'
+    search: 'Artikel suchen oder Nostr-Identifikatoren einfügen...'
+    searching: 'Suche läuft...'
+    noResults: 'Keine Ergebnisse.'
+    by: 'von'
+    published: 'Veröffentlicht'
+    all: 'Alle'
+    signIn: 'Anmelden'
+    createNew: 'Neu erstellen'
+    loading: 'Laden...'
+    viewOriginalArticle: 'Originalartikel anzeigen'
+    articleReference: 'Artikelreferenz'
+    reference: 'Referenz'
+    showMore: 'Mehr anzeigen'
+    anonymous: 'Anonym'
+    unknown: 'Unbekannt'
+    source: 'Quelle'
+    or: 'oder'
+    to: 'An'
+    and: 'und'
+
+heading:
+    roles: 'Rollen'
+    logout: 'Abmelden'
+    logIn: 'Anmeldeoptionen'
+    search: 'Suche'
+    index: 'Index'
+
+credit:
+    balance: '{0} Keine Credits|{1} 1 Credit|]1,Inf] %count% Credits'
+    getFreeCredits: '5 kostenlose Credits erhalten'
+
+# ── Marke ──────────────────────────────────────────────────────────
+brand:
+    tagline: 'Kollaboratives Publizieren auf Nostr'
+    description: 'Eine dezentralisierte Plattform für kollaboratives Publizieren'
+
+# ── Navigation ─────────────────────────────────────────────────────
+nav:
+    discover: 'Entdecken'
+    articles: 'Artikel'
+    topics: 'Themen'
+    multimedia: 'Multimedia'
+    highlights: 'Highlights'
+    newsroom: 'Newsroom'
+    newsstand: 'Kiosk'
+    collections: 'Sammlungen'
+    myContent: 'Meine Inhalte'
+    bookmarks: 'Lesezeichen'
+    myMagazines: 'Meine Magazine'
+    myReadingLists: 'Meine Leselisten'
+    myInterests: 'Meine Interessen'
+    create: 'Erstellen'
+    magazine: 'Magazin'
+    readingList: 'Leseliste'
+    article: 'Artikel'
+    sendFeedback: 'Feedback senden'
+    backToTop: 'Nach oben'
+    closeLeftSidebar: 'Linke Seitenleiste schließen'
+    closeRightSidebar: 'Rechte Seitenleiste schließen'
+
+# ── Fußzeile ───────────────────────────────────────────────────────
+footer:
+    subscriptions: 'Abonnements'
+    vanityName: 'Vanity-Name'
+    activeIndexing: 'Aktive Indexierung'
+    publicationSubdomain: 'Publikations-Subdomain'
+    support: 'Support'
+    about: 'Über uns'
+    termsOfService: 'Nutzungsbedingungen'
+    contact: 'Kontakt'
+
+# ── Beitrag ────────────────────────────────────────────────────────
+contribution:
+    title: 'Dieses Projekt unterstützen'
+    description: 'Helfen Sie uns, die Zukunft des dezentralisierten Journalismus aufzubauen'
+
+# ── Installationshinweis ───────────────────────────────────────────
+install:
+    prompt: 'Diese App auf Ihrem Gerät installieren für schnellen Zugriff?'
+    yes: 'Ja, installieren'
+    no: 'Nein danke'
+
+# ── Startseite ─────────────────────────────────────────────────────
+home:
+    title: 'Decent Newsroom — Eine dezentralisierte Plattform für kollaboratives Publizieren'
+    hero:
+        lede: 'Entdecken, veröffentlichen und Magazine erstellen.'
+    newsstand:
+        heading: 'Kiosk'
+        eyebrow: 'für das digitale Zeitalter'
+        description: 'Blättern Sie durch eine Welt voller Magazine an einem Ort. Stellen Sie Ihre Auswahl zusammen, entdecken Sie neue Ausgaben, überall.'
+        cta: 'Stöbern'
+    explore:
+        heading: 'Entdecken'
+        eyebrow: 'verborgene Schätze'
+        description: 'Unsere Suche ist spezialisiert auf lange Nostr-Inhalte.'
+        cta: 'Suchen'
+    editor:
+        heading: 'Artikeleditor'
+        eyebrow: 'für jeden'
+        description: 'Schreiben, überarbeiten und Vorschau mit Leichtigkeit. Entwürfe speichern, Notizen machen und veröffentlichen.'
+        cta: 'Artikel schreiben'
+    newsroom:
+        heading: 'Newsroom'
+        eyebrow: 'wie kein anderer'
+        description: 'Erstellen Sie Ihr eigenes Magazin, definieren Sie Kategorien, verwalten Sie Einreichungen und arbeiten Sie mit Redakteuren und Mitwirkenden zusammen.'
+        cta: 'Magazin erstellen'
+    unfold:
+        heading: 'Unfold'
+        eyebrow: 'Ihr Magazin'
+        description: 'Unfold ist eine Begleit-Web-App. Jedes auf Decent Newsroom erstellte Magazin kann eingebunden, gestaltet und auf einer eigenen Domain bereitgestellt werden.'
+        cta: 'Mehr erfahren'
+    marketplace:
+        heading: 'Medien-Marktplatz'
+        eyebrow: 'Demnächst'
+        description: 'Bestellen Sie maßgeschneiderte Visuals, entdecken Sie Stock-Material, das Sie wirklich nutzen können, und halten Sie Medien und Text in einem kreativen Fluss.'
+
+# ── Kiosk-Seite ────────────────────────────────────────────────────
+newsstand:
+    moreSoon: 'Weitere Magazine bald verfügbar'
+    onlyBeginning: 'das ist erst der Anfang'
+    gotIdea: 'Haben Sie eine Idee?'
+    createMagazine: 'Magazin erstellen'
+
+# ── Entdecken / Suche ──────────────────────────────────────────────
+discover:
+    searchPlaceholder: 'Artikel suchen oder Nostr-Identifikatoren einfügen...'
+    noArticles: 'Keine Artikel gefunden.'
+    tagline: 'für verborgene Schätze'
+
+search:
+    heading: 'Suche'
+    tagline: 'für verborgene Schätze'
+    limitedResults: 'Eingeschränkte Ergebnisse angezeigt (5 Artikel)'
+    signInForMore: 'Melden Sie sich an, um mehr Ergebnisse und vollständige Suchfunktionen freizuschalten!'
+    addToList: 'Zur Liste hinzufügen'
+
+# ── Highlights ─────────────────────────────────────────────────────
+highlights:
+    heading: 'Highlights'
+    tagline: 'Bemerkenswerte Passagen, von der Community hervorgehoben'
+    found: '%total% Highlights gefunden'
+    fromLastDays: 'Aus den letzten 7 Tagen'
+    noHighlights: 'Keine Highlights gefunden. Schauen Sie später noch einmal vorbei!'
+
+# ── Multimedia ─────────────────────────────────────────────────────
+media:
+    heading: 'Multimedia'
+    tagline: 'Entdeckung durch Zufall'
+    endOfLine: 'Ende der Reihe. Aktualisieren für eine neue Ladung.'
+    noMedia: 'Keine Medien gefunden. Zum erneuten Versuch aktualisieren.'
+
+# ── Neueste Artikel ────────────────────────────────────────────────
+latest:
+    heading: 'Neueste Artikel'
+    tagline: 'Frisch aus der Presse'
+    noArticles: 'Keine veröffentlichten Artikel gefunden.'
+    newsBots: 'Nachrichten-Bots'
+    newsBotsEyebrow: 'Automatisierte Nachrichtenkuratoren'
+
+# ── Themen / Forum ─────────────────────────────────────────────────
+topics:
+    heading: 'Themen erkunden'
+    selectTopic: 'Wählen Sie ein Thema, um die 10 neuesten zugehörigen Artikel anzuzeigen.'
+    recentIn: 'Neueste Artikel in %topic%'
+    noArticles: 'Keine Artikel für dieses Thema gefunden.'
+
+# ── Sammlungen / Listen ─────────────────────────────────────────────
+lists:
+    heading: 'Leselisten'
+    eyebrow: 'für Sammlungen, Kuratierungen, Kurse und mehr'
+
+# ── Meine Leselisten ────────────────────────────────────────────────
+myReadingLists:
+    heading: 'Meine Leselisten'
+    openComposer: 'Composer öffnen'
+    view: 'Anzeigen'
+    copyLink: 'Link kopieren'
+    copyCoordinate: 'Koordinate kopieren'
+    noListsLoggedIn: 'Keine Leselisten gefunden.'
+    noListsAnon: 'Melden Sie sich an, um Ihre Listen zu durchsuchen und zu bearbeiten.'
+    empty: 'Leer'
+
+# ── Meine Magazine ───────────────────────────────────────────────────
+myMagazines:
+    heading: 'Meine Magazine'
+
+# ── Lesezeichen ──────────────────────────────────────────────────────
+bookmarks:
+    heading: 'Lesezeichen'
+    tagline: 'Ihre gespeicherten Inhalte'
+    untitledList: 'Unbenannte Liste'
+    noItems: 'Keine Einträge in dieser Liste'
+    noBookmarks: 'Keine Lesezeichen gefunden.'
+    noBookmarksHint: 'Setzen Sie Lesezeichen in Ihrem Nostr-Client, und sie erscheinen hier.'
+
+# ── Folgen ────────────────────────────────────────────────────────────
+follows:
+    heading: 'Gefolgte'
+    eyebrow: 'Artikel von Personen, denen Sie folgen'
+    signInRequired: 'Melden Sie sich an, um Artikel von Personen zu sehen, denen Sie folgen'
+    signInDescription: 'Sie müssen angemeldet sein, um Artikel aus Ihrer Follow-Liste anzuzeigen.'
+    error: 'Fehler'
+    noFollows: 'Sie folgen noch niemandem'
+    noFollowsHint: 'Folgen Sie Personen auf Nostr, um deren Artikel hier zu sehen. Ihre Follow-Liste wird automatisch synchronisiert.'
+    noArticles: 'Keine Artikel gefunden'
+    noArticlesHint: 'Die Personen, denen Sie folgen, haben noch keine Artikel veröffentlicht, oder sie wurden noch nicht mit diesem Newsroom synchronisiert.'
+
+# ── Artikelseite ──────────────────────────────────────────────────────
+article:
+    draftPreview: 'Entwurfsvorschau'
+    draftPreviewHint: 'Dies ist eine Entwurfsversion und nur für Sie sichtbar.'
+    editDraft: 'Entwurf bearbeiten'
+    editArticle: 'Artikel bearbeiten'
+    share: 'Teilen'
+    newsroomLink: 'Newsroom-Link'
+    broadcast: 'Verbreiten'
+    broadcastTitle: 'Diesen Artikel an Ihre Relays senden'
+    moreFrom: 'Mehr von'
+    nextArticle: 'Weiter →'
+    prevArticle: '← Zurück'
+    notFound: 'Artikel nicht gefunden'
+    notFoundTitle: 'Artikel nicht gefunden - Decent Newsroom'
+    trySearching: 'Versuchen Sie zu suchen oder fügen Sie eine Nostr-Adresse (naddr) ein'
+    trySearchingHint: 'Wenn Sie die Nostr-Adresse (naddr) des Artikels haben, fügen Sie sie in das Suchfeld unten ein. Wir versuchen, ihn von den Relays abzurufen und zu unserem Index hinzuzufügen.'
+    returnHome: 'Zurück zur Startseite'
+
+# ── Artikelunterscheidung ─────────────────────────────────────────────
+disambiguation:
+    heading: 'Unterscheidung: Mehrere Artikel für „%slug%"'
+    description: 'Es gibt mehrere Artikel mit dem Slug <strong>%slug%</strong>. Bitte wählen Sie den Autor:'
+    whatIsThis: 'Was ist das?'
+    explanation: 'Diese Seite listet alle Artikel mit demselben Slug auf. Klicken Sie auf einen Autor, um dessen Version anzuzeigen.'
+
+# ── Artikelkarte / Platzhalter ────────────────────────────────────────
+card:
+    coverImageAlt: 'Titelbild für %title%'
+    placeholder:
+        heading: 'Artikel noch nicht verfügbar'
+        description: 'Dieser Artikel ist Teil der Liste, wurde aber noch nicht vollständig geladen.'
+        articleId: 'Artikel-ID'
+        fetchArticle: 'Artikel abrufen'
+
+# ── Kommentare ─────────────────────────────────────────────────────────
+comments:
+    loading: 'Kommentare werden geladen…'
+    noComments: 'Noch keine Kommentare.'
+    writeComment: 'Schreiben Sie Ihren Kommentar'
+    publishComment: 'Kommentar veröffentlichen'
+    label: 'Kommentar'
+    zap: 'Zap'
+
+# ── Benutzermenü / Authentifizierung ───────────────────────────────────
+auth:
+    admin: 'Admin'
+    adminDashboard: 'Admin-Dashboard'
+    magazines: 'Magazine'
+    visitAnalytics: 'Besuchsanalyse'
+    extension: 'Erweiterung'
+    signer: 'Signer'
+    login: 'Anmelden'
+    loginWithExtension: 'Mit Erweiterung anmelden'
+    loginWithSigner: 'Mit Remote-Signer anmelden'
+    alreadyAuthenticated: 'Sie sind bereits authentifiziert.'
+    nostrCredentials: 'Verwenden Sie Ihre Nostr-Zugangsdaten zur Authentifizierung.'
+    loginTitle: 'Anmelden | Decent Newsroom'
+
+# ── Signer-Modal ───────────────────────────────────────────────────────
+signerModal:
+    title: 'Remote-Signer-Anmeldung'
+    bunkerLabel: 'Haben Sie eine bestehende Bunker-Sitzung?'
+    bunkerHint: 'Fügen Sie Ihren <code>bunker://</code> Verbindungsstring ein, um sich erneut zu verbinden.'
+    connect: 'Verbinden'
+    orNewPairing: 'Oder starten Sie eine neue Kopplung — scannen Sie den QR-Code mit einem NIP-46-kompatiblen Bunker-Signer.'
+    copyString: 'Oder kopieren Sie den Verbindungsstring:'
+    copy: 'Kopieren'
+    pasteHint: 'Fügen Sie dies in Ihre Signer-App ein, wenn sie sich auf demselben Gerät befindet'
+    status: 'Status'
+    initializing: 'Initialisierung…'
+    afterPairing: 'Nach der Kopplung wird jede Seite, die window.nostr verwendet, automatisch diese Remote-Signer-Sitzung nutzen.'
+    stallHint: 'Wenn die Kopplung stockt, schließen und öffnen Sie diesen Dialog erneut, um einen neuen ephemeren Schlüssel zu generieren.'
+
+# ── Zap ────────────────────────────────────────────────────────────────
+zap:
+    button: 'Zap'
+    send: 'Zap senden'
+
+# ── Leselisten-Dropdown ────────────────────────────────────────────────
+readingListDropdown:
+    addToList: 'Zur Leseliste hinzufügen'
+    noLists: 'Noch keine Leselisten'
+    selectList: 'Liste auswählen:'
+
+# ── Empfohlene Autoren ──────────────────────────────────────────────────
+featuredWriters:
+    heading: 'Autoren'
+
+# ── Editor-Seite ────────────────────────────────────────────────────────
+editor:
+    nostrIdentityRequired: 'Eine Nostr-Identität ist erforderlich, um Artikel zu veröffentlichen.'
+    uploadImage: 'Bild hochladen'
+    uploadTo: 'Hochladen zu'
+    dragDrop: 'Ziehen & ablegen oder klicken, um ein Bild auszuwählen'
+    showRawEvent: 'Rohes Event-JSON anzeigen'
+    rebuildFromForm: 'Aus Formular neu erstellen'
+    modified: 'geändert'
+    rawJsonHint: 'Änderungen hier überschreiben das Formular beim Veröffentlichen. Pflichtfelder beibehalten: kind, created_at, tags, content, pubkey.'
+    publish: 'Veröffentlichen'
+    recent: 'Neueste'
+    noRecentArticles: 'Keine neuesten Artikel gefunden.'
+    drafts: 'Entwürfe'
+    noDrafts: 'Keine Entwürfe gefunden.'
+
+# ── Profil / Autorenseite ───────────────────────────────────────────────
+profile:
+    articles: 'Artikel'
+    media: 'Medien'
+    highlights: 'Highlights'
+    drafts: 'Entwürfe'
+    stats: 'Statistiken'
+
+# ── Feedback ─────────────────────────────────────────────────────────────
+feedback:
+    title: 'Feedback senden'
+    heading: 'Feedback'
+    tagline: 'Fehlerberichte und Funktionsanfragen'
+    yourMessage: 'Ihre Nachricht'
+    sendFeedback: 'Feedback senden'
+    preview: 'Vorschau'
+
+# ── Meine Inhalte ────────────────────────────────────────────────────────
+myContent:
+    heading: 'meine-inhalte'
+    newArticle: '+ Artikel'
+    newList: '+ Liste'
+    name: 'Name'
+    dateModified: 'Änderungsdatum'
+    items: 'Einträge'
+    kind: 'Art'
+    readingLists: 'leselisten'
+    articlesDirName: 'artikel'
+    draftsDirName: 'entwürfe'
+
+# ── Magazin-Assistent ────────────────────────────────────────────────────
+wizard:
+    magazine: 'Magazin'
+    categories: 'Kategorien'
+    articles: 'Artikel'
+    review: 'Überprüfung'
+
+# ── Fehlerseiten ──────────────────────────────────────────────────────────
+error:
+    serverError: 'Interner Serverfehler'
+    serverErrorSubheading: 'Die Presse hat sich verklemmt.'
+    serverErrorDescription: 'Etwas ist in unserer Veröffentlichungs-Engine schiefgegangen. Die Tinte ist verschüttet, die Lettern sind verstreut, und der Inhalt kann derzeit nicht geliefert werden.'
+    returnHome: 'Zurück zur Startseite'
+    accessDenied: 'Zugriff verweigert'
+    accessDeniedTitle: 'Zugriff verweigert (403)'
+    accessDeniedDescription: 'Sie haben keine Berechtigung, auf diese Seite zuzugreifen.'
+    notFound: 'Seite nicht gefunden'
+    notFoundSubheading: 'Leider ist die gesuchte Seite in den Archiven verloren gegangen.'
+    notFoundDescription: 'Wie ein fehlendes Manuskript oder ein aus der Zeit gerissenes Kapitel kann die gesuchte Seite nicht gefunden werden. Möglicherweise wurde sie verschoben, umbenannt oder nie veröffentlicht.'
+
+# ── Statisch: Über uns ────────────────────────────────────────────────────
+about:
+    heading: 'Über Decent Newsroom'
+    rebuildingTrust: 'Vertrauen in den Journalismus wiederherstellen'
+    intro: 'Das Internet, und insbesondere soziale Medien, haben Nachrichten sofort und reichlich gemacht, aber auch billig und unzuverlässig. Der Wert des einfachen Berichtens über Ereignisse ist auf null gesunken, begraben unter Wellen von Fehlinformationen, Clickbait und KI-generiertem Rauschen. Schlimmer noch: Wahrheit von Falschheit zu unterscheiden kostet jetzt mehr als Lügen zu verbreiten.'
+    answer: 'Decent Newsroom ist unsere Antwort auf diese Krise. Wir bauen ein kuratiertes, dezentralisiertes Magazin mit hochwertigem, langformigem Journalismus, veröffentlicht auf Nostr.'
+    whyItMatters: 'Warum es wichtig ist'
+    whyText: 'Das Zeitalter des Newsrooms ist nicht vorbei — es entwickelt sich nur weiter. Wir glauben daran, redaktionelle Standards, Zusammenarbeit und hochwertiges Berichten auf dezentralisierte Weise zurückzubringen. Decent Newsroom ist hier, um den Lärm zu durchschneiden und das Vertrauen in den digitalen Journalismus wiederherzustellen.'
+    supportUs: 'Um uns zu unterstützen und frühzeitigen Zugang zur Zukunft des Publizierens zu erhalten, besuchen Sie unsere Crowdfunding-Seite'
+    geyserLink: 'Geyser fund - Newsroom'
+    moreInfo: 'Für weitere Informationen wenden Sie sich an'
+    exploreRack: 'Stöbern'
+
+# ── Statisch: Preise ──────────────────────────────────────────────────────
+pricing:
+    heading: 'Preise'
+    choosePlan: 'Wählen Sie einen Plan, der Ihren Veröffentlichungsbedürfnissen entspricht.'
+    scoopSeeker: 'Nachrichten-Sucher'
+    free: 'Kostenlos'
+    scoopFeature1: 'Lesen Sie alle Artikel im Newsroom-Magazin'
+    getStarted: 'Loslegen'
+    publisher: 'Verleger'
+    publisherPrice: '5.000 Sats/Monat'
+    publisherFeature1: 'Indexierungsanfragen mit Priorität einreichen'
+    publisherFeature2: 'Zugang zum integrierten Inhaltseditor'
+    publisherFeature3: 'Inhaltssuche'
+    subscribe: 'Abonnieren'
+    curator: 'Kurator'
+    curatorPrice: '15.000 Sats/Monat'
+    curatorFeature1: 'Eigene Magazine erstellen und verwalten'
+    curatorFeature2: 'Erweiterte Entdeckungswerkzeuge'
+    curatorFeature3: 'Hervorgehobene Magazinplatzierung'
+
+# ── Statisch: Unfold ──────────────────────────────────────────────────────
+unfold:
+    title: 'Unfold — Betreiben Sie Ihr Magazin auf Decent Newsroom'
+    hero: 'Unfold'
+    heroEyebrow: 'von Decent Newsroom'
+    heroLede: 'Erstellen Sie ein strukturiertes Web-Magazin aus Nostr-Events.'
+    unfoldMagazine: 'Entfalten Sie Ihr Magazin'
+    unfoldDesc1: 'Unfold rendert Ihre Magazindefinition in ein sauberes, strukturiertes Web-Magazin — mit Navigation, Kategorien und einzelnen Artikelseiten.'
+    unfoldDesc2: 'Wenn sich Ihre zugrunde liegenden Nostr-Events ändern, aktualisiert sich Ihr Magazin automatisch. Keine Neubereitstellungen. Keine Cache-Rituale.'
+    unfoldHosting: 'Starten Sie Ihr Magazin auf einer dedizierten Subdomain. Produktionsreifes Hosting und Unfold-Rendering werden für Sie erledigt.'
+    unfoldPrice: '120.000 Sats / Jahr'
+    unfoldPriceDesc: 'Jährlich verwaltetes Hosting für ein Magazin.'
+    launchMagazine: 'Magazin starten'
+    seeInAction: 'In Aktion sehen'
+    liveDescription: 'Dies sind Live-Magazine, die von Unfold betrieben werden:'
+    supportMag: 'Support-Magazin auf'
+    newsroomMag: 'Newsroom-Magazin auf'
+    advancedUse: 'Erweiterte Nutzung'
+    advancedDesc: 'Unfold ist im Kern ein eigenständiger Magazin-Renderer. Wenn Sie eine unabhängige Bereitstellung oder tiefere Anpassungen erkunden, wenden Sie sich an'
+    browseMagazines: 'Magazine durchsuchen'
+
+# ── Sprachumschalter ──────────────────────────────────────────────────────
+language:
+    switcher: 'Sprache'
+    en: 'English'
+    sl: 'Slovenščina'
+    de: 'Deutsch'
+    es: 'Español'
+    fr: 'Français'
+

@@ -36,13 +36,13 @@
     <article class="w-container" data-controller="ui--highlights-toggle">
         {% if isDraft is defined and isDraft %}
             <div class="alert alert-info" role="alert">
-                <strong>Draft Preview:</strong> This is a draft version and is only visible to you.
+                <strong>{{ 'article.draftPreview'|trans }}:</strong> {{ 'article.draftPreviewHint'|trans }}
             </div>
         {% endif %}
 
         {% if isDraft is defined and isDraft %}
         <div class="article-actions">
-            <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">Edit draft</a>
+            <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">{{ 'article.editDraft'|trans }}</a>
         </div>
         {% else %}
             <div class="article-actions">
@@ -54,7 +54,7 @@
                             aria-haspopup="true"
                             aria-expanded="false"
                             data-action="click->utility--share-dropdown#toggle">
-                        Share
+                        {{ 'article.share'|trans }}
                     </button>
                     <div data-utility--share-dropdown-target="menu"
                          class="dropdown-menu"
@@ -67,7 +67,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
                             </svg>
-                            Newsroom Link
+                            {{ 'article.newsroomLink'|trans }}
                         </button>
                         <button class="dropdown-item"
                                 type="button"
@@ -81,7 +81,7 @@
                     </div>
                 </div>
                 {% if canEdit %}
-                    <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">Edit article</a>
+                    <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">{{ 'article.editArticle'|trans }}</a>
                 {% endif %}
 
                 {% if app.user %}
@@ -228,7 +228,7 @@
                             {% for tag in reference_tags %}
                                 {% if tag[1] is defined and not (tag[1] starts with 'ws://') and not (tag[1] starts with 'wss://') %}
                                     <li>
-                                        Reference: <a href="{{ tag[1] }}" target="_blank" rel="noopener noreferrer">{{ tag[1] }}</a>
+                                        {{ 'text.reference'|trans }}: <a href="{{ tag[1] }}" target="_blank" rel="noopener noreferrer">{{ tag[1] }}</a>
                                     </li>
                                 {% endif %}
                             {% endfor %}
@@ -261,7 +261,7 @@
             <section class="article-prev-next" aria-label="Reading list navigation">
                 {% if listNav.listTitle %}
                     <p class="article-prev-next__heading">
-                        More from
+                        {{ 'article.moreFrom'|trans }}
                         {% if listNav.listSlug and listNav.listPubkey %}
                             {% if listNav.listKind == 30040 %}
                                 <a href="{{ path('reading-list', { slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
@@ -276,13 +276,13 @@
                 <div class="article-prev-next__grid">
                     {% if listNav.nextArticle %}
                         <div class="article-prev-next__item">
-                            <span class="article-prev-next__label">Next →</span>
+                            <span class="article-prev-next__label">{{ 'article.nextArticle'|trans }}</span>
                             <twig:Molecules:Card :article="listNav.nextArticle" />
                         </div>
                     {% endif %}
                     {% if listNav.prevArticle %}
                         <div class="article-prev-next__item">
-                            <span class="article-prev-next__label">← Previous</span>
+                            <span class="article-prev-next__label">{{ 'article.prevArticle'|trans }}</span>
                             <twig:Molecules:Card :article="listNav.prevArticle" />
                         </div>
                     {% endif %}

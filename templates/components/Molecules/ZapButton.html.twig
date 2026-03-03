@@ -5,9 +5,9 @@
         class="btn zap-trigger {{ btnClass|default('') }}"
         data-action="live#action"
         data-live-action-param="openDialog"
-        title="Send a zap"
+        title="{{ 'zap.send'|trans }}"
     >
-        Zap
+        {{ 'zap.button'|trans }}
         {% if zapSplits %}
             ({{ zapSplits|length }})
         {% endif %}
@@ -21,7 +21,7 @@
                     {# Header #}
                     <div class="d-flex flex-row justify-content-between align-items-center mb-3">
                         <div>
-                            <h5 class="m-0">Send Zap</h5>
+                            <h5 class="m-0">{{ 'zap.send'|trans }}</h5>
                             {% if recipientPubkey %}
                                 <small class="text-muted">to <twig:Molecules:UserFromNpub :ident="recipientPubkey"/></small>
                             {% endif %}

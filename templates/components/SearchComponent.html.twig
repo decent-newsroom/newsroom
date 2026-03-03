@@ -65,7 +65,7 @@
                                                 data-action="live#action"
                                                 data-live-action-param="addToReadingList"
                                                 data-live-coordinate-param="{{ coordinate }}"
-                                            >Add to list</button>
+                                            >{{ 'search.addToList'|trans }}</button>
                                         </div>
                                     </div>
                                 </li>
@@ -79,9 +79,9 @@
                 {# Show message to anonymous users about limited results #}
                 {% if not is_granted('IS_AUTHENTICATED_FULLY') and this.results is not empty %}
                     <div class="notice info mt-4">
-                        <p><strong>Showing limited results (5 articles)</strong></p>
-                        <p>Sign in to see more results and unlock full search capabilities!</p>
-                        <a href="{{ path('app_login') }}" class="btn btn-primary btn-sm mt-2">Sign In</a>
+                        <p><strong>{{ 'search.limitedResults'|trans }}</strong></p>
+                        <p>{{ 'search.signInForMore'|trans }}</p>
+                        <a href="{{ path('app_login') }}" class="btn btn-primary btn-sm mt-2">{{ 'text.signIn'|trans }}</a>
                     </div>
                 {% endif %}
             {% endif %}

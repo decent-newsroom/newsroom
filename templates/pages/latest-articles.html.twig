@@ -39,12 +39,12 @@
 {% endblock %}
 
 {% block body %}
-    <twig:Atoms:PageHeading heading="Latest Articles" tagline="Fresh off the presses"/>
+    <twig:Atoms:PageHeading heading="{{ 'latest.heading'|trans }}" tagline="{{ 'latest.tagline'|trans }}"/>
 
     <section class="w-container mb-5">
         {% if articles is empty %}
             <div class="alert alert-info">
-                No published articles found.
+                {{ 'latest.noArticles'|trans }}
             </div>
         {% else %}
             <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
@@ -54,8 +54,8 @@
 
 {% block aside %}
     <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
-        <h2>News Bots</h2>
-        <p class="eyebrow">Automated news curators</p>
+        <h2>{{ 'latest.newsBots'|trans }}</h2>
+        <p class="eyebrow">{{ 'latest.newsBotsEyebrow'|trans }}</p>
     </div>
     {# Use list of pubkeys in newsBots to show cards for newsbots #}
     {%  for bot in newsBots %}

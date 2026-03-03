@@ -29,7 +29,7 @@
 {% endblock %}
 
 {% block body %}
-    <twig:Atoms:PageHeading heading="Multimedia" tagline="Discovery through serendipity"/>
+    <twig:Atoms:PageHeading heading="{{ 'media.heading'|trans }}" tagline="{{ 'media.tagline'|trans }}"/>
 
     <div class="w-container">
         {% if error is defined %}
@@ -42,11 +42,11 @@
             {% include 'partial/_masonry.html.twig' %}
 
             <div class="discover-footer">
-                <p class="media-count">End of the line. Refresh to load a new batch.</p>
+                <p class="media-count">{{ 'media.endOfLine'|trans }}</p>
             </div>
         {% else %}
             <div class="no-media">
-                <p>No media found. Reload to try again.</p>
+                <p>{{ 'media.noMedia'|trans }}</p>
             </div>
         {% endif %}
     </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ app.session.get('theme', 'light') }}">
+<html lang="{{ app.request.locale }}" data-theme="{{ app.session.get('theme', 'light') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,9 +45,9 @@
         class="install-prompt-box hidden"
         data-utility--install-prompt-target="promptBox"
     >
-        <p>Install this app on your device for quick access?</p>
-        <button data-action="click->utility--install-prompt#install">Yes, install</button>
-        <button data-action="click->utility--install-prompt#dismiss">No thanks</button>
+        <p>{{ 'install.prompt'|trans }}</p>
+        <button data-action="click->utility--install-prompt#install">{{ 'install.yes'|trans }}</button>
+        <button data-action="click->utility--install-prompt#dismiss">{{ 'install.no'|trans }}</button>
     </div>
 </div>
 

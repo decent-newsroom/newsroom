@@ -1,15 +1,26 @@
 <div class="footer-links mb-3">
-    <span>Subscriptions:</span>
-    <a href="{{ path('vanity_index') }}">Vanity Name</a> |
-    <a href="{{ path('active_indexing_index') }}">Active Indexing</a> |
-    <a href="{{ path('publication_subdomain_index') }}">Publication Subdomain</a>
+    <span>{{ 'footer.subscriptions'|trans }}:</span>
+    <a href="{{ path('vanity_index') }}">{{ 'footer.vanityName'|trans }}</a> |
+    <a href="{{ path('active_indexing_index') }}">{{ 'footer.activeIndexing'|trans }}</a> |
+    <a href="{{ path('publication_subdomain_index') }}">{{ 'footer.publicationSubdomain'|trans }}</a>
 </div>
 <div class="footer-links mb-3">
-    <a href="https://support.decentnewsroom.com" target="_blank">Support</a>
+    <a href="https://support.decentnewsroom.com" target="_blank">{{ 'footer.support'|trans }}</a>
 </div>
 <div class="footer-links mb-3">
-    <a href="{{ path('app_static_about') }}">About</a> -
-    <a href="{{ path('app_static_tos') }}">Terms of service</a> -
-    <a href="/feedback">Contact</a>
+    <a href="{{ path('app_static_about') }}">{{ 'footer.about'|trans }}</a> -
+    <a href="{{ path('app_static_tos') }}">{{ 'footer.termsOfService'|trans }}</a> -
+    <a href="/feedback">{{ 'footer.contact'|trans }}</a>
 </div>
-<p>{{ "now"|date("Y") }} Decent Newsroom - v0.0.12 Preprint</p>
+<div class="footer-links mb-3">
+    <span>{{ 'language.switcher'|trans }}:</span>
+    {% for locale in ['en', 'de', 'es', 'fr', 'sl'] %}
+        {% if app.request.locale == locale %}
+            <strong>{{ ('language.' ~ locale)|trans }}</strong>
+        {% else %}
+            <a href="{{ path('app_locale_switch', {locale: locale}) }}">{{ ('language.' ~ locale)|trans }}</a>
+        {% endif %}
+        {% if not loop.last %} | {% endif %}
+    {% endfor %}
+</div>
+<p>{{ "now"|date("Y") }} {{ brand_name }} - {{ brand_version }}</p>

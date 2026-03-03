@@ -1,53 +1,48 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Unfold — Run your magazine on Decent Newsroom{% endblock %}
+{% block title %}{{ 'unfold.title'|trans }}{% endblock %}
 
 {% block body %}
 
     <section class="ln-hero d-flex gap-3 center">
-        <h1 class="brand">Unfold</h1>
-        <p class="eyebrow">by Decent Newsroom</p>
+        <h1 class="brand">{{ 'unfold.hero'|trans }}</h1>
+        <p class="eyebrow">{{ 'unfold.heroEyebrow'|trans }}</p>
         <p class="lede mb-5">
-            Build a structured web magazine from Nostr events.
+            {{ 'unfold.heroLede'|trans }}
         </p>
     </section>
 
     <section class="d-flex gap-3 center ln-section--unfold">
         <div class="container mt-5">
-            <h2>Unfold your magazine</h2>
+            <h2>{{ 'unfold.unfoldMagazine'|trans }}</h2>
         </div>
         <div class="mb-5">
             <p class="measure">
-                Unfold renders your magazine definition
-                into a clean, structured web magazine — with navigation,
-                categories, and individual article pages.
+                {{ 'unfold.unfoldDesc1'|trans }}
             </p>
             <p class="measure">
-                When your underlying Nostr events change,
-                your magazine updates automatically.
-                No redeploys. No cache rituals.
+                {{ 'unfold.unfoldDesc2'|trans }}
             </p>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--newsroom">
         <div class="container mt-5">
-            <h2>Unfold</h2>
+            <h2>{{ 'unfold.hero'|trans }}</h2>
         </div>
         <div class="mb-5">
             <p class="measure">
-                Launch your magazine on a dedicated subdomain.
-                Production-ready hosting and Unfold rendering are handled for you.
+                {{ 'unfold.unfoldHosting'|trans }}
             </p>
 
             <p class="measure">
-                <strong>120,000 sats / year</strong><br>
-                Annual managed hosting for one magazine.
+                <strong>{{ 'unfold.unfoldPrice'|trans }}</strong><br>
+                {{ 'unfold.unfoldPriceDesc'|trans }}
             </p>
 
             <div class="cta-row">
                 <a class="btn btn--primary" href="{{ path('publication_subdomain_index') }}">
-                    Launch Your Magazine
+                    {{ 'unfold.launchMagazine'|trans }}
                 </a>
             </div>
         </div>
@@ -55,21 +50,21 @@
 
     <section class="d-flex gap-3 center ln-section--marketplace">
         <div class="container mt-5">
-            <h2>See it in action</h2>
+            <h2>{{ 'unfold.seeInAction'|trans }}</h2>
         </div>
         <div class="mb-5">
             <p class="measure">
-                These are live magazines powered by Unfold:
+                {{ 'unfold.liveDescription'|trans }}
             </p>
             <ul class="measure list-unstyled">
                 <li>
-                    Support Magazine at
+                    {{ 'unfold.supportMag'|trans }}
                     <a href="https://support.decentnewsroom.com/" target="_blank" rel="noopener">
                         support.decentnewsroom.com
                     </a>
                 </li>
                 <li>
-                    Newsroom Magazine at
+                    {{ 'unfold.newsroomMag'|trans }}
                     <a href="https://newsroommag.decentnewsroom.com/" target="_blank" rel="noopener">
                         newsroommag.decentnewsroom.com
                     </a>
@@ -80,15 +75,13 @@
 
     <section class="d-flex gap-3 center ln-section--editor hidden">
         <div class="container mt-5">
-            <h2>Advanced use</h2>
+            <h2>{{ 'unfold.advancedUse'|trans }}</h2>
         </div>
         <div class="mb-5">
             <p class="measure">
-                Unfold is a standalone magazine renderer at its core.
-                If you are exploring independent deployment or deeper customization,
-                reach out to
+                {{ 'unfold.advancedDesc'|trans }}
                 <twig:Molecules:UserFromNpub ident="{{ project_npub }}" />
-                or
+                {{ 'text.or'|trans }}
                 <twig:Molecules:UserFromNpub ident="{{ dev_npub }}" />.
             </p>
         </div>
@@ -96,12 +89,12 @@
 
     <section class="d-flex gap-3 center">
         <div class="container mt-5">
-            <h1>Newsstand</h1>
-            <p class="eyebrow">for the digital age</p>
+            <h1>{{ 'home.newsstand.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('newsstand') }}">Browse Magazines</a>
+                <a class="btn btn--primary" href="{{ path('newsstand') }}">{{ 'unfold.browseMagazines'|trans }}</a>
             </div>
         </div>
     </section>

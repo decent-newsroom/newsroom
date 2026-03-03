@@ -8,7 +8,7 @@
 >
 
     {% if loading %}
-        <div class="comments-loading" data-content--comments-mercure-target="loading">Loading comments…</div>
+        <div class="comments-loading" data-content--comments-mercure-target="loading">{{ 'comments.loading'|trans }}</div>
     {% endif %}
     <div class="comments-list" data-content--comments-mercure-target="list" {% if loading %}style="display:none"{% endif %}>
         {% for item in list %}
@@ -19,7 +19,7 @@
                     {% elseif zappers[item.id] %}
                         <twig:Molecules:UserFromNpub ident="{{ zappers[item.id]  }}" :user="authorsMetadata[zappers[item.id]]" />
                     {% else %}
-                        <p><em>Unknown</em></p>
+                        <p><em>{{ 'text.unknown'|trans }}</em></p>
                     {% endif %}
                     <small>{{ item.created_at|date('F j Y') }}</small>
                 </div>
@@ -30,7 +30,7 @@
                             {% if zapAmounts[item.id] is defined %}
                                 <strong>{{ zapAmounts[item.id] }} sat</strong>
                             {% else %}
-                                <em>Zap</em>
+                                <em>{{ 'comments.zap'|trans }}</em>
                             {% endif %}
                         </div>
                     {% endif %}
@@ -51,7 +51,7 @@
                 {% endif %}
             </div>
         {% else %}
-            <div class="no-comments">No comments yet.</div>
+            <div class="no-comments">{{ 'comments.noComments'|trans }}</div>
         {% endfor %}
     </div>
 

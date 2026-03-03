@@ -4,40 +4,40 @@
 {% endblock %}
 
 {% block body %}
-    <h1>Pricing</h1>
+    <h1>{{ 'pricing.heading'|trans }}</h1>
 
-    <p>Choose a plan that fits your publishing needs.</p>
+    <p>{{ 'pricing.choosePlan'|trans }}</p>
 
     <div class="price-list">
         <div class="card">
-            <h3>Scoop Seeker</h3>
-            <p class="price">Free</p>
+            <h3>{{ 'pricing.scoopSeeker'|trans }}</h3>
+            <p class="price">{{ 'pricing.free'|trans }}</p>
             <ul class="features">
-                <li>Read all the articles featured in the Newsroom magazine</li>
+                <li>{{ 'pricing.scoopFeature1'|trans }}</li>
             </ul>
-            <button disabled="disabled">Get Started</button>
+            <button disabled="disabled">{{ 'pricing.getStarted'|trans }}</button>
         </div>
 
         <div class="card">
-            <h3>Publisher</h3>
-            <p class="price">5.000 sats/month</p>
+            <h3>{{ 'pricing.publisher'|trans }}</h3>
+            <p class="price">{{ 'pricing.publisherPrice'|trans }}</p>
             <ul class="features">
-                <li>Submit indexing requests for priority indexing</li>
-                <li>Access to built-in content editor</li>
-                <li>Content search</li>
+                <li>{{ 'pricing.publisherFeature1'|trans }}</li>
+                <li>{{ 'pricing.publisherFeature2'|trans }}</li>
+                <li>{{ 'pricing.publisherFeature3'|trans }}</li>
             </ul>
-            <button disabled="disabled">Subscribe</button>
+            <button disabled="disabled">{{ 'pricing.subscribe'|trans }}</button>
         </div>
 
         <div class="card">
-            <h3>Curator</h3>
-            <p class="price">15.000 sats/month</p>
+            <h3>{{ 'pricing.curator'|trans }}</h3>
+            <p class="price">{{ 'pricing.curatorPrice'|trans }}</p>
             <ul class="features">
-                <li>Create and manage your own magazines</li>
-                <li>Advanced discovery tools</li>
-                <li>Featured magazine placement</li>
+                <li>{{ 'pricing.curatorFeature1'|trans }}</li>
+                <li>{{ 'pricing.curatorFeature2'|trans }}</li>
+                <li>{{ 'pricing.curatorFeature3'|trans }}</li>
             </ul>
-            <button disabled="disabled">Subscribe</button>
+            <button disabled="disabled">{{ 'pricing.subscribe'|trans }}</button>
         </div>
     </div>
 {% endblock %}

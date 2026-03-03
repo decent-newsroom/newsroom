@@ -39,8 +39,8 @@
 {% block body %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">
-            <h1>Newsstand</h1>
-            <p class="eyebrow">for the digital age</p>
+            <h1>{{ 'home.newsstand.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
         </div>
     </section>
     <section class="mb-5">
@@ -49,13 +49,13 @@
 
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5">
-            <h1>More magazines soon</h1>
-            <p class="eyebrow">this is only the beginning</p>
+            <h1>{{ 'newsstand.moreSoon'|trans }}</h1>
+            <p class="eyebrow">{{ 'newsstand.onlyBeginning'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Got an idea?</p>
+            <p class="measure">{{ 'newsstand.gotIdea'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">Create magazine</a>
+                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'newsstand.createMagazine'|trans }}</a>
             </div>
         </div>
     </section>

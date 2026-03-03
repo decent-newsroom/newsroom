@@ -1,0 +1,429 @@
+# ── Splošno ────────────────────────────────────────────────────────
+text:
+    byline: 'Avtor'
+    search: 'Išči članke ali prilepi Nostr identifikatorje...'
+    searching: 'Iskanje...'
+    noResults: 'Ni rezultatov.'
+    by: 'avtor'
+    published: 'Objavljeno'
+    all: 'Vse'
+    signIn: 'Prijava'
+    createNew: 'Ustvari novo'
+    loading: 'Nalaganje...'
+    viewOriginalArticle: 'Poglej izvirni članek'
+    articleReference: 'Referenca članka'
+    reference: 'Referenca'
+    showMore: 'Pokaži več'
+    anonymous: 'Anonimno'
+    unknown: 'Neznano'
+    source: 'Vir'
+    or: 'ali'
+    to: 'Za'
+    and: 'in'
+
+heading:
+    roles: 'Vloge'
+    logout: 'Odjava'
+    logIn: 'Možnosti prijave'
+    search: 'Iskanje'
+    index: 'Indeks'
+
+credit:
+    balance: '{0} Ni kreditov|{1} 1 kredit|{2} 2 kredita|{3} 3 krediti|{4} 4 krediti|]4,Inf] %count% kreditov'
+    getFreeCredits: 'Dobi 5 brezplačnih kreditov'
+
+# ── Blagovna znamka ───────────────────────────────────────────────
+brand:
+    tagline: 'Sodelovalno založništvo na Nostru'
+    description: 'Decentralizirana platforma za sodelovalno založništvo'
+
+# ── Navigacija ────────────────────────────────────────────────────
+nav:
+    discover: 'Odkrivaj'
+    articles: 'Članki'
+    topics: 'Teme'
+    multimedia: 'Multimedija'
+    highlights: 'Poudarki'
+    newsroom: 'Uredništvo'
+    newsstand: 'Kiosk'
+    collections: 'Zbirke'
+    myContent: 'Moje vsebine'
+    bookmarks: 'Zaznamki'
+    myMagazines: 'Moje revije'
+    myReadingLists: 'Moji bralni seznami'
+    myInterests: 'Moji interesi'
+    create: 'Ustvari'
+    magazine: 'Revija'
+    readingList: 'Bralni seznam'
+    article: 'Članek'
+    sendFeedback: 'Pošlji povratno informacijo'
+    backToTop: 'Na vrh'
+    closeLeftSidebar: 'Zapri levo stransko vrstico'
+    closeRightSidebar: 'Zapri desno stransko vrstico'
+
+# ── Noga ──────────────────────────────────────────────────────────
+footer:
+    subscriptions: 'Naročnine'
+    vanityName: 'Osebno ime'
+    activeIndexing: 'Aktivno indeksiranje'
+    publicationSubdomain: 'Poddomena publikacije'
+    support: 'Podpora'
+    about: 'O nas'
+    termsOfService: 'Pogoji uporabe'
+    contact: 'Kontakt'
+
+# ── Prispevek ─────────────────────────────────────────────────────
+contribution:
+    title: 'Podprite ta projekt'
+    description: 'Pomagajte nam graditi prihodnost decentraliziranega novinarstva'
+
+# ── Namestitev ────────────────────────────────────────────────────
+install:
+    prompt: 'Namestite to aplikacijo na svojo napravo za hiter dostop?'
+    yes: 'Da, namesti'
+    no: 'Ne, hvala'
+
+# ── Domača stran ──────────────────────────────────────────────────
+home:
+    title: 'Decent Newsroom — Decentralizirana platforma za sodelovalno založništvo'
+    hero:
+        lede: 'Odkrivajte, objavljajte članke in ustvarjajte revije.'
+    newsstand:
+        heading: 'Kiosk'
+        eyebrow: 'za digitalno dobo'
+        description: 'Prelistavajte svet revij na enem mestu. Sestavite svojo ponudbo, ujemite sveže izdaje, kjerkoli.'
+        cta: 'Razišči ponudbo'
+    explore:
+        heading: 'Odkrivaj'
+        eyebrow: 'skrite bisere'
+        description: 'Naše iskanje je specializirano za dolge Nostr vsebine.'
+        cta: 'Išči'
+    editor:
+        heading: 'Urejevalnik člankov'
+        eyebrow: 'za vsakogar'
+        description: 'Pišite, popravljajte in predogledujte z lahkoto. Shranjujte osnutke, beležke in objavljajte.'
+        cta: 'Napiši članek'
+    newsroom:
+        heading: 'Uredništvo'
+        eyebrow: 'kot nobeno drugo'
+        description: 'Ustvarite svojo revijo, določite kategorije, upravljajte prispevke in sodelujte z uredniki in sodelavci.'
+        cta: 'Ustvari revijo'
+    unfold:
+        heading: 'Unfold'
+        eyebrow: 'svojo revijo'
+        description: 'Unfold je spremljevalna spletna aplikacija. Vsako revijo, ustvarjeno na Decent Newsroom, lahko priključite, oblikujete in namestite na lastno domeno.'
+        cta: 'Več o tem'
+    marketplace:
+        heading: 'Tržnica medijev'
+        eyebrow: 'Kmalu'
+        description: 'Naročite vizualne vsebine po meri, odkrijte zaloge, ki jih dejansko lahko uporabite, in ohranite medije in besedilo v enem ustvarjalnem toku.'
+
+# ── Kiosk ─────────────────────────────────────────────────────────
+newsstand:
+    moreSoon: 'Več revij kmalu'
+    onlyBeginning: 'to je šele začetek'
+    gotIdea: 'Imate idejo?'
+    createMagazine: 'Ustvari revijo'
+
+# ── Odkrivanje / Iskanje ──────────────────────────────────────────
+discover:
+    searchPlaceholder: 'Išči članke ali prilepi Nostr identifikatorje...'
+    noArticles: 'Ni najdenih člankov.'
+    tagline: 'za skrite bisere'
+
+search:
+    heading: 'Iskanje'
+    tagline: 'za skrite bisere'
+    limitedResults: 'Prikazani omejeni rezultati (5 člankov)'
+    signInForMore: 'Prijavite se za več rezultatov in polne zmožnosti iskanja!'
+    addToList: 'Dodaj na seznam'
+
+# ── Poudarki ──────────────────────────────────────────────────────
+highlights:
+    heading: 'Poudarki'
+    tagline: 'Izbranni omembe vredni odlomki'
+    found: '%total% najdenih poudarkov'
+    fromLastDays: 'V zadnjih 7 dneh'
+    noHighlights: 'Ni poudarkov. Preverite pozneje!'
+
+# ── Multimedija ───────────────────────────────────────────────────
+media:
+    heading: 'Multimedija'
+    tagline: 'Odkrivanje skozi naključje'
+    endOfLine: 'Konec seznama. Osvežite za nov izbor.'
+    noMedia: 'Ni najdenih rezultatov. Osvežite za ponovni poskus.'
+
+# ── Najnovejši članki ─────────────────────────────────────────────
+latest:
+    heading: 'Najnovejši članki'
+    tagline: 'Sveže iz tiskarne'
+    noArticles: 'Ni objavljenih člankov.'
+    newsBots: 'Novičarski boti'
+    newsBotsEyebrow: 'Avtomatizirani zbiralci novic'
+
+# ── Teme ──────────────────────────────────────────────────────────
+topics:
+    heading: 'Razišči teme'
+    selectTopic: 'Izberite temo za ogled 10 najnovejših člankov, povezanih z njo.'
+    recentIn: 'Nedavni članki v %topic%'
+    noArticles: 'Ni najdenih člankov na to temo.'
+
+# ── Zbirke / Seznami ──────────────────────────────────────────────
+lists:
+    heading: 'Bralni seznami'
+    eyebrow: 'za sezname, zbirke, tečaje in še kaj'
+
+# ── Moji bralni seznami ───────────────────────────────────────────
+myReadingLists:
+    heading: 'Moji bralni seznami'
+    openComposer: 'Odpri urejevalnik'
+    view: 'Poglej'
+    copyLink: 'Kopiraj povezavo'
+    copyCoordinate: 'Kopiraj koordinato'
+    noListsLoggedIn: 'Ni najdenih bralnih seznamov.'
+    noListsAnon: 'Prijavite se za brskanje in urejanje seznamov.'
+    empty: 'Prazno'
+
+# ── Moje revije ───────────────────────────────────────────────────
+myMagazines:
+    heading: 'Moje revije'
+
+# ── Zaznamki ──────────────────────────────────────────────────────
+bookmarks:
+    heading: 'Zaznamki'
+    tagline: 'vaše shranjene vsebine'
+    untitledList: 'Seznam brez naslova'
+    noItems: 'Ni elementov na tem seznamu'
+    noBookmarks: 'Ni najdenih zaznamkov.'
+    noBookmarksHint: 'Zaznamujte članke v svojem Nostr odjemalcu in se bodo prikazali tukaj.'
+
+# ── Sledenje ──────────────────────────────────────────────────────
+follows:
+    heading: 'Sledenje'
+    eyebrow: 'članki ljudi, ki jim sledite'
+    signInRequired: 'Prijavite se za ogled člankov ljudi, ki jim sledite'
+    signInDescription: 'Za ogled člankov s seznama sledenja morate biti prijavljeni.'
+    error: 'Napaka'
+    noFollows: 'Še ne sledite nikomur'
+    noFollowsHint: 'Začnite slediti ljudem na Nostru, da boste tukaj videli njihove članke. Vaš seznam sledenja bo samodejno sinhroniziran.'
+    noArticles: 'Ni najdenih člankov'
+    noArticlesHint: 'Ljudje, ki jim sledite, še niso objavili nobenih člankov, ali pa še niso bili sinhronizirani s to uredniško sobo.'
+
+# ── Stran članka ──────────────────────────────────────────────────
+article:
+    draftPreview: 'Predogled osnutka'
+    draftPreviewHint: 'To je osnutek in je viden samo vam.'
+    editDraft: 'Uredi osnutek'
+    editArticle: 'Uredi članek'
+    share: 'Deli'
+    newsroomLink: 'Povezava Newsroom'
+    broadcast: 'Oddaj'
+    broadcastTitle: 'Oddaj ta članek na svoje releje'
+    moreFrom: 'Več iz'
+    nextArticle: 'Naprej →'
+    prevArticle: '← Nazaj'
+    notFound: 'Članek ni najden'
+    notFoundTitle: 'Članek ni najden - Decent Newsroom'
+    trySearching: 'Poskusite iskati ali prilepite Nostr naslov (naddr)'
+    trySearchingHint: 'Če imate Nostr naslov članka (naddr), ga prilepite v iskalno polje spodaj. Poskusili ga bomo pridobiti z relejev in dodati v naš indeks.'
+    returnHome: 'Nazaj na domačo stran'
+
+# ── Razločevanje člankov ──────────────────────────────────────────
+disambiguation:
+    heading: 'Razločevanje: Več člankov za "%slug%"'
+    description: 'Obstaja več člankov z oznako <strong>%slug%</strong>. Prosimo, izberite avtorja:'
+    whatIsThis: 'Kaj je to?'
+    explanation: 'Ta stran navaja vse članke z isto oznako. Kliknite avtorja za ogled njegove različice.'
+
+# ── Kartica članka / nadomestilo ──────────────────────────────────
+card:
+    coverImageAlt: 'Naslovna slika za %title%'
+    placeholder:
+        heading: 'Članek še ni na voljo'
+        description: 'Ta članek je del seznama, vendar še ni bil v celoti naložen.'
+        articleId: 'ID članka'
+        fetchArticle: 'Pridobi članek'
+
+# ── Komentarji ────────────────────────────────────────────────────
+comments:
+    loading: 'Nalaganje komentarjev…'
+    noComments: 'Še ni komentarjev.'
+    writeComment: 'Napišite svoj komentar'
+    publishComment: 'Objavi komentar'
+    label: 'Komentar'
+    zap: 'Zap'
+
+# ── Uporabniški meni / Prijava ────────────────────────────────────
+auth:
+    admin: 'Administrator'
+    adminDashboard: 'Nadzorna plošča'
+    magazines: 'Revije'
+    visitAnalytics: 'Analitika obiskov'
+    extension: 'Razširitev'
+    signer: 'Podpisnik'
+    login: 'Prijava'
+    loginWithExtension: 'Prijava z razširitvijo'
+    loginWithSigner: 'Prijava z oddaljenim podpisnikom'
+    alreadyAuthenticated: 'Že ste prijavljeni.'
+    nostrCredentials: 'Za prijavo uporabite svoje Nostr poverilnice.'
+    loginTitle: 'Prijava | Decent Newsroom'
+
+# ── Modalno okno podpisnika ───────────────────────────────────────
+signerModal:
+    title: 'Prijava z oddaljenim podpisnikom'
+    bunkerLabel: 'Imate obstoječo sejo bunkerja?'
+    bunkerHint: 'Prilepite svoj <code>bunker://</code> povezovalni niz za ponovno povezavo.'
+    connect: 'Poveži'
+    orNewPairing: 'Ali začnite novo sejo — skenirajte QR kodo z NIP-46 združljivim podpisnikom.'
+    copyString: 'Ali kopirajte povezovalni niz:'
+    copy: 'Kopiraj'
+    pasteHint: 'Prilepite to v svojo aplikacijo za podpisovanje, če je na isti napravi'
+    status: 'Stanje'
+    initializing: 'Inicializacija…'
+    afterPairing: 'Po vzpostavitvi povezave bo vsaka stran, ki uporablja window.nostr, samodejno uporabila to sejo oddaljenega podpisnika.'
+    stallHint: 'Če se vzpostavitev povezave ustavi, zaprite in znova odprite to pogovorno okno za generiranje novega začasnega ključa.'
+
+# ── Zap ───────────────────────────────────────────────────────────
+zap:
+    button: 'Zap'
+    send: 'Pošlji Zap'
+
+# ── Spustni seznam bralnih seznamov ───────────────────────────────
+readingListDropdown:
+    addToList: 'Dodaj na bralni seznam'
+    noLists: 'Še ni bralnih seznamov'
+    selectList: 'Izberite seznam:'
+
+# ── Izpostavljeni pisci ───────────────────────────────────────────
+featuredWriters:
+    heading: 'Pisci'
+
+# ── Urejevalnik ───────────────────────────────────────────────────
+editor:
+    nostrIdentityRequired: 'Za objavo člankov je potrebna Nostr identiteta.'
+    uploadImage: 'Naloži sliko'
+    uploadTo: 'Naloži na'
+    dragDrop: 'Povlecite in spustite ali kliknite za izbiro slike'
+    showRawEvent: 'Pokaži surovi JSON dogodka'
+    rebuildFromForm: 'Obnovi iz obrazca'
+    modified: 'spremenjeno'
+    rawJsonHint: 'Urejanje tukaj povozi obrazec ob objavi. Ohranite obvezna polja: kind, created_at, tags, content, pubkey.'
+    publish: 'Objavi'
+    recent: 'Nedavno'
+    noRecentArticles: 'Ni najdenih nedavnih člankov.'
+    drafts: 'Osnutki'
+    noDrafts: 'Ni najdenih osnutkov.'
+
+# ── Profil / Stran avtorja ────────────────────────────────────────
+profile:
+    articles: 'Članki'
+    media: 'Mediji'
+    highlights: 'Poudarki'
+    drafts: 'Osnutki'
+    stats: 'Statistika'
+
+# ── Povratna informacija ──────────────────────────────────────────
+feedback:
+    title: 'Pošlji povratno informacijo'
+    heading: 'Povratna informacija'
+    tagline: 'Poročila o napakah in zahteve za funkcionalnosti'
+    yourMessage: 'Vaše sporočilo'
+    sendFeedback: 'Pošlji povratno informacijo'
+    preview: 'Predogled'
+
+# ── Moja vsebina ──────────────────────────────────────────────────
+myContent:
+    heading: 'moja-vsebina'
+    newArticle: '+ Članek'
+    newList: '+ Seznam'
+    name: 'Ime'
+    dateModified: 'Datum spremembe'
+    items: 'Elementi'
+    kind: 'Vrsta'
+    readingLists: 'bralni-seznami'
+    articlesDirName: 'članki'
+    draftsDirName: 'osnutki'
+
+# ── Čarovnik za revije ────────────────────────────────────────────
+wizard:
+    magazine: 'Revija'
+    categories: 'Kategorije'
+    articles: 'Članki'
+    review: 'Pregled'
+
+# ── Strani z napakami ─────────────────────────────────────────────
+error:
+    serverError: 'Notranja napaka strežnika'
+    serverErrorSubheading: 'Tiskalni stroj se je zataknil.'
+    serverErrorDescription: 'Nekaj je šlo narobe v našem založniškem pogonu. Črnilo se je razlilo, črke so se raztresle in vsebine trenutno ni mogoče dostaviti.'
+    returnHome: 'Nazaj na domačo stran'
+    accessDenied: 'Dostop zavrnjen'
+    accessDeniedTitle: 'Dostop zavrnjen (403)'
+    accessDeniedDescription: 'Nimate dovoljenja za dostop do te strani.'
+    notFound: 'Stran ni bilo mogoče najti'
+    notFoundSubheading: 'Žal je stran, ki jo iščete, izgubljena v arhivih.'
+    notFoundDescription: 'Kot manjkajoči rokopis ali poglavje, iztrgano iz časa, strani, ki jo iščete, ni mogoče najti. Morda je bila premaknjena, preimenovana ali pa sploh nikoli objavljena.'
+
+# ── Statično: O nas ───────────────────────────────────────────────
+about:
+    heading: 'O Decent Newsroom'
+    rebuildingTrust: 'Obnavljanje zaupanja v novinarstvo'
+    intro: 'Internet, in še posebej družbena omrežja, so naredili novice takojšnje in obilne, a tudi poceni in nezanesljive. Vrednost preprostega poročanja o tem, kaj se je zgodilo in kje, je padla na nič, pokopana pod valovi dezinformacij, klikbajtov in z umetno inteligenco ustvarjenega šuma. Še huje, ločevanje resnice od laži zdaj stane več kot širjenje laži.'
+    answer: 'Decent Newsroom je naš odgovor na to krizo. Gradimo izbirčno, decentralizirano revijo s kakovostnim, dolgoročnim novinarstvom, objavljenim na Nostru.'
+    whyItMatters: 'Zakaj je to pomembno'
+    whyText: 'Doba uredništva se ni končala — samo razvija se. Verjamemo v vračanje uredniških standardov, sodelovanja in kvalitetnega poročanja na decentraliziran način. Decent Newsroom je tukaj, da poreže šum in obnovi zaupanje v digitalno novinarstvo.'
+    supportUs: 'Podprete nas lahko tukaj: '
+    geyserLink: 'Geyser fund - Newsroom'
+    moreInfo: 'Za več informacij se obrnite na'
+    exploreRack: 'Razišči ponudbo'
+
+# ── Statično: Cenik ────────────────────────────────────────────────
+pricing:
+    heading: 'Cenik'
+    choosePlan: 'Izberite načrt, ki ustreza vašim založniškim potrebam.'
+    scoopSeeker: 'Iskalec novic'
+    free: 'Brezplačno'
+    scoopFeature1: 'Berite vse članke, predstavljene v reviji Newsroom'
+    getStarted: 'Začni'
+    publisher: 'Založnik'
+    publisherPrice: '5.000 satov/mesec'
+    publisherFeature1: 'Pošljite zahtevke za prednostno indeksiranje'
+    publisherFeature2: 'Dostop do vgrajenega urejevalnika vsebin'
+    publisherFeature3: 'Iskanje vsebin'
+    subscribe: 'Naroči se'
+    curator: 'Kurator'
+    curatorPrice: '15.000 satov/mesec'
+    curatorFeature1: 'Ustvarite in upravljajte svoje revije'
+    curatorFeature2: 'Napredna orodja za odkrivanje'
+    curatorFeature3: 'Izpostavljeno mesto za revijo'
+
+# ── Statično: Unfold ──────────────────────────────────────────────
+unfold:
+    title: 'Unfold — Vodite svojo revijo na Decent Newsroom'
+    hero: 'Unfold'
+    heroEyebrow: 'od Decent Newsroom'
+    heroLede: 'Zgradite strukturirano spletno revijo iz Nostr dogodkov.'
+    unfoldMagazine: 'Razgrnite svojo revijo'
+    unfoldDesc1: 'Unfold pretvori definicijo vaše revije v čisto, strukturirano spletno revijo — z navigacijo, kategorijami in posameznimi stranmi člankov.'
+    unfoldDesc2: 'Ko se vaši osnovni Nostr dogodki spremenijo, se vaša revija samodejno posodobi. Brez ponovnih namestitev. Brez ritualov predpomnilnika.'
+    unfoldHosting: 'Zaženite svojo revijo na namenski poddomeni. Za produkcijsko gostovanje in upodabljanje Unfold poskrbimo mi.'
+    unfoldPrice: '120.000 satov / leto'
+    unfoldPriceDesc: 'Letno upravljano gostovanje za eno revijo.'
+    launchMagazine: 'Zaženi svojo revijo'
+    seeInAction: 'Oglejte si v akciji'
+    liveDescription: 'To so žive revije, ki jih poganja Unfold:'
+    supportMag: 'Revija za podporo na'
+    newsroomMag: 'Revija Newsroom na'
+    advancedUse: 'Napredna uporaba'
+    advancedDesc: 'Unfold je v svojem bistvu samostojni upodabljalnik revij. Če raziskujete neodvisno namestitev ali globlje prilagoditve, se obrnite na'
+    browseMagazines: 'Brskaj po revijah'
+
+# ── Preklopnik jezika ─────────────────────────────────────────────
+language:
+    switcher: 'Jezik'
+    en: 'English'
+    sl: 'Slovenščina'
+    de: 'Deutsch'
+    es: 'Español'
+    fr: 'Français'
+

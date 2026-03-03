@@ -50,8 +50,8 @@
 {% endblock %}
 
 {% block body %}
-<h1>Explore Topics</h1>
-<p>Select a topic to view the 10 most recent articles related to it.</p>
+<h1>{{ 'topics.heading'|trans }}</h1>
+<p>{{ 'topics.selectTopic'|trans }}</p>
 
 <div class="topics-list">
     {% for key, topic in topics %}
@@ -62,7 +62,7 @@
 </div>
 
 {% if selectedTopic and articles %}
-    <h2>Recent Articles in {{ topics[selectedTopic].name }}</h2>
+    <h2>{{ 'topics.recentIn'|trans({'%topic%': topics[selectedTopic].name}) }}</h2>
     <div class="articles-list">
         {% for article in articles %}
             <div class="article-item">
@@ -73,6 +73,6 @@
         {% endfor %}
     </div>
 {% elseif selectedTopic %}
-    <p>No articles found for this topic.</p>
+    <p>{{ 'topics.noArticles'|trans }}</p>
 {% endif %}
 {% endblock %}

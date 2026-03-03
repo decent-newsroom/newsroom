@@ -1,13 +1,12 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <h1>Internal Server Error</h1>
-    <h2>The press has jammed.</h2>
+    <h1>{{ 'error.serverError'|trans }}</h1>
+    <h2>{{ 'error.serverErrorSubheading'|trans }}</h2>
 
     <p>
-        Something has gone awry in our publishing engine. The ink has spilled, the type has scattered,
-        and the content cannot be delivered at this time.
+        {{ 'error.serverErrorDescription'|trans }}
     </p>
 
-    <a href="{{ path('home') }}">Return to the homepage</a>
+    <a href="{{ path('home') }}">{{ 'error.returnHome'|trans }}</a>
 {% endblock %}

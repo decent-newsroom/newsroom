@@ -22,7 +22,7 @@
         <a href="{{ link }}" data-turbo-frame="_top">
             <div class="card-header">
                 {% if article.image %}
-                    <img src="{{ article.image }}" alt="Cover image for {{ article.title }}" onerror="this.style.display='none';" >
+                    <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none';" >
                 {% endif %}
             </div>
             <div class="card-body">

@@ -39,8 +39,8 @@
 
 {% block body %}
     <twig:Atoms:PageHeading
-        heading="Search"
-        tagline="for hidden gems" />
+        heading="{{ 'search.heading'|trans }}"
+        tagline="{{ 'search.tagline'|trans }}" />
     <section>
         <twig:SearchComponent :query="initialQuery" />
     </section>

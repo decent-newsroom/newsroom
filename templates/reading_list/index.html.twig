@@ -3,10 +3,10 @@
 {% block body %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-1">
-            <h1>My Reading Lists</h1>
+            <h1>{{ 'myReadingLists.heading'|trans }}</h1>
         </div>
         <div class="cta-row mb-5">
-            <a class="btn btn-primary" href="{{ path('read_wizard_setup') }}">Create new</a>
+            <a class="btn btn-primary" href="{{ path('read_wizard_setup') }}">{{ 'text.createNew'|trans }}</a>
         </div>
     </section>
 
@@ -32,7 +32,7 @@
                 <div class="d-flex flex-row gap-2">
                   {# Only show Open Composer for reading lists (kind 30040), not for curation sets #}
                   {% if item.kind == 30040 %}
-                    <a class="btn btn-sm btn-primary" href="{{ path('read_wizard_articles', {'load': item.slug}) }}">Open Composer</a>
+                    <a class="btn btn-sm btn-primary" href="{{ path('read_wizard_articles', {'load': item.slug}) }}">{{ 'myReadingLists.openComposer'|trans }}</a>
                   {% endif %}
                     {% if item.slug %}
                     {# Use appropriate route based on kind #}
@@ -69,7 +69,7 @@
           {% endfor %}
         </ul>
       {% else %}
-        <p><small>{% if app.user %}No reading lists found.{% else %}Log in to browse and edit your lists.{% endif %}</small></p>
+        <p><small>{% if app.user %}{{ 'myReadingLists.noListsLoggedIn'|trans }}{% else %}{{ 'myReadingLists.noListsAnon'|trans }}{% endif %}</small></p>
       {% endif %}
     </div>
 

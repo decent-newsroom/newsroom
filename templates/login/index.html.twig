@@ -1,18 +1,18 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Login | Decent Newsroom{% endblock %}
+{% block title %}{{ 'auth.loginTitle'|trans }}{% endblock %}
 
 {% block body %}
 <div class="container my-5">
-  <h1 class="h3 mb-4">Login</h1>
+  <h1 class="h3 mb-4">{{ 'auth.login'|trans }}</h1>
   {% if authenticated %}
-    <div class="alert alert-success">You are already authenticated.</div>
+    <div class="alert alert-success">{{ 'auth.alreadyAuthenticated'|trans }}</div>
   {% else %}
     <div class="card" data-controller="utility--signer-modal">
       <div class="card-body" data-controller="utility--login">
-        <p class="text-muted small mb-3">Use your Nostr credentials to authenticate.</p>
-        <button class="btn btn--primary" data-action="click->utility--login#loginAct">Login with Extension</button>
-        <button class="btn btn--primary" data-action="click->utility--signer-modal#openDialog">Login with a remote signer</button>
+        <p class="text-muted small mb-3">{{ 'auth.nostrCredentials'|trans }}</p>
+        <button class="btn btn--primary" data-action="click->utility--login#loginAct">{{ 'auth.loginWithExtension'|trans }}</button>
+        <button class="btn btn--primary" data-action="click->utility--signer-modal#openDialog">{{ 'auth.loginWithSigner'|trans }}</button>
       </div>
       <twig:SignerModal />
     </div>

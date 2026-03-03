@@ -17,7 +17,7 @@
         <section>
             {% if not is_granted('ROLE_USER') %}
                 <div class="notice info mb-4">
-                    <p>A Nostr identity is required to post articles.</p>
+                    <p>{{ 'editor.nostrIdentityRequired'|trans }}</p>
                 </div>
             {% endif %}
             <div {{ stimulus_controller('nostr--nostr-publish', {
@@ -43,12 +43,12 @@
                         <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
                         <div class="iu-modal">
                             <div class="modal-header">
-                                <h5>Upload Image</h5>
+                                <h5>{{ 'editor.uploadImage'|trans }}</h5>
                                 <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
                             </div>
                             <div class="modal-body">
                                 <div>
-                                    <label for="upload-provider">Upload to</label>
+                                    <label for="upload-provider">{{ 'editor.uploadTo'|trans }}</label>
                                     <select id="upload-provider" data-publishing--image-upload-target="provider">
                                         <option value="sovbit">files.sovbit.host</option>
                                         <option value="nostrbuild">nostr.build</option>
@@ -57,7 +57,7 @@
                                 </div>
 
                                 <div data-publishing--image-upload-target="dropArea" class="upload-area">
-                                    <span>Drag &amp; drop or click to select an image</span>
+                                    <span>{{ 'editor.dragDrop'|trans }}</span>
                                     <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
                                 </div>
 
@@ -89,7 +89,7 @@
                                 class="btn btn-outline-secondary btn-sm"
                                 data-nostr--nostr-publish-target="jsonToggle"
                                 data-action="click->nostr--nostr-publish#toggleJsonPreview">
-                            Show raw event JSON
+                            {{ 'editor.showRawEvent'|trans }}
                         </button>
                     </div>
 
@@ -97,12 +97,12 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="mb-0" for="raw-json">Raw Nostr event (editable)</label>
                             <div>
-                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="click->nostr--nostr-publish#regenerateJsonPreview">Rebuild from form</button>
-                                <span class="text-muted" data-nostr--nostr-publish-target="jsonDirtyHint" style="display:none">modified</span>
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="click->nostr--nostr-publish#regenerateJsonPreview">{{ 'editor.rebuildFromForm'|trans }}</button>
+                                <span class="text-muted" data-nostr--nostr-publish-target="jsonDirtyHint" style="display:none">{{ 'editor.modified'|trans }}</span>
                             </div>
                         </div>
                         <textarea id="raw-json" data-nostr--nostr-publish-target="jsonTextarea" data-action="input->nostr--nostr-publish#onJsonInput" class="form-control" rows="12" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
-                        <small class="text-muted d-block mt-1">Edits here override the form when publishing. Keep required fields: kind, created_at, tags, content, pubkey.</small>
+                        <small class="text-muted d-block mt-1">{{ 'editor.rawJsonHint'|trans }}</small>
                     </div>
 
                     <!-- Status messages -->
@@ -112,7 +112,7 @@
                             class="btn btn-primary"
                             data-nostr--nostr-publish-target="publishButton"
                             data-action="click->nostr--nostr-publish#publish">
-                        Publish
+                        {{ 'editor.publish'|trans }}
                     </button>
                 </div>
 
@@ -127,7 +127,7 @@
     {% if is_granted('ROLE_USER') %}
         <div class="w-container">
             <section>
-                <h2>Recent</h2>
+                <h2>{{ 'editor.recent'|trans }}</h2>
                 <ul class="list-unstyled">
                     {% for recent in recentArticles %}
                         <li class="mb-2">
@@ -136,11 +136,11 @@
                             </a>
                         </li>
                     {% else %}
-                        <li>No recent articles found.</li>
+                        <li>{{ 'editor.noRecentArticles'|trans }}</li>
                     {% endfor %}
                 </ul>
 
-                <h2>Drafts</h2>
+                <h2>{{ 'editor.drafts'|trans }}</h2>
                 <ul class="list-unstyled">
                     {% for draft in drafts %}
                         <li>
@@ -149,7 +149,7 @@
                             </a>
                         </li>
                     {% else %}
-                        <li>No drafts found.</li>
+                        <li>{{ 'editor.noDrafts'|trans }}</li>
                     {% endfor %}
                 </ul>
             </section>

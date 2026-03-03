@@ -1,8 +1,8 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Disambiguation: Multiple Articles for "{{ slug }}"</h1>
-  <p>There are multiple articles with the slug <strong>{{ slug }}</strong>. Please select the author:</p>
+  <h1>{{ 'disambiguation.heading'|trans({'%slug%': slug}) }}</h1>
+  <p>{{ 'disambiguation.description'|trans({'%slug%': slug})|raw }}</p>
   <ul>
     {% for article in articles %}
       {% set author = authors[loop.index0] %}
@@ -19,7 +19,7 @@
 
 {% block aside %}
   <div class="aside-box">
-    <h3>What is this?</h3>
-    <p>This page lists all articles with the same slug. Click an author to view their version.</p>
+    <h3>{{ 'disambiguation.whatIsThis'|trans }}</h3>
+    <p>{{ 'disambiguation.explanation'|trans }}</p>
   </div>
 {% endblock %}

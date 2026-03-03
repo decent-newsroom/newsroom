@@ -16,7 +16,7 @@
                 data-content--reading-list-dropdown-target="dropdown"
                 data-action="click->content--reading-list-dropdown#toggleDropdown"
                 aria-expanded="false">
-            Add to Reading List
+            {{ 'readingListDropdown.addToList'|trans }}
         </button>
         <ul class="dropdown-menu"
             aria-labelledby="readingListDropdown"
@@ -24,12 +24,12 @@
             {% if lists is empty %}
                 <li>
                     <span class="dropdown-item disabled">
-                        <em>No reading lists yet</em>
+                        <em>{{ 'readingListDropdown.noLists'|trans }}</em>
                     </span>
                 </li>
                 <li><hr class="dropdown-divider"></li>
             {% else %}
-                <li class="dropdown-header">Select a list:</li>
+                <li class="dropdown-header">{{ 'readingListDropdown.selectList'|trans }}</li>
                 {% for list in lists %}
                     <li>
                         <a class="dropdown-item"

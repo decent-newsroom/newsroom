@@ -26,8 +26,8 @@
 
 {% block body %}
     <twig:Atoms:PageHeading
-        heading="Highlights"
-        tagline="Noteworthy passages highlighted by the community"
+        heading="{{ 'highlights.heading'|trans }}"
+        tagline="{{ 'highlights.tagline'|trans }}"
     />
 
     <div class="highlights-container w-container">
@@ -54,7 +54,7 @@
                                         :compact="true"
                                     />
                                 {% else %}
-                                    <span>Anonymous</span>
+                                    <span>{{ 'text.anonymous'|trans }}</span>
                                 {% endif %}
                             </div>
                             <div class="highlight-date">
@@ -89,7 +89,7 @@
                                 <button data-utility--show-more-target="button"
                                         data-action="click->utility--show-more#toggle"
                                         class="show-more-button">
-                                    Show more
+                                    {{ 'text.showMore'|trans }}
                                 </button>
                             {% else %}
                                 <span class="highlight-mark">{{ highlight.content }}</span>
@@ -109,7 +109,7 @@
                                     {% if highlight.article_title %}
                                         {{ highlight.article_title }}
                                     {% else %}
-                                        View original article
+                                        {{ 'text.viewOriginalArticle'|trans }}
                                     {% endif %}
                                 </a>
                             {% elseif highlight.article_ref %}
@@ -118,7 +118,7 @@
                                     {% if highlight.article_title %}
                                         {{ highlight.article_title }}
                                     {% else %}
-                                        Article reference: {{ highlight.article_ref }}
+                                        {{ 'text.articleReference'|trans }}: {{ highlight.article_ref }}
                                     {% endif %}
                                 </span>
                             {% elseif highlight.url %}
@@ -140,7 +140,7 @@
             </div>
         {% else %}
             <div class="no-highlights">
-                <p>No highlights found. Check back later!</p>
+                <p>{{ 'highlights.noHighlights'|trans }}</p>
             </div>
         {% endif %}
     </div>

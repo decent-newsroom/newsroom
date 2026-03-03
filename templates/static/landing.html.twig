@@ -1,90 +1,76 @@
 {% extends 'layout-full.html.twig' %}
 
-{% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
+{% block title %}{{ 'home.title'|trans }}{% endblock %}
 
 {% block body %}
 
     <section class="ln-hero d-flex gap-3 center">
-        <h1 class="brand">Decent Newsroom</h1>
-        <p class="eyebrow">Collaborative publishing on Nostr</p>
-        <p class="lede mb-5">Explore, publish articles, and create magazines.</p>
+        <h1 class="brand">{{ brand_name }}</h1>
+        <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
+        <p class="lede mb-5">{{ 'home.hero.lede'|trans }}</p>
     </section>
 
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5">
-            <h1>Newsstand</h1>
-            <p class="eyebrow">for the digital age</p>
+            <h1>{{ 'home.newsstand.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Flip through a world of magazines in one place. Build your lineup, catch fresh releases, anywhere.</p>
+            <p class="measure">{{ 'home.newsstand.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('newsstand') }}">Explore the rack</a>
+                <a class="btn btn--primary" href="{{ path('newsstand') }}">{{ 'about.exploreRack'|trans }}</a>
             </div>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--search">
         <div class="container mt-5">
-            <h1>Discover</h1>
-            <p class="eyebrow">hidden gems</p>
+            <h1>{{ 'nav.discover'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.explore.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Our search is specialized for long-form Nostr content.</p>
+            <p class="measure">{{ 'home.explore.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('app_search_index') }}">Find what you like</a>
+                <a class="btn btn--primary" href="{{ path('app_search_index') }}">{{ 'home.explore.cta'|trans }}</a>
             </div>
         </div>
     </section>
 
-{#    <section class="d-flex gap-3 center ln-section--lists">#}
-{#        <div class="container mt-5">#}
-{#            <h1>Reading Lists</h1>#}
-{#            <p class="eyebrow">for collections, curations, courses and more</p>#}
-{#        </div>#}
-{#        <div class="mb-5">#}
-{#            <p class="measure">Create ordered reading lists. Add more articles, reorder, republish.</p>#}
-{#            <div class="cta-row">#}
-{#                <a class="btn btn--primary" href="{{ path('reading_list_index') }}">Browse</a>#}
-{#            </div>#}
-{#        </div>#}
-{#    </section>#}
-
     <section class="d-flex gap-3 center ln-section--editor">
         <div class="container mt-5">
-            <h1>Article Editor</h1>
-            <p class="eyebrow">for anyone</p>
+            <h1>{{ 'home.editor.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.editor.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Write, revise, and preview with ease. Save drafts, keep notes, and publish.</p>
+            <p class="measure">{{ 'home.editor.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('editor-create') }}">Write an article</a>
+                <a class="btn btn--primary" href="{{ path('editor-create') }}">{{ 'home.editor.cta'|trans }}</a>
             </div>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--newsroom">
         <div class="container mt-5">
-            <h1>Newsroom</h1>
-            <p class="eyebrow">like no other</p>
+            <h1>{{ 'home.newsroom.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.newsroom.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Create your own magazine, define categories, manage submissions, and collaborate with editors and contributors.</p>
+            <p class="measure">{{ 'home.newsroom.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">Create a magazine</a>
+                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'home.newsroom.cta'|trans }}</a>
             </div>
         </div>
     </section>
 
     <section class="d-flex gap-3 center ln-section--unfold">
         <div class="container mt-5">
-            <h1>Unfold</h1>
-            <p class="eyebrow">your magazine</p>
+            <h1>{{ 'home.unfold.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.unfold.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Unfold is a companion web app. Any magazine created on Decent Newsroom can be plugged in,
-                styled and deployed to a custom domain.</p>
+            <p class="measure">{{ 'home.unfold.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('unfold') }}">Learn more</a>
+                <a class="btn btn--primary" href="{{ path('unfold') }}">{{ 'home.unfold.cta'|trans }}</a>
             </div>
         </div>
     </section>
@@ -92,11 +78,11 @@
 
     <section class="d-flex gap-3 center ln-section--marketplace">
         <div class="container mt-5">
-            <h1>Media Marketplace</h1>
-            <p class="eyebrow">Coming soon</p>
+            <h1>{{ 'home.marketplace.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'home.marketplace.eyebrow'|trans }}</p>
         </div>
         <div class="mb-5">
-            <p class="measure">Commission custom visuals, discover stock you can actually use, and keep media and text in one creative flow.</p>
+            <p class="measure">{{ 'home.marketplace.description'|trans }}</p>
         </div>
     </section>
 

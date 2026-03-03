@@ -1,14 +1,12 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <h1>Page not found</h1>
-    <h2>Alas, the page you seek is lost to the archives.</h2>
+    <h1>{{ 'error.notFound'|trans }}</h1>
+    <h2>{{ 'error.notFoundSubheading'|trans }}</h2>
 
     <p>
-        Like a missing manuscript or a chapter torn from time, the page you're looking for cannot be found.
-        It might have been moved, renamed, or never published at all.
+        {{ 'error.notFoundDescription'|trans }}
     </p>
 
-    <a href="{{ path('home') }}">Return to the homepage</a>
+    <a href="{{ path('home') }}">{{ 'error.returnHome'|trans }}</a>
 {% endblock %}
-

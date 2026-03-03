@@ -2,6 +2,7 @@
 
 ## v0.0.13
 
+- Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
 - Improved db handling of articles.
 - Updated bookmarks page with better fetch and styling.
 - Updated article loading.
