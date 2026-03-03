@@ -1,11 +1,11 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Hosted Unfold | Preprint Release{% endblock %}
+{% block title %}Unfold | Preprint Release{% endblock %}
 
 {% block body %}
     <div class="w-container py-4">
         <twig:Atoms:PageHeading
-            heading="Hosted Unfold"
+            heading="Unfold"
             tagline="Claim your magazine's subdomain and get production-ready Unfold hosting on Decent Newsroom"
         />
 
@@ -20,7 +20,7 @@
         {% if existingSubscription and existingSubscription.status.value == 'active' %}
             {# User already has an active subscription #}
             <div class="notice success" style="max-width: 700px; margin: 0 auto var(--spacing-4);">
-                <strong>✓ Hosted Unfold is active</strong><br>
+                <strong>✓ Unfold is active</strong><br>
                 <span style="font-size: 1.25rem; font-weight: bold;">{{ existingSubscription.subdomain }}.{{ baseDomain }}</span><br>
                 {% if existingSubscription.expiresAt %}
                     Expires: {{ existingSubscription.expiresAt|date('F j, Y') }}
@@ -35,7 +35,7 @@
                 <h3 style="margin-top: 0;">Preprint note</h3>
                 <p style="margin-bottom: 0;">
                     Decent Newsroom is currently in its <strong>Preprint</strong> phase: infrastructure-first, publicly available, and evolving in small, deliberate releases.
-                    Hosted Unfold prioritizes stable namespace allocation and reliable rendering. Publication controls and theming will expand over time.
+                    Unfold prioritizes stable namespace allocation and reliable rendering. Publication controls and theming will expand over time.
                 </p>
             </div>
 
@@ -45,7 +45,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--spacing-3);">
                     <div>
                         <strong>⏳ Payment Pending</strong><br>
-                        Your Hosted Unfold instance at <strong>{{ existingSubscription.subdomain }}.{{ baseDomain }}</strong> is awaiting payment confirmation.
+                        Your Unfold instance at <strong>{{ existingSubscription.subdomain }}.{{ baseDomain }}</strong> is awaiting payment confirmation.
                         <br><small style="color: var(--color-text-mid);">If you didn't pay or want to try a different name, you can cancel this pending reservation.</small>
                     </div>
                     <form action="{{ path('publication_subdomain_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription? You can create a new one with a different subdomain.');">
@@ -77,7 +77,7 @@
             <div class="d-flex flex-column align-items-center gap-3 mb-5">
                 <div style="max-width: 760px; text-align: center;">
                     <p style="margin-bottom: var(--spacing-2);">
-                        <strong>Hosted Unfold</strong> is managed hosting for your Unfold publication on Decent Newsroom.
+                        <strong>Unfold</strong> is managed hosting for your magazine on Decent Newsroom.
                         It gives your magazine a stable address and a reader-friendly rendering layer — without servers, deployments, or certificate work.
                     </p>
                 </div>
@@ -121,7 +121,7 @@
                         <div style="text-align: center; margin-top: var(--spacing-4);">
                             {% if app.user %}
                                 <a href="{{ path('publication_subdomain_subscribe') }}" class="btn btn-primary btn-lg">
-                                    ⚡ Launch Hosted Unfold
+                                    Launch Unfold
                                 </a>
                             {% else %}
                                 <a href="{{ path('app_login') }}" class="btn btn-primary btn-lg">
