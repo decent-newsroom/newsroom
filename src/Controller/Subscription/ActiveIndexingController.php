@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller\Subscription;
 
-use App\Entity\ActiveIndexingSubscription;
 use App\Enum\ActiveIndexingTier;
 use App\Service\ActiveIndexingService;
 use App\Service\Nostr\UserRelayListService;
