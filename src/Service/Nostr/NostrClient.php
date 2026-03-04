@@ -5,8 +5,6 @@ namespace App\Service\Nostr;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
-use App\Repository\EventRepository;
-use App\Service\AuthorRelayService;
 use App\Util\NostrKeyUtil;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,9 +31,8 @@ class NostrClient
                                 private readonly LoggerInterface        $logger,
                                 private readonly CacheItemPoolInterface $npubCache,
                                 private readonly NostrRelayPool         $relayPool,
-                                private readonly EventRepository        $eventRepository,
-                                private readonly AuthorRelayService     $authorRelayService,
                                 private readonly RelayRegistry          $relayRegistry,
+                                private readonly UserRelayListService   $userRelayListService,
                                 private readonly ?string                $nostrDefaultRelay = null)
     {
         // Initialize default relay set from the RelayRegistry
@@ -62,42 +59,11 @@ class NostrClient
     }
 
     /**
-     * Get top 3 reputable relays from an author's relay list
+     * Get top relays for an author — delegates to UserRelayListService.
      */
     private function getTopReputableRelaysForAuthor(string $pubkey, int $limit = 3): array
     {
-        try {
-            $authorRelays = $this->getNpubRelays($pubkey);
-        } catch (\Exception $e) {
-            $this->logger->error('Error getting author relays', [
-                'pubkey' => $pubkey,
-                'error' => $e->getMessage()
-            ]);
-            // fall through
-            $authorRelays = [];
-        }
-        if (empty($authorRelays)) {
-            return $this->relayRegistry->getContentRelays(); // Default to content relays if no author relays
-        }
-
-        $contentRelays = $this->relayRegistry->getContentRelays();
-        $reputableAuthorRelays = [];
-        foreach ($contentRelays as $relay) {
-            if (in_array($relay, $authorRelays) && count($reputableAuthorRelays) < $limit) {
-                $reputableAuthorRelays[] = $relay;
-            }
-        }
-
-        // If no reputable relays found in author's list, take the top 3 from author's list
-        // But make sure they start with wss: and are not localhost
-        if (empty($reputableAuthorRelays)) {
-            $authorRelays = array_filter($authorRelays, function ($relay) {
-                return str_starts_with($relay, 'wss:') && !str_contains($relay, 'localhost');
-            });
-            return $limit != 0 ? array_slice($authorRelays, 0, $limit) : $authorRelays;
-        }
-
-        return $reputableAuthorRelays;
+        return $this->userRelayListService->getTopRelaysForAuthor($pubkey, $limit);
     }
 
     /**
@@ -618,137 +584,17 @@ class NostrClient
     }
 
     /**
-     * Get relay list for an npub/pubkey
+     * Get relay list for an npub/pubkey.
      *
-     * OPTIMIZED: Now uses multi-level fallback strategy:
-     * 1. Check cache
-     * 2. Check database for persisted kind:10002 events
-     * 3. Use AuthorRelayService (optimized relay fetching)
-     * 4. Fallback to reputable relays
+     * Delegates to UserRelayListService which implements stale-while-revalidate
+     * with DB write-through: cache → DB → network → fallback.
      *
      * @param string $npub Npub or hex pubkey
      * @return array Flat array of relay URLs for backward compatibility
-     * @throws \Exception|\Psr\Cache\InvalidArgumentException
      */
     public function getNpubRelays($npub): array
     {
-        $cacheKey = 'npub_relays_' . $npub;
-
-        // 1. Check cache first
-        try {
-            $cachedItem = $this->npubCache->getItem($cacheKey);
-            if ($cachedItem->isHit()) {
-                $this->logger->debug('Using cached relays for npub', ['npub' => substr($npub, 0, 8) . '...']);
-                return $cachedItem->get();
-            }
-        } catch (\Exception $e) {
-            $this->logger->warning('Cache error', ['error' => $e->getMessage()]);
-        }
-
-        // Convert npub to hex if needed
-        $pubkeyHex = str_starts_with($npub, 'npub1') ? NostrKeyUtil::npubToHex($npub) : $npub;
-
-        // 2. Try database first (persisted kind:10002 events)
-        $relays = $this->getRelaysFromDatabase($pubkeyHex);
-
-        // 3. If no DB data, use AuthorRelayService (optimized fetching)
-        if (empty($relays)) {
-            $relays = $this->getRelaysFromAuthorService($pubkeyHex);
-        }
-
-        // 4. Final fallback to content relays from registry
-        if (empty($relays)) {
-            $this->logger->debug('No relays found, using registry content relays as fallback', [
-                'pubkey' => substr($pubkeyHex, 0, 8) . '...'
-            ]);
-            $relays = array_slice($this->relayRegistry->getContentRelays(), 0, 3);
-        }
-
-        // Cache the result
-        try {
-            $cachedItem = $this->npubCache->getItem($cacheKey);
-            $cachedItem->set($relays);
-            $cachedItem->expiresAfter(3600); // 1 hour
-            $this->npubCache->save($cachedItem);
-        } catch (\Exception $e) {
-            $this->logger->warning('Cache save error', ['error' => $e->getMessage()]);
-        }
-
-        return $relays;
-    }
-
-    /**
-     * Get relays from database (persisted kind:10002 events)
-     */
-    private function getRelaysFromDatabase(string $pubkeyHex): array
-    {
-        try {
-            $relayEvent = $this->eventRepository->findLatestRelayListByPubkey($pubkeyHex);
-
-            if (!$relayEvent) {
-                return [];
-            }
-
-            $relays = [];
-            $tags = $relayEvent->getTags() ?? [];
-
-            foreach ($tags as $tag) {
-                if (isset($tag[0]) && $tag[0] === 'r' && isset($tag[1])) {
-                    $relayUrl = $tag[1];
-                    if ($this->isValidRelayUrl($relayUrl)) {
-                        $relays[] = $relayUrl;
-                    }
-                }
-            }
-
-            if (!empty($relays)) {
-                $this->logger->debug('Loaded relays from database', [
-                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                    'count' => count($relays),
-                    'age' => time() - ($relayEvent->getCreatedAt() ?? 0)
-                ]);
-            }
-
-            return array_unique($relays);
-        } catch (\Exception $e) {
-            $this->logger->warning('Error loading relays from database', [
-                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                'error' => $e->getMessage()
-            ]);
-            return [];
-        }
-    }
-
-    /**
-     * Get relays using AuthorRelayService (optimized network fetching)
-     */
-    private function getRelaysFromAuthorService(string $pubkeyHex): array
-    {
-        try {
-            $authorRelays = $this->authorRelayService->getAuthorRelays($pubkeyHex);
-
-            // Flatten to simple array (combining read/write for backward compatibility)
-            $relays = array_unique(array_merge(
-                $authorRelays['read'] ?? [],
-                $authorRelays['write'] ?? [],
-                $authorRelays['all'] ?? []
-            ));
-
-            if (!empty($relays)) {
-                $this->logger->debug('Fetched relays from network via AuthorRelayService', [
-                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                    'count' => count($relays)
-                ]);
-            }
-
-            return array_values($relays);
-        } catch (\Exception $e) {
-            $this->logger->warning('Error fetching relays via AuthorRelayService', [
-                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                'error' => $e->getMessage()
-            ]);
-            return [];
-        }
+        return $this->userRelayListService->getRelays($npub);
     }
 
     /**

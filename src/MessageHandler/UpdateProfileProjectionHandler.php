@@ -5,8 +5,8 @@ namespace App\MessageHandler;
 use App\Entity\User;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -33,7 +33,7 @@ class UpdateProfileProjectionHandler
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
-        private readonly AuthorRelayService $authorRelayService
+        private readonly UserRelayListService $userRelayListService
     ) {
     }
 
@@ -307,9 +307,10 @@ class UpdateProfileProjectionHandler
     private function updateRelayListFacet(User $user, string $pubkeyHex): bool
     {
         try {
-            // Use AuthorRelayService with forceRefresh=true to fetch and cache relays
+            // Use UserRelayListService with revalidation to fetch, persist to DB, and cache relays
             // This is async so network calls are safe here
-            $relays = $this->authorRelayService->getAuthorRelays($pubkeyHex, true);
+            $this->userRelayListService->revalidate($pubkeyHex);
+            $relays = $this->userRelayListService->getRelayList($pubkeyHex);
 
             if (empty($relays['all'])) {
                 $this->logger->debug('No relay list found for user', [

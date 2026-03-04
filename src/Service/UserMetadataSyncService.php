@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\User;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -15,7 +16,7 @@ class UserMetadataSyncService
         private readonly RedisCacheService $redisCacheService,
         private readonly EntityManagerInterface $entityManager,
         private readonly UserEntityRepository $userRepository,
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -48,8 +49,8 @@ class UserMetadataSyncService
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Use non-blocking mode to avoid slowing down login
-                $relays = $this->authorRelayService->getAuthorRelays($hexPubkey, false);
+                // Use UserRelayListService — cache-only for fast sync
+                $relays = $this->userRelayListService->getRelayList($hexPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $this->logger->debug("Synced relays for user: {$npub}", [

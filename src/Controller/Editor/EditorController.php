@@ -11,10 +11,10 @@ use App\Enum\RolesEnum;
 use App\Factory\ArticleFactory;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Message\RevalidateProfileCacheMessage;
@@ -43,7 +43,7 @@ class EditorController extends AbstractController
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
-        AuthorRelayService $authorRelayService,
+        UserRelayListService $userRelayListService,
         MessageBusInterface $messageBus,
         $slug = null
     ): Response
@@ -93,9 +93,9 @@ class EditorController extends AbstractController
             $storedRelays = $user->getRelays();
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
-            if (!$hasValidRelays || $storedRelays['all'] === AuthorRelayService::FALLBACK_RELAYS) {
-                // Use non-blocking mode to avoid timeout - returns fallbacks immediately on cache miss
-                $relays = $authorRelayService->getAuthorRelays($currentPubkey, true);
+            if (!$hasValidRelays) {
+                // Use UserRelayListService — stale-while-revalidate, fast on cache hit
+                $relays = $userRelayListService->getRelayList($currentPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
@@ -161,7 +161,7 @@ class EditorController extends AbstractController
         NostrEventParser $eventParser,
         Request $request,
         NostrClient $nostrClient,
-        AuthorRelayService $authorRelayService,
+        UserRelayListService $userRelayListService,
         MessageBusInterface $messageBus
     ): Response {
         // This route previews another user's article, but sidebar shows current user's lists for navigation.
@@ -200,8 +200,8 @@ class EditorController extends AbstractController
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Use non-blocking mode to avoid timeout - returns fallbacks immediately
-                $relays = $authorRelayService->getAuthorRelays($currentPubkey, false, true);
+                // Use UserRelayListService — stale-while-revalidate, fast on cache hit
+                $relays = $userRelayListService->getRelayList($currentPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
@@ -255,7 +255,7 @@ class EditorController extends AbstractController
         LoggerInterface $logger,
         NostrEventParser $eventParser,
         UserEntityRepository $userRepository,
-        AuthorRelayService $authorRelayService,
+        UserRelayListService $userRelayListService,
         ArticleFactory $articleFactory,
         RedisViewStore $redisViewStore,
         MessageBusInterface $messageBus
@@ -345,13 +345,13 @@ class EditorController extends AbstractController
                     $relays = $storedRelays['write'] ?? $storedRelays['all'] ?? [];
                     $logger->debug('Using stored relays from User entity', ['relay_count' => count($relays)]);
                 } else {
-                    // Fallback to AuthorRelayService (cached with fallbacks, non-blocking)
+                    // Fallback to UserRelayListService (stale-while-revalidate)
                     try {
                         $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                        $relays = $authorRelayService->getRelaysForPublishing($pubkeyHex);
+                        $relays = $userRelayListService->getRelaysForPublishing($pubkeyHex);
                     } catch (\Exception $e) {
                         $logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
-                        $relays = $authorRelayService->getFallbackRelays();
+                        $relays = $userRelayListService->getRelaysForPublishing('');
                     }
                 }
             } elseif ($eventPubkeyHex) {
@@ -371,19 +371,19 @@ class EditorController extends AbstractController
                         }
                     }
 
-                    // If we still don't have relays, fetch from AuthorRelayService
+                    // If we still don't have relays, fetch via UserRelayListService
                     if (empty($relays)) {
-                        $relays = $authorRelayService->getRelaysForPublishing($eventPubkeyHex);
-                        $logger->debug('Fetched relays from AuthorRelayService for event pubkey', ['relay_count' => count($relays)]);
+                        $relays = $userRelayListService->getRelaysForPublishing($eventPubkeyHex);
+                        $logger->debug('Fetched relays from UserRelayListService for event pubkey', ['relay_count' => count($relays)]);
                     }
                 } catch (\Exception $e) {
                     $logger->warning('Failed to get relays from event pubkey, using fallbacks', ['error' => $e->getMessage()]);
-                    $relays = $authorRelayService->getFallbackRelays();
+                    $relays = $userRelayListService->getRelaysForPublishing('');
                 }
             } else {
                 // No user and no pubkey in event - use fallbacks
                 $logger->warning('No user session and no pubkey in event, using fallback relays');
-                $relays = $authorRelayService->getFallbackRelays();
+                $relays = $userRelayListService->getRelaysForPublishing('');
             }
 
             // Publish to Nostr relays

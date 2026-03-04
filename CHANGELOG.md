@@ -5,6 +5,8 @@ Internationalization.
 
 - Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
 - Relay pool management Phase 1: centralized relay configuration via `RelayRegistry` (replaces 4 scattered hardcoded constants), Redis-backed persistent health tracking via `RelayHealthStore`, and consolidated 3 near-identical subscription loops (~600 lines) into one parameterized `subscribeLocal()` method with heartbeat reporting.
+- Relay pool management Phase 2.1: `UserRelayListService` — stale-while-revalidate relay list resolution with DB write-through (cache → DB → network → fallback). Replaces fragmented relay resolution in NostrClient (`getNpubRelays`, `getRelaysFromDatabase`, `getRelaysFromAuthorService`, `getTopReputableRelaysForAuthor`). Persists kind 10002 events to the Event table on successful network fetch.
+- Relay pool management Phase 2.2: async relay list warming on login — `UpdateRelayListMessage` dispatched via Messenger on `LoginSuccessEvent`, handled on the low-priority queue so relay data is pre-warmed by the time the user navigates to follows/editor.
 
 
 ## v0.0.13

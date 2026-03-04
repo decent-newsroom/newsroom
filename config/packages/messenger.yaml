@@ -53,6 +53,8 @@ framework:
             'App\Message\BatchUpdateProfileProjectionMessage': async_low_priority
             # Profile cache revalidation - background refresh for stale-while-revalidate
             'App\Message\RevalidateProfileCacheMessage': async_low_priority
+            # Relay list warming on login - fetch from network and persist to DB
+            'App\Message\UpdateRelayListMessage': async_low_priority
 
 # when@test:
 #    framework:
