@@ -1,8 +1,8 @@
 <?php
 namespace App\Controller;
 
-use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
@@ -16,7 +16,7 @@ class CommentController extends AbstractController
 {
     public function __construct(
         private readonly NostrClient $nostrClient,
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -150,7 +150,7 @@ class CommentController extends AbstractController
 
         // Get relays for the commenter
         try {
-            $commenterRelays = $this->authorRelayService->getRelaysForPublishing($commenterPubkey);
+            $commenterRelays = $this->userRelayListService->getRelaysForPublishing($commenterPubkey);
             foreach ($commenterRelays as $relay) {
                 if (!in_array($relay, $relays)) {
                     $relays[] = $relay;
@@ -169,7 +169,7 @@ class CommentController extends AbstractController
 
         // Get relays for the article author
         try {
-            $articleAuthorRelays = $this->authorRelayService->getRelaysForPublishing($articleAuthorPubkey);
+            $articleAuthorRelays = $this->userRelayListService->getRelaysForPublishing($articleAuthorPubkey);
             foreach ($articleAuthorRelays as $relay) {
                 if (!in_array($relay, $relays)) {
                     $relays[] = $relay;
@@ -188,7 +188,7 @@ class CommentController extends AbstractController
 
         // If no relays were collected, use fallback relays
         if (empty($relays)) {
-            $relays = $this->authorRelayService->getFallbackRelays();
+            $relays = $this->userRelayListService->getFallbackRelays();
             $this->logger->info('Using fallback relays', [
                 'relay_count' => count($relays),
             ]);

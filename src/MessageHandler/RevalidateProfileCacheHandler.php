@@ -12,7 +12,7 @@ use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
-use App\Service\AuthorRelayService;
+use App\Service\Nostr\UserRelayListService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Search\ArticleSearchInterface;
@@ -35,7 +35,7 @@ class RevalidateProfileCacheHandler
         private readonly ArticleSearchInterface $articleSearch,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $messageBus,
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -53,7 +53,7 @@ class RevalidateProfileCacheHandler
 
         try {
             // Dispatch async fetch to get fresh data from relays
-            $relays = $this->authorRelayService->getRelaysForFetching($pubkey);
+            $relays = $this->userRelayListService->getRelaysForFetching($pubkey);
             $this->messageBus->dispatch(new FetchAuthorContentMessage(
                 $pubkey,
                 $isOwner ? AuthorContentType::cases() : AuthorContentType::publicTypes(),

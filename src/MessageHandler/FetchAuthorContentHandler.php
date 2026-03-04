@@ -9,8 +9,8 @@ use App\Enum\AuthorContentType;
 use App\Factory\ArticleFactory;
 use App\Message\FetchAuthorContentMessage;
 use App\Repository\EventRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -23,7 +23,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 class FetchAuthorContentHandler
 {
     public function __construct(
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly NostrRelayPool $relayPool,
         private readonly EventRepository $eventRepository,
         private readonly ArticleFactory $articleFactory,
@@ -53,7 +53,7 @@ class FetchAuthorContentHandler
         ]);
 
         // Get relays - either from message or auto-discover via NIP-65
-        $relays = $message->getRelays() ?? $this->authorRelayService->getRelaysForFetching($pubkey);
+        $relays = $message->getRelays() ?? $this->userRelayListService->getRelaysForFetching($pubkey);
 
         if (empty($relays)) {
             $this->logger->error('❌ No relays available for fetching author content', [

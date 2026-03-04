@@ -10,11 +10,11 @@ use Psr\Log\LoggerInterface;
 /**
  * Single source of truth for all relay URLs and their purposes.
  *
- * Replaces the four scattered hardcoded constants:
+ * Replaces the four scattered hardcoded constants (now removed):
  *   - NostrRelayPool::PUBLIC_RELAYS
  *   - NostrClient::REPUTABLE_RELAYS
- *   - AuthorRelayService::PROFILE_RELAYS
- *   - AuthorRelayService::FALLBACK_RELAYS
+ *   - AuthorRelayService::PROFILE_RELAYS (deleted)
+ *   - AuthorRelayService::FALLBACK_RELAYS (deleted)
  *
  * LOCAL and PROJECT are the **same physical relay** (strfry) accessed via
  * different network paths. LOCAL is the internal Docker URL used by server

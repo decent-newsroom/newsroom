@@ -7,7 +7,7 @@ namespace App\Command;
 use App\Enum\AuthorContentType;
 use App\Message\FetchAuthorContentMessage;
 use App\Service\ActiveIndexingService;
-use App\Service\AuthorRelayService;
+use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -30,7 +30,7 @@ class ActiveIndexingFetchCommand extends Command
 {
     public function __construct(
         private readonly ActiveIndexingService $activeIndexingService,
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
     ) {
@@ -120,7 +120,7 @@ class ActiveIndexingFetchCommand extends Command
 
                 if ($relays === null) {
                     // Use NIP-65 relay discovery
-                    $relays = $this->authorRelayService->getRelaysForFetching($pubkeyHex);
+                    $relays = $this->userRelayListService->getRelaysForFetching($pubkeyHex);
                 }
 
                 if (empty($relays)) {

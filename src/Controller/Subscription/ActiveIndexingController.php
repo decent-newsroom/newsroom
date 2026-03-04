@@ -7,7 +7,7 @@ namespace App\Controller\Subscription;
 use App\Entity\ActiveIndexingSubscription;
 use App\Enum\ActiveIndexingTier;
 use App\Service\ActiveIndexingService;
-use App\Service\AuthorRelayService;
+use App\Service\Nostr\UserRelayListService;
 use App\Service\QRGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,7 +21,7 @@ class ActiveIndexingController extends AbstractController
 {
     public function __construct(
         private readonly ActiveIndexingService $activeIndexingService,
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly UserRelayListService $userRelayListService,
         private readonly QRGenerator $qrGenerator,
     ) {}
 
@@ -40,7 +40,7 @@ class ActiveIndexingController extends AbstractController
             try {
                 $key = new Key();
                 $pubkeyHex = $key->convertToHex($npub);
-                $relayData = $this->authorRelayService->getAuthorRelays($pubkeyHex);
+                $relayData = $this->userRelayListService->getRelayList($pubkeyHex);
                 $nip65Relays = $relayData['all'] ?? [];
             } catch (\Exception $e) {
                 // Ignore errors, just show empty relay list
@@ -113,7 +113,7 @@ class ActiveIndexingController extends AbstractController
         try {
             $key = new Key();
             $pubkeyHex = $key->convertToHex($npub);
-            $relayData = $this->authorRelayService->getAuthorRelays($pubkeyHex);
+            $relayData = $this->userRelayListService->getRelayList($pubkeyHex);
             $nip65Relays = $relayData['all'] ?? [];
         } catch (\Exception $e) {
             // Ignore errors

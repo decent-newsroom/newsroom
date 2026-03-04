@@ -13,7 +13,6 @@ use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\VisitRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrLinkParser;

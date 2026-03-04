@@ -8,8 +8,8 @@ use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
@@ -360,7 +360,7 @@ class ForumController extends AbstractController
     public function publishInterests(
         Request $request,
         NostrClient $nostrClient,
-        AuthorRelayService $authorRelayService,
+        UserRelayListService $userRelayListService,
         LoggerInterface $logger,
     ): JsonResponse {
         try {
@@ -399,7 +399,7 @@ class ForumController extends AbstractController
 
             // Collect relays for publishing
             $pubkey = $signedEvent['pubkey'];
-            $relays = $authorRelayService->getRelaysForPublishing($pubkey);
+            $relays = $userRelayListService->getRelaysForPublishing($pubkey);
 
             $logger->info('Publishing interests event', [
                 'event_id' => $signedEvent['id'],

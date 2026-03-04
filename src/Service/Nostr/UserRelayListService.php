@@ -8,11 +8,13 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
 use App\Repository\EventRepository;
-use App\Service\AuthorRelayService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use swentel\nostr\Filter\Filter;
+use swentel\nostr\Message\RequestMessage;
+use swentel\nostr\Subscription\Subscription;
 
 /**
  * Stale-while-revalidate relay list resolution with DB write-through.
@@ -20,19 +22,17 @@ use Psr\Log\LoggerInterface;
  * Resolution order:
  *   1. Redis/PSR-6 cache (hot, < TTL)
  *   2. Database (Event table, kind 10002) — durable stale copy
- *   3. Network fetch via AuthorRelayService (profile relays)
+ *   3. Network fetch from profile relays (NIP-65)
  *   4. Fallback relays from RelayRegistry
  *
- * On successful network fetch the raw kind 10002 event is persisted to the
+ * On successful network fetch the kind 10002 event is persisted to the
  * Event table (only if `created_at` is newer). This guarantees that relay
  * lists — notoriously unreliable to find on the network — survive cache
  * evictions, Redis restarts, and cold starts.
  *
- * Replaces the fragmented relay resolution scattered across NostrClient:
- *   - getNpubRelays()
- *   - getRelaysFromDatabase()
- *   - getRelaysFromAuthorService()
- *   - getTopReputableRelaysForAuthor()
+ * Replaces both AuthorRelayService and the fragmented relay resolution
+ * scattered across NostrClient (getNpubRelays, getRelaysFromDatabase,
+ * getRelaysFromAuthorService, getTopReputableRelaysForAuthor).
  */
 class UserRelayListService
 {
@@ -40,7 +40,7 @@ class UserRelayListService
     private const CACHE_PREFIX = 'user_relay_list_';
 
     public function __construct(
-        private readonly AuthorRelayService $authorRelayService,
+        private readonly NostrRelayPool $relayPool,
         private readonly RelayRegistry $relayRegistry,
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $em,
@@ -232,6 +232,30 @@ class UserRelayListService
     }
 
     /**
+     * Get fallback relays (local + project). Convenience alias for RelayRegistry.
+     * @return string[]
+     */
+    public function getFallbackRelays(): array
+    {
+        return $this->relayRegistry->getFallbackRelays();
+    }
+
+    /**
+     * Get the structured relay list for a pubkey.
+     * Backward-compatible alias for getRelayList() — matches the old
+     * AuthorRelayService::getAuthorRelays() signature.
+     *
+     * @return array{read: string[], write: string[], all: string[], created_at: ?int}
+     */
+    public function getAuthorRelays(string $pubkey, bool $forceRefresh = false): array
+    {
+        if ($forceRefresh) {
+            $this->revalidate($pubkey);
+        }
+        return $this->getRelayList($pubkey);
+    }
+
+    /**
      * Force a network revalidation and persist the result.
      * Called by the async UpdateRelayListMessage handler on login.
      */
@@ -252,8 +276,6 @@ class UserRelayListService
         } catch (\Exception $e) {
             $this->logger->warning('UserRelayListService: cache invalidation failed', ['error' => $e->getMessage()]);
         }
-        // Also invalidate the legacy AuthorRelayService cache
-        $this->authorRelayService->invalidateCache($hex);
     }
 
     // ------------------------------------------------------------------
@@ -301,28 +323,84 @@ class UserRelayListService
     }
 
     /**
-     * Fetch from the network via AuthorRelayService, persist to DB, warm cache.
+     * Fetch kind 10002 relay list from profile relays, persist to DB, warm cache.
      */
     private function fromNetwork(string $hex): ?array
     {
-        try {
-            $authorRelays = $this->authorRelayService->getAuthorRelays($hex, true);
+        $this->logger->info('UserRelayListService: fetching NIP-65 relay list from network', [
+            'pubkey' => substr($hex, 0, 8),
+        ]);
 
-            if (empty($authorRelays['all'])) {
-                $this->logger->debug('UserRelayListService: network returned no relays', [
+        try {
+            $profileRelays = $this->relayRegistry->getProfileRelays();
+            $responses = $this->relayPool->sendToRelays(
+                $profileRelays,
+                function () use ($hex) {
+                    $subscription = new Subscription();
+                    $subscriptionId = $subscription->setId();
+                    $filter = new Filter();
+                    $filter->setKinds([KindsEnum::RELAY_LIST->value]);
+                    $filter->setAuthors([$hex]);
+                    $filter->setLimit(1);
+                    return new RequestMessage($subscriptionId, [$filter]);
+                }
+            );
+
+            // Collect events from all relay responses
+            $events = [];
+            foreach ($responses as $relayResponses) {
+                foreach ($relayResponses as $response) {
+                    if (isset($response->type) && $response->type === 'EVENT' && isset($response->event)) {
+                        $events[] = $response->event;
+                    }
+                }
+            }
+
+            if (empty($events)) {
+                $this->logger->debug('UserRelayListService: no NIP-65 relay list found on network', [
                     'pubkey' => substr($hex, 0, 8),
                 ]);
                 return null;
             }
 
-            $result = [
-                'read' => $authorRelays['read'] ?? [],
-                'write' => $authorRelays['write'] ?? [],
-                'all' => $authorRelays['all'] ?? [],
-                'created_at' => $authorRelays['created_at'] ?? time(),
-            ];
+            // Take the newest event
+            usort($events, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
+            $latestEvent = $events[0];
 
-            // Write-through: persist raw event to DB if newer
+            // Parse relay list from tags
+            $result = ['read' => [], 'write' => [], 'all' => [], 'created_at' => $latestEvent->created_at ?? time()];
+
+            foreach ($latestEvent->tags ?? [] as $tag) {
+                if (!is_array($tag) || ($tag[0] ?? '') !== 'r') {
+                    continue;
+                }
+                $relayUrl = $tag[1] ?? null;
+                if (!$relayUrl || !$this->isValidRelay($relayUrl)) {
+                    continue;
+                }
+
+                $marker = $tag[2] ?? null;
+                if ($marker === 'read') {
+                    $result['read'][] = $relayUrl;
+                } elseif ($marker === 'write') {
+                    $result['write'][] = $relayUrl;
+                } else {
+                    // No marker means both read and write
+                    $result['read'][] = $relayUrl;
+                    $result['write'][] = $relayUrl;
+                }
+                $result['all'][] = $relayUrl;
+            }
+
+            $result['read'] = array_values(array_unique($result['read']));
+            $result['write'] = array_values(array_unique($result['write']));
+            $result['all'] = array_values(array_unique($result['all']));
+
+            if (empty($result['all'])) {
+                return null;
+            }
+
+            // Write-through: persist to DB if newer
             $this->persistToDatabase($hex, $result);
 
             // Warm cache
@@ -331,6 +409,8 @@ class UserRelayListService
             $this->logger->info('UserRelayListService: network fetch successful', [
                 'pubkey' => substr($hex, 0, 8),
                 'relay_count' => count($result['all']),
+                'read_count' => count($result['read']),
+                'write_count' => count($result['write']),
             ]);
 
             return $result;

@@ -3,8 +3,8 @@
 namespace App\Controller\Api;
 
 use App\Repository\ArticleRepository;
-use App\Service\AuthorRelayService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,7 +20,7 @@ class ArticleBroadcastController extends AbstractController
         private readonly ArticleRepository $articleRepository,
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
-        private readonly AuthorRelayService $authorRelayService
+        private readonly UserRelayListService $userRelayListService
     ) {}
 
     /**
@@ -53,13 +53,13 @@ class ArticleBroadcastController extends AbstractController
                         'error' => 'Authentication required to broadcast articles'
                     ], 401);
                 }
-                // Fallback to AuthorRelayService
+                // Fallback to UserRelayListService
                 try {
                     $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                    $relays = $this->authorRelayService->getRelaysForPublishing($pubkeyHex);
+                    $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
                 } catch (\Exception $e) {
                     $this->logger->warning('Failed to get user relays, using fallbacks', ['error' => $e->getMessage()]);
-                    $relays = $this->authorRelayService->getFallbackRelays();
+                    $relays = $this->userRelayListService->getFallbackRelays();
                 }
             }
 

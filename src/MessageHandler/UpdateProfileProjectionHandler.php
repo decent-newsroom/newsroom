@@ -299,10 +299,10 @@ class UpdateProfileProjectionHandler
     }
 
     /**
-     * Update relay list facet (kind:10002) using AuthorRelayService
+     * Update relay list facet (kind:10002) using UserRelayListService
      *
      * This runs asynchronously so it can make network calls safely.
-     * The relays are cached by AuthorRelayService and persisted to User entity.
+     * The relays are fetched via stale-while-revalidate and persisted to User entity.
      */
     private function updateRelayListFacet(User $user, string $pubkeyHex): bool
     {
