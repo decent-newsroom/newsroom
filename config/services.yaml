@@ -18,7 +18,6 @@ parameters:
         - 'wss://theforest.nostr1.com'
         - 'wss://relay.damus.io'
         - 'wss://relay.primal.net'
-        - 'wss://nostr.land'
         - 'wss://nos.lol'
         - 'wss://relay.snort.social'
     relay_registry.project_relays:
