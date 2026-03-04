@@ -2,6 +2,7 @@
 
 namespace App\Service\Nostr;
 
+use App\Util\NostrPhp\RelaySubscriptionHandler;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -27,13 +28,6 @@ class NostrRelayPool
     /** @var array<string> */
     private array $defaultRelays = [];
 
-    /** @var array<string> Default public relays to fall back to */
-    private const PUBLIC_RELAYS = [
-        'wss://theforest.nostr1.com',
-        'wss://relay.damus.io',
-        'wss://relay.primal.net',
-    ];
-
     private const MAX_RETRIES = 3;
     private const RETRY_DELAY = 5; // seconds
     private const CONNECTION_TIMEOUT = 15; // seconds
@@ -41,37 +35,28 @@ class NostrRelayPool
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly RelayRegistry $relayRegistry,
+        private readonly RelayHealthStore $healthStore,
         private readonly string $nostrDefaultRelay,
         array $defaultRelays = []
     ) {
-        // Build relay list: prioritize local relay, then custom relays, then public relays
-        $relayList = [];
-
-        // Add local relay first if configured
-        if ($this->nostrDefaultRelay) {
-            $relayList[] = $this->nostrDefaultRelay;
-            $this->logger->info('NostrRelayPool: Local relay configured as primary', [
-                'relay' => $this->nostrDefaultRelay
-            ]);
-        }
-
-        // Add custom relays (excluding local relay if already added)
+        // Build relay list from RelayRegistry (replaces hardcoded PUBLIC_RELAYS)
         if (!empty($defaultRelays)) {
+            // Explicit relay list provided — use it (with local relay first)
+            $relayList = [];
+            if ($this->nostrDefaultRelay) {
+                $relayList[] = $this->nostrDefaultRelay;
+            }
             foreach ($defaultRelays as $relay) {
                 if (!in_array($relay, $relayList, true)) {
                     $relayList[] = $relay;
                 }
             }
+            $this->defaultRelays = $relayList;
         } else {
-            // Use public relays as fallback
-            foreach (self::PUBLIC_RELAYS as $relay) {
-                if (!in_array($relay, $relayList, true)) {
-                    $relayList[] = $relay;
-                }
-            }
+            // Use RelayRegistry defaults: local → project → content
+            $this->defaultRelays = $this->relayRegistry->getDefaultRelays();
         }
-
-        $this->defaultRelays = $relayList;
 
         $this->logger->info('NostrRelayPool initialized with relay priority', [
             'relay_count' => count($this->defaultRelays),
@@ -197,15 +182,19 @@ class NostrRelayPool
         ]);
 
         try {
+            $startTime = microtime(true);
             $responses = $request->send();
+            $elapsedMs = (int) ((microtime(true) - $startTime) * 1000);
 
-            // Update last connected time for all relays that returned responses
+            // Update last connected time and health for all relays that returned responses
             foreach ($relays as $relay) {
                 $url = $relay->getUrl();
                 if (isset($responses[$url])) {
                     $this->lastConnected[$url] = time();
                     // Reset connection attempts on success
                     $this->connectionAttempts[$url] = 0;
+                    // Record success in persistent health store
+                    $this->healthStore->recordSuccess($url, $elapsedMs);
                 }
             }
 
@@ -220,6 +209,8 @@ class NostrRelayPool
             foreach ($relays as $relay) {
                 $url = $relay->getUrl();
                 $this->connectionAttempts[$url] = ($this->connectionAttempts[$url] ?? 0) + 1;
+                // Record failure in persistent health store
+                $this->healthStore->recordFailure($url);
 
                 // If too many failures, remove from pool
                 if ($this->connectionAttempts[$url] >= self::MAX_RETRIES) {
@@ -345,445 +336,34 @@ class NostrRelayPool
     }
 
     /**
-     * Subscribe to local relay for article events with long-lived connection
-     * This method blocks indefinitely and calls the callback for each received article event
-     *
-     * @param callable $onArticleEvent Callback function that receives (object $event, string $relayUrl)
-     * @throws \Exception|\Throwable If local relay is not configured or connection fails
+     * Get the RelayRegistry instance (for callers that need purpose-based relay resolution).
      */
-    public function subscribeLocalArticles(callable $onArticleEvent): void
+    public function getRelayRegistry(): RelayRegistry
     {
-        if (!$this->nostrDefaultRelay) {
-            throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
-        }
-
-        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
-
-        $this->logger->info('Starting long-lived subscription to local relay for articles', [
-            'relay' => $relayUrl,
-            'kind' => 30023
-        ]);
-
-        // Get relay connection
-        $relay = $this->getRelay($relayUrl);
-
-        // Ensure relay is connected
-        if (!$relay->isConnected()) {
-            $relay->connect();
-        }
-
-        $client = $relay->getClient();
-
-        // Use reasonable timeout like TweakedRequest does (15 seconds per receive call)
-        // This allows for proper WebSocket handshake and message handling
-        $client->setTimeout(15);
-
-        // Create subscription for article events (kind 30023)
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-
-        $filter = new Filter();
-        $filter->setKinds([30023]); // Longform article events only (media handled by media worker)
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-        $payload = $requestMessage->generate();
-
-        $this->logger->info('Sending REQ to local relay', [
-            'relay' => $relayUrl,
-            'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => [30023]]
-        ]);
-
-        // Send the subscription request
-        $client->text($payload);
-
-        $this->logger->info('Entering infinite receive loop for article events...');
-
-        // Track if we've received EOSE
-        $eoseReceived = false;
-
-        // Use shared handler for common relay logic
-        $handler = new \App\Util\NostrPhp\RelaySubscriptionHandler($this->logger);
-
-        // Infinite loop: receive and process messages
-        while (true) {
-            try {
-                $resp = $client->receive();
-
-                // Handle PING/PONG using shared handler
-                if ($resp instanceof \WebSocket\Message\Ping) {
-                    $handler->handlePing($client);
-                    continue;
-                }
-
-                // Only process text messages
-                if (!($resp instanceof \WebSocket\Message\Text)) {
-                    continue;
-                }
-
-                // Parse relay response using shared handler
-                $relayResponse = $handler->parseRelayResponse($resp);
-                if (!$relayResponse) {
-                    continue;
-                }
-
-
-                // Handle different response types
-                switch ($relayResponse->type) {
-                    case 'EVENT':
-                        // This is an article event - process it
-                        if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
-                            $event = $relayResponse->event;
-
-                            $this->logger->info('Received article event from relay', [
-                                'relay' => $relayUrl,
-                                'event_id' => $event->id ?? 'unknown',
-                                'kind' => $event->kind ?? 'unknown',
-                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...'
-                            ]);
-
-                            // Call the callback with the event
-                            if ($event->kind === 30023) {
-                                try {
-                                    $onArticleEvent($event, $relayUrl);
-                                } catch (\Throwable $e) {
-                                    // Log callback errors but don't break the loop
-                                    $this->logger->error('Error in article event callback', [
-                                        'event_id' => $event->id ?? 'unknown',
-                                        'error' => $e->getMessage(),
-                                        'exception' => get_class($e)
-                                    ]);
-                                }
-                            } else {
-                                $this->logger->error('Got media in callback', [
-                                    'event_id' => $event->id ?? 'unknown'
-                                ]);
-                            }
-                        }
-                        break;
-
-                    case 'EOSE':
-                        // End of stored events - all historical events received
-                        // Unlike TweakedRequest, we DON'T close the subscription or disconnect
-                        // We want to keep listening for new live events
-                        $eoseReceived = true;
-                        $this->logger->info('Received EOSE - all stored events processed, now listening for new events', [
-                            'relay' => $relayUrl,
-                            'subscription_id' => $subscriptionId
-                        ]);
-                        // Continue the loop - this is the key difference from short-lived requests
-                        break;
-
-                    case 'CLOSED':
-                        // Subscription closed by relay
-                        $message = $handler->extractMessage(json_decode($resp->getContent()));
-                        $this->logger->warning('Relay closed subscription', [
-                            'relay' => $relayUrl,
-                            'subscription_id' => $subscriptionId,
-                            'message' => $message
-                        ]);
-                        throw new \Exception('Subscription closed by relay: ' . $message);
-
-                    case 'NOTICE':
-                        // Notice from relay - check if it's an error using shared handler
-                        $message = $handler->extractMessage(json_decode($resp->getContent()));
-                        if ($handler->isErrorNotice($message)) {
-                            $this->logger->warning('Received ERROR NOTICE from relay', [
-                                'relay' => $relayUrl,
-                                'message' => $message
-                            ]);
-                            throw new \Exception('Relay error: ' . $message);
-                        }
-                        $this->logger->info('Received NOTICE from relay', [
-                            'relay' => $relayUrl,
-                            'message' => $message
-                        ]);
-                        break;
-
-                    case 'OK':
-                        // Command result (usually for EVENT, not REQ)
-                        $this->logger->debug('Received OK from relay', [
-                            'relay' => $relayUrl
-                        ]);
-                        break;
-
-                    case 'AUTH':
-                        // NIP-42 auth challenge - handle using shared handler
-                        $challenge = $handler->extractAuthChallenge(json_decode($resp->getContent()));
-                        if ($challenge) {
-                            $this->logger->debug('Received AUTH challenge, responding with AUTH', [
-                                'relay' => $relayUrl
-                            ]);
-                            $handler->handleAuth($relay, $client, $challenge);
-                            // Re-send subscription after AUTH
-                            $client->text($payload);
-                        }
-                        break;
-
-                    default:
-                        $this->logger->debug('Received unknown message type from relay', [
-                            'relay' => $relayUrl,
-                            'type' => $relayResponse->type ?? 'unknown',
-                            'content' => json_encode($decoded)
-                        ]);
-                        break;
-                }
-
-            } catch (\Throwable $e) {
-                // Timeouts and connection errors are normal when waiting for new events - just continue
-                if ($handler->isTimeoutError($e)) {
-                    if ($eoseReceived) {
-                        // Only log timeout every 60 seconds to avoid spam
-                        static $lastArticleTimeoutLog = 0;
-                        if (time() - $lastArticleTimeoutLog > 60) {
-                            $this->logger->debug('Waiting for new article events (no activity)', [
-                                'relay' => $relayUrl
-                            ]);
-                            $lastArticleTimeoutLog = time();
-                        }
-                    }
-                    continue;
-                }
-
-                // Unparseable messages and bad msg errors - log and continue
-                if ($handler->isBadMessageError($e)) {
-                    $this->logger->debug('Skipping invalid message from relay, continuing', [
-                        'relay' => $relayUrl,
-                        'error' => $e->getMessage()
-                    ]);
-                    continue;
-                }
-
-                // Fatal errors - log and rethrow to allow Docker restart
-                $this->logger->error('Fatal error in subscription loop', [
-                    'relay' => $relayUrl,
-                    'error' => $e->getMessage(),
-                    'exception' => get_class($e)
-                ]);
-                throw $e;
-            }
-        }
+        return $this->relayRegistry;
     }
 
     /**
-     * Subscribe to local relay for media events (kinds 20, 21, 22) in real-time
-     * This is a long-lived subscription that processes events via callback
-     * Blocks forever - meant to be run as a daemon process
-     *
-     * @param callable $onMediaEvent Callback function(object $event, string $relayUrl): void
-     * @throws \Exception if subscription fails
+     * Get the RelayHealthStore instance (for callers that need health data).
      */
-    public function subscribeLocalMedia(callable $onMediaEvent): void
+    public function getHealthStore(): RelayHealthStore
     {
-        if (!$this->nostrDefaultRelay) {
-            throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
-        }
-
-        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
-
-        $this->logger->info('Starting long-lived subscription to local relay for media events', [
-            'relay' => $relayUrl,
-            'kinds' => [20, 21, 22]
-        ]);
-
-        // Get relay connection
-        $relay = $this->getRelay($relayUrl);
-
-        // Ensure relay is connected
-        if (!$relay->isConnected()) {
-            $relay->connect();
-        }
-
-        $client = $relay->getClient();
-
-        // Use reasonable timeout (15 seconds per receive call)
-        $client->setTimeout(15);
-
-        // Create subscription for media events (kinds 20, 21, 22)
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-
-        $filter = new Filter();
-        $filter->setKinds([20, 21, 22]); // NIP-68 Picture and Video events
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-        $payload = $requestMessage->generate();
-
-        $this->logger->info('Sending REQ to local relay for media', [
-            'relay' => $relayUrl,
-            'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => [20, 21, 22]]
-        ]);
-
-        // Send the subscription request
-        $client->text($payload);
-
-        $this->logger->info('Entering infinite receive loop for media events...');
-
-        // Track if we've received EOSE
-        $eoseReceived = false;
-
-        // Infinite loop: receive and process messages
-        while (true) {
-            try {
-                $resp = $client->receive();
-
-                // Handle PING/PONG for keepalive
-                if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->send(new \WebSocket\Message\Pong());
-                    $this->logger->debug('Received PING, sent PONG');
-                    continue;
-                }
-
-                // Only process text messages
-                if (!($resp instanceof \WebSocket\Message\Text)) {
-                    continue;
-                }
-
-                $content = $resp->getContent();
-                $decoded = json_decode($content);
-
-                if (!$decoded) {
-                    $this->logger->debug('Failed to decode message from relay', [
-                        'relay' => $relayUrl,
-                        'content_preview' => substr($content, 0, 100)
-                    ]);
-                    continue;
-                }
-
-                // Parse relay response
-                $relayResponse = RelayResponse::create($decoded);
-
-                // Handle different response types
-                switch ($relayResponse->type) {
-                    case 'EVENT':
-                        // This is a media event - process it
-                        if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
-                            $event = $relayResponse->event;
-
-                            $this->logger->info('Received media event from relay', [
-                                'relay' => $relayUrl,
-                                'event_id' => substr($event->id ?? 'unknown', 0, 16) . '...',
-                                'kind' => $event->kind ?? 'unknown',
-                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...'
-                            ]);
-
-                            // Call the callback with the event
-                            try {
-                                $onMediaEvent($event, $relayUrl);
-                            } catch (\Throwable $e) {
-                                // Log callback errors but don't break the loop
-                                $this->logger->error('Error in media event callback', [
-                                    'event_id' => $event->id ?? 'unknown',
-                                    'error' => $e->getMessage(),
-                                    'exception' => get_class($e)
-                                ]);
-                            }
-                        }
-                        break;
-
-                    case 'EOSE':
-                        // End of stored events - keep listening for new events
-                        $eoseReceived = true;
-                        $this->logger->info('Received EOSE - all stored media events processed, now listening for new events', [
-                            'relay' => $relayUrl,
-                            'subscription_id' => $subscriptionId
-                        ]);
-                        break;
-
-                    case 'CLOSED':
-                        // Subscription closed by relay
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $this->logger->warning('Relay closed subscription', [
-                            'relay' => $relayUrl,
-                            'subscription_id' => $subscriptionId,
-                            'message' => $decodedArray[2] ?? 'no message'
-                        ]);
-                        throw new \Exception('Subscription closed by relay: ' . ($decodedArray[2] ?? 'no message'));
-
-                    case 'NOTICE':
-                        // Notice from relay
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $message = $decodedArray[1] ?? 'no message';
-                        if (str_starts_with($message, 'ERROR:')) {
-                            $this->logger->warning('Received ERROR NOTICE from relay', [
-                                'relay' => $relayUrl,
-                                'message' => $message
-                            ]);
-                            throw new \Exception('Relay error: ' . $message);
-                        }
-                        $this->logger->info('Received NOTICE from relay', [
-                            'relay' => $relayUrl,
-                            'message' => $message
-                        ]);
-                        break;
-
-                    case 'OK':
-                        // OK response - just log it
-                        $this->logger->debug('Received OK from relay', ['relay' => $relayUrl]);
-                        break;
-
-                    default:
-                        $this->logger->debug('Unknown relay response type', [
-                            'relay' => $relayUrl,
-                            'type' => $relayResponse->type
-                        ]);
-                        break;
-                }
-
-            } catch (\Throwable $e) {
-                $errorMessage = strtolower($e->getMessage());
-                $errorClass = strtolower(get_class($e));
-
-                // Timeouts and connection errors are normal when waiting for new events - just continue
-                if (stripos($errorMessage, 'timeout') !== false ||
-                    stripos($errorClass, 'timeout') !== false ||
-                    stripos($errorMessage, 'connection operation') !== false) {
-                    if ($eoseReceived) {
-                        // Only log timeout every 60 seconds to avoid spam
-                        static $lastTimeoutLog = 0;
-                        if (time() - $lastTimeoutLog > 60) {
-                            $this->logger->debug('Waiting for new media events (no activity)', [
-                                'relay' => $relayUrl
-                            ]);
-                            $lastTimeoutLog = time();
-                        }
-                    }
-                    continue;
-                }
-
-                // Unparseable messages and bad msg errors - log and continue
-                if (stripos($errorMessage, 'bad msg') !== false ||
-                    stripos($errorMessage, 'unparseable') !== false ||
-                    stripos($errorMessage, 'invalid') !== false) {
-                    $this->logger->debug('Skipping invalid message from relay, continuing', [
-                        'relay' => $relayUrl,
-                        'error' => $e->getMessage()
-                    ]);
-                    continue;
-                }
-
-                // Fatal errors - log and rethrow to allow Docker restart
-                $this->logger->error('Fatal error in media subscription loop', [
-                    'relay' => $relayUrl,
-                    'error' => $e->getMessage(),
-                    'exception' => get_class($e)
-                ]);
-                throw $e;
-            }
-        }
+        return $this->healthStore;
     }
 
     /**
-     * Subscribe to local relay for generic events by kind(s) in real-time
-     * This is a long-lived subscription that processes events via callback
-     * Blocks forever - meant to be run as a daemon process
+     * Unified subscription loop for local relay events.
      *
-     * @param array<int> $kinds Array of event kinds to subscribe to
-     * @param callable $onEvent Callback function(object $event, string $relayUrl): void
-     * @throws \Exception if subscription fails
+     * Replaces the three near-identical methods (subscribeLocalArticles,
+     * subscribeLocalMedia, subscribeLocalGenericEvents) with one parameterized
+     * implementation that uses RelaySubscriptionHandler consistently.
+     *
+     * @param array<int> $kinds     Event kinds to subscribe to
+     * @param callable   $onEvent   Callback: function(object $event, string $relayUrl): void
+     * @param string     $workerName  Label for heartbeat tracking (e.g. 'articles', 'media')
+     * @throws \Exception If local relay is not configured
      */
-    public function subscribeLocalGenericEvents(array $kinds, callable $onEvent): void
+    public function subscribeLocal(array $kinds, callable $onEvent, string $workerName = 'generic'): void
     {
         if (!$this->nostrDefaultRelay) {
             throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
@@ -795,25 +375,23 @@ class NostrRelayPool
 
         $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
 
-        $this->logger->info('Starting long-lived subscription to local relay for generic events', [
+        $this->logger->info('Starting long-lived subscription to local relay', [
             'relay' => $relayUrl,
-            'kinds' => $kinds
+            'kinds' => $kinds,
+            'worker' => $workerName,
         ]);
 
         // Get relay connection
         $relay = $this->getRelay($relayUrl);
 
-        // Ensure relay is connected
         if (!$relay->isConnected()) {
             $relay->connect();
         }
 
         $client = $relay->getClient();
-
-        // Use reasonable timeout (15 seconds per receive call)
         $client->setTimeout(15);
 
-        // Create subscription for specified event kinds
+        // Create subscription
         $subscription = new Subscription();
         $subscriptionId = $subscription->setId();
 
@@ -823,184 +401,210 @@ class NostrRelayPool
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
         $payload = $requestMessage->generate();
 
-        $this->logger->info('Sending REQ to local relay for generic events', [
+        $this->logger->info('Sending REQ to local relay', [
             'relay' => $relayUrl,
             'subscription_id' => $subscriptionId,
-            'filter' => ['kinds' => $kinds]
+            'filter' => ['kinds' => $kinds],
+            'worker' => $workerName,
         ]);
 
-        // Send the subscription request
         $client->text($payload);
 
-        $this->logger->info('Entering infinite receive loop for generic events...');
+        $this->logger->info('Entering infinite receive loop...', ['worker' => $workerName]);
 
-        // Track if we've received EOSE
         $eoseReceived = false;
+        $lastTimeoutLog = 0;
 
-        // Infinite loop: receive and process messages
+        // Use shared handler for all relay protocol logic
+        $handler = new RelaySubscriptionHandler($this->logger);
+
         while (true) {
             try {
                 $resp = $client->receive();
 
-                // Handle PING/PONG for keepalive
+                // PING/PONG
                 if ($resp instanceof \WebSocket\Message\Ping) {
-                    $client->send(new \WebSocket\Message\Pong());
-                    $this->logger->debug('Received PING, sent PONG');
+                    $handler->handlePing($client);
                     continue;
                 }
 
-                // Only process text messages
                 if (!($resp instanceof \WebSocket\Message\Text)) {
                     continue;
                 }
 
-                $content = $resp->getContent();
-                $decoded = json_decode($content);
-
-                if (!$decoded) {
-                    $this->logger->debug('Failed to decode message from relay', [
-                        'relay' => $relayUrl,
-                        'content_preview' => substr($content, 0, 100)
-                    ]);
+                $relayResponse = $handler->parseRelayResponse($resp);
+                if (!$relayResponse) {
                     continue;
                 }
 
-                // Parse relay response
-                $relayResponse = RelayResponse::create($decoded);
-
-                // Handle different response types
                 switch ($relayResponse->type) {
                     case 'EVENT':
-                        // Process the event
                         if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
                             $event = $relayResponse->event;
 
-                            $this->logger->info('Received generic event from relay', [
+                            $this->logger->info('Received event from relay', [
                                 'relay' => $relayUrl,
-                                'event_id' => $event->id ?? 'unknown',
+                                'event_id' => substr($event->id ?? 'unknown', 0, 16) . '...',
                                 'kind' => $event->kind ?? 'unknown',
-                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...'
+                                'pubkey' => substr($event->pubkey ?? 'unknown', 0, 16) . '...',
+                                'worker' => $workerName,
                             ]);
 
-                            // Call the callback with the event
+                            // Record event in health store
+                            $this->healthStore->recordEventReceived($relayUrl);
+
                             try {
                                 $onEvent($event, $relayUrl);
                             } catch (\Throwable $e) {
-                                // Log callback errors but don't break the loop
-                                $this->logger->error('Error in generic event callback', [
+                                $this->logger->error('Error in event callback', [
                                     'event_id' => $event->id ?? 'unknown',
                                     'kind' => $event->kind ?? 'unknown',
                                     'error' => $e->getMessage(),
-                                    'exception' => get_class($e)
+                                    'exception' => get_class($e),
+                                    'worker' => $workerName,
                                 ]);
                             }
                         }
                         break;
 
                     case 'EOSE':
-                        // End of stored events - continue listening for new events
                         $eoseReceived = true;
-                        $this->logger->info('Received EOSE - all stored events processed, now listening for new events', [
+                        $this->logger->info('Received EOSE — stored events processed, listening for new events', [
                             'relay' => $relayUrl,
-                            'subscription_id' => $subscriptionId
+                            'subscription_id' => $subscriptionId,
+                            'worker' => $workerName,
                         ]);
+                        // Record successful subscription in health store
+                        $this->healthStore->recordSuccess($relayUrl);
                         break;
 
                     case 'CLOSED':
-                        // Subscription closed by relay
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
+                        $message = $handler->extractMessage(json_decode($resp->getContent()));
                         $this->logger->warning('Relay closed subscription', [
                             'relay' => $relayUrl,
                             'subscription_id' => $subscriptionId,
-                            'message' => $decodedArray[2] ?? 'no message'
+                            'message' => $message,
+                            'worker' => $workerName,
                         ]);
-                        throw new \Exception('Subscription closed by relay: ' . ($decodedArray[2] ?? 'no message'));
+                        throw new \Exception('Subscription closed by relay: ' . $message);
 
                     case 'NOTICE':
-                        // Notice from relay
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $message = $decodedArray[1] ?? 'no message';
-                        if (str_starts_with($message, 'ERROR:')) {
+                        $message = $handler->extractMessage(json_decode($resp->getContent()));
+                        if ($handler->isErrorNotice($message)) {
                             $this->logger->warning('Received ERROR NOTICE from relay', [
                                 'relay' => $relayUrl,
-                                'message' => $message
+                                'message' => $message,
+                                'worker' => $workerName,
                             ]);
                             throw new \Exception('Relay error: ' . $message);
                         }
                         $this->logger->info('Received NOTICE from relay', [
                             'relay' => $relayUrl,
-                            'message' => $message
+                            'message' => $message,
                         ]);
                         break;
 
                     case 'OK':
-                        // Command result
-                        $this->logger->debug('Received OK from relay', [
-                            'relay' => $relayUrl,
-                            'message' => json_encode($decoded)
-                        ]);
+                        $this->logger->debug('Received OK from relay', ['relay' => $relayUrl]);
                         break;
 
                     case 'AUTH':
-                        // NIP-42 auth challenge
-                        $decodedArray = is_array($decoded) ? $decoded : json_decode(json_encode($decoded), true);
-                        $this->logger->debug('Received AUTH challenge from relay (ignoring for read-only subscription)', [
-                            'relay' => $relayUrl,
-                            'challenge' => $decodedArray[1] ?? 'no challenge'
-                        ]);
+                        $challenge = $handler->extractAuthChallenge(json_decode($resp->getContent()));
+                        if ($challenge) {
+                            $this->logger->debug('Received AUTH challenge, responding', [
+                                'relay' => $relayUrl,
+                                'worker' => $workerName,
+                            ]);
+                            $handler->handleAuth($relay, $client, $challenge);
+                            // Record that this relay requires AUTH
+                            $this->healthStore->setAuthRequired($relayUrl);
+                            $this->healthStore->setAuthStatus($relayUrl, 'ephemeral');
+                            // Re-send subscription after AUTH
+                            $client->text($payload);
+                        }
                         break;
 
                     default:
                         $this->logger->debug('Received unknown message type from relay', [
                             'relay' => $relayUrl,
                             'type' => $relayResponse->type ?? 'unknown',
-                            'content' => json_encode($decoded)
                         ]);
                         break;
                 }
 
-            } catch (\Throwable $e) {
-                $errorMessage = strtolower($e->getMessage());
-                $errorClass = strtolower(get_class($e));
+                // Write heartbeat after processing any message
+                $this->healthStore->recordHeartbeat($relayUrl, $workerName);
 
-                // Timeouts are normal when waiting for new events
-                if (stripos($errorMessage, 'timeout') !== false ||
-                    stripos($errorClass, 'timeout') !== false ||
-                    stripos($errorMessage, 'connection operation') !== false) {
+            } catch (\Throwable $e) {
+                if ($handler->isTimeoutError($e)) {
                     if ($eoseReceived) {
-                        // Only log timeout every 60 seconds to avoid spam
-                        static $lastGenericTimeoutLog = 0;
-                        if (time() - $lastGenericTimeoutLog > 60) {
-                            $this->logger->debug('Waiting for new generic events (no activity)', [
+                        if (time() - $lastTimeoutLog > 60) {
+                            $this->logger->debug('Waiting for new events (no activity)', [
                                 'relay' => $relayUrl,
-                                'kinds' => $kinds
+                                'kinds' => $kinds,
+                                'worker' => $workerName,
                             ]);
-                            $lastGenericTimeoutLog = time();
+                            $lastTimeoutLog = time();
                         }
+                        // Write heartbeat even on timeout to show the worker is alive
+                        $this->healthStore->recordHeartbeat($relayUrl, $workerName);
                     }
                     continue;
                 }
 
-                // Bad messages - log and continue
-                if (stripos($errorMessage, 'bad msg') !== false ||
-                    stripos($errorMessage, 'unparseable') !== false ||
-                    stripos($errorMessage, 'invalid') !== false) {
+                if ($handler->isBadMessageError($e)) {
                     $this->logger->debug('Skipping invalid message from relay, continuing', [
                         'relay' => $relayUrl,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                     continue;
                 }
 
-                // Fatal errors - log and rethrow
-                $this->logger->error('Fatal error in generic subscription loop', [
+                // Fatal error — record and rethrow for Docker restart
+                $this->healthStore->recordFailure($relayUrl);
+                $this->logger->error('Fatal error in subscription loop', [
                     'relay' => $relayUrl,
                     'kinds' => $kinds,
+                    'worker' => $workerName,
                     'error' => $e->getMessage(),
-                    'exception' => get_class($e)
+                    'exception' => get_class($e),
                 ]);
                 throw $e;
             }
         }
+    }
+
+    /**
+     * Subscribe to local relay for article events (kind 30023).
+     * Thin wrapper around subscribeLocal().
+     *
+     * @param callable $onArticleEvent Callback: function(object $event, string $relayUrl): void
+     */
+    public function subscribeLocalArticles(callable $onArticleEvent): void
+    {
+        $this->subscribeLocal([30023], $onArticleEvent, 'articles');
+    }
+
+    /**
+     * Subscribe to local relay for media events (kinds 20, 21, 22).
+     * Thin wrapper around subscribeLocal().
+     *
+     * @param callable $onMediaEvent Callback: function(object $event, string $relayUrl): void
+     */
+    public function subscribeLocalMedia(callable $onMediaEvent): void
+    {
+        $this->subscribeLocal([20, 21, 22], $onMediaEvent, 'media');
+    }
+
+    /**
+     * Subscribe to local relay for generic events by kind(s).
+     * Thin wrapper around subscribeLocal().
+     *
+     * @param array<int> $kinds Event kinds to subscribe to
+     * @param callable $onEvent Callback: function(object $event, string $relayUrl): void
+     */
+    public function subscribeLocalGenericEvents(array $kinds, callable $onEvent): void
+    {
+        $this->subscribeLocal($kinds, $onEvent, 'generic');
     }
 }

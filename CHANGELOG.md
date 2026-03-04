@@ -4,6 +4,7 @@
 Internationalization. 
 
 - Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
+- Relay pool management Phase 1: centralized relay configuration via `RelayRegistry` (replaces 4 scattered hardcoded constants), Redis-backed persistent health tracking via `RelayHealthStore`, and consolidated 3 near-identical subscription loops (~600 lines) into one parameterized `subscribeLocal()` method with heartbeat reporting.
 
 
 ## v0.0.13

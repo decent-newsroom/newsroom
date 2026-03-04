@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Enum\KindsEnum;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayRegistry;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -15,23 +16,23 @@ use swentel\nostr\Subscription\Subscription;
 
 /**
  * Service for discovering and managing author relay lists (NIP-65)
+ *
+ * Uses RelayRegistry for all relay URL resolution instead of hardcoded constants.
  */
 class AuthorRelayService
 {
+    /**
+     * @deprecated Use RelayRegistry::getFallbackRelays() instead. Kept for backward compat.
+     */
     public const FALLBACK_RELAYS = [
         'wss://relay.decentnewsroom.com'
-    ];
-
-    private const PROFILE_RELAYS = [
-        'wss://purplepag.es',
-        'wss://relay.primal.net',
-        'wss://relay.damus.io',
     ];
 
     private const CACHE_TTL = 3600;
 
     public function __construct(
         private readonly NostrRelayPool $relayPool,
+        private readonly RelayRegistry $relayRegistry,
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
         private readonly ?string $nostrDefaultRelay = null
@@ -59,12 +60,13 @@ class AuthorRelayService
         }
 
         // If non-blocking mode and cache missed, return fallbacks immediately
+        $fallbacks = $this->relayRegistry->getFallbackRelays();
         if ($nonBlocking && !$forceRefresh) {
             $this->logger->info('Non-blocking mode: returning fallbacks on cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
             return [
-                'read' => self::FALLBACK_RELAYS,
-                'write' => self::FALLBACK_RELAYS,
-                'all' => self::FALLBACK_RELAYS
+                'read' => $fallbacks,
+                'write' => $fallbacks,
+                'all' => $fallbacks
             ];
         }
 
@@ -106,7 +108,7 @@ class AuthorRelayService
             }
         }
 
-        foreach (self::FALLBACK_RELAYS as $relay) {
+        foreach ($this->relayRegistry->getFallbackRelays() as $relay) {
             if (!in_array($relay, $relays)) {
                 $relays[] = $relay;
             }
@@ -135,7 +137,7 @@ class AuthorRelayService
             }
         }
 
-        foreach (self::FALLBACK_RELAYS as $relay) {
+        foreach ($this->relayRegistry->getFallbackRelays() as $relay) {
             if (!in_array($relay, $relays)) {
                 $relays[] = $relay;
             }
@@ -150,8 +152,10 @@ class AuthorRelayService
         $result = ['read' => [], 'write' => [], 'all' => []];
 
         try {
+            // Use profile relays from the registry
+            $profileRelays = $this->relayRegistry->getProfileRelays();
             $responses = $this->relayPool->sendToRelays(
-                self::PROFILE_RELAYS,
+                $profileRelays,
                 function () use ($pubkey) {
                     $subscription = new Subscription();
                     $subscriptionId = $subscription->setId();
@@ -172,9 +176,11 @@ class AuthorRelayService
                 }
             }
 
+            $fallbacks = $this->relayRegistry->getFallbackRelays();
+
             if (empty($events)) {
                 $this->logger->info('No NIP-65 relay list found, using fallbacks', ['pubkey' => $pubkey]);
-                $result['all'] = self::FALLBACK_RELAYS;
+                $result['all'] = $fallbacks;
                 return $result;
             }
 
@@ -218,7 +224,7 @@ class AuthorRelayService
                 'pubkey' => $pubkey,
                 'error' => $e->getMessage(),
             ]);
-            $result['all'] = self::FALLBACK_RELAYS;
+            $result['all'] = $this->relayRegistry->getFallbackRelays();
         }
 
         return $result;
@@ -231,11 +237,7 @@ class AuthorRelayService
 
     public function getFallbackRelays(): array
     {
-        $relays = [];
-        if ($this->nostrDefaultRelay) {
-            $relays[] = $this->nostrDefaultRelay;
-        }
-        return array_merge($relays, self::FALLBACK_RELAYS);
+        return $this->relayRegistry->getFallbackRelays();
     }
 
     public function invalidateCache(string $pubkey): void

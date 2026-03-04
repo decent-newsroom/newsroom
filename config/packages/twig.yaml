@@ -10,6 +10,7 @@ twig:
         mercure_public_hub_url: '%mercure_public_hub_url%'
         contribution_npub: '%project_contribution_npub%'
         contribution_lud16: '%project_contribution_lud16%'
+        relay_registry: '@App\Service\Nostr\RelayRegistry'
 
 when@test:
     twig:

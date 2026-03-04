@@ -27,18 +27,6 @@ class NostrClient
 {
     private RelaySet $defaultRelaySet;
 
-    /**
-     * List of reputable relays in descending order of reputation
-     */
-    private const REPUTABLE_RELAYS = [
-        'wss://theforest.nostr1.com',
-        'wss://nostr.land',
-        'wss://nos.lol',
-        'wss://relay.snort.social',
-        'wss://relay.damus.io',
-        'wss://relay.primal.net',
-    ];
-
     public function __construct(private readonly EntityManagerInterface $entityManager,
                                 private readonly ManagerRegistry        $managerRegistry,
                                 private readonly ArticleFactory         $articleFactory,
@@ -47,25 +35,11 @@ class NostrClient
                                 private readonly NostrRelayPool         $relayPool,
                                 private readonly EventRepository        $eventRepository,
                                 private readonly AuthorRelayService     $authorRelayService,
+                                private readonly RelayRegistry          $relayRegistry,
                                 private readonly ?string                $nostrDefaultRelay = null)
     {
-        // Initialize default relay set using the relay pool to avoid duplicate connections
-        // Prefer local relay if configured, otherwise use public relays
-        $defaultRelayUrls = [];
-
-        if ($this->nostrDefaultRelay) {
-            // Use configured default relay (typically local strfry instance)
-            $defaultRelayUrls = [$this->nostrDefaultRelay];
-            $this->logger->info('Using configured default Nostr relay', ['relay' => $this->nostrDefaultRelay]);
-        } else {
-            // Fallback to public relays
-            $defaultRelayUrls = [
-                'wss://theforest.nostr1.com',
-                'wss://nostr.land',
-                'wss://relay.primal.net'
-            ];
-            $this->logger->info('Using public Nostr relays (no default relay configured)');
-        }
+        // Initialize default relay set from the RelayRegistry
+        $defaultRelayUrls = $this->relayRegistry->getDefaultRelays();
 
         $this->defaultRelaySet = new RelaySet();
         foreach ($defaultRelayUrls as $url) {
@@ -103,11 +77,12 @@ class NostrClient
             $authorRelays = [];
         }
         if (empty($authorRelays)) {
-            return self::REPUTABLE_RELAYS; // Default to theforest if no author relays
+            return $this->relayRegistry->getContentRelays(); // Default to content relays if no author relays
         }
 
+        $contentRelays = $this->relayRegistry->getContentRelays();
         $reputableAuthorRelays = [];
-        foreach (self::REPUTABLE_RELAYS as $relay) {
+        foreach ($contentRelays as $relay) {
             if (in_array($relay, $authorRelays) && count($reputableAuthorRelays) < $limit) {
                 $reputableAuthorRelays[] = $relay;
             }
@@ -243,8 +218,8 @@ class NostrClient
         }
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
-        // Create relay set from all reputable relays on record, with local relay prioritized
-        $relayUrls = $this->relayPool->ensureLocalRelayInList(self::REPUTABLE_RELAYS);
+        // Create relay set from content relays via registry, with local relay prioritized
+        $relayUrls = $this->relayPool->ensureLocalRelayInList($this->relayRegistry->getContentRelays());
         $relaySet = $this->createRelaySet($relayUrls);
 
         $request = new Request($relaySet, $requestMessage);
@@ -321,10 +296,11 @@ class NostrClient
                 'author' => $author
             ]);
 
-            // Merge the initial relay list with all reputable relays for a comprehensive search
+            // Merge the initial relay list with content relays from registry for a comprehensive search
+            $contentRelays = $this->relayRegistry->getContentRelays();
             $fallbackRelays = empty($relayList)
-                ? self::REPUTABLE_RELAYS
-                : array_unique(array_merge($relayList, self::REPUTABLE_RELAYS));
+                ? $contentRelays
+                : array_unique(array_merge($relayList, $contentRelays));
 
             $fallbackRelaySet = $this->createRelaySet($fallbackRelays);
 
@@ -387,8 +363,8 @@ class NostrClient
         // Ensure local relay is included in the relay list
         $relays = $this->relayPool->ensureLocalRelayInList($relays);
 
-        // Build a short list: provided relays first, then reputable ones, capped at 3 total.
-        $allRelays = array_values(array_unique(array_merge($relays, self::REPUTABLE_RELAYS)));
+        // Build a short list: provided relays first, then content relays from registry, capped at 3 total.
+        $allRelays = array_values(array_unique(array_merge($relays, $this->relayRegistry->getContentRelays())));
         $allRelays = array_slice($allRelays, 0, 3);
 
         // Loop and bail as soon as one relay returns the event
@@ -680,12 +656,12 @@ class NostrClient
             $relays = $this->getRelaysFromAuthorService($pubkeyHex);
         }
 
-        // 4. Final fallback to reputable relays
+        // 4. Final fallback to content relays from registry
         if (empty($relays)) {
-            $this->logger->debug('No relays found, using reputable fallback', [
+            $this->logger->debug('No relays found, using registry content relays as fallback', [
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...'
             ]);
-            $relays = array_slice(self::REPUTABLE_RELAYS, 0, 3);
+            $relays = array_slice($this->relayRegistry->getContentRelays(), 0, 3);
         }
 
         // Cache the result
@@ -1203,7 +1179,7 @@ class NostrClient
                 'until' => $to,
                 'limit' => $limit
             ],
-            relaySet: $this->createRelaySet(['wss://theforest.nostr1.com', 'wss://nos.lol'])
+            relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 2))
         );
 
         $events = $this->processResponse($request->send(), function($event) {
@@ -1270,11 +1246,7 @@ class NostrClient
         $request = $this->createNostrRequest(
             kinds: $kinds,
             filters: $filters,
-            relaySet: $this->createRelaySet([
-                'wss://nos.lol',
-                'wss://relay.damus.io',
-                'wss://theforest.nostr1.com'
-            ])
+            relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 3))
         );
 
         $events = $this->processResponse($request->send(), function($event) {
@@ -1396,7 +1368,7 @@ class NostrClient
 
             // If no author relays found, add default relay
             if (empty($relayList)) {
-                $relayList = self::REPUTABLE_RELAYS;
+                $relayList = $this->relayRegistry->getContentRelays();
             }
 
             // Ensure we use a RelaySet
@@ -1870,13 +1842,8 @@ class NostrClient
     {
         $this->logger->info('Fetching follow list for pubkey', ['pubkey' => $pubkey]);
 
-        // Use relay pool with local relay prioritized
-        $relayUrls = $this->relayPool->ensureLocalRelayInList([
-            'wss://theforest.nostr1.com',
-            'wss://nostr.land',
-            'wss://relay.primal.net',
-            'wss://purplepag.es'
-        ]);
+        // Use relay pool with local relay prioritized, profile relays for follow lists
+        $relayUrls = $this->relayPool->ensureLocalRelayInList($this->relayRegistry->getProfileRelays());
         $relaySet = $this->createRelaySet($relayUrls);
 
         $request = $this->createNostrRequest(
@@ -1980,7 +1947,7 @@ class NostrClient
             foreach ($chunks as $chunk) {
                 if (empty($chunk)) { continue; }
                 try {
-                    $relaySet = $this->createRelaySet(self::REPUTABLE_RELAYS);
+                    $relaySet = $this->createRelaySet($this->relayRegistry->getContentRelays());
                     $request = $this->createNostrRequest(
                         kinds: [KindsEnum::METADATA->value],
                         filters: [ 'authors' => $chunk, 'limit' => count($chunk) ],

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\Nostr\RelayRegistry;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Exception\ValidationException;
 use Random\RandomException;
@@ -12,6 +13,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class NostrConnectController
 {
+    public function __construct(
+        private readonly RelayRegistry $relayRegistry,
+    ) {}
+
     /**
      * Build a nostrconnect URI according to NIP-46 with explicit query params:
      *  - relay: one or more relay URLs (repeated param)
@@ -30,14 +35,8 @@ class NostrConnectController
         $key = new Key();
         $pubkey = $key->getPublicKey($privkey);
 
-        // Relay list - multiple reliable relays for better event delivery
-        $relays = [
-            'wss://relay.nsec.app',
-            'wss://relay.decentnewsroom.com',
-            'wss://relay.primal.net',
-            'wss://relay.damus.io',
-            'wss://nos.lol'
-        ];
+        // Relay list from registry (signer relays for NIP-46)
+        $relays = $this->relayRegistry->getSignerRelays();
 
         // Short secret (remote signer should return as result of its connect response)
         $secret = substr(bin2hex(random_bytes(8)), 0, 12); // 12 hex chars (~48 bits truncated)

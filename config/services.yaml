@@ -9,6 +9,27 @@ parameters:
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     
+    # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
+    relay_registry.profile_relays:
+        - 'wss://purplepag.es'
+        - 'wss://relay.primal.net'
+        - 'wss://relay.damus.io'
+    relay_registry.content_relays:
+        - 'wss://theforest.nostr1.com'
+        - 'wss://relay.damus.io'
+        - 'wss://relay.primal.net'
+        - 'wss://nostr.land'
+        - 'wss://nos.lol'
+        - 'wss://relay.snort.social'
+    relay_registry.project_relays:
+        - 'wss://relay.decentnewsroom.com'
+    relay_registry.signer_relays:
+        - 'wss://relay.nsec.app'
+        - 'wss://relay.decentnewsroom.com'
+        - 'wss://relay.primal.net'
+        - 'wss://relay.damus.io'
+        - 'wss://nos.lol'
+    
     # Contribution/donation settings
     project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
     project_contribution_lud16: '%env(default::PROJECT_CONTRIBUTION_LUD16)%'
@@ -115,6 +136,19 @@ services:
     
     App\Util\NostrPhp\TweakedRequest: ~
     swentel\nostr\Request\Request: '@App\Util\NostrPhp\TweakedRequest'
+
+    # Relay Registry — centralized relay configuration
+    App\Service\Nostr\RelayRegistry:
+        arguments:
+            $profileRelays: '%relay_registry.profile_relays%'
+            $contentRelays: '%relay_registry.content_relays%'
+            $projectRelays: '%relay_registry.project_relays%'
+            $signerRelays: '%relay_registry.signer_relays%'
+
+    # Relay Health Store — Redis-backed health persistence
+    App\Service\Nostr\RelayHealthStore:
+        arguments:
+            $redis: '@Redis'
 
     # Markdown converter interface - use the Nostr-aware Converter (lazy to avoid loading on list pages)
     App\Util\CommonMark\MarkdownConverterInterface:
