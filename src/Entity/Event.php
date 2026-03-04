@@ -26,7 +26,7 @@ class Event
     private string $content = '';
     #[ORM\Column(type: Types::BIGINT)]
     private int $created_at = 0;
-    #[ORM\Column(type: Types::JSON)]
+    #[ORM\Column(type: 'jsonb')]
     private array $tags = [];
     #[ORM\Column(length: 255)]
     private string $sig = '';
