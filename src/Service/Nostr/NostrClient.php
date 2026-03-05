@@ -21,7 +21,7 @@ use swentel\nostr\Subscription\Subscription;
 
 class NostrClient
 {
-    private RelaySet $defaultRelaySet;
+    private ?RelaySet $defaultRelaySet = null;
 
     public function __construct(private readonly EntityManagerInterface $entityManager,
                                 private readonly ManagerRegistry        $managerRegistry,
@@ -33,13 +33,22 @@ class NostrClient
                                 private readonly UserRelayListService   $userRelayListService,
                                 private readonly ?string                $nostrDefaultRelay = null)
     {
-        // Initialize default relay set from the RelayRegistry
-        $defaultRelayUrls = $this->relayRegistry->getDefaultRelays();
+        // No eager initialization — relay set is built lazily on first use
+    }
 
-        $this->defaultRelaySet = new RelaySet();
-        foreach ($defaultRelayUrls as $url) {
-            $this->defaultRelaySet->addRelay($this->relayPool->getRelay($url));
+    /**
+     * Get the default relay set, building it lazily on first access.
+     */
+    private function getDefaultRelaySet(): RelaySet
+    {
+        if ($this->defaultRelaySet === null) {
+            $defaultRelayUrls = $this->relayRegistry->getDefaultRelays();
+            $this->defaultRelaySet = new RelaySet();
+            foreach ($defaultRelayUrls as $url) {
+                $this->defaultRelaySet->addRelay($this->relayPool->getRelay($url));
+            }
         }
+        return $this->defaultRelaySet;
     }
 
     /**
@@ -383,7 +392,7 @@ class NostrClient
         }
 
         // Use provided relays or default if empty
-        $relaySet = empty($relays) ? $this->defaultRelaySet : $this->createRelaySet($relays);
+        $relaySet = empty($relays) ? $this->getDefaultRelaySet() : $this->createRelaySet($relays);
 
         // Create request using the helper method
         $request = $this->createNostrRequest(
@@ -716,7 +725,7 @@ class NostrClient
     {
         // Use local relay only if configured, otherwise use author relays
         if ($this->nostrDefaultRelay) {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Using local relay for article fetch', [
                 'relay' => $this->nostrDefaultRelay,
                 'pubkey' => $ident
@@ -724,7 +733,7 @@ class NostrClient
         } else {
             // Fallback to author relays when no local relay is configured
             $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
             $this->logger->info('Using author relays for article fetch', [
                 'pubkey' => $ident,
                 'relay_count' => count($authorRelays)
@@ -763,7 +772,7 @@ class NostrClient
     {
         // Use local relay only if configured, otherwise use author relays
         if ($this->nostrDefaultRelay) {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Using local relay for picture events fetch', [
                 'relay' => $this->nostrDefaultRelay,
                 'pubkey' => $ident
@@ -771,7 +780,7 @@ class NostrClient
         } else {
             // Fallback to author relays when no local relay is configured
             $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 20 (picture events)
@@ -798,7 +807,7 @@ class NostrClient
     {
         // Use local relay only if configured, otherwise use author relays
         if ($this->nostrDefaultRelay) {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Using local relay for video shorts fetch', [
                 'relay' => $this->nostrDefaultRelay,
                 'pubkey' => $ident
@@ -806,7 +815,7 @@ class NostrClient
         } else {
             // Fallback to author relays when no local relay is configured
             $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 22 (short video events)
@@ -833,7 +842,7 @@ class NostrClient
     {
         // Use local relay only if configured, otherwise use author relays
         if ($this->nostrDefaultRelay) {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Using local relay for normal videos fetch', [
                 'relay' => $this->nostrDefaultRelay,
                 'pubkey' => $ident
@@ -841,7 +850,7 @@ class NostrClient
         } else {
             // Fallback to author relays when no local relay is configured
             $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
         }
 
         // Create request for kind 21 (normal video events)
@@ -869,7 +878,7 @@ class NostrClient
     {
         // Use local relay only if configured, otherwise use author relays
         if ($this->nostrDefaultRelay) {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Using local relay for all media events fetch', [
                 'relay' => $this->nostrDefaultRelay,
                 'pubkey' => $ident
@@ -877,7 +886,7 @@ class NostrClient
         } else {
             // Fallback to author relays when no local relay is configured
             $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->defaultRelaySet : $this->createRelaySet($authorRelays);
+            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
         }
 
         // Create request for all media kinds (20, 21, 22) in ONE request
@@ -909,7 +918,7 @@ class NostrClient
             filters: [
                 'limit' => $limit
             ],
-            relaySet: $this->defaultRelaySet
+            relaySet: $this->getDefaultRelaySet()
         );
 
         // Process the response and return raw events
@@ -1117,7 +1126,7 @@ class NostrClient
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
         try {
-            $request = new Request($this->defaultRelaySet, $requestMessage);
+            $request = new Request($this->getDefaultRelaySet(), $requestMessage);
             $response = $request->send();
             $hasEvents = false;
 
@@ -1137,7 +1146,7 @@ class NostrClient
             if (!$hasEvents && !empty($slugs)) {
                 $this->logger->info('No results from theforest, trying default relays');
 
-                $request = new Request($this->defaultRelaySet, $requestMessage);
+                $request = new Request($this->getDefaultRelaySet(), $requestMessage);
                 $response = $request->send();
 
                 foreach ($response as $value) {
@@ -1158,7 +1167,7 @@ class NostrClient
             ]);
 
             // Fall back to default relay set
-            $request = new Request($this->defaultRelaySet, $requestMessage);
+            $request = new Request($this->getDefaultRelaySet(), $requestMessage);
             $response = $request->send();
 
             foreach ($response as $value) {
@@ -1252,7 +1261,7 @@ class NostrClient
                         'coordinate' => $coordinate
                     ]);
 
-                    $fallbackRequest = new Request($this->defaultRelaySet, $requestMessage);
+                    $fallbackRequest = new Request($this->getDefaultRelaySet(), $requestMessage);
                     $fallbackEvents = $this->processResponse($fallbackRequest->send(), function($event) use ($coordinate) {
                         $this->logger->info('Received event from default relay', [
                             'event_id' => $event->id,
@@ -1400,7 +1409,7 @@ class NostrClient
                 'since' => $since
             ]);
         } else {
-            $relaySet = $this->defaultRelaySet;
+            $relaySet = $this->getDefaultRelaySet();
             $this->logger->info('Fetching latest long-form articles from default relay set (no local relay configured)', [
                 'limit' => $limit,
                 'since' => $since
@@ -1482,7 +1491,7 @@ class NostrClient
 
         $requestMessage = new RequestMessage($subscription->getId(), [$filter]);
         return (new TweakedRequest(
-            $relaySet ?? $this->defaultRelaySet,
+            $relaySet ?? $this->getDefaultRelaySet(),
             $requestMessage,
             $this->logger
         ))->stopOnEventId($stopGap);

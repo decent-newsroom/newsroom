@@ -7,7 +7,6 @@ use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
-use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\Subscription\Subscription;
 
 /**
