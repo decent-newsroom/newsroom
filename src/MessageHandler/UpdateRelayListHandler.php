@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
+use App\Message\GatewayWarmConnectionsMessage;
 use App\Message\UpdateRelayListMessage;
+use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Handles async relay list warming dispatched on user login.
@@ -16,13 +19,20 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * fetch from profile relays, persists the result to the DB (write-through),
  * and warms the PSR-6 cache. Runs on the low-priority transport so it
  * doesn't block the main queue.
+ *
+ * After warming, dispatches GatewayWarmConnectionsMessage for any AUTH-gated
+ * relays in the user's list, so the relay gateway can open persistent
+ * authenticated connections.
  */
 #[AsMessageHandler]
 class UpdateRelayListHandler
 {
     public function __construct(
         private readonly UserRelayListService $relayListService,
+        private readonly RelayHealthStore $healthStore,
+        private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
+        private readonly bool $gatewayEnabled = false,
     ) {}
 
     public function __invoke(UpdateRelayListMessage $message): void
@@ -39,12 +49,51 @@ class UpdateRelayListHandler
             $this->logger->info('UpdateRelayListHandler: relay list warmed', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',
             ]);
+
+            // If gateway is enabled, warm user connections to AUTH-gated relays
+            if ($this->gatewayEnabled) {
+                $this->dispatchGatewayWarm($pubkey);
+            }
+
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: revalidation failed', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',
                 'error' => $e->getMessage(),
             ]);
             // Don't rethrow — this is best-effort warming, not critical
+        }
+    }
+
+    private function dispatchGatewayWarm(string $pubkey): void
+    {
+        try {
+            $relays = $this->relayListService->getRelayList($pubkey);
+            $allRelays = $relays['all'] ?? [];
+
+            // Filter to relays known to require AUTH
+            $authRelays = array_values(array_filter(
+                $allRelays,
+                fn(string $url) => $this->healthStore->isAuthRequired($url),
+            ));
+
+            if (empty($authRelays)) {
+                $this->logger->debug('UpdateRelayListHandler: no AUTH-gated relays to warm', [
+                    'pubkey' => substr($pubkey, 0, 16) . '...',
+                ]);
+                return;
+            }
+
+            $this->messageBus->dispatch(new GatewayWarmConnectionsMessage($pubkey, $authRelays));
+
+            $this->logger->info('UpdateRelayListHandler: dispatched gateway warm', [
+                'pubkey' => substr($pubkey, 0, 16) . '...',
+                'auth_relay_count' => count($authRelays),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('UpdateRelayListHandler: gateway warm dispatch failed', [
+                'pubkey' => substr($pubkey, 0, 16) . '...',
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

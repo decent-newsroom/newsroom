@@ -374,7 +374,7 @@ about:
     whyText: "L'ère de la rédaction n'est pas terminée — elle évolue. Nous croyons au retour des standards éditoriaux, de la collaboration et du reportage de haute valeur de manière décentralisée. Decent Newsroom est là pour couper le bruit et reconstruire la confiance dans le journalisme numérique."
     supportUs: "Pour nous soutenir et obtenir un accès anticipé à l'avenir de l'édition, visitez notre page de financement participatif"
     geyserLink: 'Geyser fund - Newsroom'
-    moreInfo: 'Pour plus d'informations, contactez'
+    moreInfo: "Pour plus d'informations, contactez"
     exploreRack: 'Explorer'
 
 # ── Statique : Tarifs ──────────────────────────────────────────────────
@@ -402,9 +402,9 @@ unfold:
     title: 'Unfold — Gérez votre magazine sur Decent Newsroom'
     hero: 'Unfold'
     heroEyebrow: 'par Decent Newsroom'
-    heroLede: 'Construisez un magazine web structuré à partir d'événements Nostr.'
+    heroLede: "Construisez un magazine web structuré à partir d'événements Nostr."
     unfoldMagazine: 'Déployez votre magazine'
-    unfoldDesc1: 'Unfold transforme la définition de votre magazine en un magazine web propre et structuré — avec navigation, catégories et pages d'articles individuelles.'
+    unfoldDesc1: "Unfold transforme la définition de votre magazine en un magazine web propre et structuré — avec navigation, catégories et pages d'articles individuelles."
     unfoldDesc2: "Quand vos événements Nostr sous-jacents changent, votre magazine se met à jour automatiquement. Pas de redéploiement. Pas de rituels de cache."
     unfoldHosting: "Lancez votre magazine sur un sous-domaine dédié. L'hébergement prêt pour la production et le rendu Unfold sont gérés pour vous."
     unfoldPrice: '120 000 sats / an'

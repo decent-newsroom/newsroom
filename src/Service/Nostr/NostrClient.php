@@ -95,7 +95,7 @@ class NostrClient
             relaySet: $relaySet
         );
 
-        $events = $this->processResponse($request->send(), function($received) {
+        $events = $this->processResponse($this->executeRequest($request), function($received) {
             $this->logger->debug('Received metadata event for pubkey', ['item' => $received]);
             return $received;
         });
@@ -152,7 +152,7 @@ class NostrClient
             }
 
             // Send to all relays
-            $results = $relaySet->send();
+            $results = $relaySet->executeRequest();
 
             $duration = microtime(true) - $startTime;
             $this->logger->info('Completed relay publish', [
@@ -199,7 +199,7 @@ class NostrClient
         $request = new Request($relaySet, $requestMessage);
 
         // Process the response
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -250,7 +250,7 @@ class NostrClient
             );
 
             // Process the response
-            $events = $this->processResponse($request->send(), function($event) {
+            $events = $this->processResponse($this->executeRequest($request), function($event) {
                 return $event;
             });
 
@@ -287,7 +287,7 @@ class NostrClient
                 relaySet: $fallbackRelaySet
             );
 
-            $fallbackEvents = $this->processResponse($fallbackRequest->send(), function($event) {
+            $fallbackEvents = $this->processResponse($this->executeRequest($fallbackRequest), function($event) {
                 return $event;
             });
 
@@ -351,7 +351,7 @@ class NostrClient
                     relaySet: $this->createRelaySet([$relay]),
                     stopGap: $eventId
                 );
-                $events = $this->processResponse($request->send(), function($event) {
+                $events = $this->processResponse($this->executeRequest($request), function($event) {
                     $this->logger->debug('Received event', ['event' => $event]);
                     return $event;
                 });
@@ -403,7 +403,7 @@ class NostrClient
         );
 
         // Process the response
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             $this->logger->debug('Received event', ['event' => $event]);
             return $event;
         });
@@ -453,7 +453,7 @@ class NostrClient
         );
 
         // Process the response
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -470,7 +470,7 @@ class NostrClient
             ]
         );
 
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -540,7 +540,7 @@ class NostrClient
                 relaySet: $relaySet
             );
 
-            $events = $this->processResponse($request->send(), fn($e) => $e);
+            $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
 
             // If local relay returned nothing, fall back to public relays
             if (empty($events) && $this->nostrDefaultRelay) {
@@ -554,7 +554,7 @@ class NostrClient
                         ],
                         relaySet: $this->createRelaySet($fallbackRelays)
                     );
-                    $events = $this->processResponse($request->send(), fn($e) => $e);
+                    $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
                 }
             }
 
@@ -713,7 +713,7 @@ class NostrClient
         );
 
         // Process the response
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             $this->logger->debug('Received zap event', ['event_id' => $event->id]);
             return $event;
         });
@@ -757,7 +757,7 @@ class NostrClient
         );
 
         // Process the response using the helper method
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
             // Save each article to the database
             $this->saveEachArticleToTheDatabase($article);
@@ -795,7 +795,7 @@ class NostrClient
         );
 
         // Process the response and return raw events
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             return $event; // Return the raw event
         });
     }
@@ -830,7 +830,7 @@ class NostrClient
         );
 
         // Process the response and return raw events
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             return $event; // Return the raw event
         });
     }
@@ -865,7 +865,7 @@ class NostrClient
         );
 
         // Process the response and return raw events
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             return $event; // Return the raw event
         });
     }
@@ -901,7 +901,7 @@ class NostrClient
         );
 
         // Process the response and return raw events
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             return $event; // Return the raw event
         });
     }
@@ -923,7 +923,7 @@ class NostrClient
         );
 
         // Process the response and return raw events
-        return $this->processResponse($request->send(), function($event) {
+        return $this->processResponse($this->executeRequest($request), function($event) {
             return $event; // Return the raw event
         });
     }
@@ -948,7 +948,7 @@ class NostrClient
             relaySet: $this->createRelaySet(['wss://theforest.nostr1.com'])
         );
 
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -1036,7 +1036,7 @@ class NostrClient
             relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 2))
         );
 
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -1103,7 +1103,7 @@ class NostrClient
             relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 3))
         );
 
-        $events = $this->processResponse($request->send(), function($event) {
+        $events = $this->processResponse($this->executeRequest($request), function($event) {
             return $event;
         });
 
@@ -1241,7 +1241,7 @@ class NostrClient
                 $request = new Request($relaySet, $requestMessage);
 
                 // Use processResponse to properly wait for relay responses
-                $events = $this->processResponse($request->send(), function($event) use ($coordinate) {
+                $events = $this->processResponse($this->executeRequest($request), function($event) use ($coordinate) {
                     $this->logger->info('Received event for coordinate', [
                         'event_id' => $event->id,
                         'coordinate' => $coordinate
@@ -1263,7 +1263,7 @@ class NostrClient
                     ]);
 
                     $fallbackRequest = new Request($this->getDefaultRelaySet(), $requestMessage);
-                    $fallbackEvents = $this->processResponse($fallbackRequest->send(), function($event) use ($coordinate) {
+                    $fallbackEvents = $this->processResponse($this->executeRequest($fallbackRequest), function($event) use ($coordinate) {
                         $this->logger->info('Received event from default relay', [
                             'event_id' => $event->id,
                             'coordinate' => $coordinate
@@ -1429,7 +1429,7 @@ class NostrClient
                 relaySet: $relaySet
             );
 
-            $events = $this->processResponse($request->send(), function($event) {
+            $events = $this->processResponse($this->executeRequest($request), function($event) {
                 try {
                     $article = $this->articleFactory->createFromLongFormContentEvent($event);
                     // Persist newest revision if not saved yet
@@ -1488,7 +1488,7 @@ class NostrClient
                 }
             }
         }
-        $this->logger->info('Relay set for request', ['relays' => $relaySet ? $relaySet->getRelays() : 'default']);
+        $this->logger->debug('Relay set for request', ['relays' => $relaySet ? $relaySet->getRelays() : 'default']);
 
         $requestMessage = new RequestMessage($subscription->getId(), [$filter]);
         return (new TweakedRequest(
@@ -1496,6 +1496,143 @@ class NostrClient
             $requestMessage,
             $this->logger
         ))->stopOnEventId($stopGap);
+    }
+
+    /**
+     * Execute a relay request, routing through the gateway when enabled.
+     *
+     * When the relay gateway is enabled, external relay queries are routed
+     * through the persistent connection pool (RelayGatewayClient). Local
+     * relay queries always go direct via TweakedRequest.
+     *
+     * This is the single interception point for all relay reads in NostrClient.
+     *
+     * @return array<string, array> Relay URL => responses (same format as TweakedRequest::send())
+     */
+    private function executeRequest(TweakedRequest $request, ?string $pubkey = null): array
+    {
+        if (!$this->relayPool->isGatewayEnabled()) {
+            return $request->send();
+        }
+
+        $gatewayClient = $this->relayPool->getGatewayClient();
+        if (!$gatewayClient) {
+            return $request->send();
+        }
+
+        $relayUrls = $request->getRelayUrls();
+        $payload = $request->getPayload();
+
+        // Extract filter from the REQ payload
+        $decoded = json_decode($payload, true);
+        $filter = (is_array($decoded) && ($decoded[0] ?? '') === 'REQ' && isset($decoded[2]))
+            ? $decoded[2]
+            : [];
+
+        // Partition into local and external
+        $localRelay = $this->nostrDefaultRelay ?: null;
+        $localUrls = [];
+        $externalUrls = [];
+        foreach ($relayUrls as $url) {
+            if ($localRelay && $this->relayPool->normalizeRelayUrl($url) === $this->relayPool->normalizeRelayUrl($localRelay)) {
+                $localUrls[] = $url;
+            } else {
+                $externalUrls[] = $url;
+            }
+        }
+
+        $results = [];
+
+        // Local relay: always direct (fast, no AUTH needed)
+        if (!empty($localUrls)) {
+            // Build a TweakedRequest for just local relays
+            $localRelaySet = new RelaySet();
+            foreach ($localUrls as $url) {
+                $localRelaySet->addRelay($this->relayPool->getRelay($url));
+            }
+            $msg = new RequestMessage(
+                (new Subscription())->getId(),
+                [self::buildFilterFromArray($filter)]
+            );
+            $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger);
+            $results += $localRequest->send();
+        }
+
+        // External relays: route through gateway, passing pubkey for AUTH-gated connections
+        if (!empty($externalUrls)) {
+            $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, 15);
+
+            if (!empty($gatewayResult['errors'])) {
+                $this->logger->warning('Gateway returned errors for external relays', [
+                    'errors' => $gatewayResult['errors'],
+                    'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+                ]);
+            }
+
+            // Fall back to direct connection only if gateway got zero events AND every relay errored
+            if (empty($gatewayResult['events']) && count($gatewayResult['errors']) === count($externalUrls)) {
+                $this->logger->info('Gateway had no events and all relays errored — falling back to direct connection', [
+                    'relays' => $externalUrls,
+                ]);
+                $fallbackRelaySet = new RelaySet();
+                foreach ($externalUrls as $url) {
+                    $fallbackRelaySet->addRelay($this->relayPool->getRelay($url));
+                }
+                $msg = new RequestMessage(
+                    (new Subscription())->getId(),
+                    [self::buildFilterFromArray($filter)]
+                );
+                $fallbackRequest = new TweakedRequest($fallbackRelaySet, $msg, $this->logger);
+                $results += $fallbackRequest->send();
+            } else {
+                // Convert gateway events to RelayResponseEvent objects.
+                // Gateway returns raw event arrays; wire format is ["EVENT", subId, eventObj].
+                if (!empty($gatewayResult['events'])) {
+                    $responses = [];
+                    $syntheticSubId = 'gw-' . substr(uniqid(), -8);
+                    foreach ($gatewayResult['events'] as $eventData) {
+                        $eventObj = is_object($eventData)
+                            ? $eventData
+                            : json_decode(json_encode($eventData));
+                        $wireFormat = ['EVENT', $syntheticSubId, $eventObj];
+                        $response = new \swentel\nostr\RelayResponse\RelayResponseEvent($wireFormat);
+                        $responses[] = $response;
+                    }
+                    if (!empty($responses)) {
+                        $results[$externalUrls[0]] = $responses;
+                    }
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Build a Filter object from an associative array (for gateway re-routing).
+     */
+    private static function buildFilterFromArray(array $filter): Filter
+    {
+        $f = new Filter();
+        if (isset($filter['kinds'])) {
+            $f->setKinds($filter['kinds']);
+        }
+        if (isset($filter['authors'])) {
+            $f->setAuthors($filter['authors']);
+        }
+        if (isset($filter['ids'])) {
+            $f->setIds($filter['ids']);
+        }
+        if (isset($filter['limit'])) {
+            $f->setLimit($filter['limit']);
+        }
+        if (isset($filter['since'])) {
+            $f->setSince($filter['since']);
+        }
+        if (isset($filter['until'])) {
+            $f->setUntil($filter['until']);
+        }
+        return $f;
     }
 
     private function processResponse(array $response, callable $eventHandler): array
@@ -1609,7 +1746,7 @@ class NostrClient
                 );
             }
 
-            $events = $this->processResponse($request->send(), function($received) {
+            $events = $this->processResponse($this->executeRequest($request), function($received) {
                 $this->logger->info('Getting event', ['item' => $received]);
                 return $received;
             });
@@ -1650,7 +1787,7 @@ class NostrClient
             relaySet: $relaySet
         );
 
-        $events = $this->processResponse($request->send(), function($received) use ($pubkey) {
+        $events = $this->processResponse($this->executeRequest($request, $pubkey), function($received) use ($pubkey) {
             $this->logger->info('Getting interests for pubkey', ['pubkey' => $pubkey, 'item' => $received]);
             return $received;
         });
@@ -1691,7 +1828,7 @@ class NostrClient
             relaySet: $this->defaultRelaySet
         );
 
-        return $this->processResponse($request->send(), function ($received) use ($pubkey) {
+        return $this->processResponse($request->excecuteRequest(), function ($received) use ($pubkey) {
             $this->logger->info('Getting bookmarks for pubkey', ['pubkey' => $pubkey]);
             return $received;
         });
@@ -1724,7 +1861,7 @@ class NostrClient
             relaySet: $relaySet
         );
 
-        $events = $this->processResponse($request->send(), function($received) {
+        $events = $this->processResponse($this->executeRequest($request, $pubkey), function($received) {
             $this->logger->info('Received follow list event', ['event' => $received]);
             return $received;
         });
@@ -1802,7 +1939,7 @@ class NostrClient
                     filters: [ 'authors' => $missing, 'limit' => count($missing) ],
                     relaySet: $relaySet
                 );
-                $events = $this->processResponse($request->send(), fn($e) => $e);
+                $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
                 $process($events);
                 $this->logger->info('Local relay metadata fetch complete', [
                     'found' => count($results),
@@ -1825,7 +1962,7 @@ class NostrClient
                         filters: [ 'authors' => $chunk, 'limit' => count($chunk) ],
                         relaySet: $relaySet
                     );
-                    $events = $this->processResponse($request->send(), fn($e) => $e);
+                    $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
                     $process($events);
                     $this->logger->info('Fallback metadata chunk fetched', [
                         'chunk_size' => count($chunk),

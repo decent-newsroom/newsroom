@@ -97,6 +97,15 @@ class RelayHealthStore
     }
 
     /**
+     * Check if a relay is known to require AUTH.
+     */
+    public function isAuthRequired(string $relayUrl): bool
+    {
+        $health = $this->getHealth($relayUrl);
+        return $health['auth_required'];
+    }
+
+    /**
      * @param string $status One of: none, ephemeral, user_authed, pending, failed
      */
     public function setAuthStatus(string $relayUrl, string $status): void

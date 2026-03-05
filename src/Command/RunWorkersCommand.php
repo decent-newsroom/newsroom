@@ -64,6 +64,12 @@ class RunWorkersCommand extends Command
                 'Disable messenger consumer worker'
             )
             ->addOption(
+                'without-gateway',
+                null,
+                InputOption::VALUE_NONE,
+                'Disable relay gateway worker'
+            )
+            ->addOption(
                 'profile-interval',
                 null,
                 InputOption::VALUE_OPTIONAL,
@@ -84,7 +90,8 @@ class RunWorkersCommand extends Command
                 '  - Media hydration: Subscribes to relay for media events (kinds 20, 21, 22)' . "\n" .
                 '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
                 '  - Profile refresh: Periodic profile metadata updates' . "\n" .
-                '  - Messenger consumer: Async job queue processing' . "\n\n" .
+                '  - Messenger consumer: Async job queue processing' . "\n" .
+                '  - Relay gateway: Persistent relay connections with NIP-42 AUTH (requires RELAY_GATEWAY_ENABLED=true)' . "\n\n" .
                 'All workers restart automatically on failure.'
             );
     }
@@ -147,6 +154,14 @@ class RunWorkersCommand extends Command
                     '-vv', '--memory-limit=256M', '--time-limit=3600'
                 ],
                 'description' => 'Messenger consumer worker'
+            ];
+        }
+
+        // Relay gateway: only if env RELAY_GATEWAY_ENABLED=true and not disabled via flag
+        if (!$input->getOption('without-gateway') && ($_ENV['RELAY_GATEWAY_ENABLED'] ?? getenv('RELAY_GATEWAY_ENABLED') ?: 'false') === 'true') {
+            $workers['relay-gateway'] = [
+                'command' => ['php', 'bin/console', 'app:relay-gateway', '-vv'],
+                'description' => 'Relay gateway (persistent connections + NIP-42 AUTH)'
             ];
         }
 

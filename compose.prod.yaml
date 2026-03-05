@@ -26,7 +26,7 @@ services:
     build:
       context: .
       target: frankenphp_prod
-    image: yourapp/php:prod
+    image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
     env_file:
       - .env.prod.local
@@ -45,6 +45,7 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
+      RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
       # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
       FRANKENPHP_CONFIG: "worker ./public/index.php"
     volumes:

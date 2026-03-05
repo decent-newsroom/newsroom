@@ -7,6 +7,7 @@ Internationalization.
 - Relay pool management Phase 1: centralized relay configuration via `RelayRegistry` (replaces 4 scattered hardcoded constants), Redis-backed persistent health tracking via `RelayHealthStore`, and consolidated 3 near-identical subscription loops (~600 lines) into one parameterized `subscribeLocal()` method with heartbeat reporting.
 - Relay pool management Phase 2.1: `UserRelayListService` — stale-while-revalidate relay list resolution with DB write-through (cache → DB → network → fallback). Replaces `AuthorRelayService` entirely (deleted) and the fragmented relay resolution in NostrClient. All 11 consumers migrated. Network fetch logic inlined. Persists kind 10002 events to the Event table on successful network fetch.
 - Relay pool management Phase 2.2: async relay list warming on login — `UpdateRelayListMessage` dispatched via Messenger on `LoginSuccessEvent`, handled on the low-priority queue so relay data is pre-warmed by the time the user navigates to follows/editor.
+- Relay pool management Phase 2.3: relay gateway — persistent WebSocket connection pool with NIP-42 AUTH support. Long-lived `app:relay-gateway` process maintains authenticated connections to external relays, keyed by (relay, user) pair. FrankenPHP request workers communicate via Redis Streams. AUTH challenges are signed by the user's browser via Mercure SSE roundtrip. Feature-flagged via `RELAY_GATEWAY_ENABLED`.
 
 
 ## v0.0.13

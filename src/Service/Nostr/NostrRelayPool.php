@@ -37,6 +37,8 @@ class NostrRelayPool
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly string $nostrDefaultRelay,
+        private readonly bool $gatewayEnabled = false,
+        private readonly ?RelayGatewayClient $gatewayClient = null,
         array $defaultRelays = []
     ) {
         // Build relay list from RelayRegistry (replaces hardcoded PUBLIC_RELAYS)
@@ -57,16 +59,17 @@ class NostrRelayPool
             $this->defaultRelays = $this->relayRegistry->getDefaultRelays();
         }
 
-        $this->logger->info('NostrRelayPool initialized with relay priority', [
+        $this->logger->debug('NostrRelayPool initialized with relay priority', [
             'relay_count' => count($this->defaultRelays),
-            'relays' => $this->defaultRelays
+            'relays' => $this->defaultRelays,
+            'gateway_enabled' => $this->gatewayEnabled,
         ]);
     }
 
     /**
      * Normalize relay URL to ensure consistency
      */
-    private function normalizeRelayUrl(string $url): string
+    public function normalizeRelayUrl(string $url): string
     {
         $url = trim($url);
         // Remove trailing slash for consistency
@@ -148,17 +151,63 @@ class NostrRelayPool
     }
 
     /**
-     * Send a request to multiple relays and collect responses, prioritizing default relay
+     * Send a request to multiple relays and collect responses, prioritizing default relay.
+     *
+     * When the relay gateway is enabled, external relays are routed through the
+     * gateway (persistent connections, NIP-42 AUTH). Local relay traffic stays direct.
      *
      * @param array $relayUrls Array of relay URLs to query
      * @param callable $messageBuilder Function that builds the message to send
      * @param int|null $timeout Optional timeout in seconds
      * @param string|null $subscriptionId Optional subscription ID to close after receiving responses
+     * @param string|null $pubkey Optional user pubkey for AUTH-gated relay routing
      * @return array Responses from all relays
      */
-    public function sendToRelays(array $relayUrls, callable $messageBuilder, ?int $timeout = null, ?string $subscriptionId = null): array
+    public function sendToRelays(array $relayUrls, callable $messageBuilder, ?int $timeout = null, ?string $subscriptionId = null, ?string $pubkey = null): array
     {
         $timeout = $timeout ?? self::CONNECTION_TIMEOUT;
+
+        // When gateway is enabled, route external relays through it
+        if ($this->gatewayEnabled && $this->gatewayClient) {
+            [$localUrls, $externalUrls] = $this->partitionRelays($relayUrls);
+
+            $results = [];
+
+            // Local relay: direct connection (fast, no AUTH needed)
+            if (!empty($localUrls)) {
+                $results += $this->sendDirect($localUrls, $messageBuilder, $timeout);
+            }
+
+            // External relays: route through gateway
+            if (!empty($externalUrls)) {
+                $message = $messageBuilder();
+                $filter = $this->extractFilterFromPayload($message->generate());
+
+                $gatewayResult = $this->gatewayClient->query($externalUrls, $filter, $pubkey, $timeout);
+
+                // Assign events to the first relay URL (gateway merges all relay responses)
+                if (!empty($gatewayResult['events']) && !empty($externalUrls)) {
+                    $results[$externalUrls[0]] = $gatewayResult['events'];
+                }
+                foreach ($gatewayResult['errors'] ?? [] as $url => $error) {
+                    if (!isset($results[$url])) {
+                        $results[$url] = [];
+                    }
+                }
+            }
+
+            return $results;
+        }
+
+        // Gateway disabled: direct connection (current behavior)
+        return $this->sendDirect($relayUrls, $messageBuilder, $timeout);
+    }
+
+    /**
+     * Send directly to relays via TweakedRequest (bypassing gateway).
+     */
+    private function sendDirect(array $relayUrls, callable $messageBuilder, int $timeout): array
+    {
         $relays = $this->getRelays($relayUrls);
 
         if (empty($relays)) {
@@ -177,7 +226,6 @@ class NostrRelayPool
         $this->logger->info('Sending request to relays via TweakedRequest', [
             'relay_count' => count($relays),
             'relays' => array_map(fn($r) => $r->getUrl(), $relays),
-            'subscription_id' => $subscriptionId
         ]);
 
         try {
@@ -223,6 +271,59 @@ class NostrRelayPool
 
             return [];
         }
+    }
+
+    /**
+     * Partition relay URLs into local and external groups.
+     *
+     * @return array{0: string[], 1: string[]} [localUrls, externalUrls]
+     */
+    private function partitionRelays(array $relayUrls): array
+    {
+        $localRelay = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
+        $local = [];
+        $external = [];
+
+        foreach ($relayUrls as $url) {
+            $normalized = $this->normalizeRelayUrl($url);
+            if ($localRelay && $normalized === $localRelay) {
+                $local[] = $url;
+            } else {
+                $external[] = $url;
+            }
+        }
+
+        return [$local, $external];
+    }
+
+    /**
+     * Best-effort extraction of filter parameters from a generated REQ payload.
+     * The gateway needs the filter as an associative array.
+     */
+    private function extractFilterFromPayload(string $payload): array
+    {
+        $decoded = json_decode($payload, true);
+        // REQ format: ["REQ", subscriptionId, filter1, filter2, ...]
+        if (is_array($decoded) && ($decoded[0] ?? '') === 'REQ' && isset($decoded[2])) {
+            return $decoded[2];
+        }
+        return [];
+    }
+
+    /**
+     * Check if the relay gateway is enabled and the client is available.
+     */
+    public function isGatewayEnabled(): bool
+    {
+        return $this->gatewayEnabled && $this->gatewayClient !== null;
+    }
+
+    /**
+     * Get the gateway client (for callers that need direct gateway access).
+     */
+    public function getGatewayClient(): ?RelayGatewayClient
+    {
+        return $this->gatewayClient;
     }
 
     /**

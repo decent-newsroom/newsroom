@@ -9,6 +9,7 @@ use swentel\nostr\Relay\Relay;
 use swentel\nostr\Relay\RelaySet;
 use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\RequestInterface;
+use WebSocket\Client;
 use WebSocket\Client as WsClient;
 use WebSocket\Message\Text;
 
@@ -47,6 +48,23 @@ final class TweakedRequest implements RequestInterface
     {
         $this->stopOnEventId = $hexId;
         return $this;
+    }
+
+    /**
+     * Get the relay URLs from this request (for gateway routing).
+     * @return string[]
+     */
+    public function getRelayUrls(): array
+    {
+        return array_map(fn($r) => $r->getUrl(), $this->relays->getRelays());
+    }
+
+    /**
+     * Get the raw JSON payload (for gateway filter extraction).
+     */
+    public function getPayload(): string
+    {
+        return $this->payload;
     }
 
     /** @return array<string, array|RelayResponse> */

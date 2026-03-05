@@ -8,6 +8,7 @@ parameters:
     mercure_public_hub_url: '%env(MERCURE_PUBLIC_URL)%'
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
+    relay_gateway_default: 'false'
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:
@@ -148,6 +149,25 @@ services:
     App\Service\Nostr\RelayHealthStore:
         arguments:
             $redis: '@Redis'
+
+    # Relay Gateway Client — Redis Streams interface to the gateway process
+    App\Service\Nostr\RelayGatewayClient:
+        arguments:
+            $redis: '@Redis'
+
+    # Relay Gateway feature flag wiring
+    App\Service\Nostr\NostrRelayPool:
+        arguments:
+            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+            $gatewayClient: '@App\Service\Nostr\RelayGatewayClient'
+
+    App\MessageHandler\UpdateRelayListHandler:
+        arguments:
+            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+
+    App\EventListener\LogoutRelayCleanupListener:
+        arguments:
+            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
 
     # Markdown converter interface - use the Nostr-aware Converter (lazy to avoid loading on list pages)
     App\Util\CommonMark\MarkdownConverterInterface:

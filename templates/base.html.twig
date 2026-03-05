@@ -54,6 +54,14 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
+{# Relay AUTH signer — listens for NIP-42 challenges from the relay gateway via Mercure #}
+{% if app.user %}
+<div data-controller="nostr--relay-auth"
+     data-nostr--relay-auth-pubkey-value="{{ app.user.npub|npub_to_hex }}"
+     data-nostr--relay-auth-mercure-hub-value="{{ mercure_public_hub_url }}"
+     style="display:none"></div>
+{% endif %}
+
 {% block footer %}
 <footer>
     <twig:Footer />

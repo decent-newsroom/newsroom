@@ -26,6 +26,7 @@
 
 services:
   php:
+    image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
     build:
         context: .
@@ -46,6 +47,7 @@ services:
         MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
         ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-false}
         CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
+        RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -85,10 +87,7 @@ services:
 ###< doctrine/doctrine-bundle ###
 
   cron:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frankenphp_prod
+    image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     working_dir: /app
     entrypoint: ["/bin/bash"]
     command:
@@ -122,12 +121,11 @@ services:
   # - Media hydration (subscribe to relay for media)
   # - Profile refresh (periodic profile metadata updates)
   worker:
-      build:
-          context: .
-          dockerfile: Dockerfile
+      image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
       working_dir: /app
-      entrypoint: ["php"]  # run PHP CLI, not Caddy/FrankenPHP
+      entrypoint: ["docker-entrypoint"]
       command:
+          - php
           - bin/console
           - app:run-workers
           - --profile-interval=6000
@@ -150,6 +148,7 @@ services:
             REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
             MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
             MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+            RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
 
 ###> strfry relay ###
   strfry:
