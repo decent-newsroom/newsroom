@@ -4,8 +4,6 @@ namespace App\Service\Nostr;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
-use App\Enum\RelayPurpose;
-use App\Factory\ArticleFactory;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -20,123 +18,65 @@ use swentel\nostr\Relay\RelaySet;
 use swentel\nostr\Request\Request;
 use swentel\nostr\Subscription\Subscription;
 
+/**
+ * Facade over the focused Nostr service classes.
+ *
+ * All domain-specific work is delegated to:
+ *   - RelaySetFactory        relay set construction
+ *   - NostrRequestExecutor   low-level request / response machinery
+ *   - ArticleFetchService    long-form content
+ *   - MediaEventService      pictures & videos (kinds 20/21/22)
+ *   - SocialEventService     comments, zaps, highlights
+ *   - UserProfileService     metadata, relay lists, interests, follows, bookmarks
+ *
+ * Public methods are kept for backward compatibility with existing callers.
+ */
 class NostrClient
 {
-    private ?RelaySet $defaultRelaySet = null;
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly ManagerRegistry        $managerRegistry,
+        private readonly LoggerInterface        $logger,
+        private readonly CacheItemPoolInterface $npubCache,
+        private readonly NostrRelayPool         $relayPool,
+        private readonly RelayRegistry          $relayRegistry,
+        private readonly UserRelayListService   $userRelayListService,
+        private readonly RelaySetFactory        $relaySetFactory,
+        private readonly NostrRequestExecutor   $executor,
+        private readonly ArticleFetchService    $articleFetchService,
+        private readonly MediaEventService      $mediaEventService,
+        private readonly SocialEventService     $socialEventService,
+        private readonly UserProfileService     $userProfileService,
+        private readonly ?string                $nostrDefaultRelay = null,
+    ) {}
 
-    public function __construct(private readonly EntityManagerInterface $entityManager,
-                                private readonly ManagerRegistry        $managerRegistry,
-                                private readonly ArticleFactory         $articleFactory,
-                                private readonly LoggerInterface        $logger,
-                                private readonly CacheItemPoolInterface $npubCache,
-                                private readonly NostrRelayPool         $relayPool,
-                                private readonly RelayRegistry          $relayRegistry,
-                                private readonly UserRelayListService   $userRelayListService,
-                                private readonly ?string                $nostrDefaultRelay = null)
-    {
-        // No eager initialization — relay set is built lazily on first use
-    }
-
-    /**
-     * Get the default relay set, building it lazily on first access.
-     */
-    private function getDefaultRelaySet(): RelaySet
-    {
-        if ($this->defaultRelaySet === null) {
-            $defaultRelayUrls = $this->relayRegistry->getDefaultRelays();
-            $this->defaultRelaySet = new RelaySet();
-            foreach ($defaultRelayUrls as $url) {
-                $this->defaultRelaySet->addRelay($this->relayPool->getRelay($url));
-            }
-        }
-        return $this->defaultRelaySet;
-    }
-
-    /**
-     * Creates a RelaySet from a list of relay URLs using the connection pool
-     */
-    private function createRelaySet(array $relayUrls): RelaySet
-    {
-        $relaySet = new RelaySet();
-        foreach ($relayUrls as $relayUrl) {
-            // Use the pool to get persistent relay connections
-            $relay = $this->relayPool->getRelay($relayUrl);
-            $relaySet->addRelay($relay);
-        }
-        return $relaySet;
-    }
-
-    /**
-     * Get top relays for an author — delegates to UserRelayListService.
-     */
-    private function getTopReputableRelaysForAuthor(string $pubkey, int $limit = 3): array
-    {
-        return $this->userRelayListService->getTopRelaysForAuthor($pubkey, $limit);
-    }
-
-    /**
-     * @throws \Exception
-     */
-    public function getPubkeyMetadata($pubkey): \stdClass
-    {
-        // Use relay pool for all relays including purplepag.es, with local relay prioritized
-        $relayUrls = $this->relayPool->ensureLocalRelayInList([
-            'wss://theforest.nostr1.com',
-            'wss://nostr.land',
-            'wss://relay.primal.net',
-            'wss://purplepag.es'
-        ]);
-        $relaySet = $this->createRelaySet($relayUrls);
-
-        $this->logger->debug('Getting metadata for pubkey ' . $pubkey );
-        $request = $this->createNostrRequest(
-            kinds: [KindsEnum::METADATA],
-            filters: ['authors' => [$pubkey]],
-            relaySet: $relaySet
-        );
-
-        $events = $this->processResponse($this->executeRequest($request), function($received) {
-            $this->logger->debug('Received metadata event for pubkey', ['item' => $received]);
-            return $received;
-        });
-
-        if (empty($events)) {
-            throw new \Exception('No metadata found for pubkey: ' . $pubkey);
-        }
-
-        // Sort by date and return newest
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        return $events[0];
-    }
+    // =========================================================================
+    // Publishing
+    // =========================================================================
 
     public function publishEvent(Event $event, array $relays, int $timeout = 30): array
     {
         $eventMessage = new EventMessage($event);
-        // If no relays, fetch relays for user then post to those
+
         if (empty($relays)) {
-            $relays = $this->getTopReputableRelaysForAuthor($event->getPublicKey());
+            $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
         } else {
-            // Ensure local relay is included when publishing
             $relays = $this->relayPool->ensureLocalRelayInList($relays);
         }
 
-        // Use relay pool instead of creating new Relay instances
-        $relaySet = $this->createRelaySet($relays);
+        $relaySet = $this->relaySetFactory->fromUrls($relays);
         $relaySet->setMessage($eventMessage);
 
         try {
             $this->logger->info('Publishing event to relays', [
-                'event_id' => $event->getId(),
+                'event_id'    => $event->getId(),
                 'relay_count' => count($relays),
-                'relays' => $relays,
-                'timeout' => $timeout
+                'relays'      => $relays,
+                'timeout'     => $timeout,
             ]);
 
-            // Publish with timeout protection
             $startTime = microtime(true);
-            $results = [];
 
-            // Set timeout on relay clients before sending
             foreach ($relaySet->getRelays() as $relay) {
                 try {
                     $client = $relay->getClient();
@@ -146,19 +86,18 @@ class NostrClient
                 } catch (\Exception $e) {
                     $this->logger->debug('Could not set timeout on relay client', [
                         'relay' => $relay->getUrl(),
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
 
-            // Send to all relays
-            $results = $relaySet->executeRequest();
-
+            $results  = $relaySet->executeRequest();
             $duration = microtime(true) - $startTime;
+
             $this->logger->info('Completed relay publish', [
-                'event_id' => $event->getId(),
-                'duration' => round($duration, 2),
-                'result_count' => count($results)
+                'event_id'     => $event->getId(),
+                'duration'     => round($duration, 2),
+                'result_count' => count($results),
             ]);
 
             return $results;
@@ -166,203 +105,49 @@ class NostrClient
         } catch (\Exception $e) {
             $this->logger->error('Error publishing event to relays', [
                 'event_id' => $event->getId(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error'    => $e->getMessage(),
+                'trace'    => $e->getTraceAsString(),
             ]);
             return [];
         }
     }
 
-    /**
-     * Long-form Content
-     * NIP-23
-     */
-    public function getLongFormContent($from = null, $to = null): void
-    {
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([KindsEnum::LONGFORM]);
-        $filter->setSince(strtotime('-1 week')); // default
-        if ($from !== null) {
-            $filter->setSince($from);
-        }
-        if ($to !== null) {
-            $filter->setUntil($to);
-        }
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        // Create relay set from content relays via registry, with local relay prioritized
-        $relayUrls = $this->relayPool->ensureLocalRelayInList($this->relayRegistry->getContentRelays());
-        $relaySet = $this->createRelaySet($relayUrls);
-
-        $request = new Request($relaySet, $requestMessage);
-
-        // Process the response
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        if (!empty($events)) {
-            foreach ($events as $event) {
-                $article = $this->articleFactory->createFromLongFormContentEvent($event);
-                // check if event with same eventId already in DB
-                $this->saveEachArticleToTheDatabase($article);
-            }
-        }
-    }
+    // =========================================================================
+    // Generic event fetching
+    // =========================================================================
 
     /**
-     * @throws \Exception
-     */
-    public function getLongFormFromNaddr($slug, $relayList, $author, $kind): bool
-    {
-        $this->logger->info('Getting long form from ' . $slug, [
-            'relay_list' => $relayList,
-            'author' => $author,
-            'kind' => $kind
-        ]);
-
-        $topAuthorRelays = $this->getTopReputableRelaysForAuthor($author);
-        $authorRelaySet = $this->createRelaySet($topAuthorRelays);
-        $this->logger->info('Author relays for long form fetch', [
-            'author' => $author,
-            'from_event' => $this->getNpubRelays($author),
-            'relays' => $topAuthorRelays
-        ]);
-
-        if (empty($relayList)) {
-            $topAuthorRelays = $this->getTopReputableRelaysForAuthor($author);
-            $authorRelaySet = $this->createRelaySet($topAuthorRelays);
-        } else {
-            $authorRelaySet = $this->createRelaySet($relayList);
-        }
-
-        try {
-            // Create request using the helper method for forest relay set
-            $request = $this->createNostrRequest(
-                kinds: [$kind],
-                filters: [
-                    'authors' => [$author],
-                    'tag' => ['#d', [$slug]]
-                ],
-                relaySet: $authorRelaySet
-            );
-
-            // Process the response
-            $events = $this->processResponse($this->executeRequest($request), function($event) {
-                return $event;
-            });
-
-            if (!empty($events)) {
-                // Save only the first event (most recent)
-                $event = $events[0];
-                $wrapper = new \stdClass();
-                $wrapper->type = 'EVENT';
-                $wrapper->event = $event;
-                $this->saveLongFormContent([$wrapper]);
-                return true;
-            }
-
-            // If no events found in the initial relay set, try fallback with additional reputable relays
-            $this->logger->info('No events found in initial relay set, trying fallback with additional relays', [
-                'slug' => $slug,
-                'author' => $author
-            ]);
-
-            // Merge the initial relay list with content relays from registry for a comprehensive search
-            $contentRelays = $this->relayRegistry->getContentRelays();
-            $fallbackRelays = empty($relayList)
-                ? $contentRelays
-                : array_unique(array_merge($relayList, $contentRelays));
-
-            $fallbackRelaySet = $this->createRelaySet($fallbackRelays);
-
-            $fallbackRequest = $this->createNostrRequest(
-                kinds: [$kind],
-                filters: [
-                    'authors' => [$author],
-                    'tag' => ['#d', [$slug]]
-                ],
-                relaySet: $fallbackRelaySet
-            );
-
-            $fallbackEvents = $this->processResponse($this->executeRequest($fallbackRequest), function($event) {
-                return $event;
-            });
-
-            if (!empty($fallbackEvents)) {
-                $this->logger->info('Found event in fallback relay search', [
-                    'slug' => $slug,
-                    'author' => $author,
-                    'event_count' => count($fallbackEvents)
-                ]);
-
-                // Save only the first event (most recent)
-                $event = $fallbackEvents[0];
-                $wrapper = new \stdClass();
-                $wrapper->type = 'EVENT';
-                $wrapper->event = $event;
-                $this->saveLongFormContent([$wrapper]);
-                return true;
-            }
-
-            $this->logger->warning('No events found even after fallback relay search', [
-                'slug' => $slug,
-                'author' => $author,
-                'tried_relays' => $fallbackRelays
-            ]);
-
-            return false;
-        } catch (\Exception $e) {
-            $this->logger->error('Error querying relays', [
-                'error' => $e->getMessage()
-            ]);
-            throw new \Exception('Error querying relays', 0, $e);
-        }
-    }
-
-    /**
-     * Get event by its ID
-     *
-     * @param string $eventId The event ID
-     * @param array $relays Optional array of relay URLs to query
-     * @return object|null The event or null if not found
      * @throws \Exception
      */
     public function getEventById(string $eventId, array $relays = []): ?object
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
-        // Ensure local relay is included in the relay list
-        $relays = $this->relayPool->ensureLocalRelayInList($relays);
-
-        // Build a short list: provided relays first, then content relays from registry, capped at 3 total.
+        $relays    = $this->relayPool->ensureLocalRelayInList($relays);
         $allRelays = array_values(array_unique(array_merge($relays, $this->relayRegistry->getContentRelays())));
         $allRelays = array_slice($allRelays, 0, 3);
 
-        // Loop and bail as soon as one relay returns the event
         foreach ($allRelays as $relay) {
             $this->logger->debug('Trying relay for event', ['relay' => $relay, 'event_id' => $eventId]);
             try {
-                $request = $this->createNostrRequest(
+                $request = $this->executor->buildRequest(
                     kinds: [],
                     filters: ['ids' => [$eventId], 'limit' => 1],
-                    relaySet: $this->createRelaySet([$relay]),
+                    relaySet: $this->relaySetFactory->fromUrls([$relay]),
                     stopGap: $eventId
                 );
-                $events = $this->processResponse($this->executeRequest($request), function($event) {
-                    $this->logger->debug('Received event', ['event' => $event]);
-                    return $event;
-                });
+                $events = $this->executor->process(
+                    $this->executor->execute($request),
+                    fn($event) => $event
+                );
                 if (!empty($events)) {
                     return $events[0];
                 }
             } catch (\Throwable $e) {
                 $this->logger->debug('Relay failed for event lookup', [
-                    'relay' => $relay,
+                    'relay'    => $relay,
                     'event_id' => $eventId,
-                    'error' => $e->getMessage(),
+                    'error'    => $e->getMessage(),
                 ]);
             }
         }
@@ -370,13 +155,7 @@ class NostrClient
         return null;
     }
 
-
     /**
-     * Get multiple events by their IDs
-     *
-     * @param array $eventIds Array of event IDs
-     * @param array $relays Optional array of relay URLs to query
-     * @return array Array of events indexed by ID
      * @throws \Exception
      */
     public function getEventsByIds(array $eventIds, array $relays = []): array
@@ -387,103 +166,59 @@ class NostrClient
 
         $this->logger->info('Getting events by IDs', ['event_ids' => $eventIds, 'relays' => $relays]);
 
-        // Ensure local relay is included
         if (!empty($relays)) {
             $relays = $this->relayPool->ensureLocalRelayInList($relays);
         }
 
-        // Use provided relays or default if empty
-        $relaySet = empty($relays) ? $this->getDefaultRelaySet() : $this->createRelaySet($relays);
+        $relaySet = empty($relays)
+            ? $this->relaySetFactory->getDefault()
+            : $this->relaySetFactory->fromUrls($relays);
 
-        // Create request using the helper method
-        $request = $this->createNostrRequest(
+        $events = $this->executor->fetch(
             kinds: [],
             filters: ['ids' => $eventIds],
-            relaySet: $relaySet
+            relaySet: $relaySet,
+            handler: fn($event) => $event,
         );
 
-        // Process the response
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            $this->logger->debug('Received event', ['event' => $event]);
-            return $event;
-        });
-
-        // Index events by ID
         $eventsMap = [];
         foreach ($events as $event) {
             $eventsMap[$event->id] = $event;
         }
-
         return $eventsMap;
     }
 
     /**
-     * Fetch event by naddr
-     *
-     * @param array $decoded Decoded naddr data
-     * @return object|null The event or null if not found
      * @throws \Exception
      */
     public function getEventByNaddr(array $decoded): ?object
     {
         $this->logger->info('Getting event by naddr', ['decoded' => $decoded]);
 
-        // Extract required fields from decoded data
-        $kind = $decoded['kind'] ?? 30023; // Default to long-form content
-        $pubkey = $decoded['pubkey'] ?? '';
+        $kind       = $decoded['kind']       ?? 30023;
+        $pubkey     = $decoded['pubkey']     ?? '';
         $identifier = $decoded['identifier'] ?? '';
-        $relays = $decoded['relays'] ?? [];
+        $relays     = $decoded['relays']     ?? [];
 
         if (empty($pubkey) || empty($identifier)) {
             return null;
         }
 
-        // Try author's relays first
-        $authorRelays = empty($relays) ? $this->getTopReputableRelaysForAuthor($pubkey) : $relays;
-        $relaySet = $this->createRelaySet($authorRelays);
+        $primary  = $this->relaySetFactory->forAuthorWithFallback($pubkey, $relays);
+        $fallback = $this->relaySetFactory->getDefault();
 
-        // Create request using the helper method
-        $request = $this->createNostrRequest(
+        return $this->executor->fetchFirst(
             kinds: [$kind],
-            filters: [
-                'authors' => [$pubkey],
-                'tag' => ['#d', [$identifier]]
-            ],
-            relaySet: $relaySet
+            filters: ['authors' => [$pubkey], 'tag' => ['#d', [$identifier]]],
+            primary: $primary,
+            fallback: $fallback,
         );
-
-        // Process the response
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        if (!empty($events)) {
-            return $events[0];
-        }
-
-        // Try default relays as fallback
-        $request = $this->createNostrRequest(
-            kinds: [$kind],
-            filters: [
-                'authors' => [$pubkey],
-                'tag' => ['#d', [$identifier]]
-            ]
-        );
-
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        return !empty($events) ? $events[0] : null;
     }
 
     /**
      * Fetch multiple events by coordinate strings ("kind:pubkey:identifier") in batch.
      *
-     * Groups coordinates by (kind, pubkey) and issues ONE relay request per group,
-     * filtering by all #d identifiers at once.  This avoids N×timeout serial fetches.
-     *
-     * @param string[] $coordinates  e.g. ["30040:abc123:my-cat", "30023:abc123:my-post"]
+     * @param string[] $coordinates
      * @return array<string, object>  keyed by coordinate string
      */
     public function getEventsByCoordinates(array $coordinates): array
@@ -492,73 +227,46 @@ class NostrClient
             return [];
         }
 
-        // Group identifiers by kind+pubkey so we can batch per group
         $groups = [];
-        $coordMeta = [];
         foreach ($coordinates as $coord) {
             $parts = explode(':', $coord, 3);
             if (count($parts) !== 3) {
                 continue;
             }
             [$kind, $pubkey, $identifier] = $parts;
-            $groupKey = $kind . ':' . $pubkey;
-            $groups[$groupKey]['kind'] = (int) $kind;
-            $groups[$groupKey]['pubkey'] = $pubkey;
+            $groupKey                           = $kind . ':' . $pubkey;
+            $groups[$groupKey]['kind']          = (int) $kind;
+            $groups[$groupKey]['pubkey']        = $pubkey;
             $groups[$groupKey]['identifiers'][] = $identifier;
-            $coordMeta[$coord] = ['kind' => (int) $kind, 'pubkey' => $pubkey, 'identifier' => $identifier];
         }
 
         $results = [];
 
-        foreach ($groups as $groupKey => $group) {
-            $kind = $group['kind'];
-            $pubkey = $group['pubkey'];
+        foreach ($groups as $group) {
+            $kind        = $group['kind'];
+            $pubkey      = $group['pubkey'];
             $identifiers = array_unique($group['identifiers']);
 
-            $this->logger->info('Batch fetching events', [
-                'kind' => $kind,
+            $this->logger->info('Batch fetching events by coordinate', [
+                'kind'   => $kind,
                 'pubkey' => substr($pubkey, 0, 8) . '...',
-                'count' => count($identifiers),
+                'count'  => count($identifiers),
             ]);
 
-            // Pick relays: prefer local, then author relays
-            $relayUrls = [];
-            if ($this->nostrDefaultRelay) {
-                $relayUrls = [$this->nostrDefaultRelay];
-            } else {
-                $relayUrls = $this->getTopReputableRelaysForAuthor($pubkey);
-            }
+            $relayUrls = $this->nostrDefaultRelay
+                ? [$this->nostrDefaultRelay]
+                : $this->userRelayListService->getTopRelaysForAuthor($pubkey);
 
-            $relaySet = $this->createRelaySet($relayUrls);
+            $filters = ['authors' => [$pubkey], 'tag' => ['#d', $identifiers]];
+            $events  = $this->executor->fetch([$kind], $filters, $this->relaySetFactory->fromUrls($relayUrls));
 
-            $request = $this->createNostrRequest(
-                kinds: [$kind],
-                filters: [
-                    'authors' => [$pubkey],
-                    'tag' => ['#d', $identifiers],
-                ],
-                relaySet: $relaySet
-            );
-
-            $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
-
-            // If local relay returned nothing, fall back to public relays
             if (empty($events) && $this->nostrDefaultRelay) {
-                $fallbackRelays = $this->getTopReputableRelaysForAuthor($pubkey);
+                $fallbackRelays = $this->userRelayListService->getTopRelaysForAuthor($pubkey);
                 if (!empty($fallbackRelays)) {
-                    $request = $this->createNostrRequest(
-                        kinds: [$kind],
-                        filters: [
-                            'authors' => [$pubkey],
-                            'tag' => ['#d', $identifiers],
-                        ],
-                        relaySet: $this->createRelaySet($fallbackRelays)
-                    );
-                    $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
+                    $events = $this->executor->fetch([$kind], $filters, $this->relaySetFactory->fromUrls($fallbackRelays));
                 }
             }
 
-            // Index returned events by their #d identifier
             foreach ($events as $event) {
                 $dTag = null;
                 foreach ($event->tags ?? [] as $tag) {
@@ -571,7 +279,6 @@ class NostrClient
                     continue;
                 }
                 $coordKey = $kind . ':' . $pubkey . ':' . $dTag;
-                // Keep newest if duplicates
                 if (!isset($results[$coordKey]) ||
                     ($event->created_at ?? 0) > ($results[$coordKey]->created_at ?? 0)) {
                     $results[$coordKey] = $event;
@@ -582,1418 +289,233 @@ class NostrClient
         return $results;
     }
 
-    private function saveLongFormContent(mixed $filtered): void
-    {
-        foreach ($filtered as $wrapper) {
-            $article = $this->articleFactory->createFromLongFormContentEvent($wrapper->event);
-            // check if event with same eventId already in DB
-            $this->saveEachArticleToTheDatabase($article);
-        }
-    }
-
-    /**
-     * Get relay list for an npub/pubkey.
-     *
-     * Delegates to UserRelayListService which implements stale-while-revalidate
-     * with DB write-through: cache → DB → network → fallback.
-     *
-     * @param string $npub Npub or hex pubkey
-     * @return array Flat array of relay URLs for backward compatibility
-     */
-    public function getNpubRelays($npub): array
-    {
-        return $this->userRelayListService->getRelays($npub);
-    }
-
-    /**
-     * Validate relay URL
-     */
-    private function isValidRelayUrl(string $url): bool
-    {
-        return str_starts_with($url, 'wss://') && !str_contains($url, 'localhost');
-    }
-
-    /**
-     * Get comments for a specific coordinate
-     *
-     * @param string $coordinate The event coordinate (kind:pubkey:identifier)
-     * @return array Array of comment events
-     * @throws \Exception
-     */
-    public function getComments(string $coordinate, ?int $since = null): array
-    {
-        $this->logger->info('Getting comments for coordinate', ['coordinate' => $coordinate]);
-
-        // Get author from coordinate, then relays
-        $parts = explode(':', $coordinate, 3);
-        if (count($parts) < 3) {
-            throw new \InvalidArgumentException('Invalid coordinate format, expected kind:pubkey:identifier');
-        }
-        $kind = (int)$parts[0];
-        $pubkey = $parts[1];
-        $identifier = end($parts);
-
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $authorRelays = [$this->nostrDefaultRelay];
-            $this->logger->info('Using local relay for comments fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'coordinate' => $coordinate
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
-            $this->logger->info('Using author relays for comments fetch', [
-                'coordinate' => $coordinate,
-                'relay_count' => count($authorRelays)
-            ]);
-        }
-
-        // Build the request message
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([
-            KindsEnum::COMMENTS->value,
-            KindsEnum::ZAP_RECEIPT->value,
-        ]);
-        $filter->setTag('#A', [$coordinate]);
-
-        if (is_int($since) && $since > 0) {
-            $filter->setSince($since);
-        }
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        // Use the relay pool to send the request
-        // Pass subscription ID so the pool can send CLOSE message after receiving responses
-        $responses = $this->relayPool->sendToRelays(
-            $authorRelays,
-            fn() => $requestMessage,
-            10, // timeout in seconds — local relay responds fast
-            $subscriptionId // close subscription after receiving responses
-        );
-
-        // Process the response and deduplicate by eventId
-        $uniqueEvents = [];
-        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received comment event', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        return array_values($uniqueEvents);
-    }
-
-    /**
-     * Get zap events for a specific event
-     *
-     * @param string $coordinate The event coordinate (kind:pubkey:identifier)
-     * @return array Array of zap events
-     * @throws \Exception
-     */
-    public function getZapsForEvent(string $coordinate): array
-    {
-        $this->logger->info('Getting zaps for coordinate', ['coordinate' => $coordinate]);
-
-        // Parse the coordinate to get pubkey
-        $parts = explode(':', $coordinate, 3);
-        $pubkey = $parts[1];
-
-        // Get author's relays for better chances of finding zaps (includes local relay)
-        $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
-        $relaySet = $this->createRelaySet($authorRelays);
-
-        // Create request using the helper method
-        // Zaps are kind 9735
-        $request = $this->createNostrRequest(
-            kinds: [KindsEnum::ZAP_RECEIPT->value],
-            filters: ['tag' => ['#a', [$coordinate]]],
-            relaySet: $relaySet
-        );
-
-        // Process the response
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            $this->logger->debug('Received zap event', ['event_id' => $event->id]);
-            return $event;
-        });
-    }
-
     /**
      * @throws \Exception
-     */
-    public function getLongFormContentForPubkey(string $ident, ?int $since = null, ?int $kind = KindsEnum::LONGFORM->value ): array
-    {
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Using local relay for article fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'pubkey' => $ident
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
-            $this->logger->info('Using author relays for article fetch', [
-                'pubkey' => $ident,
-                'relay_count' => count($authorRelays)
-            ]);
-        }
-
-        // Create request using the helper method
-        $filters = [
-            'authors' => [$ident],
-            'limit' => 20 // default limit
-        ];
-        if ($since !== null && $since > 0) {
-            $filters['since'] = $since;
-        }
-
-        $request = $this->createNostrRequest(
-            kinds: [$kind],
-            filters: $filters,
-            relaySet: $relaySet
-        );
-
-        // Process the response using the helper method
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            $article = $this->articleFactory->createFromLongFormContentEvent($event);
-            // Save each article to the database
-            $this->saveEachArticleToTheDatabase($article);
-            return $article; // Return the article so it gets added to the results array
-        });
-    }
-
-    /**
-     * Get picture events (kind 20) for a specific author
-     * @throws \Exception
-     */
-    public function getPictureEventsForPubkey(string $ident, int $limit = 20): array
-    {
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Using local relay for picture events fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'pubkey' => $ident
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
-        }
-
-        // Create request for kind 20 (picture events)
-        $request = $this->createNostrRequest(
-            kinds: [20], // NIP-68 Picture events
-            filters: [
-                'authors' => [$ident],
-                'limit' => $limit
-            ],
-            relaySet: $relaySet
-        );
-
-        // Process the response and return raw events
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            return $event; // Return the raw event
-        });
-    }
-
-    /**
-     * Get video shorts (kind 22) for a given pubkey
-     * @throws \Exception
-     */
-    public function getVideoShortsForPubkey(string $ident, int $limit = 20): array
-    {
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Using local relay for video shorts fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'pubkey' => $ident
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
-        }
-
-        // Create request for kind 22 (short video events)
-        $request = $this->createNostrRequest(
-            kinds: [22], // NIP-71 Short video events
-            filters: [
-                'authors' => [$ident],
-                'limit' => $limit
-            ],
-            relaySet: $relaySet
-        );
-
-        // Process the response and return raw events
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            return $event; // Return the raw event
-        });
-    }
-
-    /**
-     * Get normal video events (kind 21) for a given pubkey
-     * @throws \Exception
-     */
-    public function getNormalVideosForPubkey(string $ident, int $limit = 20): array
-    {
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Using local relay for normal videos fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'pubkey' => $ident
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
-        }
-
-        // Create request for kind 21 (normal video events)
-        $request = $this->createNostrRequest(
-            kinds: [21], // NIP-71 Normal video events
-            filters: [
-                'authors' => [$ident],
-                'limit' => $limit
-            ],
-            relaySet: $relaySet
-        );
-
-        // Process the response and return raw events
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            return $event; // Return the raw event
-        });
-    }
-
-    /**
-     * Get all media events (pictures and videos) for a given pubkey in a single request
-     * This is more efficient than making 3 separate requests
-     * @throws \Exception
-     */
-    public function getAllMediaEventsForPubkey(string $ident, int $limit = 30): array
-    {
-        // Use local relay only if configured, otherwise use author relays
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Using local relay for all media events fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'pubkey' => $ident
-            ]);
-        } else {
-            // Fallback to author relays when no local relay is configured
-            $authorRelays = $this->getTopReputableRelaysForAuthor($ident);
-            $relaySet = empty($authorRelays) ? $this->getDefaultRelaySet() : $this->createRelaySet($authorRelays);
-        }
-
-        // Create request for all media kinds (20, 21, 22) in ONE request
-        $request = $this->createNostrRequest(
-            kinds: [20, 21, 22], // NIP-68 Pictures, NIP-71 Videos (normal and shorts)
-            filters: [
-                'authors' => [$ident],
-                'limit' => $limit
-            ],
-            relaySet: $relaySet
-        );
-
-        // Process the response and return raw events
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            return $event; // Return the raw event
-        });
-    }
-
-    /**
-     * Get recent media events (pictures and videos) from the last 3 days
-     * Fetches from all relays without filtering by author
-     * @throws \Exception
-     */
-    public function getRecentMediaEvents(int $limit = 100): array
-    {
-        // Create request for all media kinds (20, 21, 22) from the last 3 days
-        $request = $this->createNostrRequest(
-            kinds: [20, 21, 22], // NIP-68 Pictures, NIP-71 Videos (normal and shorts)
-            filters: [
-                'limit' => $limit
-            ],
-            relaySet: $this->getDefaultRelaySet()
-        );
-
-        // Process the response and return raw events
-        return $this->processResponse($this->executeRequest($request), function($event) {
-            return $event; // Return the raw event
-        });
-    }
-
-    /**
-     * Get media events filtered by specific hashtags
-     * @param array $hashtags Hashtags to filter by
-     * @param array $kinds Event kinds to fetch (default: 20, 21, 22 for images and videos)
-     * @throws \Exception
-     */
-    public function getMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22]): array
-    {
-        $allEvents = [];
-
-        // Fetch events for the specified kinds
-        $request = $this->createNostrRequest(
-            kinds: $kinds, // NIP-68 Pictures (20) and Videos (21, 22)
-            filters: [
-                'tag' => ['#t', $hashtags],
-                'limit' => 500
-            ],
-            relaySet: $this->createRelaySet(['wss://theforest.nostr1.com'])
-        );
-
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        $allEvents = array_merge($allEvents, $events);
-
-        return $allEvents;
-    }
-
-    /**
-     * Save a media event to the database
-     * Creates or updates an Event entity from a raw Nostr event
-     *
-     * @param object $rawEvent Raw Nostr event from relay
-     * @return void
-     */
-    public function saveMediaEvent(object $rawEvent): void
-    {
-        // Check if event already exists
-        $eventRepo = $this->entityManager->getRepository(\App\Entity\Event::class);
-        $existingEvent = $eventRepo->find($rawEvent->id);
-
-        if ($existingEvent) {
-            // Event already exists, skip (events are immutable in Nostr)
-            $this->logger->debug('Media event already exists, skipping', ['event_id' => $rawEvent->id]);
-            return;
-        }
-
-        // Create new Event entity
-        $event = new \App\Entity\Event();
-        $event->setId($rawEvent->id);
-        $event->setPubkey($rawEvent->pubkey);
-        $event->setCreatedAt($rawEvent->created_at);
-        $event->setKind($rawEvent->kind);
-        $event->setTags($rawEvent->tags ?? []);
-        $event->setContent($rawEvent->content ?? '');
-        $event->setSig($rawEvent->sig);
-
-        // Persist the event (will be flushed by the handler)
-        $this->entityManager->persist($event);
-
-        $this->logger->debug('Persisted media event', [
-            'event_id' => $rawEvent->id,
-            'kind' => $rawEvent->kind,
-            'pubkey' => $rawEvent->pubkey
-        ]);
-    }
-
-    /**
-     * Get media events by time range
-     * @param array $kinds Event kinds to fetch (default: 20, 21, 22)
-     * @param int $from Unix timestamp for start of range
-     * @param int $to Unix timestamp for end of range
-     * @param int $limit Maximum number of events to fetch
-     * @return array Array of raw Nostr events
-     * @throws \Exception
-     */
-    public function getMediaEventsByTimeRange(array $kinds = [20, 21, 22], int $from = 0, int $to = 0, int $limit = 1000): array
-    {
-        $allEvents = [];
-
-        if ($to === 0) {
-            $to = time();
-        }
-
-        if ($from === 0) {
-            // Default to last 7 days
-            $from = $to - (7 * 24 * 60 * 60);
-        }
-
-        $this->logger->info('Fetching media events by time range', [
-            'kinds' => $kinds,
-            'from' => date('Y-m-d H:i:s', $from),
-            'to' => date('Y-m-d H:i:s', $to),
-            'limit' => $limit
-        ]);
-
-        // Fetch events for the specified kinds and time range
-        $request = $this->createNostrRequest(
-            kinds: $kinds,
-            filters: [
-                'since' => $from,
-                'until' => $to,
-                'limit' => $limit
-            ],
-            relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 2))
-        );
-
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        $allEvents = array_merge($allEvents, $events);
-
-        $this->logger->info('Fetched media events', [
-            'count' => count($allEvents)
-        ]);
-
-        return $allEvents;
-    }
-
-    /**
-     * Get curation set events by time range (NIP-51)
-     * @param array $kinds Event kinds to fetch (default: 30004, 30005, 30006)
-     * @param int $from Unix timestamp for start of range
-     * @param int $to Unix timestamp for end of range
-     * @param int $limit Maximum number of events to fetch
-     * @param string|null $pubkey Optional pubkey to filter by
-     * @return array Array of raw Nostr events
-     * @throws \Exception
-     */
-    public function getCurationEventsByTimeRange(
-        array $kinds = [30004, 30005, 30006],
-        int $from = 0,
-        int $to = 0,
-        int $limit = 500,
-        ?string $pubkey = null
-    ): array {
-        $allEvents = [];
-
-        if ($to === 0) {
-            $to = time();
-        }
-
-        if ($from === 0) {
-            // Default to last 30 days
-            $from = $to - (30 * 24 * 60 * 60);
-        }
-
-        $this->logger->info('Fetching curation set events by time range', [
-            'kinds' => $kinds,
-            'from' => date('Y-m-d H:i:s', $from),
-            'to' => date('Y-m-d H:i:s', $to),
-            'limit' => $limit,
-            'pubkey' => $pubkey ? substr($pubkey, 0, 16) . '...' : null
-        ]);
-
-        // Build filters
-        $filters = [
-            'since' => $from,
-            'until' => $to,
-            'limit' => $limit
-        ];
-
-        if ($pubkey) {
-            $filters['authors'] = [$pubkey];
-        }
-
-        // Fetch events for the specified kinds and time range
-        $request = $this->createNostrRequest(
-            kinds: $kinds,
-            filters: $filters,
-            relaySet: $this->createRelaySet(array_slice($this->relayRegistry->getContentRelays(), 0, 3))
-        );
-
-        $events = $this->processResponse($this->executeRequest($request), function($event) {
-            return $event;
-        });
-
-        $allEvents = array_merge($allEvents, $events);
-
-        $this->logger->info('Fetched curation set events', [
-            'count' => count($allEvents)
-        ]);
-
-        return $allEvents;
-    }
-
-    public function getArticles(array $slugs): array
-    {
-        $articles = [];
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([KindsEnum::LONGFORM]);
-        $filter->setTag('#d', $slugs);
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        try {
-            $request = new Request($this->getDefaultRelaySet(), $requestMessage);
-            $response = $request->send();
-            $hasEvents = false;
-
-            // Check if we got any events
-            foreach ($response as $value) {
-                foreach ($value as $item) {
-                    if ($item->type === 'EVENT') {
-                        if (!isset($articles[$item->event->id])) {
-                            $articles[$item->event->id] = $item->event;
-                            $hasEvents = true;
-                        }
-                    }
-                }
-            }
-
-            // If no articles found, try the default relay set
-            if (!$hasEvents && !empty($slugs)) {
-                $this->logger->info('No results from theforest, trying default relays');
-
-                $request = new Request($this->getDefaultRelaySet(), $requestMessage);
-                $response = $request->send();
-
-                foreach ($response as $value) {
-                    foreach ($value as $item) {
-                        if ($item->type === 'EVENT') {
-                            if (!isset($articles[$item->event->id])) {
-                                $articles[$item->event->id] = $item->event;
-                            }
-                        } elseif (in_array($item->type, ['AUTH', 'ERROR', 'NOTICE'])) {
-                            $this->logger->error('An error while getting articles.', ['response' => $item]);
-                        }
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            $this->logger->error('Error querying relays', [
-                'error' => $e->getMessage()
-            ]);
-
-            // Fall back to default relay set
-            $request = new Request($this->getDefaultRelaySet(), $requestMessage);
-            $response = $request->send();
-
-            foreach ($response as $value) {
-                foreach ($value as $item) {
-                    if ($item->type === 'EVENT') {
-                        if (!isset($articles[$item->event->id])) {
-                            $articles[$item->event->id] = $item->event;
-                        }
-                    }
-                }
-            }
-        }
-
-        return $articles;
-    }
-
-    /**
-     * Fetch articles by coordinates (kind:author:slug)
-     * Returns a map of coordinate => event for successful fetches
-     *
-     * @param array $coordinates Array of coordinates in format kind:author:slug
-     * @return array Map of coordinate => event
-     * @throws \Exception
-     */
-    public function getArticlesByCoordinates(array $coordinates): array
-    {
-        $articlesMap = [];
-
-        foreach ($coordinates as $coordinate) {
-            $parts = explode(':', $coordinate, 3);
-
-            $kind = (int)$parts[0];
-            $pubkey = $parts[1];
-            $slug = $parts[2];
-
-            // Try to get relays associated with the author first
-            $relayList = [];
-            try {
-                // Get relays where the author publishes
-                $authorRelays = $this->getTopReputableRelaysForAuthor($pubkey);
-                if (!empty($authorRelays)) {
-                    $relayList = $authorRelays;
-                }
-            } catch (\Exception $e) {
-                $this->logger->warning('Failed to get author relays', [
-                    'pubkey' => $pubkey,
-                    'error' => $e->getMessage()
-                ]);
-                // Continue with default relays
-            }
-
-            // If no author relays found, add default relay
-            if (empty($relayList)) {
-                $relayList = $this->relayRegistry->getContentRelays();
-            }
-
-            // Ensure we use a RelaySet
-            $relaySet = $this->createRelaySet($relayList);
-
-            // Create subscription and filter
-            $subscription = new Subscription();
-            $subscriptionId = $subscription->setId();
-            $filter = new Filter();
-            $filter->setKinds([$kind]);
-            $filter->setAuthors([$pubkey]);
-            $filter->setTag('#d', [$slug]);
-            $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-            try {
-                $request = new Request($relaySet, $requestMessage);
-
-                // Use processResponse to properly wait for relay responses
-                $events = $this->processResponse($this->executeRequest($request), function($event) use ($coordinate) {
-                    $this->logger->info('Received event for coordinate', [
-                        'event_id' => $event->id,
-                        'coordinate' => $coordinate
-                    ]);
-                    return $event;
-                });
-
-                // If we got events, store to map
-                if (!empty($events)) {
-                    $articlesMap[$coordinate] = $events[0];
-                    $this->logger->info('Found article in author relays', [
-                        'coordinate' => $coordinate,
-                        'event_id' => $events[0]->id
-                    ]);
-                } else {
-                    // If still not found, try with default relay set as fallback
-                    $this->logger->info('Article not found in author relays, trying default relays', [
-                        'coordinate' => $coordinate
-                    ]);
-
-                    $fallbackRequest = new Request($this->getDefaultRelaySet(), $requestMessage);
-                    $fallbackEvents = $this->processResponse($this->executeRequest($fallbackRequest), function($event) use ($coordinate) {
-                        $this->logger->info('Received event from default relay', [
-                            'event_id' => $event->id,
-                            'coordinate' => $coordinate
-                        ]);
-                        return $event;
-                    });
-
-                    if (!empty($fallbackEvents)) {
-                        $articlesMap[$coordinate] = $fallbackEvents[0];
-                        $this->logger->info('Found article in default relays', [
-                            'coordinate' => $coordinate,
-                            'event_id' => $fallbackEvents[0]->id
-                        ]);
-                    } else {
-                        $this->logger->warning('Article not found in any relay', [
-                            'coordinate' => $coordinate
-                        ]);
-                    }
-                }
-            } catch (\Exception $e) {
-                $this->logger->error('Error fetching article', [
-                    'coordinate' => $coordinate,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-
-        $this->logger->info('Finished fetching articles by coordinates', [
-            'total_coordinates' => count($coordinates),
-            'articles_found' => count($articlesMap)
-        ]);
-
-        return $articlesMap;
-    }
-
-    /**
-     * Get highlights (NIP-84) - all kind 9802 events
-     * Note: Method name is historical - now returns ALL highlights, not just article-related
-     * @throws \Exception
-     */
-    public function getArticleHighlights(int $limit = 50): array
-    {
-        $this->logger->info('Fetching highlights from default relay');
-
-        // Use relay pool to send request
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([9802]); // NIP-84 highlights
-        $filter->setLimit($limit);
-        $filter->setSince(strtotime('-30 days')); // Last 30 days
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        // Use only the configured default relay
-        $relayUrls = $this->nostrDefaultRelay
-            ? [$this->nostrDefaultRelay]
-            : [($this->relayPool->getDefaultRelays()[0] ?? null)];
-        $relayUrls = array_filter($relayUrls); // Remove nulls if fallback fails
-
-        $responses = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            30,
-            $subscriptionId
-        );
-
-        // Process the response and deduplicate by eventId
-        $uniqueEvents = [];
-        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
-            // Accept all highlights, regardless of whether they reference articles
-            $this->logger->debug('Received highlight event', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        return array_values($uniqueEvents);
-    }
-
-    /**
-     * Get highlights for a specific article
-     * @throws \Exception
-     */
-    public function getHighlightsForArticle(string $articleCoordinate, int $limit = 100): array
-    {
-        $this->logger->info('Fetching highlights for article', ['coordinate' => $articleCoordinate]);
-
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([9802]); // NIP-84 highlights
-        $filter->setLimit($limit);
-        $filter->setTags(['#a' => [$articleCoordinate]]);
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        // Prefer ONLY the local relay if configured
-        if ($this->nostrDefaultRelay) {
-            $relayUrls = [$this->nostrDefaultRelay];
-            $this->logger->info('Using local relay for highlights fetch', [
-                'relay' => $this->nostrDefaultRelay,
-                'coordinate' => $articleCoordinate
-            ]);
-        } else {
-            // Fallback – use first default relay only (keep narrow to avoid huge queries)
-            $defaultRelays = $this->relayPool->getDefaultRelays();
-            $relayUrls = empty($defaultRelays) ? [] : [$defaultRelays[0]];
-            $this->logger->info('Using fallback public relay for highlights fetch', [
-                'coordinate' => $articleCoordinate,
-                'relay' => $relayUrls[0] ?? 'none'
-            ]);
-        }
-
-        if (empty($relayUrls)) {
-            $this->logger->warning('No relays available for highlights fetch', ['coordinate' => $articleCoordinate]);
-            return [];
-        }
-
-        $responses = $this->relayPool->sendToRelays(
-            $relayUrls,
-            fn() => $requestMessage,
-            30,
-            $subscriptionId
-        );
-
-        $uniqueEvents = [];
-        $this->processResponse($responses, function($event) use (&$uniqueEvents) {
-            $this->logger->debug('Received highlight event for article', ['event_id' => $event->id]);
-            $uniqueEvents[$event->id] = $event;
-            return null;
-        });
-
-        return array_values($uniqueEvents);
-    }
-
-    public function getLatestLongFormArticles(int $limit = 50, ?int $since = null): array
-    {
-        // Prefer ONLY the local relay if configured; otherwise use the default relay set
-        if ($this->nostrDefaultRelay) {
-            $relaySet = $this->createRelaySet([$this->nostrDefaultRelay]);
-            $this->logger->info('Fetching latest long-form articles from local relay', [
-                'relay' => $this->nostrDefaultRelay,
-                'limit' => $limit,
-                'since' => $since
-            ]);
-        } else {
-            $relaySet = $this->getDefaultRelaySet();
-            $this->logger->info('Fetching latest long-form articles from default relay set (no local relay configured)', [
-                'limit' => $limit,
-                'since' => $since
-            ]);
-        }
-
-        $filters = [ 'limit' => $limit ];
-        if ($since !== null && $since > 0) {
-            $filters['since'] = $since;
-        }
-
-        try {
-            $request = $this->createNostrRequest(
-                kinds: [KindsEnum::LONGFORM->value],
-                filters: $filters,
-                relaySet: $relaySet
-            );
-
-            $events = $this->processResponse($this->executeRequest($request), function($event) {
-                try {
-                    $article = $this->articleFactory->createFromLongFormContentEvent($event);
-                    // Persist newest revision if not saved yet
-                    $this->saveEachArticleToTheDatabase($article);
-                    return $article;
-                } catch (\Throwable $e) {
-                    $this->logger->error('Failed converting event to Article', [
-                        'error' => $e->getMessage(),
-                        'event_id' => $event->id ?? null
-                    ]);
-                    return null;
-                }
-            });
-        } catch (\Throwable $e) {
-            $this->logger->error('Error fetching latest long-form articles', [ 'error' => $e->getMessage() ]);
-            return [];
-        }
-
-        // Filter out nulls
-        $articles = array_filter($events, fn($a) => $a instanceof Article);
-
-        // Deduplicate by slug keeping latest createdAt
-        $bySlug = [];
-        foreach ($articles as $article) {
-            $slug = $article->getSlug();
-            if ($slug === '') { continue; }
-            if (!isset($bySlug[$slug]) || $article->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
-                $bySlug[$slug] = $article;
-            }
-        }
-
-        // Sort descending by createdAt
-        $deduped = array_values($bySlug);
-        usort($deduped, fn($a, $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
-
-        return $deduped;
-    }
-
-    private function createNostrRequest(array $kinds, array $filters = [], ?RelaySet $relaySet = null, $stopGap = null ): TweakedRequest
-    {
-        $subscription = new Subscription();
-        $filter = new Filter();
-        if (!empty($kinds)) {
-            $filter->setKinds($kinds);
-        }
-
-        foreach ($filters as $key => $value) {
-            $method = 'set' . ucfirst($key);
-            if (method_exists($filter, $method)) {
-                // If it's tags, we need to handle it differently
-                if ($key === 'tag') {
-                   $filter->setTag($value[0], $value[1]);
-                } else {
-                    // Call the method with the value
-                    $filter->$method($value);
-                }
-            }
-        }
-        $this->logger->debug('Relay set for request', ['relays' => $relaySet ? $relaySet->getRelays() : 'default']);
-
-        $requestMessage = new RequestMessage($subscription->getId(), [$filter]);
-        return (new TweakedRequest(
-            $relaySet ?? $this->getDefaultRelaySet(),
-            $requestMessage,
-            $this->logger
-        ))->stopOnEventId($stopGap);
-    }
-
-    /**
-     * Execute a relay request, routing through the gateway when enabled.
-     *
-     * When the relay gateway is enabled, external relay queries are routed
-     * through the persistent connection pool (RelayGatewayClient). Local
-     * relay queries always go direct via TweakedRequest.
-     *
-     * This is the single interception point for all relay reads in NostrClient.
-     *
-     * @return array<string, array> Relay URL => responses (same format as TweakedRequest::send())
-     */
-    private function executeRequest(TweakedRequest $request, ?string $pubkey = null): array
-    {
-        if (!$this->relayPool->isGatewayEnabled()) {
-            return $request->send();
-        }
-
-        $gatewayClient = $this->relayPool->getGatewayClient();
-        if (!$gatewayClient) {
-            return $request->send();
-        }
-
-        $relayUrls = $request->getRelayUrls();
-        $payload = $request->getPayload();
-
-        // Extract filter from the REQ payload
-        $decoded = json_decode($payload, true);
-        $filter = (is_array($decoded) && ($decoded[0] ?? '') === 'REQ' && isset($decoded[2]))
-            ? $decoded[2]
-            : [];
-
-        // Partition into local and external
-        $localRelay = $this->nostrDefaultRelay ?: null;
-        $localUrls = [];
-        $externalUrls = [];
-        foreach ($relayUrls as $url) {
-            if ($localRelay && $this->relayPool->normalizeRelayUrl($url) === $this->relayPool->normalizeRelayUrl($localRelay)) {
-                $localUrls[] = $url;
-            } else {
-                $externalUrls[] = $url;
-            }
-        }
-
-        $results = [];
-
-        // Local relay: always direct (fast, no AUTH needed)
-        if (!empty($localUrls)) {
-            // Build a TweakedRequest for just local relays
-            $localRelaySet = new RelaySet();
-            foreach ($localUrls as $url) {
-                $localRelaySet->addRelay($this->relayPool->getRelay($url));
-            }
-            $msg = new RequestMessage(
-                (new Subscription())->getId(),
-                [self::buildFilterFromArray($filter)]
-            );
-            $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger);
-            $results += $localRequest->send();
-        }
-
-        // External relays: route through gateway, passing pubkey for AUTH-gated connections
-        if (!empty($externalUrls)) {
-            $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, 15);
-
-            if (!empty($gatewayResult['errors'])) {
-                $this->logger->warning('Gateway returned errors for external relays', [
-                    'errors' => $gatewayResult['errors'],
-                    'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
-                ]);
-            }
-
-            // Fall back to direct connection only if gateway got zero events AND every relay errored
-            if (empty($gatewayResult['events']) && count($gatewayResult['errors']) === count($externalUrls)) {
-                $this->logger->info('Gateway had no events and all relays errored — falling back to direct connection', [
-                    'relays' => $externalUrls,
-                ]);
-                $fallbackRelaySet = new RelaySet();
-                foreach ($externalUrls as $url) {
-                    $fallbackRelaySet->addRelay($this->relayPool->getRelay($url));
-                }
-                $msg = new RequestMessage(
-                    (new Subscription())->getId(),
-                    [self::buildFilterFromArray($filter)]
-                );
-                $fallbackRequest = new TweakedRequest($fallbackRelaySet, $msg, $this->logger);
-                $results += $fallbackRequest->send();
-            } else {
-                // Convert gateway events to RelayResponseEvent objects.
-                // Gateway returns raw event arrays; wire format is ["EVENT", subId, eventObj].
-                if (!empty($gatewayResult['events'])) {
-                    $responses = [];
-                    $syntheticSubId = 'gw-' . substr(uniqid(), -8);
-                    foreach ($gatewayResult['events'] as $eventData) {
-                        $eventObj = is_object($eventData)
-                            ? $eventData
-                            : json_decode(json_encode($eventData));
-                        $wireFormat = ['EVENT', $syntheticSubId, $eventObj];
-                        $response = new \swentel\nostr\RelayResponse\RelayResponseEvent($wireFormat);
-                        $responses[] = $response;
-                    }
-                    if (!empty($responses)) {
-                        $results[$externalUrls[0]] = $responses;
-                    }
-                }
-            }
-        }
-
-        return $results;
-    }
-
-    /**
-     * Build a Filter object from an associative array (for gateway re-routing).
-     */
-    private static function buildFilterFromArray(array $filter): Filter
-    {
-        $f = new Filter();
-        if (isset($filter['kinds'])) {
-            $f->setKinds($filter['kinds']);
-        }
-        if (isset($filter['authors'])) {
-            $f->setAuthors($filter['authors']);
-        }
-        if (isset($filter['ids'])) {
-            $f->setIds($filter['ids']);
-        }
-        if (isset($filter['limit'])) {
-            $f->setLimit($filter['limit']);
-        }
-        if (isset($filter['since'])) {
-            $f->setSince($filter['since']);
-        }
-        if (isset($filter['until'])) {
-            $f->setUntil($filter['until']);
-        }
-        return $f;
-    }
-
-    private function processResponse(array $response, callable $eventHandler): array
-    {
-        $results = [];
-        foreach ($response as $relayUrl => $relayRes) {
-            // Skip if the relay response is an Exception
-            if ($relayRes instanceof \Exception) {
-                $this->logger->error('Relay error', [
-                    'relay' => $relayUrl,
-                    'error' => $relayRes->getMessage()
-                ]);
-                continue;
-            }
-
-            $this->logger->debug('Processing relay response', [
-                'relay' => $relayUrl,
-                'response' => $relayRes
-            ]);
-
-            foreach ($relayRes as $item) {
-                try {
-                    if (!is_object($item)) {
-                        $this->logger->debug('Invalid response item from ' . $relayUrl , [
-                            'relay' => $relayUrl,
-                            'item' => $item
-                        ]);
-                        continue;
-                    }
-
-                    switch ($item->type) {
-                        case 'EVENT':
-                            $this->logger->debug('Processing event', [
-                                'relay' => $relayUrl,
-                                'event_id' => $item->event->id ?? 'unknown'
-                            ]);
-                            $result = $eventHandler($item->event);
-                            if ($result !== null) {
-                                $results[] = $result;
-                            }
-                            break;
-                        case 'AUTH':
-                            $this->logger->debug('Relay required authentication (handled during request)', [
-                                'relay' => $relayUrl,
-                                'response' => $item
-                            ]);
-                            break;
-                        case 'ERROR':
-                        case 'NOTICE':
-                            $this->logger->debug('Relay error/notice', [
-                                'relay' => $relayUrl,
-                                'type' => $item->type,
-                                'message' => $item->message ?? 'No message'
-                            ]);
-                            break;
-                    }
-                } catch (\Exception $e) {
-                    $this->logger->error('Error processing event from relay', [
-                        'relay' => $relayUrl,
-                        'error' => $e->getMessage()
-                    ]);
-                    continue; // Skip this item but continue processing others
-                }
-            }
-        }
-        return $results;
-    }
-
-    /**
-     * @param Article $article
-     * @return void
-     */
-    public function saveEachArticleToTheDatabase(Article $article): void
-    {
-        $saved = $this->entityManager->getRepository(Article::class)->findOneBy(['eventId' => $article->getEventId()]);
-        if (!$saved) {
-            try {
-                $this->logger->info('Saving article', ['article' => $article]);
-                $this->entityManager->persist($article);
-                $this->entityManager->flush();
-            } catch (\Exception $e) {
-                $this->logger->error($e->getMessage());
-                $this->managerRegistry->resetManager();
-            }
-        }
-    }
-
-    /**
-     * @param mixed $descriptor
-     * @return Event|null
      */
     public function getEventFromDescriptor(mixed $descriptor): ?\stdClass
     {
-        // Descriptor is an stdClass with properties: type and decoded
-        if (is_object($descriptor) && isset($descriptor->type, $descriptor->decoded)) {
-            // construct a request from the descriptor to fetch the event
-            /** @var Data $ata */
-            $data = json_decode($descriptor->decoded);
-            // If id is set, search by id and kind
-            if (isset($data->id)) {
-                $request = $this->createNostrRequest(
-                    kinds: [$data->kind],
-                    filters: ['e' => [$data->id]],
-                    relaySet: $this->defaultRelaySet
-                );
-            } else {
-                $request = $this->createNostrRequest(
-                    kinds: [$data->kind],
-                    filters: ['authors' => [$data->pubkey], 'd' => [$data->identifier]],
-                    relaySet: $this->defaultRelaySet
-                );
-            }
-
-            $events = $this->processResponse($this->executeRequest($request), function($received) {
-                $this->logger->info('Getting event', ['item' => $received]);
-                return $received;
-            });
-
-            if (!empty($events)) {
-                // Return the first event found
-                return $events[0];
-            } else {
-                $this->logger->warning('No events found for descriptor', ['descriptor' => $descriptor]);
-                return null;
-            }
-        } else {
+        if (!is_object($descriptor) || !isset($descriptor->type, $descriptor->decoded)) {
             $this->logger->error('Invalid descriptor format', ['descriptor' => $descriptor]);
             return null;
         }
-    }
 
-    /**
-     * Fetch the latest interest list (kind 10015) for a pubkey and return the 't' tags.
-     *
-     * @param string $pubkey Hex pubkey to query
-     * @param array|null $relays Relay URLs to query. When the caller has the
-     *                           User entity, pass $user->getRelays()['all'] (or
-     *                           similar) to avoid a relay-list lookup. Falls back
-     *                           to UserRelayListService when null.
-     */
-    public function getUserInterests(string $pubkey, ?array $relays = null): array
-    {
-        if (empty($relays)) {
-            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
-        }
-        $relays = $this->relayPool->ensureLocalRelayInList($relays);
-        $relaySet = $this->createRelaySet($relays);
+        /** @var Data $data */
+        $data = json_decode($descriptor->decoded);
 
-        $request = $this->createNostrRequest(
-            kinds: [10015],
-            filters: ['authors' => [$pubkey]],
-            relaySet: $relaySet
-        );
+        $request = isset($data->id)
+            ? $this->executor->buildRequest(
+                kinds: [$data->kind],
+                filters: ['e' => [$data->id]],
+                relaySet: $this->relaySetFactory->getDefault()
+            )
+            : $this->executor->buildRequest(
+                kinds: [$data->kind],
+                filters: ['authors' => [$data->pubkey], 'd' => [$data->identifier]],
+                relaySet: $this->relaySetFactory->getDefault()
+            );
 
-        $events = $this->processResponse($this->executeRequest($request, $pubkey), function($received) use ($pubkey) {
-            $this->logger->info('Getting interests for pubkey', ['pubkey' => $pubkey, 'item' => $received]);
-            return $received;
-        });
-
-        if (empty($events)) {
-            return [];
-        }
-
-        // Sort by created_at descending and take the latest
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latest = $events[0];
-
-        $tTags = [];
-        foreach ($latest->tags as $tag) {
-            if (is_array($tag) && isset($tag[0]) && $tag[0] === 't' && isset($tag[1])) {
-                $tTags[] = strtolower(trim($tag[1]));
+        $events = $this->executor->process(
+            $this->executor->execute($request),
+            function ($received) {
+                $this->logger->info('Getting event', ['item' => $received]);
+                return $received;
             }
-        }
-
-        return $tTags;
-    }
-
-    /**
-     * Fetch bookmark events (kinds 10003, 30003, 30004, 30005, 30006) for a pubkey from relays.
-     * Returns the raw relay event objects (or empty array).
-     */
-    public function fetchBookmarks(string $pubkey): array
-    {
-        $request = $this->createNostrRequest(
-            kinds: [
-                KindsEnum::BOOKMARKS->value,
-                KindsEnum::BOOKMARK_SETS->value,
-                KindsEnum::CURATION_SET->value,
-                KindsEnum::CURATION_VIDEOS->value,
-                KindsEnum::CURATION_PICTURES->value,
-            ],
-            filters: ['authors' => [$pubkey]],
-            relaySet: $this->defaultRelaySet
         );
 
-        return $this->processResponse($request->excecuteRequest(), function ($received) use ($pubkey) {
-            $this->logger->info('Getting bookmarks for pubkey', ['pubkey' => $pubkey]);
-            return $received;
-        });
+        if (!empty($events)) {
+            return $events[0];
+        }
+
+        $this->logger->warning('No events found for descriptor', ['descriptor' => $descriptor]);
+        return null;
     }
 
-    /**
-     * Fetch user's follow list (kind 3 event) from relays
-     *
-     * @param string $pubkey Hex-encoded pubkey
-     * @param array|null $relays Relay URLs to query. When the caller has the
-     *                           User entity, pass $user->getRelays()['all'] to
-     *                           avoid a relay-list lookup. Falls back to
-     *                           UserRelayListService when null.
-     * @return array Array of followed pubkeys extracted from 'p' tags, or empty array if not found
-     * @throws \Exception
-     */
-    public function getUserFollows(string $pubkey, ?array $relays = null): array
+    // =========================================================================
+    // Article / long-form — delegates to ArticleFetchService
+    // =========================================================================
+
+    /** @see ArticleFetchService::ingestRange() */
+    public function getLongFormContent(?int $from = null, ?int $to = null): void
     {
-        $this->logger->info('Fetching follow list for pubkey', ['pubkey' => $pubkey]);
-
-        if (empty($relays)) {
-            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
-        }
-        $relays = $this->relayPool->ensureLocalRelayInList($relays);
-        $relaySet = $this->createRelaySet($relays);
-
-        $request = $this->createNostrRequest(
-            kinds: [KindsEnum::FOLLOWS->value],
-            filters: ['authors' => [$pubkey], 'limit' => 1],
-            relaySet: $relaySet
-        );
-
-        $events = $this->processResponse($this->executeRequest($request, $pubkey), function($received) {
-            $this->logger->info('Received follow list event', ['event' => $received]);
-            return $received;
-        });
-
-        if (empty($events)) {
-            $this->logger->info('No follow list found for pubkey', ['pubkey' => $pubkey]);
-            return [];
-        }
-
-        // Sort by created_at descending and take the most recent
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latestFollowEvent = $events[0];
-
-        // Extract followed pubkeys from 'p' tags
-        $followedPubkeys = [];
-        foreach ($latestFollowEvent->tags as $tag) {
-            if (is_array($tag) && isset($tag[0]) && $tag[0] === 'p' && isset($tag[1])) {
-                $followedPubkeys[] = $tag[1];
-            }
-        }
-
-        $this->logger->info('Follow list fetched successfully', [
-            'pubkey' => $pubkey,
-            'follows_count' => count($followedPubkeys)
-        ]);
-
-        return $followedPubkeys;
+        $this->articleFetchService->ingestRange($from, $to);
     }
 
-    /**
-     * Batch fetch metadata for multiple pubkeys
-     * Queries local relay first, then fallback to reputable relays for any missing metadata.
-     *
-     * @param array $pubkeys Array of pubkeys (hex-encoded) to fetch metadata for
-     * @param bool $fallback Whether to fallback to reputable relays if metadata is missing from local relay
-     * @return array Map of pubkey => metadata event
-     * @throws \Exception
-     */
+    /** @see ArticleFetchService::fetchFromNaddr() */
+    public function getLongFormFromNaddr(string $slug, array $relayList, string $author, int $kind): bool
+    {
+        return $this->articleFetchService->fetchFromNaddr($slug, $relayList, $author, $kind);
+    }
+
+    /** @see ArticleFetchService::fetchForPubkey() */
+    public function getLongFormContentForPubkey(string $ident, ?int $since = null, ?int $kind = KindsEnum::LONGFORM->value): array
+    {
+        return $this->articleFetchService->fetchForPubkey($ident, $since, $kind);
+    }
+
+    /** @see ArticleFetchService::fetchLatest() */
+    public function getLatestLongFormArticles(int $limit = 50, ?int $since = null): array
+    {
+        return $this->articleFetchService->fetchLatest($limit, $since);
+    }
+
+    /** @see ArticleFetchService::fetchBySlugList() */
+    public function getArticles(array $slugs): array
+    {
+        return $this->articleFetchService->fetchBySlugList($slugs);
+    }
+
+    /** @see ArticleFetchService::fetchByCoordinates() */
+    public function getArticlesByCoordinates(array $coordinates): array
+    {
+        return $this->articleFetchService->fetchByCoordinates($coordinates);
+    }
+
+    /** @see ArticleFetchService::save() */
+    public function saveEachArticleToTheDatabase(Article $article): void
+    {
+        $this->articleFetchService->save($article);
+    }
+
+    // =========================================================================
+    // Media events — delegates to MediaEventService
+    // =========================================================================
+
+    /** @see MediaEventService::fetchForPubkey() */
+    public function getPictureEventsForPubkey(string $ident, int $limit = 20): array
+    {
+        return $this->mediaEventService->fetchForPubkey($ident, [20], $limit);
+    }
+
+    /** @see MediaEventService::fetchForPubkey() */
+    public function getNormalVideosForPubkey(string $ident, int $limit = 20): array
+    {
+        return $this->mediaEventService->fetchForPubkey($ident, [21], $limit);
+    }
+
+    /** @see MediaEventService::fetchForPubkey() */
+    public function getVideoShortsForPubkey(string $ident, int $limit = 20): array
+    {
+        return $this->mediaEventService->fetchForPubkey($ident, [22], $limit);
+    }
+
+    /** @see MediaEventService::fetchForPubkey() */
+    public function getAllMediaEventsForPubkey(string $ident, int $limit = 30): array
+    {
+        return $this->mediaEventService->fetchForPubkey($ident, [20, 21, 22], $limit);
+    }
+
+    /** @see MediaEventService::fetchRecent() */
+    public function getRecentMediaEvents(int $limit = 100): array
+    {
+        return $this->mediaEventService->fetchRecent($limit);
+    }
+
+    /** @see MediaEventService::fetchByHashtags() */
+    public function getMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22]): array
+    {
+        return $this->mediaEventService->fetchByHashtags($hashtags, $kinds);
+    }
+
+    /** @see MediaEventService::fetchByTimeRange() */
+    public function getMediaEventsByTimeRange(array $kinds = [20, 21, 22], int $from = 0, int $to = 0, int $limit = 1000): array
+    {
+        return $this->mediaEventService->fetchByTimeRange($kinds, $from, $to, $limit);
+    }
+
+    /** @see NostrRequestExecutor::fetchByTimeRange() */
+    public function getCurationEventsByTimeRange(
+        array   $kinds = [30004, 30005, 30006],
+        int     $from = 0,
+        int     $to = 0,
+        int     $limit = 500,
+        ?string $pubkey = null,
+    ): array {
+        $extraFilters = $pubkey ? ['authors' => [$pubkey]] : [];
+        $relaySet     = $this->relaySetFactory->fromUrls(
+            array_slice($this->relayRegistry->getContentRelays(), 0, 3)
+        );
+        return $this->executor->fetchByTimeRange(
+            kinds: $kinds,
+            from: $from,
+            to: $to,
+            limit: $limit,
+            defaultDays: 30,
+            relaySet: $relaySet,
+            extraFilters: $extraFilters,
+        );
+    }
+
+    /** @see MediaEventService::save() */
+    public function saveMediaEvent(object $rawEvent): void
+    {
+        $this->mediaEventService->save($rawEvent);
+    }
+
+    // =========================================================================
+    // Social interactions — delegates to SocialEventService
+    // =========================================================================
+
+    /** @see SocialEventService::getComments() */
+    public function getComments(string $coordinate, ?int $since = null): array
+    {
+        return $this->socialEventService->getComments($coordinate, $since);
+    }
+
+    /** @see SocialEventService::getZaps() */
+    public function getZapsForEvent(string $coordinate): array
+    {
+        return $this->socialEventService->getZaps($coordinate);
+    }
+
+    /** @see SocialEventService::getHighlights() */
+    public function getArticleHighlights(int $limit = 50): array
+    {
+        return $this->socialEventService->getHighlights($limit);
+    }
+
+    /** @see SocialEventService::getHighlightsForArticle() */
+    public function getHighlightsForArticle(string $articleCoordinate, int $limit = 100): array
+    {
+        return $this->socialEventService->getHighlightsForArticle($articleCoordinate, $limit);
+    }
+
+    // =========================================================================
+    // User profile — delegates to UserProfileService
+    // =========================================================================
+
+    /** @see UserProfileService::getMetadata() */
+    public function getPubkeyMetadata(string $pubkey): \stdClass
+    {
+        return $this->userProfileService->getMetadata($pubkey);
+    }
+
+    /** @see UserProfileService::getBatchMetadata() */
     public function getMetadataForPubkeys(array $pubkeys, bool $fallback = true): array
     {
-        // Deduplicate & sanitize
-        $pubkeys = array_values(array_unique(array_filter($pubkeys, fn($p) => is_string($p) && strlen($p) === 64)));
-        if (empty($pubkeys)) {
-            return [];
-        }
+        return $this->userProfileService->getBatchMetadata($pubkeys, $fallback);
+    }
 
-        $this->logger->info('Batch fetching metadata', [
-            'count' => count($pubkeys),
-            'fallback' => $fallback,
-        ]);
+    /** @see UserProfileService::getRelays() */
+    public function getNpubRelays(string $npub): array
+    {
+        return $this->userProfileService->getRelays($npub);
+    }
 
-        $results = [];
-        $missing = $pubkeys;
+    /** @see UserProfileService::getInterests() */
+    public function getUserInterests(string $pubkey, ?array $relays = null): array
+    {
+        return $this->userProfileService->getInterests($pubkey, $relays);
+    }
 
-        // Helper to process events list and keep newest per pubkey
-        $process = function(array $events) use (&$results, &$missing) {
-            foreach ($events as $event) {
-                $pubkey = $event->pubkey ?? null;
-                if (!$pubkey) { continue; }
-                // Keep only newest
-                if (!isset($results[$pubkey]) || ($event->created_at ?? 0) > ($results[$pubkey]->created_at ?? 0)) {
-                    $results[$pubkey] = $event;
-                }
-            }
-            // Update missing list
-            $missing = array_values(array_diff($missing, array_keys($results)));
-        };
+    /** @see UserProfileService::getFollows() */
+    public function getUserFollows(string $pubkey, ?array $relays = null): array
+    {
+        return $this->userProfileService->getFollows($pubkey, $relays);
+    }
 
-        // First pass: local relay only
-        try {
-            if ($this->nostrDefaultRelay) {
-                $relaySet = $this->createRelaySet([$this->nostrDefaultRelay]);
-                $request = $this->createNostrRequest(
-                    kinds: [KindsEnum::METADATA->value],
-                    filters: [ 'authors' => $missing, 'limit' => count($missing) ],
-                    relaySet: $relaySet
-                );
-                $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
-                $process($events);
-                $this->logger->info('Local relay metadata fetch complete', [
-                    'found' => count($results),
-                    'remaining' => count($missing)
-                ]);
-            }
-        } catch (\Throwable $e) {
-            $this->logger->warning('Local relay batch metadata fetch failed', ['error' => $e->getMessage()]);
-        }
-
-        // Fallback pass: reputable relays (group remaining into chunks to reduce payload size)
-        if ($fallback && !empty($missing)) {
-            $chunks = array_chunk($missing, 50); // chunk size adjustable
-            foreach ($chunks as $chunk) {
-                if (empty($chunk)) { continue; }
-                try {
-                    $relaySet = $this->createRelaySet($this->relayRegistry->getContentRelays());
-                    $request = $this->createNostrRequest(
-                        kinds: [KindsEnum::METADATA->value],
-                        filters: [ 'authors' => $chunk, 'limit' => count($chunk) ],
-                        relaySet: $relaySet
-                    );
-                    $events = $this->processResponse($this->executeRequest($request), fn($e) => $e);
-                    $process($events);
-                    $this->logger->info('Fallback metadata chunk fetched', [
-                        'chunk_size' => count($chunk),
-                        'found_total' => count($results),
-                        'remaining' => count($missing)
-                    ]);
-                    if (empty($missing)) { break; }
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Fallback metadata chunk failed', [
-                        'error' => $e->getMessage(),
-                        'chunk_size' => count($chunk)
-                    ]);
-                }
-            }
-        }
-
-        // Optional: cache individual metadata events
-        foreach ($results as $pubkey => $event) {
-            try {
-                $cacheKey = 'pubkey_meta_' . $pubkey;
-                $cachedItem = $this->npubCache->getItem($cacheKey);
-                if (!$cachedItem->isHit() || ($event->created_at ?? 0) > ($cachedItem->get()->created_at ?? 0)) {
-                    $cachedItem->set($event);
-                    $cachedItem->expiresAfter(84000); // 24 hours
-                    $this->npubCache->save($cachedItem);
-                }
-            } catch (\Throwable $e) {
-                // Non-critical
-            }
-        }
-
-        return $results; // map pubkey => metadata event
+    /** @see UserProfileService::getBookmarks() */
+    public function fetchBookmarks(string $pubkey): array
+    {
+        return $this->userProfileService->getBookmarks($pubkey);
     }
 }
