@@ -4,19 +4,10 @@ namespace App\Service\Nostr;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
-use App\Util\NostrPhp\TweakedRequest;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
 use nostriphant\NIP19\Data;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
-use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\EventMessage;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\RelaySet;
-use swentel\nostr\Request\Request;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * Facade over the focused Nostr service classes.
@@ -34,10 +25,7 @@ use swentel\nostr\Subscription\Subscription;
 class NostrClient
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ManagerRegistry        $managerRegistry,
         private readonly LoggerInterface        $logger,
-        private readonly CacheItemPoolInterface $npubCache,
         private readonly NostrRelayPool         $relayPool,
         private readonly RelayRegistry          $relayRegistry,
         private readonly UserRelayListService   $userRelayListService,
@@ -91,7 +79,7 @@ class NostrClient
                 }
             }
 
-            $results  = $relaySet->executeRequest();
+            $results  = $relaySet->send();
             $duration = microtime(true) - $startTime;
 
             $this->logger->info('Completed relay publish', [

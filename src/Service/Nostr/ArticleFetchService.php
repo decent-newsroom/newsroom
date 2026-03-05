@@ -10,11 +10,6 @@ use App\Factory\ArticleFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Filter\Filter;
-use swentel\nostr\Message\RequestMessage;
-use swentel\nostr\Relay\RelaySet;
-use swentel\nostr\Request\Request;
-use swentel\nostr\Subscription\Subscription;
 
 /**
  * All article / long-form content operations, extracted from NostrClient.
@@ -196,29 +191,16 @@ class ArticleFetchService
             return [];
         }
 
+        $events = $this->executor->fetch(
+            kinds: [KindsEnum::LONGFORM],
+            filters: ['tag' => ['#d', $slugs]],
+            relaySet: $this->relaySetFactory->getDefault(),
+        );
+
         $articles = [];
-        $subscription = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter = new Filter();
-        $filter->setKinds([KindsEnum::LONGFORM]);
-        $filter->setTag('#d', $slugs);
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-
-        try {
-            $request  = new Request($this->relaySetFactory->getDefault(), $requestMessage);
-            $response = $request->send();
-
-            foreach ($response as $value) {
-                foreach ($value as $item) {
-                    if ($item->type === 'EVENT' && !isset($articles[$item->event->id])) {
-                        $articles[$item->event->id] = $item->event;
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            $this->logger->error('Error querying relays for slug list', ['error' => $e->getMessage()]);
+        foreach ($events as $event) {
+            $articles[$event->id] = $event;
         }
-
         return $articles;
     }
 
@@ -237,39 +219,12 @@ class ArticleFetchService
             $pubkey = $parts[1];
             $slug   = $parts[2];
 
-            $relayList = [];
-            try {
-                $relayList = $this->relaySetFactory->forAuthor($pubkey)->getRelays()
-                    ? array_map(fn($r) => $r->getUrl(), $this->relaySetFactory->forAuthor($pubkey)->getRelays())
-                    : [];
-            } catch (\Exception $e) {
-                $this->logger->warning('Failed to get author relays for coordinate', [
-                    'pubkey'     => $pubkey,
-                    'coordinate' => $coordinate,
-                    'error'      => $e->getMessage(),
-                ]);
-            }
-
-            if (empty($relayList)) {
-                $relayList = $this->relayRegistry->getContentRelays();
-            }
-
-            $relaySet       = $this->relaySetFactory->fromUrls($relayList);
-            $subscription   = new Subscription();
-            $subscriptionId = $subscription->setId();
-            $filter         = new Filter();
-            $filter->setKinds([$kind]);
-            $filter->setAuthors([$pubkey]);
-            $filter->setTag('#d', [$slug]);
-            $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+            $relaySet = $this->relaySetFactory->forAuthor($pubkey);
 
             try {
-                $request = new Request($relaySet, $requestMessage);
+                $filters = ['authors' => [$pubkey], 'tag' => ['#d', [$slug]]];
                 $events  = $this->executor->process(
-                    $this->executor->execute($this->executor->buildRequest([$kind], [
-                        'authors' => [$pubkey],
-                        'tag'     => ['#d', [$slug]],
-                    ], $relaySet)),
+                    $this->executor->execute($this->executor->buildRequest([$kind], $filters, $relaySet)),
                     function ($event) use ($coordinate) {
                         $this->logger->info('Received event for coordinate', [
                             'event_id'   => $event->id,
@@ -322,28 +277,17 @@ class ArticleFetchService
      */
     public function ingestRange(?int $from = null, ?int $to = null): void
     {
-        $subscription   = new Subscription();
-        $subscriptionId = $subscription->setId();
-        $filter         = new Filter();
-        $filter->setKinds([KindsEnum::LONGFORM]);
-        $filter->setSince(strtotime('-1 week'));
-        if ($from !== null) {
-            $filter->setSince($from);
-        }
-        if ($to !== null) {
-            $filter->setUntil($to);
-        }
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
-        $relaySet       = $this->relaySetFactory->withLocalRelay($this->relayRegistry->getContentRelays());
-        $request        = new Request($relaySet, $requestMessage);
+        $relaySet = $this->relaySetFactory->withLocalRelay($this->relayRegistry->getContentRelays());
 
-        $events = $this->executor->process(
-            $this->executor->execute($this->executor->buildRequest(
-                [KindsEnum::LONGFORM],
-                $from !== null ? ['since' => $from] : [],
-                $relaySet
-            )),
-            fn($event) => $event
+        $filters = ['since' => $from ?? strtotime('-1 week')];
+        if ($to !== null) {
+            $filters['until'] = $to;
+        }
+
+        $events = $this->executor->fetch(
+            kinds: [KindsEnum::LONGFORM],
+            filters: $filters,
+            relaySet: $relaySet,
         );
 
         foreach ($events as $event) {
