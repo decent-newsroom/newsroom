@@ -4,6 +4,7 @@ namespace App\Service\Nostr;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Enum\RelayPurpose;
 use App\Factory\ArticleFactory;
 use App\Util\NostrPhp\TweakedRequest;
 use Doctrine\ORM\EntityManagerInterface;
@@ -1628,13 +1629,25 @@ class NostrClient
 
     /**
      * Fetch the latest interest list (kind 10015) for a pubkey and return the 't' tags.
+     *
+     * @param string $pubkey Hex pubkey to query
+     * @param array|null $relays Relay URLs to query. When the caller has the
+     *                           User entity, pass $user->getRelays()['all'] (or
+     *                           similar) to avoid a relay-list lookup. Falls back
+     *                           to UserRelayListService when null.
      */
-    public function getUserInterests(string $pubkey): array
+    public function getUserInterests(string $pubkey, ?array $relays = null): array
     {
+        if (empty($relays)) {
+            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
+        }
+        $relays = $this->relayPool->ensureLocalRelayInList($relays);
+        $relaySet = $this->createRelaySet($relays);
+
         $request = $this->createNostrRequest(
             kinds: [10015],
             filters: ['authors' => [$pubkey]],
-            relaySet: $this->defaultRelaySet
+            relaySet: $relaySet
         );
 
         $events = $this->processResponse($request->send(), function($received) use ($pubkey) {
@@ -1688,16 +1701,22 @@ class NostrClient
      * Fetch user's follow list (kind 3 event) from relays
      *
      * @param string $pubkey Hex-encoded pubkey
+     * @param array|null $relays Relay URLs to query. When the caller has the
+     *                           User entity, pass $user->getRelays()['all'] to
+     *                           avoid a relay-list lookup. Falls back to
+     *                           UserRelayListService when null.
      * @return array Array of followed pubkeys extracted from 'p' tags, or empty array if not found
      * @throws \Exception
      */
-    public function getUserFollows(string $pubkey): array
+    public function getUserFollows(string $pubkey, ?array $relays = null): array
     {
         $this->logger->info('Fetching follow list for pubkey', ['pubkey' => $pubkey]);
 
-        // Use relay pool with local relay prioritized, profile relays for follow lists
-        $relayUrls = $this->relayPool->ensureLocalRelayInList($this->relayRegistry->getProfileRelays());
-        $relaySet = $this->createRelaySet($relayUrls);
+        if (empty($relays)) {
+            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
+        }
+        $relays = $this->relayPool->ensureLocalRelayInList($relays);
+        $relaySet = $this->createRelaySet($relays);
 
         $request = $this->createNostrRequest(
             kinds: [KindsEnum::FOLLOWS->value],

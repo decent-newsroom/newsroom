@@ -81,17 +81,17 @@ class ForumController extends AbstractController
             return $this->redirectToRoute('forum');
         }
 
-        // Build the filtered interest categories
-        $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch);
-
-        // Get raw interest tags for the editor
+        // Fetch interests once — reuse for both the category view and the editor
         $currentInterestTags = [];
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-            $currentInterestTags = $nostrClient->getUserInterests($pubkey);
+            $currentInterestTags = $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
         } catch (\Exception $e) {
             // Ignore errors
         }
+
+        // Build the filtered interest categories using the already-fetched tags
+        $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch, $currentInterestTags);
 
         // Build popular tags grouped by category for the editor
         $popularTags = ForumTopics::allUniqueTags();
@@ -237,7 +237,7 @@ class ForumController extends AbstractController
             if (!!$user) {
                 try {
                     $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                    $interests = $nostrClient->getUserInterests($pubkey);
+                    $interests = $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
                     if (!empty($interests)) {
                         $allTags = array_map('strtolower', array_values($interests));
                     }
@@ -562,11 +562,11 @@ class ForumController extends AbstractController
      * Build the user interests array for the given user.
      * Extracted as a reusable helper for the index and myInterests actions.
      */
-    private function buildUserInterests(User $user, NostrClient $nostrClient, ArticleSearchInterface $articleSearch)
+    private function buildUserInterests(User $user, NostrClient $nostrClient, ArticleSearchInterface $articleSearch, ?array $prefetchedInterests = null)
     {
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-            $interests = $nostrClient->getUserInterests($pubkey);
+            $interests = $prefetchedInterests ?? $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
             if (!empty($interests)) {
                 try {
                     $counts = $articleSearch->getTagCounts(array_values($interests)); // ['tag' => count]

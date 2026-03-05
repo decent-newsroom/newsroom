@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Article;
+use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
+use App\Dto\UserMetadata;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -19,6 +21,7 @@ class FollowsController extends AbstractController
     public function index(
         EntityManagerInterface $em,
         NostrClient $nostrClient,
+        RedisCacheService $redisCacheService,
         LoggerInterface $logger
     ): Response
     {
@@ -55,7 +58,7 @@ class FollowsController extends AbstractController
         // Fetch the user's follow list from relays using NostrClient
         $followedPubkeys = [];
         try {
-            $followedPubkeys = $nostrClient->getUserFollows($pubkeyHex);
+            $followedPubkeys = $nostrClient->getUserFollows($pubkeyHex, $user->getRelays()['all'] ?? null);
             $logger->info('Fetched follow list from relays', [
                 'user_pubkey' => $pubkeyHex,
                 'follows_count' => count($followedPubkeys)
@@ -90,50 +93,30 @@ class FollowsController extends AbstractController
 
             $articles = $qb->getQuery()->getResult();
 
-            // Collect unique author pubkeys
-            $authorPubkeys = [];
-            foreach ($articles as $article) {
-                $authorPubkeys[] = $article->getPubkey();
-            }
-            $authorPubkeys = array_unique($authorPubkeys);
-
-            // Batch fetch metadata for all authors using NostrClient
-            try {
-                $metadataEvents = $nostrClient->getMetadataForPubkeys($authorPubkeys);
-
-                foreach ($metadataEvents as $pubkey => $event) {
-                    try {
-                        $metadata = json_decode($event->content, false);
-                        $authorsMetadata[$pubkey] = $metadata;
-                    } catch (\Throwable $e) {
-                        $logger->warning('Failed to decode author metadata', [
-                            'pubkey' => $pubkey,
-                            'error' => $e->getMessage()
-                        ]);
-                        // Create basic metadata object
-                        $authorsMetadata[$pubkey] = (object)[
-                            'name' => substr($pubkey, 0, 8) . '...'
-                        ];
-                    }
+            // Deduplicate by slug+pubkey — newest revision wins
+            $seen = [];
+            $articles = array_filter($articles, function (Article $a) use (&$seen) {
+                $key = $a->getPubkey() . ':' . $a->getSlug();
+                if (isset($seen[$key])) {
+                    return false;
                 }
+                $seen[$key] = true;
+                return true;
+            });
 
-                // Add fallback metadata for any authors not found
-                foreach ($authorPubkeys as $pubkey) {
-                    if (!isset($authorsMetadata[$pubkey])) {
-                        $authorsMetadata[$pubkey] = (object)[
-                            'name' => substr($pubkey, 0, 8) . '...'
-                        ];
-                    }
-                }
-            } catch (\Throwable $e) {
-                $logger->error('Failed to fetch author metadata', [
-                    'error' => $e->getMessage()
-                ]);
-                // Create basic metadata for all authors as fallback
-                foreach ($authorPubkeys as $pubkey) {
-                    $authorsMetadata[$pubkey] = (object)[
-                        'name' => substr($pubkey, 0, 8) . '...'
-                    ];
+            // Collect unique author pubkeys and batch-resolve metadata
+            // via cache → DB → async dispatch (no blocking relay calls)
+            $authorPubkeys = array_unique(array_map(
+                fn(Article $a) => $a->getPubkey(),
+                $articles
+            ));
+
+            if (!empty($authorPubkeys)) {
+                $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
+                foreach ($metadataMap as $pubkey => $metadata) {
+                    $authorsMetadata[$pubkey] = $metadata instanceof UserMetadata
+                        ? $metadata->toStdClass()
+                        : $metadata;
                 }
             }
         }
