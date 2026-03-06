@@ -7,6 +7,7 @@ use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
+use swentel\nostr\RelayResponse\RelayResponseEvent;
 use swentel\nostr\Subscription\Subscription;
 
 /**
@@ -185,13 +186,54 @@ class NostrRelayPool
 
                 $gatewayResult = $this->gatewayClient->query($externalUrls, $filter, $pubkey, $timeout);
 
-                // Assign events to the first relay URL (gateway merges all relay responses)
-                if (!empty($gatewayResult['events']) && !empty($externalUrls)) {
-                    $results[$externalUrls[0]] = $gatewayResult['events'];
+                $gatewayErrors = $gatewayResult['errors'] ?? [];
+
+                // Convert raw event arrays from the gateway into proper RelayResponseEvent
+                // objects so callers receive the same shape as TweakedRequest::send().
+                //
+                // RelayResponseEvent expects ["EVENT", subscriptionId, eventObject] where
+                // eventObject must be a \stdClass. We synthesise the subscriptionId since
+                // the gateway already discards it, and cast each event array to stdClass.
+                $relayResponses = [];
+                foreach ($gatewayResult['events'] ?? [] as $rawEvent) {
+                    if (!is_array($rawEvent)) {
+                        continue;
+                    }
+                    // Cast to stdClass — matches what json_decode(…, false) produces
+                    $eventObj = (object) array_map(
+                        static fn($v) => is_array($v) ? (object) $v : $v,
+                        $rawEvent,
+                    );
+                    // Synthesise the ["EVENT", subId, event] envelope
+                    $relayResponses[] = new RelayResponseEvent(['EVENT', 'gateway', $eventObj]);
                 }
-                foreach ($gatewayResult['errors'] ?? [] as $url => $error) {
+
+                // Distribute the response set to every external relay that did not error.
+                // All callers already deduplicate events by ID, so serving the same set
+                // under multiple relay keys is safe and correctly attributes events to
+                // each relay that contributed to the result.
+                $succeededUrls = array_diff($externalUrls, array_keys($gatewayErrors));
+                foreach ($succeededUrls as $url) {
+                    $results[$url] = $relayResponses;
+                }
+
+                // Record errored relays with an empty response array so callers that
+                // check array_keys($responses) can still see which relays were attempted.
+                foreach ($gatewayErrors as $url => $error) {
                     if (!isset($results[$url])) {
                         $results[$url] = [];
+                    }
+                    $this->logger->debug('Gateway reported error for relay', [
+                        'relay' => $url,
+                        'error' => $error,
+                    ]);
+                }
+
+                // If no relays succeeded but we have events, fall back to attributing
+                // them to all external URLs (gateway returned events without errors).
+                if (empty($succeededUrls) && !empty($relayResponses)) {
+                    foreach ($externalUrls as $url) {
+                        $results[$url] = $relayResponses;
                     }
                 }
             }
