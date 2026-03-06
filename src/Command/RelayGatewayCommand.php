@@ -65,10 +65,47 @@ class RelayGatewayCommand extends Command
     private array $connections = [];
 
     /**
-     * Pending queries waiting for EOSE.
-     * @var array<string, array{correlationId: string, relayUrl: string, events: array, connKey: string, startedAt: int}>
+     * Pending query subscriptions waiting for EOSE from a relay.
+     * Keyed by subscriptionId (unique per REQ sent).
+     *
+     * @var array<string, array{
+     *   correlationId: string,
+     *   relayUrl: string,
+     *   connKey: string,
+     *   events: array,
+     *   deadline: int,
+     *   done: bool,
+     * }>
      */
     private array $pendingQueries = [];
+
+    /**
+     * Aggregated state per correlationId — tracks how many relay subscriptions
+     * are still open so we know when to write the final response.
+     *
+     * @var array<string, array{
+     *   total: int,
+     *   done: int,
+     *   events: array,
+     *   errors: array<string, string>,
+     *   deadline: int,
+     * }>
+     */
+    private array $pendingCorrelations = [];
+
+    /**
+     * Pending publish requests waiting for OK from a relay.
+     * Keyed by a synthetic "{correlationId}::{relayUrl}" key.
+     *
+     * @var array<string, array{
+     *   correlationId: string,
+     *   relayUrl: string,
+     *   connKey: string,
+     *   deadline: int,
+     *   done: bool,
+     * }>
+     */
+    private array $pendingPublishes = [];
 
     /**
      * Pending AUTH challenges waiting for signed events.
@@ -379,18 +416,18 @@ class RelayGatewayCommand extends Command
         $pubkey = $pubkey !== '' ? $pubkey : null;
         $timeout = (int) ($data['timeout'] ?? 15);
 
-        $this->logger->debug('Gateway: handling query', [
+        $this->logger->debug('Gateway: handling query (non-blocking)', [
             'correlation_id' => $correlationId,
             'relays' => $relayUrls,
             'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
         ]);
 
-        $allEvents = [];
+        $deadline = time() + $timeout;
         $errors = [];
+        $registeredCount = 0;
 
         foreach ($relayUrls as $relayUrl) {
             try {
-                // Route to user connection if available, otherwise shared
                 $conn = $this->routeConnection($relayUrl, $pubkey);
 
                 if (!$conn || !$conn->isConnected()) {
@@ -398,7 +435,7 @@ class RelayGatewayCommand extends Command
                     continue;
                 }
 
-                // Build and send subscription
+                // Build and send REQ
                 $subscription = new Subscription();
                 $subscriptionId = $subscription->setId();
 
@@ -426,24 +463,42 @@ class RelayGatewayCommand extends Command
                 $conn->getClient()->text($requestMessage->generate());
                 $conn->touch();
 
-                // Collect responses synchronously within timeout
-                $events = $this->collectResponsesUntilEose($conn, $subscriptionId, $timeout);
-                $allEvents = array_merge($allEvents, $events);
+                // Register in the pending-query table — processWebSocketMessages()
+                // will dispatch EVENT/EOSE/CLOSED/NOTICE to this entry.
+                $this->pendingQueries[$subscriptionId] = [
+                    'correlationId' => $correlationId,
+                    'relayUrl'      => $relayUrl,
+                    'connKey'       => $conn->getKey(),
+                    'events'        => [],
+                    'deadline'      => $deadline,
+                    'done'          => false,
+                ];
 
-                $this->healthStore->recordSuccess($relayUrl);
+                $registeredCount++;
 
             } catch (\Throwable $e) {
                 $errors[$relayUrl] = $e->getMessage();
                 $this->healthStore->recordFailure($relayUrl);
-                $this->logger->warning('Gateway: query failed for relay', [
+                $this->logger->warning('Gateway: query REQ failed for relay', [
                     'relay' => $relayUrl,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        // Write response
-        $this->writeResponse($correlationId, $allEvents, $errors);
+        // Track per-correlationId aggregation state
+        if ($registeredCount > 0) {
+            $this->pendingCorrelations[$correlationId] = [
+                'total'    => $registeredCount,
+                'done'     => 0,
+                'events'   => [],
+                'errors'   => $errors,
+                'deadline' => $deadline,
+            ];
+        } else {
+            // All relays failed immediately — write response right away
+            $this->writeResponse($correlationId, [], $errors);
+        }
     }
 
     private function handlePublishRequest(array $data, string $correlationId): void
@@ -452,11 +507,13 @@ class RelayGatewayCommand extends Command
         $event = json_decode($data['event'] ?? '{}', true) ?: [];
         $pubkey = $data['pubkey'] ?? '';
         $pubkey = $pubkey !== '' ? $pubkey : null;
+        $timeout = (int) ($data['timeout'] ?? 10);
 
-        $ok = [];
         $errors = [];
-
+        $ok = [];
         $payload = json_encode(['EVENT', $event]);
+        $deadline = time() + $timeout;
+        $registeredCount = 0;
 
         foreach ($relayUrls as $relayUrl) {
             try {
@@ -470,28 +527,17 @@ class RelayGatewayCommand extends Command
                 $conn->getClient()->text($payload);
                 $conn->touch();
 
-                // Wait briefly for OK response
-                $okReceived = false;
-                $deadline = time() + 5;
-                while (time() < $deadline) {
-                    try {
-                        $resp = $conn->getClient()->receive();
-                        if ($resp instanceof Text) {
-                            $decoded = json_decode($resp->getContent(), true);
-                            if (is_array($decoded) && ($decoded[0] ?? '') === 'OK') {
-                                $okReceived = ($decoded[2] ?? false) === true;
-                                break;
-                            }
-                        }
-                    } catch (\Throwable) {
-                        break;
-                    }
-                }
+                // Register for non-blocking OK tracking
+                $pendingKey = $correlationId . '::' . $relayUrl;
+                $this->pendingPublishes[$pendingKey] = [
+                    'correlationId' => $correlationId,
+                    'relayUrl'      => $relayUrl,
+                    'connKey'       => $conn->getKey(),
+                    'deadline'      => $deadline,
+                    'done'          => false,
+                ];
 
-                $ok[$relayUrl] = $okReceived;
-                if ($okReceived) {
-                    $this->healthStore->recordSuccess($relayUrl);
-                }
+                $registeredCount++;
 
             } catch (\Throwable $e) {
                 $errors[$relayUrl] = $e->getMessage();
@@ -499,16 +545,20 @@ class RelayGatewayCommand extends Command
             }
         }
 
-        // Write response
-        try {
-            $responseKey = self::RESPONSE_PREFIX . $correlationId;
-            $this->redis->xAdd($responseKey, '*', [
-                'ok' => json_encode($ok),
-                'errors' => json_encode($errors),
-            ]);
-            $this->redis->expire($responseKey, 60);
-        } catch (\RedisException $e) {
-            $this->logger->error('Gateway: failed to write publish response', ['error' => $e->getMessage()]);
+        if ($registeredCount === 0) {
+            // All relays failed immediately
+            $this->writePublishResponse($correlationId, [], $errors);
+        } else {
+            // Store seed errors so they're included when the response is flushed
+            if (!isset($this->pendingCorrelations[$correlationId])) {
+                $this->pendingCorrelations[$correlationId] = [
+                    'total'    => $registeredCount,
+                    'done'     => 0,
+                    'events'   => [], // not used for publish
+                    'errors'   => $errors,
+                    'deadline' => $deadline,
+                ];
+            }
         }
     }
 
@@ -615,15 +665,48 @@ class RelayGatewayCommand extends Command
 
                 $type = $decoded[0] ?? '';
 
-                if ($type === 'AUTH') {
-                    $challenge = $decoded[1] ?? null;
-                    if ($challenge) {
-                        $this->handleAuthChallenge($conn, $challenge);
-                    }
-                }
+                switch ($type) {
+                    case 'AUTH':
+                        $challenge = $decoded[1] ?? null;
+                        if ($challenge) {
+                            $this->handleAuthChallenge($conn, $challenge);
+                        }
+                        break;
 
-                // Other message types (EVENT, EOSE, OK) are handled
-                // synchronously in collectResponsesUntilEose()
+                    case 'EVENT':
+                        // subscriptionId is $decoded[1], event is $decoded[2]
+                        $subId = $decoded[1] ?? null;
+                        if ($subId && isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                            if (isset($decoded[2]) && is_array($decoded[2])) {
+                                $this->pendingQueries[$subId]['events'][] = $decoded[2];
+                                $this->healthStore->recordEventReceived($conn->relayUrl);
+                            }
+                        }
+                        break;
+
+                    case 'EOSE':
+                        $subId = $decoded[1] ?? null;
+                        if ($subId && isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                            $this->completeQuery($subId, $conn);
+                        }
+                        break;
+
+                    case 'OK':
+                        // ["OK", event_id, true/false, message]
+                        // Match to a pending publish by scanning for this connection
+                        $accepted = ($decoded[2] ?? false) === true;
+                        $this->completePendingPublish($conn, $accepted);
+                        break;
+
+                    case 'CLOSED':
+                    case 'NOTICE':
+                        // Treat relay-initiated CLOSED as EOSE for any pending query on this connection
+                        $subId = $decoded[1] ?? null;
+                        if ($subId && isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                            $this->completeQuery($subId, $conn);
+                        }
+                        break;
+                }
 
             } catch (\Throwable $e) {
                 // Timeout is normal for non-blocking reads
@@ -634,6 +717,202 @@ class RelayGatewayCommand extends Command
                         'error' => $e->getMessage(),
                     ]);
                 }
+            }
+        }
+
+        // After processing all WebSocket messages, flush any correlations
+        // where every subscription has now completed.
+        $this->flushCompletedCorrelations();
+
+        // Sweep for timed-out pending queries/publishes
+        $this->sweepTimedOutPending();
+    }
+
+    /**
+     * Mark a pending query subscription as done and merge its events into the
+     * parent correlation. Sends CLOSE to the relay.
+     */
+    private function completeQuery(string $subscriptionId, GatewayConnection $conn): void
+    {
+        $pending = &$this->pendingQueries[$subscriptionId];
+        $pending['done'] = true;
+
+        // Send CLOSE for this subscription
+        try {
+            $this->handler->sendClose($conn->getClient(), $subscriptionId);
+        } catch (\Throwable) {}
+
+        $this->healthStore->recordSuccess($pending['relayUrl']);
+
+        // Merge into correlation
+        $correlationId = $pending['correlationId'];
+        if (isset($this->pendingCorrelations[$correlationId])) {
+            $this->pendingCorrelations[$correlationId]['events'] = array_merge(
+                $this->pendingCorrelations[$correlationId]['events'],
+                $pending['events'],
+            );
+            $this->pendingCorrelations[$correlationId]['done']++;
+        }
+    }
+
+    /**
+     * Find the oldest incomplete pending publish on the given connection and
+     * mark it done with the given OK status.
+     */
+    private function completePendingPublish(GatewayConnection $conn, bool $accepted): void
+    {
+        foreach ($this->pendingPublishes as $pendingKey => &$pending) {
+            if ($pending['done'] || $pending['connKey'] !== $conn->getKey()) {
+                continue;
+            }
+
+            $pending['done'] = true;
+            $relayUrl = $pending['relayUrl'];
+            $correlationId = $pending['correlationId'];
+
+            if ($accepted) {
+                $this->healthStore->recordSuccess($relayUrl);
+            }
+
+            // Store OK result in the correlation's events array (reusing as ok map)
+            if (isset($this->pendingCorrelations[$correlationId])) {
+                // We embed ok results in events as a sentinel; writePublishResponse
+                // reads from pendingCorrelations['ok'] if present.
+                $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = $accepted;
+                $this->pendingCorrelations[$correlationId]['done']++;
+            }
+
+            return; // Only resolve the first matching pending publish per OK message
+        }
+        unset($pending);
+    }
+
+    /**
+     * For each correlationId where all subscriptions/publishes are done,
+     * write the response stream and clean up.
+     */
+    private function flushCompletedCorrelations(): void
+    {
+        foreach ($this->pendingCorrelations as $correlationId => $state) {
+            if ($state['done'] < $state['total']) {
+                continue;
+            }
+
+            if (isset($state['ok'])) {
+                // Publish response
+                $this->writePublishResponse($correlationId, $state['ok'], $state['errors']);
+            } else {
+                // Query response
+                $this->writeResponse($correlationId, $state['events'], $state['errors']);
+            }
+
+            $this->cleanupCorrelation($correlationId);
+        }
+    }
+
+    /**
+     * Sweep for pending queries/publishes that have passed their deadline and
+     * force-complete them with whatever events/status we have so far.
+     */
+    private function sweepTimedOutPending(): void
+    {
+        $now = time();
+
+        // Timed-out query subscriptions
+        foreach ($this->pendingQueries as $subId => $pending) {
+            if ($pending['done'] || $pending['deadline'] > $now) {
+                continue;
+            }
+
+            $this->logger->debug('Gateway: query subscription timed out', [
+                'subscription_id' => $subId,
+                'correlation_id'  => $pending['correlationId'],
+                'relay'           => $pending['relayUrl'],
+            ]);
+
+            // Send CLOSE if possible
+            $conn = $this->connections[$pending['connKey']] ?? null;
+            if ($conn && $conn->isConnected()) {
+                try {
+                    $this->handler->sendClose($conn->getClient(), $subId);
+                } catch (\Throwable) {}
+            }
+
+            $this->pendingQueries[$subId]['done'] = true;
+
+            // Merge partial events into correlation
+            $correlationId = $pending['correlationId'];
+            if (isset($this->pendingCorrelations[$correlationId])) {
+                $this->pendingCorrelations[$correlationId]['events'] = array_merge(
+                    $this->pendingCorrelations[$correlationId]['events'],
+                    $pending['events'],
+                );
+                $this->pendingCorrelations[$correlationId]['done']++;
+            }
+        }
+
+        // Timed-out publish slots
+        foreach ($this->pendingPublishes as $pendingKey => $pending) {
+            if ($pending['done'] || $pending['deadline'] > $now) {
+                continue;
+            }
+
+            $this->logger->debug('Gateway: publish timed out waiting for OK', [
+                'pending_key'    => $pendingKey,
+                'correlation_id' => $pending['correlationId'],
+                'relay'          => $pending['relayUrl'],
+            ]);
+
+            $this->pendingPublishes[$pendingKey]['done'] = true;
+
+            $correlationId = $pending['correlationId'];
+            if (isset($this->pendingCorrelations[$correlationId])) {
+                // No OK received — treat as false
+                $this->pendingCorrelations[$correlationId]['ok'][$pending['relayUrl']] = false;
+                $this->pendingCorrelations[$correlationId]['done']++;
+            }
+        }
+
+        // Now flush any correlations that became complete due to timeouts
+        $this->flushCompletedCorrelations();
+
+        // Also force-flush correlations whose deadline has expired (edge case:
+        // a relay never sends EOSE and the subscription deadline has passed).
+        foreach ($this->pendingCorrelations as $correlationId => $state) {
+            if ($state['deadline'] <= $now) {
+                $this->logger->debug('Gateway: force-flushing expired correlation', [
+                    'correlation_id' => $correlationId,
+                    'done' => $state['done'],
+                    'total' => $state['total'],
+                ]);
+
+                if (isset($state['ok'])) {
+                    $this->writePublishResponse($correlationId, $state['ok'], $state['errors']);
+                } else {
+                    $this->writeResponse($correlationId, $state['events'], $state['errors']);
+                }
+
+                $this->cleanupCorrelation($correlationId);
+            }
+        }
+    }
+
+    /**
+     * Remove all pending-query and pending-publish entries for a correlationId.
+     */
+    private function cleanupCorrelation(string $correlationId): void
+    {
+        unset($this->pendingCorrelations[$correlationId]);
+
+        foreach ($this->pendingQueries as $subId => $pending) {
+            if ($pending['correlationId'] === $correlationId) {
+                unset($this->pendingQueries[$subId]);
+            }
+        }
+
+        foreach ($this->pendingPublishes as $pendingKey => $pending) {
+            if ($pending['correlationId'] === $correlationId) {
+                unset($this->pendingPublishes[$pendingKey]);
             }
         }
     }
@@ -811,79 +1090,6 @@ class RelayGatewayCommand extends Command
     }
 
     // =========================================================================
-    // Response collection
-    // =========================================================================
-
-    private function collectResponsesUntilEose(GatewayConnection $conn, string $subscriptionId, int $timeout): array
-    {
-        $events = [];
-        $deadline = time() + $timeout;
-
-        while (time() < $deadline) {
-            try {
-                $resp = $conn->getClient()->receive();
-
-                if ($resp instanceof Ping) {
-                    $this->handler->handlePing($conn->getClient());
-                    continue;
-                }
-
-                if (!($resp instanceof Text)) {
-                    continue;
-                }
-
-                $decoded = json_decode($resp->getContent(), true);
-                if (!is_array($decoded)) {
-                    continue;
-                }
-
-                $type = $decoded[0] ?? '';
-
-                switch ($type) {
-                    case 'EVENT':
-                        if (isset($decoded[2]) && is_array($decoded[2])) {
-                            $events[] = $decoded[2];
-                            $this->healthStore->recordEventReceived($conn->relayUrl);
-                        }
-                        break;
-
-                    case 'EOSE':
-                        // Send CLOSE for this subscription
-                        $this->handler->sendClose($conn->getClient(), $subscriptionId);
-                        return $events;
-
-                    case 'AUTH':
-                        // Handle AUTH inline
-                        $challenge = $decoded[1] ?? null;
-                        if ($challenge) {
-                            $this->handleAuthChallenge($conn, $challenge);
-                            // Re-send the subscription after AUTH
-                            // (The caller already sent it, but relay may need it again)
-                        }
-                        break;
-
-                    case 'CLOSED':
-                    case 'NOTICE':
-                        return $events;
-                }
-
-            } catch (\Throwable $e) {
-                if ($this->isTimeoutError($e)) {
-                    continue;
-                }
-                throw $e;
-            }
-        }
-
-        // Timeout — CLOSE the subscription and return what we have
-        try {
-            $this->handler->sendClose($conn->getClient(), $subscriptionId);
-        } catch (\Throwable) {}
-
-        return $events;
-    }
-
-    // =========================================================================
     // Response writing
     // =========================================================================
 
@@ -894,11 +1100,28 @@ class RelayGatewayCommand extends Command
             $this->redis->xAdd($responseKey, '*', [
                 'events' => json_encode($events),
                 'errors' => json_encode($errors),
-                'eose' => 'true',
+                'eose'   => 'true',
             ]);
             $this->redis->expire($responseKey, 60);
         } catch (\RedisException $e) {
-            $this->logger->error('Gateway: failed to write response', [
+            $this->logger->error('Gateway: failed to write query response', [
+                'correlation_id' => $correlationId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function writePublishResponse(string $correlationId, array $ok, array $errors): void
+    {
+        try {
+            $responseKey = self::RESPONSE_PREFIX . $correlationId;
+            $this->redis->xAdd($responseKey, '*', [
+                'ok'     => json_encode($ok),
+                'errors' => json_encode($errors),
+            ]);
+            $this->redis->expire($responseKey, 60);
+        } catch (\RedisException $e) {
+            $this->logger->error('Gateway: failed to write publish response', [
                 'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);
@@ -963,9 +1186,12 @@ class RelayGatewayCommand extends Command
         }
 
         $this->logger->info('Gateway: maintenance complete', [
-            'shared_connections' => $sharedCount,
-            'user_connections' => $userCount,
-            'pending_auths' => count($this->pendingAuths),
+            'shared_connections'   => $sharedCount,
+            'user_connections'     => $userCount,
+            'pending_auths'        => count($this->pendingAuths),
+            'pending_queries'      => count($this->pendingQueries),
+            'pending_publishes'    => count($this->pendingPublishes),
+            'pending_correlations' => count($this->pendingCorrelations),
         ]);
     }
 
