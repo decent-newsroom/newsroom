@@ -165,6 +165,10 @@ services:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
 
+    App\MessageHandler\SyncUserEventsHandler:
+        arguments:
+            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+
     App\EventListener\LogoutRelayCleanupListener:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'

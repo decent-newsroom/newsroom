@@ -8,6 +8,7 @@ enum KindsEnum: int
     case TEXT_NOTE = 1; // text note, NIP-01, will not implement
     case IMAGE = 20; // NIP-68, images
     case FOLLOWS = 3;
+    case REACTION = 7; // NIP-25, reactions (+, -, emoji)
     case REPOST = 6; // Only wraps kind 1, NIP-18, will not implement
     case GENERIC_REPOST = 16; // Generic repost, original kind signalled in a "k" tag, NIP-18
     case FILE_METADATA = 1063; // NIP-94

@@ -113,6 +113,17 @@ class RelayGatewayCommand extends Command
      */
     private array $pendingAuths = [];
 
+    /**
+     * REQs that were deferred because their connection was mid-AUTH when the
+     * query arrived. Keyed by subscriptionId.
+     *
+     * @var array<string, array{
+     *   connKey: string,
+     *   payload: string,
+     * }>
+     */
+    private array $pendingAuthReqs = [];
+
     private bool $shouldStop = false;
     private RelaySubscriptionHandler $handler;
 
@@ -202,8 +213,9 @@ class RelayGatewayCommand extends Command
                 usleep(100_000); // 100ms
             }
 
-            // Small sleep to prevent CPU spin
-            usleep(50_000); // 50ms
+            // Short sleep — sockets are non-blocking (0ms timeout) so this
+            // just yields the CPU briefly between sweeps.
+            usleep(5_000); // 5ms
         }
 
         // Graceful shutdown
@@ -276,7 +288,12 @@ class RelayGatewayCommand extends Command
             $relay->connect();
 
             $client = $relay->getClient();
-            $client->setTimeout(1); // Non-blocking reads in event loop
+            // 0 = non-blocking drain: receive() returns immediately if the OS
+            // buffer is empty, throwing a timeout exception (caught in
+            // processWebSocketMessages as "nothing to read"). With N connections
+            // a 1-second timeout makes each sweep take up to N seconds, which
+            // blows past the correlation deadline long before EOSE arrives.
+            $client->setTimeout(0);
 
             $conn->relay = $relay;
             $conn->connected = true;
@@ -342,7 +359,7 @@ class RelayGatewayCommand extends Command
             $messages = $this->redis->xRead(
                 [self::REQUEST_STREAM => $this->lastRequestId],
                 5, // batch size
-                100, // block 100ms
+                10, // block 10ms — tight loop so WebSocket responses aren't delayed
             );
 
             if (!$messages || !isset($messages[self::REQUEST_STREAM])) {
@@ -368,7 +385,7 @@ class RelayGatewayCommand extends Command
             $messages = $this->redis->xRead(
                 [self::CONTROL_STREAM => $this->lastControlId],
                 5,
-                50, // block 50ms
+                5, // block 5ms
             );
 
             if (!$messages || !isset($messages[self::CONTROL_STREAM])) {
@@ -435,7 +452,7 @@ class RelayGatewayCommand extends Command
                     continue;
                 }
 
-                // Build and send REQ
+                // Build REQ payload first (needed for both send and defer paths)
                 $subscription = new Subscription();
                 $subscriptionId = $subscription->setId();
 
@@ -459,12 +476,10 @@ class RelayGatewayCommand extends Command
                     $filterObj->setIds($filter['ids']);
                 }
 
-                $requestMessage = new RequestMessage($subscriptionId, [$filterObj]);
-                $conn->getClient()->text($requestMessage->generate());
-                $conn->touch();
+                $reqPayload = (new RequestMessage($subscriptionId, [$filterObj]))->generate();
 
-                // Register in the pending-query table — processWebSocketMessages()
-                // will dispatch EVENT/EOSE/CLOSED/NOTICE to this entry.
+                // Register subscription in pending-query table regardless of auth state
+                // so that completeQuery() / sweepTimedOutPending() can account for it.
                 $this->pendingQueries[$subscriptionId] = [
                     'correlationId' => $correlationId,
                     'relayUrl'      => $relayUrl,
@@ -473,8 +488,27 @@ class RelayGatewayCommand extends Command
                     'deadline'      => $deadline,
                     'done'          => false,
                 ];
-
                 $registeredCount++;
+
+                // If the connection is mid-AUTH, defer the REQ — it will be
+                // re-sent by checkPendingAuths() once the signed AUTH arrives.
+                // Sending a REQ before AUTH is resolved causes the relay to
+                // respond with CLOSED:auth-required and never deliver events.
+                if ($conn->authStatus === 'pending') {
+                    $this->logger->info('Gateway: deferring REQ until AUTH completes', [
+                        'relay'           => $relayUrl,
+                        'subscription_id' => $subscriptionId,
+                        'correlation_id'  => $correlationId,
+                    ]);
+                    $this->pendingAuthReqs[$subscriptionId] = [
+                        'connKey' => $conn->getKey(),
+                        'payload' => $reqPayload,
+                    ];
+                    continue;
+                }
+
+                $conn->getClient()->text($reqPayload);
+                $conn->touch();
 
             } catch (\Throwable $e) {
                 $errors[$relayUrl] = $e->getMessage();
@@ -729,8 +763,12 @@ class RelayGatewayCommand extends Command
     }
 
     /**
-     * Mark a pending query subscription as done and merge its events into the
-     * parent correlation. Sends CLOSE to the relay.
+     * Mark a pending query subscription as done, flush its events to the
+     * response stream immediately (partial, eose:false), and update the
+     * parent correlation counter.
+     *
+     * Writing per-relay as each one completes means the client starts receiving
+     * events from fast relays without waiting for slow or stalled ones.
      */
     private function completeQuery(string $subscriptionId, GatewayConnection $conn): void
     {
@@ -744,15 +782,22 @@ class RelayGatewayCommand extends Command
 
         $this->healthStore->recordSuccess($pending['relayUrl']);
 
-        // Merge into correlation
         $correlationId = $pending['correlationId'];
-        if (isset($this->pendingCorrelations[$correlationId])) {
-            $this->pendingCorrelations[$correlationId]['events'] = array_merge(
-                $this->pendingCorrelations[$correlationId]['events'],
-                $pending['events'],
-            );
-            $this->pendingCorrelations[$correlationId]['done']++;
+        if (!isset($this->pendingCorrelations[$correlationId])) {
+            return;
         }
+
+        // Flush this relay's events to Redis immediately (eose:false — more may come)
+        if (!empty($pending['events'])) {
+            $this->writePartialResponse($correlationId, $pending['events']);
+        }
+
+        // Merge into correlation totals
+        $this->pendingCorrelations[$correlationId]['events'] = array_merge(
+            $this->pendingCorrelations[$correlationId]['events'],
+            $pending['events'],
+        );
+        $this->pendingCorrelations[$correlationId]['done']++;
     }
 
     /**
@@ -907,6 +952,7 @@ class RelayGatewayCommand extends Command
         foreach ($this->pendingQueries as $subId => $pending) {
             if ($pending['correlationId'] === $correlationId) {
                 unset($this->pendingQueries[$subId]);
+                unset($this->pendingAuthReqs[$subId]);
             }
         }
 
@@ -1041,6 +1087,36 @@ class RelayGatewayCommand extends Command
                         'relay' => $conn->relayUrl,
                         'pubkey' => substr($conn->pubkey ?? '', 0, 8) . '...',
                     ]);
+
+                    // Re-send any REQs that were deferred while AUTH was pending
+                    foreach ($this->pendingAuthReqs as $subId => $deferred) {
+                        if ($deferred['connKey'] !== $connKey) {
+                            continue;
+                        }
+                        // Only re-send if this subscription hasn't already been completed
+                        if (isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                            try {
+                                $conn->getClient()->text($deferred['payload']);
+                                $conn->touch();
+                                $this->logger->info('Gateway: re-sent deferred REQ after AUTH', [
+                                    'subscription_id' => $subId,
+                                    'relay'           => $conn->relayUrl,
+                                ]);
+                            } catch (\Throwable $e) {
+                                $this->logger->warning('Gateway: failed to re-send deferred REQ', [
+                                    'subscription_id' => $subId,
+                                    'error'           => $e->getMessage(),
+                                ]);
+                                // Mark as done with no events so the correlation can flush
+                                $this->pendingQueries[$subId]['done'] = true;
+                                $correlationId = $this->pendingQueries[$subId]['correlationId'];
+                                if (isset($this->pendingCorrelations[$correlationId])) {
+                                    $this->pendingCorrelations[$correlationId]['done']++;
+                                }
+                            }
+                        }
+                        unset($this->pendingAuthReqs[$subId]);
+                    }
                 }
 
                 // Clean up
@@ -1081,7 +1157,20 @@ class RelayGatewayCommand extends Command
             return $this->connections[$sharedKey];
         }
 
-        // Open a new shared connection on demand
+        // Do NOT open a new on-demand shared connection for relays that are
+        // known to require AUTH — an ephemeral-key shared connection will be
+        // rejected and its pending REQs will stall until timeout.
+        // Return null so the caller records this relay as an error immediately
+        // and the other relays can respond without being held up.
+        if ($this->healthStore->isAuthRequired($relayUrl)) {
+            $this->logger->debug('Gateway: skipping auth-required relay — no authed connection available', [
+                'relay'  => $relayUrl,
+                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+            ]);
+            return null;
+        }
+
+        // Open a new shared connection on demand (non-auth relay)
         try {
             return $this->openConnection($relayUrl, null);
         } catch (\Throwable) {
@@ -1105,6 +1194,29 @@ class RelayGatewayCommand extends Command
             $this->redis->expire($responseKey, 60);
         } catch (\RedisException $e) {
             $this->logger->error('Gateway: failed to write query response', [
+                'correlation_id' => $correlationId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Write a partial batch of events to the response stream without closing it
+     * (eose:false). Called by completeQuery() as each relay finishes so the
+     * client can start reading events from fast relays immediately.
+     */
+    private function writePartialResponse(string $correlationId, array $events): void
+    {
+        try {
+            $responseKey = self::RESPONSE_PREFIX . $correlationId;
+            $this->redis->xAdd($responseKey, '*', [
+                'events' => json_encode($events),
+                'errors' => json_encode([]),
+                'eose'   => 'false',
+            ]);
+            // Don't set expire here — writeResponse will set it with eose:true
+        } catch (\RedisException $e) {
+            $this->logger->debug('Gateway: failed to write partial response', [
                 'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);

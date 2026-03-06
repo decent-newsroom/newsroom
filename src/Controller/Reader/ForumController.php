@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\ForumTopics;
@@ -361,6 +362,7 @@ class ForumController extends AbstractController
         Request $request,
         NostrClient $nostrClient,
         UserRelayListService $userRelayListService,
+        UserProfileService $userProfileService,
         LoggerInterface $logger,
     ): JsonResponse {
         try {
@@ -396,6 +398,11 @@ class ForumController extends AbstractController
             if (!$eventObj->verify()) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
+
+            // Persist to local DB immediately — the DB is the authoritative local cache;
+            // we do this before relay publish so the next page load is fast regardless
+            // of whether the relay publish fully succeeds.
+            $userProfileService->persistInterestEvent((object) $signedEvent);
 
             // Collect relays for publishing
             $pubkey = $signedEvent['pubkey'];

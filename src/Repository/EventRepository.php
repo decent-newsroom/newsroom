@@ -55,6 +55,34 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Given a list of event IDs, return a map of the ones that already exist
+     * in the database. Used for bulk duplicate-check before insert.
+     *
+     * @param  string[] $ids
+     * @return array<string, true>  Set keyed by event ID
+     */
+    public function findExistingIds(array $ids): array
+    {
+        if (empty($ids)) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('e')
+            ->select('e.id')
+            ->where('e.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getArrayResult();
+
+        $existing = [];
+        foreach ($rows as $row) {
+            $existing[$row['id']] = true;
+        }
+
+        return $existing;
+    }
+
+    /**
      * Find media events by kinds (20, 21, 22) excluding muted pubkeys
      *
      * @param array $kinds Array of event kinds to query

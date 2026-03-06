@@ -55,6 +55,8 @@ framework:
             'App\Message\RevalidateProfileCacheMessage': async_low_priority
             # Relay list warming on login - fetch from network and persist to DB
             'App\Message\UpdateRelayListMessage': async_low_priority
+            # Batch event sync on login - fetch user's own events via relay gateway
+            'App\Message\SyncUserEventsMessage': async_low_priority
 
 # when@test:
 #    framework:

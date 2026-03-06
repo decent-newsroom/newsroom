@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
+use App\Repository\EventRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,6 +24,8 @@ class UserProfileService
         private readonly RelaySetFactory       $relaySetFactory,
         private readonly UserRelayListService  $userRelayListService,
         private readonly NostrRelayPool        $relayPool,
+        private readonly EventRepository       $eventRepository,
+        private readonly EntityManagerInterface $entityManager,
         private readonly CacheItemPoolInterface $npubCache,
         private readonly LoggerInterface       $logger,
         private readonly ?string               $nostrDefaultRelay = null,
@@ -187,23 +192,43 @@ class UserProfileService
     // -------------------------------------------------------------------------
 
     /**
-     * Fetch the latest interest list (kind 10015) for a pubkey and return the 't' tags.
+     * Return the 't' tags from the user's latest kind-10015 interest list.
+     *
+     * Strategy: DB-first with relay fallback.
+     *
+     * 1. Check the local database — SyncUserEventsHandler populates this on
+     *    login, so the event is almost always available immediately.
+     * 2. Fall back to a live relay query only when the DB has no record yet
+     *    (first page-load before the async sync job has finished, or the user
+     *    has never published an interest list).
      */
     public function getInterests(string $pubkey, ?array $relays = null): array
     {
+        // ── 1. DB lookup ──────────────────────────────────────────────────────
+        $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
+
+        if ($dbEvent !== null) {
+            $this->logger->debug('UserProfileService: interests loaded from DB', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+            ]);
+            return $this->extractTTags($dbEvent->getTags());
+        }
+
+        // ── 2. Relay fallback ─────────────────────────────────────────────────
+        $this->logger->debug('UserProfileService: interests not in DB, querying relay', [
+            'pubkey' => substr($pubkey, 0, 8) . '...',
+        ]);
+
         if (empty($relays)) {
             $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
         }
         $relaySet = $this->relaySetFactory->withLocalRelay($relays);
 
         $events = $this->executor->fetch(
-            kinds: [10015],
+            kinds: [KindsEnum::INTERESTS->value],
             filters: ['authors' => [$pubkey]],
             relaySet: $relaySet,
-            handler: function ($received) use ($pubkey) {
-                $this->logger->info('Getting interests for pubkey', ['pubkey' => $pubkey]);
-                return $received;
-            },
+            handler: fn($received) => $received,
             pubkey: $pubkey,
         );
 
@@ -214,10 +239,86 @@ class UserProfileService
         usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
         $latest = $events[0];
 
+        // Write-through: persist the fetched event so subsequent calls use the DB fast path.
+        $this->persistInterestEvent($latest);
+
+        return $this->extractTTags((array) ($latest->tags ?? []));
+    }
+
+    /**
+     * Persist a kind-10015 event to the local DB.
+     * Public alias of persistEvent() kept for ForumController compatibility.
+     */
+    public function persistInterestEvent(object $event): void
+    {
+        $this->persistEvent($event);
+    }
+
+    /**
+     * Persist any Nostr event object (stdClass from relay) to the local DB.
+     * No-ops silently if the event already exists or the data is invalid.
+     */
+    private function persistEvent(object $event): void
+    {
+        $id = $event->id ?? null;
+        if (!$id) {
+            return;
+        }
+
+        // Skip if already stored
+        if ($this->eventRepository->find($id) !== null) {
+            return;
+        }
+
+        try {
+            $entity = new Event();
+            $entity->setId($id);
+            $entity->setEventId($id);
+            $entity->setKind((int) ($event->kind ?? KindsEnum::INTERESTS->value));
+            $entity->setPubkey($event->pubkey ?? '');
+            $entity->setContent($event->content ?? '');
+            $entity->setCreatedAt((int) ($event->created_at ?? time()));
+            $entity->setTags(is_array($event->tags) ? $event->tags : (array) ($event->tags ?? []));
+            $entity->setSig($event->sig ?? '');
+
+            $this->entityManager->persist($entity);
+            $this->entityManager->flush();
+
+            $this->logger->debug('UserProfileService: persisted event to DB', [
+                'event_id' => substr($id, 0, 16) . '...',
+                'kind'     => $event->kind ?? '?',
+                'pubkey'   => substr($event->pubkey ?? '', 0, 8) . '...',
+            ]);
+        } catch (\Throwable $e) {
+            // Non-fatal — DB is a cache; relay remains source of truth
+            $this->logger->warning('UserProfileService: failed to persist event', [
+                'event_id' => $id,
+                'kind'     => $event->kind ?? '?',
+                'error'    => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Extract lowercase 't' tag values from a tags array.
+     *
+     * Accepts both the array-of-arrays format from a relay response (stdClass
+     * tags converted to arrays) and the raw arrays stored in the Event entity.
+     *
+     * @param array $tags
+     * @return string[]
+     */
+    private function extractTTags(array $tags): array
+    {
         $tTags = [];
-        foreach ($latest->tags as $tag) {
-            if (is_array($tag) && isset($tag[0]) && $tag[0] === 't' && isset($tag[1])) {
-                $tTags[] = strtolower(trim($tag[1]));
+        foreach ($tags as $tag) {
+            // Tags from the DB entity are plain arrays: ['t', 'bitcoin', ...]
+            // Tags from relay responses may arrive as arrays or stdClass objects
+            if ($tag instanceof \stdClass) {
+                $tag = (array) $tag;
+            }
+            if (is_array($tag) && ($tag[0] ?? '') === 't' && isset($tag[1])) {
+                $tTags[] = strtolower(trim((string) $tag[1]));
             }
         }
 
@@ -229,13 +330,34 @@ class UserProfileService
     // -------------------------------------------------------------------------
 
     /**
-     * Fetch follow list (kind 3) for a pubkey and return the followed pubkeys.
+     * Return the pubkeys from the user's latest kind-3 follow list.
      *
+     * Strategy: DB-first with relay fallback, same as getInterests().
+     *
+     * 1. Check the local database — SyncUserEventsHandler populates this on login.
+     * 2. Fall back to a live relay query only on a DB miss, then write-through.
+     *
+     * @return string[] Hex pubkeys of followed accounts
      * @throws \Exception
      */
     public function getFollows(string $pubkey, ?array $relays = null): array
     {
         $this->logger->info('Fetching follow list for pubkey', ['pubkey' => $pubkey]);
+
+        // ── 1. DB lookup ──────────────────────────────────────────────────────
+        $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::FOLLOWS->value);
+
+        if ($dbEvent !== null) {
+            $this->logger->debug('UserProfileService: follows loaded from DB', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+            ]);
+            return $this->extractPTags($dbEvent->getTags());
+        }
+
+        // ── 2. Relay fallback ─────────────────────────────────────────────────
+        $this->logger->debug('UserProfileService: follows not in DB, querying relay', [
+            'pubkey' => substr($pubkey, 0, 8) . '...',
+        ]);
 
         if (empty($relays)) {
             $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
@@ -246,10 +368,7 @@ class UserProfileService
             kinds: [KindsEnum::FOLLOWS->value],
             filters: ['authors' => [$pubkey], 'limit' => 1],
             relaySet: $relaySet,
-            handler: function ($received) {
-                $this->logger->info('Received follow list event', ['event' => $received]);
-                return $received;
-            },
+            handler: fn($received) => $received,
             pubkey: $pubkey,
         );
 
@@ -259,14 +378,12 @@ class UserProfileService
         }
 
         usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latestFollowEvent = $events[0];
+        $latest = $events[0];
 
-        $followedPubkeys = [];
-        foreach ($latestFollowEvent->tags as $tag) {
-            if (is_array($tag) && isset($tag[0]) && $tag[0] === 'p' && isset($tag[1])) {
-                $followedPubkeys[] = $tag[1];
-            }
-        }
+        // Write-through so the next call hits the DB fast path
+        $this->persistEvent($latest);
+
+        $followedPubkeys = $this->extractPTags((array) ($latest->tags ?? []));
 
         $this->logger->info('Follow list fetched', [
             'pubkey'        => $pubkey,
@@ -274,6 +391,26 @@ class UserProfileService
         ]);
 
         return $followedPubkeys;
+    }
+
+    /**
+     * Extract hex pubkeys from 'p' tags.
+     * Handles both plain arrays (from DB) and stdClass (from relay response).
+     *
+     * @return string[]
+     */
+    private function extractPTags(array $tags): array
+    {
+        $pubkeys = [];
+        foreach ($tags as $tag) {
+            if ($tag instanceof \stdClass) {
+                $tag = (array) $tag;
+            }
+            if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                $pubkeys[] = $tag[1];
+            }
+        }
+        return $pubkeys;
     }
 
     // -------------------------------------------------------------------------

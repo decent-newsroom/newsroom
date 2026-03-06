@@ -322,13 +322,18 @@ class NostrRelayPool
      */
     private function partitionRelays(array $relayUrls): array
     {
-        $localRelay = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
-        $local = [];
+        $localRelay   = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
+        // PROJECT is the public wss:// alias of the same strfry instance as LOCAL.
+        // Treat it as local so it's never sent through the gateway.
+        $projectRelay = ($pr = $this->relayRegistry->getProjectRelay()) ? $this->normalizeRelayUrl($pr) : null;
+
+        $local    = [];
         $external = [];
 
         foreach ($relayUrls as $url) {
             $normalized = $this->normalizeRelayUrl($url);
-            if ($localRelay && $normalized === $localRelay) {
+            if (($localRelay && $normalized === $localRelay)
+                || ($projectRelay && $normalized === $projectRelay)) {
                 $local[] = $url;
             } else {
                 $external[] = $url;

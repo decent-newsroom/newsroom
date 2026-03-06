@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Message\GatewayWarmConnectionsMessage;
+use App\Message\SyncUserEventsMessage;
 use App\Message\UpdateRelayListMessage;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\UserRelayListService;
@@ -55,6 +56,9 @@ class UpdateRelayListHandler
                 $this->dispatchGatewayWarm($pubkey);
             }
 
+            // Dispatch batch event sync — relay list is now warm so relays are known
+            $this->dispatchEventSync($pubkey);
+
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: revalidation failed', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',
@@ -93,6 +97,28 @@ class UpdateRelayListHandler
             $this->logger->warning('UpdateRelayListHandler: gateway warm dispatch failed', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',
                 'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function dispatchEventSync(string $pubkey): void
+    {
+        try {
+            // Pass the freshly-warmed read relay list so the handler doesn't
+            // have to resolve it again from scratch.
+            $relays = $this->relayListService->getRelayList($pubkey);
+            $readRelays = $relays['read'] ?? $relays['all'] ?? [];
+
+            $this->messageBus->dispatch(new SyncUserEventsMessage($pubkey, $readRelays));
+
+            $this->logger->info('UpdateRelayListHandler: dispatched event sync', [
+                'pubkey'      => substr($pubkey, 0, 16) . '...',
+                'relay_count' => count($readRelays),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('UpdateRelayListHandler: event sync dispatch failed', [
+                'pubkey' => substr($pubkey, 0, 16) . '...',
+                'error'  => $e->getMessage(),
             ]);
         }
     }

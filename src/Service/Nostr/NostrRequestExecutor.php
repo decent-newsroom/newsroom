@@ -97,11 +97,18 @@ class NostrRequestExecutor
             : [];
 
         $localRelay   = $this->nostrDefaultRelay ?: null;
+        // PROJECT is the public wss:// alias for the same physical relay as LOCAL.
+        // Treat it as local so it is never routed through the gateway.
+        $projectRelay = $this->relayPool->getRelayRegistry()->getProjectRelay();
+
         $localUrls    = [];
         $externalUrls = [];
 
         foreach ($relayUrls as $url) {
-            if ($localRelay && $this->relayPool->normalizeRelayUrl($url) === $this->relayPool->normalizeRelayUrl($localRelay)) {
+            $normalized = $this->relayPool->normalizeRelayUrl($url);
+            $isLocal = ($localRelay   && $normalized === $this->relayPool->normalizeRelayUrl($localRelay))
+                    || ($projectRelay && $normalized === $this->relayPool->normalizeRelayUrl($projectRelay));
+            if ($isLocal) {
                 $localUrls[] = $url;
             } else {
                 $externalUrls[] = $url;
@@ -121,9 +128,13 @@ class NostrRequestExecutor
             $results      += $localRequest->send();
         }
 
-        // External relays: route through gateway
+        // External relays: route through gateway.
+        // Use a timeout 3s shorter than the client's own deadline (client waits
+        // timeout+2s) so the gateway always flushes before the client gives up,
+        // even when on-demand connection latency eats into the budget.
         if (!empty($externalUrls)) {
-            $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, 15);
+            $gatewayTimeout = 12; // 15s client − 3s headroom
+            $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
 
             if (!empty($gatewayResult['errors'])) {
                 $this->logger->warning('Gateway returned errors for external relays', [
@@ -132,29 +143,31 @@ class NostrRequestExecutor
                 ]);
             }
 
-            if (empty($gatewayResult['events']) && count($gatewayResult['errors']) === count($externalUrls)) {
-                $this->logger->info('Gateway had no events and all relays errored — falling back to direct connection', [
+            if (empty($gatewayResult['events'])) {
+                // Gateway returned nothing — fall back to direct WebSocket.
+                // This covers: full timeout, AUTH stall, all relays errored,
+                // or partial errors leaving zero events.
+                $this->logger->info('Gateway returned no events — falling back to direct connection', [
                     'relays' => $externalUrls,
+                    'errors' => $gatewayResult['errors'] ?? [],
                 ]);
                 $fallbackRelaySet = new RelaySet();
                 foreach ($externalUrls as $url) {
                     $fallbackRelaySet->addRelay($this->relayPool->getRelay($url));
                 }
                 $msg             = new RequestMessage((new Subscription())->getId(), [self::buildFilterFromArray($filter)]);
-                $fallbackRequest = new TweakedRequest($fallbackRelaySet, $msg, $this->logger);
+                $fallbackRequest = (new TweakedRequest($fallbackRelaySet, $msg, $this->logger))->setTimeout(10);
                 $results         += $fallbackRequest->send();
             } else {
-                if (!empty($gatewayResult['events'])) {
-                    $responses       = [];
-                    $syntheticSubId  = 'gw-' . substr(uniqid(), -8);
-                    foreach ($gatewayResult['events'] as $eventData) {
-                        $eventObj    = is_object($eventData) ? $eventData : json_decode(json_encode($eventData));
-                        $wireFormat  = ['EVENT', $syntheticSubId, $eventObj];
-                        $responses[] = new \swentel\nostr\RelayResponse\RelayResponseEvent($wireFormat);
-                    }
-                    if (!empty($responses)) {
-                        $results[$externalUrls[0]] = $responses;
-                    }
+                $responses       = [];
+                $syntheticSubId  = 'gw-' . substr(uniqid(), -8);
+                foreach ($gatewayResult['events'] as $eventData) {
+                    $eventObj    = is_object($eventData) ? $eventData : json_decode(json_encode($eventData));
+                    $wireFormat  = ['EVENT', $syntheticSubId, $eventObj];
+                    $responses[] = new \swentel\nostr\RelayResponse\RelayResponseEvent($wireFormat);
+                }
+                if (!empty($responses)) {
+                    $results[$externalUrls[0]] = $responses;
                 }
             }
         }
