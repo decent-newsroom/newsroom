@@ -65,33 +65,32 @@ class RelayGatewayClient
                 'timeout' => (string) $timeout,
             ]);
 
-            // Block-read from the per-request response stream
+            // Block-read from the per-request response stream.
+            // Start from '0-0' so we never miss a response that the gateway
+            // wrote before we began reading (race-free). After the first batch
+            // we advance $lastId to the highest entry ID seen, preventing
+            // duplicate processing on subsequent loop iterations.
             $responseKey = self::RESPONSE_PREFIX . $correlationId;
             $deadline = time() + $timeout + 2; // +2s grace for gateway processing
             $events = [];
             $errors = [];
             $eose = false;
+            $lastId = '0-0'; // always start from the beginning of this unique stream
 
             while (!$eose && time() < $deadline) {
                 $remainingMs = max(100, ($deadline - time()) * 1000);
                 $result = $this->redis->xRead(
-                    [$responseKey => '$'],
-                    1,
+                    [$responseKey => $lastId],
+                    100,
                     (int) $remainingMs,
                 );
 
-                // xRead returns false on timeout, or array on data
-                if ($result === false || empty($result)) {
-                    // First read — try from beginning (stream may already have data)
-                    $result = $this->redis->xRead(
-                        [$responseKey => '0-0'],
-                        100,
-                        (int) min($remainingMs, 2000),
-                    );
-                }
-
                 if ($result && isset($result[$responseKey])) {
                     foreach ($result[$responseKey] as $messageId => $data) {
+                        // Advance the cursor so the next iteration only reads
+                        // messages that arrive after this one.
+                        $lastId = $messageId;
+
                         if (isset($data['events'])) {
                             $decoded = json_decode($data['events'], true);
                             if (is_array($decoded)) {
@@ -109,6 +108,8 @@ class RelayGatewayClient
                         }
                     }
                 }
+                // xRead returns false/empty on timeout — loop again if deadline
+                // not yet reached (gateway may still be fetching).
             }
 
             // Clean up the response stream
