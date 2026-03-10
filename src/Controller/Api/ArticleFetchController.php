@@ -38,15 +38,15 @@ class ArticleFetchController extends AbstractController
         $kind = $data['kind'] ?? null;
         $coordinate = $data['coordinate'] ?? null;
 
+        // Build coordinate from parts if not provided directly
         if (!$coordinate) {
-            $coordinate = "{$kind}:{$pubkey}:{$slug}";
-        }
-
-        if (!$coordinate) {
-            return new JsonResponse([
-                'success' => false,
-                'error' => 'Missing required parameters: coordinate or (pubkey and slug)'
-            ], 400);
+            if (!$pubkey || !$slug) {
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Missing required parameters: coordinate or (pubkey and slug)'
+                ], 400);
+            }
+            $coordinate = ($kind ?: '30023') . ":{$pubkey}:{$slug}";
         }
 
         try {
@@ -82,7 +82,7 @@ class ArticleFetchController extends AbstractController
                 'event_id' => $event->id ?? null
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Failed to fetch article: ' . $e->getMessage(),
