@@ -6,8 +6,8 @@ use App\Entity\Article;
 use App\Factory\ArticleFactory;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Util\CommonMark\Converter;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -22,12 +22,25 @@ class ArticleEventProjector
 {
     public function __construct(
         private readonly ArticleFactory $articleFactory,
-        private readonly EntityManagerInterface $entityManager,
         private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
         private readonly Converter $converter,
         private readonly MessageBusInterface $messageBus,
     ) {
+    }
+
+    /**
+     * Returns a live (non-closed) EntityManager.
+     * After a resetManager() call the injected $this->entityManager is stale;
+     * always go through the registry so we get the current instance.
+     */
+    private function em(): ObjectManager
+    {
+        $em = $this->managerRegistry->getManagerForClass(Article::class);
+        if ($em === null || ($em instanceof \Doctrine\ORM\EntityManagerInterface && !$em->isOpen())) {
+            $em = $this->managerRegistry->resetManager();
+        }
+        return $em;
     }
 
     /**
@@ -41,10 +54,12 @@ class ArticleEventProjector
     public function projectArticleFromEvent(object $event, string $relayUrl): void
     {
         try {
+            $em = $this->em();
+
             // Early exit: check if article already exists before doing expensive work
             $eventId = $event->id ?? null;
             if ($eventId) {
-                $existingArticle = $this->entityManager
+                $existingArticle = $em
                     ->getRepository(Article::class)
                     ->findOneBy(['eventId' => $eventId]);
 
@@ -90,8 +105,8 @@ class ArticleEventProjector
                 'relay' => $relayUrl
             ]);
 
-            $this->entityManager->persist($article);
-            $this->entityManager->flush();
+            $em->persist($article);
+            $em->flush();
 
             $this->logger->info('Article successfully saved to database', [
                 'event_id' => $article->getEventId(),
