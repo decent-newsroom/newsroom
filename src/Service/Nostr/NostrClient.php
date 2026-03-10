@@ -7,7 +7,6 @@ use App\Enum\KindsEnum;
 use nostriphant\NIP19\Data;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
-use swentel\nostr\Message\EventMessage;
 
 /**
  * Facade over the focused Nostr service classes.
@@ -44,42 +43,27 @@ class NostrClient
 
     public function publishEvent(Event $event, array $relays, int $timeout = 30): array
     {
-        $eventMessage = new EventMessage($event);
-
         if (empty($relays)) {
             $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
         } else {
             $relays = $this->relayPool->ensureLocalRelayInList($relays);
         }
 
-        $relaySet = $this->relaySetFactory->fromUrls($relays);
-        $relaySet->setMessage($eventMessage);
+        $this->logger->info('Publishing event to relays', [
+            'event_id'       => $event->getId(),
+            'relay_count'    => count($relays),
+            'relays'         => $relays,
+            'timeout'        => $timeout,
+            'gateway_enabled' => $this->relayPool->isGatewayEnabled(),
+        ]);
 
         try {
-            $this->logger->info('Publishing event to relays', [
-                'event_id'    => $event->getId(),
-                'relay_count' => count($relays),
-                'relays'      => $relays,
-                'timeout'     => $timeout,
-            ]);
-
             $startTime = microtime(true);
 
-            foreach ($relaySet->getRelays() as $relay) {
-                try {
-                    $client = $relay->getClient();
-                    if (method_exists($client, 'setTimeout')) {
-                        $client->setTimeout($timeout);
-                    }
-                } catch (\Exception $e) {
-                    $this->logger->debug('Could not set timeout on relay client', [
-                        'relay' => $relay->getUrl(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            $results  = $relaySet->send();
+            // Route through NostrRelayPool::publish() so that AUTH-protected external
+            // relays are handled by the gateway (NIP-42), while the local relay
+            // continues to receive events via a direct connection.
+            $results  = $this->relayPool->publish($event, $relays, $event->getPublicKey(), $timeout);
             $duration = microtime(true) - $startTime;
 
             $this->logger->info('Completed relay publish', [

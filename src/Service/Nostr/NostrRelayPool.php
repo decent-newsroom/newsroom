@@ -358,6 +358,88 @@ class NostrRelayPool
     }
 
     /**
+     * Publish a signed Nostr event to a list of relay URLs.
+     *
+     * When the gateway is enabled, external (AUTH-protected) relays are routed
+     * through the gateway so NIP-42 AUTH challenges are handled automatically.
+     * The local relay always receives the event via a direct RelaySet::send().
+     *
+     * @param \swentel\nostr\Event\Event $event   Signed event to publish
+     * @param array                      $relayUrls Target relay URLs
+     * @param ?string                    $pubkey  Author pubkey (used by gateway for AUTH)
+     * @param int                        $timeout Seconds to wait per relay
+     * @return array Results keyed by relay URL
+     */
+    public function publish(\swentel\nostr\Event\Event $event, array $relayUrls, ?string $pubkey = null, int $timeout = 30): array
+    {
+        if ($this->gatewayEnabled && $this->gatewayClient) {
+            [$localUrls, $externalUrls] = $this->partitionRelays($relayUrls);
+
+            $results = [];
+
+            // Local relay — direct, no AUTH needed
+            if (!empty($localUrls)) {
+                $results = array_merge($results, $this->publishDirect($event, $localUrls, $timeout));
+            }
+
+            // External relays — route through gateway (handles NIP-42 AUTH)
+            if (!empty($externalUrls)) {
+                $signedEvent = $event->toArray();
+                $gatewayResult = $this->gatewayClient->publish($externalUrls, $signedEvent, $pubkey, $timeout);
+
+                foreach ($externalUrls as $url) {
+                    $results[$url] = isset($gatewayResult['errors'][$url])
+                        ? ['ok' => false, 'message' => $gatewayResult['errors'][$url]]
+                        : ['ok' => $gatewayResult['ok'][$url] ?? true];
+                }
+
+                $this->logger->info('Published event to external relays via gateway', [
+                    'event_id'   => $event->getId(),
+                    'ok_count'   => count($gatewayResult['ok'] ?? []),
+                    'error_count' => count($gatewayResult['errors'] ?? []),
+                ]);
+            }
+
+            return $results;
+        }
+
+        // Gateway disabled — direct publish to all relays
+        return $this->publishDirect($event, $relayUrls, $timeout);
+    }
+
+    /**
+     * Publish directly to relays via swentel RelaySet::send() (no NIP-42 AUTH).
+     * Only safe for local/non-AUTH relays.
+     */
+    private function publishDirect(\swentel\nostr\Event\Event $event, array $relayUrls, int $timeout): array
+    {
+        $eventMessage = new \swentel\nostr\Message\EventMessage($event);
+
+        $relaySet = new \swentel\nostr\Relay\RelaySet();
+        foreach ($relayUrls as $url) {
+            $relay = $this->getRelay($url);
+            try {
+                $client = $relay->getClient();
+                if (method_exists($client, 'setTimeout')) {
+                    $client->setTimeout($timeout);
+                }
+            } catch (\Exception) {}
+            $relaySet->addRelay($relay);
+        }
+        $relaySet->setMessage($eventMessage);
+
+        try {
+            return $relaySet->send();
+        } catch (\Exception $e) {
+            $this->logger->error('Direct publish failed', [
+                'error'  => $e->getMessage(),
+                'relays' => $relayUrls,
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Check if the relay gateway is enabled and the client is available.
      */
     public function isGatewayEnabled(): bool

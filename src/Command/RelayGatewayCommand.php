@@ -21,7 +21,6 @@ use Symfony\Component\Uid\Uuid;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
-use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\Subscription\Subscription;
 use WebSocket\Message\Ping;
 use WebSocket\Message\Text;
@@ -101,11 +100,24 @@ class RelayGatewayCommand extends Command
      *   correlationId: string,
      *   relayUrl: string,
      *   connKey: string,
+     *   eventId: string,
      *   deadline: int,
      *   done: bool,
      * }>
      */
     private array $pendingPublishes = [];
+
+    /**
+     * Publish payloads deferred because the connection was mid-AUTH when the
+     * publish arrived. Keyed by "{correlationId}::{relayUrl}".
+     *
+     * @var array<string, array{
+     *   connKey: string,
+     *   payload: string,
+     *   eventId: string,
+     * }>
+     */
+    private array $pendingAuthPublishes = [];
 
     /**
      * Pending AUTH challenges waiting for signed events.
@@ -542,53 +554,77 @@ class RelayGatewayCommand extends Command
         $pubkey = $data['pubkey'] ?? '';
         $pubkey = $pubkey !== '' ? $pubkey : null;
         $timeout = (int) ($data['timeout'] ?? 10);
+        $eventId = $event['id'] ?? '';
 
         $errors = [];
-        $ok = [];
-        $payload = json_encode(['EVENT', $event]);
         $deadline = time() + $timeout;
         $registeredCount = 0;
 
         foreach ($relayUrls as $relayUrl) {
+            $pendingKey = $correlationId . '::' . $relayUrl;
+
             try {
-                $conn = $this->routeConnection($relayUrl, $pubkey);
+                $conn = $this->routeConnectionForPublish($relayUrl, $pubkey);
 
                 if (!$conn || !$conn->isConnected()) {
                     $errors[$relayUrl] = 'No connection available';
                     continue;
                 }
 
-                $conn->getClient()->text($payload);
-                $conn->touch();
-
-                // Register for non-blocking OK tracking
-                $pendingKey = $correlationId . '::' . $relayUrl;
+                // Always register the pending-publish slot before sending so we
+                // can track the OK response regardless of the auth path taken.
                 $this->pendingPublishes[$pendingKey] = [
                     'correlationId' => $correlationId,
                     'relayUrl'      => $relayUrl,
                     'connKey'       => $conn->getKey(),
+                    'eventId'       => $eventId,
                     'deadline'      => $deadline,
                     'done'          => false,
                 ];
-
                 $registeredCount++;
+
+                // Defer the EVENT if AUTH has not yet been confirmed on this connection.
+                // This covers three states:
+                //   'none'    — brand-new connection; AUTH challenge may not have arrived yet
+                //   'pending' — mid-Mercure roundtrip waiting for the user to sign
+                //   'failed'  — AUTH failed; relay will reject the event anyway
+                // Only send immediately when authStatus === 'authed'.
+                if ($conn->authStatus !== 'authed') {
+                    $this->logger->info('Gateway: deferring EVENT publish until AUTH resolves', [
+                        'relay'       => $relayUrl,
+                        'auth_status' => $conn->authStatus,
+                        'correlation_id' => $correlationId,
+                        'event_id'    => substr($eventId, 0, 16),
+                    ]);
+                    $this->pendingAuthPublishes[$pendingKey] = [
+                        'connKey' => $conn->getKey(),
+                        'payload' => json_encode(['EVENT', $event]),
+                        'eventId' => $eventId,
+                    ];
+                    continue;
+                }
+
+                $conn->getClient()->text(json_encode(['EVENT', $event]));
+                $conn->touch();
 
             } catch (\Throwable $e) {
                 $errors[$relayUrl] = $e->getMessage();
                 $this->healthStore->recordFailure($relayUrl);
+                $this->logger->warning('Gateway: publish EVENT failed for relay', [
+                    'relay' => $relayUrl,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
         if ($registeredCount === 0) {
-            // All relays failed immediately
             $this->writePublishResponse($correlationId, [], $errors);
         } else {
-            // Store seed errors so they're included when the response is flushed
             if (!isset($this->pendingCorrelations[$correlationId])) {
                 $this->pendingCorrelations[$correlationId] = [
                     'total'    => $registeredCount,
                     'done'     => 0,
-                    'events'   => [], // not used for publish
+                    'events'   => [],
                     'errors'   => $errors,
                     'deadline' => $deadline,
                 ];
@@ -727,9 +763,9 @@ class RelayGatewayCommand extends Command
 
                     case 'OK':
                         // ["OK", event_id, true/false, message]
-                        // Match to a pending publish by scanning for this connection
+                        $okEventId = $decoded[1] ?? null;
                         $accepted = ($decoded[2] ?? false) === true;
-                        $this->completePendingPublish($conn, $accepted);
+                        $this->completePendingPublish($conn, $okEventId, $accepted);
                         break;
 
                     case 'CLOSED':
@@ -801,13 +837,21 @@ class RelayGatewayCommand extends Command
     }
 
     /**
-     * Find the oldest incomplete pending publish on the given connection and
-     * mark it done with the given OK status.
+     * Mark the pending publish matching the relay's OK response as done.
+     *
+     * Matches by event ID (present in the OK message per NIP-01) on the given
+     * connection. Falls back to first-match by connection key if the event ID
+     * is absent (non-standard relay behaviour).
      */
-    private function completePendingPublish(GatewayConnection $conn, bool $accepted): void
+    private function completePendingPublish(GatewayConnection $conn, ?string $eventId, bool $accepted): void
     {
         foreach ($this->pendingPublishes as $pendingKey => &$pending) {
             if ($pending['done'] || $pending['connKey'] !== $conn->getKey()) {
+                continue;
+            }
+
+            // Skip if we have an event ID to match on and it doesn't match
+            if ($eventId !== null && $pending['eventId'] !== '' && $pending['eventId'] !== $eventId) {
                 continue;
             }
 
@@ -819,15 +863,18 @@ class RelayGatewayCommand extends Command
                 $this->healthStore->recordSuccess($relayUrl);
             }
 
-            // Store OK result in the correlation's events array (reusing as ok map)
             if (isset($this->pendingCorrelations[$correlationId])) {
-                // We embed ok results in events as a sentinel; writePublishResponse
-                // reads from pendingCorrelations['ok'] if present.
                 $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = $accepted;
                 $this->pendingCorrelations[$correlationId]['done']++;
             }
 
-            return; // Only resolve the first matching pending publish per OK message
+            $this->logger->debug('Gateway: publish OK received', [
+                'relay'    => $relayUrl,
+                'event_id' => substr($eventId ?? '', 0, 16),
+                'accepted' => $accepted,
+            ]);
+
+            return;
         }
         unset($pending);
     }
@@ -959,6 +1006,7 @@ class RelayGatewayCommand extends Command
         foreach ($this->pendingPublishes as $pendingKey => $pending) {
             if ($pending['correlationId'] === $correlationId) {
                 unset($this->pendingPublishes[$pendingKey]);
+                unset($this->pendingAuthPublishes[$pendingKey]);
             }
         }
     }
@@ -1088,35 +1136,7 @@ class RelayGatewayCommand extends Command
                         'pubkey' => substr($conn->pubkey ?? '', 0, 8) . '...',
                     ]);
 
-                    // Re-send any REQs that were deferred while AUTH was pending
-                    foreach ($this->pendingAuthReqs as $subId => $deferred) {
-                        if ($deferred['connKey'] !== $connKey) {
-                            continue;
-                        }
-                        // Only re-send if this subscription hasn't already been completed
-                        if (isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
-                            try {
-                                $conn->getClient()->text($deferred['payload']);
-                                $conn->touch();
-                                $this->logger->info('Gateway: re-sent deferred REQ after AUTH', [
-                                    'subscription_id' => $subId,
-                                    'relay'           => $conn->relayUrl,
-                                ]);
-                            } catch (\Throwable $e) {
-                                $this->logger->warning('Gateway: failed to re-send deferred REQ', [
-                                    'subscription_id' => $subId,
-                                    'error'           => $e->getMessage(),
-                                ]);
-                                // Mark as done with no events so the correlation can flush
-                                $this->pendingQueries[$subId]['done'] = true;
-                                $correlationId = $this->pendingQueries[$subId]['correlationId'];
-                                if (isset($this->pendingCorrelations[$correlationId])) {
-                                    $this->pendingCorrelations[$correlationId]['done']++;
-                                }
-                            }
-                        }
-                        unset($this->pendingAuthReqs[$subId]);
-                    }
+                    $this->flushDeferredForConnection($connKey, $conn);
                 }
 
                 // Clean up
@@ -1127,11 +1147,138 @@ class RelayGatewayCommand extends Command
                 $this->logger->debug('Gateway: Redis error checking pending AUTH', ['error' => $e->getMessage()]);
             }
         }
+
+        // Flush deferred publishes on connections that never received an AUTH
+        // challenge — the relay doesn't require AUTH, so send the EVENT now.
+        // We wait AUTH_SETTLE_MS milliseconds after connection open to give the
+        // relay a chance to send an AUTH challenge before we decide it won't.
+        $now = microtime(true);
+        foreach ($this->pendingAuthPublishes as $pendingKey => $deferred) {
+            $conn = $this->connections[$deferred['connKey']] ?? null;
+            if (!$conn || !$conn->isConnected()) {
+                continue;
+            }
+
+            // Skip connections that are still mid-Mercure roundtrip
+            if ($conn->authStatus === 'pending') {
+                continue;
+            }
+
+            // Skip connections that failed auth — sweep timeout will handle them
+            if ($conn->authStatus === 'failed') {
+                continue;
+            }
+
+            // authStatus === 'none': relay has not sent an AUTH challenge.
+            // Wait a short settling window (1 second) after connection open so we
+            // don't race against the relay's initial AUTH frame.
+            $connAge = time() - $conn->connectedAt;
+            if ($conn->authStatus === 'none' && $connAge < 1) {
+                continue;
+            }
+
+            // Safe to send — no AUTH required (or already authed)
+            if (!isset($this->pendingPublishes[$pendingKey]) || $this->pendingPublishes[$pendingKey]['done']) {
+                unset($this->pendingAuthPublishes[$pendingKey]);
+                continue;
+            }
+
+            try {
+                $conn->getClient()->text($deferred['payload']);
+                $conn->touch();
+                $this->logger->info('Gateway: sent deferred EVENT publish (no AUTH required)', [
+                    'relay'    => $conn->relayUrl,
+                    'event_id' => substr($deferred['eventId'], 0, 16),
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Gateway: failed to send deferred EVENT publish', [
+                    'relay' => $conn->relayUrl,
+                    'error' => $e->getMessage(),
+                ]);
+                $correlationId = $this->pendingPublishes[$pendingKey]['correlationId'];
+                $relayUrl      = $this->pendingPublishes[$pendingKey]['relayUrl'];
+                $this->pendingPublishes[$pendingKey]['done'] = true;
+                if (isset($this->pendingCorrelations[$correlationId])) {
+                    $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = false;
+                    $this->pendingCorrelations[$correlationId]['done']++;
+                }
+            }
+            unset($this->pendingAuthPublishes[$pendingKey]);
+        }
     }
+
 
     // =========================================================================
     // Connection routing
     // =========================================================================
+
+    /**
+     * Re-send all deferred REQs and EVENT publishes that were waiting for AUTH
+     * to complete on the given connection. Called after both the Mercure-signed
+     * AUTH path and the "no AUTH required" settle-window path.
+     */
+    private function flushDeferredForConnection(string $connKey, GatewayConnection $conn): void
+    {
+        // Deferred REQs
+        foreach ($this->pendingAuthReqs as $subId => $deferred) {
+            if ($deferred['connKey'] !== $connKey) {
+                continue;
+            }
+            if (isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                try {
+                    $conn->getClient()->text($deferred['payload']);
+                    $conn->touch();
+                    $this->logger->info('Gateway: re-sent deferred REQ after AUTH', [
+                        'subscription_id' => $subId,
+                        'relay'           => $conn->relayUrl,
+                    ]);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Gateway: failed to re-send deferred REQ', [
+                        'subscription_id' => $subId,
+                        'error'           => $e->getMessage(),
+                    ]);
+                    $this->pendingQueries[$subId]['done'] = true;
+                    $correlationId = $this->pendingQueries[$subId]['correlationId'];
+                    if (isset($this->pendingCorrelations[$correlationId])) {
+                        $this->pendingCorrelations[$correlationId]['done']++;
+                    }
+                }
+            }
+            unset($this->pendingAuthReqs[$subId]);
+        }
+
+        // Deferred EVENT publishes
+        foreach ($this->pendingAuthPublishes as $pendingKey => $deferred) {
+            if ($deferred['connKey'] !== $connKey) {
+                continue;
+            }
+            if (isset($this->pendingPublishes[$pendingKey]) && !$this->pendingPublishes[$pendingKey]['done']) {
+                try {
+                    $conn->getClient()->text($deferred['payload']);
+                    $conn->touch();
+                    $this->logger->info('Gateway: re-sent deferred EVENT publish after AUTH', [
+                        'pending_key' => $pendingKey,
+                        'relay'       => $conn->relayUrl,
+                        'event_id'    => substr($deferred['eventId'], 0, 16),
+                    ]);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Gateway: failed to re-send deferred EVENT publish', [
+                        'pending_key' => $pendingKey,
+                        'error'       => $e->getMessage(),
+                    ]);
+                    $this->pendingPublishes[$pendingKey]['done'] = true;
+                    $correlationId = $this->pendingPublishes[$pendingKey]['correlationId'];
+                    $relayUrl      = $this->pendingPublishes[$pendingKey]['relayUrl'];
+                    if (isset($this->pendingCorrelations[$correlationId])) {
+                        $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = false;
+                        $this->pendingCorrelations[$correlationId]['done']++;
+                    }
+                }
+            }
+            unset($this->pendingAuthPublishes[$pendingKey]);
+        }
+    }
+
 
     /**
      * Route to the best available connection for a relay + optional pubkey.
@@ -1171,6 +1318,72 @@ class RelayGatewayCommand extends Command
         }
 
         // Open a new shared connection on demand (non-auth relay)
+        try {
+            return $this->openConnection($relayUrl, null);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Route to the best available connection for a publish.
+     *
+     * For publishing, a user-specific AUTH'd connection is preferred because
+     * AUTH-protected relays verify the connection's identity against the event
+     * author. Using a shared (ephemeral-key) connection means the relay AUTH'd
+     * a random key that has no write permission for the user's pubkey.
+     *
+     * Preference:
+     *   1. Existing user connection (authed or mid-AUTH → defer send)
+     *   2. Open a new user connection on-demand (will trigger AUTH flow)
+     *   3. Fall back to shared connection if no pubkey provided
+     *   4. Return null for auth-required relays with no user pubkey
+     */
+    private function routeConnectionForPublish(string $relayUrl, ?string $pubkey): ?GatewayConnection
+    {
+        if ($pubkey) {
+            $userKey = GatewayConnection::buildKey($relayUrl, $pubkey);
+
+            // Return existing user connection (may be mid-AUTH — caller handles deferral)
+            if (isset($this->connections[$userKey]) && $this->connections[$userKey]->isConnected()) {
+                return $this->connections[$userKey];
+            }
+
+            // Enforce per-user connection limit
+            $currentUserConns = $this->countUserConnections($pubkey);
+            if ($currentUserConns < $this->maxConnectionsPerUser) {
+                try {
+                    $conn = $this->openConnection($relayUrl, $pubkey);
+                    $this->logger->info('Gateway: opened on-demand user connection for publish', [
+                        'relay'  => $relayUrl,
+                        'pubkey' => substr($pubkey, 0, 8) . '...',
+                    ]);
+                    return $conn;
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Gateway: failed to open user connection for publish', [
+                        'relay'  => $relayUrl,
+                        'pubkey' => substr($pubkey, 0, 8) . '...',
+                        'error'  => $e->getMessage(),
+                    ]);
+                    // Fall through to shared
+                }
+            }
+        }
+
+        // No pubkey or user connection failed — fall back to shared
+        $sharedKey = GatewayConnection::buildKey($relayUrl);
+        if (isset($this->connections[$sharedKey]) && $this->connections[$sharedKey]->isConnected()) {
+            return $this->connections[$sharedKey];
+        }
+
+        if ($this->healthStore->isAuthRequired($relayUrl)) {
+            $this->logger->debug('Gateway: auth-required relay, no user connection available for publish', [
+                'relay'  => $relayUrl,
+                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+            ]);
+            return null;
+        }
+
         try {
             return $this->openConnection($relayUrl, null);
         } catch (\Throwable) {
