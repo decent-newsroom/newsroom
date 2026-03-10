@@ -12,7 +12,7 @@
     <a href="{{ path('app_static_tos') }}">{{ 'footer.termsOfService'|trans }}</a> -
     <a href="/feedback">{{ 'footer.contact'|trans }}</a>
 </div>
-<div class="footer-links mb-3">
+<div class="footer-links mb-3 hidden">
     <span>{{ 'language.switcher'|trans }}:</span>
     {% for locale in ['en', 'de', 'es', 'fr', 'sl'] %}
         {% if app.request.locale == locale %}
