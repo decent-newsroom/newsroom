@@ -16,6 +16,8 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
+use App\Enum\AuthorContentType;
+use App\Message\FetchAuthorContentMessage;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,7 +42,6 @@ class EditorController extends AbstractController
     #[Route('/article-editor/edit/{slug}', name: 'editor-edit-slug')]
     public function newArticle(
         Request $request,
-        NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
         UserRelayListService $userRelayListService,
@@ -115,11 +116,18 @@ class EditorController extends AbstractController
             });
             $recentArticles = array_values($recentArticles ?? []);
             // get drafts
-            // look for drafts on relays first, grab latest 5 from there
-            // one week ago
+            // Trigger async background fetch of drafts from relays (non-blocking).
+            // The DB query below returns whatever is already cached locally; fresh
+            // drafts from relays will appear on the next page load or after the
+            // async job completes.
             $since = new \DateTime();
             $aWeekAgo = $since->sub(new \DateInterval('P1D'))->getTimestamp();
-            $nostrClient->getLongFormContentForPubkey($currentPubkey, $aWeekAgo, KindsEnum::LONGFORM_DRAFT->value);
+            $messageBus->dispatch(new FetchAuthorContentMessage(
+                $currentPubkey,
+                [AuthorContentType::DRAFTS],
+                $aWeekAgo,
+                true,
+            ));
             $drafts = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
             // Collapse by slug, keep only latest revision
@@ -160,7 +168,6 @@ class EditorController extends AbstractController
         EntityManagerInterface $entityManager,
         NostrEventParser $eventParser,
         Request $request,
-        NostrClient $nostrClient,
         UserRelayListService $userRelayListService,
         MessageBusInterface $messageBus
     ): Response {
@@ -222,7 +229,12 @@ class EditorController extends AbstractController
             // get drafts
             $since = new \DateTime();
             $aWeekAgo = $since->sub(new \DateInterval('P1D'))->getTimestamp();
-            $nostrClient->getLongFormContentForPubkey($currentPubkey, $aWeekAgo, KindsEnum::LONGFORM_DRAFT->value);
+            $messageBus->dispatch(new FetchAuthorContentMessage(
+                $currentPubkey,
+                [AuthorContentType::DRAFTS],
+                $aWeekAgo,
+                true,
+            ));
             $drafts = $entityManager->getRepository(Article::class)
                 ->findBy(['pubkey' => $currentPubkey, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC'], 5);
             // Collapse by slug, keep only latest revision
