@@ -297,11 +297,17 @@ class RelayAdminService
             foreach ($all as $purpose => $urls) {
                 $byPurpose[$purpose] = [];
                 foreach ($urls as $url) {
-                    $h = $healthData[$url] ?? $this->healthStore->getHealth($url);
+                    // PROJECT is a public alias for LOCAL — it is never directly
+                    // connected to. Pull health data from the LOCAL (internal) URL
+                    // so the dashboard shows real activity, not empty zeros.
+                    $healthUrl = $this->relayRegistry->resolveToLocalUrl($url);
+                    $h = $healthData[$healthUrl] ?? $this->healthStore->getHealth($healthUrl);
+
                     $byPurpose[$purpose][] = [
                         'url' => $url,
-                        'health_score' => round($this->healthStore->getHealthScore($url), 2),
-                        'healthy' => $this->healthStore->isHealthy($url),
+                        'is_project_alias' => $this->relayRegistry->isProjectRelay($url),
+                        'health_score' => round($this->healthStore->getHealthScore($healthUrl), 2),
+                        'healthy' => $this->healthStore->isHealthy($healthUrl),
                         'consecutive_failures' => $h['consecutive_failures'],
                         'avg_latency_ms' => $h['avg_latency_ms'],
                         'last_success' => $h['last_success'],

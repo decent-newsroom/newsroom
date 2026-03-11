@@ -318,13 +318,17 @@ class NostrRelayPool implements RelayPoolInterface
     /**
      * Partition relay URLs into local and external groups.
      *
+     * The PROJECT relay is the public wss:// alias of the same strfry instance
+     * as LOCAL. When partitioning, any occurrence of the project URL is:
+     *   1. Classified as local (never routed through the gateway)
+     *   2. Rewritten to the internal LOCAL URL so the direct WebSocket
+     *      connection uses the Docker-internal hostname, not the public one.
+     *
      * @return array{0: string[], 1: string[]} [localUrls, externalUrls]
      */
     private function partitionRelays(array $relayUrls): array
     {
         $localRelay   = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
-        // PROJECT is the public wss:// alias of the same strfry instance as LOCAL.
-        // Treat it as local so it's never sent through the gateway.
         $projectRelay = ($pr = $this->relayRegistry->getProjectRelay()) ? $this->normalizeRelayUrl($pr) : null;
 
         $local    = [];
@@ -332,9 +336,19 @@ class NostrRelayPool implements RelayPoolInterface
 
         foreach ($relayUrls as $url) {
             $normalized = $this->normalizeRelayUrl($url);
-            if (($localRelay && $normalized === $localRelay)
-                || ($projectRelay && $normalized === $projectRelay)) {
+            if ($localRelay && $normalized === $localRelay) {
+                // Already the internal URL — keep as-is
                 $local[] = $url;
+            } elseif ($projectRelay && $normalized === $projectRelay) {
+                // Project public URL → rewrite to internal local URL before connecting
+                $localUrl = $this->relayRegistry->resolveToLocalUrl($url);
+                if (!in_array($localUrl, $local, true)) {
+                    $local[] = $localUrl;
+                }
+                $this->logger->debug('NostrRelayPool: rewrote project relay URL to local', [
+                    'from' => $url,
+                    'to'   => $localUrl,
+                ]);
             } else {
                 $external[] = $url;
             }

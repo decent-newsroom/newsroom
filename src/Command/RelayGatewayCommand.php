@@ -153,6 +153,55 @@ class RelayGatewayCommand extends Command
         parent::__construct();
     }
 
+    // =========================================================================
+    // Relay URL normalisation helpers
+    // =========================================================================
+
+    /**
+     * Resolve a relay URL to the internal (local) address before connecting.
+     *
+     * The PROJECT relay is the public wss:// hostname of the same strfry
+     * instance as LOCAL. The gateway runs inside Docker and must never open
+     * a WebSocket to the public hostname — DNS won't resolve it internally
+     * and it would add unnecessary TLS + round-trip overhead even if it did.
+     *
+     * Any URL that matches the project public hostname is silently rewritten
+     * to the LOCAL (ws://strfry:7777) address. All other URLs pass through.
+     */
+    private function resolveRelayUrl(string $url): string
+    {
+        return $this->relayRegistry->resolveToLocalUrl($url);
+    }
+
+    /**
+     * Resolve a relay URL to the *public* hostname for use in AUTH challenge
+     * messages published to the browser via Mercure.
+     *
+     * The browser's relay_auth_controller.js puts the relay URL into the
+     * kind-22242 ["relay", <url>] tag. The relay validates that tag against
+     * the connection it sent the challenge on. If the gateway connected via
+     * the LOCAL internal URL, the relay knows the connection as the internal
+     * address — but we want the browser to sign with the PUBLIC URL the relay
+     * advertises externally, since that is what the relay records as the
+     * connection's relay hint.
+     *
+     * In practice most relays don't care which URL string is in the tag as
+     * long as the challenge matches, but using the public URL is more correct
+     * and avoids exposing internal Docker hostnames to the browser.
+     */
+    private function resolveRelayUrlForAuth(string $internalUrl): string
+    {
+        $localRelay = $this->relayRegistry->getLocalRelay();
+        if ($localRelay === null) {
+            return $internalUrl;
+        }
+        $normalize = static fn(string $u): string => rtrim(strtolower($u), '/');
+        if ($normalize($internalUrl) === $normalize($localRelay)) {
+            return $this->relayRegistry->getPublicUrl() ?? $internalUrl;
+        }
+        return $internalUrl;
+    }
+
     protected function configure(): void
     {
         $this
@@ -265,6 +314,14 @@ class RelayGatewayCommand extends Command
             $this->relayRegistry->getProfileRelays(),
         );
         $relayUrls = array_unique($relayUrls);
+
+        // Rewrite any project public URL to the internal local URL.
+        // getContentRelays() already includes LOCAL, but if PROJECT also appears
+        // (same physical relay, different URL), resolve to LOCAL and deduplicate.
+        $relayUrls = array_values(array_unique(array_map(
+            fn(string $u) => $this->resolveRelayUrl($u),
+            $relayUrls,
+        )));
 
         // Respect max shared connections limit
         $relayUrls = array_slice($relayUrls, 0, $this->maxSharedConnections);
@@ -445,6 +502,13 @@ class RelayGatewayCommand extends Command
         $pubkey = $pubkey !== '' ? $pubkey : null;
         $timeout = (int) ($data['timeout'] ?? 15);
 
+        // Rewrite any project public URL to the internal local URL.
+        // The gateway runs inside Docker — it must connect via the internal hostname.
+        $relayUrls = array_values(array_unique(array_map(
+            fn(string $u) => $this->resolveRelayUrl($u),
+            $relayUrls,
+        )));
+
         $this->logger->debug('Gateway: handling query (non-blocking)', [
             'correlation_id' => $correlationId,
             'relays' => $relayUrls,
@@ -556,6 +620,12 @@ class RelayGatewayCommand extends Command
         $timeout = (int) ($data['timeout'] ?? 10);
         $eventId = $event['id'] ?? '';
 
+        // Rewrite any project public URL to the internal local URL.
+        $relayUrls = array_values(array_unique(array_map(
+            fn(string $u) => $this->resolveRelayUrl($u),
+            $relayUrls,
+        )));
+
         $errors = [];
         $deadline = time() + $timeout;
         $registeredCount = 0;
@@ -655,6 +725,12 @@ class RelayGatewayCommand extends Command
         if (!$pubkey || empty($relayUrls)) {
             return;
         }
+
+        // Rewrite any project public URL to the internal local URL.
+        $relayUrls = array_values(array_unique(array_map(
+            fn(string $u) => $this->resolveRelayUrl($u),
+            $relayUrls,
+        )));
 
         $this->logger->info('Gateway: warming user connections', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
@@ -1040,12 +1116,20 @@ class RelayGatewayCommand extends Command
         $requestId = Uuid::v4()->toRfc4122();
         $conn->authStatus = 'pending';
 
+        // The relay URL we publish to the browser must be the *public* hostname
+        // (e.g. wss://relay.decentnewsroom.com), not the internal Docker address
+        // (ws://strfry:7777). The browser builds a kind-22242 event with a
+        // ["relay", <url>] tag; the relay validates that tag against its
+        // own identity. We expose internal hostnames to the user's browser only
+        // if the public URL isn't configured (safer fallback than silently dropping).
+        $authRelayUrl = $this->resolveRelayUrlForAuth($conn->relayUrl);
+
         // Store pending challenge in Redis
         try {
             $this->redis->set(
                 self::AUTH_PENDING_PREFIX . $requestId,
                 json_encode([
-                    'relay' => $conn->relayUrl,
+                    'relay' => $authRelayUrl,
                     'challenge' => $challenge,
                     'pubkey' => $conn->pubkey,
                     'created_at' => time(),
@@ -1053,12 +1137,12 @@ class RelayGatewayCommand extends Command
                 ['ex' => $this->authTimeout],
             );
 
-            // Publish to Mercure
+            // Publish to Mercure — browser receives the public URL
             $update = new Update(
                 '/relay-auth/' . $conn->pubkey,
                 json_encode([
                     'requestId' => $requestId,
-                    'relay' => $conn->relayUrl,
+                    'relay' => $authRelayUrl,
                     'challenge' => $challenge,
                 ]),
             );

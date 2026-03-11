@@ -155,6 +155,40 @@ class RelayRegistry
         return $this->getForPurpose(RelayPurpose::SIGNER);
     }
 
+    /**
+     * Return true if the given URL is the project relay's public hostname
+     * (i.e. the external alias for the same strfry instance as LOCAL).
+     *
+     * Used by gateway and pool to avoid opening an external WebSocket connection
+     * to a URL that only resolves inside the Docker network.
+     */
+    public function isProjectRelay(string $url): bool
+    {
+        $projectRelay = $this->getProjectRelay();
+        if ($projectRelay === null) {
+            return false;
+        }
+        return rtrim(strtolower($url), '/') === rtrim(strtolower($projectRelay), '/');
+    }
+
+    /**
+     * If the given URL is the project relay's public hostname, replace it with
+     * the local (internal Docker) URL. Otherwise return the URL unchanged.
+     *
+     * Rule: LOCAL and PROJECT are the same physical relay. The server must
+     * always reach strfry via the internal hostname. External clients use PROJECT;
+     * server-side code (gateway, pool, workers) must use LOCAL.
+     *
+     * If LOCAL is not configured the URL is returned as-is (safer than dropping it).
+     */
+    public function resolveToLocalUrl(string $url): string
+    {
+        if (!$this->isProjectRelay($url)) {
+            return $url;
+        }
+        return $this->getLocalRelay() ?? $url;
+    }
+
     /** Fallback: local + project relay. @return string[] */
     public function getFallbackRelays(): array
     {
