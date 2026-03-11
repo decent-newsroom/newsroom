@@ -342,6 +342,12 @@ class NostrRequestExecutor
         if (isset($filter['limit']))   { $f->setLimit($filter['limit']); }
         if (isset($filter['since']))   { $f->setSince($filter['since']); }
         if (isset($filter['until']))   { $f->setUntil($filter['until']); }
+        // NIP-01 tag filters: #e, #p, #t, #d, #a, etc.
+        foreach ($filter as $key => $value) {
+            if (str_starts_with($key, '#') && strlen($key) === 2 && is_array($value)) {
+                $f->setTag($key, $value);
+            }
+        }
         return $f;
     }
 }

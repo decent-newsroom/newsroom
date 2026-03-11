@@ -9,6 +9,12 @@ Ripped out relay management, again, trying something new.
 - Relay pool management Phase 2.2: async relay list warming on login — `UpdateRelayListMessage` dispatched via Messenger on `LoginSuccessEvent`, handled on the low-priority queue so relay data is pre-warmed by the time the user navigates to follows/editor.
 - Relay pool management Phase 2.3: relay gateway — persistent WebSocket connection pool with NIP-42 AUTH support. Long-lived `app:relay-gateway` process maintains authenticated connections to external relays, keyed by (relay, user) pair. FrankenPHP request workers communicate via Redis Streams. AUTH challenges are signed by the user's browser via Mercure SSE roundtrip. Feature-flagged via `RELAY_GATEWAY_ENABLED`.
 - Relay pool management Phase 3: admin relay dashboard with pool visibility (per-relay health scores, AUTH status, latency, last success/failure), subscription worker heartbeat monitoring, and gateway status. Health-based relay ranking — external relays are now sorted by health score (success rate × inverse latency) when building relay sets. Formalized `RelayPoolInterface` extracted from `NostrRelayPool`.
+- Relay gateway: switched from persistent shared connections to on-demand connection model. Connections are opened lazily when first needed, kept alive for a configurable idle TTL (default 5 min), then closed. Eliminates startup connection failures, idle resource waste, and noisy reconnection churn.
+- NIP-01 compliance: tag filter passthrough (`#e`, `#p`, `#t`, `#d`, `#a`) — previously silently dropped in gateway and local relay re-routing, causing queries to return unfiltered results. Fixed in both `RelayGatewayCommand` and `NostrRequestExecutor::buildFilterFromArray`.
+- NIP-01 compliance: CLOSED and NOTICE handling — CLOSED now properly records errors and calls `recordFailure()` instead of being treated as a successful EOSE. NOTICE now logs the message without trying to match a subscription ID.
+- [Bug] Fixed messenger worker crash loop: removed dangerous direct-connection fallback when gateway returns no events (TLS+AUTH exceeded 15s execution limit). Capped gateway query timeouts at 8s.
+- [Bug] Fixed relay URL normalization in `GatewayConnection::buildKey` — trailing slash differences between config and user relay lists caused shared connection lookup misses.
+- [Bug] Fixed `xRead('$')` initialization causing gateway to never consume stream messages. Added `getStreamLastId` via `xRevRange` for robust initialization.
 - [Bug] Fixed Error: Failed to fetch article: The EntityManager is closed.
 
 ## v0.0.13
