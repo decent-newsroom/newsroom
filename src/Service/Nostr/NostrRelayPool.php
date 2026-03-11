@@ -184,7 +184,10 @@ class NostrRelayPool implements RelayPoolInterface
                 $message = $messageBuilder();
                 $filter = $this->extractFilterFromPayload($message->generate());
 
-                $gatewayResult = $this->gatewayClient->query($externalUrls, $filter, $pubkey, $timeout);
+                // Cap gateway query timeout to stay within the messenger worker's
+                // 15s execution limit. The gateway client adds +2s grace internally.
+                $gatewayTimeout = min($timeout, 8);
+                $gatewayResult = $this->gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
 
                 $gatewayErrors = $gatewayResult['errors'] ?? [];
 

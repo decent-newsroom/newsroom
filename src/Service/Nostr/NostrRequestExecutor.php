@@ -129,11 +129,10 @@ class NostrRequestExecutor
         }
 
         // External relays: route through gateway.
-        // Use a timeout 3s shorter than the client's own deadline (client waits
-        // timeout+2s) so the gateway always flushes before the client gives up,
-        // even when on-demand connection latency eats into the budget.
+        // Keep the timeout well below the messenger worker's 15s execution limit
+        // so there's headroom for local relay queries, processing, and overhead.
         if (!empty($externalUrls)) {
-            $gatewayTimeout = 12; // 15s client − 3s headroom
+            $gatewayTimeout = 8;
             $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
 
             if (!empty($gatewayResult['errors'])) {
@@ -144,20 +143,16 @@ class NostrRequestExecutor
             }
 
             if (empty($gatewayResult['events'])) {
-                // Gateway returned nothing — fall back to direct WebSocket.
-                // This covers: full timeout, AUTH stall, all relays errored,
-                // or partial errors leaving zero events.
-                $this->logger->info('Gateway returned no events — falling back to direct connection', [
+                // Gateway returned nothing — log it but do NOT fall back to
+                // direct WebSocket connections. Direct connections to external
+                // relays involve TLS handshakes + NIP-42 AUTH (ECC crypto) that
+                // easily exceed the messenger worker's 15s execution limit and
+                // cause a crash loop. The data will be retried on the next
+                // scheduled attempt or served from cache.
+                $this->logger->info('Gateway returned no events for external relays', [
                     'relays' => $externalUrls,
                     'errors' => $gatewayResult['errors'] ?? [],
                 ]);
-                $fallbackRelaySet = new RelaySet();
-                foreach ($externalUrls as $url) {
-                    $fallbackRelaySet->addRelay($this->relayPool->getRelay($url));
-                }
-                $msg             = new RequestMessage((new Subscription())->getId(), [self::buildFilterFromArray($filter)]);
-                $fallbackRequest = (new TweakedRequest($fallbackRelaySet, $msg, $this->logger))->setTimeout(10);
-                $results         += $fallbackRequest->send();
             } else {
                 $responses       = [];
                 $syntheticSubId  = 'gw-' . substr(uniqid(), -8);
