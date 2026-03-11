@@ -14,7 +14,7 @@ use swentel\nostr\Subscription\Subscription;
  * Manages persistent WebSocket connections to Nostr relays
  * Keeps connections alive across multiple requests to avoid reconnection overhead
  */
-class NostrRelayPool
+class NostrRelayPool implements RelayPoolInterface
 {
     /** @var array<string, Relay> Map of relay URLs to Relay instances */
     private array $relays = [];
@@ -133,11 +133,11 @@ class NostrRelayPool
             }
         }
 
-        // Add other relays except the local relay
-        foreach ($relayUrlsNormalized as $url) {
-            if ($url === $localRelay) {
-                continue; // Skip local relay as we already added it
-            }
+        // Sort external relays by health score (highest first) before connecting
+        $externalUrls = array_filter($relayUrlsNormalized, fn($url) => $url !== $localRelay);
+        $externalUrls = $this->sortByHealthScore(array_values($externalUrls));
+
+        foreach ($externalUrls as $url) {
             try {
                 $relays[] = $this->getRelay($url);
             } catch (\Throwable $e) {
@@ -578,6 +578,26 @@ class NostrRelayPool
     public function getHealthStore(): RelayHealthStore
     {
         return $this->healthStore;
+    }
+
+    /**
+     * Sort relay URLs by health score (highest first).
+     *
+     * Used by getRelays() to prioritize healthier external relays.
+     * The local relay is kept at index 0 by the caller and never passed here.
+     *
+     * @param string[] $urls
+     * @return string[]
+     */
+    private function sortByHealthScore(array $urls): array
+    {
+        usort($urls, function (string $a, string $b): int {
+            $scoreA = $this->healthStore->getHealthScore($a);
+            $scoreB = $this->healthStore->getHealthScore($b);
+            // Descending: higher score first
+            return $scoreB <=> $scoreA;
+        });
+        return $urls;
     }
 
     /**

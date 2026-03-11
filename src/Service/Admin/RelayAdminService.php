@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Admin;
 
+use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayRegistry;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -18,6 +21,9 @@ class RelayAdminService
 {
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly RelayRegistry $relayRegistry,
+        private readonly RelayHealthStore $healthStore,
+        private readonly NostrRelayPool $relayPool,
         private readonly ?string $nostrDefaultRelay = null
     ) {
     }
@@ -269,5 +275,97 @@ class RelayAdminService
     {
         return 'Log viewing not available from web interface. Use CLI: docker compose logs ingest';
     }
-}
 
+    /**
+     * Get pool status: all known relays from registry with health data.
+     *
+     * Returns:
+     *   - by_purpose: purpose => [ {url, health_score, healthy, ...health fields} ]
+     *   - active_connections: int
+     *   - local_relay: string|null
+     *   - public_url: string|null
+     *   - gateway_enabled: bool
+     */
+    public function getPoolStatus(): array
+    {
+        try {
+            $all = $this->relayRegistry->getAll(); // purpose => string[]
+            $allUrls = $this->relayRegistry->getAllUrls();
+            $healthData = $this->healthStore->getHealthForRelays($allUrls);
+
+            $byPurpose = [];
+            foreach ($all as $purpose => $urls) {
+                $byPurpose[$purpose] = [];
+                foreach ($urls as $url) {
+                    $h = $healthData[$url] ?? $this->healthStore->getHealth($url);
+                    $byPurpose[$purpose][] = [
+                        'url' => $url,
+                        'health_score' => round($this->healthStore->getHealthScore($url), 2),
+                        'healthy' => $this->healthStore->isHealthy($url),
+                        'consecutive_failures' => $h['consecutive_failures'],
+                        'avg_latency_ms' => $h['avg_latency_ms'],
+                        'last_success' => $h['last_success'],
+                        'last_failure' => $h['last_failure'],
+                        'auth_required' => $h['auth_required'],
+                        'auth_status' => $h['auth_status'],
+                        'last_event_received' => $h['last_event_received'],
+                        'heartbeats' => $h['heartbeats'],
+                    ];
+                }
+            }
+
+            $poolStats = $this->relayPool->getStats();
+
+            return [
+                'by_purpose' => $byPurpose,
+                'active_connections' => $poolStats['active_connections'] ?? 0,
+                'local_relay' => $this->relayPool->getLocalRelay(),
+                'public_url' => $this->relayRegistry->getPublicUrl(),
+                'gateway_enabled' => $this->relayPool->isGatewayEnabled(),
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            $this->logger->warning('RelayAdminService: failed to build pool status', ['error' => $e->getMessage()]);
+            return [
+                'by_purpose' => [],
+                'active_connections' => 0,
+                'local_relay' => null,
+                'public_url' => null,
+                'gateway_enabled' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Collect subscription worker heartbeats from RelayHealthStore.
+     * Returns worker_name => ['timestamp' => int, 'age_seconds' => int]
+     */
+    public function getWorkerHeartbeats(): array
+    {
+        try {
+            $allUrls = $this->relayRegistry->getAllUrls();
+            $merged = [];
+
+            foreach ($allUrls as $url) {
+                $h = $this->healthStore->getHealth($url);
+                foreach ($h['heartbeats'] as $worker => $ts) {
+                    // Keep the most recent heartbeat if the same worker appears for multiple relays
+                    if (!isset($merged[$worker]) || $ts > $merged[$worker]['timestamp']) {
+                        $merged[$worker] = [
+                            'timestamp' => $ts,
+                            'age_seconds' => time() - $ts,
+                        ];
+                    }
+                }
+            }
+
+            // Sort by worker name
+            ksort($merged);
+            return $merged;
+        } catch (\Throwable $e) {
+            $this->logger->warning('RelayAdminService: failed to collect heartbeats', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+}

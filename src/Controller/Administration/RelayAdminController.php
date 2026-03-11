@@ -26,6 +26,8 @@ class RelayAdminController extends AbstractController
         $containerStatus = $this->relayAdminService->getContainerStatus();
         $connectivity = $this->relayAdminService->testConnectivity();
         $recentEvents = $this->relayAdminService->getRecentEvents(50);
+        $poolStatus = $this->relayAdminService->getPoolStatus();
+        $workerHeartbeats = $this->relayAdminService->getWorkerHeartbeats();
 
         return $this->render('admin/relay/index.html.twig', [
             'stats' => $stats,
@@ -33,7 +35,15 @@ class RelayAdminController extends AbstractController
             'container_status' => $containerStatus,
             'connectivity' => $connectivity,
             'recent_events' => $recentEvents,
+            'pool_status' => $poolStatus,
+            'worker_heartbeats' => $workerHeartbeats,
         ]);
+    }
+
+    #[Route('/pool', name: 'pool', methods: ['GET'])]
+    public function poolStatus(): JsonResponse
+    {
+        return $this->json($this->relayAdminService->getPoolStatus());
     }
 
     #[Route('/stats', name: 'stats', methods: ['GET'])]

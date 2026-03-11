@@ -96,9 +96,149 @@
         </div>
     </div>
 
+
+    {# Pool Overview #}
+    <div class="status-card" style="margin-top: 2rem;">
+        <h2>Relay Pool</h2>
+        {% if pool_status.error %}
+            <div class="alert alert-error">{{ pool_status.error }}</div>
+        {% else %}
+        <div class="stat-row">
+            <span class="stat-label">Active Connections</span>
+            <span class="stat-value">{{ pool_status.active_connections }}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Local Relay (internal)</span>
+            <span class="stat-value">{{ pool_status.local_relay ?: '—' }}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Public URL</span>
+            <span class="stat-value">{{ pool_status.public_url ?: '—' }}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Gateway</span>
+            <span class="stat-value">
+                {% if pool_status.gateway_enabled %}
+                    <span class="status-indicator healthy"></span> Enabled
+                {% else %}
+                    <span class="status-indicator warning"></span> Disabled (set RELAY_GATEWAY_ENABLED=true to enable)
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Per-Relay Health Table #}
+    {% if pool_status.by_purpose is defined and pool_status.by_purpose|length > 0 %}
+    <div class="status-card" style="margin-top: 2rem;">
+        <h2>Relay Health</h2>
+        <table class="relay-health-table" style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Purpose</th>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Relay URL</th>
+                    <th style="text-align:center; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Score</th>
+                    <th style="text-align:center; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Status</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Failures</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Latency</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Last OK</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Last Fail</th>
+                    <th style="text-align:center; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">AUTH</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for purpose, relays in pool_status.by_purpose %}
+                {% for relay in relays %}
+                <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                    <td style="padding:0.4rem 0.75rem;">
+                        <span class="badge" style="font-size:0.75rem; padding:0.1rem 0.4rem; background:var(--color-surface-2,#f5f5f5); border-radius:0.25rem;">{{ purpose }}</span>
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; font-family:monospace; font-size:0.8rem; word-break:break-all;">{{ relay.url }}</td>
+                    <td style="padding:0.4rem 0.75rem; text-align:center;">
+                        {% set score = relay.health_score %}
+                        {% if score >= 0.7 %}
+                            <span style="color:#16a34a; font-weight:600;">{{ score|number_format(2) }}</span>
+                        {% elseif score >= 0.4 %}
+                            <span style="color:#d97706; font-weight:600;">{{ score|number_format(2) }}</span>
+                        {% else %}
+                            <span style="color:#dc2626; font-weight:600;">{{ score|number_format(2) }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; text-align:center;">
+                        {% if relay.healthy %}
+                            <span class="status-indicator healthy"></span>
+                        {% else %}
+                            <span class="status-indicator error"></span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right;">{{ relay.consecutive_failures }}</td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right;">
+                        {{ relay.avg_latency_ms is not null ? relay.avg_latency_ms|round ~ 'ms' : '—' }}
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right; font-size:0.8rem;">
+                        {{ relay.last_success is not null ? relay.last_success|date('H:i:s') : '—' }}
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right; font-size:0.8rem;">
+                        {{ relay.last_failure is not null ? relay.last_failure|date('H:i:s') : '—' }}
+                    </td>
+                    <td style="padding:0.4rem 0.75rem; text-align:center; font-size:0.8rem;">
+                        {% if relay.auth_required %}
+                            <span title="{{ relay.auth_status }}" style="color:#7c3aed;">✓ {{ relay.auth_status }}</span>
+                        {% else %}
+                            <span style="color:#9ca3af;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if pool_status.by_purpose|length == 0 %}
+            <p style="color:#9ca3af; margin-top:1rem;">No relays configured in registry.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# Worker Heartbeats #}
+    <div class="status-card" style="margin-top: 2rem;">
+        <h2>Subscription Workers</h2>
+        {% if worker_heartbeats|length > 0 %}
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Worker</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Last Heartbeat</th>
+                    <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Age</th>
+                    <th style="text-align:center; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border, #ddd);">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for worker, hb in worker_heartbeats %}
+                <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                    <td style="padding:0.4rem 0.75rem; font-family:monospace;">{{ worker }}</td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right; font-size:0.8rem;">{{ hb.timestamp|date('Y-m-d H:i:s') }}</td>
+                    <td style="padding:0.4rem 0.75rem; text-align:right;">{{ hb.age_seconds }}s ago</td>
+                    <td style="padding:0.4rem 0.75rem; text-align:center;">
+                        {% if hb.age_seconds < 60 %}
+                            <span class="status-indicator healthy" title="Active"></span>
+                        {% elseif hb.age_seconds < 300 %}
+                            <span class="status-indicator warning" title="Slow ({{ hb.age_seconds }}s)"></span>
+                        {% else %}
+                            <span class="status-indicator error" title="Stale ({{ hb.age_seconds }}s)"></span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p style="color:#9ca3af;">No heartbeat data yet. Workers write heartbeats after their first event loop tick.</p>
+        {% endif %}
+    </div>
+
     {# Recent Events #}
     {% if recent_events|length > 0 %}
-    <div class="events-section">
+    <div class="events-section" style="margin-top: 2rem;">
         <div class="status-card">
             <h2>Recent Events (Last 5)</h2>
 
