@@ -136,6 +136,16 @@ class RelayGatewayCommand extends Command
      */
     private array $pendingAuthReqs = [];
 
+    /**
+     * Connections that need to be opened asynchronously, one per event-loop tick,
+     * so that blocking TCP+TLS handshakes never stall the entire gateway loop.
+     *
+     * Populated by handleWarm(). Drained by drainPendingConnections().
+     *
+     * @var list<array{relayUrl: string, pubkey: string}>
+     */
+    private array $pendingConnections = [];
+
     private bool $shouldStop = false;
     private RelaySubscriptionHandler $handler;
 
@@ -209,7 +219,8 @@ class RelayGatewayCommand extends Command
             ->addOption('max-total-user-conns', null, InputOption::VALUE_OPTIONAL, 'Max total user connections', '200')
             ->addOption('max-shared-conns', null, InputOption::VALUE_OPTIONAL, 'Max shared connections', '20')
             ->addOption('user-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'User connection idle timeout (seconds)', '1800')
-            ->addOption('auth-timeout', null, InputOption::VALUE_OPTIONAL, 'AUTH roundtrip timeout (seconds)', '60');
+            ->addOption('auth-timeout', null, InputOption::VALUE_OPTIONAL, 'AUTH roundtrip timeout (seconds)', '60')
+            ->addOption('time-limit', null, InputOption::VALUE_OPTIONAL, 'Max runtime in seconds before graceful restart (0=unlimited)', '3600');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -223,6 +234,8 @@ class RelayGatewayCommand extends Command
         $this->maxSharedConnections = (int) $input->getOption('max-shared-conns');
         $this->userIdleTimeout = (int) $input->getOption('user-idle-timeout');
         $this->authTimeout = (int) $input->getOption('auth-timeout');
+        $timeLimit = (int) $input->getOption('time-limit');
+        $startedAt = time();
 
         // Register signal handlers
         if (function_exists('pcntl_signal')) {
@@ -232,8 +245,10 @@ class RelayGatewayCommand extends Command
 
         $this->handler = new RelaySubscriptionHandler($this->logger);
 
-        // Initialize streams (create if not exist)
+        // Initialize streams and clean up any orphaned response streams from
+        // a previous gateway session that was interrupted mid-publish.
         $this->initializeStreams();
+        $this->cleanupOrphanedResponseStreams();
 
         // Open shared connections from RelayRegistry
         $this->openSharedConnections($io);
@@ -253,16 +268,26 @@ class RelayGatewayCommand extends Command
                 $this->processRequestStream();
                 $this->processControlStream();
 
-                // 2. Read from all open WebSocket connections (non-blocking)
+                // 2. Open one pending connection per tick — keeps TCP handshakes
+                //    from blocking the rest of the loop for multiple seconds.
+                $this->drainPendingConnections();
+
+                // 3. Read from all open WebSocket connections (non-blocking)
                 $this->processWebSocketMessages();
 
-                // 3. Check for completed AUTH roundtrips
+                // 4. Check for completed AUTH roundtrips
                 $this->checkPendingAuths();
 
-                // 4. Periodic maintenance (every 60 seconds)
+                // 5. Periodic maintenance (every 60 seconds)
                 if (time() - $lastMaintenanceCheck >= 60) {
                     $this->performMaintenance();
                     $lastMaintenanceCheck = time();
+                }
+
+                // 6. Time-limit check — graceful restart to pick up code changes
+                if ($timeLimit > 0 && (time() - $startedAt) >= $timeLimit) {
+                    $io->info(sprintf('Time limit of %d seconds reached. Shutting down for restart.', $timeLimit));
+                    $this->shouldStop = true;
                 }
 
             } catch (\Throwable $e) {
@@ -293,13 +318,101 @@ class RelayGatewayCommand extends Command
 
     private function initializeStreams(): void
     {
+        foreach ([
+            self::REQUEST_STREAM => 'lastRequestId',
+            self::CONTROL_STREAM => 'lastControlId',
+        ] as $stream => $property) {
+            $this->$property = $this->getStreamLastId($stream);
+        }
+
+        $this->logger->debug('Gateway: streams initialized', [
+            'request_id' => $this->lastRequestId,
+            'control_id' => $this->lastControlId,
+        ]);
+    }
+
+    /**
+     * Get the last entry ID currently in a Redis stream, so the gateway skips
+     * messages written before startup (avoids replaying stale requests on restart).
+     *
+     * Falls back to '0-0' when the stream doesn't exist yet so we don't miss
+     * the very first message written after startup.
+     */
+    private function getStreamLastId(string $stream): string
+    {
         try {
-            // Ensure streams exist (XADD a dummy and immediately trim, or just let first XADD create them)
-            // Read from latest — we don't want to replay old messages on restart
-            $this->lastRequestId = '$';
-            $this->lastControlId = '$';
-        } catch (\RedisException $e) {
-            $this->logger->warning('Gateway: failed to initialize streams', ['error' => $e->getMessage()]);
+            // xRevRange with count=1 returns the single most-recent entry.
+            // This works regardless of phpredis version or xInfo key-name quirks.
+            $entries = $this->redis->xRevRange($stream, '+', '-', 1);
+            if (!empty($entries)) {
+                $ids = array_keys($entries);
+                return $ids[0]; // most recent ID
+            }
+        } catch (\Throwable) {}
+
+        // Stream doesn't exist — start from the beginning so the first real
+        // message after startup is never missed.
+        return '0-0';
+    }
+
+    /**
+     * On startup, find any response streams left by a previous session that was
+     * interrupted mid-publish (container restart, crash). These have a 'total'
+     * header entry but no relay partials and no TTL. Write failure partials so
+     * any PHP worker still polling xRead on that stream can unblock immediately.
+     */
+    private function cleanupOrphanedResponseStreams(): void
+    {
+        try {
+            $keys = $this->redis->keys(self::RESPONSE_PREFIX . '*');
+            if (empty($keys)) {
+                return;
+            }
+            foreach ($keys as $key) {
+                $ttl = $this->redis->ttl($key);
+                if ($ttl > 0) {
+                    continue; // Already has a TTL — being cleaned up normally
+                }
+                $entries = $this->redis->xRange($key, '-', '+', 100);
+                if (empty($entries)) {
+                    $this->redis->del($key);
+                    continue;
+                }
+                $total = null;
+                $hasRelayPartial = false;
+                foreach ($entries as $entry) {
+                    if (isset($entry['total'])) {
+                        $total = (int) $entry['total'];
+                    }
+                    if (isset($entry['relay'])) {
+                        $hasRelayPartial = true;
+                        break;
+                    }
+                }
+                if ($total !== null && !$hasRelayPartial) {
+                    $correlationId = substr($key, strlen(self::RESPONSE_PREFIX));
+                    $this->logger->info('Gateway: cleaning up orphaned publish stream from previous session', [
+                        'correlation_id' => $correlationId,
+                        'total_expected' => $total,
+                    ]);
+                    for ($i = 0; $i < $total; $i++) {
+                        $this->redis->xAdd($key, '*', [
+                            'relay'   => 'unknown',
+                            'ok'      => 'false',
+                            'message' => 'Gateway restarted — publish result unknown',
+                            'done'    => ($i === $total - 1) ? 'true' : 'false',
+                        ]);
+                    }
+                    $this->redis->expire($key, 30);
+                } else {
+                    // Has partial data but no TTL — give it a short window to expire
+                    $this->redis->expire($key, 60);
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Gateway: failed to clean orphaned response streams', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -425,6 +538,16 @@ class RelayGatewayCommand extends Command
     private function processRequestStream(): void
     {
         try {
+            // Safety: if lastRequestId is the literal '$' sentinel (old code or
+            // failed initialization), resolve to actual last ID now. '$' causes
+            // xRead to miss messages written between block windows.
+            if ($this->lastRequestId === '$') {
+                $this->lastRequestId = $this->getStreamLastId(self::REQUEST_STREAM);
+                $this->logger->warning('Gateway: recovered lastRequestId from "$"', [
+                    'resolved' => $this->lastRequestId,
+                ]);
+            }
+
             $messages = $this->redis->xRead(
                 [self::REQUEST_STREAM => $this->lastRequestId],
                 5, // batch size
@@ -435,22 +558,38 @@ class RelayGatewayCommand extends Command
                 return;
             }
 
+            $this->logger->info('Gateway: processing request stream batch', [
+                'count'          => count($messages[self::REQUEST_STREAM]),
+                'lastRequestId'  => $this->lastRequestId,
+            ]);
+
             foreach ($messages[self::REQUEST_STREAM] as $messageId => $data) {
                 $this->lastRequestId = $messageId;
                 $this->handleRequest($data);
             }
 
-            // Trim old messages (keep last 1000)
-            $this->redis->xTrim(self::REQUEST_STREAM, 1000);
+            // Trim old messages — use rawCommand to avoid phpredis stub signature issues
+            $this->redis->rawCommand('XTRIM', self::REQUEST_STREAM, 'MAXLEN', '~', '1000');
 
-        } catch (\RedisException $e) {
-            $this->logger->debug('Gateway: Redis read error on request stream', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Gateway: error processing request stream', [
+                'error'          => $e->getMessage(),
+                'class'          => get_class($e),
+                'lastRequestId'  => $this->lastRequestId,
+            ]);
         }
     }
 
     private function processControlStream(): void
     {
         try {
+            if ($this->lastControlId === '$') {
+                $this->lastControlId = $this->getStreamLastId(self::CONTROL_STREAM);
+                $this->logger->warning('Gateway: recovered lastControlId from "$"', [
+                    'resolved' => $this->lastControlId,
+                ]);
+            }
+
             $messages = $this->redis->xRead(
                 [self::CONTROL_STREAM => $this->lastControlId],
                 5,
@@ -466,10 +605,14 @@ class RelayGatewayCommand extends Command
                 $this->handleControl($data);
             }
 
-            $this->redis->xTrim(self::CONTROL_STREAM, 1000);
+            $this->redis->rawCommand('XTRIM', self::CONTROL_STREAM, 'MAXLEN', '~', '1000');
 
-        } catch (\RedisException $e) {
-            $this->logger->debug('Gateway: Redis read error on control stream', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Gateway: error processing control stream', [
+                'error'         => $e->getMessage(),
+                'class'         => get_class($e),
+                'lastControlId' => $this->lastControlId,
+            ]);
         }
     }
 
@@ -626,9 +769,37 @@ class RelayGatewayCommand extends Command
             $relayUrls,
         )));
 
+        $this->logger->info('Gateway: handling publish request', [
+            'correlation_id' => $correlationId,
+            'relay_count'    => count($relayUrls),
+            'relays'         => $relayUrls,
+            'event_id'       => substr($eventId, 0, 16),
+            'pubkey'         => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+        ]);
+
+        // Rewrite any project public URL to the internal local URL.
+        $relayUrls = array_values(array_unique(array_map(
+            fn(string $u) => $this->resolveRelayUrl($u),
+            $relayUrls,
+        )));
+
         $errors = [];
         $deadline = time() + $timeout;
-        $registeredCount = 0;
+        $registeredCount = 0;    // total relays we'll track (pending + immediate)
+        $immediatelyDone = 0;    // relays already resolved (no-conn, send-exception)
+        $totalRelays = count($relayUrls);
+
+        // Write a header entry first so the client knows how many relay results
+        // to expect. This allows it to stop reading as soon as it has collected
+        // results for all relays, rather than polling until the deadline.
+        if ($totalRelays > 0) {
+            try {
+                $responseKey = self::RESPONSE_PREFIX . $correlationId;
+                $this->redis->xAdd($responseKey, '*', [
+                    'total' => (string) $totalRelays,
+                ]);
+            } catch (\RedisException) {}
+        }
 
         foreach ($relayUrls as $relayUrl) {
             $pendingKey = $correlationId . '::' . $relayUrl;
@@ -638,6 +809,13 @@ class RelayGatewayCommand extends Command
 
                 if (!$conn || !$conn->isConnected()) {
                     $errors[$relayUrl] = 'No connection available';
+                    // Write immediate partial so the client unblocks for this relay
+                    $registeredCount++;
+                    $immediatelyDone++;
+                    $this->writePartialPublishResponse(
+                        $correlationId, $relayUrl, false, 'No connection available',
+                        $registeredCount >= $totalRelays,
+                    );
                     continue;
                 }
 
@@ -653,18 +831,21 @@ class RelayGatewayCommand extends Command
                 ];
                 $registeredCount++;
 
-                // Defer the EVENT if AUTH has not yet been confirmed on this connection.
-                // This covers three states:
-                //   'none'    — brand-new connection; AUTH challenge may not have arrived yet
-                //   'pending' — mid-Mercure roundtrip waiting for the user to sign
-                //   'failed'  — AUTH failed; relay will reject the event anyway
-                // Only send immediately when authStatus === 'authed'.
-                if ($conn->authStatus !== 'authed') {
+                // Decide whether to send immediately or defer.
+                //   'authed'              → send now
+                //   'none' + connAge >= 1 → no AUTH challenge arrived, relay is open, send now
+                //   anything else         → defer until AUTH resolves or settle window passes
+                $connAge = time() - $conn->connectedAt;
+                $readyToSend = $conn->authStatus === 'authed'
+                    || ($conn->authStatus === 'none' && $connAge >= 1);
+
+                if (!$readyToSend) {
                     $this->logger->info('Gateway: deferring EVENT publish until AUTH resolves', [
-                        'relay'       => $relayUrl,
-                        'auth_status' => $conn->authStatus,
+                        'relay'          => $relayUrl,
+                        'auth_status'    => $conn->authStatus,
+                        'conn_age'       => $connAge,
                         'correlation_id' => $correlationId,
-                        'event_id'    => substr($eventId, 0, 16),
+                        'event_id'       => substr($eventId, 0, 16),
                     ]);
                     $this->pendingAuthPublishes[$pendingKey] = [
                         'connKey' => $conn->getKey(),
@@ -672,6 +853,15 @@ class RelayGatewayCommand extends Command
                         'eventId' => $eventId,
                     ];
                     continue;
+                }
+
+                // Promote 'none' connections that passed the settle window
+                if ($conn->authStatus === 'none') {
+                    $conn->authStatus = 'authed';
+                    $this->logger->info('Gateway: promoting settled connection to authed at publish time', [
+                        'relay'    => $relayUrl,
+                        'conn_age' => $connAge,
+                    ]);
                 }
 
                 $conn->getClient()->text(json_encode(['EVENT', $event]));
@@ -684,6 +874,13 @@ class RelayGatewayCommand extends Command
                     'relay' => $relayUrl,
                     'error' => $e->getMessage(),
                 ]);
+                // Write immediate partial so the client unblocks for this relay
+                $registeredCount++;
+                $immediatelyDone++;
+                $this->writePartialPublishResponse(
+                    $correlationId, $relayUrl, false, $e->getMessage(),
+                    $registeredCount >= $totalRelays,
+                );
             }
         }
 
@@ -693,10 +890,14 @@ class RelayGatewayCommand extends Command
             if (!isset($this->pendingCorrelations[$correlationId])) {
                 $this->pendingCorrelations[$correlationId] = [
                     'total'    => $registeredCount,
-                    'done'     => 0,
+                    // Start done at the number of already-resolved relays so the
+                    // correlation completes correctly when the remaining pending
+                    // relays resolve (completePendingPublish increments done).
+                    'done'     => $immediatelyDone,
                     'events'   => [],
                     'errors'   => $errors,
                     'deadline' => $deadline,
+                    'ok'       => [],   // presence of this key marks it as a publish correlation
                 ];
             }
         }
@@ -732,32 +933,81 @@ class RelayGatewayCommand extends Command
             $relayUrls,
         )));
 
-        $this->logger->info('Gateway: warming user connections', [
-            'pubkey' => substr($pubkey, 0, 8) . '...',
+        $this->logger->info('Gateway: queueing user connections for warm-up', [
+            'pubkey'      => substr($pubkey, 0, 8) . '...',
             'relay_count' => count($relayUrls),
         ]);
 
-        // Enforce per-user limit
+        // Enforce per-user limit up-front so we don't queue more than we'll open
         $currentUserConns = $this->countUserConnections($pubkey);
         $remaining = $this->maxConnectionsPerUser - $currentUserConns;
         $relayUrls = array_slice($relayUrls, 0, max(0, $remaining));
 
-        // Enforce total user connection limit
+        // Enforce total user connection limit — evict now so we have room
         $totalUserConns = $this->countAllUserConnections();
         if ($totalUserConns >= $this->maxTotalUserConnections) {
             $this->evictIdlestUserConnection();
         }
 
+        // Enqueue — drainPendingConnections() will open one per event-loop tick
+        // so blocking TCP+TLS handshakes never stall the gateway loop.
         foreach ($relayUrls as $relayUrl) {
-            try {
-                $this->openConnection($relayUrl, $pubkey);
-            } catch (\Throwable $e) {
-                $this->logger->warning('Gateway: failed to warm user connection', [
-                    'relay' => $relayUrl,
-                    'pubkey' => substr($pubkey, 0, 8) . '...',
-                    'error' => $e->getMessage(),
-                ]);
+            $key = GatewayConnection::buildKey($relayUrl, $pubkey);
+            // Skip if already open or already queued
+            if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+                continue;
             }
+            $alreadyQueued = false;
+            foreach ($this->pendingConnections as $pending) {
+                if ($pending['relayUrl'] === $relayUrl && $pending['pubkey'] === $pubkey) {
+                    $alreadyQueued = true;
+                    break;
+                }
+            }
+            if (!$alreadyQueued) {
+                $this->pendingConnections[] = ['relayUrl' => $relayUrl, 'pubkey' => $pubkey];
+            }
+        }
+    }
+
+    /**
+     * Open one pending connection per event-loop tick.
+     *
+     * Each TCP+TLS handshake (relay->connect()) is blocking and can take
+     * several seconds. Running them one-at-a-time here, rather than all at
+     * once inside handleWarm or handlePublishRequest, ensures the gateway
+     * loop continues processing WebSocket messages and Redis streams while
+     * connections are being established.
+     */
+    private function drainPendingConnections(): void
+    {
+        if (empty($this->pendingConnections)) {
+            return;
+        }
+
+        $next = array_shift($this->pendingConnections);
+        $relayUrl = $next['relayUrl'];
+        $pubkey   = $next['pubkey'];
+
+        // Check again — may have been opened by a concurrent warm or publish
+        $key = GatewayConnection::buildKey($relayUrl, $pubkey);
+        if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+            return;
+        }
+
+        try {
+            $this->openConnection($relayUrl, $pubkey);
+            $this->logger->info('Gateway: opened queued connection', [
+                'relay'  => $relayUrl,
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+                'remaining_queue' => count($this->pendingConnections),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Gateway: failed to open queued connection', [
+                'relay'  => $relayUrl,
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+                'error'  => $e->getMessage(),
+            ]);
         }
     }
 
@@ -771,6 +1021,12 @@ class RelayGatewayCommand extends Command
         $this->logger->info('Gateway: closing all user connections', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
         ]);
+
+        // Remove any queued connections for this user before they're opened
+        $this->pendingConnections = array_values(array_filter(
+            $this->pendingConnections,
+            fn(array $p) => $p['pubkey'] !== $pubkey,
+        ));
 
         foreach ($this->connections as $key => $conn) {
             if ($conn->pubkey === $pubkey) {
@@ -942,6 +1198,18 @@ class RelayGatewayCommand extends Command
             if (isset($this->pendingCorrelations[$correlationId])) {
                 $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = $accepted;
                 $this->pendingCorrelations[$correlationId]['done']++;
+
+                // Write a partial publish response immediately so the client can
+                // record this relay's result without waiting for slow/stalled relays.
+                $total = $this->pendingCorrelations[$correlationId]['total'];
+                $done  = $this->pendingCorrelations[$correlationId]['done'];
+                $this->writePartialPublishResponse(
+                    $correlationId,
+                    $relayUrl,
+                    $accepted,
+                    '',
+                    $done >= $total,
+                );
             }
 
             $this->logger->debug('Gateway: publish OK received', [
@@ -957,7 +1225,14 @@ class RelayGatewayCommand extends Command
 
     /**
      * For each correlationId where all subscriptions/publishes are done,
-     * write the response stream and clean up.
+     * flush the final response and clean up.
+     *
+     * Publish: per-relay partial responses are written by completePendingPublish
+     * as each relay resolves; the last partial already carries done:true. This
+     * method only needs to do cleanup for publish correlations.
+     *
+     * Query: the final writeResponse (eose:true) is written here because queries
+     * use a different partial/final split.
      */
     private function flushCompletedCorrelations(): void
     {
@@ -967,14 +1242,13 @@ class RelayGatewayCommand extends Command
             }
 
             if (isset($state['ok'])) {
-                // Publish response
-                $this->writePublishResponse($correlationId, $state['ok'], $state['errors']);
+                // Publish — partials already written; just clean up tracking state
+                $this->cleanupCorrelation($correlationId);
             } else {
-                // Query response
+                // Query — write the final (eose:true) response
                 $this->writeResponse($correlationId, $state['events'], $state['errors']);
+                $this->cleanupCorrelation($correlationId);
             }
-
-            $this->cleanupCorrelation($correlationId);
         }
     }
 
@@ -1038,6 +1312,17 @@ class RelayGatewayCommand extends Command
                 // No OK received — treat as false
                 $this->pendingCorrelations[$correlationId]['ok'][$pending['relayUrl']] = false;
                 $this->pendingCorrelations[$correlationId]['done']++;
+
+                // Write a partial immediately so the client unblocks for this relay
+                $total = $this->pendingCorrelations[$correlationId]['total'];
+                $done  = $this->pendingCorrelations[$correlationId]['done'];
+                $this->writePartialPublishResponse(
+                    $correlationId,
+                    $pending['relayUrl'],
+                    false,
+                    'Timeout waiting for relay OK',
+                    $done >= $total,
+                );
             }
         }
 
@@ -1045,23 +1330,48 @@ class RelayGatewayCommand extends Command
         $this->flushCompletedCorrelations();
 
         // Also force-flush correlations whose deadline has expired (edge case:
-        // a relay never sends EOSE and the subscription deadline has passed).
+        // a relay never sends EOSE / OK and the deadline has passed).
         foreach ($this->pendingCorrelations as $correlationId => $state) {
-            if ($state['deadline'] <= $now) {
-                $this->logger->debug('Gateway: force-flushing expired correlation', [
-                    'correlation_id' => $correlationId,
-                    'done' => $state['done'],
-                    'total' => $state['total'],
-                ]);
-
-                if (isset($state['ok'])) {
-                    $this->writePublishResponse($correlationId, $state['ok'], $state['errors']);
-                } else {
-                    $this->writeResponse($correlationId, $state['events'], $state['errors']);
-                }
-
-                $this->cleanupCorrelation($correlationId);
+            if ($state['deadline'] > $now) {
+                continue;
             }
+
+            $this->logger->debug('Gateway: force-flushing expired correlation', [
+                'correlation_id' => $correlationId,
+                'done' => $state['done'],
+                'total' => $state['total'],
+            ]);
+
+            if (isset($state['ok'])) {
+                // Publish correlation — write partial false for any relay that was
+                // never resolved (neither sweep nor completePendingPublish ran for it).
+                // Find unresolved relays by diffing the ok map against pendingPublishes.
+                foreach ($this->pendingPublishes as $pendingKey => $pending) {
+                    if ($pending['correlationId'] !== $correlationId || $pending['done']) {
+                        continue;
+                    }
+                    $relayUrl = $pending['relayUrl'];
+                    if (!isset($state['ok'][$relayUrl])) {
+                        $state['ok'][$relayUrl] = false;
+                        $state['done']++;
+                        $this->pendingPublishes[$pendingKey]['done'] = true;
+                        $this->writePartialPublishResponse(
+                            $correlationId,
+                            $relayUrl,
+                            false,
+                            'Correlation deadline expired',
+                            $state['done'] >= $state['total'],
+                        );
+                    }
+                }
+                // Update tracking state so cleanup is coherent
+                $this->pendingCorrelations[$correlationId] = $state;
+            } else {
+                // Query correlation — write the final response
+                $this->writeResponse($correlationId, $state['events'], $state['errors']);
+            }
+
+            $this->cleanupCorrelation($correlationId);
         }
     }
 
@@ -1232,36 +1542,51 @@ class RelayGatewayCommand extends Command
             }
         }
 
-        // Flush deferred publishes on connections that never received an AUTH
-        // challenge — the relay doesn't require AUTH, so send the EVENT now.
-        // We wait AUTH_SETTLE_MS milliseconds after connection open to give the
-        // relay a chance to send an AUTH challenge before we decide it won't.
-        $now = microtime(true);
+        // Promote connections that have been open for > 1 second with no AUTH
+        // challenge to 'authed'. This means the relay doesn't require AUTH for
+        // this pubkey and future publishes/queries go straight through without
+        // being deferred. Do this proactively, not just when a pending publish
+        // is waiting — otherwise connections sit as 'none' indefinitely.
+        $now = time();
+        foreach ($this->connections as $connKey => $conn) {
+            if ($conn->authStatus !== 'none') {
+                continue;
+            }
+            if (!$conn->isUserConnection()) {
+                continue; // shared connections use ephemeral AUTH, handled separately
+            }
+            $connAge = $now - $conn->connectedAt;
+            if ($connAge >= 1) {
+                $conn->authStatus = 'authed';
+                $this->logger->info('Gateway: connection settle — marking as authed (no AUTH challenge received)', [
+                    'relay'    => $conn->relayUrl,
+                    'pubkey'   => substr($conn->pubkey ?? '', 0, 8) . '...',
+                    'conn_age' => $connAge,
+                ]);
+                // Flush any publishes/queries that were deferred waiting for this
+                $this->flushDeferredForConnection($connKey, $conn);
+            }
+        }
+
+        // Flush any remaining deferred publishes (belt-and-suspenders for cases
+        // where flushDeferredForConnection was not triggered above).
         foreach ($this->pendingAuthPublishes as $pendingKey => $deferred) {
             $conn = $this->connections[$deferred['connKey']] ?? null;
             if (!$conn || !$conn->isConnected()) {
+                unset($this->pendingAuthPublishes[$pendingKey]);
                 continue;
             }
 
-            // Skip connections that are still mid-Mercure roundtrip
-            if ($conn->authStatus === 'pending') {
+            if ($conn->authStatus === 'pending' || $conn->authStatus === 'failed') {
                 continue;
             }
 
-            // Skip connections that failed auth — sweep timeout will handle them
-            if ($conn->authStatus === 'failed') {
+            // authStatus is 'none' but connAge < 1 — still in settle window
+            if ($conn->authStatus === 'none' && ($now - $conn->connectedAt) < 1) {
                 continue;
             }
 
-            // authStatus === 'none': relay has not sent an AUTH challenge.
-            // Wait a short settling window (1 second) after connection open so we
-            // don't race against the relay's initial AUTH frame.
-            $connAge = time() - $conn->connectedAt;
-            if ($conn->authStatus === 'none' && $connAge < 1) {
-                continue;
-            }
-
-            // Safe to send — no AUTH required (or already authed)
+            // Safe to send
             if (!isset($this->pendingPublishes[$pendingKey]) || $this->pendingPublishes[$pendingKey]['done']) {
                 unset($this->pendingAuthPublishes[$pendingKey]);
                 continue;
@@ -1279,12 +1604,15 @@ class RelayGatewayCommand extends Command
                     'relay' => $conn->relayUrl,
                     'error' => $e->getMessage(),
                 ]);
+                // Mark as failed and write partial so the client isn't left waiting
                 $correlationId = $this->pendingPublishes[$pendingKey]['correlationId'];
                 $relayUrl      = $this->pendingPublishes[$pendingKey]['relayUrl'];
                 $this->pendingPublishes[$pendingKey]['done'] = true;
                 if (isset($this->pendingCorrelations[$correlationId])) {
                     $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = false;
-                    $this->pendingCorrelations[$correlationId]['done']++;
+                    $total = $this->pendingCorrelations[$correlationId]['total'];
+                    $done  = ++$this->pendingCorrelations[$correlationId]['done'];
+                    $this->writePartialPublishResponse($correlationId, $relayUrl, false, $e->getMessage(), $done >= $total);
                 }
             }
             unset($this->pendingAuthPublishes[$pendingKey]);
@@ -1365,12 +1693,15 @@ class RelayGatewayCommand extends Command
 
 
     /**
-     * Route to the best available connection for a relay + optional pubkey.
+     * Route to the best available connection for a query (REQ).
+     *
+     * Only returns pre-existing connections. See routeConnectionForPublish
+     * for the rationale against on-demand opens inside the event loop.
      *
      * Preference:
      *   1. User connection (if pubkey provided and connection exists + authed)
      *   2. Shared connection
-     *   3. Open new shared connection on demand
+     *   3. null → caller records an immediate error for this relay
      */
     private function routeConnection(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
@@ -1388,91 +1719,53 @@ class RelayGatewayCommand extends Command
             return $this->connections[$sharedKey];
         }
 
-        // Do NOT open a new on-demand shared connection for relays that are
-        // known to require AUTH — an ephemeral-key shared connection will be
-        // rejected and its pending REQs will stall until timeout.
-        // Return null so the caller records this relay as an error immediately
-        // and the other relays can respond without being held up.
-        if ($this->healthStore->isAuthRequired($relayUrl)) {
-            $this->logger->debug('Gateway: skipping auth-required relay — no authed connection available', [
-                'relay'  => $relayUrl,
-                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
-            ]);
-            return null;
-        }
-
-        // Open a new shared connection on demand (non-auth relay)
-        try {
-            return $this->openConnection($relayUrl, null);
-        } catch (\Throwable) {
-            return null;
-        }
+        $this->logger->debug('Gateway: no connection available for query (not yet warmed)', [
+            'relay'  => $relayUrl,
+            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+        ]);
+        return null;
     }
 
     /**
      * Route to the best available connection for a publish.
      *
-     * For publishing, a user-specific AUTH'd connection is preferred because
-     * AUTH-protected relays verify the connection's identity against the event
-     * author. Using a shared (ephemeral-key) connection means the relay AUTH'd
-     * a random key that has no write permission for the user's pubkey.
+     * Only returns pre-existing (warmed) connections. Opening new connections
+     * inside handlePublishRequest is intentionally forbidden — a blocking
+     * TCP+TLS handshake inside the event loop would stall all WebSocket
+     * message processing, AUTH handling, and response writing for the
+     * duration of the connect (typically 1-10s per relay × N relays).
+     *
+     * Connections are warmed via handleWarm → drainPendingConnections, which
+     * opens them one-per-event-loop-tick so the loop stays responsive.
      *
      * Preference:
-     *   1. Existing user connection (authed or mid-AUTH → defer send)
-     *   2. Open a new user connection on-demand (will trigger AUTH flow)
-     *   3. Fall back to shared connection if no pubkey provided
-     *   4. Return null for auth-required relays with no user pubkey
+     *   1. Existing user connection (authed or mid-AUTH → caller defers send)
+     *   2. Existing shared connection
+     *   3. null → caller writes immediate failure partial for this relay
      */
     private function routeConnectionForPublish(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
         if ($pubkey) {
             $userKey = GatewayConnection::buildKey($relayUrl, $pubkey);
-
-            // Return existing user connection (may be mid-AUTH — caller handles deferral)
             if (isset($this->connections[$userKey]) && $this->connections[$userKey]->isConnected()) {
                 return $this->connections[$userKey];
             }
-
-            // Enforce per-user connection limit
-            $currentUserConns = $this->countUserConnections($pubkey);
-            if ($currentUserConns < $this->maxConnectionsPerUser) {
-                try {
-                    $conn = $this->openConnection($relayUrl, $pubkey);
-                    $this->logger->info('Gateway: opened on-demand user connection for publish', [
-                        'relay'  => $relayUrl,
-                        'pubkey' => substr($pubkey, 0, 8) . '...',
-                    ]);
-                    return $conn;
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Gateway: failed to open user connection for publish', [
-                        'relay'  => $relayUrl,
-                        'pubkey' => substr($pubkey, 0, 8) . '...',
-                        'error'  => $e->getMessage(),
-                    ]);
-                    // Fall through to shared
-                }
-            }
         }
 
-        // No pubkey or user connection failed — fall back to shared
+        // Fall back to shared connection
         $sharedKey = GatewayConnection::buildKey($relayUrl);
         if (isset($this->connections[$sharedKey]) && $this->connections[$sharedKey]->isConnected()) {
             return $this->connections[$sharedKey];
         }
 
-        if ($this->healthStore->isAuthRequired($relayUrl)) {
-            $this->logger->debug('Gateway: auth-required relay, no user connection available for publish', [
-                'relay'  => $relayUrl,
-                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
-            ]);
-            return null;
-        }
-
-        try {
-            return $this->openConnection($relayUrl, null);
-        } catch (\Throwable) {
-            return null;
-        }
+        // No connection available — caller will write an immediate partial failure.
+        // If the user just logged in, connections are still being warmed via
+        // drainPendingConnections; a retry after a few seconds will succeed.
+        $this->logger->debug('Gateway: no connection available for publish (not yet warmed)', [
+            'relay'  => $relayUrl,
+            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+        ]);
+        return null;
     }
 
     // =========================================================================
@@ -1520,6 +1813,45 @@ class RelayGatewayCommand extends Command
         }
     }
 
+    /**
+     * Write a per-relay publish result to the response stream immediately.
+     *
+     * Each relay entry is written as soon as it resolves (OK received, timed out,
+     * or connection failed) so the client can record the relay's result without
+     * waiting for slower or stalled relays. The client stops reading once it has
+     * collected results for all expected relays OR sees done:true.
+     *
+     * @param bool   $accepted  Whether the relay confirmed the event (OK true)
+     * @param string $message   Reason string (empty on success, error/timeout on failure)
+     * @param bool   $allDone   True when this is the last relay for this correlation
+     */
+    private function writePartialPublishResponse(
+        string $correlationId,
+        string $relayUrl,
+        bool   $accepted,
+        string $message,
+        bool   $allDone,
+    ): void {
+        try {
+            $responseKey = self::RESPONSE_PREFIX . $correlationId;
+            $this->redis->xAdd($responseKey, '*', [
+                'relay'    => $relayUrl,
+                'ok'       => $accepted ? 'true' : 'false',
+                'message'  => $message,
+                'done'     => $allDone ? 'true' : 'false',
+            ]);
+            if ($allDone) {
+                $this->redis->expire($responseKey, 60);
+            }
+        } catch (\RedisException $e) {
+            $this->logger->error('Gateway: failed to write partial publish response', [
+                'correlation_id' => $correlationId,
+                'relay' => $relayUrl,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     private function writePublishResponse(string $correlationId, array $ok, array $errors): void
     {
         try {
@@ -1527,6 +1859,7 @@ class RelayGatewayCommand extends Command
             $this->redis->xAdd($responseKey, '*', [
                 'ok'     => json_encode($ok),
                 'errors' => json_encode($errors),
+                'done'   => 'true',
             ]);
             $this->redis->expire($responseKey, 60);
         } catch (\RedisException $e) {
@@ -1543,12 +1876,23 @@ class RelayGatewayCommand extends Command
 
     private function performMaintenance(): void
     {
-        // Close idle user connections
+        // Close idle OR dead user connections
         foreach ($this->connections as $key => $conn) {
-            if ($conn->isUserConnection() && $conn->getIdleSeconds() > $this->userIdleTimeout) {
-                $this->logger->info('Gateway: closing idle user connection', [
-                    'relay' => $conn->relayUrl,
+            if (!$conn->isUserConnection()) {
+                continue;
+            }
+            if (!$conn->isConnected()) {
+                $this->logger->info('Gateway: closing dead user connection', [
+                    'relay'  => $conn->relayUrl,
                     'pubkey' => substr($conn->pubkey, 0, 8) . '...',
+                ]);
+                $this->closeConnection($key);
+                continue;
+            }
+            if ($conn->getIdleSeconds() > $this->userIdleTimeout) {
+                $this->logger->info('Gateway: closing idle user connection', [
+                    'relay'        => $conn->relayUrl,
+                    'pubkey'       => substr($conn->pubkey, 0, 8) . '...',
                     'idle_seconds' => $conn->getIdleSeconds(),
                 ]);
                 $this->closeConnection($key);
@@ -1601,6 +1945,10 @@ class RelayGatewayCommand extends Command
             'pending_queries'      => count($this->pendingQueries),
             'pending_publishes'    => count($this->pendingPublishes),
             'pending_correlations' => count($this->pendingCorrelations),
+            'pending_connections'  => count($this->pendingConnections),
+            'deferred_publishes'   => count($this->pendingAuthPublishes),
+            'last_request_id'      => $this->lastRequestId,
+            'last_control_id'      => $this->lastControlId,
         ]);
     }
 

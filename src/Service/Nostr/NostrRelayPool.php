@@ -402,9 +402,16 @@ class NostrRelayPool implements RelayPoolInterface
                 $gatewayResult = $this->gatewayClient->publish($externalUrls, $signedEvent, $pubkey, $timeout);
 
                 foreach ($externalUrls as $url) {
-                    $results[$url] = isset($gatewayResult['errors'][$url])
-                        ? ['ok' => false, 'message' => $gatewayResult['errors'][$url]]
-                        : ['ok' => $gatewayResult['ok'][$url] ?? true];
+                    if (isset($gatewayResult['errors'][$url])) {
+                        $results[$url] = ['ok' => false, 'message' => $gatewayResult['errors'][$url]];
+                    } elseif (isset($gatewayResult['ok'][$url])) {
+                        // Gateway received an explicit OK/FAIL from the relay
+                        $accepted = (bool) $gatewayResult['ok'][$url];
+                        $results[$url] = ['ok' => $accepted, 'message' => $accepted ? '' : 'Relay rejected event'];
+                    } else {
+                        // No OK and no error — gateway timed out waiting for relay confirmation
+                        $results[$url] = ['ok' => false, 'message' => 'No confirmation received (timeout)'];
+                    }
                 }
 
                 $this->logger->info('Published event to external relays via gateway', [

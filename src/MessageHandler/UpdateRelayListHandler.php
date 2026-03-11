@@ -8,6 +8,7 @@ use App\Message\GatewayWarmConnectionsMessage;
 use App\Message\SyncUserEventsMessage;
 use App\Message\UpdateRelayListMessage;
 use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -30,7 +31,7 @@ class UpdateRelayListHandler
 {
     public function __construct(
         private readonly UserRelayListService $relayListService,
-        private readonly RelayHealthStore $healthStore,
+        private readonly RelayRegistry $relayRegistry,
         private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
         private readonly bool $gatewayEnabled = false,
@@ -72,31 +73,46 @@ class UpdateRelayListHandler
     {
         try {
             $relays = $this->relayListService->getRelayList($pubkey);
-            $allRelays = $relays['all'] ?? [];
 
-            // Filter to relays known to require AUTH
-            $authRelays = array_values(array_filter(
-                $allRelays,
-                fn(string $url) => $this->healthStore->isAuthRequired($url),
-            ));
+            // Warm ALL write relays, not just those already known to require AUTH.
+            // The health store only knows about relays the gateway has previously
+            // connected to — a new user or fresh install has no history, so
+            // filtering to isAuthRequired() would always produce an empty list.
+            // The gateway will open connections and discover AUTH requirements
+            // naturally as it receives AUTH challenges from each relay.
+            $writeRelays = array_values(array_unique(array_merge(
+                $relays['write'] ?? [],
+                $relays['all'] ?? [],
+            )));
 
-            if (empty($authRelays)) {
-                $this->logger->debug('UpdateRelayListHandler: no AUTH-gated relays to warm', [
+            // Exclude the local relay — it's always connected as a shared
+            // connection and never needs user-specific warming.
+            $localRelay = $this->relayRegistry->getLocalRelay();
+            if ($localRelay !== null) {
+                $writeRelays = array_values(array_filter(
+                    $writeRelays,
+                    fn(string $url) => rtrim(strtolower($url), '/') !== rtrim(strtolower($localRelay), '/'),
+                ));
+            }
+
+            if (empty($writeRelays)) {
+                $this->logger->debug('UpdateRelayListHandler: no write relays to warm', [
                     'pubkey' => substr($pubkey, 0, 16) . '...',
                 ]);
                 return;
             }
 
-            $this->messageBus->dispatch(new GatewayWarmConnectionsMessage($pubkey, $authRelays));
+            $this->messageBus->dispatch(new GatewayWarmConnectionsMessage($pubkey, $writeRelays));
 
             $this->logger->info('UpdateRelayListHandler: dispatched gateway warm', [
-                'pubkey' => substr($pubkey, 0, 16) . '...',
-                'auth_relay_count' => count($authRelays),
+                'pubkey'      => substr($pubkey, 0, 16) . '...',
+                'relay_count' => count($writeRelays),
+                'relays'      => $writeRelays,
             ]);
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: gateway warm dispatch failed', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
         }
     }

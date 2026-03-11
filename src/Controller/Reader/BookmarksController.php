@@ -6,13 +6,15 @@ namespace App\Controller\Reader;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Message\SyncUserEventsMessage;
 use App\Repository\EventRepository;
-use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class BookmarksController extends AbstractController
@@ -32,8 +34,9 @@ class BookmarksController extends AbstractController
     #[Route('/my-bookmarks', name: 'my_bookmarks')]
     public function index(
         EntityManagerInterface $em,
-        NostrClient $nostrClient,
         EventRepository $eventRepository,
+        UserRelayListService $userRelayListService,
+        MessageBusInterface $bus,
     ): Response {
         $user = $this->getUser();
         if (!$user) {
@@ -41,7 +44,7 @@ class BookmarksController extends AbstractController
         }
 
         $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-        $bookmarks = $this->loadBookmarks($pubkey, $em, $nostrClient);
+        [$bookmarks, $syncing] = $this->loadBookmarks($pubkey, $em, $userRelayListService, $bus);
 
         // Batch-resolve all 'e'-type bookmark items from the DB in one query
         $allEventIds = [];
@@ -61,19 +64,31 @@ class BookmarksController extends AbstractController
         return $this->render('pages/my-bookmarks.html.twig', [
             'bookmarks' => $bookmarks,
             'resolvedEvents' => $resolvedEvents,
+            'syncing' => $syncing,
         ]);
     }
 
     /**
-     * Load the user's bookmark events – all bookmark-related kinds in one query.
+     * Load the user's bookmark events from the local DB only.
      *
-     * 1. Try the local DB first.
-     * 2. If not found, fetch synchronously from relays via NostrClient.
+     * If nothing is found, dispatch an async SyncUserEventsMessage so the
+     * Messenger worker fetches and persists bookmarks in the background.
+     * Returns a [bookmarks, syncing] tuple — callers pass 'syncing' to the
+     * template so the UI can show a "syncing…" banner and auto-refresh.
      *
-     * @return object[]
+     * The synchronous relay fallback that was here previously caused request
+     * timeouts: a blocking REQ to external relays can take 5–30 seconds and
+     * is completely unnecessary because SyncUserEventsHandler already fetches
+     * all bookmark kinds on login.
+     *
+     * @return array{0: object[], 1: bool}
      */
-    private function loadBookmarks(string $pubkey, EntityManagerInterface $em, NostrClient $nostrClient): array
-    {
+    private function loadBookmarks(
+        string $pubkey,
+        EntityManagerInterface $em,
+        UserRelayListService $userRelayListService,
+        MessageBusInterface $bus,
+    ): array {
         $repo = $em->getRepository(Event::class);
         $kindValues = array_map(fn(KindsEnum $k) => $k->value, self::BOOKMARK_KINDS);
 
@@ -87,54 +102,35 @@ class BookmarksController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        // Fallback: sync fetch from relays
+        $syncing = false;
+
         if (empty($events)) {
-            $events = $this->fetchFromRelays($pubkey, $nostrClient, $em);
+            // Nothing in DB yet — dispatch async sync and tell the template
+            // to show a "syncing" state with an auto-refresh.
+            $syncing = true;
+            try {
+                // getRelayList() resolves from cache/DB only (no network call on the hot path).
+                $relayList = $userRelayListService->getRelayList($pubkey);
+                $relayUrls = $relayList['read'] ?? $relayList['all'] ?? [];
+
+                $bus->dispatch(new SyncUserEventsMessage($pubkey, $relayUrls));
+
+                $this->logger->info('BookmarksController: dispatched async sync (no bookmarks in DB yet)', [
+                    'pubkey' => substr($pubkey, 0, 8) . '...',
+                    'relay_count' => count($relayUrls),
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('BookmarksController: failed to dispatch sync', [
+                    'pubkey' => substr($pubkey, 0, 8) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
-        return array_map(fn(Event $e) => $this->parseBookmarkEvent($e), $events);
-    }
-
-    /**
-     * Fetch bookmark events directly from relays and persist them.
-     *
-     * @return Event[]
-     */
-    private function fetchFromRelays(string $pubkey, NostrClient $nostrClient, EntityManagerInterface $em): array
-    {
-        try {
-            $relayEvents = $nostrClient->fetchBookmarks($pubkey);
-
-            if (empty($relayEvents)) {
-                return [];
-            }
-
-            $persisted = [];
-            foreach ($relayEvents as $raw) {
-                $event = new Event();
-                $event->setId($raw->id);
-                $event->setEventId($raw->id);
-                $event->setPubkey($raw->pubkey);
-                $event->setKind($raw->kind);
-                $event->setContent($raw->content ?? '');
-                $event->setTags($raw->tags ?? []);
-                $event->setCreatedAt($raw->created_at);
-                $event->setSig($raw->sig ?? '');
-
-                $em->persist($event);
-                $persisted[] = $event;
-            }
-
-            $em->flush();
-
-            return $persisted;
-        } catch (\Throwable $e) {
-            $this->logger->warning('📚 Failed to fetch bookmarks from relays', [
-                'pubkey' => $pubkey,
-                'error' => $e->getMessage(),
-            ]);
-            return [];
-        }
+        return [
+            array_map(fn(Event $e) => $this->parseBookmarkEvent($e), $events),
+            $syncing,
+        ];
     }
 
     /**

@@ -58,7 +58,11 @@ class GatewayConnection
 
     public static function buildKey(string $relayUrl, ?string $pubkey = null): string
     {
-        return $pubkey !== null ? "{$relayUrl}::{$pubkey}" : $relayUrl;
+        // Normalize: strip trailing slash, lowercase — so that
+        // "wss://relay.damus.io" and "wss://relay.damus.io/" resolve
+        // to the same connection key.
+        $normalized = rtrim(strtolower($relayUrl), '/');
+        return $pubkey !== null ? "{$normalized}::{$pubkey}" : $normalized;
     }
 
     public function isShared(): bool

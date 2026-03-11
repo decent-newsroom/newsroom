@@ -160,7 +160,7 @@ class RunWorkersCommand extends Command
         // Relay gateway: only if env RELAY_GATEWAY_ENABLED=true and not disabled via flag
         if (!$input->getOption('without-gateway') && ($_ENV['RELAY_GATEWAY_ENABLED'] ?? getenv('RELAY_GATEWAY_ENABLED') ?: 'false') === 'true') {
             $workers['relay-gateway'] = [
-                'command' => ['php', 'bin/console', 'app:relay-gateway', '-vv'],
+                'command' => ['php', 'bin/console', 'app:relay-gateway', '-vv', '--time-limit=3600'],
                 'description' => 'Relay gateway (persistent connections + NIP-42 AUTH)'
             ];
         }

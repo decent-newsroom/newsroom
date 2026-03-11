@@ -39,37 +39,6 @@
             </div>
         </div>
 
-        {# Database Statistics #}
-        <div class="status-card">
-            <h2>Database Statistics</h2>
-
-            {% if stats.error is defined %}
-                <div class="alert alert-error">{{ stats.error }}</div>
-            {% elseif stats.relay_accessible %}
-                <div class="stat-row">
-                    <span class="stat-label">Relay Status</span>
-                    <span class="stat-value"><span class="status-indicator healthy"></span> Accessible & Running</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Total Events</span>
-                    <span class="stat-value">{{ stats.total_events }}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Database Size</span>
-                    <span class="stat-value">{{ stats.database_size }}</span>
-                </div>
-                {% if stats.total_events == 0 %}
-                <div class="alert alert-warning" style="margin-top: 1rem;">
-                    No events found. Run prime to populate the relay.
-                </div>
-                {% endif %}
-            {% else %}
-                <div class="alert alert-error">
-                    Relay not accessible
-                </div>
-            {% endif %}
-        </div>
-
         {# Configuration #}
         <div class="status-card">
             <h2>Configuration</h2>

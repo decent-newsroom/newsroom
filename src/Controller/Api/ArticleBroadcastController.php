@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Repository\ArticleRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayGatewayClient;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use swentel\nostr\Event\Event;
@@ -20,7 +21,8 @@ class ArticleBroadcastController extends AbstractController
         private readonly ArticleRepository $articleRepository,
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
-        private readonly UserRelayListService $userRelayListService
+        private readonly UserRelayListService $userRelayListService,
+        private readonly ?RelayGatewayClient $gatewayClient = null,
     ) {}
 
     /**
@@ -30,6 +32,9 @@ class ArticleBroadcastController extends AbstractController
     #[Route('/broadcast-article', name: 'api_broadcast_article', methods: ['POST'])]
     public function broadcastArticle(Request $request): JsonResponse
     {
+        // Allow enough time for relay publishing (gateway timeout is 10s + per-relay settle)
+        set_time_limit(60);
+
         try {
             $data = json_decode($request->getContent(), true);
 
@@ -118,22 +123,52 @@ class ArticleBroadcastController extends AbstractController
                 'relay_count' => empty($relays) ? 'auto' : count($relays)
             ]);
 
-            // Broadcast to relays
-            // If no relays specified, NostrClient will use author's relays + local relay
-            $results = $this->nostrClient->publishEvent($event, $relays);
+            // Broadcast to relays.
+            // If the gateway is enabled, warm the user's connections so the gateway
+            // opens persistent WebSocket connections before the publish request
+            // arrives. If connections aren't ready yet (authStatus='none'), the
+            // gateway defers the EVENT for a 1-second settle window then sends it
+            // automatically via checkPendingAuths — no sleep needed here.
+            if ($this->gatewayClient !== null) {
+                try {
+                    $user = $this->getUser();
+                    if ($user) {
+                        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                        $this->gatewayClient->warmUserConnections($pubkeyHex, $relays);
+                        $this->logger->info('ArticleBroadcastController: dispatched warm', [
+                            'relay_count' => count($relays),
+                        ]);
+                    }
+                } catch (\Throwable) {}
+            }
 
-            // Count successful broadcasts
+            $results = $this->nostrClient->publishEvent($event, $relays, 10);
+
+            // Count successful broadcasts.
+            // Results are either RelayResponseOk objects (local/direct publish)
+            // or ['ok' => bool, 'message' => string] arrays (gateway publish).
             $successCount = 0;
             $failedRelays = [];
 
             foreach ($results as $relay => $result) {
-                if ($result instanceof \Exception) {
-                    $failedRelays[] = [
-                        'relay' => $relay,
-                        'error' => $result->getMessage()
-                    ];
-                } else {
+                $success = false;
+                $message = '';
+
+                if (is_object($result)) {
+                    $success = (bool) ($result->isSuccess ?? $result->status ?? false);
+                    $message = $result->message ?? '';
+                } elseif (is_array($result)) {
+                    $success = (bool) ($result['ok'] ?? false);
+                    $message = $result['message'] ?? '';
+                }
+
+                if ($success) {
                     $successCount++;
+                } else {
+                    $failedRelays[] = [
+                        'relay'   => $relay,
+                        'error'   => $message ?: 'No confirmation received',
+                    ];
                 }
             }
 

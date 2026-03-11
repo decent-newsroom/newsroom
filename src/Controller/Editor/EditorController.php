@@ -520,7 +520,16 @@ class EditorController extends AbstractController
     }
 
     /**
-     * Transform relay response objects into a simple array format for frontend
+     * Transform relay response objects/arrays into a simple format for the frontend.
+     *
+     * Two response shapes exist depending on the publish path:
+     *
+     *  1. Direct publish (local relay via publishDirect / RelaySet::send()):
+     *     RelayResponseOk object with ->type, ->isSuccess, ->message, ->eventId
+     *
+     *  2. Gateway publish (external relays via RelayGatewayClient::publish()):
+     *     Plain array ['ok' => bool, 'message' => string]
+     *     (built by NostrRelayPool::publish() from the gateway's ok/errors maps)
      */
     private function transformRelayResults(array $rawResults): array
     {
@@ -528,38 +537,37 @@ class EditorController extends AbstractController
 
         foreach ($rawResults as $relayUrl => $response) {
             $result = [
-                'relay' => $relayUrl,
+                'relay'   => $relayUrl,
                 'success' => false,
-                'type' => 'unknown',
-                'message' => ''
+                'type'    => 'unknown',
+                'message' => '',
             ];
 
-            // Check if it's a RelayResponse object with accessible properties
             if (is_object($response)) {
-                // RelayResponseOk - indicates successful publish
-                if (isset($response->type) && $response->type === 'OK') {
-                    $result['success'] = true;
-                    $result['type'] = 'ok';
+                // Direct RelayResponseOk / RelayResponseAuth / RelayResponseNotice
+                $type = $response->type ?? '';
+                if ($type === 'OK') {
+                    $result['success'] = (bool) ($response->isSuccess ?? $response->status ?? false);
+                    $result['type']    = 'ok';
                     $result['message'] = $response->message ?? '';
-                }
-                // RelayResponseAuth - relay requires auth (not necessarily a failure)
-                elseif (isset($response->type) && $response->type === 'AUTH') {
-                    $result['success'] = false; // Not confirmed published
-                    $result['type'] = 'auth';
-                    $result['message'] = 'Authentication required';
-                }
-                // RelayResponseNotice - informational message
-                elseif (isset($response->type) && $response->type === 'NOTICE') {
+                } elseif ($type === 'AUTH') {
                     $result['success'] = false;
-                    $result['type'] = 'notice';
+                    $result['type']    = 'auth';
+                    $result['message'] = 'Authentication required';
+                } elseif ($type === 'NOTICE') {
+                    $result['success'] = false;
+                    $result['type']    = 'notice';
+                    $result['message'] = $response->message ?? '';
+                } elseif (isset($response->isSuccess)) {
+                    $result['success'] = (bool) $response->isSuccess;
+                    $result['type']    = strtolower($type ?: 'ok');
                     $result['message'] = $response->message ?? '';
                 }
-                // Check isSuccess property if available
-                elseif (isset($response->isSuccess)) {
-                    $result['success'] = (bool)$response->isSuccess;
-                    $result['type'] = $response->type ?? 'unknown';
-                    $result['message'] = $response->message ?? '';
-                }
+            } elseif (is_array($response)) {
+                // Gateway publish result: ['ok' => bool, 'message' => string]
+                $result['success'] = (bool) ($response['ok'] ?? false);
+                $result['type']    = 'ok';
+                $result['message'] = $response['message'] ?? '';
             }
 
             $results[] = $result;

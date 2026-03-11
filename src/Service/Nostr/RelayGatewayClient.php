@@ -78,7 +78,8 @@ class RelayGatewayClient
             $lastId = '0-0'; // always start from the beginning of this unique stream
 
             while (!$eose && time() < $deadline) {
-                $remainingMs = max(100, ($deadline - time()) * 1000);
+                // Cap each xRead block at 1s — see publish() for rationale.
+                $remainingMs = min(1000, max(100, ($deadline - time()) * 1000));
                 $result = $this->redis->xRead(
                     [$responseKey => $lastId],
                     100,
@@ -140,6 +141,17 @@ class RelayGatewayClient
     /**
      * Publish a signed event to relays via the gateway.
      *
+     * The gateway writes one stream entry per relay as soon as that relay
+     * resolves (OK received, timed out, or connection failed). This method
+     * reads them as they arrive, so a slow or stalled relay does not delay
+     * the result for relays that responded quickly.
+     *
+     * Stream entry shapes:
+     *
+     *   Header (first entry):    { total: "N" }
+     *   Per-relay partial:       { relay: url, ok: "true"|"false", message: "...", done: "true"|"false" }
+     *   Fast-path (0 relays):    { ok: <json>, errors: <json>, done: "true" }
+     *
      * @param string[] $relayUrls   Relay URLs to publish to
      * @param array    $signedEvent Signed Nostr event (as associative array)
      * @param ?string  $pubkey      User pubkey for AUTH-gated relays
@@ -151,45 +163,86 @@ class RelayGatewayClient
 
         $this->logger->debug('RelayGatewayClient: publishing event', [
             'correlation_id' => $correlationId,
-            'relays' => $relayUrls,
-            'event_id' => substr($signedEvent['id'] ?? 'unknown', 0, 16),
-            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+            'relays'         => $relayUrls,
+            'event_id'       => substr($signedEvent['id'] ?? 'unknown', 0, 16),
+            'pubkey'         => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
         ]);
 
         try {
             $this->redis->xAdd(self::REQUEST_STREAM, '*', [
-                'id' => $correlationId,
-                'action' => 'publish',
-                'relays' => json_encode($relayUrls),
-                'event' => json_encode($signedEvent),
-                'pubkey' => $pubkey ?? '',
+                'id'      => $correlationId,
+                'action'  => 'publish',
+                'relays'  => json_encode($relayUrls),
+                'event'   => json_encode($signedEvent),
+                'pubkey'  => $pubkey ?? '',
                 'timeout' => (string) $timeout,
             ]);
 
-            // Wait for response
             $responseKey = self::RESPONSE_PREFIX . $correlationId;
-            $result = $this->redis->xRead(
-                [$responseKey => '0-0'],
-                10,
-                ($timeout + 2) * 1000,
-            );
+            // +3s grace: AUTH settle (1s) + gateway event-loop tick + network RTT
+            $deadline    = time() + $timeout + 3;
+            $ok          = [];
+            $errors      = [];
+            $lastId      = '0-0';
+            $totalExpected = count($relayUrls); // client-side expectation
+            $resolved    = 0;
+            $allDone     = false;
 
-            $ok = [];
-            $errors = [];
+            while (!$allDone && time() < $deadline) {
+                // Cap each xRead block at 1s so we never consume large chunks of
+                // PHP execution time in a single blocking call. The loop deadline
+                // handles the overall timeout independently.
+                $remainingMs = min(1000, max(100, ($deadline - time()) * 1000));
+                $result = $this->redis->xRead(
+                    [$responseKey => $lastId],
+                    20,                  // read up to 20 entries per tick
+                    (int) $remainingMs,
+                );
 
-            if ($result && isset($result[$responseKey])) {
-                foreach ($result[$responseKey] as $data) {
-                    if (isset($data['ok'])) {
+                if (!$result || !isset($result[$responseKey])) {
+                    continue;
+                }
+
+                foreach ($result[$responseKey] as $messageId => $data) {
+                    $lastId = $messageId;
+
+                    if (isset($data['total'])) {
+                        // Header entry — override our local count with what the gateway says
+                        $totalExpected = (int) $data['total'];
+                        continue;
+                    }
+
+                    if (isset($data['relay'])) {
+                        // Per-relay partial result
+                        $relayUrl = $data['relay'];
+                        $accepted = ($data['ok'] ?? 'false') === 'true';
+                        $message  = $data['message'] ?? '';
+                        $ok[$relayUrl] = $accepted;
+                        if (!$accepted && $message !== '') {
+                            $errors[$relayUrl] = $message;
+                        }
+                        $resolved++;
+                    } elseif (isset($data['ok'])) {
+                        // Legacy / zero-relay fast-path: bulk response
                         $decoded = json_decode($data['ok'], true);
                         if (is_array($decoded)) {
-                            $ok = $decoded;
+                            $ok = array_merge($ok, $decoded);
+                        }
+                        $decoded = json_decode($data['errors'] ?? '{}', true);
+                        if (is_array($decoded)) {
+                            $errors = array_merge($errors, $decoded);
                         }
                     }
-                    if (isset($data['errors'])) {
-                        $decoded = json_decode($data['errors'], true);
-                        if (is_array($decoded)) {
-                            $errors = $decoded;
-                        }
+
+                    if (($data['done'] ?? '') === 'true') {
+                        $allDone = true;
+                        break;
+                    }
+
+                    // Stop early if we have results for every expected relay
+                    if ($totalExpected > 0 && $resolved >= $totalExpected) {
+                        $allDone = true;
+                        break;
                     }
                 }
             }
@@ -197,6 +250,16 @@ class RelayGatewayClient
             try {
                 $this->redis->expire($responseKey, self::RESPONSE_TTL);
             } catch (\RedisException) {}
+
+            $this->logger->info('RelayGatewayClient: publish complete', [
+                'correlation_id'    => $correlationId,
+                'received_response' => $allDone,
+                'timed_out'         => !$allDone,
+                'resolved'          => $resolved,
+                'total_expected'    => $totalExpected,
+                'ok'                => $ok,
+                'errors'            => !empty($errors) ? $errors : null,
+            ]);
 
             return ['ok' => $ok, 'errors' => $errors];
 
