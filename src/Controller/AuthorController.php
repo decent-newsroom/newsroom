@@ -1366,7 +1366,7 @@ class AuthorController extends AbstractController
     /**
      * Author profile - redirect to overview tab by default
      */
-    #[Route('/p/{vanity}', name: 'author-vanity-profile', priority: -10)]
+    #[Route('/{vanity}', name: 'author-vanity-profile', priority: -10)]
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
     public function index(string $npub = null, string $vanity = null): Response
     {

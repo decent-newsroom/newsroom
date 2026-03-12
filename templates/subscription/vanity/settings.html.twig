@@ -22,6 +22,11 @@
             </div>
             <div class="card-body">
                 <dl>
+                    <dt>Vanity Name</dt>
+                    <dd style="font-size: 1.25rem; font-weight: bold;">
+                        {{ vanityName.vanityName }}
+                    </dd>
+
                     <dt>NIP-05 Identifier</dt>
                     <dd style="font-size: 1.25rem; font-weight: bold;">
                         {{ vanityName.vanityName }}@{{ serverDomain }}
@@ -54,8 +59,8 @@
 
                     <dt>Profile URL</dt>
                     <dd>
-                        <a href="{{ path('vanity-profile-redirect', {vanityName: vanityName.vanityName}) }}">
-                            {{ url('vanity-profile-redirect', {vanityName: vanityName.vanityName}) }}
+                        <a href="{{ path('author-vanity-profile', {vanity: vanityName.vanityName}) }}">
+                            {{ url('author-vanity-profile', {vanity: vanityName.vanityName}) }}
                         </a>
                     </dd>
 

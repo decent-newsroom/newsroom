@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## v0.0.14
-Ripped out relay management, again, trying something new. 
+Ripped out relay management, again, trying something different. 
 
 - Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
 - Relay pool management Phase 1: centralized relay configuration via `RelayRegistry` (replaces 4 scattered hardcoded constants), Redis-backed persistent health tracking via `RelayHealthStore`, and consolidated 3 near-identical subscription loops (~600 lines) into one parameterized `subscribeLocal()` method with heartbeat reporting.
@@ -18,6 +18,7 @@ Ripped out relay management, again, trying something new.
 - [Bug] Fixed relay URL normalization in `GatewayConnection::buildKey` — trailing slash differences between config and user relay lists caused shared connection lookup misses.
 - [Bug] Fixed `xRead('$')` initialization causing gateway to never consume stream messages. Added `getStreamLastId` via `xRevRange` for robust initialization.
 - [Bug] Fixed Error: Failed to fetch article: The EntityManager is closed.
+- [Bug] Fixed vanity name subscription settings page.
 
 ## v0.0.13
 All improvements were gathered on the way, while trying to get rid of the persistent errors.
