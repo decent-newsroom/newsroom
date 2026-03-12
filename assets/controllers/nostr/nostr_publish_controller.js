@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 import { EditorView, basicSetup } from 'codemirror';
 import { json } from '@codemirror/lang-json';
-import { npubToHex } from '../../typescript/nostr-utils.ts';
+import { npubToHex, extractNostrTags, decodeNip19 } from '../../typescript/nostr-utils.ts';
 import { getRemoteSignerSession } from './signer_manager.js';
 
 // Inline utility functions (simplified versions)
@@ -559,6 +559,33 @@ export default class extends Controller {
       const advancedTags = buildAdvancedTags(formData.advancedMetadata);
       tags.push(...advancedTags);
     }
+
+    // Auto-generate p/e/a tags from nostr: references in content (NIP-27)
+    // Collect mention names from Quill's nostrMention embeds (hex → displayName)
+    const mentionNames = {};
+    if (window.appQuill) {
+      const delta = window.appQuill.getContents();
+      for (const op of (delta.ops || [])) {
+        if (op.insert && typeof op.insert === 'object' && op.insert.nostrMention) {
+          const { npub, name } = op.insert.nostrMention;
+          if (npub && name && !name.includes('…') && !name.startsWith('npub1')) {
+            const hex = npubToHex(npub);
+            if (hex) mentionNames[hex] = name;
+          }
+        }
+      }
+    }
+    const nostrRefTags = extractNostrTags(formData.content, mentionNames);
+    // Deduplicate against existing tags
+    const existingTagKeys = new Set(tags.map(t => t.slice(0, 2).join(':')));
+    for (const tag of nostrRefTags) {
+      const key = tag.slice(0, 2).join(':');
+      if (!existingTagKeys.has(key)) {
+        existingTagKeys.add(key);
+        tags.push(tag);
+      }
+    }
+
     // Return the event object, with pubkey and loginMethod for signing logic
     return {
       kind: kind,

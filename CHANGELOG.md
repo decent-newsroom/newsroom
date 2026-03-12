@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v0.0.15
+Mentions, embeds, and uploads.
+
+- Added Mentions tab in the editor left sidebar: search users by name/NIP-05 and insert `nostr:npub1…` mentions at the cursor. Corresponding `p` tags are auto-generated on publish per NIP-27.
+- Added Embeds tab in the editor left sidebar with three sections: profile embed (user search → `nostr:npub1…` card), article embed (article search → `nostr:naddr1…` card), and raw identifier paste (accepts `note1…`, `nevent1…`, `naddr1…`, `npub1…` codes).
+- Auto-generate `p`, `e`, and `a` tags from `nostr:` references in article content at publish time (both client-side in JS and server-side in PHP), per NIP-27. Deduplication prevents duplicate tags.
+- Added NIP-19 TLV encoding/decoding utilities to `nostr-utils.ts`: `decodeNip19()`, `encodeNprofile()`, `encodeNaddr()`, and `extractNostrTags()` for full bech32 entity support.
+
+
 ## v0.0.14
 Ripped out relay management, again, trying something different. 
 

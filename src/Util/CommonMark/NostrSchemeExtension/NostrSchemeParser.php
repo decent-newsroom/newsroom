@@ -5,6 +5,7 @@ namespace App\Util\CommonMark\NostrSchemeExtension;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
@@ -31,6 +32,7 @@ class NostrSchemeParser  implements InlineParserInterface
         private readonly ArticleFactory    $articleFactory,
         private readonly ArticleRepository $articleRepository,
         private readonly ?NostrPrefetchedData $prefetchedData = null,
+        private readonly ?EventRepository  $eventRepository = null,
     )
     {
     }
@@ -78,11 +80,14 @@ class NostrSchemeParser  implements InlineParserInterface
                 case 'note':
                     /** @var Note $decodedEvent */
                     $decodedEvent = $decoded->data;
-                    // Use prefetched event data if available, otherwise fetch individually
+                    // Use prefetched event data if available, then DB, then relay
                     if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->data)) {
                         $event = $this->prefetchedData->getEvent($decodedEvent->data);
                     } else {
-                        $event = $this->nostrClient->getEventById($decodedEvent->data);
+                        $event = $this->findEventInDb($decodedEvent->data);
+                        if (!$event) {
+                            $event = $this->nostrClient->getEventById($decodedEvent->data);
+                        }
                     }
                     // If note is kind 20
                     // Render the embedded picture card
@@ -102,11 +107,14 @@ class NostrSchemeParser  implements InlineParserInterface
                     /** @var NEvent $decodedEvent */
                     $decodedEvent = $decoded->data;
 
-                    // Use prefetched event data if available, otherwise fetch individually
+                    // Use prefetched event data if available, then DB, then relay
                     if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->id)) {
                         $event = $this->prefetchedData->getEvent($decodedEvent->id);
                     } else {
-                        $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
+                        $event = $this->findEventInDb($decodedEvent->id);
+                        if (!$event) {
+                            $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
+                        }
                     }
 
                     if ($event) {
@@ -250,5 +258,35 @@ class NostrSchemeParser  implements InlineParserInterface
         }
 
         return $this->redisCacheService->getMetadata($hex);
+    }
+
+    /**
+     * Try to find an event in the local database before hitting relays.
+     * Returns a stdClass object compatible with NostrClient responses, or null.
+     */
+    private function findEventInDb(string $eventId): ?object
+    {
+        if ($this->eventRepository === null) {
+            return null;
+        }
+
+        try {
+            $entity = $this->eventRepository->findById($eventId);
+            if (!$entity) {
+                return null;
+            }
+
+            $obj = new \stdClass();
+            $obj->id = $entity->getId();
+            $obj->kind = $entity->getKind();
+            $obj->pubkey = $entity->getPubkey();
+            $obj->content = $entity->getContent();
+            $obj->created_at = $entity->getCreatedAt();
+            $obj->tags = $entity->getTags();
+            $obj->sig = $entity->getSig();
+            return $obj;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

@@ -14,6 +14,10 @@ export default class extends Controller {
         console.log('Editor layout controller connected');
         this.autoSaveTimer = null;
 
+        // Cache of npub → display name, populated from Quill blots and API lookups.
+        // Survives tab switches so names don't need re-fetching.
+        this.mentionNameCache = {};
+
         // Expose method globally so login controllers can save state before reload
         window.saveEditorStateBeforeLogin = () => this.saveCompleteStateBeforeLogin();
 
@@ -221,6 +225,8 @@ export default class extends Controller {
 
         // Update content when switching modes
         if (mode === 'markdown' && this.state.active_source === 'quill') {
+            // Snapshot mention names from Quill blots before converting
+            this.snapshotMentionNames();
             // Convert Delta to NMD
             this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
             this.state.active_source = 'md';
@@ -423,6 +429,8 @@ export default class extends Controller {
     onQuillChange(delta) {
         this.state.content_delta = delta;
         this.state.active_source = 'quill';
+        // Keep mention name cache warm from Quill blots
+        this.snapshotMentionNames();
         this.persistState();
         this.emitContentChanged();
     }
@@ -460,6 +468,8 @@ export default class extends Controller {
             if (window.appQuill && this.state.content_delta) {
                 console.log('[Editor] Updating Quill with delta:', this.state.content_delta);
                 window.appQuill.setContents(this.state.content_delta);
+                // Hydrate mention blots with display names
+                this.hydrateMentionNames();
             } else if (!window.appQuill) {
                 // Retry after a short delay if Quill isn't ready yet
                 console.log('[Editor] Quill not ready yet, retrying...');
@@ -469,16 +479,99 @@ export default class extends Controller {
         setQuillContent();
     }
 
+    /**
+     * Snapshot display names from all nostrMention blots in Quill into the cache.
+     * Called before Quill→MD conversion so names survive the round-trip.
+     */
+    snapshotMentionNames() {
+        const quill = window.appQuill;
+        if (!quill) return;
+
+        for (const span of quill.root.querySelectorAll('.ql-mention')) {
+            const npub = span.getAttribute('data-npub') || '';
+            const name = span.getAttribute('data-name') || '';
+            // Only cache real names, not truncated npubs
+            if (npub && name && !name.includes('…') && !name.startsWith('npub1')) {
+                this.mentionNameCache[npub] = name;
+            }
+        }
+    }
+
+    /**
+     * Batch-resolve display names for nostrMention blots in the Quill editor.
+     * First applies names from the local cache, then fetches only truly unknown
+     * npubs from the API. Populates the cache with API results.
+     */
+    hydrateMentionNames() {
+        const quill = window.appQuill;
+        if (!quill) return;
+
+        const mentionSpans = quill.root.querySelectorAll('.ql-mention');
+        if (!mentionSpans.length) return;
+
+        const npubsToFetch = [];
+        for (const span of mentionSpans) {
+            const npub = span.getAttribute('data-npub') || '';
+            const name = span.getAttribute('data-name') || '';
+            const needsResolving = !name || name.includes('…') || name.startsWith('npub1');
+
+            if (!needsResolving) continue;
+            if (!npub || !npub.startsWith('npub1')) continue;
+
+            // Check cache first
+            if (this.mentionNameCache[npub]) {
+                span.setAttribute('data-name', this.mentionNameCache[npub]);
+                span.textContent = `@${this.mentionNameCache[npub]}`;
+            } else {
+                npubsToFetch.push(npub);
+            }
+        }
+
+        if (!npubsToFetch.length) return;
+
+        const uniqueNpubs = [...new Set(npubsToFetch)];
+        console.log('[Editor] Fetching mention names for', uniqueNpubs.length, 'npubs');
+
+        fetch('/api/users/by-npubs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ npubs: uniqueNpubs }),
+        })
+        .then(res => res.ok ? res.json() : { users: [] })
+        .then(data => {
+            const nameMap = {};
+            for (const user of (data.users || [])) {
+                if (user.npub) {
+                    const resolved = user.displayName || user.name || '';
+                    if (resolved) {
+                        nameMap[user.npub] = resolved;
+                        // Populate the cache
+                        this.mentionNameCache[user.npub] = resolved;
+                    }
+                }
+            }
+
+            // Update blots in place
+            for (const span of quill.root.querySelectorAll('.ql-mention')) {
+                const npub = span.getAttribute('data-npub') || '';
+                const resolved = nameMap[npub];
+                if (resolved) {
+                    span.setAttribute('data-name', resolved);
+                    span.textContent = `@${resolved}`;
+                }
+            }
+        })
+        .catch(err => console.warn('[Editor] Failed to hydrate mention names:', err));
+    }
+
     // --- Conversion Stubs (implement via DNIR pipeline) ---
     deltaToNMD(delta) {
         // Use conversion pipeline
         return deltaToMarkdown(delta);
     }
     nmdToDelta(nmd) {
-        // Use conversion pipeline
-        console.log('Converting NMD to Delta:', nmd);
-        console.log('Converted Delta:', markdownToDelta(nmd));
-        return markdownToDelta(nmd);
+        // Pass mentionNameCache so npub→name lookup doesn't require API
+        return markdownToDelta(nmd, { mentionNames: this.mentionNameCache });
     }
 
     emitContentChanged() {

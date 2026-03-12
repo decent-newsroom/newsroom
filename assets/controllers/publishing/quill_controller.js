@@ -40,6 +40,31 @@ export default class extends Controller {
     }
     Quill.register(ImageAltBlot);
 
+    // --- 1b) Custom inline Embed for nostr mentions (@name → nostr:npub1...) ---
+    const InlineEmbed = Quill.import('blots/embed');
+    class NostrMentionBlot extends InlineEmbed {
+      static blotName  = 'nostrMention';
+      static tagName   = 'SPAN';
+      static className = 'ql-mention';
+
+      static create(value) {
+        const node = super.create();
+        node.setAttribute('data-npub', value.npub || '');
+        node.setAttribute('data-name', value.name || '');
+        node.setAttribute('contenteditable', 'false');
+        node.textContent = `@${value.name || 'unknown'}`;
+        return node;
+      }
+
+      static value(node) {
+        return {
+          npub: node.getAttribute('data-npub') || '',
+          name: node.getAttribute('data-name') || '',
+        };
+      }
+    }
+    Quill.register(NostrMentionBlot);
+
     // --- 2) Simple image tooltip (URL + alt) ---
     const Tooltip = Quill.import('ui/tooltip');
     class ImageTooltip extends Tooltip {
@@ -52,7 +77,7 @@ export default class extends Controller {
           '<input class="ql-image-src" type="text" placeholder="Image URL" />',
           '<input class="ql-image-alt" type="text" placeholder="Alt text" />',
           '<a class="ql-action"></a>',
-          '<a class="ql-cancel">Cancel</a>',
+          '<a class="ql-cancel"></a>',
           '</div>',
         ].join('');
 
@@ -139,7 +164,8 @@ export default class extends Controller {
         'image',
         'video',
         'imageAlt',
-        'formula'
+        'formula',
+        'nostrMention'
       ],
       modules: {
         toolbar: toolbarOptions,
@@ -151,17 +177,18 @@ export default class extends Controller {
       this.element.querySelector('#editor') ||
       document.querySelector('#editor');
 
-    // Before initializing Quill, check if there's existing HTML with formulas
+    // Before initializing Quill, check if there's existing HTML with formulas or mentions
     const existingHTML = editorEl.innerHTML.trim();
     const hasFormulas = existingHTML.includes('ql-formula');
+    const hasMentions = existingHTML.includes('ql-mention');
 
     this.quill = new Quill(editorEl, options);
 
     // Expose globally for preview functionality
     window.appQuill = this.quill;
 
-    // If there were formulas in the loaded HTML, we need to convert them to proper embeds
-    if (hasFormulas) {
+    // If there were formulas or mentions in the loaded HTML, convert them to proper embeds
+    if (hasFormulas || hasMentions) {
       this.convertFormulasToEmbeds();
     }
 
@@ -257,6 +284,16 @@ export default class extends Controller {
           const texValue = node.getAttribute('data-value');
           if (texValue) {
             deltaOps.push({ insert: { formula: texValue } });
+          }
+          return;
+        }
+
+        // Handle nostr mention spans
+        if (node.classList && node.classList.contains('ql-mention')) {
+          const npub = node.getAttribute('data-npub');
+          const name = node.getAttribute('data-name');
+          if (npub) {
+            deltaOps.push({ insert: { nostrMention: { npub, name: name || '' } } });
           }
           return;
         }
@@ -410,6 +447,7 @@ function deltaToMarkdown(delta) {
     if (seg.type === 'embed') {
       const e = seg.embed;
       if (e.formula) return `$${escapeUnderscoresInTeXForPosting(e.formula)}$`;
+      if (e.nostrMention) return `nostr:${e.nostrMention.npub || ''}`;
       if (e.imageAlt) return `![${e.imageAlt.alt || 'image'}](${e.imageAlt.src || ''})`;
       if (e.image) return `![image](${e.image})`;
       return '[embed]';

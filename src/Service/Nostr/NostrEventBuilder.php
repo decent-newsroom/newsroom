@@ -58,6 +58,22 @@ class NostrEventBuilder
             $tags[] = ['client', 'Decent Newsroom'];
         }
 
+        // Auto-generate p/e/a tags from nostr: references in content (NIP-27)
+        $content = $article->getContent() ?? '';
+        $nostrRefTags = $this->extractNostrReferenceTags($content);
+        // Deduplicate against existing tags
+        $existingKeys = [];
+        foreach ($tags as $t) {
+            $existingKeys[] = ($t[0] ?? '') . ':' . ($t[1] ?? '');
+        }
+        foreach ($nostrRefTags as $refTag) {
+            $key = ($refTag[0] ?? '') . ':' . ($refTag[1] ?? '');
+            if (!in_array($key, $existingKeys, true)) {
+                $existingKeys[] = $key;
+                $tags[] = $refTag;
+            }
+        }
+
         // Advanced metadata tags
         if ($metadata) {
             $tags = array_merge($tags, $this->buildAdvancedTags($metadata));
@@ -202,6 +218,107 @@ class NostrEventBuilder
         }
 
         return $shares;
+    }
+
+    /**
+     * Extract p, e, a tags from nostr: references in content (NIP-27).
+     *
+     * Scans for nostr:npub1..., nostr:nprofile1..., nostr:note1...,
+     * nostr:nevent1..., nostr:naddr1... and returns the appropriate tags.
+     *
+     * @param string $content The article markdown/text content
+     * @return array Array of tag arrays, e.g. [['p', hex], ['e', id, relay, 'mention'], ['a', coord, relay]]
+     */
+    public function extractNostrReferenceTags(string $content): array
+    {
+        $pattern = '/nostr:(?:npub1|nprofile1|note1|nevent1|naddr1)[a-z0-9]+/i';
+        if (!preg_match_all($pattern, $content, $matches)) {
+            return [];
+        }
+
+        $tags = [];
+        $seenP = [];
+        $seenE = [];
+        $seenA = [];
+
+        foreach ($matches[0] as $match) {
+            $bech = substr($match, 6); // strip 'nostr:'
+
+            try {
+                $decoded = new Bech32($bech);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            switch ($decoded->type) {
+                case 'npub':
+                    try {
+                        $hex = $this->key->convertToHex($bech);
+                        if (!isset($seenP[$hex])) {
+                            $seenP[$hex] = true;
+                            $tags[] = ['p', $hex];
+                        }
+                    } catch (\Throwable) {
+                        // Skip invalid npub
+                    }
+                    break;
+
+                case 'nprofile':
+                    /** @var \nostriphant\NIP19\Data\NProfile $data */
+                    $data = $decoded->data;
+                    $hex = $data->pubkey;
+                    if (!isset($seenP[$hex])) {
+                        $seenP[$hex] = true;
+                        $relay = $data->relays[0] ?? '';
+                        $tags[] = ['p', $hex, $relay];
+                    }
+                    break;
+
+                case 'note':
+                    /** @var \nostriphant\NIP19\Data\Note $data */
+                    $data = $decoded->data;
+                    $id = $data->id;
+                    if (!isset($seenE[$id])) {
+                        $seenE[$id] = true;
+                        $tags[] = ['e', $id, '', 'mention'];
+                    }
+                    break;
+
+                case 'nevent':
+                    /** @var \nostriphant\NIP19\Data\NEvent $data */
+                    $data = $decoded->data;
+                    $id = $data->id;
+                    if (!isset($seenE[$id])) {
+                        $seenE[$id] = true;
+                        $relay = $data->relays[0] ?? '';
+                        $tags[] = ['e', $id, $relay, 'mention'];
+                    }
+                    // Also add p tag for the event author if present
+                    if (!empty($data->author) && !isset($seenP[$data->author])) {
+                        $seenP[$data->author] = true;
+                        $tags[] = ['p', $data->author];
+                    }
+                    break;
+
+                case 'naddr':
+                    /** @var \nostriphant\NIP19\Data\NAddr $data */
+                    $data = $decoded->data;
+                    $coord = $data->kind . ':' . $data->pubkey . ':' . $data->identifier;
+                    if (!isset($seenA[$coord])) {
+                        $seenA[$coord] = true;
+                        $relay = $data->relays[0] ?? '';
+                        $tags[] = ['a', $coord, $relay];
+                    }
+                    // Also add p tag for the naddr author
+                    if (!empty($data->pubkey) && !isset($seenP[$data->pubkey])) {
+                        $seenP[$data->pubkey] = true;
+                        $tags[] = ['p', $data->pubkey];
+                    }
+                    break;
+            }
+        }
+
+        return $tags;
     }
 }
 

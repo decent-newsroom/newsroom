@@ -5,6 +5,7 @@ namespace App\Util\CommonMark;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\AsciiDoc\AsciiDocConverter;
@@ -56,7 +57,8 @@ class Converter implements MarkdownConverterInterface
         private readonly NostrKeyUtil $nostrKeyUtil,
         private readonly ArticleFactory $articleFactory,
         private readonly ArticleRepository $articleRepository,
-        private readonly AsciiDocConverter $asciidocConverter
+        private readonly AsciiDocConverter $asciidocConverter,
+        private readonly EventRepository $eventRepository,
     ) {}
 
     /**
@@ -158,7 +160,7 @@ class Converter implements MarkdownConverterInterface
         $env->addExtension(new SmartPunctExtension());
         $env->addExtension(new EmbedExtension());
         $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
-        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData, $this->eventRepository));
         $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
@@ -284,10 +286,36 @@ class Converter implements MarkdownConverterInterface
             return $eventsById;
         }
 
+        // Fast path: check the local database first
         try {
-            $list = $this->nostrClient->getEventsByIds(array_keys($eventIds));
+            $dbEvents = $this->eventRepository->findByIds(array_keys($eventIds));
+            foreach ($dbEvents as $id => $entity) {
+                $obj = new \stdClass();
+                $obj->id = $entity->getId();
+                $obj->kind = $entity->getKind();
+                $obj->pubkey = $entity->getPubkey();
+                $obj->content = $entity->getContent();
+                $obj->created_at = $entity->getCreatedAt();
+                $obj->tags = $entity->getTags();
+                $obj->sig = $entity->getSig();
+                $eventsById[$id] = $obj;
+                if (!empty($obj->pubkey)) {
+                    $pubkeyHexes[$obj->pubkey] = 1;
+                }
+            }
+        } catch (\Throwable) {
+            // DB lookup failed, continue to relay fetch
+        }
+
+        // Only fetch from relays what's not already in the DB
+        $missingIds = array_diff_key($eventIds, $eventsById);
+        if (empty($missingIds)) {
+            return $eventsById;
+        }
+
+        try {
+            $list = $this->nostrClient->getEventsByIds(array_keys($missingIds));
             foreach ($list as $event) {
-                // expect $event->id and $event->pubkey
                 if (!empty($event->id)) {
                     $eventsById[$event->id] = $event;
                 }
@@ -656,16 +684,53 @@ class Converter implements MarkdownConverterInterface
             return [];
         }
 
+        $eventsByNaddr = [];
+
+        // Fast path: check the local database first
+        foreach ($coordinates as $coordKey) {
+            $parts = explode(':', $coordKey, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $pubkey, $identifier] = $parts;
+            try {
+                $dbEvent = $this->eventRepository->findByNaddr((int) $kind, $pubkey, $identifier);
+                if ($dbEvent) {
+                    $obj = new \stdClass();
+                    $obj->id = $dbEvent->getId();
+                    $obj->kind = $dbEvent->getKind();
+                    $obj->pubkey = $dbEvent->getPubkey();
+                    $obj->content = $dbEvent->getContent();
+                    $obj->created_at = $dbEvent->getCreatedAt();
+                    $obj->tags = $dbEvent->getTags();
+                    $obj->sig = $dbEvent->getSig();
+                    $eventsByNaddr[$coordKey] = $obj;
+                    if (!empty($obj->pubkey)) {
+                        $pubkeyHexes[$obj->pubkey] = 1;
+                    }
+                }
+            } catch (\Throwable) {
+                // DB lookup failed for this coordinate, will try relay
+            }
+        }
+
+        // Only fetch from relays what's not already in the DB
+        $missingCoords = array_diff_key(array_flip($coordinates), $eventsByNaddr);
+        if (empty($missingCoords)) {
+            return $eventsByNaddr;
+        }
+
         try {
-            $results = $this->nostrClient->getEventsByCoordinates($coordinates);
+            $results = $this->nostrClient->getEventsByCoordinates(array_keys($missingCoords));
             foreach ($results as $event) {
                 if (!empty($event->pubkey)) {
                     $pubkeyHexes[$event->pubkey] = 1;
                 }
             }
-            return $results;
+            $eventsByNaddr = array_merge($eventsByNaddr, $results);
+            return $eventsByNaddr;
         } catch (\Throwable) {
-            return [];
+            return $eventsByNaddr;
         }
     }
 

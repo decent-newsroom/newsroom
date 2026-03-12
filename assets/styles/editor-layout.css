@@ -217,6 +217,22 @@ main.editor-layout {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    position: relative;
+}
+
+/* Ensure Quill Snow link tooltip is visible above the container */
+.editor-pane--edit .ql-tooltip {
+    z-index: 200;
+}
+
+/* Fix Quill link tooltip clipping: reposition within viewport */
+.editor-pane--edit .ql-tooltip.ql-editing,
+.editor-pane--edit .ql-tooltip {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin-left: 0 !important;
 }
 
 .editor-pane--edit #editor {
@@ -542,6 +558,131 @@ main.editor-layout {
     color: #bbb;
     font-style: italic;
     margin-left: 1.5em;
+}
+
+/* ── Mentions & Embeds panel styles ─────────────────── */
+.mention-result,
+.embed-result {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 0.375rem;
+    text-align: left;
+    font-size: 0.8125rem;
+    transition: background 0.15s ease;
+}
+
+.mention-result:hover,
+.embed-result:hover {
+    background: var(--hover, #f3f4f6);
+}
+
+.mention-avatar,
+.embed-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.mention-avatar--placeholder,
+.embed-avatar--placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-dark, #e5e7eb);
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.mention-info,
+.embed-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.mention-name,
+.embed-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary, #111827);
+}
+
+.mention-nip05 {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #9ca3af);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.embed-type {
+    font-size: 0.7rem;
+    color: var(--primary, #2563eb);
+}
+
+.embed-summary {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.embed-date {
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+.mention-results-list,
+.embed-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.mention-empty,
+.embed-empty {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #9ca3af);
+    font-style: italic;
+    margin: 0.5rem 0;
+}
+
+/* Make sidebar tabs row horizontal */
+.editor-articlelist-sidebar .editor-sidebar-tabs {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Quill nostr mention blot ───────────────────────── */
+.ql-mention {
+    display: inline;
+    background: rgba(168, 85, 247, 0.14);
+    color: #7c3aed;
+    padding: 0.1em 0.35em;
+    border-radius: 0.25em;
+    font-weight: 600;
+    font-size: 0.95em;
+    cursor: default;
+    white-space: nowrap;
+    user-select: all;
+}
+
+[data-theme="dark"] .ql-mention {
+    background: rgba(168, 85, 247, 0.22);
+    color: #c084fc;
 }
 
 /* Responsive adjustments */

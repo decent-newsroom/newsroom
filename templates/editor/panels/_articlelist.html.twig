@@ -9,6 +9,24 @@
         >
             Articles
         </button>
+        <button
+            type="button"
+            class="editor-sidebar-tab"
+            data-editor--articlelist-panels-target="tab"
+            data-panel="mentions"
+            data-action="editor--articlelist-panels#switch"
+        >
+            Mentions
+        </button>
+        <button
+            type="button"
+            class="editor-sidebar-tab"
+            data-editor--articlelist-panels-target="tab"
+            data-panel="embeds"
+            data-action="editor--articlelist-panels#switch"
+        >
+            Embeds
+        </button>
     </div>
     <section class="editor-sidebar-panels">
         <div
@@ -67,6 +85,78 @@
                         <twig:SignerModal />
                     </div>
                 {% endif %}
+            </div>
+        </div>
+
+        {# ── Mentions panel ── #}
+        <div
+            class="editor-panel is-hidden"
+            data-editor--articlelist-panels-target="panel"
+            data-panel="mentions"
+            data-controller="editor--mentions"
+        >
+            <div class="panel-section">
+                <h6>Mention a user</h6>
+                <p>
+                    Search for a user and click to insert a
+                    <code>nostr:npub1…</code> mention at the cursor.
+                </p>
+                <p class="text-muted small">A <code>p</code>&nbsp;tag will be auto-added on publish.</p>
+                <input
+                    type="text"
+                    class="form-control form-control-sm mb-2"
+                    placeholder="Search by name or NIP-05…"
+                    data-editor--mentions-target="input"
+                    data-action="input->editor--mentions#onInput"
+                    autocomplete="off"
+                />
+                <div data-editor--mentions-target="results"></div>
+            </div>
+        </div>
+
+        {# ── Embeds panel ── #}
+        <div
+            class="editor-panel is-hidden"
+            data-editor--articlelist-panels-target="panel"
+            data-panel="embeds"
+            data-controller="editor--embeds"
+        >
+            <div class="panel-section">
+                <h6>Embed an article</h6>
+                <p>
+                    Search articles to embed a preview card.
+                </p>
+                <input
+                    type="text"
+                    class="form-control form-control-sm mb-2"
+                    placeholder="Search articles…"
+                    data-editor--embeds-target="articleInput"
+                    data-action="input->editor--embeds#onArticleInput"
+                    autocomplete="off"
+                />
+                <div data-editor--embeds-target="articleResults"></div>
+            </div>
+
+            <div class="panel-section panel-subsection">
+                <h6>Paste raw identifier</h6>
+                <p>
+                    Paste a <code>note1…</code>, <code>nevent1…</code>,
+                    <code>naddr1…</code>, or <code>npub1…</code> code.
+                </p>
+                <div class="d-flex gap-1">
+                    <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="note1… / nevent1… / naddr1…"
+                        data-editor--embeds-target="rawInput"
+                        autocomplete="off"
+                    />
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-secondary flex-shrink-0"
+                        data-action="click->editor--embeds#insertRaw"
+                    >Insert</button>
+                </div>
             </div>
         </div>
     </section>

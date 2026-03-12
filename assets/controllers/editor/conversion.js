@@ -31,6 +31,7 @@ export function deltaToMarkdown(delta, opts = {}) {
     orderedListStyle: 'increment', // 'one' | 'increment'
     embedToMarkdown: (embed) => {
       if (!embed || typeof embed !== 'object') return '';
+      if (embed.nostrMention) return `nostr:${embed.nostrMention.npub || ''}`;
       if (embed.image) return `![](${String(embed.image)})`;
       if (embed.video) return String(embed.video);
       if (embed.nostr) return String(embed.nostr);
@@ -245,6 +246,7 @@ export function markdownToDelta(md, opts = {}) {
   const options = {
     fence: '```',
     indentSize: 2, // leading spaces per list indent level
+    mentionNames: {}, // npub → display name cache for mention blots
     ...opts,
   };
 
@@ -293,7 +295,7 @@ export function markdownToDelta(md, opts = {}) {
       if (isH1Underline || isH2Underline) {
         const level = isH1Underline ? 1 : 2;
         const content = line.trim();
-        ops.push(...inlineMarkdownToOps(content));
+        ops.push(...inlineMarkdownToOps(content, options.mentionNames));
         ops.push({ insert: '\n', attributes: { header: level } });
         skipNextLine = true; // Skip the underline on the next iteration
         continue;
@@ -305,7 +307,7 @@ export function markdownToDelta(md, opts = {}) {
     if (headerMatch) {
       const level = headerMatch[1].length;
       const content = headerMatch[2] ?? '';
-      ops.push(...inlineMarkdownToOps(content));
+      ops.push(...inlineMarkdownToOps(content, options.mentionNames));
       ops.push({ insert: '\n', attributes: { header: level } });
       continue;
     }
@@ -314,7 +316,7 @@ export function markdownToDelta(md, opts = {}) {
     const quoteMatch = line.match(/^>\s?(.*)$/);
     if (quoteMatch) {
       const content = quoteMatch[1] ?? '';
-      ops.push(...inlineMarkdownToOps(content));
+      ops.push(...inlineMarkdownToOps(content, options.mentionNames));
       ops.push({ insert: '\n', attributes: { blockquote: true } });
       continue;
     }
@@ -328,7 +330,7 @@ export function markdownToDelta(md, opts = {}) {
     const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
     if (olMatch) {
       const content = olMatch[1] ?? '';
-      ops.push(...inlineMarkdownToOps(content));
+      ops.push(...inlineMarkdownToOps(content, options.mentionNames));
       ops.push({ insert: '\n', attributes: { list: 'ordered', ...(indent ? { indent } : {}) } });
       continue;
     }
@@ -337,13 +339,13 @@ export function markdownToDelta(md, opts = {}) {
     const ulMatch = trimmed.match(/^[-*]\s+(.*)$/);
     if (ulMatch) {
       const content = ulMatch[1] ?? '';
-      ops.push(...inlineMarkdownToOps(content));
+      ops.push(...inlineMarkdownToOps(content, options.mentionNames));
       ops.push({ insert: '\n', attributes: { list: 'bullet', ...(indent ? { indent } : {}) } });
       continue;
     }
 
     // paragraph
-    ops.push(...inlineMarkdownToOps(line));
+    ops.push(...inlineMarkdownToOps(line, options.mentionNames));
     ops.push({ insert: '\n' });
   }
 
@@ -359,13 +361,35 @@ export function markdownToDelta(md, opts = {}) {
 // Inline markdown parsing (subset)
 // ---------------------------
 
-function inlineMarkdownToOps(text) {
+function inlineMarkdownToOps(text, mentionNames) {
   const ops = [];
   let i = 0;
+  const names = mentionNames || {};
 
   const pushText = (t) => { if (t) ops.push({ insert: t }); };
 
   while (i < text.length) {
+
+    // nostr mention: nostr:npub1...
+    if (text.startsWith('nostr:', i)) {
+      const NOSTR_RE = /^nostr:(npub1[a-z0-9]+)/i;
+      const m = text.slice(i).match(NOSTR_RE);
+      if (m) {
+        const npub = m[1];
+        // Look up cached name first, fall back to truncated npub
+        const cachedName = names[npub];
+        const displayName = cachedName || (npub.slice(0, 9) + '…' + npub.slice(-4));
+        ops.push({ insert: { nostrMention: { npub, name: displayName } } });
+        i += m[0].length;
+        continue;
+      }
+      // Not an npub — consume the whole nostr:token as plain text
+      const tokenMatch = text.slice(i).match(/^nostr:\S+/);
+      if (tokenMatch) {
+        pushText(tokenMatch[0]); i += tokenMatch[0].length; continue;
+      }
+      pushText('nostr:'); i += 6; continue;
+    }
 
     // inline code: `...`
     if (text[i] === '`') {
@@ -447,6 +471,9 @@ function nextSpecialIndex(text, start) {
     const idx = text.indexOf(ch, start);
     if (idx !== -1 && idx < min) min = idx;
   }
+  // Also stop before nostr: mentions
+  const nostrIdx = text.indexOf('nostr:', start);
+  if (nostrIdx !== -1 && nostrIdx < min) min = nostrIdx;
   return min;
 }
 

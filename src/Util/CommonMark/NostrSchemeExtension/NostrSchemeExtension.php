@@ -4,6 +4,7 @@ namespace App\Util\CommonMark\NostrSchemeExtension;
 
 use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
@@ -22,6 +23,7 @@ class NostrSchemeExtension  implements ExtensionInterface
         private readonly ArticleFactory $articleFactory,
         private readonly ArticleRepository $articleRepository,
         private readonly ?NostrPrefetchedData $prefetchedData = null,
+        private readonly ?EventRepository $eventRepository = null,
     ) {
     }
 
@@ -29,7 +31,7 @@ class NostrSchemeExtension  implements ExtensionInterface
     {
         $environment
             ->addInlineParser(new NostrMentionParser($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData), 200)
-            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData), 199)
+            ->addInlineParser(new NostrSchemeParser($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData, $this->eventRepository), 199)
             ->addInlineParser(new NostrRawNpubParser($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData), 198)
 
             ->addRenderer(NostrSchemeData::class, new NostrEventRenderer(), 3)
