@@ -633,7 +633,7 @@ class RelayGatewayCommand extends Command
             $relayUrls,
         )));
 
-        $this->logger->debug('Gateway: handling query (non-blocking)', [
+        $this->logger->debug('Gateway: handling query', [
             'correlation_id' => $correlationId,
             'relays' => $relayUrls,
             'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
@@ -647,7 +647,19 @@ class RelayGatewayCommand extends Command
             try {
                 $conn = $this->routeConnection($relayUrl, $pubkey);
 
-                // Build REQ payload (needed for both send and defer paths)
+                // If no connection exists, open one inline (blocking).
+                // The one-per-tick drainPendingConnections + settle cycle is too
+                // slow — the client times out before connections are ready.
+                if (!$conn || !$conn->isConnected()) {
+                    try {
+                        $conn = $this->openConnection($relayUrl, $pubkey);
+                    } catch (\Throwable $openErr) {
+                        $errors[$relayUrl] = 'Failed to open connection: ' . $openErr->getMessage();
+                        continue;
+                    }
+                }
+
+                // Build REQ payload
                 $subscription = new Subscription();
                 $subscriptionId = $subscription->setId();
 
@@ -679,37 +691,15 @@ class RelayGatewayCommand extends Command
 
                 $reqPayload = (new RequestMessage($subscriptionId, [$filterObj]))->generate();
 
-                // Determine the connection key for tracking. If no connection
-                // yet (on-demand), use the anticipated key that will be created
-                // when drainPendingConnections opens the connection.
-                $connKey = $conn ? $conn->getKey() : GatewayConnection::buildKey($relayUrl);
-
-                // Register subscription in pending-query table regardless of
-                // connection state so sweepTimedOutPending can account for it.
                 $this->pendingQueries[$subscriptionId] = [
                     'correlationId' => $correlationId,
                     'relayUrl'      => $relayUrl,
-                    'connKey'       => $connKey,
+                    'connKey'       => $conn->getKey(),
                     'events'        => [],
                     'deadline'      => $deadline,
                     'done'          => false,
                 ];
                 $registeredCount++;
-
-                if (!$conn || !$conn->isConnected()) {
-                    // Connection is being opened on-demand — defer the REQ.
-                    // It will be flushed by checkPendingAuths → flushDeferredForConnection
-                    // once the connection opens and settles.
-                    $this->logger->debug('Gateway: deferring REQ until on-demand connection opens', [
-                        'relay'           => $relayUrl,
-                        'subscription_id' => $subscriptionId,
-                    ]);
-                    $this->pendingAuthReqs[$subscriptionId] = [
-                        'connKey' => $connKey,
-                        'payload' => $reqPayload,
-                    ];
-                    continue;
-                }
 
                 // If the connection is mid-AUTH, defer the REQ.
                 if ($conn->authStatus === 'pending') {
@@ -725,6 +715,7 @@ class RelayGatewayCommand extends Command
                     continue;
                 }
 
+                // Send immediately — optimistic for 'none' auth status
                 $conn->getClient()->text($reqPayload);
                 $conn->touch();
 
@@ -807,11 +798,34 @@ class RelayGatewayCommand extends Command
             $pendingKey = $correlationId . '::' . $relayUrl;
 
             try {
+                // For publish, try existing connections first, then open inline
+                // if none exist. Publishing is urgent — we can't wait for the
+                // one-per-tick drainPendingConnections + settle cycle.
                 $conn = $this->routeConnectionForPublish($relayUrl, $pubkey);
 
-                // Determine the connection key for tracking. If no connection
-                // yet (on-demand), use the anticipated key.
-                $connKey = $conn ? $conn->getKey() : GatewayConnection::buildKey($relayUrl);
+                if (!$conn || !$conn->isConnected()) {
+                    // Open the connection inline (blocking). This stalls the
+                    // event loop for 1-3s per relay but publishes are infrequent.
+                    try {
+                        $conn = $this->openConnection($relayUrl, $pubkey);
+                        $this->logger->info('Gateway: opened inline connection for publish', [
+                            'relay'  => $relayUrl,
+                            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
+                        ]);
+                    } catch (\Throwable $openErr) {
+                        $errors[$relayUrl] = 'Failed to open connection: ' . $openErr->getMessage();
+                        $registeredCount++;
+                        $immediatelyDone++;
+                        $this->writePartialPublishResponse(
+                            $correlationId, $relayUrl, false, $errors[$relayUrl],
+                            $registeredCount >= $totalRelays,
+                        );
+                        continue;
+                    }
+                }
+
+                // Determine the connection key for tracking.
+                $connKey = $conn->getKey();
 
                 // Always register the pending-publish slot before sending so we
                 // can track the OK response regardless of the connection path.
@@ -825,29 +839,15 @@ class RelayGatewayCommand extends Command
                 ];
                 $registeredCount++;
 
-                if (!$conn || !$conn->isConnected()) {
-                    // Connection is being opened on-demand — defer the EVENT.
-                    // It will be flushed by checkPendingAuths → flushDeferredForConnection.
-                    $this->logger->debug('Gateway: deferring EVENT publish until on-demand connection opens', [
-                        'relay'          => $relayUrl,
-                        'correlation_id' => $correlationId,
-                        'event_id'       => substr($eventId, 0, 16),
-                    ]);
-                    $this->pendingAuthPublishes[$pendingKey] = [
-                        'connKey' => $connKey,
-                        'payload' => json_encode(['EVENT', $event]),
-                        'eventId' => $eventId,
-                    ];
-                    continue;
-                }
-
-                // Decide whether to send immediately or defer.
-                //   'authed'              → send now
-                //   'none' + connAge >= 1 → no AUTH challenge arrived, relay is open, send now
-                //   anything else         → defer until AUTH resolves or settle window passes
+                // Decide whether to send immediately or defer for AUTH.
+                // For connections just opened inline, the settle window hasn't
+                // passed — but most relays don't require AUTH, so we send
+                // immediately. If the relay needs AUTH, it will respond with
+                // CLOSED:auth-required which completeQueryWithError handles.
+                // For pre-existing connections, use the normal settle logic.
                 $connAge = time() - $conn->connectedAt;
                 $readyToSend = $conn->authStatus === 'authed'
-                    || ($conn->authStatus === 'none' && $connAge >= 1);
+                    || $conn->authStatus === 'none'; // send optimistically
 
                 if (!$readyToSend) {
                     $this->logger->info('Gateway: deferring EVENT publish until AUTH resolves', [
@@ -881,7 +881,7 @@ class RelayGatewayCommand extends Command
                 $errors[$relayUrl] = $e->getMessage();
                 $this->healthStore->recordFailure($relayUrl);
 
-                // Mark the connection as disconnected so maintenance reconnects it
+                // Mark the connection as disconnected so maintenance cleans it up
                 if (isset($conn) && $conn !== null) {
                     $conn->markDisconnected();
                 }
@@ -890,12 +890,19 @@ class RelayGatewayCommand extends Command
                     'relay' => $relayUrl,
                     'error' => $e->getMessage(),
                 ]);
-                // Write immediate partial so the client unblocks for this relay
-                $registeredCount++;
-                $immediatelyDone++;
+
+                // If we already registered this pending publish, mark it done.
+                // Otherwise, count it as a new immediate failure.
+                if (isset($this->pendingPublishes[$pendingKey])) {
+                    $this->pendingPublishes[$pendingKey]['done'] = true;
+                    $immediatelyDone++;
+                } else {
+                    $registeredCount++;
+                    $immediatelyDone++;
+                }
                 $this->writePartialPublishResponse(
                     $correlationId, $relayUrl, false, $e->getMessage(),
-                    $registeredCount >= $totalRelays,
+                    ($registeredCount - $immediatelyDone) === 0 && $registeredCount >= $totalRelays,
                 );
             }
         }
@@ -984,39 +991,6 @@ class RelayGatewayCommand extends Command
                 $this->pendingConnections[] = ['relayUrl' => $relayUrl, 'pubkey' => $pubkey];
             }
         }
-    }
-
-    /**
-     * Enqueue an on-demand (shared, no pubkey) connection for opening on the
-     * next event loop tick. Respects the max shared connections limit.
-     */
-    private function enqueueOnDemandConnection(string $relayUrl): void
-    {
-        $key = GatewayConnection::buildKey($relayUrl);
-
-        // Already open or already queued — skip
-        if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
-            return;
-        }
-        foreach ($this->pendingConnections as $pending) {
-            if ($pending['relayUrl'] === $relayUrl && $pending['pubkey'] === null) {
-                return; // already queued
-            }
-        }
-
-        // Enforce pool ceiling
-        $sharedCount = 0;
-        foreach ($this->connections as $conn) {
-            if ($conn->isShared()) {
-                $sharedCount++;
-            }
-        }
-        if ($sharedCount >= $this->maxSharedConnections) {
-            // Evict the idlest shared connection to make room
-            $this->evictIdlestSharedConnection();
-        }
-
-        $this->pendingConnections[] = ['relayUrl' => $relayUrl, 'pubkey' => null];
     }
 
     /**
@@ -1797,7 +1771,7 @@ class RelayGatewayCommand extends Command
      * Preference:
      *   1. User connection (if pubkey provided and connection exists + connected)
      *   2. On-demand shared connection (if exists + connected)
-     *   3. Enqueue on-demand connection open → return null (caller defers REQ)
+     *   3. null → caller opens inline or records error
      */
     private function routeConnection(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
@@ -1815,15 +1789,6 @@ class RelayGatewayCommand extends Command
             return $this->connections[$sharedKey];
         }
 
-        // No connection available — enqueue an on-demand connection open.
-        // drainPendingConnections() will open it on the next tick. The caller
-        // defers the REQ into pendingAuthReqs so it's sent once connected.
-        $this->enqueueOnDemandConnection($relayUrl);
-
-        $this->logger->debug('Gateway: no connection available, enqueued on-demand open', [
-            'relay'  => $relayUrl,
-            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
-        ]);
         return null;
     }
 
@@ -1833,7 +1798,7 @@ class RelayGatewayCommand extends Command
      * Preference:
      *   1. Existing user connection (authed or mid-AUTH → caller defers send)
      *   2. Existing on-demand shared connection
-     *   3. Enqueue on-demand connection open → return null (caller defers EVENT)
+     *   3. null → caller opens inline or writes immediate failure
      */
     private function routeConnectionForPublish(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
@@ -1850,15 +1815,6 @@ class RelayGatewayCommand extends Command
             return $this->connections[$sharedKey];
         }
 
-        // No connection — enqueue on-demand open. The caller will write an
-        // immediate partial failure for this relay; the next publish attempt
-        // (after connections open) will succeed.
-        $this->enqueueOnDemandConnection($relayUrl);
-
-        $this->logger->debug('Gateway: no connection available for publish, enqueued on-demand open', [
-            'relay'  => $relayUrl,
-            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
-        ]);
         return null;
     }
 
@@ -2084,27 +2040,6 @@ class RelayGatewayCommand extends Command
 
         if ($idlestKey) {
             $this->logger->info('Gateway: evicting idlest user connection', [
-                'key' => $idlestKey,
-                'idle_seconds' => $maxIdle,
-            ]);
-            $this->closeConnection($idlestKey);
-        }
-    }
-
-    private function evictIdlestSharedConnection(): void
-    {
-        $idlestKey = null;
-        $maxIdle = 0;
-
-        foreach ($this->connections as $key => $conn) {
-            if ($conn->isShared() && $conn->getIdleSeconds() > $maxIdle) {
-                $maxIdle = $conn->getIdleSeconds();
-                $idlestKey = $key;
-            }
-        }
-
-        if ($idlestKey) {
-            $this->logger->info('Gateway: evicting idlest on-demand connection to make room', [
                 'key' => $idlestKey,
                 'idle_seconds' => $maxIdle,
             ]);
