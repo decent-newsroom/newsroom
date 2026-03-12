@@ -118,6 +118,7 @@ export default class extends Controller {
               nostrbuild: 'https://nostr.build/nip96/upload',
               nostrcheck: 'https://nostrcheck.me/api/v2/media',
               sovbit: 'https://files.sovbit.host/api/v2/media',
+              blossomband: 'https://blossom.band/upload',
           };
           const upstreamEndpoint = upstreamMap[provider] || upstreamMap['nostrcheck'];
 

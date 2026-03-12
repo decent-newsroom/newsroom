@@ -60,6 +60,7 @@ import './styles/04-pages/discover.css';
 import './styles/04-pages/subscription.css';
 import './styles/04-pages/magazine-wizard.css';
 import './styles/04-pages/my-content.css';
+import './styles/04-pages/media-manager.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

@@ -7,6 +7,8 @@ enum KindsEnum: int
     case METADATA = 0; // metadata, NIP-01
     case TEXT_NOTE = 1; // text note, NIP-01, will not implement
     case IMAGE = 20; // NIP-68, images
+    case VIDEO = 21; // NIP-71, video events
+    case SHORT_VIDEO = 22; // NIP-71, short-form portrait video events
     case FOLLOWS = 3;
     case REACTION = 7; // NIP-25, reactions (+, -, emoji)
     case REPOST = 6; // Only wraps kind 1, NIP-18, will not implement

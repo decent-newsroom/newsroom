@@ -1,0 +1,360 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Media Manager{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="Media Manager - Newsroom">
+    <meta property="og:description" content="Manage your pictures, videos, and media uploads">
+{% endblock %}
+
+{% block body %}
+<div class="media-manager"
+     data-controller="media--media-library"
+     data-media--media-library-pubkey-value="{{ app.user ? app.user.userIdentifier : '' }}">
+
+    {# Page header #}
+    <div class="media-manager__header">
+        <h1>Media Manager</h1>
+
+        <div class="media-manager__actions">
+            {# Create new dropdown — handled by media-library controller #}
+            <div class="media-manager__create-menu">
+                <button class="btn btn--primary"
+                        data-action="click->media--media-library#toggleCreateMenu">
+                    + Create New ▾
+                </button>
+                <div class="dropdown__menu"
+                     data-media--media-library-target="createMenu"
+                     hidden>
+                    <button class="dropdown__item"
+                            data-action="click->media--media-library#uploadAsset">
+                        Upload Asset
+                    </button>
+                    <hr class="dropdown__divider">
+                    <button class="dropdown__item"
+                            data-action="click->media--media-library#createPicture">
+                        Create Picture
+                    </button>
+                    <button class="dropdown__item"
+                            data-action="click->media--media-library#createVideo">
+                        Create Video
+                    </button>
+                    <button class="dropdown__item"
+                            data-action="click->media--media-library#createShortVideo">
+                        Create Short Video
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Toolbar: provider selector, scope toggle, view toggle, filters #}
+    <div class="media-manager__toolbar">
+        {# Provider selector #}
+        <div class="media-manager__provider-selector"
+             data-controller="media--provider-selector"
+             data-media--provider-selector-media-library-outlet=".media-manager">
+            <label for="provider-select">Provider:</label>
+            <select id="provider-select"
+                    data-media--provider-selector-target="select"
+                    data-action="change->media--provider-selector#change">
+                <option value="">Loading providers...</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="media-manager__toolbar">
+        {# Scope toggle: Uploaded Assets | Published Posts #}
+        <div class="media-manager__scope-toggle">
+            <button class="btn btn--toggle active"
+                    data-action="click->media--media-library#setScope"
+                    data-scope="assets"
+                    data-media--media-library-target="scopeBtn">
+                Uploaded Assets
+            </button>
+            <button class="btn btn--toggle"
+                    data-action="click->media--media-library#setScope"
+                    data-scope="posts"
+                    data-media--media-library-target="scopeBtn">
+                Published Posts
+            </button>
+        </div>
+
+        {# View mode toggle #}
+        <div class="media-manager__view-toggle"
+             data-controller="media--media-view-toggle"
+             data-media--media-view-toggle-media-library-outlet=".media-manager">
+            <button class="btn btn--icon active"
+                    data-action="click->media--media-view-toggle#setView"
+                    data-view="thumbnails"
+                    data-media--media-view-toggle-target="viewBtn"
+                    title="Thumbnail view">
+                ▦
+            </button>
+            <button class="btn btn--icon"
+                    data-action="click->media--media-view-toggle#setView"
+                    data-view="list"
+                    data-media--media-view-toggle-target="viewBtn"
+                    title="List view">
+                ≡
+            </button>
+        </div>
+
+        {# Kind filter #}
+        <div class="media-manager__filters hidden">
+            <button class="btn btn--filter active"
+                    data-action="click->media--media-library#setFilter"
+                    data-filter="all"
+                    data-media--media-library-target="filterBtn">
+                All
+            </button>
+            <button class="btn btn--filter"
+                    data-action="click->media--media-library#setFilter"
+                    data-filter="pictures"
+                    data-media--media-library-target="filterBtn">
+                Pictures
+            </button>
+            <button class="btn btn--filter"
+                    data-action="click->media--media-library#setFilter"
+                    data-filter="videos"
+                    data-media--media-library-target="filterBtn">
+                Videos
+            </button>
+            <button class="btn btn--filter"
+                    data-action="click->media--media-library#setFilter"
+                    data-filter="short-videos"
+                    data-media--media-library-target="filterBtn">
+                Short Videos
+            </button>
+        </div>
+    </div>
+
+    {# Status bar #}
+    <div class="media-manager__status" data-media--media-library-target="status">
+        Loading media...
+    </div>
+
+    {# Main content grid #}
+    <div class="media-manager__grid media-manager__grid--thumbnails"
+         data-media--media-library-target="grid">
+        {# Content loaded dynamically by Stimulus controller #}
+    </div>
+
+    {# Load more button #}
+    <div class="media-manager__load-more" data-media--media-library-target="loadMore" hidden>
+        <button class="btn btn--secondary" data-action="click->media--media-library#loadMore">
+            Load More
+        </button>
+    </div>
+
+    {# ================================================================
+       Standalone Upload modal — upload assets without creating an event
+       ================================================================ #}
+    <div class="media-manager__modal" data-media--media-library-target="uploadModal" hidden>
+        <div class="modal__backdrop" data-action="click->media--media-library#closeModal"></div>
+        <div class="modal__content"
+             data-controller="media--standalone-upload">
+            <div class="modal__header">
+                <h2>Upload Asset</h2>
+                <button class="modal__close" data-action="click->media--media-library#closeModal">&times;</button>
+            </div>
+            <div class="modal__body">
+                <p class="upload-hint">Upload images or videos to a provider. The URL can be used later in articles, picture posts, or video events.</p>
+
+                {# Provider selector #}
+                <div class="publish-provider-row">
+                    <label>Upload to:</label>
+                    <select data-media--standalone-upload-target="provider">
+                        <option value="nostrbuild">📡 nostr.build</option>
+                        <option value="nostrcheck">📡 nostrcheck.me</option>
+                        <option value="sovbit">📡 Sovbit Files</option>
+                        <option value="blossomband">🌸 blossom.band</option>
+                    </select>
+                </div>
+
+                {# Dropzone #}
+                <div class="upload-dropzone"
+                     data-media--standalone-upload-target="dropzone"
+                     data-action="dragover->media--standalone-upload#dragover
+                                  dragenter->media--standalone-upload#dragenter
+                                  dragleave->media--standalone-upload#dragleave
+                                  drop->media--standalone-upload#drop">
+                    <p>Drag &amp; drop files here, or</p>
+                    <input type="file" accept="image/*,video/*" multiple
+                           data-media--standalone-upload-target="fileInput"
+                           data-action="change->media--standalone-upload#filesSelected"
+                           class="upload-dropzone__input">
+                    <button type="button" class="btn btn--secondary"
+                            data-action="click->media--standalone-upload#browseFiles">
+                        Choose Files
+                    </button>
+                </div>
+
+                {# Progress #}
+                <div data-media--standalone-upload-target="progress" class="upload-status" hidden></div>
+
+                {# Error #}
+                <div data-media--standalone-upload-target="error" class="upload-error" hidden></div>
+
+                {# Results list — uploaded URLs #}
+                <div data-media--standalone-upload-target="results" class="upload-results-list"></div>
+
+                {# Previous uploads #}
+                <div class="previous-uploads">
+                    <h3 class="previous-uploads__title">Your uploads</h3>
+                    <div data-media--standalone-upload-target="previousUploads" class="previous-uploads__list">
+                        <p class="previous-uploads__loading">Loading…</p>
+                    </div>
+                    <button type="button" class="btn btn--secondary btn--small previous-uploads__more"
+                            data-media--standalone-upload-target="loadMoreBtn"
+                            data-action="click->media--standalone-upload#loadMorePrevious"
+                            hidden>
+                        Load more
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Publish / Create modal — single modal with upload + metadata in one flow #}
+    <div class="media-manager__modal" data-media--media-library-target="publishModal" hidden>
+        <div class="modal__backdrop" data-action="click->media--media-library#closeModal"></div>
+        <div class="modal__content"
+             data-controller="media--media-publish"
+             data-media--media-publish-kind-value="20">
+            <div class="modal__header">
+                <h2 data-media--media-library-target="publishTitle">Create Media Post</h2>
+                <button class="modal__close" data-action="click->media--media-library#closeModal">&times;</button>
+            </div>
+            <div class="modal__body">
+
+                {# ── Step 1: Add media files ── #}
+                <fieldset class="publish-section">
+                    <legend>1. Add media</legend>
+
+                    {# Upload via file picker / drag-drop #}
+                    <div class="upload-dropzone"
+                         data-media--media-publish-target="dropzone"
+                         data-action="dragover->media--media-publish#dragover
+                                      dragenter->media--media-publish#dragenter
+                                      dragleave->media--media-publish#dragleave
+                                      drop->media--media-publish#drop">
+                        <p>Drag &amp; drop files here, or</p>
+                        <input type="file" accept="image/*,video/*" multiple
+                               data-media--media-publish-target="fileInput"
+                               data-action="change->media--media-publish#filesSelected"
+                               class="upload-dropzone__input">
+                        <button type="button" class="btn btn--secondary"
+                                data-action="click->media--media-publish#browseFiles">
+                            Choose Files
+                        </button>
+                    </div>
+
+                    {# Upload progress #}
+                    <div class="upload-progress" data-media--media-publish-target="uploadProgress" hidden>
+                        <div class="upload-progress__bar">
+                            <div class="upload-progress__fill" data-media--media-publish-target="uploadFill"></div>
+                        </div>
+                        <p data-media--media-publish-target="uploadText">Uploading…</p>
+                    </div>
+
+                    {# — or add by URL — #}
+                    <div class="publish-url-row">
+                        <span class="publish-url-row__or">or add by URL</span>
+                        <div class="publish-url-row__fields">
+                            <input type="url"
+                                   data-media--media-publish-target="urlInput"
+                                   placeholder="https://example.com/photo.jpg">
+                            <button type="button" class="btn btn--secondary"
+                                    data-action="click->media--media-publish#addUrl">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    {# Provider selector for uploads #}
+                    <div class="publish-provider-row">
+                        <label>Upload to:</label>
+                        <select data-media--media-publish-target="providerSelect">
+                            <option value="nostrbuild">📡 nostr.build</option>
+                            <option value="nostrcheck">📡 nostrcheck.me</option>
+                            <option value="sovbit">📡 Sovbit Files</option>
+                            <option value="blossomband">🌸 blossom.band</option>
+                        </select>
+                    </div>
+
+                    {# List of added media items (thumbnails + remove buttons) #}
+                    <div class="publish-media-list" data-media--media-publish-target="mediaList">
+                        <p class="publish-media-list__empty">No media added yet.</p>
+                    </div>
+                </fieldset>
+
+                {# ── Step 2: Metadata ── #}
+                <fieldset class="publish-section">
+                    <legend>2. Details</legend>
+
+                    <div class="form-group">
+                        <label for="publish-title">Title *</label>
+                        <input type="text" id="publish-title" required
+                               data-media--media-publish-target="title"
+                               placeholder="Enter a title for your media post">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="publish-content">Description</label>
+                        <textarea id="publish-content" rows="3"
+                                  data-media--media-publish-target="content"
+                                  placeholder="Add a description…"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="publish-alt">Alt Text</label>
+                        <input type="text" id="publish-alt"
+                               data-media--media-publish-target="alt"
+                               placeholder="Describe the media for accessibility">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="publish-hashtags">Hashtags</label>
+                        <input type="text" id="publish-hashtags"
+                               data-media--media-publish-target="hashtags"
+                               placeholder="photography, nature, travel">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" checked
+                                   data-media--media-publish-target="clientTag">
+                            Add client tag (Decent Newsroom)
+                        </label>
+                    </div>
+                </fieldset>
+
+                {# ── Actions ── #}
+                <div class="form-actions">
+                    <button type="button" class="btn btn--secondary"
+                            data-action="click->media--media-library#closeModal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn--primary"
+                            data-media--media-publish-target="submitBtn"
+                            data-action="click->media--media-publish#publish">
+                        Build Event Draft
+                    </button>
+                </div>
+
+                {# Draft result #}
+                <div class="publish-draft" data-media--media-publish-target="draftResult" hidden>
+                    <h3>Event Draft</h3>
+                    <pre data-media--media-publish-target="draftJson"></pre>
+                    <button type="button" class="btn btn--primary"
+                            data-action="click->media--media-publish#signAndPublish">
+                        Sign &amp; Publish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
