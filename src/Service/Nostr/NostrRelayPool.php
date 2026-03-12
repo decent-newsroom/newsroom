@@ -5,8 +5,10 @@ namespace App\Service\Nostr;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
+use swentel\nostr\Message\EventMessage;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
+use swentel\nostr\RelayResponse\RelayResponse;
 use swentel\nostr\RelayResponse\RelayResponseEvent;
 use swentel\nostr\Subscription\Subscription;
 
@@ -377,90 +379,72 @@ class NostrRelayPool implements RelayPoolInterface
     /**
      * Publish a signed Nostr event to a list of relay URLs.
      *
-     * When the gateway is enabled, external (AUTH-protected) relays are routed
-     * through the gateway so NIP-42 AUTH challenges are handled automatically.
-     * The local relay always receives the event via a direct RelaySet::send().
+     * Always uses direct connections (no gateway). Each relay is published to
+     * independently so one failure cannot affect the others. The local relay
+     * is always included via ensureLocalRelayInList().
      *
      * @param \swentel\nostr\Event\Event $event   Signed event to publish
      * @param array                      $relayUrls Target relay URLs
-     * @param ?string                    $pubkey  Author pubkey (used by gateway for AUTH)
+     * @param ?string                    $pubkey  Author pubkey (unused, kept for API compat)
      * @param int                        $timeout Seconds to wait per relay
      * @return array Results keyed by relay URL
      */
     public function publish(\swentel\nostr\Event\Event $event, array $relayUrls, ?string $pubkey = null, int $timeout = 30): array
     {
-        if ($this->gatewayEnabled && $this->gatewayClient) {
-            [$localUrls, $externalUrls] = $this->partitionRelays($relayUrls);
-
-            $results = [];
-
-            // Local relay — direct, no AUTH needed
-            if (!empty($localUrls)) {
-                $results = array_merge($results, $this->publishDirect($event, $localUrls, $timeout));
-            }
-
-            // External relays — route through gateway (handles NIP-42 AUTH)
-            if (!empty($externalUrls)) {
-                $signedEvent = $event->toArray();
-                $gatewayResult = $this->gatewayClient->publish($externalUrls, $signedEvent, $pubkey, $timeout);
-
-                foreach ($externalUrls as $url) {
-                    if (isset($gatewayResult['errors'][$url])) {
-                        $results[$url] = ['ok' => false, 'message' => $gatewayResult['errors'][$url]];
-                    } elseif (isset($gatewayResult['ok'][$url])) {
-                        // Gateway received an explicit OK/FAIL from the relay
-                        $accepted = (bool) $gatewayResult['ok'][$url];
-                        $results[$url] = ['ok' => $accepted, 'message' => $accepted ? '' : 'Relay rejected event'];
-                    } else {
-                        // No OK and no error — gateway timed out waiting for relay confirmation
-                        $results[$url] = ['ok' => false, 'message' => 'No confirmation received (timeout)'];
-                    }
-                }
-
-                $this->logger->info('Published event to external relays via gateway', [
-                    'event_id'   => $event->getId(),
-                    'ok_count'   => count($gatewayResult['ok'] ?? []),
-                    'error_count' => count($gatewayResult['errors'] ?? []),
-                ]);
-            }
-
-            return $results;
-        }
-
-        // Gateway disabled — direct publish to all relays
         return $this->publishDirect($event, $relayUrls, $timeout);
     }
 
     /**
-     * Publish directly to relays via swentel RelaySet::send() (no NIP-42 AUTH).
-     * Only safe for local/non-AUTH relays.
+     * Publish directly to relays. Each relay is contacted independently so
+     * one failing relay cannot block or cancel the others.
      */
     private function publishDirect(\swentel\nostr\Event\Event $event, array $relayUrls, int $timeout): array
     {
-        $eventMessage = new \swentel\nostr\Message\EventMessage($event);
+        $eventMessage = new EventMessage($event);
+        $payload = $eventMessage->generate();
+        $results = [];
 
-        $relaySet = new \swentel\nostr\Relay\RelaySet();
         foreach ($relayUrls as $url) {
-            $relay = $this->getRelay($url);
             try {
+                // Create a fresh Relay per publish — we disconnect after each one,
+                // so reusing cached relays from getRelay() would yield a stale client.
+                $relay = new Relay($url);
                 $client = $relay->getClient();
                 if (method_exists($client, 'setTimeout')) {
                     $client->setTimeout($timeout);
                 }
-            } catch (\Exception) {}
-            $relaySet->addRelay($relay);
-        }
-        $relaySet->setMessage($eventMessage);
 
-        try {
-            return $relaySet->send();
-        } catch (\Exception $e) {
-            $this->logger->error('Direct publish failed', [
-                'error'  => $e->getMessage(),
-                'relays' => $relayUrls,
-            ]);
-            return [];
+                $client->text($payload);
+                $response = $client->receive();
+                $client->disconnect();
+
+                if ($response === null) {
+                    $results[$url] = ['ok' => false, 'message' => 'Null response'];
+                    continue;
+                }
+
+                $content = $response->getContent();
+                $decoded = json_decode($content);
+                if ($decoded !== null) {
+                    $results[$url] = RelayResponse::create($decoded);
+                } else {
+                    $results[$url] = ['ok' => true];
+                }
+
+                $this->healthStore->recordSuccess($url);
+
+            } catch (\Throwable $e) {
+                $this->logger->warning('Publish failed for relay', [
+                    'relay' => $url,
+                    'error' => $e->getMessage(),
+                    'event_id' => substr($event->getId() ?? '', 0, 16),
+                ]);
+                $results[$url] = ['ok' => false, 'message' => $e->getMessage()];
+                $this->healthStore->recordFailure($url);
+            }
         }
+
+        return $results;
     }
 
     /**

@@ -54,15 +54,13 @@ class NostrClient
             'relay_count'    => count($relays),
             'relays'         => $relays,
             'timeout'        => $timeout,
-            'gateway_enabled' => $this->relayPool->isGatewayEnabled(),
         ]);
 
         try {
             $startTime = microtime(true);
 
-            // Route through NostrRelayPool::publish() so that AUTH-protected external
-            // relays are handled by the gateway (NIP-42), while the local relay
-            // continues to receive events via a direct connection.
+            // Publish directly to each relay independently. One relay failing
+            // does not affect the others.
             $results  = $this->relayPool->publish($event, $relays, $event->getPublicKey(), $timeout);
             $duration = microtime(true) - $startTime;
 
