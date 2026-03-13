@@ -3,6 +3,8 @@
 ## v0.0.15
 Mentions, embeds, and uploads.
 
+- Added a Media Manager.
+- Added NIP-05 lookup to user search: when a NIP-05 identifier (e.g. `bob@example.com`) is entered, the well-known endpoint is queried to resolve the hex pubkey, and the matching user is returned at the top of results.
 - Added Mentions tab in the editor left sidebar: search users by name/NIP-05 and insert `nostr:npub1…` mentions at the cursor. Corresponding `p` tags are auto-generated on publish per NIP-27.
 - Added Embeds tab in the editor left sidebar with three sections: profile embed (user search → `nostr:npub1…` card), article embed (article search → `nostr:naddr1…` card), and raw identifier paste (accepts `note1…`, `nevent1…`, `naddr1…`, `npub1…` codes).
 - Auto-generate `p`, `e`, and `a` tags from `nostr:` references in article content at publish time (both client-side in JS and server-side in PHP), per NIP-27. Deduplication prevents duplicate tags.

@@ -283,6 +283,115 @@ readonly class Nip05VerificationService
     }
 
     /**
+     * Resolve a NIP-05 identifier to a hex pubkey (user discovery).
+     *
+     * Unlike verify(), this does not require a known pubkey to check against.
+     * It fetches the well-known document and returns the hex pubkey for the
+     * given local-part, or null if the lookup fails.
+     *
+     * @param string $nip05 The NIP-05 identifier (e.g., "bob@example.com")
+     * @return array{pubkey: string|null, relays: array<string>}
+     */
+    public function resolve(string $nip05): array
+    {
+        if (!$this->isValidIdentifier($nip05)) {
+            $this->logger->debug('NIP-05 resolve: invalid identifier format', ['nip05' => $nip05]);
+            return ['pubkey' => null, 'relays' => []];
+        }
+
+        [$localPart, $domain] = $this->splitIdentifier($nip05);
+        $normalizedLocalPart = strtolower($localPart);
+
+        $cacheKey = 'nip05_resolve_' . md5($nip05);
+
+        try {
+            return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($normalizedLocalPart, $domain, $nip05) {
+                $item->expiresAfter(self::CACHE_TTL);
+
+                // Short-circuit for our own domain
+                if ($this->isLocalDomain($domain)) {
+                    return $this->resolveLocal($normalizedLocalPart, $nip05);
+                }
+
+                $wellKnownUrl = "https://{$domain}/.well-known/nostr.json?name=" . urlencode($normalizedLocalPart);
+
+                $result = $this->fetchWellKnown($wellKnownUrl);
+                if (!$result['success']) {
+                    return ['pubkey' => null, 'relays' => []];
+                }
+
+                $data = $result['data'];
+
+                if (!isset($data['names'][$normalizedLocalPart])) {
+                    $this->logger->info('NIP-05 resolve: name not found', [
+                        'nip05' => $nip05,
+                        'localPart' => $normalizedLocalPart,
+                    ]);
+                    return ['pubkey' => null, 'relays' => []];
+                }
+
+                $returnedPubkey = $data['names'][$normalizedLocalPart];
+
+                if (!$this->isValidHexPubkey($returnedPubkey)) {
+                    $this->logger->warning('NIP-05 resolve: invalid pubkey format', [
+                        'nip05' => $nip05,
+                        'pubkey' => $returnedPubkey,
+                    ]);
+                    return ['pubkey' => null, 'relays' => []];
+                }
+
+                $relays = [];
+                if (isset($data['relays'][$returnedPubkey]) && is_array($data['relays'][$returnedPubkey])) {
+                    $relays = $data['relays'][$returnedPubkey];
+                }
+
+                $this->logger->info('NIP-05 resolve successful', [
+                    'nip05' => $nip05,
+                    'pubkey' => $returnedPubkey,
+                    'relays' => count($relays),
+                ]);
+
+                return ['pubkey' => strtolower($returnedPubkey), 'relays' => $relays];
+            });
+        } catch (\Exception $e) {
+            $this->logger->error('Error during NIP-05 resolve', [
+                'nip05' => $nip05,
+                'error' => $e->getMessage(),
+            ]);
+            return ['pubkey' => null, 'relays' => []];
+        }
+    }
+
+    /**
+     * Resolve a NIP-05 identifier locally using the VanityNameService
+     */
+    private function resolveLocal(string $normalizedLocalPart, string $nip05): array
+    {
+        $data = $this->vanityNameService->getNip05Response($normalizedLocalPart);
+
+        if (!isset($data['names'][$normalizedLocalPart])) {
+            $this->logger->info('NIP-05 resolve local: name not found', [
+                'nip05' => $nip05,
+                'localPart' => $normalizedLocalPart,
+            ]);
+            return ['pubkey' => null, 'relays' => []];
+        }
+
+        $returnedPubkey = $data['names'][$normalizedLocalPart];
+
+        if (!$this->isValidHexPubkey($returnedPubkey)) {
+            return ['pubkey' => null, 'relays' => []];
+        }
+
+        $relays = [];
+        if (isset($data['relays'][$returnedPubkey]) && is_array($data['relays'][$returnedPubkey])) {
+            $relays = $data['relays'][$returnedPubkey];
+        }
+
+        return ['pubkey' => strtolower($returnedPubkey), 'relays' => $relays];
+    }
+
+    /**
      * Format identifier for display
      * "_@domain.com" should be displayed as "domain.com"
      */
