@@ -17,7 +17,7 @@ export default class extends Controller {
 
     static values = {
         pubkey: String,
-        scope: { type: String, default: 'posts' },
+        scope: { type: String, default: 'assets' },
         view: { type: String, default: 'thumbnails' },
         filter: { type: String, default: 'all' },
         provider: { type: String, default: '' },
@@ -25,7 +25,7 @@ export default class extends Controller {
     };
 
     connect() {
-        this.isLoading = false;
+        this._loadController = null;   // AbortController for the active fetch
         this.loadContent();
 
         // Listen for provider changes
@@ -90,32 +90,44 @@ export default class extends Controller {
 
     // --- Content loading ---
     async loadContent() {
-        if (this.isLoading) return;
-        this.isLoading = true;
+        // Cancel any in-flight load so scope/filter/provider changes
+        // always take effect immediately.
+        if (this._loadController) {
+            this._loadController.abort();
+        }
+        this._loadController = new AbortController();
+        const signal = this._loadController.signal;
+
         this.statusTarget.textContent = 'Loading...';
 
         try {
             let items;
             if (this.scopeValue === 'assets') {
-                items = await this.loadAssets();
+                items = await this.loadAssets(signal);
             } else {
-                items = await this.loadPosts();
+                items = await this.loadPosts(signal);
             }
+
+            if (signal.aborted) return;   // superseded by a newer call
             this.renderItems(items);
         } catch (error) {
+            if (error.name === 'AbortError') return;   // expected — newer call replaced us
             console.error('Failed to load content:', error);
             this.statusTarget.textContent = 'Failed to load media. Please try again.';
-        } finally {
-            this.isLoading = false;
         }
     }
 
-    async loadAssets() {
+    async loadAssets(signal) {
+        // When no specific provider is selected, show all uploads from the
+        // local DB (the same source the editor aside and standalone upload
+        // modal use).  When a provider IS selected, try the remote API first
+        // and fall back to filtering the local DB by provider.
+
         if (!this.providerValue) {
-            this.statusTarget.textContent = 'Select a provider to view uploaded assets.';
-            return [];
+            return this._loadLocalUploads(null, signal);
         }
 
+        // Try the remote provider API
         const params = new URLSearchParams({
             provider: this.providerValue,
             pubkey: this.pubkeyValue,
@@ -126,14 +138,71 @@ export default class extends Controller {
             params.set('cursor', String(this.pageValue));
         }
 
-        const response = await fetch(`/api/media/assets?${params}`);
-        const data = await response.json();
+        try {
+            const response = await fetch(`/api/media/assets?${params}`, { signal });
+            const data = await response.json();
+            const remoteAssets = data.assets || [];
 
-        this.statusTarget.textContent = `Showing ${data.count || 0} uploaded assets`;
-        return data.assets || [];
+            if (remoteAssets.length) {
+                this.statusTarget.textContent = `Showing ${data.count || 0} uploaded assets from provider`;
+                return remoteAssets;
+            }
+        } catch (e) {
+            if (e.name === 'AbortError') throw e;   // let caller handle abort
+            console.warn('Remote asset listing failed, falling back to local DB', e);
+        }
+
+        // Fallback: show locally-tracked uploads filtered by provider
+        return this._loadLocalUploads(this.providerValue, signal);
     }
 
-    async loadPosts() {
+    /**
+     * Load uploads from the local user_upload DB and normalize them
+     * to the shape renderCard() expects (NormalizedMedia-compatible).
+     */
+    async _loadLocalUploads(providerFilter = null, signal = null) {
+        const limit = 50;
+        const offset = this.pageValue * limit;
+        const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+        if (providerFilter) {
+            params.set('provider', providerFilter);
+        }
+
+        const fetchOpts = signal ? { signal } : {};
+        const response = await fetch(`/api/user-uploads?${params}`, fetchOpts);
+        if (!response.ok) {
+            this.statusTarget.textContent = 'Sign in to see your uploads.';
+            return [];
+        }
+
+        const json = await response.json();
+        const uploads = json.uploads || [];
+        const total = json.total || 0;
+
+        this.statusTarget.textContent = `Showing ${Math.min(offset + uploads.length, total)} of ${total} uploads`;
+
+        // Normalize each user_upload row into the shape renderCard() needs
+        return uploads.map(u => {
+            const isImage = (u.mime_type || '').startsWith('image/');
+            return {
+                source_type: 'asset',
+                provider_id: u.provider,
+                primary_url: u.url,
+                best_preview: isImage ? u.url : null,
+                title: u.original_filename || null,
+                description: null,
+                mime: u.mime_type,
+                kind: isImage ? 20 : 21,
+                kind_label: isImage ? 'Picture' : 'Video',
+                size: u.file_size,
+                uploaded_at: u.created_at ? Math.floor(new Date(u.created_at).getTime() / 1000) : null,
+                created_at: null,
+                alt: u.original_filename || null,
+            };
+        });
+    }
+
+    async loadPosts(signal) {
         const kindsMap = {
             'all': '20,21,22',
             'pictures': '20',
@@ -148,7 +217,7 @@ export default class extends Controller {
             filter: this.filterValue,
         });
 
-        const response = await fetch(`/api/media/posts?${params}`);
+        const response = await fetch(`/api/media/posts?${params}`, { signal });
         const data = await response.json();
 
         this.statusTarget.textContent = `Showing ${data.count || 0} published posts`;

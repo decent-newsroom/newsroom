@@ -23,29 +23,39 @@ class UserUploadRepository extends ServiceEntityRepository
      *
      * @return UserUpload[]
      */
-    public function findByNpub(string $npub, int $limit = 50, int $offset = 0): array
+    public function findByNpub(string $npub, int $limit = 50, int $offset = 0, ?string $provider = null): array
     {
-        return $this->createQueryBuilder('u')
+        $qb = $this->createQueryBuilder('u')
             ->andWhere('u.npub = :npub')
             ->setParameter('npub', $npub)
             ->orderBy('u.createdAt', 'DESC')
             ->setMaxResults($limit)
-            ->setFirstResult($offset)
-            ->getQuery()
-            ->getResult();
+            ->setFirstResult($offset);
+
+        if ($provider !== null) {
+            $qb->andWhere('u.provider = :provider')
+               ->setParameter('provider', $provider);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
      * Count total uploads for a user.
      */
-    public function countByNpub(string $npub): int
+    public function countByNpub(string $npub, ?string $provider = null): int
     {
-        return (int) $this->createQueryBuilder('u')
+        $qb = $this->createQueryBuilder('u')
             ->select('COUNT(u.id)')
             ->andWhere('u.npub = :npub')
-            ->setParameter('npub', $npub)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('npub', $npub);
+
+        if ($provider !== null) {
+            $qb->andWhere('u.provider = :provider')
+               ->setParameter('provider', $provider);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 }
 

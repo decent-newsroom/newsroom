@@ -269,11 +269,14 @@ class ImageUploadController extends AbstractController
 
         $limit = min($request->query->getInt('limit', 50), 200);
         $offset = max($request->query->getInt('offset', 0), 0);
+        $provider = $request->query->get('provider');
 
         /** @var \App\Repository\UserUploadRepository $repo */
         $repo = $this->entityManager->getRepository(UserUpload::class);
-        $uploads = $repo->findByNpub($user->getUserIdentifier(), $limit, $offset);
-        $total = $repo->countByNpub($user->getUserIdentifier());
+        $npub = $user->getUserIdentifier();
+
+        $uploads = $repo->findByNpub($npub, $limit, $offset, $provider);
+        $total = $repo->countByNpub($npub, $provider);
 
         return new JsonResponse([
             'uploads' => array_map(fn(UserUpload $u) => $u->toArray(), $uploads),
