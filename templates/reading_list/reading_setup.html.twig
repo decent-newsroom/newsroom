@@ -7,9 +7,9 @@
   {{ form_row(form.existingListCoordinate, {'row_attr': {'class': 'hidden'}}) }}
   {{ form_row(form.title, {label: 'Title'}) }}
   {{ form_row(form.summary) }}
-  {{ form_row(form.image) }}
+  <div data-controller="publishing--image-upload">
+    {{ form_row(form.image, {'attr': {'data-publishing--image-upload-target': 'urlInput'}}) }}
 
-  <div class="actions" data-controller="publishing--image-upload">
     <button type="button"
             class="btn btn-secondary"
             data-action="click->publishing--image-upload#openDialog">

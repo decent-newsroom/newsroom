@@ -45,9 +45,9 @@
                                 {{ form_row(cat.summary) }}
 
                                 {# Image URL field with upload button #}
-                                {{ form_row(cat.image) }}
+                                <div data-controller="publishing--image-upload">
+                                    {{ form_row(cat.image, {'attr': {'data-publishing--image-upload-target': 'urlInput'}}) }}
 
-                                <div class="actions" data-controller="publishing--image-upload">
                                     <button type="button"
                                             class="btn btn-secondary btn-sm mt-2"
                                             data-action="click->publishing--image-upload#openDialog">

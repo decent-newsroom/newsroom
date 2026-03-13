@@ -178,19 +178,13 @@ export default class extends Controller {
   }
 
   setImageField(url) {
-      // Prefer the scoped urlInput target, then look within the controller scope,
-      // then fall back to a global selector
-      let imageInput;
-      if (this.hasUrlInputTarget) {
-          imageInput = this.urlInputTarget;
-      } else {
-          imageInput = this.element.closest('form')?.querySelector('input[name$="[image]"], input[name$="[imageUrl]"]')
-              || document.querySelector('input[name$="[image]"]');
-      }
-      if (imageInput) {
-          imageInput.value = url;
-          imageInput.dispatchEvent(new Event('input', { bubbles: true }));
-      }
+      // Only set the image field when an explicit urlInput target is provided.
+      // This avoids unintentionally overwriting the cover image when uploading
+      // from contexts that don't target a specific input (e.g. the media panel).
+      if (!this.hasUrlInputTarget) return;
+
+      this.urlInputTarget.value = url;
+      this.urlInputTarget.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   // Helpers to manage UI visibility and content
