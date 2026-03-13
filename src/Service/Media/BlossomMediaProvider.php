@@ -231,5 +231,36 @@ class BlossomMediaProvider implements MediaProviderInterface
         }
         return 0;
     }
+
+    /**
+     * Strip EXIF metadata (including GPS) by re-encoding the image via GD.
+     *
+     * Returns the re-encoded binary string, or false if unsupported.
+     */
+    private function stripExifIfImage(string $filePath, string $mimeType): string|false
+    {
+        $supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!in_array($mimeType, $supportedTypes, true)) {
+            return false;
+        }
+
+        $image = @imagecreatefromstring(file_get_contents($filePath));
+        if (!$image) {
+            return false;
+        }
+
+        ob_start();
+        $ok = match ($mimeType) {
+            'image/jpeg' => imagejpeg($image, null, 92),
+            'image/png'  => imagepng($image, null, 9),
+            'image/webp' => imagewebp($image, null, 92),
+            'image/gif'  => imagegif($image),
+            default      => false,
+        };
+        $data = ob_get_clean();
+        imagedestroy($image);
+
+        return $ok ? $data : false;
+    }
 }
 

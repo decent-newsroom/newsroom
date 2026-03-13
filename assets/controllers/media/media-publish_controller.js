@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { getSigner } from '../nostr/signer_manager.js';
+import { prepareBlossomUpload, BLOSSOM_MAX_UPLOAD_BYTES } from '../nostr/blossom_auth.js';
 
 /**
  * Media Publish Controller
@@ -27,7 +28,7 @@ export default class extends Controller {
 
     // Provider → upstream endpoint (for NIP-98 "u" tag)
     static UPSTREAM_MAP = {
-        nostrbuild:  'https://nostr.build/nip96/upload',
+        nostrbuild:  'https://nostr.build/api/v2/nip96/upload',
         nostrcheck:  'https://nostrcheck.me/api/v2/media',
         sovbit:      'https://files.sovbit.host/api/v2/media',
         blossomband: 'https://blossom.band/upload',
@@ -88,6 +89,7 @@ export default class extends Controller {
         const upstreamEndpoint = this.constructor.UPSTREAM_MAP[provider]
                               || this.constructor.UPSTREAM_MAP['nostrcheck'];
         const proxyEndpoint = `/api/image-upload/${provider}`;
+        const isBlossom = provider === 'blossomband';
 
         this.uploadProgressTarget.hidden = false;
 
@@ -96,21 +98,34 @@ export default class extends Controller {
             this.uploadTextTarget.textContent = `Uploading ${file.name} (${i + 1}/${files.length})…`;
             this.uploadFillTarget.style.width = `${((i) / files.length) * 100}%`;
 
+            if (isBlossom && file.size > BLOSSOM_MAX_UPLOAD_BYTES) {
+                alert(`${file.name} is too large for Blossom (max 20 MiB). Skipped.`);
+                continue;
+            }
+
             try {
-                // Sign a fresh NIP-98 event per file
-                const authEvent = {
-                    kind: 27235,
-                    created_at: Math.floor(Date.now() / 1000),
-                    pubkey,
-                    tags: [['u', upstreamEndpoint], ['method', 'POST']],
-                    content: '',
-                };
+                // Blossom uses BUD-01 auth (kind 24242), others use NIP-98 (kind 27235)
+                let authEvent;
+                let uploadFile = file;
+                if (isBlossom) {
+                    const prepared = await prepareBlossomUpload(pubkey, file);
+                    authEvent  = prepared.event;
+                    uploadFile = prepared.file;
+                } else {
+                    authEvent = {
+                        kind: 27235,
+                        created_at: Math.floor(Date.now() / 1000),
+                        pubkey,
+                        tags: [['u', upstreamEndpoint], ['method', 'POST']],
+                        content: '',
+                    };
+                }
                 const signed = await signer.signEvent(authEvent);
                 const authHeader = 'Nostr ' + this.base64Encode(JSON.stringify(signed));
 
                 const formData = new FormData();
                 formData.append('uploadtype', 'media');
-                formData.append('file', file);
+                formData.append('file', uploadFile);
 
                 const res = await fetch(proxyEndpoint, {
                     method: 'POST',

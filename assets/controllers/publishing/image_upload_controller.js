@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { getSigner } from '../nostr/signer_manager.js';
+import { prepareBlossomUpload, BLOSSOM_MAX_UPLOAD_BYTES } from '../nostr/blossom_auth.js';
 
 export default class extends Controller {
   static targets = ["dialog", "dropArea", "fileInput", "progress", "error", "provider", "urlInput"];
@@ -117,7 +118,7 @@ export default class extends Controller {
 
           // Map provider -> upstream endpoint used for signing the NIP-98 event
           const upstreamMap = {
-              nostrbuild: 'https://nostr.build/nip96/upload',
+              nostrbuild: 'https://nostr.build/api/v2/nip96/upload',
               nostrcheck: 'https://nostrcheck.me/api/v2/media',
               sovbit: 'https://files.sovbit.host/api/v2/media',
               blossomband: 'https://blossom.band/upload',
@@ -127,23 +128,40 @@ export default class extends Controller {
           // Backend proxy endpoint to avoid third-party CORS
           const proxyEndpoint = `/api/image-upload/${provider}`;
 
-          const event = {
-              kind: 27235,
-              created_at: Math.floor(Date.now() / 1000),
-              pubkey: pubkey,
-              tags: [
-                  ["u", upstreamEndpoint],
-                  ["method", "POST"]
-              ],
-              content: ""
-          };
+          // Blossom uses BUD-01 auth (kind 24242), not NIP-98 (kind 27235)
+          const isBlossom = provider === 'blossomband';
+
+          if (isBlossom && file.size > BLOSSOM_MAX_UPLOAD_BYTES) {
+              this.showError(`File too large for Blossom (max 20 MiB). File is ${(file.size / 1024 / 1024).toFixed(1)} MiB.`);
+              return;
+          }
+
+          let event;
+          let uploadFile = file;
+          if (isBlossom) {
+              this.showProgress('Stripping metadata…');
+              const prepared = await prepareBlossomUpload(pubkey, file);
+              event = prepared.event;
+              uploadFile = prepared.file;
+          } else {
+              event = {
+                  kind: 27235,
+                  created_at: Math.floor(Date.now() / 1000),
+                  pubkey: pubkey,
+                  tags: [
+                      ["u", upstreamEndpoint],
+                      ["method", "POST"]
+                  ],
+                  content: ""
+              };
+          }
           const signed = await signer.signEvent(event);
           const signedJson = JSON.stringify(signed);
           const authHeader = 'Nostr ' + this.base64Encode(signedJson);
           // Prepare form data
           const formData = new FormData();
           formData.append('uploadtype', 'media');
-          formData.append('file', file);
+          formData.append('file', uploadFile);
           this.showProgress('Uploading...');
           // Upload to backend proxy
           const response = await fetch(proxyEndpoint, {

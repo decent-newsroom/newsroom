@@ -93,7 +93,7 @@ class MediaProviderRegistry
             id: 'nostrbuild',
             label: 'nostr.build',
             baseUrl: 'https://nostr.build',
-            apiUrl: 'https://nostr.build/nip96/upload',
+            apiUrl: 'https://nostr.build/api/v2/nip96/upload',
             logger: $this->logger,
         ));
 

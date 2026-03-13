@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\UserUpload;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,14 +17,26 @@ class ImageUploadController extends AbstractController
      * Protocol is either 'nip96' (multipart POST) or 'blossom' (PUT raw body).
      */
     private const PROVIDERS = [
-        'nostrbuild'  => ['endpoint' => 'https://nostr.build/nip96/upload',          'protocol' => 'nip96'],
+        'nostrbuild'  => ['endpoint' => 'https://nostr.build/api/v2/nip96/upload',          'protocol' => 'nip96'],
         'nostrcheck'  => ['endpoint' => 'https://nostrcheck.me/api/v2/media',        'protocol' => 'nip96'],
         'sovbit'      => ['endpoint' => 'https://files.sovbit.host/api/v2/media',    'protocol' => 'nip96'],
         'blossomband' => ['endpoint' => 'https://blossom.band/upload',               'protocol' => 'blossom'],
     ];
 
+    /** Human-readable labels for PHP upload error codes. */
+    private const UPLOAD_ERRORS = [
+        \UPLOAD_ERR_INI_SIZE   => 'File exceeds upload_max_filesize (%s)',
+        \UPLOAD_ERR_FORM_SIZE  => 'File exceeds MAX_FILE_SIZE in HTML form',
+        \UPLOAD_ERR_PARTIAL    => 'File was only partially uploaded',
+        \UPLOAD_ERR_NO_FILE    => 'No file was uploaded',
+        \UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder on server',
+        \UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+        \UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the upload',
+    ];
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly LoggerInterface $logger,
     ) {}
 
     #[Route('/api/image-upload/{provider}', name: 'api_image_upload', methods: ['POST'])]
@@ -41,8 +54,56 @@ class ImageUploadController extends AbstractController
         }
 
         $file = $request->files->get('file');
+
+        // Log everything we know about the incoming request + file
+        $this->logger->info('[Upload] Incoming upload request', [
+            'provider'       => $provider,
+            'content_type'   => $request->headers->get('Content-Type'),
+            'content_length' => $request->headers->get('Content-Length'),
+            'has_file'       => $file !== null,
+            'files_keys'     => array_keys($request->files->all()),
+        ]);
+
         if (!$file) {
+            $this->logger->warning('[Upload] No file in request', [
+                'provider'       => $provider,
+                'post_max_size'  => ini_get('post_max_size'),
+                'upload_max'     => ini_get('upload_max_filesize'),
+            ]);
             return new JsonResponse(['status' => 'error', 'message' => 'Missing file'], 400);
+        }
+
+        $this->logger->info('[Upload] File received', [
+            'provider'      => $provider,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type'     => $file->getMimeType(),
+            'client_mime'   => $file->getClientMimeType(),
+            'size'          => $file->getSize(),
+            'error_code'    => $file->getError(),
+            'is_valid'      => $file->isValid(),
+            'pathname'      => $file->getPathname(),
+        ]);
+
+        if (!$file->isValid()) {
+            $errorCode = $file->getError();
+            $reason = self::UPLOAD_ERRORS[$errorCode]
+                ?? 'Unknown upload error (code ' . $errorCode . ')';
+
+            // Interpolate PHP ini values for size-limit errors
+            if ($errorCode === \UPLOAD_ERR_INI_SIZE) {
+                $reason = sprintf($reason, ini_get('upload_max_filesize'));
+            }
+
+            $this->logger->error('[Upload] File upload not valid', [
+                'provider'   => $provider,
+                'error_code' => $errorCode,
+                'reason'     => $reason,
+            ]);
+
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => 'Upload rejected by server: ' . $reason,
+            ], 400);
         }
 
         $providerConfig = self::PROVIDERS[$provider];
@@ -62,6 +123,12 @@ class ImageUploadController extends AbstractController
 
             return $response;
         } catch (\Throwable $e) {
+            $this->logger->error('[Upload] Proxy exception', [
+                'provider'  => $provider,
+                'exception' => $e->getMessage(),
+                'file'      => $e->getFile() . ':' . $e->getLine(),
+                'trace'     => $e->getTraceAsString(),
+            ]);
             return new JsonResponse([
                 'status' => 'error',
                 'message' => 'Proxy error: ' . $e->getMessage(),
@@ -105,15 +172,42 @@ class ImageUploadController extends AbstractController
 
     /**
      * Blossom (BUD-02) upload: PUT raw body with Content-Type.
+     *
+     * EXIF/GPS stripping is done client-side (Canvas re-draw) before the
+     * SHA-256 hash is computed for the BUD-01 "x" tag.  The server MUST
+     * forward the bytes unchanged so the hash still matches.
      */
     private function uploadBlossom(\Symfony\Component\HttpFoundation\File\UploadedFile $file, string $authHeader, string $endpoint): JsonResponse
     {
-        $fileContent = file_get_contents($file->getPathname());
+        // 20 MiB server-side size guard for blossom.band free tier
+        $maxBytes = 20 * 1024 * 1024;
+        if ($file->getSize() > $maxBytes) {
+            return new JsonResponse([
+                'status' => 'error',
+                'message' => sprintf('File too large for Blossom (max 20 MiB, got %.1f MiB)', $file->getSize() / 1024 / 1024),
+            ], 413);
+        }
+
+        $pathname = $file->getPathname();
+        $this->logger->info('[Upload][Blossom] Reading file from temp path', [
+            'pathname'  => $pathname,
+            'exists'    => file_exists($pathname),
+            'size'      => $file->getSize(),
+        ]);
+
+        $fileContent = file_get_contents($pathname);
         if ($fileContent === false) {
+            $this->logger->error('[Upload][Blossom] file_get_contents failed', ['pathname' => $pathname]);
             return new JsonResponse(['status' => 'error', 'message' => 'Failed to read uploaded file'], 500);
         }
 
         $mimeType = $file->getMimeType() ?: 'application/octet-stream';
+
+        $this->logger->info('[Upload][Blossom] Forwarding to upstream', [
+            'endpoint'     => $endpoint,
+            'content_type' => $mimeType,
+            'body_length'  => strlen($fileContent),
+        ]);
 
         $headers = [
             'Authorization: ' . $authHeader,
@@ -123,8 +217,14 @@ class ImageUploadController extends AbstractController
 
         $responseBody = $this->doRequest('PUT', $endpoint, $headers, $fileContent);
 
+        $this->logger->info('[Upload][Blossom] Upstream response', [
+            'status' => $responseBody['status'],
+            'body'   => mb_substr($responseBody['body'], 0, 500),
+        ]);
+
         return $this->parseBlossomResponse($responseBody);
     }
+
 
     /**
      * Execute an HTTP request to the upstream provider.
