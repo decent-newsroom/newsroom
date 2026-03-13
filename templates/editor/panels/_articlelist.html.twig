@@ -27,6 +27,15 @@
         >
             Embeds
         </button>
+        <button
+            type="button"
+            class="editor-sidebar-tab"
+            data-editor--articlelist-panels-target="tab"
+            data-panel="media"
+            data-action="editor--articlelist-panels#switch"
+        >
+            Media
+        </button>
     </div>
     <section class="editor-sidebar-panels">
         <div
@@ -157,6 +166,75 @@
                         data-action="click->editor--embeds#insertRaw"
                     >Insert</button>
                 </div>
+            </div>
+        </div>
+
+        {# ── Media panel ── #}
+        <div
+            class="editor-panel is-hidden"
+            data-editor--articlelist-panels-target="panel"
+            data-panel="media"
+            data-controller="editor--media"
+        >
+            {# Upload section #}
+            <div class="panel-section">
+                <h6>Upload &amp; insert</h6>
+                <div class="media-upload-provider mb-2">
+                    <select class="form-select form-select-sm"
+                            data-editor--media-target="provider">
+                        <option value="sovbit">files.sovbit.host</option>
+                        <option value="nostrbuild">nostr.build</option>
+                        <option value="nostrcheck">nostrcheck.me</option>
+                        <option value="blossomband">blossom.band</option>
+                    </select>
+                </div>
+                <div class="media-dropzone"
+                     data-editor--media-target="dropzone"
+                     data-action="dragover->editor--media#dragover
+                                  dragenter->editor--media#dragenter
+                                  dragleave->editor--media#dragleave
+                                  drop->editor--media#drop">
+                    <span class="media-dropzone__text">Drop image here or</span>
+                    <input type="file" accept="image/*,video/*"
+                           data-editor--media-target="fileInput"
+                           data-action="change->editor--media#filesSelected"
+                           class="media-dropzone__input">
+                    <button type="button"
+                            class="btn btn-sm btn-secondary"
+                            data-action="click->editor--media#browseFiles">
+                        Choose file
+                    </button>
+                </div>
+                <div data-editor--media-target="progress" class="media-panel-progress" hidden></div>
+                <div data-editor--media-target="error" class="media-panel-error" hidden></div>
+            </div>
+
+            {# Your uploads #}
+            <div class="panel-section panel-subsection">
+                <h6>Your uploads</h6>
+                <p class="text-muted small">Click to insert at cursor.</p>
+                <div data-editor--media-target="uploadsList" class="media-panel-grid"></div>
+                <button type="button"
+                        class="btn btn-sm btn-secondary w-100 mt-1"
+                        data-editor--media-target="loadMoreUploads"
+                        data-action="click->editor--media#loadMoreUploads"
+                        hidden>
+                    Load more
+                </button>
+            </div>
+
+            {# Media posts #}
+            <div class="panel-section panel-subsection">
+                <h6>Your media posts</h6>
+                <p class="text-muted small">Pictures, videos &amp; shorts from your published events.</p>
+                <div data-editor--media-target="postsList" class="media-panel-list"></div>
+                <button type="button"
+                        class="btn btn-sm btn-secondary w-100 mt-1"
+                        data-editor--media-target="loadMorePosts"
+                        data-action="click->editor--media#loadMorePosts"
+                        hidden>
+                    Load more
+                </button>
             </div>
         </div>
     </section>
