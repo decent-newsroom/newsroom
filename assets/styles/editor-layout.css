@@ -397,12 +397,6 @@ main.editor-layout {
     font-size: 0.8125rem;
 }
 
-.panel-subsection {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color, #e5e7eb);
-}
-
 /* Info groups for publishing panel */
 .info-group {
     margin-bottom: 0.75rem;
@@ -933,34 +927,6 @@ main.editor-layout {
 }
 
 /* ── Editor Media Panel ── */
-
-.media-dropzone {
-    border: 2px dashed var(--border-color, #d1d5db);
-    border-radius: 6px;
-    padding: 1rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-    margin-bottom: 0.5rem;
-}
-
-.media-dropzone--active,
-.media-dropzone:hover {
-    border-color: var(--brand, #6366f1);
-    background: rgba(99, 102, 241, 0.04);
-}
-
-.media-dropzone__text {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-secondary, #6b7280);
-    margin-bottom: 0.5rem;
-}
-
-.media-dropzone__input {
-    display: none;
-}
-
 .media-upload-provider select {
     width: 100%;
 }
@@ -989,7 +955,7 @@ main.editor-layout {
 /* Thumbnail grid for uploads */
 .media-panel-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
     gap: 4px;
 }
 

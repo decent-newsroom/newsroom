@@ -176,37 +176,29 @@
             data-panel="media"
             data-controller="editor--media"
         >
-            {# Upload section #}
-            <div class="panel-section">
+            {# Upload section — reuses the publishing--image-upload controller #}
+            <div class="panel-section"
+                 data-controller="publishing--image-upload"
+                 data-action="image-upload:success->editor--media#onUploadSuccess">
+
                 <h6>Upload &amp; insert</h6>
                 <div class="media-upload-provider mb-2">
                     <select class="form-select form-select-sm"
-                            data-editor--media-target="provider">
+                            data-publishing--image-upload-target="provider">
                         <option value="sovbit">files.sovbit.host</option>
                         <option value="nostrbuild">nostr.build</option>
                         <option value="nostrcheck">nostrcheck.me</option>
                         <option value="blossomband">blossom.band</option>
                     </select>
                 </div>
-                <div class="media-dropzone"
-                     data-editor--media-target="dropzone"
-                     data-action="dragover->editor--media#dragover
-                                  dragenter->editor--media#dragenter
-                                  dragleave->editor--media#dragleave
-                                  drop->editor--media#drop">
-                    <span class="media-dropzone__text">Drop image here or</span>
-                    <input type="file" accept="image/*,video/*"
-                           data-editor--media-target="fileInput"
-                           data-action="change->editor--media#filesSelected"
-                           class="media-dropzone__input">
-                    <button type="button"
-                            class="btn btn-sm btn-secondary"
-                            data-action="click->editor--media#browseFiles">
-                        Choose file
-                    </button>
+
+                <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                    <span>Drag &amp; drop or click to select an image</span>
+                    <input type="file" accept="image/*,video/*" data-publishing--image-upload-target="fileInput">
                 </div>
-                <div data-editor--media-target="progress" class="media-panel-progress" hidden></div>
-                <div data-editor--media-target="error" class="media-panel-error" hidden></div>
+
+                <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                <div data-publishing--image-upload-target="error" class="upload-error"></div>
             </div>
 
             {# Your uploads #}
@@ -226,7 +218,7 @@
             {# Media posts #}
             <div class="panel-section panel-subsection">
                 <h6>Your media posts</h6>
-                <p class="text-muted small">Pictures, videos &amp; shorts from your published events.</p>
+                <p class="text-muted small">Pictures, videos &amp; shorts you published.</p>
                 <div data-editor--media-target="postsList" class="media-panel-list"></div>
                 <button type="button"
                         class="btn btn-sm btn-secondary w-100 mt-1"

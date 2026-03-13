@@ -1,11 +1,10 @@
 import { Controller } from '@hotwired/stimulus';
-import { getSigner } from '../nostr/signer_manager.js';
 
 /**
  * Editor Media Panel Controller
  *
  * Provides three sections in the editor's left sidebar:
- *  1. Upload an image (NIP-98 + proxy) and insert at cursor
+ *  1. Upload an image (delegated to publishing--image-upload) and insert at cursor
  *  2. Browse your previously uploaded files (from DB)
  *  3. Browse your media posts (kinds 20, 21, 22 from DB)
  *
@@ -14,17 +13,9 @@ import { getSigner } from '../nostr/signer_manager.js';
  */
 export default class extends Controller {
     static targets = [
-        'provider', 'dropzone', 'fileInput', 'progress', 'error',
         'uploadsList', 'loadMoreUploads',
         'postsList', 'loadMorePosts',
     ];
-
-    static UPSTREAM_MAP = {
-        nostrbuild:  'https://nostr.build/nip96/upload',
-        nostrcheck:  'https://nostrcheck.me/api/v2/media',
-        sovbit:      'https://files.sovbit.host/api/v2/media',
-        blossomband: 'https://blossom.band/upload',
-    };
 
     connect() {
         this.uploadsOffset = 0;
@@ -40,11 +31,6 @@ export default class extends Controller {
     //  Helpers
     // =====================================================================
 
-    base64Encode(str) {
-        try { return btoa(unescape(encodeURIComponent(str))); }
-        catch (_) { return btoa(str); }
-    }
-
     esc(str) {
         const d = document.createElement('div');
         d.textContent = str || '';
@@ -54,20 +40,6 @@ export default class extends Controller {
     truncate(str, max) {
         if (!str || str.length <= max) return str || '';
         return str.substring(0, max - 1) + '\u2026';
-    }
-
-    showProgress(msg) {
-        if (this.hasProgressTarget) { this.progressTarget.textContent = msg; this.progressTarget.hidden = false; }
-    }
-    hideProgress() {
-        if (this.hasProgressTarget) { this.progressTarget.hidden = true; this.progressTarget.textContent = ''; }
-    }
-    showError(msg) {
-        if (this.hasErrorTarget) { this.errorTarget.textContent = msg; this.errorTarget.hidden = false; }
-        this.hideProgress();
-    }
-    clearError() {
-        if (this.hasErrorTarget) { this.errorTarget.textContent = ''; this.errorTarget.hidden = true; }
     }
 
     // =====================================================================
@@ -100,80 +72,19 @@ export default class extends Controller {
     }
 
     // =====================================================================
-    //  1. Upload
+    //  1. Upload success handler (event from publishing--image-upload)
     // =====================================================================
 
-    browseFiles() { this.fileInputTarget.click(); }
+    onUploadSuccess(event) {
+        const { url, filename } = event.detail;
+        if (url) {
+            const alt = (filename || 'image').replace(/\.[^.]+$/, '');
+            this._insertIntoEditor(`\n![${alt}](${url})\n`);
 
-    filesSelected(event) {
-        const file = event.target.files[0];
-        if (file) this.uploadFile(file);
-    }
-
-    dragover(e)  { e.preventDefault(); this.dropzoneTarget.classList.add('media-dropzone--active'); }
-    dragenter(e) { e.preventDefault(); this.dropzoneTarget.classList.add('media-dropzone--active'); }
-    dragleave(e) { e.preventDefault(); this.dropzoneTarget.classList.remove('media-dropzone--active'); }
-
-    drop(event) {
-        event.preventDefault();
-        this.dropzoneTarget.classList.remove('media-dropzone--active');
-        const file = event.dataTransfer?.files[0];
-        if (file) this.uploadFile(file);
-    }
-
-    async uploadFile(file) {
-        const provider = (this.providerTarget.value || '').trim();
-        if (!provider) { this.showError('Select a provider.'); return; }
-
-        this.clearError();
-        this.showProgress(`Uploading ${file.name}…`);
-
-        let signer, pubkey;
-        try {
-            signer = await getSigner();
-            pubkey = await signer.getPublicKey();
-        } catch (e) {
-            this.showError('No Nostr signer: ' + e.message);
-            return;
+            // Refresh "Your uploads" list
+            this.uploadsOffset = 0;
+            this.loadUploads();
         }
-
-        const upstream = this.constructor.UPSTREAM_MAP[provider] || this.constructor.UPSTREAM_MAP['nostrcheck'];
-        const proxy = `/api/image-upload/${provider}`;
-
-        try {
-            const authEvent = {
-                kind: 27235,
-                created_at: Math.floor(Date.now() / 1000),
-                pubkey,
-                tags: [['u', upstream], ['method', 'POST']],
-                content: '',
-            };
-            const signed = await signer.signEvent(authEvent);
-            const authHeader = 'Nostr ' + this.base64Encode(JSON.stringify(signed));
-
-            const fd = new FormData();
-            fd.append('uploadtype', 'media');
-            fd.append('file', file);
-
-            const res = await fetch(proxy, { method: 'POST', headers: { 'Authorization': authHeader }, body: fd });
-            const data = await res.json().catch(() => ({}));
-
-            if (res.ok && data.status === 'success' && data.url) {
-                this.hideProgress();
-                const alt = file.name.replace(/\.[^.]+$/, '');
-                this._insertIntoEditor(`\n![${alt}](${data.url})\n`);
-
-                // Refresh "Your uploads" list
-                this.uploadsOffset = 0;
-                this.loadUploads();
-            } else {
-                this.showError(data.message || 'Upload failed');
-            }
-        } catch (err) {
-            this.showError('Upload error: ' + err.message);
-        }
-
-        this.fileInputTarget.value = '';
     }
 
     // =====================================================================

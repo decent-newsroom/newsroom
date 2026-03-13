@@ -20,7 +20,9 @@ export default class extends Controller {
   }
 
   closeDialog() {
-      this.dialogTarget.classList.remove('active');
+      if (this.hasDialogTarget) {
+          this.dialogTarget.classList.remove('active');
+      }
       this.clearError();
       this.hideProgress();
   }
@@ -160,7 +162,16 @@ export default class extends Controller {
           this.showProgress('Upload successful!');
           // clear file input so subsequent identical uploads work
           if (this.hasFileInputTarget) this.fileInputTarget.value = '';
-          setTimeout(() => this.closeDialog(), 1000);
+          // Dispatch custom event so other controllers can react
+          this.element.dispatchEvent(new CustomEvent('image-upload:success', {
+              bubbles: true,
+              detail: { url: result.url, filename: file.name },
+          }));
+          if (this.hasDialogTarget) {
+              setTimeout(() => this.closeDialog(), 1000);
+          } else {
+              setTimeout(() => this.hideProgress(), 2000);
+          }
       } catch (e) {
           this.showError('Upload error: ' + (e.message || e));
       }
