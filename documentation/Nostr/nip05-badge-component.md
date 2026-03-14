@@ -124,7 +124,7 @@ The component includes built-in styles that can be customized:
 The `Nip05VerificationService` can also be used independently:
 
 ```php
-use App\Service\Nip05VerificationService;
+use App\Service\Nostr\Nip05VerificationService;
 
 class MyController
 {

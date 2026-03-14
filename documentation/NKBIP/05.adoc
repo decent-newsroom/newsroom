@@ -1,0 +1,27 @@
+== JSON Web Token (JWT)
+
+A NEP based upon NIP-98.
+
+This NEP defines the method for declaring a JWT pubkey association with a npub, over a  `kind:13004` event, signed by the associated nsec.
+
+*Event Structure*
+
+* The `J` tag contains the JWT public key and the public key of the author of the event. The npub in the tag must match the `pubkey` of the event, otherwise the event is invalid.
+* The `content` is empty.
+
+[source, json]
+----
+{
+  "id": "<event id>",
+  "kind": 13004,
+  "pubkey": "<user pubkey>",
+  "created_at": 1234567890,
+  "tags": [
+    ["J", "<JWT pubkey>", "<hex Nostr pubkey>"],
+  ],
+  "content": "",
+  "sig": "<signature matching user pubkey>"
+}
+----
+
+For more information, please refer to https://github.com/mleku/realy/tree/dev/httpauth[the realy HTTP documents].

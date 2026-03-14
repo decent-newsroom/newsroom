@@ -1,0 +1,69 @@
+= NKBIP-07: Quiet Mode for Event Interactions
+Silberengel <silberengel@gitcitadel.com>
+v1.0.0, 2025-10-28
+
+Based upon the concept proposed by Daniele Tonon (dtonon.com).
+
+== Abstract
+
+This NKBIP defines a quiet mode system for Nostr events that allows content creators to limit interactions on their posts while maintaining essential functionality. The system supports both per-event quiet mode tags and global quiet mode settings, with client-side filtering to reduce noise.
+
+== Specification
+
+=== Quiet Mode Tag
+
+The `quiet` tag indicates a period during which interactions should be limited.
+
+[source]
+----
+["quiet", "<unix_timestamp>"]
+----
+
+- `unix_timestamp`: UNIX timestamp (seconds since epoch) when quiet mode ends
+- Clients MUST limit/hide interactions when current time is before the timestamp
+- Clients MAY limit/hide the display of basic +/heart reactions, reposts, pins, bookmarks, relay information, and quotes, but not necessarily the functionality to send them (e.g. allow to repost, pin, bookmark, etc.)
+- Clients SHOULD limit/hide the display of replies, zap receipts, emoji reactions and similar interactions or responses, but not necessarily the functionality to send them (e.g. allow to reply, react, etc.)
+- Clients SHOULD NOT limit/hide the zap functionality (e.g. allow to send zaps)
+- Clients MAY show reaction, zap, and response counts (statistics)
+- Clients MAY have global override settings, to allow for all responses and interactions to always be shown (e.g. "Respect Quiet Tags" is disabled) or never be shown (e.g. "Global Quiet Mode" is enabled)
+
+==== Global Settings
+
+Clients SHOULD provide the following settings:
+
+**Respect Quiet Tags** (default: true)
+- When enabled: Apply quiet mode based on event tags
+- When disabled: Show all interactions regardless of quiet tags
+
+**Global Quiet Mode** (default: false)
+- When enabled: Apply quiet mode to all events, regardless of event tags
+- When disabled: Fallback to Respect Quiet Mode setting
+
+=== Implementation Examples
+
+==== Basic Quiet Mode Event
+
+[source,json]
+----
+{
+  "kind": 1,
+  "content": "This post will be quiet for 24 hours",
+  "tags": [
+    ["quiet", "1703001600"]
+  ],
+  "created_at": 1702915200
+}
+----
+
+=== User Interface Guidelines
+
+Clients MAY provide UI controls for setting the quiet mode duration on a note (hours, days, months, years). From this human-readable input, the client MUST convert it to a UNIX timestamp and store it in the event tags.
+
+Clients MAY provide default settings that can be applied to all posts.
+
+=== Considerations
+
+- Quiet mode is client-side only and can be overridden locally
+- This system is designed for noise reduction, not security
+- Global quiet mode affects all events viewed by the user, but has no effect on other users.
+- Individual event quiet mode tags are public and can be seen by other users.
