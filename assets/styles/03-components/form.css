@@ -96,6 +96,7 @@ fieldset {
 }
 
 .actions {
+    margin-top: var(--spacing-2);
     margin-bottom: var(--spacing-4);
 }
 

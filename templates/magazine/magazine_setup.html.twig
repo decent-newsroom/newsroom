@@ -47,11 +47,13 @@
             <div data-controller="publishing--image-upload">
                 {{ form_row(form.imageUrl, {'attr': {'data-publishing--image-upload-target': 'urlInput'}}) }}
 
-                <button type="button"
-                        class="btn btn-secondary btn-sm"
-                        data-action="click->publishing--image-upload#openDialog">
-                    Upload Image
-                </button>
+                <div class="actions">
+                    <button type="button"
+                            class="btn btn-secondary btn-sm"
+                            data-action="click->publishing--image-upload#openDialog">
+                        Upload Image
+                    </button>
+                </div>
 
                 <div data-publishing--image-upload-target="dialog" class="iu-dialog">
                     <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
