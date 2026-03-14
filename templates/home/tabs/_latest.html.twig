@@ -1,0 +1,10 @@
+<turbo-frame id="home-tab-content">
+    {% if articles is empty %}
+        <div class="alert alert-info">
+            {{ 'home_feed.latest.empty'|trans }}
+        </div>
+    {% else %}
+        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+    {% endif %}
+</turbo-frame>
+

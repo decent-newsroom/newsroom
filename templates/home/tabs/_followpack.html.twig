@@ -1,0 +1,16 @@
+<turbo-frame id="home-tab-content">
+    {% if articles is empty %}
+        <div class="alert alert-info">
+            {% if purpose is defined and purpose.value == 'podcasts' %}
+                <h4>{{ 'home_feed.podcasts.empty'|trans }}</h4>
+                <p>{{ 'home_feed.podcasts.emptyHint'|trans }}</p>
+            {% else %}
+                <h4>{{ 'home_feed.newsbots.empty'|trans }}</h4>
+                <p>{{ 'home_feed.newsbots.emptyHint'|trans }}</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+    {% endif %}
+</turbo-frame>
+

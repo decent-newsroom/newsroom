@@ -1,0 +1,137 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Follow Packs | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Follow Packs</h1>
+        <p class="eyebrow">Manage follow pack sources for the home feed Podcasts and News Bots tabs</p>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Current Source Assignments #}
+    <section class="metric-section">
+        <h2>Source Assignments</h2>
+        <p class="text-muted mb-3">Assign a follow pack event to each tab on the home feed. The follow pack's <code>p</code> tags define which npubs appear in that tab.</p>
+
+        {% for purpose in purposes %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h3>{{ purpose.label }}</h3>
+                    {% set source = currentSources[purpose.value] %}
+
+                    {% if source %}
+                        <p class="mb-2">
+                            <strong>Current coordinate:</strong>
+                            <code>{{ source.coordinate }}</code>
+                        </p>
+                        <p class="text-muted small">Updated: {{ source.updatedAt|date('Y-m-d H:i') }}</p>
+
+                        <div class="d-flex gap-2 mt-2">
+                            {# Update form #}
+                            <form method="post" action="{{ path('admin_follow_packs_set_source') }}" class="d-flex gap-2 flex-grow-1">
+                                <input type="hidden" name="_token" value="{{ csrf_token('follow_pack_set_source') }}">
+                                <input type="hidden" name="purpose" value="{{ purpose.value }}">
+                                <input type="text" name="coordinate" value="{{ source.coordinate }}"
+                                       class="form-control" placeholder="39089:pubkey:d-tag">
+                                <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                            </form>
+
+                            {# Remove form #}
+                            <form method="post" action="{{ path('admin_follow_packs_remove_source', {purpose: purpose.value}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('follow_pack_remove_source') }}">
+                                <button type="submit" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('Remove this source assignment?')">Remove</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-2">No source assigned yet.</p>
+                        <form method="post" action="{{ path('admin_follow_packs_set_source') }}" class="d-flex gap-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token('follow_pack_set_source') }}">
+                            <input type="hidden" name="purpose" value="{{ purpose.value }}">
+                            <input type="text" name="coordinate" class="form-control"
+                                   placeholder="39089:pubkey:d-tag" required>
+                            <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </section>
+
+    {# Available Follow Pack Events #}
+    <section class="metric-section">
+        <h2>Available Follow Pack Events (kind 39089)</h2>
+        <p class="text-muted mb-3">These are kind 39089 events found in the database. Copy a coordinate to assign it above.</p>
+
+        {% if followPacks is empty %}
+            <div class="alert alert-info">
+                No follow pack events found in the database. Follow pack events (kind 39089) need to be published to the relay and indexed first.
+            </div>
+        {% else %}
+            <div class="card">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Coordinate</th>
+                            <th>Members</th>
+                            <th>Published</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pack in followPacks %}
+                            {% set pCount = 0 %}
+                            {% set description = '' %}
+                            {% for tag in pack.tags %}
+                                {% if tag[0] == 'p' %}
+                                    {% set pCount = pCount + 1 %}
+                                {% endif %}
+                                {% if tag[0] == 'description' and tag[1] is defined %}
+                                    {% set description = tag[1] %}
+                                {% endif %}
+                            {% endfor %}
+                            {% set coord = pack.kind ~ ':' ~ pack.pubkey ~ ':' ~ pack.slug %}
+                            <tr>
+                                <td>
+                                    <strong>{{ pack.title ?? 'Untitled' }}</strong>
+                                    {% if description %}
+                                        <br><small class="text-muted">{{ description|slice(0, 80) }}{% if description|length > 80 %}…{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code class="small" style="word-break: break-all;">{{ coord }}</code>
+                                </td>
+                                <td>{{ pCount }} npubs</td>
+                                <td>{{ pack.createdAt|date('Y-m-d') }}</td>
+                                <td>
+                                    {% for purpose in purposes %}
+                                        <form method="post" action="{{ path('admin_follow_packs_set_source') }}" style="display: inline;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('follow_pack_set_source') }}">
+                                            <input type="hidden" name="purpose" value="{{ purpose.value }}">
+                                            <input type="hidden" name="coordinate" value="{{ coord }}">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm mb-1"
+                                                    title="Use for {{ purpose.label }}">
+                                                → {{ purpose.label }}
+                                            </button>
+                                        </form>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+

@@ -1,0 +1,63 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Home — {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <section class="w-container">
+        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="latest">
+
+            <nav class="profile-tabs home-feed__tabs">
+                <a href="{{ path('home_feed_tab', {tab: 'latest'}) }}"
+                   class="tab-link active"
+                   data-content--home-tabs-target="tab"
+                   data-tab="latest"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.latest'|trans }}
+                </a>
+                <a href="{{ path('home_feed_tab', {tab: 'follows'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="follows"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.follows'|trans }}
+                </a>
+                <a href="{{ path('home_feed_tab', {tab: 'interests'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="interests"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.interests'|trans }}
+                </a>
+                <a href="{{ path('home_feed_tab', {tab: 'podcasts'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="podcasts"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.podcasts'|trans }}
+                </a>
+                <a href="{{ path('home_feed_tab', {tab: 'newsbots'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="newsbots"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.newsbots'|trans }}
+                </a>
+            </nav>
+
+            <div class="home-feed__content" data-content--home-tabs-target="content">
+                <turbo-frame id="home-tab-content" src="{{ path('home_feed_tab', {tab: 'latest'}) }}" loading="lazy">
+                    <div class="home-feed__loading">
+                        <div class="spinner"></div>
+                        <p>{{ 'home_feed.loading'|trans }}</p>
+                    </div>
+                </turbo-frame>
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <twig:Atoms:FeaturedWriters />
+    <twig:Atoms:ForumAside />
+{% endblock %}
+

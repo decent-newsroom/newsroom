@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.16
+Feeds, walls, boards, whatever you want to call them.
+
+- Added front page for logged-in users: a tabbed interface with Latest, Follows, Interests, Podcasts, and News Bots tabs. Each tab loads articles dynamically. Podcasts and News Bots tabs are powered by configurable follow packs (kind 39089 events).
+- Added admin interface for follow pack management: assign kind 39089 follow pack events as sources for the Podcasts and News Bots home feed tabs.
+
+
 ## v0.0.15
 Mentions, embeds, and uploads.
 

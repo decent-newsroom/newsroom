@@ -209,6 +209,30 @@ follows:
     noArticles: 'No articles found'
     noArticlesHint: "The people you follow haven't published any articles yet, or they haven't been synced to this newsroom."
 
+# ── Home Feed (logged-in) ────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Latest'
+        follows: 'Follows'
+        interests: 'Interests'
+        podcasts: 'Podcasts'
+        newsbots: 'News Bots'
+    loading: 'Loading articles…'
+    latest:
+        empty: 'No articles found yet. Check back later!'
+    interests:
+        signInRequired: 'Sign in to see articles based on your interests.'
+        noInterests: 'No interests configured yet'
+        noInterestsHint: 'Set up your interests to see relevant articles here.'
+        configure: 'Configure interests'
+        noArticles: 'No articles found for your interests.'
+    podcasts:
+        empty: 'No podcast articles available'
+        emptyHint: 'Podcast sources have not been configured yet.'
+    newsbots:
+        empty: 'No news bot articles available'
+        emptyHint: 'News bot sources have not been configured yet.'
+
 # ── Article page ──────────────────────────────────────────────────
 article:
     draftPreview: 'Draft Preview'

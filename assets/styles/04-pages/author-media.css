@@ -2,9 +2,9 @@
     display: flex;
     gap: 1rem;
     margin: 1.5rem 0;
-    border-bottom: 2px solid #e0e0e0;
     flex-wrap: wrap;
     justify-content: center;
+    background: var(--color-bg);
 }
 
 .tab-link {
