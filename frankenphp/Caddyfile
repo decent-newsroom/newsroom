@@ -74,8 +74,8 @@
 
 			anonymous
 			subscriptions
-			write_timeout 10
-			dispatch_timeout 5
+			write_timeout 10s
+			dispatch_timeout 5s
 
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
