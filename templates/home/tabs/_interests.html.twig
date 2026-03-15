@@ -7,7 +7,7 @@
         <div class="alert alert-info">
             <h4>{{ 'home_feed.interests.noInterests'|trans }}</h4>
             <p>{{ 'home_feed.interests.noInterestsHint'|trans }}</p>
-            <a href="{{ path('my_interests') }}" class="btn btn-primary btn-sm mt-2">{{ 'home_feed.interests.configure'|trans }}</a>
+            <a data-turbo-frame="_top" href="{{ path('my_interests') }}" class="btn btn-primary btn-sm mt-2">{{ 'home_feed.interests.configure'|trans }}</a>
         </div>
     {% elseif articles is empty %}
         <div class="alert alert-info">

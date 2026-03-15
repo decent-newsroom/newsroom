@@ -5,6 +5,8 @@ Feeds, walls, boards, whatever you want to call them.
 
 - Added front page for logged-in users: a tabbed interface with Latest, Follows, Interests, Podcasts, and News Bots tabs. Each tab loads articles dynamically. Podcasts and News Bots tabs are powered by configurable follow packs (kind 39089 events).
 - Added admin interface for follow pack management: assign kind 39089 follow pack events as sources for the Podcasts and News Bots home feed tabs.
+- Reorganized the draft support center into shorter help-center-style articles with focused reader, writer, identity, billing, and FAQ guides for the future support magazine.
+- Added Translation Helper (`/translation-helper`) for translating Nostr long-form articles. Import by naddr or coordinate, edit side-by-side with the original markdown, and publish as a new kind 30023 event with an `a`-tag referencing the original, NIP-32 language labels, and zap-split crediting the original author.
 
 
 ## v0.0.15

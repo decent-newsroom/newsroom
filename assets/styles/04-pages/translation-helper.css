@@ -1,0 +1,234 @@
+/* ===================================================================
+   Translation Helper — page-specific styles
+   =================================================================== */
+
+.translation-helper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+}
+
+.translation-helper h1 {
+    margin-bottom: 0.25rem;
+}
+
+.translation-helper > .text-muted {
+    margin-bottom: 1.5rem;
+}
+
+/* ── Import bar ───────────────────────────────────────────────────── */
+.translation-import-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.translation-import-bar input {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ── Status messages ──────────────────────────────────────────────── */
+.translation-status {
+    min-height: 1.5rem;
+    padding: 0.3rem 0;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.translation-status--info {
+    color: var(--color-text-muted, #666);
+}
+
+.translation-status--success {
+    color: var(--color-success, #28a745);
+}
+
+.translation-status--error {
+    color: var(--color-danger, #dc3545);
+}
+
+/* ── Metadata (read-only) ─────────────────────────────────────────── */
+.translation-meta {
+    background: var(--color-bg-light, #f8f9fa);
+    border: 1px solid var(--color-border, #dee2e6);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.translation-meta-row {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.translation-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.translation-meta-item label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-text-muted, #888);
+}
+
+.translation-meta-item span,
+.translation-meta-item code {
+    font-size: 0.9rem;
+}
+
+.translation-meta-item code {
+    word-break: break-all;
+    font-size: 0.8rem;
+}
+
+/* ── Editable fields ──────────────────────────────────────────────── */
+.translation-fields {
+    margin-bottom: 1rem;
+}
+
+/* Paired row: original (readonly) ↔ translation (editable), side by side */
+.translation-paired-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.translation-paired-field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.translation-paired-field input[readonly] {
+    background: var(--color-bg-light, #f8f9fa);
+    cursor: default;
+    opacity: 0.85;
+}
+
+.translation-fields-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.translation-field {
+    flex: 1;
+    min-width: 180px;
+}
+
+.translation-field--small {
+    flex: 0 0 160px;
+    min-width: 120px;
+}
+
+.translation-field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+/* ── Side-by-side editors ─────────────────────────────────────────── */
+.translation-editors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.translation-pane label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: var(--color-text-muted, #666);
+}
+
+.translation-textarea {
+    width: 100%;
+    min-height: 500px;
+    padding: 0.75rem;
+    font-family: var(--font-mono, 'Courier New', monospace);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    border: 1px solid var(--color-border, #dee2e6);
+    border-radius: 6px;
+    background: var(--color-bg, #fff);
+    color: var(--color-text, #212529);
+    resize: vertical;
+    tab-size: 4;
+}
+
+.translation-pane--original .translation-textarea {
+    background: var(--color-bg-light, #f8f9fa);
+    cursor: default;
+}
+
+.translation-pane--translation .translation-textarea:focus {
+    outline: 2px solid var(--color-primary, #0d6efd);
+    outline-offset: -1px;
+    border-color: var(--color-primary, #0d6efd);
+}
+
+/* ── Publish area ─────────────────────────────────────────────────── */
+.translation-publish {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+/* ── Event preview ────────────────────────────────────────────────── */
+.translation-preview {
+    margin-bottom: 2rem;
+}
+
+.translation-preview summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #888);
+    margin-bottom: 0.5rem;
+}
+
+.translation-preview pre {
+    background: var(--color-bg-light, #f4f4f4);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    max-height: 400px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .translation-paired-row {
+        grid-template-columns: 1fr;
+    }
+
+    .translation-editors {
+        grid-template-columns: 1fr;
+    }
+
+    .translation-textarea {
+        min-height: 300px;
+    }
+
+    .translation-fields-row {
+        flex-direction: column;
+    }
+
+    .translation-field--small {
+        flex: 1;
+    }
+}
+

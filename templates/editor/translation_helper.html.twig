@@ -1,0 +1,197 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Translation Helper{% endblock %}
+
+{% block body %}
+<div class="translation-helper"
+     data-controller="editor--translation-helper nostr--nostr-single-sign"
+     data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}"
+     data-nostr--nostr-single-sign-redirect-url-value="{{ path('translation_helper') }}"
+     data-editor--translation-helper-fetch-url-value="{{ path('api_translation_fetch_article') }}"
+>
+    <h1>Translation Helper</h1>
+    <p class="text-muted">Import a Nostr long-form article, write your translation side-by-side, and publish it as a new event linked to the original.</p>
+
+    {# ── Import bar ─────────────────────────────────────────────── #}
+    <div class="translation-import-bar">
+        <input
+            type="text"
+            class="form-control"
+            placeholder="Paste naddr1… or coordinate (30023:pubkey:slug)"
+            aria-label="Article naddr or coordinate"
+            data-editor--translation-helper-target="importInput"
+        />
+        <button
+            type="button"
+            class="btn btn-primary"
+            data-action="click->editor--translation-helper#importArticle"
+            data-editor--translation-helper-target="importButton"
+        >
+            Import
+        </button>
+    </div>
+
+    {# ── Status messages ────────────────────────────────────────── #}
+    <div class="translation-status"
+         data-editor--translation-helper-target="status"
+         data-nostr--nostr-single-sign-target="status"
+    ></div>
+
+    {# ── Original article info (shown after import) ───────────────── #}
+    <div class="translation-meta is-hidden" data-editor--translation-helper-target="metaSection">
+        <div class="translation-meta-row">
+            <div class="translation-meta-item">
+                <label>Author</label>
+                <span data-editor--translation-helper-target="originalAuthor">—</span>
+            </div>
+            <div class="translation-meta-item">
+                <label>Coordinate</label>
+                <code data-editor--translation-helper-target="originalCoordinate">—</code>
+            </div>
+        </div>
+    </div>
+
+    {# ── Side-by-side title & summary (original → translation) ──── #}
+    <div class="translation-fields is-hidden" data-editor--translation-helper-target="fieldsSection">
+
+        {# Title row #}
+        <div class="translation-paired-row">
+            <div class="translation-paired-field">
+                <label for="original-title">Original title</label>
+                <input
+                    id="original-title"
+                    type="text"
+                    class="form-control"
+                    data-editor--translation-helper-target="originalTitle"
+                    readonly
+                />
+            </div>
+            <div class="translation-paired-field">
+                <label for="translation-title">Translated title</label>
+                <input
+                    id="translation-title"
+                    type="text"
+                    class="form-control"
+                    data-editor--translation-helper-target="translationTitle"
+                    placeholder="Title of the translated article"
+                />
+            </div>
+        </div>
+
+        {# Summary row #}
+        <div class="translation-paired-row">
+            <div class="translation-paired-field">
+                <label for="original-summary">Original summary</label>
+                <input
+                    id="original-summary"
+                    type="text"
+                    class="form-control"
+                    data-editor--translation-helper-target="originalSummary"
+                    readonly
+                />
+            </div>
+            <div class="translation-paired-field">
+                <label for="translation-summary">Translated summary</label>
+                <input
+                    id="translation-summary"
+                    type="text"
+                    class="form-control"
+                    data-editor--translation-helper-target="translationSummary"
+                    placeholder="Short summary (optional)"
+                />
+            </div>
+        </div>
+
+        {# Language & slug row #}
+        <div class="translation-fields-row">
+            <div class="translation-field translation-field--small">
+                <label for="translation-language">Language</label>
+                <select id="translation-language" class="form-control" data-editor--translation-helper-target="translationLanguage">
+                    <option value="">— Select —</option>
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="sl">Slovenščina</option>
+                    <option value="pt">Português</option>
+                    <option value="it">Italiano</option>
+                    <option value="nl">Nederlands</option>
+                    <option value="pl">Polski</option>
+                    <option value="uk">Українська</option>
+                    <option value="ru">Русский</option>
+                    <option value="ja">日本語</option>
+                    <option value="zh">中文</option>
+                    <option value="ko">한국어</option>
+                    <option value="ar">العربية</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="cs">Čeština</option>
+                    <option value="sk">Slovenčina</option>
+                    <option value="hr">Hrvatski</option>
+                    <option value="sr">Srpski</option>
+                    <option value="bg">Български</option>
+                    <option value="ro">Română</option>
+                    <option value="hu">Magyar</option>
+                    <option value="sv">Svenska</option>
+                    <option value="da">Dansk</option>
+                    <option value="fi">Suomi</option>
+                    <option value="no">Norsk</option>
+                </select>
+            </div>
+            <div class="translation-field translation-field--small">
+                <label for="translation-slug">Slug (d-tag)</label>
+                <input
+                    id="translation-slug"
+                    type="text"
+                    class="form-control"
+                    data-editor--translation-helper-target="translationSlug"
+                    placeholder="auto-generated"
+                />
+            </div>
+        </div>
+    </div>
+
+    {# ── Side-by-side editors ───────────────────────────────────── #}
+    <div class="translation-editors is-hidden" data-editor--translation-helper-target="editorsSection">
+        <div class="translation-pane translation-pane--original">
+            <label for="original-editor">Original (read-only)</label>
+            <textarea
+                id="original-editor"
+                class="translation-textarea"
+                data-editor--translation-helper-target="originalEditor"
+                readonly
+            ></textarea>
+        </div>
+        <div class="translation-pane translation-pane--translation">
+            <label for="translation-editor">Translation</label>
+            <textarea
+                id="translation-editor"
+                class="translation-textarea"
+                data-editor--translation-helper-target="translationEditor"
+                placeholder="Write your translation here…"
+            ></textarea>
+        </div>
+    </div>
+
+    {# ── Publish area ───────────────────────────────────────────── #}
+    <div class="translation-publish is-hidden" data-editor--translation-helper-target="publishSection">
+        <button
+            type="button"
+            class="btn btn-primary btn-lg"
+            data-action="click->editor--translation-helper#publish"
+            data-editor--translation-helper-target="publishButton"
+            data-nostr--nostr-single-sign-target="publishButton"
+        >
+            Sign &amp; Publish Translation
+        </button>
+    </div>
+
+    {# ── Event preview (collapsible) ────────────────────────────── #}
+    <details class="translation-preview is-hidden" data-editor--translation-helper-target="previewSection">
+        <summary>Event preview (JSON)</summary>
+        <pre data-editor--translation-helper-target="eventPreview"></pre>
+    </details>
+</div>
+{% endblock %}
+
+
