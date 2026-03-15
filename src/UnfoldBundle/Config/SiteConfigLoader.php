@@ -184,7 +184,9 @@ class SiteConfigLoader
         }
 
         // Build SiteConfig directly from magazine event
-        $siteConfig = SiteConfig::fromEvent($magazineEvent, $coordinate, $theme);
+        // Normalize coordinate: lowercase the pubkey portion to match graph storage
+        $normalizedCoordinate = $this->normalizeCoordinate($coordinate);
+        $siteConfig = SiteConfig::fromEvent($magazineEvent, $normalizedCoordinate, $theme);
 
         $this->logger->info('Loaded SiteConfig from coordinate', [
             'coordinate' => $coordinate,
@@ -212,10 +214,23 @@ class SiteConfigLoader
 
         return [
             'kind' => (int) $parts[0],
-            'pubkey' => $parts[1],
+            'pubkey' => strtolower($parts[1]),
             'identifier' => $parts[2],
             'relays' => [],
         ];
+    }
+
+    /**
+     * Normalize a coordinate string by lowercasing the pubkey portion.
+     * Ensures consistency with graph storage (current_record.coord).
+     */
+    private function normalizeCoordinate(string $coordinate): string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) >= 2) {
+            $parts[1] = strtolower($parts[1]);
+        }
+        return implode(':', $parts);
     }
 
     /**
@@ -300,7 +315,7 @@ class SiteConfigLoader
         }
 
         // Build SiteConfig directly from magazine event
-        $siteConfig = SiteConfig::fromEvent($magazineEvent, $magazineNaddr, $theme);
+        $siteConfig = SiteConfig::fromEvent($magazineEvent, $this->normalizeCoordinate($magazineNaddr), $theme);
 
         $this->logger->info('Loaded SiteConfig from magazine', [
             'magazineNaddr' => $magazineNaddr,

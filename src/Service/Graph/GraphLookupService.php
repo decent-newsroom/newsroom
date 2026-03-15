@@ -22,6 +22,21 @@ class GraphLookupService
     ) {}
 
     /**
+     * Normalize a coordinate string by lowercasing the pubkey portion.
+     *
+     * Input:  "30040:AbCdEf1234...:my-slug"
+     * Output: "30040:abcdef1234...:my-slug"
+     */
+    private function normalizeCoord(string $coord): string
+    {
+        $parts = explode(':', $coord, 3);
+        if (count($parts) >= 2) {
+            $parts[1] = strtolower($parts[1]);
+        }
+        return implode(':', $parts);
+    }
+
+    /**
      * Resolve the full descendant tree from a root coordinate.
      *
      * Returns an ordered list of descendant coordinates with their current event IDs,
@@ -33,6 +48,8 @@ class GraphLookupService
      */
     public function resolveDescendants(string $rootCoord, int $maxDepth = 5): array
     {
+        $rootCoord = $this->normalizeCoord($rootCoord);
+
         $sql = <<<'SQL'
             WITH RECURSIVE tree AS (
                 -- Anchor: direct children of the root
@@ -99,6 +116,8 @@ class GraphLookupService
      */
     public function resolveChildren(string $parentCoord): array
     {
+        $parentCoord = $this->normalizeCoord($parentCoord);
+
         $sql = <<<'SQL'
             SELECT
                 cr_child.coord,
@@ -180,7 +199,7 @@ class GraphLookupService
         SQL;
 
         return $this->connection->fetchAllAssociative($simpleSql, [
-            'child_coord' => $childCoord,
+            'child_coord' => $this->normalizeCoord($childCoord),
         ]);
     }
 

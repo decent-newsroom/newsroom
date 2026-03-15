@@ -42,7 +42,7 @@ readonly class CategoryData
                 'd' => $slug = $tag[1],
                 'title', 'name' => $title = $tag[1],
                 'summary' => $summary = $tag[1],
-                'a' => $articleCoordinates[] = $tag[1], // article coordinate
+                'a' => $articleCoordinates[] = self::normalizeCoordinate($tag[1]),
                 default => null,
             };
         }
@@ -63,9 +63,21 @@ readonly class CategoryData
         return new self(
             slug: $slug,
             title: $title,
-            coordinate: $coordinate,
+            coordinate: self::normalizeCoordinate($coordinate),
             summary: $summary,
             articleCoordinates: $articleCoordinates,
         );
+    }
+
+    /**
+     * Normalize a coordinate string by lowercasing the pubkey portion.
+     */
+    private static function normalizeCoordinate(string $coordinate): string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) >= 2) {
+            $parts[1] = strtolower($parts[1]);
+        }
+        return implode(':', $parts);
     }
 }

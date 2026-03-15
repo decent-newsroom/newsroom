@@ -63,13 +63,22 @@ class ContentProvider
             if (!empty($result)) {
                 return $result;
             }
-            $this->logger->info('Graph path returned empty categories, falling back to relay', [
+            $this->logger->warning('Graph path returned empty categories, falling back to relay', [
                 'naddr' => $site->naddr,
+                'expected_categories' => $site->categories,
             ]);
         }
 
-        // Fallback: relay round-trips
-        return $this->fetchCategoriesFromRelay($site);
+        // Fallback: relay round-trips (wrapped to prevent silent hangs)
+        try {
+            return $this->fetchCategoriesFromRelay($site);
+        } catch (\Throwable $e) {
+            $this->logger->error('Relay fallback failed for categories, returning empty', [
+                'naddr' => $site->naddr,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     /**
@@ -78,6 +87,11 @@ class ContentProvider
      */
     private function fetchCategoriesFromGraph(SiteConfig $site): array
     {
+        $this->logger->debug('Resolving categories from graph', [
+            'naddr' => $site->naddr,
+            'category_count' => count($site->categories),
+        ]);
+
         $children = $this->graphLookup->resolveChildren($site->naddr);
 
         if (empty($children)) {
@@ -169,13 +183,21 @@ class ContentProvider
             if (!empty($result)) {
                 return $result;
             }
-            $this->logger->info('Graph path returned empty posts, falling back to relay', [
+            $this->logger->warning('Graph path returned empty posts, falling back to relay', [
                 'coordinate' => $categoryCoordinate,
             ]);
         }
 
-        // Fallback: relay round-trips
-        return $this->fetchCategoryPostsFromRelay($categoryCoordinate);
+        // Fallback: relay round-trips (wrapped to prevent silent hangs)
+        try {
+            return $this->fetchCategoryPostsFromRelay($categoryCoordinate);
+        } catch (\Throwable $e) {
+            $this->logger->error('Relay fallback failed for category posts, returning empty', [
+                'coordinate' => $categoryCoordinate,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 
     /**
@@ -437,7 +459,7 @@ class ContentProvider
 
         return [
             'kind' => (int) $parts[0],
-            'pubkey' => $parts[1],
+            'pubkey' => strtolower($parts[1]),
             'identifier' => $parts[2],
             'relays' => [],
         ];

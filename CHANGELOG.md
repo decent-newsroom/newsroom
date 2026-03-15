@@ -3,6 +3,7 @@
 ## v0.0.16
 Feeds, walls, boards, whatever you want to call them.
 
+- Fixed Unfold cache warming timeout: coordinate pubkeys from event `a` tags were not normalized to lowercase, causing graph lookups to silently miss data (case mismatch with `current_record.coord`). The relay fallback path then hung without warning. Normalization now applied at `SiteConfig`, `SiteConfigLoader`, `CategoryData`, `GraphLookupService`, and `ContentProvider` boundaries. Relay fallback wrapped in try/catch to return empty gracefully instead of blocking.
 - Added `d_tag` column to `event` table with composite coordinate index `(kind, pubkey, d_tag)` — enables fast coordinate-to-event lookups without scanning JSONB tags. Backfill migration populates existing parameterized replaceable events (kinds 30000–39999).
 - Deprecated `eventId` column on `Event` entity — `getEventId()` now returns `$this->id`, `setEventId()` aliases to `setId()`. Column kept for backward compatibility; will be dropped in a future release.
 - Added `RecordIdentityService` — single authority for canonical coordinate strings, record UID generation, and entity type classification. All graph identity derivation flows through this service.

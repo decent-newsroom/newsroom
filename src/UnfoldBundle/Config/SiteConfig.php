@@ -46,7 +46,7 @@ readonly class SiteConfig
                 'title', 'name' => $title = $tag[1],
                 'description', 'summary' => $description = $tag[1],
                 'image', 'thumb', 'logo' => $logo = $tag[1],
-                'a' => $categories[] = $tag[1], // category coordinate (30040:pubkey:slug)
+                'a' => $categories[] = self::normalizeCoordinate($tag[1]),
                 default => null,
             };
         }
@@ -70,6 +70,19 @@ readonly class SiteConfig
             pubkey: $event->pubkey ?? '',
             theme: $theme,
         );
+    }
+
+    /**
+     * Normalize a coordinate string by lowercasing the pubkey portion.
+     * Ensures consistency with graph storage (current_record.coord).
+     */
+    private static function normalizeCoordinate(string $coordinate): string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) >= 2) {
+            $parts[1] = strtolower($parts[1]);
+        }
+        return implode(':', $parts);
     }
 }
 
