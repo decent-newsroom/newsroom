@@ -123,7 +123,7 @@ docker compose exec php bin/console dn:graph:backfill-references --truncate  # c
 
 ### `dn:graph:backfill-current-records`
 
-Backfills `current_record` from all existing replaceable events, processing in `created_at ASC` order so newest naturally wins.
+Backfills `current_record` from all existing replaceable events, processing in `created_at ASC` order so newest naturally wins. Includes a second pass over the `article` table for articles that don't have corresponding rows in the `event` table.
 
 ```bash
 docker compose exec php bin/console dn:graph:backfill-current-records
@@ -170,6 +170,18 @@ Automatically updates `parsed_reference` and `current_record` when events are pe
 - `SyncUserEventsHandler` (login-time event sync)
 
 Safe to call multiple times for the same event (idempotent — deletes existing refs before reinserting).
+
+### Article Table Auto-Heal
+
+**Problem:** Articles (kind 30023/30024) and publication content (kind 30041) may exist only in the `article` table, not in the `event` table. The original `dn:graph:backfill-current-records` only scanned `event`, so `current_record` entries were never created for these articles. This caused `resolveChildren` to return empty (structural references existed in `parsed_reference` but targets were missing from `current_record`), triggering the relay fallback path.
+
+**Fix (two-pronged):**
+
+1. **Auto-heal in `GraphLookupService::resolveChildren`** — when structural refs exist but the main JOIN returns empty, the service queries the `article` table by coordinate parts (`pubkey`, `slug`, `kind`), inserts missing `current_record` entries via `CurrentVersionResolver`, and retries the query. This is a lazy one-time operation per missing coordinate.
+
+2. **Backfill command updated** — `dn:graph:backfill-current-records` now includes a second pass over the `article` table after the `event` table pass.
+
+3. **`fetchEventRows` fallback** — when event IDs are not found in the `event` table, falls back to `article.raw` (full event JSON) and reshapes it to match the expected row format.
 
 ### EventRepository::findByNaddr Optimized
 

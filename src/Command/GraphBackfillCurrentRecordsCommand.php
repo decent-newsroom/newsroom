@@ -116,15 +116,85 @@ class GraphBackfillCurrentRecordsCommand extends Command
 
         $io->progressFinish();
 
-        $this->logger->info('current_record backfill complete', [
+        $this->logger->info('current_record backfill from event table complete', [
             'processed' => $processed,
             'updated' => $updated,
         ]);
 
         $io->success(sprintf(
-            'Backfill complete: processed %d events, %d current records created/updated.',
+            'Event table pass: processed %d events, %d current records created/updated.',
             $processed,
             $updated,
+        ));
+
+        // ── Second pass: article table ─────────────────────────────────────
+        // Articles may not exist in the event table but have their own entity
+        // with event_id, kind, pubkey, slug (d-tag), and created_at.
+        $io->section('Backfilling from article table');
+
+        $articleCount = (int) $this->connection->fetchOne(
+            "SELECT COUNT(*) FROM article WHERE event_id IS NOT NULL AND kind IS NOT NULL AND pubkey IS NOT NULL"
+        );
+
+        if ($articleCount === 0) {
+            $io->info('No articles with event IDs found.');
+        } else {
+            $io->info(sprintf('Found %d articles to process.', $articleCount));
+            $io->progressStart($articleCount);
+
+            $artOffset = 0;
+            $artProcessed = 0;
+            $artUpdated = 0;
+
+            while ($artOffset < $articleCount) {
+                $artRows = $this->connection->fetchAllAssociative(
+                    "SELECT event_id, kind, pubkey, slug, EXTRACT(EPOCH FROM created_at)::bigint AS created_at_ts FROM article WHERE event_id IS NOT NULL AND kind IS NOT NULL AND pubkey IS NOT NULL ORDER BY created_at ASC LIMIT :limit OFFSET :offset",
+                    ['limit' => $batchSize, 'offset' => $artOffset],
+                    ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
+                );
+
+                if (empty($artRows)) {
+                    break;
+                }
+
+                foreach ($artRows as $artRow) {
+                    $becameCurrent = $this->currentVersionResolver->updateIfCurrent(
+                        eventId: $artRow['event_id'],
+                        kind: (int) $artRow['kind'],
+                        pubkey: $artRow['pubkey'],
+                        dTag: $artRow['slug'],
+                        createdAt: (int) $artRow['created_at_ts'],
+                    );
+
+                    if ($becameCurrent) {
+                        $artUpdated++;
+                    }
+
+                    $artProcessed++;
+                    $io->progressAdvance();
+                }
+
+                $artOffset += $batchSize;
+            }
+
+            $io->progressFinish();
+
+            $this->logger->info('current_record backfill from article table complete', [
+                'processed' => $artProcessed,
+                'updated' => $artUpdated,
+            ]);
+
+            $io->success(sprintf(
+                'Article table pass: processed %d articles, %d current records created/updated.',
+                $artProcessed,
+                $artUpdated,
+            ));
+        }
+
+        $io->success(sprintf(
+            'Full backfill complete. Total: %d events + %d articles processed.',
+            $processed,
+            $articleCount,
         ));
 
         return Command::SUCCESS;

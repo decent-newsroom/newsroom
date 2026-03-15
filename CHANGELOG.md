@@ -12,6 +12,7 @@ Feeds, walls, boards, whatever you want to call them.
 - Added `GraphLookupService` — recursive CTE-based tree traversal for magazine/category/article resolution from local PostgreSQL, eliminating relay round-trips for structure queries. Primary consumer: Unfold cache warming.
 - All event creation call sites now populate `d_tag` via `extractAndSetDTag()` for new events going forward.
 - Refactored Unfold `ContentProvider` to use `GraphLookupService` as primary path for tree traversal, with relay round-trips as fallback. Cache warming and first-visit article loading now resolve from local DB instead of WebSocket requests.
+- Fixed graph layer missing articles: `current_record` backfill only scanned the `event` table, but articles live in the `article` table. Added auto-heal in `GraphLookupService::resolveChildren` that lazily populates `current_record` from the `article` table when target coordinates are missing. Updated `fetchEventRows` to fall back to `article.raw` JSON for event data. Updated `dn:graph:backfill-current-records` to include a second pass over the `article` table.
 - Added `EventIngestionListener` — automatically updates `parsed_reference` and `current_record` tables when new events are persisted, keeping graph data current without periodic backfills.
 - Optimized `EventRepository::findByNaddr` to use the `d_tag` column index instead of JSONB scanning.
 - Reduced worker intensity: profile refresh worker now only processes stale profiles (not refreshed in 2+ hours) instead of loading all users every cycle.

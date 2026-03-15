@@ -19,6 +19,8 @@ class GraphLookupService
     public function __construct(
         private readonly Connection $connection,
         private readonly LoggerInterface $logger,
+        private readonly CurrentVersionResolver $currentVersionResolver,
+        private readonly RecordIdentityService $identityService,
     ) {}
 
     /**
@@ -158,9 +160,38 @@ class GraphLookupService
             return [];
         }
 
-        // Step 3: Do the target coordinates exist in current_record?
-        $targetCoords = array_column($structuralRefs, 'target_coord');
+        // Step 3: Run the main query
+        $result = $this->runChildrenQuery($parentCoord);
 
+        // Step 4: Auto-heal — if we have structural refs but no results, try the article table
+        if (empty($result) && !empty($structuralRefs)) {
+            $targetCoords = array_column($structuralRefs, 'target_coord');
+            $healed = $this->autoHealFromArticleTable($targetCoords);
+
+            if ($healed > 0) {
+                $this->logger->info('GraphLookupService: auto-healed current_record from article table', [
+                    'parent_coord' => $parentCoord,
+                    'healed_count' => $healed,
+                ]);
+                // Retry the query now that current_record has been populated
+                $result = $this->runChildrenQuery($parentCoord);
+            } else {
+                $this->logger->warning('GraphLookupService: structural refs exist but targets not found in article table either', [
+                    'parent_coord' => $parentCoord,
+                    'structural_refs_count' => count($structuralRefs),
+                    'sample_targets' => array_slice($targetCoords, 0, 5),
+                ]);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Run the children resolution query.
+     */
+    private function runChildrenQuery(string $parentCoord): array
+    {
         $sql = <<<'SQL'
             SELECT
                 cr_child.coord,
@@ -176,32 +207,73 @@ class GraphLookupService
             ORDER BY pr.position
         SQL;
 
-        $result = $this->connection->fetchAllAssociative($sql, [
+        return $this->connection->fetchAllAssociative($sql, [
             'parent_coord' => $parentCoord,
         ]);
+    }
 
-        if (empty($result) && !empty($structuralRefs)) {
-            // We have structural refs but no matching current_records for the targets
-            $missingCoords = [];
-            foreach ($targetCoords as $tc) {
-                $exists = $this->connection->fetchOne(
-                    'SELECT COUNT(*) FROM current_record WHERE coord = :coord',
-                    ['coord' => $tc],
-                );
-                if ((int) $exists === 0) {
-                    $missingCoords[] = $tc;
-                }
+    /**
+     * Auto-heal missing current_record entries by looking up coordinates in the article table.
+     *
+     * Articles may exist only in the `article` table (not in `event`), so the original
+     * backfill-current-records command misses them. This lazily fills the gap.
+     *
+     * @param string[] $targetCoords Coordinates to check/heal
+     * @return int Number of records healed
+     */
+    private function autoHealFromArticleTable(array $targetCoords): int
+    {
+        $healed = 0;
+
+        foreach ($targetCoords as $coord) {
+            // Check if already in current_record
+            $exists = (int) $this->connection->fetchOne(
+                'SELECT COUNT(*) FROM current_record WHERE coord = :coord',
+                ['coord' => $coord],
+            );
+            if ($exists > 0) {
+                continue;
             }
 
-            $this->logger->warning('GraphLookupService: structural refs exist but target coords missing from current_record', [
-                'parent_coord' => $parentCoord,
-                'structural_refs_count' => count($structuralRefs),
-                'missing_target_coords' => $missingCoords,
-                'sample_targets' => array_slice($targetCoords, 0, 5),
-            ]);
+            // Decompose the coordinate: "kind:pubkey:d_tag"
+            $decomposed = $this->identityService->decomposeATag($coord);
+            if ($decomposed === null) {
+                continue;
+            }
+
+            // Only auto-heal article kinds (30023, 30024) and publication content (30041)
+            if (!in_array($decomposed['kind'], [30023, 30024, 30041], true)) {
+                continue;
+            }
+
+            // Look up in article table by pubkey + slug (d-tag) + kind
+            $articleRow = $this->connection->fetchAssociative(
+                'SELECT event_id, kind, pubkey, slug, EXTRACT(EPOCH FROM created_at)::bigint AS created_at_ts FROM article WHERE LOWER(pubkey) = :pubkey AND slug = :slug AND kind = :kind AND event_id IS NOT NULL LIMIT 1',
+                [
+                    'pubkey' => strtolower($decomposed['pubkey']),
+                    'slug' => $decomposed['d_tag'],
+                    'kind' => $decomposed['kind'],
+                ],
+            );
+
+            if ($articleRow === false) {
+                continue;
+            }
+
+            $becameCurrent = $this->currentVersionResolver->updateIfCurrent(
+                eventId: $articleRow['event_id'],
+                kind: (int) $articleRow['kind'],
+                pubkey: $articleRow['pubkey'],
+                dTag: $articleRow['slug'],
+                createdAt: (int) $articleRow['created_at_ts'],
+            );
+
+            if ($becameCurrent) {
+                $healed++;
+            }
         }
 
-        return $result;
+        return $healed;
     }
 
     /**
@@ -344,6 +416,9 @@ class GraphLookupService
     /**
      * Fetch full event rows for a list of event IDs.
      *
+     * Checks the `event` table first, then falls back to the `article` table's
+     * `raw` JSON column for any IDs not found (articles may not have event rows).
+     *
      * @param string[] $eventIds
      * @return array<string, array> event_id → full row
      */
@@ -353,6 +428,7 @@ class GraphLookupService
             return [];
         }
 
+        // Primary: event table
         $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
         $sql = "SELECT * FROM event WHERE id IN ({$placeholders})";
         $rows = $this->connection->fetchAllAssociative($sql, array_values($eventIds));
@@ -360,6 +436,47 @@ class GraphLookupService
         $map = [];
         foreach ($rows as $row) {
             $map[$row['id']] = $row;
+        }
+
+        // Find missing event IDs
+        $missingIds = array_diff($eventIds, array_keys($map));
+
+        if (!empty($missingIds)) {
+            // Fallback: article table (raw JSON contains full event)
+            $artPlaceholders = implode(',', array_fill(0, count($missingIds), '?'));
+            $artSql = "SELECT event_id, raw FROM article WHERE event_id IN ({$artPlaceholders}) AND raw IS NOT NULL";
+            $artRows = $this->connection->fetchAllAssociative($artSql, array_values($missingIds));
+
+            foreach ($artRows as $artRow) {
+                $raw = $artRow['raw'];
+                if (is_string($raw)) {
+                    $raw = json_decode($raw, true);
+                }
+                if (!is_array($raw)) {
+                    continue;
+                }
+
+                // Reshape raw event JSON to match the event table row format
+                $map[$artRow['event_id']] = [
+                    'id' => $raw['id'] ?? $artRow['event_id'],
+                    'pubkey' => $raw['pubkey'] ?? '',
+                    'kind' => (int) ($raw['kind'] ?? 0),
+                    'content' => $raw['content'] ?? '',
+                    'tags' => is_array($raw['tags'] ?? null) ? json_encode($raw['tags']) : '[]',
+                    'created_at' => (int) ($raw['created_at'] ?? 0),
+                    'sig' => $raw['sig'] ?? '',
+                ];
+            }
+
+            if (!empty($missingIds) && count($missingIds) !== count($artRows)) {
+                $stillMissing = array_diff($missingIds, array_column($artRows, 'event_id'));
+                if (!empty($stillMissing)) {
+                    $this->logger->debug('GraphLookupService: some event IDs not found in event or article tables', [
+                        'missing_count' => count($stillMissing),
+                        'sample' => array_slice(array_values($stillMissing), 0, 3),
+                    ]);
+                }
+            }
         }
 
         return $map;
