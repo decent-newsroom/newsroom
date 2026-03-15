@@ -9,6 +9,12 @@ Feeds, walls, boards, whatever you want to call them.
 - Reduced worker intensity: event sync on login now only fetches events from the last 24 hours instead of all-time, reducing relay load by orders of magnitude.
 - Reduced worker intensity: cron job frequencies adjusted — article post-processing from 5→10 min, highlight fetching from 15→30 min, magazine projection from 10→30 min.
 - Reduced worker intensity: profile refresh interval increased from 100 min to 4 hours, with batch size reduced from 100 to 50.
+- Reduced FrankenPHP CPU usage: switched JIT from tracing to function-level (1255) — tracing JIT causes persistent high CPU in long-lived worker processes.
+- Reduced FrankenPHP CPU usage: capped worker threads to 4 in production (default is 2× CPU cores, which over-provisions on multi-core servers).
+- Reduced FrankenPHP CPU usage: switched Caddy compression from zstd+brotli+gzip to gzip-only — brotli is 5-10× more CPU-intensive than gzip.
+- Reduced FrankenPHP CPU usage: added immutable cache headers for fingerprinted static assets, avoiding repeated compression and re-reads.
+- Reduced FrankenPHP CPU usage: added Mercure Bolt cleanup_frequency and write/dispatch timeouts to reduce embedded hub overhead.
+- Reduced FrankenPHP CPU usage: lowered production memory_limit from 512M to 256M (worker mode reuses processes, lower limit reduces GC pressure).
 - Added front page for logged-in users: a tabbed interface with Latest, Follows, Interests, Podcasts, and News Bots tabs. Each tab loads articles dynamically. Podcasts and News Bots tabs are powered by configurable follow packs (kind 39089 events).
 - Added admin interface for follow pack management: assign kind 39089 follow pack events as sources for the Podcasts and News Bots home feed tabs.
 - Reorganized the draft support center into shorter help-center-style articles with focused reader, writer, identity, billing, and FAQ guides for the future support magazine.

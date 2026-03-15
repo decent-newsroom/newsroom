@@ -76,6 +76,55 @@ Combined with staleness checks, this reduces the frequency of full user table sc
 
 Run: `docker compose exec php bin/console doctrine:migrations:migrate`
 
+## FrankenPHP CPU Optimizations
+
+Separate from the worker container, the **php (FrankenPHP)** container can also consume excessive CPU. These changes target the web-serving process:
+
+### 1. JIT Mode: tracing → function-level (1255)
+
+**File:** `frankenphp/conf.d/20-app.prod.ini`
+
+FrankenPHP's worker mode keeps PHP processes alive between requests. With `opcache.jit = tracing`, the JIT profiler **never stops** — it continuously monitors hot paths and recompiles code, consuming 10-30% CPU even at idle. Function-level JIT (`1255`) compiles whole functions once and is idle between requests.
+
+Buffer reduced from 128M to 64M since function-level JIT needs less memory.
+
+### 2. Worker Thread Cap: unlimited → 4
+
+**File:** `compose.prod.yaml`
+
+Without an explicit count, `worker ./public/index.php` defaults to **2× CPU cores** (e.g., 16 threads on an 8-core machine). Each thread holds its own PHP worker process in memory. On shared/VPS hosting, this over-provisions and causes CPU contention.
+
+Changed to `worker ./public/index.php 4`. Adjust based on actual load — 2 threads per available CPU core is a good starting point.
+
+### 3. Compression: zstd+br+gzip → gzip only
+
+**File:** `frankenphp/Caddyfile`
+
+Caddy was running three compression algorithms (`encode zstd br gzip`). Brotli (br) is **5-10× more CPU-intensive** than gzip at comparable compression levels. Zstd is lighter but still adds overhead. Since most production deployments sit behind a reverse proxy (nginx, Cloudflare, etc.) that handles compression, running it in Caddy is double work.
+
+Changed to `encode gzip`. If behind a proxy, compression can be disabled entirely with `encode` removed.
+
+### 4. Static Asset Cache Headers
+
+**File:** `frankenphp/Caddyfile`
+
+AssetMapper generates fingerprinted filenames (e.g., `app-abc123.js`), so assets can be cached forever. Added `Cache-Control: public, max-age=31536000, immutable` for `/assets/*` and `/bundles/*`. This prevents:
+- Caddy re-reading files from disk on every request
+- Re-compressing the same bytes repeatedly
+- Browsers re-requesting unchanged files
+
+### 5. Mercure Bolt Tuning
+
+**File:** `frankenphp/Caddyfile`
+
+Added `cleanup_frequency 5m` (was continuous) and `write_timeout 10s` / `dispatch_timeout 5s` to reduce Bolt DB disk I/O churn from the embedded Mercure hub.
+
+### 6. Memory Limit: 512M → 256M
+
+**File:** `frankenphp/conf.d/20-app.prod.ini`
+
+In worker mode, PHP processes are long-lived (no cold starts). 512M per worker at 4 workers = 2 GB reserved. 256M is sufficient for this application's request patterns and reduces GC pressure.
+
 ## Impact Summary
 
 | Metric | Before | After |
@@ -86,4 +135,9 @@ Run: `docker compose exec php bin/console doctrine:migrations:migrate`
 | Event sync scope | All-time (limit 500) | Last 24 hours |
 | Cron invocations per hour | ~26 | ~16 |
 | Total PHP processes in worker | 6 | 7 (extra messenger) |
+| FrankenPHP worker threads | 2× CPU cores | 4 (capped) |
+| JIT mode | tracing (continuous profiling) | function (compile-once) |
+| Compression algorithms | 3 (zstd+br+gzip) | 1 (gzip) |
+| Static asset re-compression | Every request | Cached immutably |
+| PHP memory per worker | 512M | 256M |
 

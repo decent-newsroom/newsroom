@@ -47,7 +47,9 @@ services:
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
       # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
-      FRANKENPHP_CONFIG: "worker ./public/index.php"
+      # Limit to 4 threads to avoid CPU over-provisioning.
+      # Default (2× CPU cores) can exhaust CPU on shared servers.
+      FRANKENPHP_CONFIG: "worker ./public/index.php 4"
     volumes:
       # Caddy state (TLS certs, etc.). Safe to persist.
       - caddy_data:/data

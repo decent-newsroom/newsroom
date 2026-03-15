@@ -58,11 +58,14 @@
 	handle {
 
 		root /app/public
-		encode zstd br gzip
+		# gzip only — zstd and brotli are CPU-heavy (brotli is 5-10× slower).
+		# If behind a reverse proxy, the proxy should handle compression instead.
+		encode gzip
 
 		mercure {
 			transport bolt {
 				path /data/mercure.db
+				cleanup_frequency 5m
 			}
 
 			# JWT key for both publisher and subscriber
@@ -71,6 +74,8 @@
 
 			anonymous
 			subscriptions
+			write_timeout 10s
+			dispatch_timeout 5s
 
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
@@ -98,6 +103,10 @@
 
 		@frontController path index.php
 		php @frontController
+
+		# Cache fingerprinted assets (AssetMapper generates unique filenames on change)
+		@staticAssets path /assets/* /bundles/*
+		header @staticAssets Cache-Control "public, max-age=31536000, immutable"
 
 		file_server
 	}
