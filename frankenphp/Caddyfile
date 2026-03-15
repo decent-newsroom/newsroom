@@ -65,7 +65,7 @@
 		mercure {
 			transport bolt {
 				path /data/mercure.db
-				cleanup_frequency 5m
+				cleanup_frequency 300
 			}
 
 			# JWT key for both publisher and subscriber
@@ -74,8 +74,8 @@
 
 			anonymous
 			subscriptions
-			write_timeout 10s
-			dispatch_timeout 5s
+			write_timeout 10
+			dispatch_timeout 5
 
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
