@@ -31,6 +31,25 @@ class UserEntityRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find users whose metadata hasn't been refreshed since the given threshold.
+     * Returns users never refreshed first, then oldest-refreshed first.
+     *
+     * @param \DateTimeImmutable $staleThreshold  Users refreshed before this are considered stale
+     * @param int                $limit           Maximum users to return
+     * @return User[]
+     */
+    public function findStaleProfiles(\DateTimeImmutable $staleThreshold, int $limit = 100): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.lastMetadataRefresh IS NULL OR u.lastMetadataRefresh < :threshold')
+            ->setParameter('threshold', $staleThreshold)
+            ->orderBy('u.lastMetadataRefresh', 'ASC')  // NULL (never refreshed) sorts first
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Find all users with the ROLE_FEATURED_WRITER role
      * @return User[]
      * @throws Exception

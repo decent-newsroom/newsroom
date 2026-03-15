@@ -54,6 +54,12 @@ class User implements UserInterface, EquatableInterface
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $relays = null;
 
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastMetadataRefresh = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastLoginAt = null;
+
     private $metadata = null;
 
     public function getRoles(): array
@@ -242,6 +248,28 @@ class User implements UserInterface, EquatableInterface
     public function setLud16(?string $lud16): self
     {
         $this->lud16 = $lud16;
+        return $this;
+    }
+
+    public function getLastMetadataRefresh(): ?\DateTimeImmutable
+    {
+        return $this->lastMetadataRefresh;
+    }
+
+    public function setLastMetadataRefresh(?\DateTimeImmutable $lastMetadataRefresh): self
+    {
+        $this->lastMetadataRefresh = $lastMetadataRefresh;
+        return $this;
+    }
+
+    public function getLastLoginAt(): ?\DateTimeImmutable
+    {
+        return $this->lastLoginAt;
+    }
+
+    public function setLastLoginAt(?\DateTimeImmutable $lastLoginAt): self
+    {
+        $this->lastLoginAt = $lastLoginAt;
         return $this;
     }
 

@@ -3,6 +3,12 @@
 ## v0.0.16
 Feeds, walls, boards, whatever you want to call them.
 
+- Reduced worker intensity: profile refresh worker now only processes stale profiles (not refreshed in 2+ hours) instead of loading all users every cycle.
+- Reduced worker intensity: split Messenger into two separate consumers — high-priority (articles, comments, media) and low-priority (profiles, relay lists, sync) — so heavy background jobs no longer starve time-sensitive handlers.
+- Reduced worker intensity: login sync chain is now throttled — relay list warming and event sync are skipped if the user was synced within the last 30 minutes, preventing redundant heavy relay queries on tab refreshes or re-logins.
+- Reduced worker intensity: event sync on login now only fetches events from the last 24 hours instead of all-time, reducing relay load by orders of magnitude.
+- Reduced worker intensity: cron job frequencies adjusted — article post-processing from 5→10 min, highlight fetching from 15→30 min, magazine projection from 10→30 min.
+- Reduced worker intensity: profile refresh interval increased from 100 min to 4 hours, with batch size reduced from 100 to 50.
 - Added front page for logged-in users: a tabbed interface with Latest, Follows, Interests, Podcasts, and News Bots tabs. Each tab loads articles dynamically. Podcasts and News Bots tabs are powered by configurable follow packs (kind 39089 events).
 - Added admin interface for follow pack management: assign kind 39089 follow pack events as sources for the Podcasts and News Bots home feed tabs.
 - Reorganized the draft support center into shorter help-center-style articles with focused reader, writer, identity, billing, and FAQ guides for the future support magazine.

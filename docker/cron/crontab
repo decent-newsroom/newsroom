@@ -7,8 +7,8 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 
 # Post-process articles (QA, indexing, mark as indexed)
-# Runs every 5 minutes to process articles ingested by hydration worker
-*/5 * * * * /app/docker/cron/post_process_articles.sh >> /var/log/cron-post-process.log 2>&1
+# Runs every 10 minutes to process articles ingested by hydration worker
+*/10 * * * * /app/docker/cron/post_process_articles.sh >> /var/log/cron-post-process.log 2>&1
 
 # Backfill historical articles
 # Runs once daily at 2 AM for historical data
@@ -19,8 +19,8 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 */15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
 
 # Fetch highlights from Nostr relays to database
-# Runs every 15 minutes to keep highlights fresh
-*/15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:fetch-highlights --limit=100 >> /var/log/cron-fetch-highlights.log 2>&1
+# Runs every 30 minutes (reduced from 15 — network-intensive external relay calls)
+*/30 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:fetch-highlights --limit=100 >> /var/log/cron-fetch-highlights.log 2>&1
 
 # Cache latest highlights for Redis views
 # Runs every 30 minutes
@@ -31,8 +31,8 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 0 */6 * * * /app/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
 
 # Project magazine indices to Magazine entities
-# Runs every 10 minutes to keep magazine projections up-to-date
-*/10 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
+# Runs every 30 minutes (reduced from 10 — magazine events are infrequent)
+*/30 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
 
 # Warm Unfold site caches
 # Runs every 30 minutes to keep subdomain magazine pages loading quickly

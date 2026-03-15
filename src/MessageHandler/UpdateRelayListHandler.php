@@ -125,11 +125,16 @@ class UpdateRelayListHandler
             $relays = $this->relayListService->getRelayList($pubkey);
             $readRelays = $relays['read'] ?? $relays['all'] ?? [];
 
-            $this->messageBus->dispatch(new SyncUserEventsMessage($pubkey, $readRelays));
+            // Only fetch events from the last 24 hours to reduce relay load.
+            // Older events are already in the DB from previous syncs or hydration.
+            $since = time() - 86400;
+
+            $this->messageBus->dispatch(new SyncUserEventsMessage($pubkey, $readRelays, $since));
 
             $this->logger->info('UpdateRelayListHandler: dispatched event sync', [
                 'pubkey'      => substr($pubkey, 0, 16) . '...',
                 'relay_count' => count($readRelays),
+                'since'       => date('c', $since),
             ]);
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: event sync dispatch failed', [

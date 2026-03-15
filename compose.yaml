@@ -132,8 +132,8 @@ services:
           - php
           - bin/console
           - app:run-workers
-          - --profile-interval=6000
-          - --profile-batch-size=100
+          - --profile-interval=14400
+          - --profile-batch-size=50
       restart: unless-stopped
       depends_on:
           php:

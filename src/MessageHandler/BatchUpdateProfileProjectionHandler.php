@@ -102,6 +102,9 @@ class BatchUpdateProfileProjectionHandler
                     $this->updateUserFromMetadata($user, $metadataMap[$pubkeyHex]);
                     $updated++;
                 }
+
+                // Mark profile as refreshed so the worker skips it next cycle
+                $user->setLastMetadataRefresh(new \DateTimeImmutable());
             } catch (\Exception $e) {
                 $this->logger->warning('Failed to process pubkey in batch', [
                     'pubkey' => substr($pubkeyHex, 0, 8) . '...',

@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Message\UpdateRelayListMessage;
 use App\Service\UserMetadataSyncService;
 use App\Util\NostrKeyUtil;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -14,9 +15,13 @@ use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 #[AsEventListener(event: LoginSuccessEvent::class)]
 class UserMetadataSyncListener
 {
+    /** Minimum seconds between full relay syncs per user */
+    private const SYNC_THROTTLE_SECONDS = 1800; // 30 minutes
+
     public function __construct(
         private readonly UserMetadataSyncService $syncService,
         private readonly MessageBusInterface $messageBus,
+        private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -29,6 +34,14 @@ class UserMetadataSyncListener
             return;
         }
 
+        // Track last login time
+        $user->setLastLoginAt(new \DateTimeImmutable());
+        try {
+            $this->entityManager->flush();
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to update lastLoginAt: ' . $e->getMessage());
+        }
+
         try {
             // Sync metadata on login
             $this->syncService->syncUser($user);
@@ -37,15 +50,28 @@ class UserMetadataSyncListener
             $this->logger->warning("Failed to sync metadata on login for user {$user->getNpub()}: " . $e->getMessage());
         }
 
-        // Dispatch async relay list warming
+        // Dispatch async relay list warming — throttled to avoid hammering relays
+        // on repeated logins / tab refreshes
         try {
             $npub = $user->getNpub();
             if ($npub && NostrKeyUtil::isNpub($npub)) {
-                $hex = NostrKeyUtil::npubToHex($npub);
-                $this->messageBus->dispatch(new UpdateRelayListMessage($hex));
-                $this->logger->debug('Dispatched relay list warming for user', [
-                    'npub' => substr($npub, 0, 16) . '...',
-                ]);
+                $lastRefresh = $user->getLastMetadataRefresh();
+                $now = new \DateTimeImmutable();
+                $shouldSync = $lastRefresh === null
+                    || ($now->getTimestamp() - $lastRefresh->getTimestamp()) > self::SYNC_THROTTLE_SECONDS;
+
+                if ($shouldSync) {
+                    $hex = NostrKeyUtil::npubToHex($npub);
+                    $this->messageBus->dispatch(new UpdateRelayListMessage($hex));
+                    $this->logger->debug('Dispatched relay list warming for user', [
+                        'npub' => substr($npub, 0, 16) . '...',
+                    ]);
+                } else {
+                    $this->logger->debug('Skipping relay list warming — recently synced', [
+                        'npub' => substr($npub, 0, 16) . '...',
+                        'last_refresh' => $lastRefresh->format('c'),
+                    ]);
+                }
             }
         } catch (\Exception $e) {
             // Don't fail the login if dispatch fails

@@ -118,15 +118,17 @@ class ProfileRefreshWorkerCommand extends Command
         $this->logger->info('Starting profile refresh cycle');
         $output->writeln('<info>Starting profile refresh cycle...</info>');
 
-        // Get all users
-        $users = $this->userRepository->findAll();
+        // Only refresh profiles that haven't been updated in the last interval
+        // This prevents re-processing recently refreshed users
+        $staleThreshold = new \DateTimeImmutable('-2 hours');
+        $users = $this->userRepository->findStaleProfiles($staleThreshold, $batchSize * 4);
         $totalUsers = count($users);
 
-        $this->logger->info('Found users to refresh', ['count' => $totalUsers]);
-        $output->writeln(sprintf('Found %d users to refresh', $totalUsers));
+        $this->logger->info('Found stale users to refresh', ['count' => $totalUsers]);
+        $output->writeln(sprintf('Found %d stale users to refresh (threshold: 2 hours)', $totalUsers));
 
         if ($totalUsers === 0) {
-            $output->writeln('<comment>No users to refresh</comment>');
+            $output->writeln('<comment>No stale profiles to refresh</comment>');
             return;
         }
 
