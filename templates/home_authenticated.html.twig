@@ -29,14 +29,14 @@
                     {{ 'home_feed.tab.interests'|trans }}
                 </a>
                 <a href="{{ path('home_feed_tab', {tab: 'podcasts'}) }}"
-                   class="tab-link"
+                   class="tab-link hidden"
                    data-content--home-tabs-target="tab"
                    data-tab="podcasts"
                    data-action="click->content--home-tabs#switchTab">
                     {{ 'home_feed.tab.podcasts'|trans }}
                 </a>
                 <a href="{{ path('home_feed_tab', {tab: 'newsbots'}) }}"
-                   class="tab-link"
+                   class="tab-link hidden"
                    data-content--home-tabs-target="tab"
                    data-tab="newsbots"
                    data-action="click->content--home-tabs#switchTab">
