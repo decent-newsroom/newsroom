@@ -481,13 +481,13 @@ class UserRelayListService
                 // Create new synthetic event
                 $event = new Event();
                 $event->setId('relay_list_' . $hex . '_' . $newCreatedAt);
-                $event->setEventId('relay_list_' . $hex . '_' . $newCreatedAt);
                 $event->setKind(KindsEnum::RELAY_LIST->value);
                 $event->setPubkey($hex);
                 $event->setContent('');
                 $event->setCreatedAt($newCreatedAt);
                 $event->setTags($tags);
                 $event->setSig('');
+                $event->extractAndSetDTag();
 
                 $this->em->persist($event);
                 $this->em->flush();

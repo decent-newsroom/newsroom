@@ -16,6 +16,11 @@ class Event
     #[ORM\Id]
     #[ORM\Column(length: 225)]
     private string $id;
+
+    /**
+     * @deprecated Use getId() instead. This column is kept for backward compatibility
+     * but will be removed in a future migration. It always equals $id.
+     */
     #[ORM\Column(length: 225, nullable: true)]
     private ?string $eventId = null;
     #[ORM\Column(type: Types::INTEGER)]
@@ -31,6 +36,14 @@ class Event
     #[ORM\Column(length: 255)]
     private string $sig = '';
 
+    /**
+     * Extracted d-tag value for parameterized replaceable events (kinds 30000–39999).
+     * NULL = not a parameterized replaceable event.
+     * '' (empty string) = parameterized replaceable with absent or empty d tag.
+     */
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $dTag = null;
+
     public function getId(): string
     {
         return $this->id;
@@ -41,13 +54,21 @@ class Event
         $this->id = $id;
     }
 
+    /**
+     * @deprecated Use getId() instead. Returns $this->id for backward compatibility.
+     */
     public function getEventId(): ?string
     {
-        return $this->eventId;
+        return $this->id;
     }
 
+    /**
+     * @deprecated Use setId() instead. Internally sets $this->id for backward compatibility.
+     */
     public function setEventId(string $eventId): static
     {
+        // Keep backward compat: also set id so callers that only call setEventId still work
+        $this->id = $eventId;
         $this->eventId = $eventId;
 
         return $this;
@@ -259,5 +280,40 @@ class Event
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    public function getDTag(): ?string
+    {
+        return $this->dTag;
+    }
+
+    public function setDTag(?string $dTag): static
+    {
+        $this->dTag = $dTag;
+        return $this;
+    }
+
+    /**
+     * Extract and set d_tag from the tags array.
+     * Call this before persisting to auto-populate the d_tag column.
+     */
+    public function extractAndSetDTag(): static
+    {
+        // Only for parameterized replaceable events (kinds 30000–39999)
+        if ($this->kind < 30000 || $this->kind > 39999) {
+            $this->dTag = null;
+            return $this;
+        }
+
+        foreach ($this->tags as $tag) {
+            if (is_array($tag) && ($tag[0] ?? '') === 'd' && array_key_exists(1, $tag)) {
+                $this->dTag = (string) $tag[1];
+                return $this;
+            }
+        }
+
+        // Absent d tag on a parameterized replaceable event → empty string
+        $this->dTag = '';
+        return $this;
     }
 }

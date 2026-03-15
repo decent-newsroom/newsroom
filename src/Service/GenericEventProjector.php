@@ -52,13 +52,13 @@ class GenericEventProjector
         // Create new Event entity
         $entity = new Event();
         $entity->setId($event->id);
-        $entity->setEventId($event->id);
         $entity->setKind($event->kind ?? 0);
         $entity->setPubkey($event->pubkey ?? '');
         $entity->setContent($event->content ?? '');
         $entity->setCreatedAt($event->created_at ?? 0);
         $entity->setTags($event->tags ?? []);
         $entity->setSig($event->sig ?? '');
+        $entity->extractAndSetDTag();
 
         // Persist to database
         $this->em->persist($entity);

@@ -273,13 +273,13 @@ class UserProfileService
         try {
             $entity = new Event();
             $entity->setId($id);
-            $entity->setEventId($id);
             $entity->setKind((int) ($event->kind ?? KindsEnum::INTERESTS->value));
             $entity->setPubkey($event->pubkey ?? '');
             $entity->setContent($event->content ?? '');
             $entity->setCreatedAt((int) ($event->created_at ?? time()));
             $entity->setTags(is_array($event->tags) ? $event->tags : (array) ($event->tags ?? []));
             $entity->setSig($event->sig ?? '');
+            $entity->extractAndSetDTag();
 
             $this->entityManager->persist($entity);
             $this->entityManager->flush();

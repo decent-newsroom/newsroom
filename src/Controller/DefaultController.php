@@ -659,7 +659,6 @@ class DefaultController extends AbstractController
         // Create Event entity
         $chapter = new Event();
         $chapter->setId($eventData['id']);
-        $chapter->setEventId($eventData['event_id']);
         $chapter->setKind((int)$eventData['kind']);
         $chapter->setPubkey($eventData['pubkey']);
         $chapter->setContent($eventData['content']);

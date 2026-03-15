@@ -97,13 +97,13 @@ final class BookmarkItemResolver
             // Persist so future loads are instant
             $event = new Event();
             $event->setId($raw->id);
-            $event->setEventId($raw->id);
             $event->setPubkey($raw->pubkey);
             $event->setKind($raw->kind);
             $event->setContent($raw->content ?? '');
             $event->setTags($raw->tags ?? []);
             $event->setCreatedAt($raw->created_at);
             $event->setSig($raw->sig ?? '');
+            $event->extractAndSetDTag();
 
             $em = $this->entityManager;
             $em->persist($event);

@@ -338,13 +338,13 @@ class SyncUserEventsHandler
     {
         $entity = new Event();
         $entity->setId($raw['id']);
-        $entity->setEventId($raw['id']);
         $entity->setKind((int) ($raw['kind'] ?? 0));
         $entity->setPubkey($raw['pubkey'] ?? '');
         $entity->setContent($raw['content'] ?? '');
         $entity->setCreatedAt((int) ($raw['created_at'] ?? time()));
         $entity->setTags($raw['tags'] ?? []);
         $entity->setSig($raw['sig'] ?? '');
+        $entity->extractAndSetDTag();
 
         return $entity;
     }

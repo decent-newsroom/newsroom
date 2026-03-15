@@ -3,6 +3,13 @@
 ## v0.0.16
 Feeds, walls, boards, whatever you want to call them.
 
+- Added `d_tag` column to `event` table with composite coordinate index `(kind, pubkey, d_tag)` — enables fast coordinate-to-event lookups without scanning JSONB tags. Backfill migration populates existing parameterized replaceable events (kinds 30000–39999).
+- Deprecated `eventId` column on `Event` entity — `getEventId()` now returns `$this->id`, `setEventId()` aliases to `setId()`. Column kept for backward compatibility; will be dropped in a future release.
+- Added `RecordIdentityService` — single authority for canonical coordinate strings, record UID generation, and entity type classification. All graph identity derivation flows through this service.
+- Added `parsed_reference` table and `ReferenceParserService` — normalized extraction of `a` tag references from event tags, with structural/relation classification. Backfill command: `dn:graph:backfill-references`.
+- Added `current_record` table and `CurrentVersionResolver` — tracks the current (newest) event version for each replaceable coordinate using atomic upsert with tie-break. Backfill command: `dn:graph:backfill-current-records`.
+- Added `GraphLookupService` — recursive CTE-based tree traversal for magazine/category/article resolution from local PostgreSQL, eliminating relay round-trips for structure queries. Primary consumer: Unfold cache warming.
+- All event creation call sites now populate `d_tag` via `extractAndSetDTag()` for new events going forward.
 - Reduced worker intensity: profile refresh worker now only processes stale profiles (not refreshed in 2+ hours) instead of loading all users every cycle.
 - Reduced worker intensity: split Messenger into two separate consumers — high-priority (articles, comments, media) and low-priority (profiles, relay lists, sync) — so heavy background jobs no longer starve time-sensitive handlers.
 - Reduced worker intensity: login sync chain is now throttled — relay list warming and event sync are skipped if the user was synced within the last 30 minutes, preventing redundant heavy relay queries on tab refreshes or re-logins.
