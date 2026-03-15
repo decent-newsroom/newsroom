@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Repository\EventRepository;
+use App\Service\Graph\EventIngestionListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -19,6 +20,7 @@ class GenericEventProjector
         private readonly EntityManagerInterface $em,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
+        private readonly EventIngestionListener $eventIngestionListener,
     ) {
     }
 
@@ -63,6 +65,16 @@ class GenericEventProjector
         // Persist to database
         $this->em->persist($entity);
         $this->em->flush();
+
+        // Update graph layer tables (parsed_reference + current_record)
+        try {
+            $this->eventIngestionListener->processEvent($entity);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to update graph tables for event', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         $this->logger->info('Generic event saved to database', [
             'event_id' => $event->id,

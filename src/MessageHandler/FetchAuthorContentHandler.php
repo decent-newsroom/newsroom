@@ -9,6 +9,7 @@ use App\Enum\AuthorContentType;
 use App\Factory\ArticleFactory;
 use App\Message\FetchAuthorContentMessage;
 use App\Repository\EventRepository;
+use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
@@ -28,7 +29,8 @@ class FetchAuthorContentHandler
         private readonly EventRepository $eventRepository,
         private readonly ArticleFactory $articleFactory,
         private readonly HubInterface $hub,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly EventIngestionListener $eventIngestionListener,
     ) {}
 
     public function __invoke(FetchAuthorContentMessage $message): void
@@ -322,6 +324,11 @@ class FetchAuthorContentHandler
 
         $this->eventRepository->getEntityManager()->persist($entity);
         $this->eventRepository->getEntityManager()->flush();
+
+        // Update graph layer tables
+        try {
+            $this->eventIngestionListener->processEvent($entity);
+        } catch (\Throwable) {}
     }
 
     private function serializeArticle($article): array

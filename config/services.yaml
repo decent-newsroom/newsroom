@@ -229,6 +229,7 @@ services:
     App\UnfoldBundle\Content\ContentProvider:
         arguments:
             $swrCache: '@App\UnfoldBundle\Cache\StaleWhileRevalidateCache'
+            $graphLookup: '@App\Service\Graph\GraphLookupService'
 
     App\UnfoldBundle\Http\HostResolver: ~
     

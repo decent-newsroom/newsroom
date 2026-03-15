@@ -35,6 +35,9 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 */30 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1
 
 # Warm Unfold site caches
-# Runs every 30 minutes to keep subdomain magazine pages loading quickly
+# Runs every 30 minutes to keep subdomain magazine pages loading quickly.
+# Since the graph layer (parsed_reference + current_record), this resolves
+# from local DB in milliseconds instead of relay round-trips — kept to
+# ensure SWR cache is always pre-warmed so no visitor hits a cold miss.
 */30 * * * * /app/docker/cron/unfold_cache_warm.sh >> /var/log/cron-unfold-cache.log 2>&1
 

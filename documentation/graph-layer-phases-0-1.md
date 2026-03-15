@@ -148,12 +148,36 @@ docker compose exec php bin/console dn:graph:backfill-current-records --kinds=30
    docker compose exec php bin/console dn:graph:backfill-current-records
    ```
 
-## Next Steps
+## Completed Integration Steps
 
-After these tables are populated:
+### Unfold ContentProvider Refactored
 
-1. **Refactor Unfold `ContentProvider`** to use `GraphLookupService` instead of relay round-trips for tree traversal
-2. **Hook event ingestion** to automatically update `parsed_reference` and `current_record` on new events
-3. **Add cron-based consistency check** to detect drift between relational and graph data
-4. Proceed to AGE Phase 2 (Apache AGE graph extension) for richer graph queries if needed
+`ContentProvider` now uses `GraphLookupService` as the primary path for all tree traversal:
+- `getCategories()` → `resolveChildren(magazineCoord)` → bulk `fetchEventRows()`
+- `getCategoryPosts()` → `resolveChildren(categoryCoord)` → bulk `fetchEventRows()`
+- `getPost()` → `resolveDescendants(magazineCoord, 3)` → match by slug
+- Falls back to relay round-trips via `NostrClient` only when graph data is empty
+
+Result: cache warming resolves the entire magazine tree from local PostgreSQL in milliseconds instead of 50+ WebSocket requests.
+
+### EventIngestionListener
+
+**File:** `src/Service/Graph/EventIngestionListener.php`
+
+Automatically updates `parsed_reference` and `current_record` when events are persisted. Hooked into:
+- `GenericEventProjector` (primary event save path)
+- `FetchAuthorContentHandler` (async article/media fetching)
+- `SyncUserEventsHandler` (login-time event sync)
+
+Safe to call multiple times for the same event (idempotent — deletes existing refs before reinserting).
+
+### EventRepository::findByNaddr Optimized
+
+Uses the new `d_tag` column index instead of JSONB scanning. Falls back to JSONB scan for events predating the backfill.
+
+## Remaining Steps
+
+1. **Add cron-based consistency check** to detect drift between relational and graph data
+2. Proceed to AGE Phase 2 (Apache AGE graph extension) for richer graph queries if needed
+3. Deprecate `MagazineProjector` once graph layer is proven stable
 

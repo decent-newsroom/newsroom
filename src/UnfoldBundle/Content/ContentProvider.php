@@ -2,18 +2,20 @@
 
 namespace App\UnfoldBundle\Content;
 
+use App\Service\Graph\GraphLookupService;
 use App\Service\Nostr\NostrClient;
 use App\UnfoldBundle\Cache\StaleWhileRevalidateCache;
 use App\UnfoldBundle\Config\SiteConfig;
 use Psr\Log\LoggerInterface;
 
 /**
- * Provides content by traversing the magazine event tree
+ * Provides content by traversing the magazine event tree.
  *
- * Uses stale-while-revalidate caching to prevent timeouts:
- * - Fresh cache (< 5 min): serve immediately
- * - Stale cache (< 1 hour): serve immediately, refresh in background
- * - Expired cache (> 1 hour): try refresh with fallback to stale
+ * Primary path: GraphLookupService (local DB via parsed_reference + current_record).
+ * Fallback path: NostrClient relay round-trips (used when graph data is missing).
+ *
+ * The graph path resolves the entire magazine tree in a single recursive SQL query,
+ * eliminating the N+1 relay requests that caused slow cache warming and first-visit failures.
  */
 class ContentProvider
 {
@@ -24,6 +26,7 @@ class ContentProvider
         private readonly NostrClient $nostrClient,
         private readonly StaleWhileRevalidateCache $swrCache,
         private readonly LoggerInterface $logger,
+        private readonly ?GraphLookupService $graphLookup = null,
     ) {}
 
     /**
@@ -54,7 +57,74 @@ class ContentProvider
             return [];
         }
 
-        // Batch-fetch all category events in one relay request per author group
+        // Try graph-backed fast path first
+        if ($this->graphLookup !== null) {
+            $result = $this->fetchCategoriesFromGraph($site);
+            if (!empty($result)) {
+                return $result;
+            }
+            $this->logger->info('Graph path returned empty categories, falling back to relay', [
+                'naddr' => $site->naddr,
+            ]);
+        }
+
+        // Fallback: relay round-trips
+        return $this->fetchCategoriesFromRelay($site);
+    }
+
+    /**
+     * Fetch categories using the graph layer (local DB).
+     * @return CategoryData[]
+     */
+    private function fetchCategoriesFromGraph(SiteConfig $site): array
+    {
+        $children = $this->graphLookup->resolveChildren($site->naddr);
+
+        if (empty($children)) {
+            return [];
+        }
+
+        // Collect event IDs and fetch rows in one query
+        $eventIds = array_column($children, 'current_event_id');
+        $eventRows = $this->graphLookup->fetchEventRows($eventIds);
+
+        // Build a coord→child map
+        $childByCoord = [];
+        foreach ($children as $child) {
+            $childByCoord[$child['coord']] = $child;
+        }
+
+        // Build CategoryData, preserving category order from site config
+        $categories = [];
+        foreach ($site->categories as $coordinate) {
+            $child = $this->findChildByCoord($childByCoord, $coordinate);
+
+            if ($child === null) {
+                $this->logger->debug('Category not found in graph children', ['coordinate' => $coordinate]);
+                continue;
+            }
+
+            $eventRow = $eventRows[$child['current_event_id']] ?? null;
+            if ($eventRow === null) {
+                continue;
+            }
+
+            $categories[] = CategoryData::fromEvent($this->rowToEventObject($eventRow), $coordinate);
+        }
+
+        if (!empty($categories)) {
+            $this->logger->debug('Categories resolved from graph', ['count' => count($categories)]);
+        }
+
+        return $categories;
+    }
+
+    /**
+     * Fetch categories via relay round-trips (original fallback).
+     * @return CategoryData[]
+     */
+    private function fetchCategoriesFromRelay(SiteConfig $site): array
+    {
         $eventsMap = $this->nostrClient->getEventsByCoordinates($site->categories);
 
         $categories = [];
@@ -65,7 +135,6 @@ class ContentProvider
             }
             $categories[] = CategoryData::fromEvent($eventsMap[$coordinate], $coordinate);
         }
-
 
         return $categories;
     }
@@ -94,7 +163,61 @@ class ContentProvider
      */
     private function fetchCategoryPostsInternal(string $categoryCoordinate): array
     {
-        // First fetch the category to get article coordinates
+        // Try graph-backed fast path first
+        if ($this->graphLookup !== null) {
+            $result = $this->fetchCategoryPostsFromGraph($categoryCoordinate);
+            if (!empty($result)) {
+                return $result;
+            }
+            $this->logger->info('Graph path returned empty posts, falling back to relay', [
+                'coordinate' => $categoryCoordinate,
+            ]);
+        }
+
+        // Fallback: relay round-trips
+        return $this->fetchCategoryPostsFromRelay($categoryCoordinate);
+    }
+
+    /**
+     * Fetch category posts using the graph layer (local DB).
+     * @return PostData[]
+     */
+    private function fetchCategoryPostsFromGraph(string $categoryCoordinate): array
+    {
+        $children = $this->graphLookup->resolveChildren($categoryCoordinate);
+
+        if (empty($children)) {
+            return [];
+        }
+
+        $eventIds = array_column($children, 'current_event_id');
+        $eventRows = $this->graphLookup->fetchEventRows($eventIds);
+
+        $posts = [];
+        foreach ($children as $child) {
+            $eventRow = $eventRows[$child['current_event_id']] ?? null;
+            if ($eventRow === null) {
+                continue;
+            }
+            $posts[] = PostData::fromEvent($this->rowToEventObject($eventRow));
+        }
+
+        if (!empty($posts)) {
+            $this->logger->debug('Category posts resolved from graph', [
+                'coordinate' => $categoryCoordinate,
+                'count' => count($posts),
+            ]);
+        }
+
+        return $posts;
+    }
+
+    /**
+     * Fetch category posts via relay round-trips (original fallback).
+     * @return PostData[]
+     */
+    private function fetchCategoryPostsFromRelay(string $categoryCoordinate): array
+    {
         $category = $this->fetchCategoryByCoordinate($categoryCoordinate);
         if ($category === null) {
             return [];
@@ -104,7 +227,6 @@ class ContentProvider
             return [];
         }
 
-        // Batch-fetch all article events in one relay request per author group
         $eventsMap = $this->nostrClient->getEventsByCoordinates($category->articleCoordinates);
 
         $posts = [];
@@ -115,7 +237,6 @@ class ContentProvider
             }
             $posts[] = PostData::fromEvent($eventsMap[$articleCoordinate]);
         }
-
 
         return $posts;
     }
@@ -152,7 +273,6 @@ class ContentProvider
             $allPosts = array_merge($allPosts, array_slice($categoryPosts, 0, $limit));
         }
 
-
         return $allPosts;
     }
 
@@ -161,12 +281,19 @@ class ContentProvider
      */
     public function getPost(string $slug, SiteConfig $site): ?PostData
     {
-        // Search through all categories for the post
+        // Try graph-backed fast path: search through all descendants
+        if ($this->graphLookup !== null) {
+            $post = $this->fetchPostBySlugFromGraph($slug, $site);
+            if ($post !== null) {
+                return $post;
+            }
+        }
+
+        // Fallback: search through all categories via cache/relay
         $categories = $this->getCategories($site);
 
         foreach ($categories as $category) {
             foreach ($category->articleCoordinates as $coordinate) {
-                // Check if coordinate ends with the slug
                 if (str_ends_with($coordinate, ':' . $slug)) {
                     return $this->fetchPostByCoordinate($coordinate);
                 }
@@ -177,7 +304,27 @@ class ContentProvider
     }
 
     /**
-     * Fetch a category event by coordinate
+     * Find a post by slug using the graph layer.
+     */
+    private function fetchPostBySlugFromGraph(string $slug, SiteConfig $site): ?PostData
+    {
+        $descendants = $this->graphLookup->resolveDescendants($site->naddr, 3);
+
+        foreach ($descendants as $desc) {
+            if (str_ends_with($desc['coord'], ':' . $slug)) {
+                $eventRows = $this->graphLookup->fetchEventRows([$desc['current_event_id']]);
+                $eventRow = $eventRows[$desc['current_event_id']] ?? null;
+                if ($eventRow !== null) {
+                    return PostData::fromEvent($this->rowToEventObject($eventRow));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch a category event by coordinate (relay fallback path)
      */
     private function fetchCategoryByCoordinate(string $coordinate): ?CategoryData
     {
@@ -205,7 +352,7 @@ class ContentProvider
     }
 
     /**
-     * Fetch a post event by coordinate
+     * Fetch a post event by coordinate (relay fallback path)
      */
     private function fetchPostByCoordinate(string $coordinate): ?PostData
     {
@@ -230,6 +377,52 @@ class ContentProvider
             ]);
             return null;
         }
+    }
+
+    /**
+     * Convert a database row array to a stdClass event object matching NostrClient format.
+     */
+    private function rowToEventObject(array $row): object
+    {
+        $tags = $row['tags'] ?? '[]';
+        if (is_string($tags)) {
+            $tags = json_decode($tags, true) ?? [];
+        }
+
+        return (object) [
+            'id' => $row['id'],
+            'pubkey' => $row['pubkey'],
+            'kind' => (int) $row['kind'],
+            'content' => $row['content'] ?? '',
+            'tags' => $tags,
+            'created_at' => (int) ($row['created_at'] ?? 0),
+            'sig' => $row['sig'] ?? '',
+        ];
+    }
+
+    /**
+     * Find a child record by coordinate, handling case differences in pubkeys.
+     */
+    private function findChildByCoord(array $childByCoord, string $coordinate): ?array
+    {
+        // Exact match
+        if (isset($childByCoord[$coordinate])) {
+            return $childByCoord[$coordinate];
+        }
+
+        // Case-insensitive match (pubkey case normalization differences)
+        $lower = strtolower($coordinate);
+        if (isset($childByCoord[$lower])) {
+            return $childByCoord[$lower];
+        }
+
+        foreach ($childByCoord as $k => $v) {
+            if (strcasecmp($k, $coordinate) === 0) {
+                return $v;
+            }
+        }
+
+        return null;
     }
 
     /**

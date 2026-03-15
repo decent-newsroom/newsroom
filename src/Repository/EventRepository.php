@@ -254,14 +254,11 @@ class EventRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        // Search specifically for d-tag: ["d", "identifier"]
+        // Fast path: use the d_tag column index (added in Phase 0 migration)
         $sql = "SELECT * FROM event e
                 WHERE e.kind = :kind
                 AND e.pubkey = :pubkey
-                AND EXISTS (
-                    SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                    WHERE tag->>0 = 'd' AND tag->>1 = :identifier
-                )
+                AND e.d_tag = :identifier
                 ORDER BY e.created_at DESC
                 LIMIT 1";
 
@@ -270,6 +267,25 @@ class EventRepository extends ServiceEntityRepository
             'pubkey' => $pubkey,
             'identifier' => $identifier,
         ])->fetchAssociative();
+
+        // Fallback: scan JSONB tags for events that predate the d_tag backfill
+        if ($result === false) {
+            $sql = "SELECT * FROM event e
+                    WHERE e.kind = :kind
+                    AND e.pubkey = :pubkey
+                    AND EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                        WHERE tag->>0 = 'd' AND tag->>1 = :identifier
+                    )
+                    ORDER BY e.created_at DESC
+                    LIMIT 1";
+
+            $result = $conn->executeQuery($sql, [
+                'kind' => $kind,
+                'pubkey' => $pubkey,
+                'identifier' => $identifier,
+            ])->fetchAssociative();
+        }
 
         return $result ? $this->mapRowToEvent($result) : null;
     }

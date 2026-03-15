@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\SyncUserEventsMessage;
 use App\Repository\EventRepository;
+use App\Service\Graph\EventIngestionListener;
 use App\Service\ProfileEventIngestionService;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayGatewayClient;
@@ -83,6 +84,7 @@ class SyncUserEventsHandler
         private readonly EntityManagerInterface       $entityManager,
         private readonly ProfileEventIngestionService $profileIngestionService,
         private readonly LoggerInterface              $logger,
+        private readonly EventIngestionListener       $eventIngestionListener,
         private readonly bool                         $gatewayEnabled = false,
     ) {}
 
@@ -303,6 +305,12 @@ class SyncUserEventsHandler
             try {
                 $entity = $this->buildEntity($rawEvent);
                 $this->entityManager->persist($entity);
+
+                // Update graph layer tables (uses DBAL, not ORM — safe before flush)
+                try {
+                    $this->eventIngestionListener->processEvent($entity);
+                } catch (\Throwable) {}
+
                 $persisted++;
                 $batch++;
 
