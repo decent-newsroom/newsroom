@@ -118,6 +118,49 @@ class GraphLookupService
     {
         $parentCoord = $this->normalizeCoord($parentCoord);
 
+        // Step 1: Does the parent coordinate exist in current_record?
+        $parentRow = $this->connection->fetchAssociative(
+            'SELECT coord, current_event_id, kind FROM current_record WHERE coord = :coord',
+            ['coord' => $parentCoord],
+        );
+
+        if ($parentRow === false) {
+            $this->logger->warning('GraphLookupService: parent coord not found in current_record', [
+                'parent_coord' => $parentCoord,
+            ]);
+            return [];
+        }
+
+        $parentEventId = $parentRow['current_event_id'];
+
+        // Step 2: Does the parent event have any parsed_references?
+        $allRefs = $this->connection->fetchAllAssociative(
+            'SELECT target_coord, relation, is_structural, position FROM parsed_reference WHERE source_event_id = :eid ORDER BY position',
+            ['eid' => $parentEventId],
+        );
+
+        if (empty($allRefs)) {
+            $this->logger->warning('GraphLookupService: no parsed_references for parent event', [
+                'parent_coord' => $parentCoord,
+                'parent_event_id' => substr($parentEventId, 0, 16) . '...',
+            ]);
+            return [];
+        }
+
+        $structuralRefs = array_filter($allRefs, fn(array $r) => (bool) $r['is_structural']);
+
+        if (empty($structuralRefs)) {
+            $this->logger->warning('GraphLookupService: parsed_references exist but none are structural', [
+                'parent_coord' => $parentCoord,
+                'total_refs' => count($allRefs),
+                'relations' => array_unique(array_column($allRefs, 'relation')),
+            ]);
+            return [];
+        }
+
+        // Step 3: Do the target coordinates exist in current_record?
+        $targetCoords = array_column($structuralRefs, 'target_coord');
+
         $sql = <<<'SQL'
             SELECT
                 cr_child.coord,
@@ -133,9 +176,32 @@ class GraphLookupService
             ORDER BY pr.position
         SQL;
 
-        return $this->connection->fetchAllAssociative($sql, [
+        $result = $this->connection->fetchAllAssociative($sql, [
             'parent_coord' => $parentCoord,
         ]);
+
+        if (empty($result) && !empty($structuralRefs)) {
+            // We have structural refs but no matching current_records for the targets
+            $missingCoords = [];
+            foreach ($targetCoords as $tc) {
+                $exists = $this->connection->fetchOne(
+                    'SELECT COUNT(*) FROM current_record WHERE coord = :coord',
+                    ['coord' => $tc],
+                );
+                if ((int) $exists === 0) {
+                    $missingCoords[] = $tc;
+                }
+            }
+
+            $this->logger->warning('GraphLookupService: structural refs exist but target coords missing from current_record', [
+                'parent_coord' => $parentCoord,
+                'structural_refs_count' => count($structuralRefs),
+                'missing_target_coords' => $missingCoords,
+                'sample_targets' => array_slice($targetCoords, 0, 5),
+            ]);
+        }
+
+        return $result;
     }
 
     /**
