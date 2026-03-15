@@ -86,6 +86,7 @@ class GraphBackfillReferencesCommand extends Command
             }
 
             $batchRefs = [];
+            $batchEventIds = [];
 
             foreach ($rows as $row) {
                 $tags = is_string($row['tags']) ? json_decode($row['tags'], true) : $row['tags'];
@@ -99,12 +100,24 @@ class GraphBackfillReferencesCommand extends Command
                     $tags,
                 );
 
-                foreach ($refs as $ref) {
-                    $batchRefs[] = $ref;
+                if (!empty($refs)) {
+                    $batchEventIds[] = $row['id'];
+                    foreach ($refs as $ref) {
+                        $batchRefs[] = $ref;
+                    }
                 }
 
                 $processedEvents++;
                 $io->progressAdvance();
+            }
+
+            // Delete existing references for this batch (idempotent re-runs)
+            if (!empty($batchEventIds)) {
+                $placeholders = implode(',', array_fill(0, count($batchEventIds), '?'));
+                $this->connection->executeStatement(
+                    "DELETE FROM parsed_reference WHERE source_event_id IN ({$placeholders})",
+                    array_values($batchEventIds),
+                );
             }
 
             // Bulk insert references

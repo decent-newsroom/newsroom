@@ -50,9 +50,13 @@ class EventIngestionListener
             return;
         }
 
-        // Update references
+        // Update references (idempotent: delete existing before reinserting)
         $refs = $this->referenceParser->parseFromTagsArray($eventId, $kind, $tags);
         if (!empty($refs)) {
+            $this->connection->executeStatement(
+                'DELETE FROM parsed_reference WHERE source_event_id = ?',
+                [$eventId]
+            );
             $this->insertReferences($refs);
         }
 

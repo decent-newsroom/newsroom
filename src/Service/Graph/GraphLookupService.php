@@ -84,8 +84,12 @@ class GraphLookupService
                 WHERE t.depth < :max_depth
                   AND pr2.is_structural = TRUE
             )
-            SELECT coord, current_event_id, kind, depth, position, relation
-            FROM tree
+            SELECT * FROM (
+                SELECT DISTINCT ON (coord)
+                    coord, current_event_id, kind, depth, position, relation
+                FROM tree
+                ORDER BY coord, depth, position
+            ) deduped
             ORDER BY depth, position
         SQL;
 
@@ -193,18 +197,21 @@ class GraphLookupService
     private function runChildrenQuery(string $parentCoord): array
     {
         $sql = <<<'SQL'
-            SELECT
-                cr_child.coord,
-                cr_child.current_event_id,
-                cr_child.kind,
-                pr.position,
-                pr.relation
-            FROM current_record cr_parent
-            JOIN parsed_reference pr ON pr.source_event_id = cr_parent.current_event_id
-            JOIN current_record cr_child ON cr_child.coord = pr.target_coord
-            WHERE cr_parent.coord = :parent_coord
-              AND pr.is_structural = TRUE
-            ORDER BY pr.position
+            SELECT * FROM (
+                SELECT DISTINCT ON (cr_child.coord)
+                    cr_child.coord,
+                    cr_child.current_event_id,
+                    cr_child.kind,
+                    pr.position,
+                    pr.relation
+                FROM current_record cr_parent
+                JOIN parsed_reference pr ON pr.source_event_id = cr_parent.current_event_id
+                JOIN current_record cr_child ON cr_child.coord = pr.target_coord
+                WHERE cr_parent.coord = :parent_coord
+                  AND pr.is_structural = TRUE
+                ORDER BY cr_child.coord, pr.position
+            ) deduped
+            ORDER BY position
         SQL;
 
         return $this->connection->fetchAllAssociative($sql, [
