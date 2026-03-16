@@ -276,13 +276,13 @@
                 <div class="article-prev-next__grid">
                     {% if listNav.nextArticle %}
                         <div class="article-prev-next__item">
-                            <span class="article-prev-next__label">{{ 'article.nextArticle'|trans }}</span>
+                            <span class="article-prev-next__label hidden">{{ 'article.nextArticle'|trans }}</span>
                             <twig:Molecules:Card :article="listNav.nextArticle" />
                         </div>
                     {% endif %}
                     {% if listNav.prevArticle %}
                         <div class="article-prev-next__item">
-                            <span class="article-prev-next__label">{{ 'article.prevArticle'|trans }}</span>
+                            <span class="article-prev-next__label hidden">{{ 'article.prevArticle'|trans }}</span>
                             <twig:Molecules:Card :article="listNav.prevArticle" />
                         </div>
                     {% endif %}
