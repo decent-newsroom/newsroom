@@ -15,9 +15,7 @@ use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Redis as RedisClient;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -315,8 +313,6 @@ class MagazineWizardController extends AbstractController
     #[Route('/api/index/publish', name: 'api-index-publish', methods: ['POST'])]
     public function publishIndexEvent(
         Request                   $request,
-        CacheItemPoolInterface    $appCache,
-        RedisClient               $redis,
         EntityManagerInterface    $entityManager,
         NostrClient               $nostrClient,
         LoggerInterface           $logger
@@ -354,43 +350,36 @@ class MagazineWizardController extends AbstractController
             return new JsonResponse(['error' => 'Missing d tag/slug'], 400);
         }
 
-        // Save to Redis under magazine-<slug>
-        try {
-            $key = 'magazine-' . $slug;
-            $item = $appCache->getItem($key);
-            $item->set($eventObj);
-            $appCache->save($item);
-        } catch (\Throwable $e) {
-            return new JsonResponse(['error' => 'Redis error'], 500);
-        }
-
-        // If the event is a top-level magazine index (references 30040 categories), record slug in a set for admin listing
+        // Determine if this is a top-level magazine index (references 30040 categories)
         $isTopLevelMagazine = false;
-        try {
-            foreach ($signedEvent['tags'] as $tag) {
-                if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string)$tag[1], '30040:')) {
-                    $isTopLevelMagazine = true;
-                    break;
-                }
+        foreach ($signedEvent['tags'] as $tag) {
+            if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string)$tag[1], '30040:')) {
+                $isTopLevelMagazine = true;
+                break;
             }
-            if ($isTopLevelMagazine) {
-                $redis->sAdd('magazine_slugs', $slug);
-            }
-        } catch (\Throwable $e) {
-            // non-fatal
         }
 
         // Save to persistence as Event entity
-        $event = new \App\Entity\Event();
-        $event->setId($eventObj->getId());
-        $event->setPubkey($eventObj->getPublicKey());
-        $event->setCreatedAt($eventObj->getCreatedAt());
-        $event->setKind($eventObj->getKind());
-        $event->setTags($eventObj->getTags());
-        $event->setContent($eventObj->getContent());
-        $event->setSig($eventObj->getSignature());
-        $entityManager->persist($event);
-        $entityManager->flush();
+        try {
+            $event = new \App\Entity\Event();
+            $event->setId($eventObj->getId());
+            $event->setPubkey($eventObj->getPublicKey());
+            $event->setCreatedAt($eventObj->getCreatedAt());
+            $event->setKind($eventObj->getKind());
+            $event->setTags($eventObj->getTags());
+            $event->setContent($eventObj->getContent());
+            $event->setSig($eventObj->getSignature());
+            $event->extractAndSetDTag();
+            $entityManager->persist($event);
+            $entityManager->flush();
+        } catch (\Throwable $e) {
+            $logger->error('Failed to persist index event to database', [
+                'event_id' => $eventObj->getId(),
+                'slug' => $slug,
+                'error' => $e->getMessage(),
+            ]);
+            return new JsonResponse(['error' => 'Database error: ' . $e->getMessage()], 500);
+        }
 
         // Publish to author's relays (passing empty array lets NostrClient fetch author's relay list)
         $relayResults = [];

@@ -10,7 +10,6 @@ use App\Factory\ArticleFactory;
 use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use FOS\ElasticaBundle\Persister\ObjectPersisterInterface;
-use Redis as RedisClient;
 use swentel\nostr\Event\Event;
 use swentel\nostr\Sign\Sign;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -21,20 +20,17 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Yaml\Yaml;
-use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsCommand(name: 'app:yaml_to_nostr', description: 'Traverses folders, converts YAML files to JSON using object mapping, and saves the result in Redis cache.')]
 class NostrEventFromYamlDefinitionCommand extends Command
 {
     private string $nsec;
 
-    public function __construct(private readonly CacheInterface           $redisCache,
-                                private readonly NostrClient              $client,
+    public function __construct(private readonly NostrClient              $client,
                                 private readonly ArticleFactory           $factory,
                                 ParameterBagInterface                     $bag,
                                 private readonly ObjectPersisterInterface $itemPersister,
-                                private readonly EntityManagerInterface   $entityManager,
-                                private readonly RedisClient              $redis)
+                                private readonly EntityManagerInterface   $entityManager)
     {
         $this->nsec = $bag->get('nsec');
         parent::__construct();
@@ -86,28 +82,18 @@ class NostrEventFromYamlDefinitionCommand extends Command
                 $signer = new Sign();
                 $signer->signEvent($event, $this->nsec);
 
-                // Save to cache
-                $slug = array_filter($tags, function ($tag) {
-                    return ($tag[0] === 'd');
-                });
-                $slug = $slug[0][1] ?? null;
-                if ($slug) {
-                    $cacheKey = 'magazine-' . $slug;
-                    $cacheItem = $this->redisCache->getItem($cacheKey);
-                    $cacheItem->set($event);
-                    $this->redisCache->save($cacheItem);
-
-                    // If top-level magazine (has 'a' tags referencing 30040 categories), record slug
-                    $isTopLevelMagazine = false;
-                    foreach ($tags as $t) {
-                        if (($t[0] ?? null) === 'a' && isset($t[1]) && str_starts_with((string)$t[1], '30040:')) {
-                            $isTopLevelMagazine = true; break;
-                        }
-                    }
-                    if ($isTopLevelMagazine) {
-                        try { $this->redis->sAdd('magazine_slugs', $slug); } catch (\Throwable) {}
-                    }
-                }
+                // Persist event to database
+                $dbEvent = new \App\Entity\Event();
+                $dbEvent->setId($event->getId());
+                $dbEvent->setPubkey($event->getPublicKey());
+                $dbEvent->setCreatedAt($event->getCreatedAt());
+                $dbEvent->setKind($event->getKind());
+                $dbEvent->setTags($event->getTags());
+                $dbEvent->setContent($event->getContent() ?? '');
+                $dbEvent->setSig($event->getSignature());
+                $dbEvent->extractAndSetDTag();
+                $this->entityManager->persist($dbEvent);
+                $this->entityManager->flush();
 
                 $output->writeln("<info>Saved index.</info>");
             } catch (\Exception $e) {
