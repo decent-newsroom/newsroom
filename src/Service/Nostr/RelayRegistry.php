@@ -66,8 +66,18 @@ class RelayRegistry
      */
     public function getForPurposes(array $purposes): array
     {
+        // LOCAL and PROJECT are the same physical strfry instance.
+        // When LOCAL is configured and both are requested, skip PROJECT
+        // to avoid wasting a relay slot on a duplicate connection.
+        $skipProject = $this->getLocalRelay() !== null
+            && in_array(RelayPurpose::LOCAL, $purposes, true)
+            && in_array(RelayPurpose::PROJECT, $purposes, true);
+
         $urls = [];
         foreach ($purposes as $purpose) {
+            if ($skipProject && $purpose === RelayPurpose::PROJECT) {
+                continue;
+            }
             foreach ($this->getForPurpose($purpose) as $url) {
                 if (!in_array($url, $urls, true)) {
                     $urls[] = $url;
@@ -189,20 +199,24 @@ class RelayRegistry
         return $this->getLocalRelay() ?? $url;
     }
 
-    /** Fallback: local + project relay. @return string[] */
+    /**
+     * Fallback relay list: LOCAL or PROJECT (never both).
+     *
+     * LOCAL and PROJECT are the same physical strfry instance. When LOCAL is
+     * configured (server-side Docker URL), it is the only entry returned.
+     * PROJECT (public wss:// hostname) is only included when LOCAL is absent,
+     * so callers never waste a relay slot on a duplicate connection.
+     *
+     * @return string[]
+     */
     public function getFallbackRelays(): array
     {
-        $relays = [];
         $local = $this->getLocalRelay();
         if ($local) {
-            $relays[] = $local;
+            return [$local];
         }
-        foreach ($this->getForPurpose(RelayPurpose::PROJECT) as $url) {
-            if (!in_array($url, $relays, true)) {
-                $relays[] = $url;
-            }
-        }
-        return $relays;
+
+        return $this->getForPurpose(RelayPurpose::PROJECT);
     }
 }
 

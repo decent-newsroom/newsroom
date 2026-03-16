@@ -125,12 +125,19 @@ class UserRelayListService
         }
 
         // Add user relays based on purpose
+        // Skip the project relay if the local relay is already in the list —
+        // LOCAL and PROJECT are the same physical strfry instance, so querying
+        // both wastes a slot and produces duplicate results.
+        $hasLocal = $local !== null;
         $userRelays = match ($purpose) {
             RelayPurpose::CONTENT => $userList['read'] ?? $userList['all'] ?? [],
             RelayPurpose::PROFILE => $userList['all'] ?? [],
             default => $userList['all'] ?? [],
         };
         foreach ($userRelays as $relay) {
+            if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                continue;
+            }
             if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
                 $relays[] = $relay;
             }
@@ -178,15 +185,19 @@ class UserRelayListService
             $relays[] = $local;
         }
 
+        $hasLocal = $local !== null;
         if ($writeRelays) {
             foreach ($writeRelays as $relay) {
+                if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                    continue;
+                }
                 if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
                     $relays[] = $relay;
                 }
             }
         }
 
-        // Fill with project relay fallbacks
+        // Fill with fallback relays (getFallbackRelays already deduplicates LOCAL/PROJECT)
         foreach ($this->relayRegistry->getFallbackRelays() as $relay) {
             if (!in_array($relay, $relays, true)) {
                 $relays[] = $relay;
