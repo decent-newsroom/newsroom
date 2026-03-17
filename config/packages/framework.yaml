@@ -3,6 +3,11 @@ framework:
     secret: '%env(APP_SECRET)%'
     #csrf_protection: true
 
+    http_client:
+        default_options:
+            timeout: 15          # idle timeout: max seconds between data chunks
+            max_duration: 60     # hard cap: total seconds for the entire request+response
+
     # Note that the session will be started ONLY if you read or write from it.
     session:
         handler_id: App\Session\ResilientRedisSessionHandler

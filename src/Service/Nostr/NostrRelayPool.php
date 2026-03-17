@@ -312,7 +312,7 @@ class NostrRelayPool implements RelayPoolInterface
                         'relay' => $url,
                         'attempts' => $this->connectionAttempts[$url]
                     ]);
-                    unset($this->relays[$url]);
+                    $this->closeRelay($url);
                 }
             }
 
@@ -441,6 +441,9 @@ class NostrRelayPool implements RelayPoolInterface
                 ]);
                 $results[$url] = ['ok' => false, 'message' => $e->getMessage()];
                 $this->healthStore->recordFailure($url);
+
+                // Best-effort disconnect to prevent dangling connections
+                try { $relay->disconnect(); } catch (\Throwable) {}
             }
         }
 
@@ -470,6 +473,14 @@ class NostrRelayPool implements RelayPoolInterface
     {
         if (isset($this->relays[$relayUrl])) {
             $this->logger->debug('Closing relay connection', ['relay' => $relayUrl]);
+            try {
+                $this->relays[$relayUrl]->disconnect();
+            } catch (\Throwable $e) {
+                $this->logger->debug('Error disconnecting relay (ignored)', [
+                    'relay' => $relayUrl,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             unset($this->relays[$relayUrl]);
             unset($this->connectionAttempts[$relayUrl]);
             unset($this->lastConnected[$relayUrl]);
@@ -485,9 +496,33 @@ class NostrRelayPool implements RelayPoolInterface
             'count' => count($this->relays)
         ]);
 
+        foreach ($this->relays as $url => $relay) {
+            try {
+                $relay->disconnect();
+            } catch (\Throwable $e) {
+                $this->logger->debug('Error disconnecting relay (ignored)', [
+                    'relay' => $url,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $this->relays = [];
         $this->connectionAttempts = [];
         $this->lastConnected = [];
+    }
+
+    /**
+     * Ensure all relay connections are closed when the pool is destroyed.
+     * Prevents dangling WebSocket/curl handles in long-lived FrankenPHP workers.
+     */
+    public function __destruct()
+    {
+        foreach ($this->relays as $relay) {
+            try {
+                $relay->disconnect();
+            } catch (\Throwable) {}
+        }
     }
 
     /**
