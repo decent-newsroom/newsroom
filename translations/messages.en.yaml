@@ -152,6 +152,27 @@ media:
     tagline: 'Discovery through serendipity'
     endOfLine: 'End of the line. Refresh to load a new batch.'
     noMedia: 'No media found. Reload to try again.'
+    tab:
+        latest: 'Latest'
+        follows: 'Follows'
+        interests: 'Interests'
+    follows:
+        signInRequired: 'Sign in to see media from people you follow.'
+        noFollows: "You're not following anyone yet"
+        noFollowsHint: 'Start following people on Nostr to see their media here.'
+        noMedia: 'No media found from your follows'
+        noMediaHint: 'The people you follow have not published any media yet, or it has not been synced.'
+        usingRegularFollows: 'Showing media from your regular follow list. Create a media follow list (kind 10020) to curate this feed separately.'
+    interests:
+        signInRequired: 'Sign in to see media matching your interests.'
+        noInterests: 'No interests configured yet'
+        noInterestsHint: 'Set up your interests to see relevant media here.'
+        configure: 'Configure interests'
+        noMedia: 'No media found for your interests.'
+    collections:
+        heading: 'Collections'
+        videos: 'Videos'
+        pictures: 'Pictures'
 
 # ── Latest Articles ───────────────────────────────────────────────
 latest:

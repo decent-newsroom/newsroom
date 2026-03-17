@@ -130,6 +130,51 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find media events for multiple pubkeys (for media follows tab).
+     *
+     * @param string[] $pubkeys  Hex pubkeys to include
+     * @param int[]    $kinds    Event kinds (default: 20, 21, 22)
+     * @param int      $limit    Maximum results
+     * @return Event[]
+     */
+    public function findMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22], int $limit = 100): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('e');
+
+        $qb->where($qb->expr()->in('e.kind', ':kinds'))
+            ->andWhere($qb->expr()->in('e.pubkey', ':pubkeys'))
+            ->setParameter('kinds', $kinds)
+            ->setParameter('pubkeys', $pubkeys)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Find non-NSFW media events for multiple pubkeys (for media follows tab).
+     *
+     * @param string[] $pubkeys  Hex pubkeys to include
+     * @param int[]    $kinds    Event kinds (default: 20, 21, 22)
+     * @param int      $limit    Maximum results
+     * @return Event[]
+     */
+    public function findNonNSFWMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22], int $limit = 100): array
+    {
+        $events = $this->findMediaEventsByPubkeys($pubkeys, $kinds, $limit * 2);
+
+        $filtered = array_filter($events, function (Event $event) {
+            return !$event->isNSFW();
+        });
+
+        return array_slice($filtered, 0, $limit);
+    }
+
+    /**
      * Find media events by hashtags
      *
      * @param array $hashtags Array of hashtags to search for

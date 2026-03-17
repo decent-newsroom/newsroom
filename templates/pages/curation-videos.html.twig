@@ -14,7 +14,7 @@
             <h1>{{ curation.title }}</h1>
             <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-3">
                 <span class="badge bg-secondary">{{ type }}</span>
-                <span class="badge bg-info text-dark hidden">{{ mediaEvents|length }} video{{ mediaEvents|length != 1 ? 's' : '' }}</span>
+                <span class="badge bg-info text-dark">{{ mediaEvents|length }} video{{ mediaEvents|length != 1 ? 's' : '' }}</span>
             </div>
             {% if curation.summary %}
                 <p class="eyebrow">{{ curation.summary }}</p>
@@ -23,25 +23,96 @@
         </div>
     </section>
 
-    <div class="w-container">
+    <div class="w-container"
+         {% if hasPendingMediaSync %}
+             data-controller="content--curation-mercure"
+             data-content--curation-mercure-topic-value="{{ curationMediaSyncTopic }}"
+             data-content--curation-mercure-reload-url-value="{{ app.request.uri }}"
+         {% endif %}>
         {% if mediaEvents|length > 0 %}
-            <div class="row g-4">
-                {% for event in mediaEvents %}
-                    <div class="col-12 col-md-6 col-lg-4">
+            <div class="video-playlist" data-controller="media--video-playlist">
+
+                {# Main player area #}
+                <div class="video-playlist__player">
+                    <div class="video-playlist__player-wrapper" data-media--video-playlist-target="player">
+                        <video controls preload="metadata" class="video-player">
+                            <source src="" />
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <h2 class="video-playlist__player-title" data-media--video-playlist-target="playerTitle"></h2>
+                    <p class="video-playlist__player-meta" data-media--video-playlist-target="playerMeta"></p>
+                </div>
+
+                {# Playlist sidebar #}
+                <div class="video-playlist__list">
+                    <div class="video-playlist__list-header">
+                        {{ curation.title }} &middot; {{ mediaEvents|length }} video{{ mediaEvents|length != 1 ? 's' : '' }}
+                    </div>
+
+                    {% for event in mediaEvents %}
                         {% if event.notFound is defined and event.notFound %}
-                            <div class="card h-100">
-                                <div class="ratio ratio-16x9 bg-light d-flex align-items-center justify-content-center">
-                                    <div class="text-center text-muted p-3">
-                                        <p class="mb-1">Video not yet synced</p>
-                                        <small>{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
-                                    </div>
+                            <div class="video-playlist__item">
+                                <span class="video-playlist__item-index">{{ loop.index }}</span>
+                                <div class="video-playlist__placeholder">Not synced</div>
+                                <div class="video-playlist__item-info">
+                                    <span class="video-playlist__item-title">{{ event.id ?? 'Unknown' }}</span>
                                 </div>
                             </div>
                         {% else %}
-                            {% include 'event/_kind22_video.html.twig' with {event: event} %}
+                            {# Extract video URL, title, preview from imeta #}
+                            {% set videoUrl = null %}
+                            {% set previewImage = null %}
+                            {% set videoTitle = null %}
+                            {% set videoAlt = null %}
+                            {% if event.tags is defined %}
+                                {% for tag in event.tags %}
+                                    {% if tag[0] == 'title' %}
+                                        {% set videoTitle = tag[1] %}
+                                    {% endif %}
+                                    {% if tag[0] == 'imeta' and videoUrl is null %}
+                                        {% for i in 1..(tag|length - 1) %}
+                                            {% set param = tag[i] %}
+                                            {% if param starts with 'url ' and videoUrl is null %}
+                                                {% set potentialUrl = param[4:] %}
+                                                {% if potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i' or potentialUrl matches '/video/i' %}
+                                                    {% set videoUrl = potentialUrl %}
+                                                {% endif %}
+                                            {% elseif param starts with 'image ' and previewImage is null %}
+                                                {% set previewImage = param[6:] %}
+                                            {% elseif param starts with 'alt ' and videoAlt is null %}
+                                                {% set videoAlt = param[4:] %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            <div class="video-playlist__item {{ loop.index0 == 0 ? 'is-active' : '' }}"
+                                 data-media--video-playlist-target="item"
+                                 data-index="{{ loop.index0 }}"
+                                 data-video-url="{{ videoUrl|default('') }}"
+                                 data-video-title="{{ videoTitle|default(videoAlt|default('Video ' ~ loop.index)) }}"
+                                 data-video-author=""
+                                 data-action="click->media--video-playlist#select">
+                                <span class="video-playlist__item-index">{{ loop.index }}</span>
+                                <div class="video-playlist__item-thumb">
+                                    {% if previewImage %}
+                                        <img src="{{ previewImage }}" alt="" loading="lazy" />
+                                    {% endif %}
+                                    <div class="play-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="video-playlist__item-info">
+                                    <span class="video-playlist__item-title">{{ videoTitle|default(videoAlt|default('Video ' ~ loop.index)) }}</span>
+                                </div>
+                            </div>
                         {% endif %}
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
         {% else %}
             <p class="text-muted">No videos in this curation set.</p>

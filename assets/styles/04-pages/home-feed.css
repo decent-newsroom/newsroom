@@ -4,10 +4,6 @@
     margin-top: 1rem;
 }
 
-.home-feed__tabs {
-    justify-content: flex-start;
-}
-
 .home-feed__content {
     min-height: 300px;
     margin-top: 1rem;

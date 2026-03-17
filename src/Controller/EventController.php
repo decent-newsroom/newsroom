@@ -8,6 +8,7 @@ use App\Entity\Event as EventEntity;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use Exception;
@@ -40,10 +41,11 @@ class EventController extends AbstractController
     /**
      * @throws Exception
      */
-    #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note)1.*'])]
+    #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note|naddr|nprofile)1.*'])]
     public function index($nevent, \Symfony\Component\HttpFoundation\Request $request, NostrClient $nostrClient,
                           RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser,
-                          LoggerInterface $logger, EventRepository $eventRepository): Response
+                          LoggerInterface $logger, EventRepository $eventRepository,
+                          GenericEventProjector $genericEventProjector): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -122,12 +124,48 @@ class EventController extends AbstractController
                             'relays' => $data->relays ?? []
                         ];
                         $event = $nostrClient->getEventByNaddr($decodedData);
+
+                        if ($event !== null) {
+                            try {
+                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                    $event,
+                                    $data->relays[0] ?? 'naddr-lookup'
+                                );
+                                $event = $this->entityToObject($persisted);
+                            } catch (\Throwable $e) {
+                                $logger->warning('Failed to persist naddr event after relay fetch', [
+                                    'kind' => $data->kind,
+                                    'identifier' => $data->identifier,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
                     }
 
                     if ($data->kind === KindsEnum::LONGFORM->value) {
                         // If it's a long-form content, redirect to the article page
                         $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
                         return $this->redirectToRoute('article-slug', ['slug' => $data->identifier]);
+                    }
+
+                    // Redirect curation sets to their dedicated views
+                    $curationKinds = [
+                        KindsEnum::CURATION_SET->value,       // 30004
+                        KindsEnum::CURATION_VIDEOS->value,    // 30005
+                        KindsEnum::CURATION_PICTURES->value,  // 30006
+                    ];
+                    if (in_array($data->kind, $curationKinds, true)) {
+                        $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                        $logger->info('Redirecting to curation set', [
+                            'kind' => $data->kind,
+                            'npub' => $npub,
+                            'slug' => $data->identifier,
+                        ]);
+                        return $this->redirectToRoute('curation-set', [
+                            'npub' => $npub,
+                            'kind' => $data->kind,
+                            'slug' => $data->identifier,
+                        ]);
                     }
                     break;
 

@@ -5,6 +5,7 @@
     flex-wrap: wrap;
     justify-content: center;
     background: var(--color-bg);
+    z-index: 10;
 }
 
 .tab-link {
@@ -54,13 +55,11 @@
     background: #fff;
     border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .masonry-item:hover {
     transform: translateY(-4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .masonry-link, .masonry-link:hover {

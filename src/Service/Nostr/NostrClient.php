@@ -483,6 +483,12 @@ class NostrClient
         return $this->userProfileService->getFollows($pubkey, $relays);
     }
 
+    /** @see UserProfileService::getMediaFollows() */
+    public function getUserMediaFollows(string $pubkey, ?array $relays = null): array
+    {
+        return $this->userProfileService->getMediaFollows($pubkey, $relays);
+    }
+
     /** @see UserProfileService::getBookmarks() */
     public function fetchBookmarks(string $pubkey): array
     {

@@ -32,36 +32,45 @@
     <twig:Atoms:PageHeading heading="{{ 'media.heading'|trans }}" tagline="{{ 'media.tagline'|trans }}"/>
 
     <div class="w-container">
-        {% if error is defined %}
-            <div class="error-message">
-                <p>{{ error }}</p>
-            </div>
-        {% endif %}
+        <div class="media-discovery" data-controller="media--media-discovery-tabs" data-media--media-discovery-tabs-active-tab-value="latest">
 
-        {% if mediaEvents|length > 0 %}
-            {% include 'partial/_masonry.html.twig' %}
+            <nav class="profile-tabs media-discovery__tabs">
+                <a href="{{ path('media_discovery_tab', {tab: 'latest'}) }}"
+                   class="tab-link active"
+                   data-media--media-discovery-tabs-target="tab"
+                   data-tab="latest"
+                   data-action="click->media--media-discovery-tabs#switchTab">
+                    {{ 'media.tab.latest'|trans }}
+                </a>
+                <a href="{{ path('media_discovery_tab', {tab: 'follows'}) }}"
+                   class="tab-link {{ not isLoggedIn ? 'disabled' : '' }}"
+                   data-media--media-discovery-tabs-target="tab"
+                   data-tab="follows"
+                   data-action="click->media--media-discovery-tabs#switchTab"
+                   {% if not isLoggedIn %}aria-disabled="true" title="{{ 'media.follows.signInRequired'|trans }}"{% endif %}>
+                    {{ 'media.tab.follows'|trans }}
+                </a>
+                <a href="{{ path('media_discovery_tab', {tab: 'interests'}) }}"
+                   class="tab-link {{ not isLoggedIn ? 'disabled' : '' }}"
+                   data-media--media-discovery-tabs-target="tab"
+                   data-tab="interests"
+                   data-action="click->media--media-discovery-tabs#switchTab"
+                   {% if not isLoggedIn %}aria-disabled="true" title="{{ 'media.interests.signInRequired'|trans }}"{% endif %}>
+                    {{ 'media.tab.interests'|trans }}
+                </a>
+            </nav>
 
-            <div class="discover-footer">
-                <p class="media-count">{{ 'media.endOfLine'|trans }}</p>
+            <div class="media-discovery__content" data-media--media-discovery-tabs-target="content">
+                <turbo-frame id="media-tab-content" src="{{ path('media_discovery_tab', {tab: 'latest'}) }}" loading="lazy">
+                    <div class="media-discovery__loading">
+                        <div class="spinner"><div class="lds-dual-ring"></div></div>
+                        <p>{{ 'text.loading'|trans }}</p>
+                    </div>
+                </turbo-frame>
             </div>
-        {% else %}
-            <div class="no-media">
-                <p>{{ 'media.noMedia'|trans }}</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
 {% endblock %}
 
 {% block aside %}
-{#    <div class="topic-filter">#}
-{#        <h3 class="aside-heading">Browse by Topic</h3>#}
-{#        <div class="topic-list">#}
-{#            {% for topic in topics %}#}
-{#                <a href="{{ path('media-discovery', {'topic': topic}) }}"#}
-{#                   class="topic-item {{ selectedTopic == topic ? 'active' : '' }}">#}
-{#                    {{ topic|capitalize }}#}
-{#                </a>#}
-{#            {% endfor %}#}
-{#        </div>#}
-{#    </div>#}
 {% endblock %}

@@ -1,5 +1,69 @@
 /* Media Discovery Page Styles */
 
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.media-discovery {
+    margin-top: 1rem;
+}
+
+.media-discovery__tabs {
+    justify-content: flex-start;
+}
+
+.media-discovery__tabs .tab-link.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.media-discovery__content {
+    min-height: 300px;
+    margin-top: 1rem;
+}
+
+.media-discovery__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: var(--color-text-muted, #666);
+}
+
+.media-discovery__loading .spinner {
+    margin-bottom: 1rem;
+}
+
+.media-follows-banner {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-surface-alt, #f0f0f0);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--color-text-muted, #666);
+}
+
+/* Responsive tab adjustments */
+@media (max-width: 768px) {
+    .media-discovery__tabs {
+        gap: 0.25rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .media-discovery__tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .media-discovery__tabs .tab-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+}
+
+/* ── Existing styles ──────────────────────────────────────────── */
+
 .error-message {
     background: #f8d7da;
     color: #721c24;

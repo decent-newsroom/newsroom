@@ -414,6 +414,70 @@ class UserProfileService
     }
 
     // -------------------------------------------------------------------------
+    // Media Follows (kind 10020, NIP-68)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Return the pubkeys from the user's latest kind-10020 media follow list.
+     *
+     * Strategy: DB-first with relay fallback, same as getFollows().
+     *
+     * @return string[] Hex pubkeys of media-followed accounts
+     */
+    public function getMediaFollows(string $pubkey, ?array $relays = null): array
+    {
+        $this->logger->info('Fetching media follow list for pubkey', ['pubkey' => $pubkey]);
+
+        // ── 1. DB lookup ──────────────────────────────────────────────────────
+        $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::MEDIA_FOLLOWS->value);
+
+        if ($dbEvent !== null) {
+            $this->logger->debug('UserProfileService: media follows loaded from DB', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+            ]);
+            return $this->extractPTags($dbEvent->getTags());
+        }
+
+        // ── 2. Relay fallback ─────────────────────────────────────────────────
+        $this->logger->debug('UserProfileService: media follows not in DB, querying relay', [
+            'pubkey' => substr($pubkey, 0, 8) . '...',
+        ]);
+
+        if (empty($relays)) {
+            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
+        }
+        $relaySet = $this->relaySetFactory->withLocalRelay($relays);
+
+        $events = $this->executor->fetch(
+            kinds: [KindsEnum::MEDIA_FOLLOWS->value],
+            filters: ['authors' => [$pubkey], 'limit' => 1],
+            relaySet: $relaySet,
+            handler: fn($received) => $received,
+            pubkey: $pubkey,
+        );
+
+        if (empty($events)) {
+            $this->logger->info('No media follow list found for pubkey', ['pubkey' => $pubkey]);
+            return [];
+        }
+
+        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
+        $latest = $events[0];
+
+        // Write-through so the next call hits the DB fast path
+        $this->persistEvent($latest);
+
+        $followedPubkeys = $this->extractPTags((array) ($latest->tags ?? []));
+
+        $this->logger->info('Media follow list fetched', [
+            'pubkey'        => $pubkey,
+            'follows_count' => count($followedPubkeys),
+        ]);
+
+        return $followedPubkeys;
+    }
+
+    // -------------------------------------------------------------------------
     // Bookmarks
     // -------------------------------------------------------------------------
 

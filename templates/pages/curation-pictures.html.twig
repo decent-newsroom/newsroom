@@ -23,25 +23,85 @@
         </div>
     </section>
 
-    <div class="w-container">
+    <div class="w-container"
+         {% if hasPendingMediaSync %}
+             data-controller="content--curation-mercure"
+             data-content--curation-mercure-topic-value="{{ curationMediaSyncTopic }}"
+             data-content--curation-mercure-reload-url-value="{{ app.request.uri }}"
+         {% endif %}>
         {% if mediaEvents|length > 0 %}
-            <div class="row g-3">
+            <div class="curation-picture-grid"
+                 data-controller="media--picture-gallery">
+
                 {% for event in mediaEvents %}
-                    <div class="col-6 col-md-4 col-lg-3">
-                        {% if event.notFound is defined and event.notFound %}
-                            <div class="card h-100">
-                                <div class="bg-light d-flex align-items-center justify-content-center" style="aspect-ratio: 1;">
-                                    <div class="text-center text-muted p-2">
-                                        <p class="mb-1 small">Not synced</p>
-                                        <small class="text-truncate d-block" style="max-width: 100%;">{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
-                                    </div>
+                    {% if event.notFound is defined and event.notFound %}
+                        <div class="curation-picture-grid__placeholder">
+                            <div>
+                                <p class="mb-1 small">Not synced</p>
+                                <small>{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
+                            </div>
+                        </div>
+                    {% else %}
+                        {# Extract image URL from imeta tags #}
+                        {% set imageUrl = null %}
+                        {% set imageAlt = null %}
+                        {% if event.tags is defined %}
+                            {% for tag in event.tags %}
+                                {% if tag[0] == 'imeta' and imageUrl is null %}
+                                    {% for i in 1..(tag|length - 1) %}
+                                        {% set param = tag[i] %}
+                                        {% if param starts with 'url ' and imageUrl is null %}
+                                            {% set potentialUrl = param[4:] %}
+                                            {% if not (potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i') %}
+                                                {% set imageUrl = potentialUrl %}
+                                            {% endif %}
+                                        {% elseif param starts with 'alt ' and imageAlt is null %}
+                                            {% set imageAlt = param[4:] %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+
+                        {% if imageUrl %}
+                            <div class="curation-picture-grid__item"
+                                 data-media--picture-gallery-target="item"
+                                 data-image-url="{{ imageUrl }}"
+                                 data-image-alt="{{ imageAlt|default('') }}"
+                                 data-index="{{ loop.index0 }}"
+                                 data-action="click->media--picture-gallery#open">
+                                <img src="{{ imageUrl }}"
+                                     alt="{{ imageAlt|default('Picture') }}"
+                                     loading="lazy"
+                                     onerror="this.closest('.curation-picture-grid__item').style.display='none'" />
+                                <div class="picture-overlay">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                                    </svg>
                                 </div>
                             </div>
                         {% else %}
-                            {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
+                            <div class="curation-picture-grid__placeholder">
+                                <span>No preview</span>
+                            </div>
                         {% endif %}
-                    </div>
+                    {% endif %}
                 {% endfor %}
+
+                {# Lightbox overlay #}
+                <div class="picture-lightbox"
+                     data-media--picture-gallery-target="lightbox"
+                     data-action="click->media--picture-gallery#close">
+                    <button class="picture-lightbox__close" data-action="click->media--picture-gallery#close">&times;</button>
+                    <button class="picture-lightbox__nav picture-lightbox__nav--prev"
+                            data-action="click->media--picture-gallery#prev">&lsaquo;</button>
+                    <img class="picture-lightbox__image"
+                         data-media--picture-gallery-target="lightboxImage"
+                         src="" alt=""
+                         data-action="click@click.stop" />
+                    <button class="picture-lightbox__nav picture-lightbox__nav--next"
+                            data-action="click->media--picture-gallery#next">&rsaquo;</button>
+                </div>
             </div>
         {% else %}
             <p class="text-muted">No pictures in this curation set.</p>

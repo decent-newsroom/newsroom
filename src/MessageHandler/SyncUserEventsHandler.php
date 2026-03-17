@@ -60,6 +60,7 @@ class SyncUserEventsHandler
         KindsEnum::RELAY_LIST->value,         // 10002
         KindsEnum::BOOKMARKS->value,          // 10003
         KindsEnum::INTERESTS->value,          // 10015
+        KindsEnum::MEDIA_FOLLOWS->value,      // 10020
         KindsEnum::BOOKMARK_SETS->value,      // 30003
         KindsEnum::CURATION_SET->value,       // 30004
         KindsEnum::CURATION_VIDEOS->value,    // 30005

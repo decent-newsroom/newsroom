@@ -9,11 +9,14 @@ use App\Entity\Event;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
 use App\Message\RevalidateProfileCacheMessage;
+use App\Message\FetchMissingCurationMediaMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\VisitRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
+use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrLinkParser;
+use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchInterface;
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
@@ -291,6 +294,9 @@ class AuthorController extends AbstractController
     #[Route('/p/{npub}/curation/{kind}/{slug}', name: 'curation-set', requirements: ['npub' => '^npub1.*', 'kind' => '30004|30005|30006'])]
     public function curationSet(int $kind, string $slug, string $npub = null, string $vanity = null,
                                 EntityManagerInterface $em,
+                                MessageBusInterface $messageBus,
+                                NostrClient $nostrClient,
+                                GenericEventProjector $genericEventProjector,
                                 LoggerInterface $logger): Response
     {
         $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-curation-set', ['kind' => $kind, 'slug' => $slug]);
@@ -343,6 +349,50 @@ class AuthorController extends AbstractController
         }
 
         if (!$curation) {
+            $logger->info('Curation set not found locally, trying relay fallback', [
+                'kind' => $kind,
+                'pubkey' => $pubkeyHex,
+                'slug' => $slug,
+            ]);
+
+            $remoteEvent = $nostrClient->getEventByNaddr([
+                'kind' => $kind,
+                'pubkey' => $pubkeyHex,
+                'identifier' => $slug,
+                'relays' => [],
+            ]);
+
+            if ($remoteEvent !== null) {
+                try {
+                    $curation = $genericEventProjector->projectEventFromNostrEvent($remoteEvent, 'curation-route-fallback');
+                } catch (\Throwable $e) {
+                    $logger->warning('Failed to persist curation set fetched from relay fallback', [
+                        'kind' => $kind,
+                        'pubkey' => $pubkeyHex,
+                        'slug' => $slug,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    $curation = new Event();
+                    $curation->setId((string) ($remoteEvent->id ?? ''));
+                    $curation->setKind((int) ($remoteEvent->kind ?? $kind));
+                    $curation->setPubkey((string) ($remoteEvent->pubkey ?? $pubkeyHex));
+                    $curation->setContent((string) ($remoteEvent->content ?? ''));
+                    $curation->setCreatedAt((int) ($remoteEvent->created_at ?? time()));
+                    $curation->setTags(array_map(static function ($tag) {
+                        if ($tag instanceof \stdClass) {
+                            $tag = (array) $tag;
+                        }
+
+                        return is_array($tag) ? array_values($tag) : [];
+                    }, is_array($remoteEvent->tags ?? null) ? $remoteEvent->tags : []));
+                    $curation->setSig((string) ($remoteEvent->sig ?? ''));
+                    $curation->extractAndSetDTag();
+                }
+            }
+        }
+
+        if (!$curation) {
             throw $this->createNotFoundException('Curation set not found');
         }
 
@@ -360,6 +410,7 @@ class AuthorController extends AbstractController
         $items = [];
         $coordinates = [];
         $eventIds = [];
+        $relayHints = [];
 
         foreach ($curation->getTags() as $tag) {
             if (!is_array($tag) || count($tag) < 2) continue;
@@ -373,6 +424,9 @@ class AuthorController extends AbstractController
                 ];
             } elseif ($tag[0] === 'e') {
                 $eventIds[] = $tag[1];
+                if (isset($tag[2]) && is_string($tag[2]) && $tag[2] !== '') {
+                    $relayHints[] = $tag[2];
+                }
                 $items[] = [
                     'type' => 'event',
                     'value' => $tag[1],
@@ -384,6 +438,7 @@ class AuthorController extends AbstractController
         // For videos (30005) and pictures (30006), fetch media events
         $mediaItems = [];
         $mediaEvents = []; // Store actual Event objects for templates that need them
+        $missingEventIds = [];
         if ($kind === KindsEnum::CURATION_VIDEOS->value || $kind === KindsEnum::CURATION_PICTURES->value) {
             // Fetch events by ID from database
             if (!empty($eventIds)) {
@@ -397,6 +452,7 @@ class AuthorController extends AbstractController
                 // Add placeholders for events not found
                 foreach ($eventIds as $eventId) {
                     if (!in_array($eventId, $foundIds)) {
+                        $missingEventIds[] = $eventId;
                         $mediaItems[] = [
                             'id' => $eventId,
                             'url' => null,
@@ -470,6 +526,15 @@ class AuthorController extends AbstractController
             }
         }
 
+        $missingEventIds = array_values(array_unique($missingEventIds));
+        if ($missingEventIds !== []) {
+            $messageBus->dispatch(new FetchMissingCurationMediaMessage(
+                $curation->getId(),
+                $missingEventIds,
+                array_values(array_unique($relayHints)),
+            ));
+        }
+
         // For articles/notes (30004), fetch articles similar to reading lists
         $articles = [];
         if ($kind === KindsEnum::CURATION_SET->value) {
@@ -531,6 +596,8 @@ class AuthorController extends AbstractController
             'mediaItems' => $mediaItems,
             'mediaEvents' => $mediaEvents,
             'articles' => $articles,
+            'hasPendingMediaSync' => $missingEventIds !== [],
+            'curationMediaSyncTopic' => sprintf('/curation/%s/media-sync', $curation->getId()),
         ]);
     }
 

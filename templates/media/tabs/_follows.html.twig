@@ -1,0 +1,32 @@
+<turbo-frame id="media-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'media.follows.signInRequired'|trans }}</p>
+        </div>
+    {% elseif error is defined and error %}
+        <div class="alert alert-danger">
+            <p>{{ error }}</p>
+        </div>
+    {% elseif followCount is defined and followCount == 0 %}
+        <div class="alert alert-info">
+            <h4>{{ 'media.follows.noFollows'|trans }}</h4>
+            <p>{{ 'media.follows.noFollowsHint'|trans }}</p>
+        </div>
+    {% elseif mediaEvents|length == 0 %}
+        <div class="alert alert-info">
+            <h4>{{ 'media.follows.noMedia'|trans }}</h4>
+            <p>{{ 'media.follows.noMediaHint'|trans }}</p>
+        </div>
+    {% else %}
+        {% if not isMediaFollows|default(false) %}
+            <div class="alert alert-muted media-follows-banner">
+                <p>{{ 'media.follows.usingRegularFollows'|trans }}</p>
+            </div>
+        {% endif %}
+        {% include 'partial/_masonry.html.twig' %}
+        <div class="discover-footer">
+            <p class="media-count">{{ 'media.endOfLine'|trans }}</p>
+        </div>
+    {% endif %}
+</turbo-frame>
+

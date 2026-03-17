@@ -11,6 +11,7 @@ enum KindsEnum: int
     case SHORT_VIDEO = 22; // NIP-71, short-form portrait video events
     case FOLLOWS = 3;
     case REACTION = 7; // NIP-25, reactions (+, -, emoji)
+    case MEDIA_FOLLOWS = 10020; // NIP-68, multimedia follow list
     case REPOST = 6; // Only wraps kind 1, NIP-18, will not implement
     case GENERIC_REPOST = 16; // Generic repost, original kind signalled in a "k" tag, NIP-18
     case FILE_METADATA = 1063; // NIP-94
