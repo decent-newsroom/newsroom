@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,6 +31,58 @@ class RelayAuthController extends AbstractController
         private readonly \Redis $redis,
         private readonly LoggerInterface $logger,
     ) {}
+
+    #[Route('/api/relay-auth/pending', name: 'api_relay_auth_pending', methods: ['GET'])]
+    public function pending(): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['items' => []], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        } catch (\Throwable) {
+            return new JsonResponse(['items' => []], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $keys = $this->redis->keys(self::PENDING_KEY_PREFIX . '*') ?: [];
+        } catch (\RedisException $e) {
+            $this->logger->error('RelayAuthController: failed to enumerate pending AUTH keys', [
+                'error' => $e->getMessage(),
+            ]);
+            return new JsonResponse(['items' => []], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $items = [];
+        foreach ($keys as $key) {
+            $payload = $this->redis->get($key);
+            if (!is_string($payload) || $payload === '') {
+                continue;
+            }
+
+            $pending = json_decode($payload, true);
+            if (!is_array($pending) || ($pending['pubkey'] ?? null) !== $pubkey) {
+                continue;
+            }
+
+            $items[] = [
+                'requestId' => substr((string) $key, strlen(self::PENDING_KEY_PREFIX)),
+                'relay' => $pending['relay'] ?? null,
+                'challenge' => $pending['challenge'] ?? null,
+                'createdAt' => $pending['created_at'] ?? null,
+            ];
+        }
+
+        usort($items, static fn (array $a, array $b) => (int) ($a['createdAt'] ?? 0) <=> (int) ($b['createdAt'] ?? 0));
+
+        return new JsonResponse([
+            'items' => $items,
+            'count' => count($items),
+        ]);
+    }
 
     /**
      * Receive a signed NIP-42 AUTH event from the browser.

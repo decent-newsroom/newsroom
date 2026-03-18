@@ -68,6 +68,7 @@ main {
     flex-direction: column;
     margin-top: 90px;
     flex-grow: 1;
+    min-width: 0;
     padding: 0 var(--spacing-3);
     word-break: break-word;
 }
@@ -83,6 +84,7 @@ main.static {
     margin-left: auto;
     margin-right: auto;
     width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-3);

@@ -9,6 +9,7 @@ parameters:
     nostr_default_relay: '%env(default::NOSTR_DEFAULT_RELAY)%'
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     relay_gateway_default: 'false'
+    relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:
@@ -169,6 +170,10 @@ services:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
 
+    App\EventListener\UserMetadataSyncListener:
+        arguments:
+            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+
     App\EventListener\LogoutRelayCleanupListener:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
@@ -260,6 +265,9 @@ services:
     App\UnfoldBundle\Controller\ThemeAssetController:
         arguments:
             $projectDir: '%kernel.project_dir%'
+        tags: ['controller.service_arguments']
+
+    App\Controller\Api\CurationSyncController:
         tags: ['controller.service_arguments']
 
     # Active Indexing Service

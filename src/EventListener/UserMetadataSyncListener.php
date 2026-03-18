@@ -22,7 +22,8 @@ class UserMetadataSyncListener
         private readonly UserMetadataSyncService $syncService,
         private readonly MessageBusInterface $messageBus,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly bool $gatewayEnabled = false,
     ) {
     }
 
@@ -63,6 +64,11 @@ class UserMetadataSyncListener
                 if ($shouldSync) {
                     $hex = NostrKeyUtil::npubToHex($npub);
                     $this->messageBus->dispatch(new UpdateRelayListMessage($hex));
+
+                    if ($this->gatewayEnabled && $event->getRequest()->hasSession()) {
+                        $event->getRequest()->getSession()->getFlashBag()->add('relay_auth_listen', '1');
+                    }
+
                     $this->logger->debug('Dispatched relay list warming for user', [
                         'npub' => substr($npub, 0, 16) . '...',
                     ]);

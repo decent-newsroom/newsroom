@@ -9,25 +9,25 @@
 {% endblock %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5 mb-5">
-            <h1>{{ curation.title }}</h1>
-            <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-3">
+    <section class="ln-section--newsstand curation-page__hero">
+        <div class="curation-page__hero-inner">
+            <h1 class="curation-page__hero-title">{{ curation.title }}</h1>
+            <div class="curation-page__hero-meta">
                 <span class="badge bg-secondary">{{ type }}</span>
                 <span class="badge bg-info text-dark">{{ articles|length }} item{{ articles|length != 1 ? 's' : '' }}</span>
             </div>
             {% if curation.summary %}
-                <p class="eyebrow">{{ curation.summary }}</p>
+                <p class="eyebrow curation-page__hero-summary">{{ curation.summary }}</p>
             {% endif %}
-            <div>by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
+            <div class="curation-page__hero-author">by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
         </div>
     </section>
 
-    <div class="w-container">
+    <div class="curation-page__content">
         {% if articles|length > 0 %}
             <twig:Organisms:CardList :list="articles" class="article-list" />
         {% else %}
-            <p class="text-muted">No articles in this curation set.</p>
+            <p class="curation-page__empty">No articles in this curation set.</p>
         {% endif %}
     </div>
 {% endblock %}

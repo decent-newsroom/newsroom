@@ -52,8 +52,8 @@ final class ReadingListList
             $typeLabel = match($kind) {
                 30040 => 'Reading List',
                 30004 => 'Articles/Notes',
-                30005 => 'Videos',
-                30006 => 'Pictures',
+                30005 => 'Playlist',
+                30006 => 'Gallery',
                 default => 'Unknown',
             };
 

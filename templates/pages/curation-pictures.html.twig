@@ -9,24 +9,25 @@
 {% endblock %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
-        <div class="container mt-5 mb-5">
-            <h1>{{ curation.title }}</h1>
-            <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-3">
+    <section class="ln-section--newsstand curation-page__hero">
+        <div class="curation-page__hero-inner">
+            <h1 class="curation-page__hero-title">{{ curation.title }}</h1>
+            <div class="curation-page__hero-meta">
                 <span class="badge bg-secondary">{{ type }}</span>
                 <span class="badge bg-info text-dark">{{ mediaEvents|length }} picture{{ mediaEvents|length != 1 ? 's' : '' }}</span>
             </div>
             {% if curation.summary %}
-                <p class="eyebrow">{{ curation.summary }}</p>
+                <p class="eyebrow curation-page__hero-summary">{{ curation.summary }}</p>
             {% endif %}
-            <div>by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
+            <div class="curation-page__hero-author">by <twig:Molecules:UserFromNpub :ident="curation.pubkey" /></div>
         </div>
     </section>
 
-    <div class="w-container"
+    <div class="curation-page__content"
          {% if hasPendingMediaSync %}
              data-controller="content--curation-mercure"
-             data-content--curation-mercure-topic-value="{{ curationMediaSyncTopic }}"
+             data-content--curation-mercure-status-url-value="{{ curationMediaSyncStatusUrl }}"
+             data-content--curation-mercure-initial-missing-count-value="{{ pendingMediaCount }}"
              data-content--curation-mercure-reload-url-value="{{ app.request.uri }}"
          {% endif %}>
         {% if mediaEvents|length > 0 %}
@@ -42,38 +43,77 @@
                             </div>
                         </div>
                     {% else %}
-                        {# Extract image URL from imeta tags #}
-                        {% set imageUrl = null %}
-                        {% set imageAlt = null %}
+                        {# Collect valid image entries from imeta tags #}
+                        {% set images = [] %}
+                        {% set eventTitle = null %}
+                        {% set eventContent = event.content|default('')|trim %}
                         {% if event.tags is defined %}
                             {% for tag in event.tags %}
-                                {% if tag[0] == 'imeta' and imageUrl is null %}
+                                {% if tag[0] == 'title' and eventTitle is null and tag[1] is defined %}
+                                    {% set eventTitle = tag[1] %}
+                                {% endif %}
+                                {% if tag[0] == 'imeta' %}
+                                    {% set currentImageUrl = null %}
+                                    {% set currentImageAlt = null %}
                                     {% for i in 1..(tag|length - 1) %}
                                         {% set param = tag[i] %}
-                                        {% if param starts with 'url ' and imageUrl is null %}
+                                        {% if param starts with 'url ' and currentImageUrl is null %}
                                             {% set potentialUrl = param[4:] %}
                                             {% if not (potentialUrl matches '/\\.(mp4|webm|ogg|mov)$/i') %}
-                                                {% set imageUrl = potentialUrl %}
+                                                {% set currentImageUrl = potentialUrl %}
                                             {% endif %}
-                                        {% elseif param starts with 'alt ' and imageAlt is null %}
-                                            {% set imageAlt = param[4:] %}
+                                        {% elseif param starts with 'alt ' and currentImageAlt is null %}
+                                            {% set currentImageAlt = param[4:] %}
                                         {% endif %}
                                     {% endfor %}
+
+                                    {% if currentImageUrl %}
+                                        {% set images = images|merge([{
+                                            url: currentImageUrl,
+                                            alt: currentImageAlt
+                                        }]) %}
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
                         {% endif %}
 
-                        {% if imageUrl %}
+                        {% if images|length > 0 %}
+                            {% set imageUrl = images[0].url %}
+                            {% set imageAlt = images[0].alt %}
                             <div class="curation-picture-grid__item"
                                  data-media--picture-gallery-target="item"
                                  data-image-url="{{ imageUrl }}"
                                  data-image-alt="{{ imageAlt|default('') }}"
-                                 data-index="{{ loop.index0 }}"
+                                 data-images="{{ images|json_encode|e('html_attr') }}"
                                  data-action="click->media--picture-gallery#open">
+                                <template data-picture-gallery-detail-template>
+                                    <div class="picture-lightbox__details-inner">
+                                        {% if eventTitle %}
+                                            <h2 class="picture-lightbox__title">{{ eventTitle }}</h2>
+                                        {% endif %}
+                                        {% if eventContent is not empty %}
+                                            <div class="picture-lightbox__content">
+                                                {{ eventContent|e|linkify|nl2br }}
+                                            </div>
+                                        {% endif %}
+                                        <div class="picture-lightbox__publisher">
+                                            <span>{{ 'text.by'|trans }}</span>
+                                            <twig:Molecules:UserFromNpub :ident="event.pubkey" />
+                                        </div>
+                                    </div>
+                                </template>
                                 <img src="{{ imageUrl }}"
                                      alt="{{ imageAlt|default('Picture') }}"
                                      loading="lazy"
                                      onerror="this.closest('.curation-picture-grid__item').style.display='none'" />
+                                {% if images|length > 1 %}
+                                    <div class="curation-picture-grid__gallery-indicator" aria-label="Gallery with {{ images|length }} images" title="Gallery with {{ images|length }} images">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                            <path d="M4 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7zm14-2h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-1h9a4 4 0 0 0 4-4V5z"/>
+                                        </svg>
+                                        <span>{{ images|length }}</span>
+                                    </div>
+                                {% endif %}
                                 <div class="picture-overlay">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
@@ -94,17 +134,22 @@
                      data-action="click->media--picture-gallery#close">
                     <button class="picture-lightbox__close" data-action="click->media--picture-gallery#close">&times;</button>
                     <button class="picture-lightbox__nav picture-lightbox__nav--prev"
+                              data-media--picture-gallery-target="prevButton"
                             data-action="click->media--picture-gallery#prev">&lsaquo;</button>
                     <img class="picture-lightbox__image"
                          data-media--picture-gallery-target="lightboxImage"
                          src="" alt=""
                          data-action="click@click.stop" />
+                    <div class="picture-lightbox__details"
+                         data-media--picture-gallery-target="lightboxDetails"
+                         data-action="click@click.stop"></div>
                     <button class="picture-lightbox__nav picture-lightbox__nav--next"
+                              data-media--picture-gallery-target="nextButton"
                             data-action="click->media--picture-gallery#next">&rsaquo;</button>
                 </div>
             </div>
         {% else %}
-            <p class="text-muted">No pictures in this curation set.</p>
+            <p class="curation-page__empty">No pictures in this curation set.</p>
         {% endif %}
     </div>
 {% endblock %}

@@ -598,6 +598,8 @@ class AuthorController extends AbstractController
             'articles' => $articles,
             'hasPendingMediaSync' => $missingEventIds !== [],
             'curationMediaSyncTopic' => sprintf('/curation/%s/media-sync', $curation->getId()),
+            'curationMediaSyncStatusUrl' => $this->generateUrl('api_curation_media_sync_status', ['curationId' => $curation->getId()]),
+            'pendingMediaCount' => count($missingEventIds),
         ]);
     }
 

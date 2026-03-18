@@ -1,0 +1,58 @@
+/* Shared layout for curation pages (30004/30005/30006) */
+
+.curation-page__hero {
+    margin-bottom: 1.5rem;
+    padding: 2.5rem 1rem;
+}
+
+.curation-page__hero-inner {
+    width: min(100%, 960px);
+    margin: 0 auto;
+    text-align: center;
+}
+
+.curation-page__hero-title {
+    margin: 0;
+}
+
+.curation-page__hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.curation-page__hero-summary {
+    max-width: 64ch;
+    margin: 1rem auto 0;
+}
+
+.curation-page__hero-author {
+    margin-top: 0.75rem;
+    color: var(--color-text-mid, #666);
+}
+
+.curation-page__content {
+    width: min(100%, 1120px);
+    margin: 0 auto 2rem;
+    min-width: 0;
+}
+
+.curation-page__empty {
+    text-align: center;
+    color: var(--color-text-muted, #666);
+}
+
+@media (max-width: 768px) {
+    .curation-page__hero {
+        padding: 2rem 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .curation-page__content {
+        width: 100%;
+    }
+}
+
