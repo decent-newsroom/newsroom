@@ -152,6 +152,17 @@ media:
     tagline: 'Descubrimiento por casualidad'
     endOfLine: 'Fin de la línea. Actualiza para cargar un nuevo lote.'
     noMedia: 'No se encontraron medios. Recarga para intentar de nuevo.'
+    tab:
+        latest: 'Recientes'
+        follows: 'Seguidos'
+        interests: 'Intereses'
+        collections: 'Colecciones'
+    collections:
+        heading: 'Colecciones'
+        videos: 'Videos'
+        pictures: 'Imágenes'
+        empty: 'Todavía no se han sincronizado colecciones de imágenes o videos en la base de datos.'
+        itemCount: '{0} 0 elementos|{1} 1 elemento|]1,Inf] %count% elementos'
 
 # ── Últimos artículos ───────────────────────────────────────────────
 latest:

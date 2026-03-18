@@ -156,6 +156,7 @@ media:
         latest: 'Latest'
         follows: 'Follows'
         interests: 'Interests'
+        collections: 'Collections'
     follows:
         signInRequired: 'Sign in to see media from people you follow.'
         noFollows: "You're not following anyone yet"
@@ -173,6 +174,8 @@ media:
         heading: 'Collections'
         videos: 'Videos'
         pictures: 'Pictures'
+        empty: 'No picture or video collections have been synced to the database yet.'
+        itemCount: '{0} 0 items|{1} 1 item|]1,Inf] %count% items'
 
 # ── Latest Articles ───────────────────────────────────────────────
 latest:

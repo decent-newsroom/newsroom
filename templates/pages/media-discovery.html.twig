@@ -58,6 +58,13 @@
                    {% if not isLoggedIn %}aria-disabled="true" title="{{ 'media.interests.signInRequired'|trans }}"{% endif %}>
                     {{ 'media.tab.interests'|trans }}
                 </a>
+                <a href="{{ path('media_discovery_tab', {tab: 'collections'}) }}"
+                   class="tab-link"
+                   data-media--media-discovery-tabs-target="tab"
+                   data-tab="collections"
+                   data-action="click->media--media-discovery-tabs#switchTab">
+                    {{ 'media.tab.collections'|trans }}
+                </a>
             </nav>
 
             <div class="media-discovery__content" data-media--media-discovery-tabs-target="content">

@@ -152,6 +152,17 @@ media:
     tagline: 'Odkrivanje skozi naključje'
     endOfLine: 'Konec seznama. Osvežite za nov izbor.'
     noMedia: 'Ni najdenih rezultatov. Osvežite za ponovni poskus.'
+    tab:
+        latest: 'Najnovejše'
+        follows: 'Sledenje'
+        interests: 'Interesi'
+        collections: 'Zbirke'
+    collections:
+        heading: 'Zbirke'
+        videos: 'Videi'
+        pictures: 'Slike'
+        empty: 'V bazo še ni bila sinhronizirana nobena zbirka slik ali videov.'
+        itemCount: '{0} 0 elementov|{1} 1 element|]1,Inf] %count% elementov'
 
 # ── Najnovejši članki ─────────────────────────────────────────────
 latest:

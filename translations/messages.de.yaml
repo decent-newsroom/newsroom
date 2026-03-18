@@ -152,6 +152,17 @@ media:
     tagline: 'Entdeckung durch Zufall'
     endOfLine: 'Ende der Reihe. Aktualisieren für eine neue Ladung.'
     noMedia: 'Keine Medien gefunden. Zum erneuten Versuch aktualisieren.'
+    tab:
+        latest: 'Neueste'
+        follows: 'Gefolgt'
+        interests: 'Interessen'
+        collections: 'Sammlungen'
+    collections:
+        heading: 'Sammlungen'
+        videos: 'Videos'
+        pictures: 'Bilder'
+        empty: 'Es wurden noch keine Bild- oder Videosammlungen in die Datenbank synchronisiert.'
+        itemCount: '{0} 0 Elemente|{1} 1 Element|]1,Inf] %count% Elemente'
 
 # ── Neueste Artikel ────────────────────────────────────────────────
 latest:

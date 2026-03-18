@@ -2,11 +2,12 @@
 
 ## Overview
 
-The media features enhance multimedia content discovery and presentation in the newsroom. Three interconnected capabilities were implemented:
+The media features enhance multimedia content discovery and presentation in the newsroom. The current discovery and curation stack includes four interconnected capabilities:
 
-1. **Tabbed Media Discovery** — The `/multimedia` page now uses a tabbed interface (Latest, Follows, Interests)
+1. **Tabbed Media Discovery** — The `/multimedia` page now uses a tabbed interface (Latest, Follows, Interests, Collections)
 2. **Media Follows (kind 10020)** — NIP-68 multimedia follow list support
-3. **Curation Collection Views** — Restyled kind 30005 (videos) and kind 30006 (pictures)
+3. **Collections Tab** — Database-backed kind 30005/30006 curation sets surfaced in discovery
+4. **Curation Collection Views** — Restyled kind 30005 (videos) and kind 30006 (pictures)
 
 ## Tabbed Media Discovery
 
@@ -26,6 +27,7 @@ The media discovery page (`/multimedia`) mirrors the home feed tabbed pattern:
 | Latest | No | Cache → DB (`findNonNSFWMediaEvents`) | Empty state |
 | Follows | Yes | kind 10020 → kind 3 → `findNonNSFWMediaEventsByPubkeys` | Regular follows |
 | Interests | Yes | kind 10015 → `findMediaEventsByHashtags` | Empty state |
+| Collections | No | DB (`findLatestCurationCollections`) for kinds 30005/30006 | Empty state |
 
 ### Files
 
@@ -34,7 +36,23 @@ The media discovery page (`/multimedia`) mirrors the home feed tabbed pattern:
 - `templates/media/tabs/_latest.html.twig` — latest tab partial
 - `templates/media/tabs/_follows.html.twig` — follows tab partial
 - `templates/media/tabs/_interests.html.twig` — interests tab partial
+- `templates/media/tabs/_collections.html.twig` — collections tab partial
 - `assets/controllers/media/media-discovery-tabs_controller.js` — Stimulus controller
+
+## Collections Tab
+
+The Collections tab exposes locally persisted NIP-51 media boards from the database, mixing:
+
+- **Kind 30005** — video playlists / curation sets
+- **Kind 30006** — picture galleries / curation sets
+
+### Data source rules
+
+- Reads only from the local `event` table (no live relay query on tab load)
+- Deduplicates to the newest version per `(pubkey, kind, d-tag)`
+- Skips malformed or empty curation events that do not reference any `a` or `e` tags
+- Excludes muted pubkeys through `MutedPubkeysService`
+- Links each card to the existing curation route handled by `AuthorController::curationSet()`
 
 ## Media Follows (kind 10020)
 
@@ -104,8 +122,8 @@ The video curation set view uses a two-column layout: a main video player on the
 
 All new user-facing text is under the `media:` namespace in `translations/messages.en.yaml`:
 
-- `media.tab.latest`, `media.tab.follows`, `media.tab.interests`
+- `media.tab.latest`, `media.tab.follows`, `media.tab.interests`, `media.tab.collections`
 - `media.follows.*` — sign-in required, no follows, fallback banner
 - `media.interests.*` — sign-in required, no interests, configure link
-- `media.collections.*` — heading, videos, pictures
+- `media.collections.*` — heading, videos, pictures, empty state, item count label
 

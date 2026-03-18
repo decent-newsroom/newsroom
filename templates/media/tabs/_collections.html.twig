@@ -1,0 +1,38 @@
+<turbo-frame id="media-tab-content">
+    {% if error is defined and error %}
+        <div class="alert alert-danger">
+            <p>{{ error }}</p>
+        </div>
+    {% elseif collections|length == 0 %}
+        <div class="alert alert-info">
+            <p>{{ 'media.collections.empty'|trans }}</p>
+        </div>
+    {% else %}
+        <div class="media-collections-grid">
+            {% for collection in collections %}
+                <article class="media-collection-card media-collection-card--{{ collection.kind == 30005 ? 'video' : 'picture' }}">
+
+                    <h3 class="media-collection-card__title">
+                        <a href="{{ path('curation-set', {kind: collection.kind, slug: collection.slug, npub: collection.pubkey|toNpub}) }}" data-turbo-frame="_top">
+                            {{ collection.title }}
+                        </a>
+                    </h3>
+
+                    {% if collection.summary %}
+                        <p class="media-collection-card__summary">{{ collection.summary }}</p>
+                    {% endif %}
+
+                    <div class="media-collection-card__badges">
+                        <span class="badge bg-secondary">{{ collection.typeKey|trans }}</span>
+                        <span class="badge bg-info text-dark">{{ 'media.collections.itemCount'|trans({'%count%': collection.itemCount}) }}</span>
+                    </div>
+
+                    <div class="media-collection-card__author">
+                        {{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :ident="collection.pubkey" />
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</turbo-frame>
+

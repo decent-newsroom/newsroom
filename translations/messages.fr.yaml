@@ -152,6 +152,17 @@ media:
     tagline: 'Découverte par sérendipité'
     endOfLine: 'Fin de la liste. Actualisez pour charger un nouveau lot.'
     noMedia: 'Aucun média trouvé. Rechargez pour réessayer.'
+    tab:
+        latest: 'Récents'
+        follows: 'Abonnements'
+        interests: 'Intérêts'
+        collections: 'Collections'
+    collections:
+        heading: 'Collections'
+        videos: 'Vidéos'
+        pictures: 'Images'
+        empty: 'Aucune collection d’images ou de vidéos n’a encore été synchronisée dans la base de données.'
+        itemCount: '{0} 0 éléments|{1} 1 élément|]1,Inf] %count% éléments'
 
 # ── Derniers articles ──────────────────────────────────────────────
 latest:

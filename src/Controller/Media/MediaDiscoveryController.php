@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Media;
 
+use App\Entity\Event;
 use App\Entity\User;
+use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\Nostr\NostrClient;
@@ -32,7 +34,7 @@ class MediaDiscoveryController extends AbstractController
         ]);
     }
 
-    #[Route('/multimedia/tab/{tab}', name: 'media_discovery_tab', requirements: ['tab' => 'latest|follows|interests'])]
+    #[Route('/multimedia/tab/{tab}', name: 'media_discovery_tab', requirements: ['tab' => 'latest|follows|interests|collections'])]
     public function tab(
         string $tab,
         CacheInterface $cache,
@@ -46,6 +48,7 @@ class MediaDiscoveryController extends AbstractController
             'latest' => $this->latestTab($cache, $params, $eventRepository, $mutedPubkeysService, $logger),
             'follows' => $this->followsTab($eventRepository, $nostrClient, $mutedPubkeysService, $logger),
             'interests' => $this->interestsTab($eventRepository, $nostrClient, $mutedPubkeysService, $logger),
+            'collections' => $this->collectionsTab($eventRepository, $mutedPubkeysService, $logger),
         };
     }
 
@@ -252,5 +255,79 @@ class MediaDiscoveryController extends AbstractController
             'isLoggedIn' => true,
             'interestTags' => $interestTags,
         ]);
+    }
+
+    private function collectionsTab(
+        EventRepository $eventRepository,
+        MutedPubkeysService $mutedPubkeysService,
+        LoggerInterface $logger,
+    ): Response {
+        try {
+            $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+            $events = $eventRepository->findLatestCurationCollections(
+                [KindsEnum::CURATION_VIDEOS->value, KindsEnum::CURATION_PICTURES->value],
+                $excludedPubkeys,
+                self::MAX_DISPLAY_EVENTS,
+            );
+
+            $collections = array_map(
+                fn (Event $event) => $this->normalizeCollection($event),
+                $events,
+            );
+
+            return $this->render('media/tabs/_collections.html.twig', [
+                'collections' => $collections,
+            ]);
+        } catch (\Throwable $e) {
+            $logger->error('Error loading media collections tab', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->render('media/tabs/_collections.html.twig', [
+                'collections' => [],
+                'error' => 'Unable to load collections at this time. Please try again later.',
+            ]);
+        }
+    }
+
+    /**
+     * @return array<string, int|string|null>
+     */
+    private function normalizeCollection(Event $event): array
+    {
+        $kind = $event->getKind();
+
+        return [
+            'id' => $event->getId(),
+            'title' => $event->getTitle() ?: $event->getSlug() ?: '(untitled)',
+            'summary' => $event->getSummary(),
+            'slug' => (string) $event->getSlug(),
+            'pubkey' => $event->getPubkey(),
+            'createdAt' => $event->getCreatedAt(),
+            'kind' => $kind,
+            'itemCount' => $this->countCollectionItems($event),
+            'typeKey' => match ($kind) {
+                KindsEnum::CURATION_VIDEOS->value => 'media.collections.videos',
+                KindsEnum::CURATION_PICTURES->value => 'media.collections.pictures',
+                default => 'media.collections.heading',
+            },
+        ];
+    }
+
+    private function countCollectionItems(Event $event): int
+    {
+        $count = 0;
+
+        foreach ($event->getTags() as $tag) {
+            if (!is_array($tag) || !isset($tag[0], $tag[1])) {
+                continue;
+            }
+
+            if ($tag[0] === 'a' || $tag[0] === 'e') {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 }

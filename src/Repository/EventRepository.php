@@ -250,6 +250,78 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find the latest DB-backed curation collections for pictures/videos.
+     *
+     * Returns the newest version per (pubkey, kind, slug) and skips malformed
+     * or empty curation events that do not reference any items.
+     *
+     * @param int[] $kinds
+     * @param string[] $excludedPubkeys
+     * @return Event[]
+     */
+    public function findLatestCurationCollections(array $kinds = [30005, 30006], array $excludedPubkeys = [], int $limit = 50): array
+    {
+        $fetchLimit = max($limit * 5, 100);
+
+        $qb = $this->createQueryBuilder('e')
+            ->where('e.kind IN (:kinds)')
+            ->setParameter('kinds', $kinds)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($fetchLimit);
+
+        if (!empty($excludedPubkeys)) {
+            $qb->andWhere('e.pubkey NOT IN (:excludedPubkeys)')
+                ->setParameter('excludedPubkeys', $excludedPubkeys);
+        }
+
+        $events = $qb->getQuery()->getResult();
+
+        $collections = [];
+        $seen = [];
+
+        foreach ($events as $event) {
+            if (!$event instanceof Event) {
+                continue;
+            }
+
+            $slug = $event->getSlug();
+            if (!$slug) {
+                continue;
+            }
+
+            $hasItems = false;
+            foreach ($event->getTags() as $tag) {
+                if (!is_array($tag) || !isset($tag[0], $tag[1])) {
+                    continue;
+                }
+
+                if ($tag[0] === 'a' || $tag[0] === 'e') {
+                    $hasItems = true;
+                    break;
+                }
+            }
+
+            if (!$hasItems) {
+                continue;
+            }
+
+            $key = $event->getPubkey() . ':' . $event->getKind() . ':' . $slug;
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $collections[] = $event;
+
+            if (count($collections) >= $limit) {
+                break;
+            }
+        }
+
+        return $collections;
+    }
+
+    /**
      * Find event by ID
      *
      * @param string $id Event ID
