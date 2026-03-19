@@ -475,33 +475,19 @@ class AuthorController extends AbstractController
             }
 
             // Also handle coordinate-based references
+            $missingCoordinates = [];
             foreach ($coordinates as $coord) {
                 $parts = explode(':', $coord, 3);
                 if (count($parts) === 3) {
                     [$coordKind, $author, $identifier] = $parts;
-                    // Find events matching this coordinate
-                    $coordEvents = $repo->createQueryBuilder('e')
-                        ->where('e.pubkey = :pubkey')
-                        ->andWhere('e.kind = :kind')
-                        ->setParameter('pubkey', $author)
-                        ->setParameter('kind', (int)$coordKind)
-                        ->orderBy('e.created_at', 'DESC')
-                        ->setMaxResults(10)
-                        ->getQuery()
-                        ->getResult();
+                    // Use indexed d_tag lookup (fast)
+                    $coordEvent = $repo->findByNaddr((int)$coordKind, $author, $identifier);
 
-                    $found = false;
-                    foreach ($coordEvents as $coordEvent) {
-                        if ($coordEvent->getSlug() === $identifier) {
-                            $mediaItems[] = $this->extractMediaFromEvent($coordEvent);
-                            $mediaEvents[] = $coordEvent; // Keep the Event object
-                            $found = true;
-                            break;
-                        }
-                    }
-
-                    // Add placeholder if not found
-                    if (!$found) {
+                    if ($coordEvent) {
+                        $mediaItems[] = $this->extractMediaFromEvent($coordEvent);
+                        $mediaEvents[] = $coordEvent;
+                    } else {
+                        $missingCoordinates[] = $coord;
                         $mediaItems[] = [
                             'id' => null,
                             'url' => null,
@@ -515,7 +501,6 @@ class AuthorController extends AbstractController
                             'coordinate' => $coord,
                             'notFound' => true,
                         ];
-                        // Add placeholder object for mediaEvents
                         $mediaEvents[] = (object)[
                             'id' => null,
                             'coordinate' => $coord,
@@ -527,12 +512,14 @@ class AuthorController extends AbstractController
         }
 
         $missingEventIds = array_values(array_unique($missingEventIds));
-        if ($missingEventIds !== []) {
+        $missingCoordinates = array_values(array_unique($missingCoordinates ?? []));
+        if ($missingEventIds !== [] || $missingCoordinates !== []) {
             $messageBus->dispatch(new FetchMissingCurationMediaMessage(
                 $curation->getId(),
                 $missingEventIds,
                 array_values(array_unique($relayHints)),
                 $pubkeyHex,
+                $missingCoordinates,
             ));
         }
 
@@ -590,6 +577,8 @@ class AuthorController extends AbstractController
             default => 'pages/curation-articles.html.twig',
         };
 
+        $totalMissing = count($missingEventIds) + count($missingCoordinates ?? []);
+
         return $this->render($template, [
             'curation' => $curation,
             'type' => $typeLabel,
@@ -597,10 +586,9 @@ class AuthorController extends AbstractController
             'mediaItems' => $mediaItems,
             'mediaEvents' => $mediaEvents,
             'articles' => $articles,
-            'hasPendingMediaSync' => $missingEventIds !== [],
+            'hasPendingMediaSync' => $totalMissing > 0,
             'curationMediaSyncTopic' => sprintf('/curation/%s/media-sync', $curation->getId()),
-            'curationMediaSyncStatusUrl' => $this->generateUrl('api_curation_media_sync_status', ['curationId' => $curation->getId()]),
-            'pendingMediaCount' => count($missingEventIds),
+            'pendingMediaCount' => $totalMissing,
         ]);
     }
 

@@ -25,22 +25,53 @@ final class CurationSyncController extends AbstractController
         }
 
         $eventIds = [];
+        $coordinates = [];
         foreach ($curation->getTags() as $tag) {
-            if (is_array($tag) && ($tag[0] ?? null) === 'e' && isset($tag[1]) && is_string($tag[1])) {
+            if (!is_array($tag) || !isset($tag[0], $tag[1]) || !is_string($tag[1])) {
+                continue;
+            }
+            if ($tag[0] === 'e') {
                 $eventIds[] = $tag[1];
+            } elseif ($tag[0] === 'a') {
+                $coordinates[] = $tag[1];
             }
         }
 
         $eventIds = array_values(array_unique($eventIds));
-        if ($eventIds === []) {
-            return new JsonResponse(['pending' => false, 'missingCount' => 0]);
+        $coordinates = array_values(array_unique($coordinates));
+
+        // Check e-tag event IDs
+        $missingIds = [];
+        $foundIdCount = 0;
+        if ($eventIds !== []) {
+            $foundIds = array_map(
+                static fn (Event $event) => $event->getId(),
+                $eventRepository->findBy(['id' => $eventIds])
+            );
+            $missingIds = array_values(array_diff($eventIds, $foundIds));
+            $foundIdCount = count($foundIds);
         }
 
-        $foundIds = array_map(
-            static fn (Event $event) => $event->getId(),
-            $eventRepository->findBy(['id' => $eventIds])
-        );
-        $missingIds = array_values(array_diff($eventIds, $foundIds));
+        // Check a-tag coordinates
+        $missingCoordinates = [];
+        $foundCoordCount = 0;
+        foreach ($coordinates as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [$kind, $pubkey, $identifier] = $parts;
+            $existing = $eventRepository->findByNaddr((int)$kind, $pubkey, $identifier);
+            if ($existing) {
+                $foundCoordCount++;
+            } else {
+                $missingCoordinates[] = $coord;
+            }
+        }
+
+        $totalMissing = count($missingIds) + count($missingCoordinates);
+        $totalFound = $foundIdCount + $foundCoordCount;
+        $totalItems = count($eventIds) + count($coordinates);
 
         // Read fetch attempt metadata from Redis
         $fetchAttempt = null;
@@ -52,11 +83,12 @@ final class CurationSyncController extends AbstractController
         } catch (\Throwable) {}
 
         return new JsonResponse([
-            'pending' => $missingIds !== [],
-            'missingCount' => count($missingIds),
-            'foundCount' => count($foundIds),
-            'totalCount' => count($eventIds),
+            'pending' => $totalMissing > 0,
+            'missingCount' => $totalMissing,
+            'foundCount' => $totalFound,
+            'totalCount' => $totalItems,
             'missingIds' => $missingIds,
+            'missingCoordinates' => $missingCoordinates,
             'fetchAttempt' => $fetchAttempt,
         ]);
     }

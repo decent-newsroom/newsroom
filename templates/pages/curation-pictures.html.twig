@@ -26,7 +26,7 @@
     <div class="curation-page__content"
          {% if hasPendingMediaSync %}
              data-controller="content--curation-mercure"
-             data-content--curation-mercure-status-url-value="{{ curationMediaSyncStatusUrl }}"
+             data-content--curation-mercure-topic-value="{{ curationMediaSyncTopic }}"
              data-content--curation-mercure-initial-missing-count-value="{{ pendingMediaCount }}"
              data-content--curation-mercure-reload-url-value="{{ app.request.uri }}"
          {% endif %}>
@@ -37,14 +37,15 @@
                 {% for event in mediaEvents %}
                     {% if event.notFound is defined and event.notFound %}
                         <div class="curation-picture-grid__placeholder curation-picture-grid__placeholder--missing"
-                             {% if event.id is defined and event.id %}data-missing-event-id="{{ event.id }}"{% endif %}>
+                             {% if event.id is defined and event.id %}data-missing-event-id="{{ event.id }}"{% endif %}
+                             {% if event.coordinate is defined and event.coordinate %}data-missing-coordinate="{{ event.coordinate }}"{% endif %}>
                             <div>
                                 {% if hasPendingMediaSync %}
                                     <p class="mb-1 small">⏳ {{ 'curation.syncing'|trans|default('Syncing…') }}</p>
                                 {% else %}
                                     <p class="mb-1 small">⚠ {{ 'curation.not_found'|trans|default('Not found on relays') }}</p>
                                 {% endif %}
-                                <code class="small" title="{{ event.id ?? event.coordinate ?? '' }}">{{ (event.id ?? event.coordinate ?? 'Unknown')|slice(0, 16) }}…</code>
+                                <code class="small" title="{{ event.id ?? event.coordinate ?? '' }}">{{ (event.id ?? event.coordinate ?? 'Unknown')|slice(0, 24) }}…</code>
                             </div>
                         </div>
                     {% else %}

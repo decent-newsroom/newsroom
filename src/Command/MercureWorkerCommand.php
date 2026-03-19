@@ -40,8 +40,15 @@ class MercureWorkerCommand extends Command
                 'Run a Mercure publish test before starting the consumer'
             )
             ->addOption(
+                'topic',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Topic to publish the test message to (default: /test/mercure-worker)',
+                '/test/mercure-worker'
+            )
+            ->addOption(
                 'queues',
-                'q',
+                null,
                 InputOption::VALUE_OPTIONAL,
                 'Comma-separated list of queues to consume (default: async,async_low_priority)',
                 'async,async_low_priority'
@@ -76,10 +83,11 @@ class MercureWorkerCommand extends Command
             $io->section('Testing Mercure Connection');
 
             try {
-                $topic = '/test/mercure-worker';
+                $topic = $input->getOption('topic');
                 $data = json_encode([
                     'message' => 'Test from mercure-worker',
-                    'timestamp' => time()
+                    'topic' => $topic,
+                    'timestamp' => time(),
                 ]);
 
                 $update = new \Symfony\Component\Mercure\Update($topic, $data, false);

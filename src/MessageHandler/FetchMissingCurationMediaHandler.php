@@ -35,78 +35,106 @@ final class FetchMissingCurationMediaHandler
     public function __invoke(FetchMissingCurationMediaMessage $message): void
     {
         $eventIds = array_values(array_unique(array_filter($message->eventIds)));
-        if ($eventIds === []) {
-            return;
-        }
+        $coordinates = array_values(array_unique(array_filter($message->coordinates)));
 
-        $existingIds = array_map(
-            static fn (Event $event) => $event->getId(),
-            $this->eventRepository->findBy(['id' => $eventIds])
-        );
-        $missingIds = array_values(array_diff($eventIds, $existingIds));
-
-        if ($missingIds === []) {
+        if ($eventIds === [] && $coordinates === []) {
             return;
         }
 
         // Build relay list: author's declared relays + hint relays + local relay
         $relays = $this->buildRelayList($message);
-
-        $this->logger->info('Fetching missing curation media events', [
-            'curation_id' => $message->curationId,
-            'missing_count' => count($missingIds),
-            'missing_ids' => array_map(fn(string $id) => substr($id, 0, 12) . '…', $missingIds),
-            'relay_count' => count($relays),
-            'relays' => $relays,
-            'author_pubkey' => $message->authorPubkey ? substr($message->authorPubkey, 0, 12) . '…' : null,
-            'hint_relays' => $message->relays,
-        ]);
-
-        // Store fetch metadata in Redis so the sync-status endpoint can report it
-        $this->recordFetchAttempt($message->curationId, $missingIds, $relays);
-
-        try {
-            $fetchedEvents = $this->nostrClient->getEventsByIds($missingIds, $relays);
-        } catch (\Throwable $e) {
-            $this->logger->error('Failed to fetch missing curation media events', [
-                'curation_id' => $message->curationId,
-                'relays_tried' => $relays,
-                'error' => $e->getMessage(),
-            ]);
-            return;
-        }
-
-        $this->logger->info('Curation media fetch completed', [
-            'curation_id' => $message->curationId,
-            'fetched_count' => count($fetchedEvents),
-            'fetched_ids' => array_map(fn(string $id) => substr($id, 0, 12) . '…', array_keys($fetchedEvents)),
-            'still_missing' => count($missingIds) - count($fetchedEvents),
-        ]);
-
-        if ($fetchedEvents === []) {
-            return;
-        }
-
         $persisted = [];
-        foreach ($fetchedEvents as $rawEvent) {
-            $eventId = $rawEvent->id ?? null;
-            if (!is_string($eventId) || $eventId === '' || $this->eventRepository->find($eventId) !== null) {
-                continue;
+
+        // ── Fetch by event ID (e-tags) ──────────────────────────────────
+        if ($eventIds !== []) {
+            $existingIds = array_map(
+                static fn (Event $event) => $event->getId(),
+                $this->eventRepository->findBy(['id' => $eventIds])
+            );
+            $missingIds = array_values(array_diff($eventIds, $existingIds));
+
+            if ($missingIds !== []) {
+                $this->logger->info('Fetching missing curation media by event ID', [
+                    'curation_id' => $message->curationId,
+                    'missing_count' => count($missingIds),
+                    'missing_ids' => array_map(fn(string $id) => substr($id, 0, 12) . '…', $missingIds),
+                    'relay_count' => count($relays),
+                    'relays' => $relays,
+                ]);
+
+                try {
+                    $fetchedEvents = $this->nostrClient->getEventsByIds($missingIds, $relays);
+                    $this->logger->info('Curation media fetch by ID completed', [
+                        'curation_id' => $message->curationId,
+                        'fetched_count' => count($fetchedEvents),
+                        'still_missing' => count($missingIds) - count($fetchedEvents),
+                    ]);
+
+                    foreach ($fetchedEvents as $rawEvent) {
+                        $entity = $this->persistRawEvent($rawEvent);
+                        if ($entity) {
+                            $persisted[] = $entity;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to fetch missing curation media by ID', [
+                        'curation_id' => $message->curationId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        // ── Fetch by coordinate (a-tags) ────────────────────────────────
+        if ($coordinates !== []) {
+            // Check which coordinates are already in the DB
+            $missingCoords = [];
+            foreach ($coordinates as $coord) {
+                $parts = explode(':', $coord, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+                [$kind, $pubkey, $identifier] = $parts;
+                $existing = $this->eventRepository->findByNaddr((int)$kind, $pubkey, $identifier);
+                if (!$existing) {
+                    $missingCoords[] = $coord;
+                }
             }
 
-            $entity = new Event();
-            $entity->setId($eventId);
-            $entity->setKind((int) ($rawEvent->kind ?? 0));
-            $entity->setPubkey((string) ($rawEvent->pubkey ?? ''));
-            $entity->setContent((string) ($rawEvent->content ?? ''));
-            $entity->setCreatedAt((int) ($rawEvent->created_at ?? time()));
-            $entity->setTags($this->normalizeTags($rawEvent->tags ?? []));
-            $entity->setSig((string) ($rawEvent->sig ?? ''));
-            $entity->extractAndSetDTag();
+            if ($missingCoords !== []) {
+                $this->logger->info('Fetching missing curation media by coordinate', [
+                    'curation_id' => $message->curationId,
+                    'missing_count' => count($missingCoords),
+                    'coordinates' => $missingCoords,
+                    'relay_count' => count($relays),
+                    'relays' => $relays,
+                ]);
 
-            $this->entityManager->persist($entity);
-            $persisted[] = $entity;
+                try {
+                    $fetchedByCoord = $this->nostrClient->getEventsByCoordinates($missingCoords);
+                    $this->logger->info('Curation media fetch by coordinate completed', [
+                        'curation_id' => $message->curationId,
+                        'fetched_count' => count($fetchedByCoord),
+                        'still_missing' => count($missingCoords) - count($fetchedByCoord),
+                    ]);
+
+                    foreach ($fetchedByCoord as $rawEvent) {
+                        $entity = $this->persistRawEvent($rawEvent);
+                        if ($entity) {
+                            $persisted[] = $entity;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to fetch missing curation media by coordinate', [
+                        'curation_id' => $message->curationId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
+
+        // Store fetch metadata for the sync-status endpoint
+        $this->recordFetchAttempt($message->curationId, $eventIds, $coordinates, $relays);
 
         if ($persisted === []) {
             return;
@@ -126,6 +154,30 @@ final class FetchMissingCurationMediaHandler
         }
 
         $this->publish($message->curationId, $persisted);
+    }
+
+    /**
+     * Persist a raw event object if it doesn't already exist in the DB.
+     */
+    private function persistRawEvent(object $rawEvent): ?Event
+    {
+        $eventId = $rawEvent->id ?? null;
+        if (!is_string($eventId) || $eventId === '' || $this->eventRepository->find($eventId) !== null) {
+            return null;
+        }
+
+        $entity = new Event();
+        $entity->setId($eventId);
+        $entity->setKind((int) ($rawEvent->kind ?? 0));
+        $entity->setPubkey((string) ($rawEvent->pubkey ?? ''));
+        $entity->setContent((string) ($rawEvent->content ?? ''));
+        $entity->setCreatedAt((int) ($rawEvent->created_at ?? time()));
+        $entity->setTags($this->normalizeTags($rawEvent->tags ?? []));
+        $entity->setSig((string) ($rawEvent->sig ?? ''));
+        $entity->extractAndSetDTag();
+
+        $this->entityManager->persist($entity);
+        return $entity;
     }
 
     /**
@@ -173,7 +225,7 @@ final class FetchMissingCurationMediaHandler
      * Store fetch attempt metadata in Redis so the sync-status endpoint can
      * report which relays were tried and when.
      */
-    private function recordFetchAttempt(string $curationId, array $missingIds, array $relays): void
+    private function recordFetchAttempt(string $curationId, array $missingIds, array $missingCoordinates, array $relays): void
     {
         try {
             $key = sprintf('curation_sync:%s', $curationId);
@@ -181,6 +233,7 @@ final class FetchMissingCurationMediaHandler
                 'attempted_at' => date('c'),
                 'timestamp' => time(),
                 'missing_ids' => $missingIds,
+                'missing_coordinates' => $missingCoordinates,
                 'relays_tried' => $relays,
             ]);
             $this->redis->setex($key, 3600, $data); // 1 hour TTL
@@ -200,8 +253,13 @@ final class FetchMissingCurationMediaHandler
                 'eventIds' => array_map(static fn (Event $event) => $event->getId(), $persisted),
             ]), false);
             $this->hub->publish($update);
+            $this->logger->info('Published curation media sync to Mercure', [
+                'topic' => $topic,
+                'curation_id' => $curationId,
+                'persisted_count' => count($persisted),
+            ]);
         } catch (\Throwable $e) {
-            $this->logger->error('Failed to publish curation media sync update', [
+            $this->logger->error('Failed to publish curation media sync update to Mercure', [
                 'curation_id' => $curationId,
                 'error' => $e->getMessage(),
             ]);
