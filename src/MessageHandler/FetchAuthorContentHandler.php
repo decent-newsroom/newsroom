@@ -46,10 +46,13 @@ class FetchAuthorContentHandler
             return;
         }
 
-        $this->logger->info('🚀 FetchAuthorContentHandler invoked - Starting content fetch', [
+        // Collect all kinds from all content types for a single combined REQ
+        $allKinds = AuthorContentType::kindsForTypes($contentTypes);
+
+        $this->logger->info('🚀 FetchAuthorContentHandler invoked - Starting combined content fetch', [
             'pubkey' => $pubkey,
             'content_types' => array_map(fn($t) => $t->value, $contentTypes),
-            'kinds' => $message->getKinds(),
+            'kinds' => $allKinds,
             'since' => $since,
             'is_owner' => $message->isOwner(),
         ]);
@@ -70,147 +73,145 @@ class FetchAuthorContentHandler
             'relay_count' => count($relays),
         ]);
 
-        // Fetch and process each content type
-        foreach ($contentTypes as $contentType) {
-            try {
-                $this->logger->info('📡 Fetching content type ' . $contentType->value . ' from relays', [
-                    'content_type' => $contentType->value,
-                    'kinds' => $contentType->getKinds(),
+        // Single combined fetch for all kinds
+        try {
+            $events = $this->fetchAllContent($pubkey, $allKinds, $relays, $since);
+
+            if (empty($events)) {
+                $this->logger->info('⚠️  No events returned from combined fetch', [
+                    'pubkey' => $pubkey,
                 ]);
+                return;
+            }
 
-                $events = $this->fetchContentType($pubkey, $contentType, $relays, $since);
-                $processedData = $this->processEvents($pubkey, $contentType, $events);
+            // Group events by content type via reverse-lookup and process each group
+            $eventsByType = [];
+            foreach ($events as $event) {
+                $kind = (int) ($event->kind ?? 0);
+                $type = AuthorContentType::fromKind($kind);
+                if ($type !== null && in_array($type, $contentTypes, true)) {
+                    $eventsByType[$type->value][] = $event;
+                }
+            }
 
-                // Publish to Mercure for real-time updates
-                if (!empty($processedData)) {
-                    $this->publishToMercure($pubkey, $contentType, $processedData);
+            foreach ($contentTypes as $contentType) {
+                $typeEvents = $eventsByType[$contentType->value] ?? [];
+                if (empty($typeEvents)) {
+                    continue;
                 }
 
-                $this->logger->info('✅ Processed author content type  ' . $contentType->value, [
-                    'pubkey' => $pubkey,
-                    'content_type' => $contentType->value,
-                    'event_count' => count($events),
-                    'processed_count' => count($processedData),
-                ]);
+                try {
+                    $processedData = $this->processEvents($pubkey, $contentType, $typeEvents);
 
-            } catch (\Exception $e) {
-                $this->logger->error('❌ Error fetching content type  ' . $contentType->value, [
-                    'pubkey' => $pubkey,
-                    'content_type' => $contentType->value,
-                    'error' => $e->getMessage(),
-                    'exception_class' => get_class($e),
-                    'trace' => $e->getTraceAsString(),
-                ]);
+                    // Publish to Mercure for real-time updates
+                    if (!empty($processedData)) {
+                        $this->publishToMercure($pubkey, $contentType, $processedData);
+                    }
+
+                    $this->logger->info('✅ Processed author content type  ' . $contentType->value, [
+                        'pubkey' => $pubkey,
+                        'content_type' => $contentType->value,
+                        'event_count' => count($typeEvents),
+                        'processed_count' => count($processedData),
+                    ]);
+                } catch (\Exception $e) {
+                    $this->logger->error('❌ Error processing content type  ' . $contentType->value, [
+                        'pubkey' => $pubkey,
+                        'content_type' => $contentType->value,
+                        'error' => $e->getMessage(),
+                        'exception_class' => get_class($e),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
             }
+
+            $this->logger->info('🏁 Combined content fetch complete', [
+                'pubkey' => $pubkey,
+                'total_events' => count($events),
+                'types_with_events' => array_keys($eventsByType),
+            ]);
+
+        } catch (\Exception $e) {
+            $this->logger->error('❌ Combined content fetch failed', [
+                'pubkey' => $pubkey,
+                'error' => $e->getMessage(),
+                'exception_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 
     /**
-     * Fetch events for a specific content type from relays
+     * Fetch all content kinds in a single REQ to relays.
+     * Replaces the previous per-content-type loop.
      */
-    private function fetchContentType(
+    private function fetchAllContent(
         string $pubkey,
-        AuthorContentType $contentType,
+        array $allKinds,
         array $relays,
         int $since
     ): array {
         if (empty($relays)) {
-            $this->logger->warning('⚠️  No relays provided to fetchContentType', [
-                'pubkey' => $pubkey,
-                'content_type' => $contentType->value,
-            ]);
             return [];
         }
 
-        $kinds = $contentType->getKinds();
-
-        $this->logger->info('🔍 Preparing to query relays', [
-            'pubkey' => $pubkey,
-            'content_type' => $contentType->value,
-            'kinds' => $kinds,
-            'relays' => $relays,
-            'relay_count' => count($relays),
-            'since' => $since,
+        $this->logger->info('📤 Sending combined filter to relays via NostrRelayPool', [
+            'filter' => [
+                'kinds' => $allKinds,
+                'authors' => [$pubkey],
+                'limit' => 500,
+                'since' => $since > 0 ? $since : null,
+            ]
         ]);
 
         try {
-            $this->logger->info('📤 Sending filter to relays via NostrRelayPool', [
-                'filter' => [
-                    'kinds' => $kinds,
-                    'authors' => [$pubkey],
-                    'limit' => 100,
-                    'since' => $since > 0 ? $since : null,
-                ]
-            ]);
-
             $responses = $this->relayPool->sendToRelays(
                 $relays,
-                function () use ($pubkey, $kinds, $since) {
+                function () use ($pubkey, $allKinds, $since) {
                     $subscription = new Subscription();
                     $subscriptionId = $subscription->setId();
 
                     $filter = new Filter();
-                    $filter->setKinds($kinds);
+                    $filter->setKinds($allKinds);
                     $filter->setAuthors([$pubkey]);
-                    $filter->setLimit(100);
+                    $filter->setLimit(500);
 
                     if ($since > 0) {
                         $filter->setSince($since);
                     }
 
-                    $this->logger->info('🎯 Filter created', [
+                    $this->logger->info('🎯 Combined filter created', [
                         'subscription_id' => $subscriptionId,
                         'filter_details' => [
-                            'kinds' => $kinds,
+                            'kinds' => $allKinds,
                             'authors' => [$pubkey],
-                            'limit' => 100,
+                            'limit' => 500,
                             'since' => $since > 0 ? $since : null,
                         ]
                     ]);
 
                     return new RequestMessage($subscriptionId, [$filter]);
                 },
-                10 // 10s timeout per content type — avoid blocking the consumer
+                15 // Slightly higher timeout for combined fetch
             );
-
-            $this->logger->info('📥 Received responses from relays', [
-                'response_count' => count($responses),
-                'relay_urls' => array_keys($responses),
-            ]);
-
         } catch (\Exception $e) {
-            $this->logger->error('❌ Failed to send request to relays', [
+            $this->logger->error('❌ Failed to send combined request to relays', [
                 'pubkey' => $pubkey,
-                'content_type' => $contentType->value,
                 'error' => $e->getMessage(),
-                'exception_class' => get_class($e),
-                'trace' => $e->getTraceAsString(),
             ]);
             return [];
         }
 
         if (empty($responses)) {
-            $this->logger->warning('⚠️  No responses received from relays', [
-                'pubkey' => $pubkey,
-                'content_type' => $contentType->value,
-                'relay_count' => count($relays),
-                'relays' => $relays,
-            ]);
             return [];
         }
 
-        // Extract events from responses
+        // Extract and deduplicate events from all relays
         $events = [];
         $seenIds = [];
 
         foreach ($responses as $relayUrl => $relayResponses) {
             if (!is_array($relayResponses)) {
-                $this->logger->warning('⚠️  Invalid relay responses format', [
-                    'pubkey' => $pubkey,
-                    'content_type' => $contentType->value,
-                    'relay_url' => $relayUrl,
-                    'type' => gettype($relayResponses),
-                ]);
                 continue;
             }
 
@@ -229,16 +230,14 @@ class FetchAuthorContentHandler
             $this->logger->info('📊 Relay response processed', [
                 'relay_url' => $relayUrl,
                 'events_from_relay' => $relayEventCount,
-                'total_responses' => count($relayResponses),
             ]);
         }
 
         // Sort by created_at descending
         usort($events, fn($a, $b) => ($b->created_at ?? 0) <=> ($a->created_at ?? 0));
 
-        $this->logger->info('✅ Relay fetch complete', [
+        $this->logger->info('✅ Combined relay fetch complete', [
             'total_unique_events' => count($events),
-            'event_ids' => array_slice(array_keys($seenIds), 0, 5), // Show first 5 IDs
         ]);
 
         return $events;

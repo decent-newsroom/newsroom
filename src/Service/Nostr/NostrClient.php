@@ -425,6 +425,12 @@ class NostrClient
     // Social interactions — delegates to SocialEventService
     // =========================================================================
 
+    /** @see SocialEventService::fetchArticleSocial() */
+    public function fetchArticleSocial(string $coordinate, ?int $since = null): array
+    {
+        return $this->socialEventService->fetchArticleSocial($coordinate, $since);
+    }
+
     /** @see SocialEventService::getComments() */
     public function getComments(string $coordinate, ?int $since = null): array
     {
@@ -452,6 +458,12 @@ class NostrClient
     // =========================================================================
     // User profile — delegates to UserProfileService
     // =========================================================================
+
+    /** @see UserProfileService::fetchUserContext() */
+    public function fetchUserContext(string $pubkey, ?array $relays = null): array
+    {
+        return $this->userProfileService->fetchUserContext($pubkey, $relays);
+    }
 
     /** @see UserProfileService::getMetadata() */
     public function getPubkeyMetadata(string $pubkey): \stdClass

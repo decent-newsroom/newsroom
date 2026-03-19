@@ -104,4 +104,20 @@ enum AuthorContentType: string
         }
         return array_unique($kinds);
     }
+
+    /**
+     * Reverse-lookup: determine which content type a Nostr event kind belongs to.
+     *
+     * Returns the first matching content type. Used by the consolidated
+     * author content fetch (Phase 3) to route events after a combined REQ.
+     */
+    public static function fromKind(int $kind): ?self
+    {
+        foreach (self::cases() as $case) {
+            if (in_array($kind, $case->getKinds(), true)) {
+                return $case;
+            }
+        }
+        return null;
+    }
 }

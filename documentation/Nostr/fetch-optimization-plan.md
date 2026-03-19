@@ -370,6 +370,251 @@ Add logging/metrics to track:
 - Cache hit rates for user context data (DB hit vs relay fallback)
 - strfry disk usage growth after expanding `user_data` kinds (Phase 5)
 
+---
+
+## 7. Additional Optimization Ideas
+
+### 7.1 Batch Metadata Prefetch for Article Lists (N+1 Elimination)
+
+**Problem:** Every `<twig:Molecules:UserFromNpub>` component calls `RedisCacheService::getMetadata()` individually during mount. When rendering a list of 20 articles from 15 unique authors, this generates 15 sequential Redis lookups (or worse, 15 DB queries + async dispatch on cache miss). The `CardList` component already accepts an `authorsMetadata` array but most callers pass it empty.
+
+**Solution:** In every controller or service that builds an article list (home feed tabs, search results, tag pages, follows feed, bookmarks), collect all unique author pubkeys from the article set, call `RedisCacheService::getMultipleMetadata()` once, and pass the result map into the template as `authors_metadata`. The `Card.html.twig` template already checks `authors_metadata[pubkey]` and passes it into `UserFromNpub` — the infrastructure is there, it's just not used consistently.
+
+**Files to audit:**
+- `src/Controller/Reader/HomeFeedController.php` — all tab methods
+- `src/Controller/Reader/ArticleController.php` — tag pages, latest
+- `src/Controller/Search/SearchController.php` — search results
+- `src/Controller/Reader/BookmarksController.php` — bookmark list
+- `src/Twig/Components/Organisms/FeaturedList.php` — featured articles sidebar
+
+**Expected impact:** Eliminates 10–20 individual Redis/DB lookups per list page. `getMultipleMetadata()` uses `$this->npubCache->getItems()` which is a single Redis MGET under the hood.
+
+---
+
+### 7.2 NIP-45 COUNT for Social Metrics Without Full Fetch
+
+**Problem:** Showing reaction/comment/zap counts on article cards requires fetching all events of those kinds. For a list page with 20 articles, this would mean 20 separate REQs just for counts — prohibitively expensive.
+
+**Solution:** Use NIP-45 `COUNT` verb (already documented in `documentation/NIP/45.md`) to get aggregate counts without transferring full events. The local strfry relay supports COUNT. For article list pages, send a batch of COUNT requests for kinds 7, 1111, 9735 filtered by `#a` tag for each visible article coordinate. Display these as badges on cards.
+
+**Implementation sketch:**
+1. Add `sendCount(array $filter): ?int` to `NostrRelayPool` — sends `["COUNT", subId, filter]` to the local relay and parses the `{"count": N}` response
+2. Add `SocialEventService::getCountsForCoordinates(array $coordinates): array` — batch COUNT queries, returns `[coordinate => ['comments' => N, 'reactions' => N, 'zaps' => N]]`
+3. Call from article list controllers and pass counts into card templates
+
+**Trade-offs:** Only works against relays that support NIP-45. The local strfry relay does, so this is safe for locally-cached content. Don't rely on it for external relays.
+
+---
+
+### 7.3 Opportunistic Warm-Through on Render
+
+**Problem:** When a user visits an article page, the system fetches social context (comments, highlights). But if the user then navigates to the author's profile, the author's context (follows, interests, relay list) is fetched separately. The article page already knows the author's pubkey.
+
+**Solution:** After rendering the article page, dispatch a low-priority `FetchUserContextMessage` for the article's author pubkey in a `register_shutdown_function` (fire-and-forget after response). This warms the cache for the most likely next navigation (clicking the author name). The cost is near-zero since it runs after the response is sent.
+
+**Broader pattern:** Identify the top "next page" transitions and pre-warm their data:
+- Article → Author profile: warm author context
+- Home feed → Article: already warm (article is in DB/Redis)
+- Profile → Follows tab: warm follows list on profile load
+
+**Files to modify:**
+- `src/Controller/Reader/ArticleController.php` — dispatch warm message in shutdown function
+- Create `src/Message/WarmUserContextMessage.php` + handler that calls `fetchUserContext()`
+
+---
+
+### 7.4 Relay Response Deduplication at Pool Level
+
+**Problem:** When querying multiple relays (e.g., 3 content relays + local), the same event can be returned by all of them. Currently, deduplication happens per-caller (each handler has its own `$seenIds` set). Events are deserialized and processed before being discarded as duplicates.
+
+**Solution:** Move deduplication into `NostrRelayPool::sendToRelays()`. After collecting responses from all relays, deduplicate by event ID before returning to the caller. This saves the caller from iterating over and deserializing duplicate events. Add a `deduplicate: true` flag (default true) to `sendToRelays()`.
+
+**Expected impact:** Reduces processing overhead proportional to the number of relays queried. With 4 relays, up to 75% of response events could be duplicates for popular content.
+
+---
+
+### 7.5 Conditional Fetch with `since` Based on Local State
+
+**Problem:** Many fetch paths use `since: 0` (all time) or a fixed lookback window. When the local DB already has events up to timestamp T for a given author+kind, fetching everything from the beginning is wasteful.
+
+**Solution:** Before dispatching a fetch, query the local DB for the most recent `created_at` for the relevant (pubkey, kind) pair. Use that as the `since` parameter. This is especially valuable for `FetchAuthorContentHandler` and `SyncUserEventsHandler`.
+
+**Implementation:**
+1. Add `EventRepository::getLatestTimestamp(string $pubkey, array $kinds): ?int`
+2. In `FetchAuthorContentHandler::__invoke()`, set `$since = $eventRepo->getLatestTimestamp($pubkey, $allKinds) ?? 0`
+3. In `SyncUserEventsHandler`, same pattern — check what we already have before fetching
+
+**Expected impact:** Dramatically reduces data transfer for returning users. An author with 50 articles already cached will only fetch new ones instead of re-downloading all 50.
+
+---
+
+### 7.6 Service Worker Coordination for Client-Side Deduplication
+
+**Problem:** The service worker (`public/service-worker.js`) already implements stale-while-revalidate for article and profile URLs. But there's no coordination between server-side relay fetches and client-side cache — the browser may request data that the server is simultaneously fetching from relays.
+
+**Solution:** Use the Mercure SSE connection (already established for relay auth) to push cache-invalidation hints to the service worker. When `SyncUserEventsHandler` finishes syncing, publish a Mercure update to `cache-refresh/{pubkey}`. The service worker listens on this topic and proactively purges stale entries for that user's profile/articles.
+
+**Implementation:**
+- Extend `SyncUserEventsHandler` to publish a Mercure update on completion
+- Add a `message` event listener in the service worker for `CACHE_INVALIDATE` with URL patterns
+- The existing `handleCacheRefresh()` function in the service worker already supports selective cache clearing
+
+---
+
+### 7.7 Follow-Pack Batch Fetch
+
+**Problem:** Follow packs (kind 39089) contain lists of pubkeys. When displaying a follow pack, each member's profile is resolved individually via `UserFromNpub`. For a pack of 30 members, this is 30 sequential metadata lookups.
+
+**Solution:** When loading a follow pack event, extract all `p` tag pubkeys, call `RedisCacheService::getMultipleMetadata()` once, and pass the resulting map to the template. The template `event/_kind39089_followPack.html.twig` already passes `followPackProfiles[person]` as `:user` to `UserFromNpub` — the infrastructure is ready, just needs the batch fetch upstream.
+
+**Files to modify:**
+- Wherever follow pack events are rendered (admin follow packs page, profile follow packs tab)
+- Ensure `getMultipleMetadata()` is called with all pack member pubkeys before template rendering
+
+---
+
+### 7.8 Parallel Relay Queries with Early Return
+
+**Problem:** `NostrRelayPool::sendToRelays()` queries relays sequentially via `TweakedRequest::send()` — it iterates `foreach ($this->relays->getRelays() as $relay)` and waits for each relay's full EOSE before moving to the next. A slow relay (2s timeout) blocks responses from faster relays.
+
+**Solution:** For read queries (REQ, not EVENT publishes), open connections to all relays simultaneously and process responses as they arrive. Return results to the caller as soon as EOSE is received from at least one relay, while continuing to collect from slower relays in the background. This is the "fastest relay wins" pattern used by mature Nostr clients.
+
+**Implementation considerations:**
+- PHP's blocking I/O model makes true parallel WebSocket handling complex
+- Two approaches: (a) use `stream_select()` with non-blocking sockets, or (b) use the relay gateway which already manages multiple connections concurrently
+- For the gateway path, this is already partially implemented — the gateway processes all connections in a single event loop. The optimization would be returning partial results to the caller early.
+
+**Expected impact:** P95 response time for relay fetches drops from "slowest relay" to "fastest relay" latency.
+
+---
+
+### 7.9 Stale-While-Revalidate for Social Context
+
+**Problem:** The `StaleWhileRevalidateCache` pattern is used for Unfold sites and profile tabs, but not for article social context (comments, highlights, reactions). Every article page visit triggers a live relay query for social data.
+
+**Solution:** Cache the social context bundle (from Phase 2's `fetchArticleSocial()`) in Redis with SWR semantics:
+- Fresh TTL: 2 minutes (comments are somewhat time-sensitive)
+- Stale TTL: 30 minutes (serve stale comments while refreshing in background)
+- Cache key: `social:{coordinate}`
+
+The Comments live component already has a "load more" / refresh action — this would just serve cached data on first render and refresh asynchronously.
+
+**Expected impact:** Repeat visits to the same article within 30 minutes serve instantly from cache. First visit within 2 minutes serves without any relay query.
+
+---
+
+### 7.10 Proactive strfry-to-DB Projection for Social Kinds
+
+**Problem:** The strfry router already ingests social kinds (1111, 9735, 9802, 7) from external relays. The subscription workers persist articles and media to the DB, but comments, zaps, and highlights are only persisted when they're fetched on-demand (article page visit). This means the first visitor to an article page always pays the relay query cost.
+
+**Solution:** Add a subscription worker (or extend the existing article worker) that listens for social kinds on the local strfry relay and projects them into the DB proactively. When a kind 1111 event arrives referencing a known article coordinate, persist it immediately. This way, article pages can load social context from DB without any relay query.
+
+**Files to create/modify:**
+- Add social kind processing to the article subscription worker in `src/Command/` (the one that runs via `app:run-relay-workers`)
+- Reuse existing `EventRepository::saveEvent()` for persistence
+- Filter to only persist events referencing known article coordinates (avoid storing orphaned comments)
+
+**Expected impact:** Combined with SWR cache (7.9), this makes article social data available from DB on first visit, eliminating relay queries for social context entirely.
+
+---
+
+### 7.11 HTTP ETag / Conditional Responses for Article Pages
+
+**Problem:** Article content (kind 30023) is immutable once signed — the event ID is a hash of the content. Yet every request re-renders the full Twig template (CommonMark conversion, highlight fetching, etc.). The `EventController` already sets ETags, but `ArticleController` (the main article view) does not.
+
+**Solution:** After rendering an article page, compute an ETag from the article event ID + the count/timestamp of comments and highlights. Set `Last-Modified` from the article's `published_at`. On subsequent requests, check `If-None-Match` / `If-Modified-Since` and return 304 when nothing changed. This is free performance for returning visitors and crawler traffic.
+
+**Implementation:**
+- In `ArticleController::authorArticle()`, after assembling template data, call `$response->setEtag(md5($article->getEventId() . count($highlights)))` and `$response->isNotModified($request)`
+- The browser skips re-downloading ~50–200 KB of HTML
+- CDN / reverse proxy (Caddy) can cache 200 responses and serve 304s itself
+
+**Expected impact:** 50–80% reduction in rendered bytes for repeat article visits (browser cache hit). Critical for SEO crawlers that re-check pages frequently.
+
+---
+
+### 7.12 Gateway-Mediated Batch Multi-Author Fetch
+
+**Problem:** The "For You" / follows feed needs articles from N followed authors. Currently, if not in the DB, each author triggers a separate `FetchAuthorContentMessage`. With 50 follows, that's 50 async messages, each opening relay connections independently.
+
+**Solution:** Instead of dispatching N individual messages, dispatch a single `FetchFollowsFeedMessage` containing all followed pubkeys. The handler builds one REQ with `authors: [pubkey1, pubkey2, ..., pubkeyN]` and `kinds: [30023]`, sent through the relay gateway. The gateway already manages persistent connections, so this is a single REQ to each relay covering all authors at once.
+
+**Implementation:**
+- Create `FetchFollowsFeedMessage` with `pubkeys[]` and `since`
+- Handler uses `NostrRelayPool::sendToRelays()` with a combined filter
+- Most relays support multi-author filters efficiently (indexed by pubkey)
+- Forward received events to strfry for the subscription workers to pick up
+
+**Expected impact:** Follows feed fetch goes from N relay connections to 1 (per relay). For a user following 100 authors, this is ~100x fewer WebSocket handshakes.
+
+**Risk:** Some relays may reject very large `authors` arrays. Split into chunks of 50 if needed.
+
+---
+
+### 7.13 Turbo Frame Prefetch Hints via Link Headers
+
+**Problem:** When the home page loads, the initial tab content is fetched lazily via Turbo Frame (`loading="lazy"`). The browser doesn't start this fetch until the frame enters the viewport, adding a visual delay.
+
+**Solution:** Add a `Link: <url>; rel=prefetch` HTTP header on the home page response pointing to the default tab URL. The browser will speculatively fetch the tab content while rendering the outer shell. By the time the Turbo Frame triggers its fetch, the response is already in the browser's HTTP cache.
+
+**Implementation:**
+- In `DefaultController::index()`, add `$response->headers->set('Link', '<' . $this->generateUrl('home_feed_tab', ['tab' => 'latest']) . '>; rel=prefetch')` 
+- Same pattern for `/multimedia` → first media tab
+- Zero relay-side cost; purely a browser-side optimization
+
+**Expected impact:** Perceived tab load time drops by 100–300ms (eliminates the browser's discovery latency).
+
+---
+
+### 7.14 Redis Pipeline for Bulk Social Counts from DB
+
+**Problem:** Once article social events are projected into the DB (via 7.10), fetching comment/reaction/zap counts for an article list page still requires N SQL queries (one per article coordinate). This is the same N+1 problem as metadata, but for counts.
+
+**Solution:** Precompute social counts as a Redis hash during the social projection step. When a kind 1111/7/9735 event is persisted, also `HINCRBY social_count:{coordinate} comments 1` (or `reactions`, `zaps`). Article list controllers then call `HMGET` for all visible coordinates in one round-trip.
+
+**Implementation:**
+1. In the social projection worker (from 7.10), after persisting a social event, increment the Redis counter
+2. Add `SocialCountStore::getCountsForCoordinates(array $coords): array` — single `MGET` or pipeline
+3. Pass counts into `CardList` template; the Card template renders badges
+
+**Expected impact:** Social counts on article cards with zero per-request SQL or relay cost. Counter updates are amortized into the event ingestion pipeline.
+
+---
+
+### 7.15 Subscription Fan-In for Referenced Articles
+
+**Problem:** When an article references other articles (via `a` tags, naddr embeds), the `Converter::prefetchNostrData()` method fetches each referenced event individually. For an article with 10 embedded naddr links, this is 10 sequential relay lookups (or DB queries with relay fallback).
+
+**Solution:** `prefetchNostrData()` already collects all referenced coordinates upfront. Ensure the batch fetch for `naddrCoords` uses a single combined REQ with multiple `#a` filters or a combined `ids` filter, rather than iterating one-by-one. The method already does some batching for pubkeys (metadata) and event IDs — extend the same pattern to naddr coordinates.
+
+**Implementation:**
+- In `Converter::prefetchNostrData()`, after collecting `$naddrCoords`, build one REQ with `kinds + #d + authors` filters (one filter per coordinate in the REQ array)
+- Send via `NostrRelayPool::sendToRelays()` to the local relay first
+- Fall back to external relays only for coordinates not found locally
+
+**Expected impact:** Articles with many embedded references render 5–10x faster on first view.
+
+---
+
+### 7.16 Outbox-Model Write Optimization
+
+**Problem:** When publishing an event (article, comment, reaction), the app publishes to all of the user's write relays plus system relays. Each publish is a separate WebSocket connection (via `NostrRelayPool::publish()`), and the response is awaited synchronously.
+
+**Solution:** For writes, adopt a fire-and-forget pattern with confirmation tracking:
+1. Publish to the local strfry relay synchronously (guaranteed fast, ~1ms)
+2. Dispatch the external relay publishes as a low-priority async message
+3. Track which relays confirmed (via `OK` response) in `RelayHealthStore`
+4. Show the user instant feedback after the local publish; display relay confirmation status asynchronously via Mercure
+
+This means the user sees their article/comment immediately (it's in the local relay and DB), while external relay propagation happens in the background.
+
+**Files to modify:**
+- `NostrRelayPool::publish()` — split into `publishLocal()` (sync) + `publishExternal()` (async)
+- Create `PublishToExternalRelaysMessage` + handler
+- Article editor and Comments component — show local-publish success instantly
+
+**Expected impact:** Publish latency drops from 2–10s (waiting for slowest relay) to <100ms (local relay only). External propagation happens within seconds asynchronously.
+
 
 
 

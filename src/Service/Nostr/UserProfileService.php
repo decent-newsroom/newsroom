@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Entity\Event;
+use App\Enum\KindBundles;
 use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
 use App\Repository\EventRepository;
@@ -30,6 +31,63 @@ class UserProfileService
         private readonly LoggerInterface       $logger,
         private readonly ?string               $nostrDefaultRelay = null,
     ) {}
+
+    // -------------------------------------------------------------------------
+    // Combined User Context Fetch (Phase 1)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fetch all user context kinds in a single REQ and persist each result.
+     *
+     * Replaces individual relay calls for metadata, follows, interests,
+     * media follows, relay list, etc. — reducing 3–5 relay round-trips to 1.
+     *
+     * @param string      $pubkey Hex pubkey
+     * @param string[]|null $relays Override relay list (null = auto-discover)
+     * @return array<int, object> kind => latest event (newest per kind)
+     */
+    public function fetchUserContext(string $pubkey, ?array $relays = null): array
+    {
+        $this->logger->info('UserProfileService: fetching combined user context', [
+            'pubkey' => substr($pubkey, 0, 8) . '...',
+            'kinds'  => KindBundles::USER_CONTEXT,
+        ]);
+
+        if (empty($relays)) {
+            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
+        }
+        $relaySet = $this->relaySetFactory->withLocalRelay($relays);
+
+        $events = $this->executor->fetch(
+            kinds: KindBundles::USER_CONTEXT,
+            filters: ['authors' => [$pubkey]],
+            relaySet: $relaySet,
+            handler: fn($received) => $received,
+            pubkey: $pubkey,
+        );
+
+        if (empty($events)) {
+            $this->logger->info('UserProfileService: no user context events found', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+            ]);
+            return [];
+        }
+
+        // Group by kind, take the latest event for each, and persist
+        $latestByKind = KindBundles::latestByKind($events);
+
+        foreach ($latestByKind as $kind => $event) {
+            $this->persistEvent($event);
+        }
+
+        $this->logger->info('UserProfileService: user context fetched and persisted', [
+            'pubkey'      => substr($pubkey, 0, 8) . '...',
+            'kinds_found' => array_keys($latestByKind),
+            'total_events' => count($events),
+        ]);
+
+        return $latestByKind;
+    }
 
     // -------------------------------------------------------------------------
     // Metadata
@@ -214,35 +272,19 @@ class UserProfileService
             return $this->extractTTags($dbEvent->getTags());
         }
 
-        // ── 2. Relay fallback ─────────────────────────────────────────────────
-        $this->logger->debug('UserProfileService: interests not in DB, querying relay', [
+        // ── 2. Relay fallback (combined user context fetch) ────────────────
+        $this->logger->debug('UserProfileService: interests not in DB, querying relay via combined fetch', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
         ]);
 
-        if (empty($relays)) {
-            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
-        }
-        $relaySet = $this->relaySetFactory->withLocalRelay($relays);
+        $latestByKind = $this->fetchUserContext($pubkey, $relays);
 
-        $events = $this->executor->fetch(
-            kinds: [KindsEnum::INTERESTS->value],
-            filters: ['authors' => [$pubkey]],
-            relaySet: $relaySet,
-            handler: fn($received) => $received,
-            pubkey: $pubkey,
-        );
-
-        if (empty($events)) {
+        $interestEvent = $latestByKind[KindsEnum::INTERESTS->value] ?? null;
+        if ($interestEvent === null) {
             return [];
         }
 
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latest = $events[0];
-
-        // Write-through: persist the fetched event so subsequent calls use the DB fast path.
-        $this->persistInterestEvent($latest);
-
-        return $this->extractTTags((array) ($latest->tags ?? []));
+        return $this->extractTTags((array) ($interestEvent->tags ?? []));
     }
 
     /**
@@ -354,36 +396,20 @@ class UserProfileService
             return $this->extractPTags($dbEvent->getTags());
         }
 
-        // ── 2. Relay fallback ─────────────────────────────────────────────────
-        $this->logger->debug('UserProfileService: follows not in DB, querying relay', [
+        // ── 2. Relay fallback (combined user context fetch) ────────────────
+        $this->logger->debug('UserProfileService: follows not in DB, querying relay via combined fetch', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
         ]);
 
-        if (empty($relays)) {
-            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
-        }
-        $relaySet = $this->relaySetFactory->withLocalRelay($relays);
+        $latestByKind = $this->fetchUserContext($pubkey, $relays);
 
-        $events = $this->executor->fetch(
-            kinds: [KindsEnum::FOLLOWS->value],
-            filters: ['authors' => [$pubkey], 'limit' => 1],
-            relaySet: $relaySet,
-            handler: fn($received) => $received,
-            pubkey: $pubkey,
-        );
-
-        if (empty($events)) {
+        $followEvent = $latestByKind[KindsEnum::FOLLOWS->value] ?? null;
+        if ($followEvent === null) {
             $this->logger->info('No follow list found for pubkey', ['pubkey' => $pubkey]);
             return [];
         }
 
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latest = $events[0];
-
-        // Write-through so the next call hits the DB fast path
-        $this->persistEvent($latest);
-
-        $followedPubkeys = $this->extractPTags((array) ($latest->tags ?? []));
+        $followedPubkeys = $this->extractPTags((array) ($followEvent->tags ?? []));
 
         $this->logger->info('Follow list fetched', [
             'pubkey'        => $pubkey,
@@ -438,36 +464,20 @@ class UserProfileService
             return $this->extractPTags($dbEvent->getTags());
         }
 
-        // ── 2. Relay fallback ─────────────────────────────────────────────────
-        $this->logger->debug('UserProfileService: media follows not in DB, querying relay', [
+        // ── 2. Relay fallback (combined user context fetch) ────────────────
+        $this->logger->debug('UserProfileService: media follows not in DB, querying relay via combined fetch', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
         ]);
 
-        if (empty($relays)) {
-            $relays = $this->userRelayListService->getRelaysForUser($pubkey, RelayPurpose::USER);
-        }
-        $relaySet = $this->relaySetFactory->withLocalRelay($relays);
+        $latestByKind = $this->fetchUserContext($pubkey, $relays);
 
-        $events = $this->executor->fetch(
-            kinds: [KindsEnum::MEDIA_FOLLOWS->value],
-            filters: ['authors' => [$pubkey], 'limit' => 1],
-            relaySet: $relaySet,
-            handler: fn($received) => $received,
-            pubkey: $pubkey,
-        );
-
-        if (empty($events)) {
+        $mediaFollowEvent = $latestByKind[KindsEnum::MEDIA_FOLLOWS->value] ?? null;
+        if ($mediaFollowEvent === null) {
             $this->logger->info('No media follow list found for pubkey', ['pubkey' => $pubkey]);
             return [];
         }
 
-        usort($events, fn($a, $b) => $b->created_at <=> $a->created_at);
-        $latest = $events[0];
-
-        // Write-through so the next call hits the DB fast path
-        $this->persistEvent($latest);
-
-        $followedPubkeys = $this->extractPTags((array) ($latest->tags ?? []));
+        $followedPubkeys = $this->extractPTags((array) ($mediaFollowEvent->tags ?? []));
 
         $this->logger->info('Media follow list fetched', [
             'pubkey'        => $pubkey,

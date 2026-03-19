@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use App\Enum\KindBundles;
 use App\Enum\KindsEnum;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
@@ -24,6 +25,81 @@ class SocialEventService
         private readonly LoggerInterface      $logger,
         private readonly ?string              $nostrDefaultRelay = null,
     ) {}
+
+    // -------------------------------------------------------------------------
+    // Combined Article Social Fetch (Phase 2)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fetch all social interactions for an article coordinate in a single REQ.
+     *
+     * Combines reactions, comments, labels, zap requests, zap receipts, and
+     * highlights — reducing 2 relay round-trips to 1.
+     *
+     * @param string   $coordinate "kind:pubkey:identifier"
+     * @param int|null $since      Only events after this timestamp
+     * @return array{reactions: object[], comments: object[], labels: object[], zap_requests: object[], zaps: object[], highlights: object[]}
+     */
+    public function fetchArticleSocial(string $coordinate, ?int $since = null): array
+    {
+        $this->logger->info('Fetching combined article social context', ['coordinate' => $coordinate]);
+
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) < 3) {
+            throw new \InvalidArgumentException('Invalid coordinate format, expected kind:pubkey:identifier');
+        }
+
+        if ($this->nostrDefaultRelay) {
+            $relayUrls = [$this->nostrDefaultRelay];
+        } else {
+            $pubkey = $parts[1];
+            $relayUrls = $this->relaySetFactory->forAuthor($pubkey)->getRelays()
+                ? array_map(fn($r) => $r->getUrl(), $this->relaySetFactory->forAuthor($pubkey)->getRelays())
+                : [];
+        }
+
+        if (empty($relayUrls)) {
+            $this->logger->warning('No relays available for article social fetch', ['coordinate' => $coordinate]);
+            return KindBundles::categorizeArticleSocial([]);
+        }
+
+        $subscription   = new Subscription();
+        $subscriptionId = $subscription->setId();
+        $filter         = new Filter();
+        $filter->setKinds(KindBundles::ARTICLE_SOCIAL);
+        $filter->setTag('#A', [$coordinate]);
+
+        if (is_int($since) && $since > 0) {
+            $filter->setSince($since);
+        }
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+        $responses      = $this->relayPool->sendToRelays(
+            $relayUrls,
+            fn() => $requestMessage,
+            30,
+            $subscriptionId
+        );
+
+        $uniqueEvents = [];
+        $this->executor->process($responses, function ($event) use (&$uniqueEvents) {
+            $this->logger->debug('Received article social event', [
+                'event_id' => $event->id,
+                'kind'     => $event->kind ?? '?',
+            ]);
+            $uniqueEvents[$event->id] = $event;
+            return null;
+        });
+
+        $events = array_values($uniqueEvents);
+
+        $this->logger->info('Combined article social fetch complete', [
+            'coordinate'  => $coordinate,
+            'total_events' => count($events),
+        ]);
+
+        return KindBundles::categorizeArticleSocial($events);
+    }
 
     // -------------------------------------------------------------------------
     // Comments

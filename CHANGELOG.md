@@ -4,6 +4,12 @@
 In progress...
 
 - Changed `SyncUserEventsHandler` to forward fetched events to the local strfry relay instead of persisting directly to the database. Removed `EntityManagerInterface`, `EventRepository`, `ProfileEventIngestionService`, and `EventIngestionListener` dependencies. Events are now pushed to strfry via WebSocket and ingested by the existing subscription workers (articles, media, magazines) and on-demand DB-first-with-relay-fallback service methods.
+- Added `KindBundles` class (`src/Enum/KindBundles.php`) with named groups of related Nostr event kinds (USER_CONTEXT, ARTICLE_SOCIAL, AUTHOR_CONTENT) and helpers (`groupByKind`, `latestByKind`, `categorizeArticleSocial`) for batch relay fetching.
+- Added `AuthorContentType::fromKind()` reverse-lookup method to map a Nostr event kind back to its content type.
+- Added `UserProfileService::fetchUserContext()` — fetches all user context kinds (0, 3, 5, 10000, 10001, 10002, 10003, 10015, 10020, 10063, 30015) in a single relay REQ. Updated `getFollows()`, `getInterests()`, and `getMediaFollows()` relay fallback paths to use the combined fetch, reducing 3–5 relay round-trips to 1.
+- Added `SocialEventService::fetchArticleSocial()` — fetches all article social context (reactions, comments, labels, zap requests, zap receipts, highlights) in a single relay REQ filtered by article coordinate, reducing 2 relay round-trips to 1.
+- Consolidated `FetchAuthorContentHandler` to send a single combined REQ for all content types instead of one per type. Events are routed to the correct processing logic via `AuthorContentType::fromKind()`. Reduces 3–6 relay round-trips to 1 per author content fetch.
+- Expanded strfry router `user_data` stream to ingest all user context kinds (0, 3, 10000, 10001, 10002, 10003, 10015, 10020, 10063) from multiple relay sources, enabling local-first DB lookups for user profile data.
 
 
 ## v0.0.16
