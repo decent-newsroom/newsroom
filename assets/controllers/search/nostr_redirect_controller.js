@@ -26,8 +26,6 @@ export default class extends Controller {
           url = `/p/${normalized}`;
           break;
         case 'naddr':
-          url = `/article/${normalized}`;
-          break;
         case 'nevent':
         case 'note':
         case 'nprofile':

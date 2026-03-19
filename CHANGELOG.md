@@ -3,6 +3,7 @@
 ## v0.0.17
 In progress...
 
+- Fixed search/paste of `naddr1` links for non-article kinds (e.g. curation sets, media events) showing a "not an article" error page. All `naddr` identifiers now route through the generic event controller (`/e/...`), which handles each kind appropriately — articles redirect to their article page, curation sets to their dedicated views, and all other kinds render the event detail page.
 - Changed `SyncUserEventsHandler` to forward fetched events to the local strfry relay instead of persisting directly to the database. Removed `EntityManagerInterface`, `EventRepository`, `ProfileEventIngestionService`, and `EventIngestionListener` dependencies. Events are now pushed to strfry via WebSocket and ingested by the existing subscription workers (articles, media, magazines) and on-demand DB-first-with-relay-fallback service methods.
 - Added `KindBundles` class (`src/Enum/KindBundles.php`) with named groups of related Nostr event kinds (USER_CONTEXT, ARTICLE_SOCIAL, AUTHOR_CONTENT) and helpers (`groupByKind`, `latestByKind`, `categorizeArticleSocial`) for batch relay fetching.
 - Added `AuthorContentType::fromKind()` reverse-lookup method to map a Nostr event kind back to its content type.

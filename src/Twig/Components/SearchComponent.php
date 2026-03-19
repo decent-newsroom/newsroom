@@ -146,8 +146,7 @@ final class SearchComponent extends AbstractController
             // Route based on identifier type
             return match($nostrType) {
                 'npub' => $this->redirectToRoute('author-profile', ['npub' => $identifier]),
-                'naddr' => $this->redirectToRoute('article-naddr', ['naddr' => $identifier]),
-                'nevent', 'note', 'nprofile' => $this->redirectToRoute('nevent', ['nevent' => $identifier]),
+                'naddr', 'nevent', 'note', 'nprofile' => $this->redirectToRoute('nevent', ['nevent' => $identifier]),
                 default => null
             };
         }

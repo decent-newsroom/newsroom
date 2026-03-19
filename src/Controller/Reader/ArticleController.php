@@ -92,10 +92,8 @@ class ArticleController  extends AbstractController
         $kind = $data->kind;
 
         if ($kind !== KindsEnum::LONGFORM->value) {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => 'This is not a long-form article. Only long-form articles (kind 30023) are supported.',
-                'searchQuery' => $naddr
-            ]);
+            // Non-article kinds are handled by the generic event controller
+            return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
         }
 
         $found = false;
