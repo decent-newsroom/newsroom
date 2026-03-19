@@ -7,7 +7,6 @@ namespace App\Command;
 use App\Service\Nostr\GatewayConnection;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
-use App\Message\PersistGatewayEventsMessage;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -18,7 +17,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -173,7 +171,6 @@ class RelayGatewayCommand extends Command
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly HubInterface $hub,
-        private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -1919,8 +1916,10 @@ class RelayGatewayCommand extends Command
             ]);
         }
 
-        // Dispatch async persistence for received events
-        $this->dispatchEventPersistence($events);
+        // Forward received events to the local strfry relay for persistence.
+        // The worker-relay subscription workers watch strfry and persist events
+        // through the normal ingestion pipeline (Event table + graph layer).
+        $this->forwardEventsToLocalRelay($events);
     }
 
     /**
@@ -2004,20 +2003,30 @@ class RelayGatewayCommand extends Command
     }
 
     // =========================================================================
-    // Event persistence dispatch
+    // Event forwarding to local relay
     // =========================================================================
 
     /**
-     * Dispatch events for async persistence to the database.
+     * Forward received events to the local strfry relay for storage.
      *
-     * Deduplicates by event ID (same event can arrive from multiple relays)
-     * and dispatches a Messenger message so the worker persists them.
+     * This makes events fetched from external relays available locally:
+     * - The worker-relay subscription workers (articles, media, magazines)
+     *   will pick up relevant kinds through their existing subscriptions.
+     * - Other kinds are stored in strfry and can be queried via REQ.
+     *
+     * Using the local relay as a write-through cache avoids adding DB
+     * dependencies (EntityManager) to this long-running gateway process.
      *
      * @param array<int, array<string, mixed>> $events Raw event arrays
      */
-    private function dispatchEventPersistence(array $events): void
+    private function forwardEventsToLocalRelay(array $events): void
     {
         if (empty($events)) {
+            return;
+        }
+
+        $localRelayUrl = $this->relayRegistry->getLocalRelay();
+        if ($localRelayUrl === null) {
             return;
         }
 
@@ -2034,12 +2043,58 @@ class RelayGatewayCommand extends Command
             return;
         }
 
-        try {
-            $this->messageBus->dispatch(new PersistGatewayEventsMessage(array_values($unique)));
-        } catch (\Throwable $e) {
-            $this->logger->warning('Gateway: failed to dispatch event persistence', [
-                'count' => count($unique),
-                'error' => $e->getMessage(),
+        // Get the existing persistent connection to the local relay,
+        // or open one if it doesn't exist yet.
+        $resolvedUrl = $this->resolveRelayUrl($localRelayUrl);
+        $connKey = GatewayConnection::buildKey($resolvedUrl);
+        $conn = $this->connections[$connKey] ?? null;
+
+        if (!$conn || !$conn->isConnected()) {
+            try {
+                $conn = $this->openConnection($resolvedUrl, null);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Gateway: cannot forward events to local relay — connection failed', [
+                    'relay' => $resolvedUrl,
+                    'event_count' => count($unique),
+                    'error' => $e->getMessage(),
+                ]);
+                return;
+            }
+        }
+
+        $client = $conn->getClient();
+        if (!$client) {
+            return;
+        }
+
+        $forwarded = 0;
+        $failed = 0;
+
+        foreach ($unique as $event) {
+            try {
+                $client->text(json_encode(['EVENT', $event]));
+                $forwarded++;
+            } catch (\Throwable $e) {
+                $failed++;
+                if ($failed === 1) {
+                    $this->logger->warning('Gateway: failed to forward event to local relay', [
+                        'event_id' => substr($event['id'] ?? '', 0, 12),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                // Connection likely dead — stop trying this batch
+                $conn->markDisconnected();
+                break;
+            }
+        }
+
+        if ($forwarded > 0) {
+            $conn->touch();
+            $this->logger->info('Gateway: forwarded events to local relay', [
+                'relay' => $resolvedUrl,
+                'forwarded' => $forwarded,
+                'failed' => $failed,
+                'total' => count($unique),
             ]);
         }
     }
