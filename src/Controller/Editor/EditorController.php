@@ -7,7 +7,6 @@ namespace App\Controller\Editor;
 use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
-use App\Enum\RolesEnum;
 use App\Factory\ArticleFactory;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
@@ -15,6 +14,7 @@ use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\UserRelayListService;
+use App\Service\UserRolePromoter;
 use App\Util\NostrKeyUtil;
 use App\Enum\AuthorContentType;
 use App\Message\FetchAuthorContentMessage;
@@ -270,7 +270,8 @@ class EditorController extends AbstractController
         UserRelayListService $userRelayListService,
         ArticleFactory $articleFactory,
         RedisViewStore $redisViewStore,
-        MessageBusInterface $messageBus
+        MessageBusInterface $messageBus,
+        UserRolePromoter $userRolePromoter,
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -325,15 +326,7 @@ class EditorController extends AbstractController
 
             // Grant ROLE_WRITER to the publishing user (only for published articles, not drafts)
             if (!$isDraft) {
-                $key = new Key();
-                $publisherNpub = $key->convertPublicKeyToBech32($signedEvent['pubkey']);
-                $publisherUser = $userRepository->findOneBy(['npub' => $publisherNpub]);
-
-                if ($publisherUser && !$publisherUser->isWriter()) {
-                    $publisherUser->addRole(RolesEnum::WRITER->value);
-                    $entityManager->flush();
-                    $logger->info('Granted ROLE_WRITER to user', ['npub' => $publisherNpub]);
-                }
+                $userRolePromoter->promoteToWriter($signedEvent['pubkey']);
 
                 $redisViewStore->invalidateUserArticles($signedEvent['pubkey']);
                 $redisViewStore->invalidateProfileTabs($signedEvent['pubkey']);

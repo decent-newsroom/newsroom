@@ -93,6 +93,23 @@ class RelaySetFactory
     }
 
     /**
+     * Get the raw relay URLs for an author (from their NIP-65 relay list).
+     *
+     * Returns an empty array when no relays are known. Unlike forAuthor(), this
+     * does not wrap the result in a RelaySet, allowing callers to merge URLs
+     * with other sources before building the final set.
+     *
+     * @return string[]
+     */
+    public function getAuthorRelayUrls(string $pubkey): array
+    {
+        if ($this->nostrDefaultRelay) {
+            return [];
+        }
+        return $this->userRelayListService->getTopRelaysForAuthor($pubkey);
+    }
+
+    /**
      * Build a RelaySet for a RelayPurpose.
      */
     public function forPurpose(RelayPurpose $purpose): RelaySet

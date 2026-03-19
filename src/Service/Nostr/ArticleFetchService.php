@@ -84,11 +84,29 @@ class ArticleFetchService
             'relay_list' => $relayList,
         ]);
 
-        $primaryRelaySet  = $this->relaySetFactory->forAuthorWithFallback($author, $relayList);
+        // Build a best-guess primary relay set that combines all available hints:
+        //   1. naddr hint relays (embedded in the link by the original publisher)
+        //   2. Author's declared write relays (kind 10002)
+        //   3. Local relay (fast local cache)
+        // This single broad set usually finds the article in one round-trip.
+        $authorRelays  = $this->relaySetFactory->getAuthorRelayUrls($author);
+        $localRelays   = $this->relayRegistry->getFallbackRelays();
+        $primaryUrls   = array_values(array_unique(array_merge($relayList, $authorRelays, $localRelays)));
+
+        $this->logger->debug('naddr primary relay set', [
+            'hint_relays'   => $relayList,
+            'author_relays' => $authorRelays,
+            'local_relays'  => $localRelays,
+            'combined'      => $primaryUrls,
+        ]);
+
+        $primaryRelaySet  = $this->relaySetFactory->fromUrls($primaryUrls);
+
+        // Fallback: content relays (broad network coverage) merged with any
+        // hint URLs not already covered.
         $contentRelays    = $this->relayRegistry->getContentRelays();
-        $fallbackRelaySet = empty($relayList)
-            ? $this->relaySetFactory->fromUrls($contentRelays)
-            : $this->relaySetFactory->fromUrls(array_unique(array_merge($relayList, $contentRelays)));
+        $fallbackUrls     = array_values(array_unique(array_merge($contentRelays, $relayList)));
+        $fallbackRelaySet = $this->relaySetFactory->fromUrls($fallbackUrls);
 
         $filters = [
             'authors' => [$author],

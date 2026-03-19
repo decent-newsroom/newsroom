@@ -14,6 +14,7 @@ use App\Message\ProjectMagazineMessage;
 use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\ReadingListManager;
+use App\Service\UserRolePromoter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
@@ -315,7 +316,8 @@ class MagazineWizardController extends AbstractController
         Request                   $request,
         EntityManagerInterface    $entityManager,
         NostrClient               $nostrClient,
-        LoggerInterface           $logger
+        LoggerInterface           $logger,
+        UserRolePromoter          $userRolePromoter,
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         if (!$data || !isset($data['event'])) {
@@ -379,6 +381,16 @@ class MagazineWizardController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
             return new JsonResponse(['error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+
+        // Grant ROLE_EDITOR to the publishing user
+        try {
+            $userRolePromoter->promoteToEditor($signedEvent['pubkey'] ?? '');
+        } catch (\Throwable $e) {
+            $logger->warning('Failed to promote user to ROLE_EDITOR', [
+                'pubkey' => substr($signedEvent['pubkey'] ?? '', 0, 16) . '...',
+                'error' => $e->getMessage(),
+            ]);
         }
 
         // Publish to author's relays (passing empty array lets NostrClient fetch author's relay list)

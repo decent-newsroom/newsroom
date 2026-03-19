@@ -70,10 +70,10 @@ class ArticleController  extends AbstractController
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
     {
-        // IMPORTANT: this endpoint can be hit from external links and relays may be slow.
-        // Keeping a very long time limit behind a proxy tends to create intermittent 502s (proxy timeout).
-        // Use a short budget and fall back gracefully.
-        set_time_limit(10);
+        // Allow enough time for two sequential relay queries (primary + fallback).
+        // Each gateway call can take up to 8s + 2s grace. 25s gives headroom for
+        // both attempts plus DB lookups and processing without hitting proxy 502s.
+        set_time_limit(25);
 
         $decoded = new Bech32($naddr);
 
@@ -96,6 +96,16 @@ class ArticleController  extends AbstractController
             return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
         }
 
+        // Check database FIRST — skip the relay round-trip when we already have the article.
+        $repository = $em->getRepository(Article::class);
+        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
+        if ($slug && $article) {
+            $keys = new Key();
+            $npub = $keys->convertPublicKeyToBech32($author);
+            return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
+        }
+
+        // Not in DB — try fetching from relays
         $found = false;
         try {
             // Best-effort: try to fetch quickly. If relays are slow/offline, don't block the web request.
@@ -104,12 +114,9 @@ class ArticleController  extends AbstractController
             $found = false;
         }
 
-        // Check if anything is in the database now
-        $repository = $em->getRepository(Article::class);
+        // Re-check DB after relay fetch
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
-        // If found, redirect to the article page
         if ($slug && $article) {
-            // Convert pubkey to npub for proper redirect
             $keys = new Key();
             $npub = $keys->convertPublicKeyToBech32($author);
             return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);

@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Service;
 use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
+use App\Service\Graph\EventIngestionListener;
+use App\Service\UserRolePromoter;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -27,7 +29,9 @@ class GenericEventProjectorTest extends TestCase
         $this->projector = new GenericEventProjector(
             $this->em,
             $this->eventRepository,
-            $this->logger
+            $this->logger,
+            $this->createMock(EventIngestionListener::class),
+            $this->createMock(UserRolePromoter::class),
         );
     }
 

@@ -26,6 +26,7 @@ class ArticleEventProjector
         private readonly LoggerInterface $logger,
         private readonly Converter $converter,
         private readonly MessageBusInterface $messageBus,
+        private readonly UserRolePromoter $userRolePromoter,
     ) {
     }
 
@@ -126,6 +127,16 @@ class ArticleEventProjector
                     'pubkey' => $article->getPubkey(),
                     'event_id' => $article->getEventId(),
                     'error' => $e->getMessage()
+                ]);
+            }
+
+            // Grant ROLE_WRITER to the article author (if they have a local account)
+            try {
+                $this->userRolePromoter->promoteToWriter($article->getPubkey());
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to promote article author to ROLE_WRITER', [
+                    'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
+                    'error' => $e->getMessage(),
                 ]);
             }
 

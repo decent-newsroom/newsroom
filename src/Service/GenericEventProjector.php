@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,6 +22,7 @@ class GenericEventProjector
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly UserRolePromoter $userRolePromoter,
     ) {
     }
 
@@ -82,6 +84,18 @@ class GenericEventProjector
             'pubkey' => substr($event->pubkey ?? '', 0, 16) . '...',
             'relay' => $relayUrl
         ]);
+
+        // Grant ROLE_EDITOR to authors of reading lists / magazines (kind 30040)
+        if ((int) $event->kind === KindsEnum::PUBLICATION_INDEX->value && !empty($event->pubkey)) {
+            try {
+                $this->userRolePromoter->promoteToEditor($event->pubkey);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to promote event author to ROLE_EDITOR', [
+                    'pubkey' => substr($event->pubkey, 0, 16) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $entity;
     }
