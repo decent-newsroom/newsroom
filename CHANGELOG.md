@@ -3,6 +3,8 @@
 ## v0.0.17
 In progress...
 
+- Changed `SyncUserEventsHandler` to forward fetched events to the local strfry relay instead of persisting directly to the database. Removed `EntityManagerInterface`, `EventRepository`, `ProfileEventIngestionService`, and `EventIngestionListener` dependencies. Events are now pushed to strfry via WebSocket and ingested by the existing subscription workers (articles, media, magazines) and on-demand DB-first-with-relay-fallback service methods.
+
 
 ## v0.0.16
 Feeds, walls, playlists, galleries, boards, whatever you want to call them.

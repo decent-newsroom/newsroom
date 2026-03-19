@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\MessageHandler;
 
-use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Message\SyncUserEventsMessage;
-use App\Repository\EventRepository;
-use App\Service\Graph\EventIngestionListener;
-use App\Service\ProfileEventIngestionService;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayGatewayClient;
 use App\Service\Nostr\UserRelayListService;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
+use swentel\nostr\Relay\Relay;
 use swentel\nostr\Subscription\Subscription;
 
 /**
  * Batch-fetches all of the logged-in user's own events from their NIP-65
- * relays in a single REQ, then persists new events and triggers projections.
+ * relays in a single REQ, then forwards them to the local strfry relay.
+ *
+ * The local relay subscription workers (articles, media, magazines) and
+ * on-demand DB-first-with-relay-fallback service methods will pick up
+ * the events from strfry and persist them as needed.
  *
  * Runs on the async_low_priority transport so it never blocks the login
  * response. By the time this handler runs, the relay list is already warm
@@ -33,17 +33,25 @@ use swentel\nostr\Subscription\Subscription;
  * Kinds fetched:
  *   0      — metadata (NIP-01)
  *   3      — follow list (NIP-02)
+ *   5      — deletion requests (NIP-09)
  *   7      — reactions (NIP-25)
  *   1111   — comments (NIP-22)
+ *   10000  — mute list (NIP-51)
+ *   10001  — pin list (NIP-51)
  *   10002  — relay list (NIP-65)
  *   10003  — bookmarks (NIP-51)
  *   10015  — interests (NIP-51)
+ *   10020  — media follows (NIP-68)
+ *   10063  — Blossom server list (NIP-B7)
  *   30003  — bookmark sets (NIP-51)
  *   30004  — curation sets — articles (NIP-51)
+ *   30005  — curation sets — videos (NIP-51)
+ *   30006  — curation sets — pictures (NIP-51)
  *   30015  — interest sets (NIP-51)
  *   30023  — long-form articles (NIP-23)
  *   30024  — long-form drafts (NIP-23)
  *   30040  — publication index (NKBIP-01)
+ *   34139  — playlists
  */
 #[AsMessageHandler]
 class SyncUserEventsHandler
@@ -55,20 +63,25 @@ class SyncUserEventsHandler
     private const SYNC_KINDS = [
         KindsEnum::METADATA->value,          // 0
         KindsEnum::FOLLOWS->value,            // 3
+        KindsEnum::DELETION_REQUEST->value,   // 5
         KindsEnum::REACTION->value,           // 7
         KindsEnum::COMMENTS->value,           // 1111
+        KindsEnum::MUTE_LIST->value,          // 10000
+        KindsEnum::PIN_LIST->value,           // 10001
         KindsEnum::RELAY_LIST->value,         // 10002
         KindsEnum::BOOKMARKS->value,          // 10003
         KindsEnum::INTERESTS->value,          // 10015
         KindsEnum::MEDIA_FOLLOWS->value,      // 10020
+        KindsEnum::BLOSSOM_SERVER_LIST->value, // 10063
         KindsEnum::BOOKMARK_SETS->value,      // 30003
         KindsEnum::CURATION_SET->value,       // 30004
         KindsEnum::CURATION_VIDEOS->value,    // 30005
         KindsEnum::CURATION_PICTURES->value,  // 30006
+        KindsEnum::INTEREST_SETS->value,      // 30015
         KindsEnum::LONGFORM->value,           // 30023
         KindsEnum::LONGFORM_DRAFT->value,     // 30024
         KindsEnum::PUBLICATION_INDEX->value,  // 30040
-        30015,                                // interest sets (NIP-51, no enum case yet)
+        KindsEnum::PLAYLIST->value,           // 34139
     ];
 
     /** Maximum number of events to request per relay to avoid overwhelming small relays. */
@@ -78,15 +91,11 @@ class SyncUserEventsHandler
     private const TIMEOUT = 30;
 
     public function __construct(
-        private readonly RelayGatewayClient           $gatewayClient,
-        private readonly NostrRelayPool               $relayPool,
-        private readonly UserRelayListService         $userRelayListService,
-        private readonly EventRepository              $eventRepository,
-        private readonly EntityManagerInterface       $entityManager,
-        private readonly ProfileEventIngestionService $profileIngestionService,
-        private readonly LoggerInterface              $logger,
-        private readonly EventIngestionListener       $eventIngestionListener,
-        private readonly bool                         $gatewayEnabled = false,
+        private readonly RelayGatewayClient   $gatewayClient,
+        private readonly NostrRelayPool       $relayPool,
+        private readonly UserRelayListService $userRelayListService,
+        private readonly LoggerInterface      $logger,
+        private readonly bool                 $gatewayEnabled = false,
     ) {}
 
     public function __invoke(SyncUserEventsMessage $message): void
@@ -139,12 +148,12 @@ class SyncUserEventsHandler
             'event_count' => count($rawEvents),
         ]);
 
-        $persisted = $this->persistEvents($rawEvents, $pubkey);
+        $forwarded = $this->forwardToLocalRelay($rawEvents, $pubkey);
 
         $this->logger->info('SyncUserEventsHandler: sync complete', [
             'pubkey'      => substr($pubkey, 0, 8) . '...',
             'received'    => count($rawEvents),
-            'persisted'   => $persisted,
+            'forwarded'   => $forwarded,
         ]);
     }
 
@@ -247,7 +256,6 @@ class SyncUserEventsHandler
                     $id    = $event->id ?? null;
                     if ($id && !isset($seenIds[$id])) {
                         $seenIds[$id] = true;
-                        // Convert stdClass → array for uniform handling in persistEvents()
                         $events[] = json_decode(json_encode($event), true);
                     }
                 }
@@ -264,37 +272,46 @@ class SyncUserEventsHandler
     }
 
     // -------------------------------------------------------------------------
-    // Persistence
+    // Forwarding to local relay
     // -------------------------------------------------------------------------
 
     /**
-     * Persist raw events that don't already exist in the database.
-     * Triggers profile projection updates for profile-related kinds.
+     * Forward raw events to the local strfry relay via WebSocket EVENT messages.
      *
-     * @param array<int, array> $rawEvents
-     * @return int Number of newly persisted events
+     * Events pushed to strfry become available to:
+     *  - Subscription workers (articles, media, magazines) that persist relevant kinds to the DB
+     *  - On-demand service methods (UserProfileService, SocialEventService) that query
+     *    the local relay as a fallback when the DB has no record
+     *  - Any REQ query against the local relay
+     *
+     * This decouples the sync handler from direct DB writes and the ORM,
+     * matching the relay gateway's forwardEventsToLocalRelay() pattern.
+     *
+     * @param array<int, array> $rawEvents Raw event arrays
+     * @param string            $pubkey    Expected author pubkey (for sanity filtering)
+     * @return int Number of events successfully forwarded
      */
-    private function persistEvents(array $rawEvents, string $pubkey): int
+    private function forwardToLocalRelay(array $rawEvents, string $pubkey): int
     {
-        $persisted = 0;
-        $batchSize = 50;
-        $batch     = 0;
+        $localRelayUrl = $this->relayPool->getLocalRelay();
+        if ($localRelayUrl === null) {
+            $this->logger->warning('SyncUserEventsHandler: no local relay configured, cannot forward events', [
+                'pubkey'      => substr($pubkey, 0, 8) . '...',
+                'event_count' => count($rawEvents),
+            ]);
+            return 0;
+        }
 
-        // Collect all event IDs in this batch to skip a SELECT per event
-        $incomingIds = array_filter(array_column($rawEvents, 'id'));
-        $existingIds = $this->eventRepository->findExistingIds($incomingIds);
-
+        // Deduplicate and filter to this user's events only
+        $unique = [];
         foreach ($rawEvents as $rawEvent) {
             if (!is_array($rawEvent)) {
                 continue;
             }
-
-            $eventId = $rawEvent['id'] ?? null;
-            if (!$eventId || isset($existingIds[$eventId])) {
-                continue; // Already in DB — skip
+            $id = $rawEvent['id'] ?? null;
+            if ($id === null || isset($unique[$id])) {
+                continue;
             }
-
-            // Validate the event belongs to this user (sanity check)
             if (($rawEvent['pubkey'] ?? '') !== $pubkey) {
                 $this->logger->debug('SyncUserEventsHandler: skipping event from unexpected pubkey', [
                     'expected' => substr($pubkey, 0, 8),
@@ -302,93 +319,68 @@ class SyncUserEventsHandler
                 ]);
                 continue;
             }
+            $unique[$id] = $rawEvent;
+        }
 
+        if (empty($unique)) {
+            return 0;
+        }
+
+        // Open a single WebSocket connection to strfry and push all events
+        try {
+            $relay = new Relay($localRelayUrl);
+            $client = $relay->getClient();
+            if (method_exists($client, 'setTimeout')) {
+                $client->setTimeout(10);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('SyncUserEventsHandler: failed to connect to local relay', [
+                'relay' => $localRelayUrl,
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
+
+        $forwarded = 0;
+        $failed = 0;
+        $kindCounts = [];
+
+        foreach ($unique as $event) {
             try {
-                $entity = $this->buildEntity($rawEvent);
-                $this->entityManager->persist($entity);
+                $client->text(json_encode(['EVENT', $event]));
+                $forwarded++;
 
-                // Update graph layer tables (uses DBAL, not ORM — safe before flush)
-                try {
-                    $this->eventIngestionListener->processEvent($entity);
-                } catch (\Throwable) {}
-
-                $persisted++;
-                $batch++;
-
-                // Flush in batches to avoid large memory spikes
-                if ($batch >= $batchSize) {
-                    $this->entityManager->flush();
-                    $batch = 0;
-                    $this->triggerProjections($rawEvents, $pubkey);
-                }
+                $kind = $event['kind'] ?? 0;
+                $kindCounts[$kind] = ($kindCounts[$kind] ?? 0) + 1;
             } catch (\Throwable $e) {
-                $this->logger->warning('SyncUserEventsHandler: failed to persist event', [
-                    'event_id' => $eventId,
-                    'kind'     => $rawEvent['kind'] ?? '?',
-                    'error'    => $e->getMessage(),
-                ]);
+                $failed++;
+                if ($failed === 1) {
+                    $this->logger->warning('SyncUserEventsHandler: failed to forward event to local relay', [
+                        'event_id' => substr($event['id'] ?? '', 0, 12),
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+                // Connection likely dead — stop trying this batch
+                break;
             }
         }
 
-        // Final flush
-        if ($batch > 0) {
-            $this->entityManager->flush();
+        // Best-effort disconnect
+        try {
+            $client->disconnect();
+        } catch (\Throwable) {}
+
+        if ($forwarded > 0) {
+            $this->logger->info('SyncUserEventsHandler: forwarded events to local relay', [
+                'relay'       => $localRelayUrl,
+                'forwarded'   => $forwarded,
+                'failed'      => $failed,
+                'total'       => count($unique),
+                'kind_counts' => $kindCounts,
+            ]);
         }
 
-        // Trigger profile projections once for all persisted events
-        if ($persisted > 0) {
-            $this->triggerProjections($rawEvents, $pubkey);
-        }
-
-        return $persisted;
-    }
-
-    private function buildEntity(array $raw): Event
-    {
-        $entity = new Event();
-        $entity->setId($raw['id']);
-        $entity->setKind((int) ($raw['kind'] ?? 0));
-        $entity->setPubkey($raw['pubkey'] ?? '');
-        $entity->setContent($raw['content'] ?? '');
-        $entity->setCreatedAt((int) ($raw['created_at'] ?? time()));
-        $entity->setTags($raw['tags'] ?? []);
-        $entity->setSig($raw['sig'] ?? '');
-        $entity->extractAndSetDTag();
-
-        return $entity;
-    }
-
-    /**
-     * Notify ProfileEventIngestionService about any profile-related events
-     * (kind 0, kind 10002) so projection updates fire asynchronously.
-     *
-     * @param array<int, array> $rawEvents
-     */
-    private function triggerProjections(array $rawEvents, string $pubkey): void
-    {
-        // Build lightweight Event stubs — ProfileEventIngestionService only
-        // needs getKind() and getPubkey() to decide whether to dispatch.
-        $profileKinds = [
-            KindsEnum::METADATA->value,
-            KindsEnum::RELAY_LIST->value,
-        ];
-
-        $profileEvents = [];
-        foreach ($rawEvents as $raw) {
-            if (!is_array($raw)) {
-                continue;
-            }
-            if (in_array((int) ($raw['kind'] ?? -1), $profileKinds, true)) {
-                // Re-use the entity builder — cheap since these are rare kinds
-                try {
-                    $profileEvents[] = $this->buildEntity($raw);
-                } catch (\Throwable) {}
-            }
-        }
-
-        if (!empty($profileEvents)) {
-            $this->profileIngestionService->handleBatchEventIngestion($profileEvents);
-        }
+        return $forwarded;
     }
 }
 
