@@ -6,11 +6,13 @@ namespace App\MessageHandler;
 
 use App\Enum\KindsEnum;
 use App\Message\SyncUserEventsMessage;
+use App\Message\WarmFollowsRelayPoolMessage;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayGatewayClient;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
@@ -94,6 +96,7 @@ class SyncUserEventsHandler
         private readonly RelayGatewayClient   $gatewayClient,
         private readonly NostrRelayPool       $relayPool,
         private readonly UserRelayListService $userRelayListService,
+        private readonly MessageBusInterface  $messageBus,
         private readonly LoggerInterface      $logger,
         private readonly bool                 $gatewayEnabled = false,
     ) {}
@@ -149,6 +152,20 @@ class SyncUserEventsHandler
         ]);
 
         $forwarded = $this->forwardToLocalRelay($rawEvents, $pubkey);
+
+        // Warm the follows relay pool now that the kind 3 event is in the DB.
+        // This runs on async_low_priority so it won't block further processing.
+        try {
+            $this->messageBus->dispatch(new WarmFollowsRelayPoolMessage($pubkey));
+            $this->logger->debug('SyncUserEventsHandler: dispatched follows relay pool warming', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('SyncUserEventsHandler: follows pool warm dispatch failed', [
+                'pubkey' => substr($pubkey, 0, 8) . '...',
+                'error'  => $e->getMessage(),
+            ]);
+        }
 
         $this->logger->info('SyncUserEventsHandler: sync complete', [
             'pubkey'      => substr($pubkey, 0, 8) . '...',

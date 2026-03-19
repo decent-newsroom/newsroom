@@ -227,27 +227,129 @@ final class KindBundles
 
 ---
 
-### Phase 4: Local Relay First for Followed Authors
+### Phase 4: Per-User Follows Relay Pool
 
-**Problem:** When articles from followed authors aren't in the DB, the system fetches from external relays. But strfry already mirrors articles (kind 30023) from major relays.
+**Problem:** When articles from followed authors aren't in the DB, each author's content must be fetched from their *own* declared relays (kind 10002 write relays). As Nostr decentralizes, followed authors increasingly publish to niche relays not on the app's default list. The old "local relay first" idea doesn't hold — strfry's `ingest` stream only subscribes to a handful of major relays.
 
-**Solution:** For follows/interests content, query the local strfry relay first before going to external relays.
+Fetching content per-author is also expensive: for a user following 100 authors, each needing a relay list resolution + content fetch, the system would need 100+ separate relay connections.
 
-**Files to modify:**
+**Solution:** Build a **per-user consolidated follows relay pool** — a deduplicated, health-scored set of relay URLs covering all followed authors' write relays. This pool is:
+- **Built** when the follows list is resolved (login sync or on-demand)
+- **Cached** in Redis with a **30-day TTL**, keyed to the kind 3 event ID
+- **Reusable** across all follow-feed fetches for that user
+- **Rebuilt only** when the follows list event ID changes (follow/unfollow)
 
-1. **`src/Service/Nostr/ArticleFetchService.php`**
-   - In `fetchForPubkey()`, when the caller is building a follows feed:
-     - Query local relay only (via `$this->nostrDefaultRelay`)
-     - If results found, return them without hitting external relays
-     - Only fall back to external relays if local relay returns nothing
-   - Add a `bool $localOnly = false` parameter or create a separate `fetchFromLocal()` method
+The key insight: instead of asking "which relays does author X use?" 100 times, batch-resolve all followed authors' relay lists in one step, deduplicate, rank by health score, and cache the result. Then use this pool for a single combined REQ with `authors: [all followed pubkeys]` and `kinds: [30023]`.
 
-2. **`src/Controller/Reader/HomeFeedController.php`**
-   - The follows tab already queries the DB. If DB has results, no relay call is made.
-   - The issue is when articles are *missing* from DB. In that case, dispatching `FetchAuthorArticlesMessage` could prefer local relay.
-   - Add a note that the local relay should be the first-choice source for articles from followed authors.
+#### Event-ID-keyed cache invalidation
 
-**Expected impact:** Reduces external relay traffic for common follow-feed scenarios. Most articles from followed authors are already in strfry via the `ingest` stream.
+Kind 3 (follows) is a replaceable event — there is exactly one latest event per pubkey. The event ID changes only when the user publishes a new follows list (follow/unfollow). By storing the event ID alongside the cached pool, the service can skip the entire expensive rebuild on every access:
+
+1. Read the cached pool from Redis
+2. Look up the current kind 3 event ID from the DB (a single indexed query, very cheap)
+3. If the cached `follows_event_id` matches → return the cached relays (cache hit)
+4. If it differs → the follows list changed, rebuild the pool
+5. If no cache exists → first build, construct from scratch
+
+This makes a 30-day TTL safe. The pool only rebuilds when the follows list actually changes. For most users who follow/unfollow infrequently, the pool is built once and reused for weeks.
+
+**Architecture:**
+
+```
+Login → follows list resolved (kind 3, event ID: abc123)
+                                          ↓
+                               check Redis: follows_relay_pool:{user_pubkey}
+                                          ↓
+                    ┌─── cache hit + event ID matches ───→ return cached relays
+                    │
+                    └─── cache miss or event ID changed ──→ rebuild:
+                               batch-resolve kind 10002 for all followed pubkeys
+                               (DB first, then network for misses)
+                                          ↓
+                               extract write relay URLs from all relay lists
+                               deduplicate, filter invalid, rank by health
+                                          ↓
+                               cache as follows_relay_pool:{user_pubkey}
+                               with follows_event_id: abc123
+                               TTL: 30 days
+                                          ↓
+                               use for all follows-feed content fetches
+```
+
+**Data model (Redis):**
+```
+Key:   follows_relay_pool:{user_hex_pubkey}
+Value: JSON {
+    relays: string[],             // deduplicated, health-ranked relay URLs
+    follows_event_id: string,     // kind 3 event ID that produced this pool
+    built_at: int,                // unix timestamp of last build
+    follows_count: int,           // number of followed pubkeys at build time
+    relay_list_coverage: int      // how many of those pubkeys had a resolved relay list
+}
+TTL:   2592000 (30 days)
+```
+
+The `follows_event_id` is the invalidation key. On each access, the service compares it against the current kind 3 event ID from the DB. If they match, the cache is still valid regardless of age. The 30-day TTL is a hard backstop — if a user never logs in again, the entry eventually expires and frees memory.
+
+**Files to create/modify:**
+
+1. **Create `src/Service/Nostr/FollowsRelayPoolService.php`**
+   - `getPoolForUser(string $userPubkey): string[]` — Redis-first with event-ID validation:
+     1. Read cached pool from Redis
+     2. Look up current kind 3 event ID from `EventRepository::findLatestByPubkeyAndKind()`
+     3. If cached `follows_event_id` matches current → return cached relays
+     4. If mismatch or miss → call `buildPool()`, cache result with current event ID
+   - `buildPool(string $userPubkey, string $followsEventId): string[]` — the actual builder:
+     1. Get follows list (kind 3) from DB — extract pubkeys from p-tags
+     2. Batch-resolve relay lists (kind 10002) for all followed pubkeys:
+        - DB batch query: `EventRepository::findLatestRelayListsByPubkeys(string[] $pubkeys)`
+        - For any pubkeys without a DB relay list, query profile relays in chunks of 50
+     3. Extract write relay URLs from all resolved relay lists
+     4. Deduplicate
+     5. Filter out invalid/unreachable URLs (`UserRelayListService::isValidRelay()`)
+     6. Sort by health score (`RelayHealthStore::getHealthScore()`)
+     7. Cap at a reasonable limit (e.g., top 20 relays by health)
+     8. Cache in Redis with `follows_event_id`, 30-day TTL
+   - `invalidate(string $userPubkey): void` — clears the cached pool (explicit invalidation)
+   - `warmPool(string $userPubkey): void` — async-safe builder for Messenger dispatch
+
+2. **Create `src/Message/WarmFollowsRelayPoolMessage.php`**
+   - Dispatched after `SyncUserEventsHandler` completes (the follows list is now in DB)
+   - Contains `userPubkey` (hex)
+   - Routed to `async_low_priority` transport
+
+3. **Create `src/MessageHandler/WarmFollowsRelayPoolHandler.php`**
+   - Calls `FollowsRelayPoolService::warmPool()`
+   - Runs after login sync to proactively build the pool
+
+4. **Modify `src/MessageHandler/SyncUserEventsHandler.php`**
+   - After forwarding events to strfry, dispatch `WarmFollowsRelayPoolMessage`
+
+5. **Modify `src/Controller/Reader/HomeFeedController.php`**
+   - In the follows tab, after resolving followed pubkeys, use `FollowsRelayPoolService::getPoolForUser()` to get the relay pool
+   - When dispatching `FetchAuthorContentMessage` or building a combined follows feed fetch, pass the pool relays instead of per-author relay resolution
+
+6. **Add `EventRepository::findLatestRelayListsByPubkeys(array $pubkeys): array`**
+   - Batch query: `SELECT * FROM event WHERE kind = 10002 AND pubkey IN (:pubkeys) ORDER BY created_at DESC`
+   - Returns `array<string, Event>` keyed by pubkey (latest per pubkey)
+   - This is the critical batch operation that avoids N individual relay list lookups
+
+**Expected impact:**
+- Follows feed fetch goes from N relay connections (one per followed author) to 1–3 connections (to the top-ranked relays from the consolidated pool)
+- Relay list resolution goes from N individual lookups to 1 batch DB query + network fetch only for uncached pubkeys
+- Pool is reused across all follow-feed page loads until the user's follows list actually changes — with a 30-day TTL, a user who follows 100 authors and doesn't change their follows list avoids ~1,440 pool rebuilds per month vs. a 30-minute TTL
+
+**Interaction with other phases:**
+- Phase 1 (user context fetch) populates the logged-in user's own relay list — separate concern
+- Phase 3 (author content fetch) benefits from the pool when dispatching follow-feed fetches
+- Phase 5 (strfry expansion) increases DB hits for relay lists, reducing network fallback during pool building
+
+**Risks:**
+- The consolidated pool may grow large (100 follows × 5 relays each = up to 500 unique relays). Capping at 20–30 top relays by health score keeps it manageable. Authors on very niche relays may be underrepresented.
+- Building the pool requires batch-resolving relay lists, which could be slow on first login if many followed pubkeys have no DB record. The async dispatch via Messenger mitigates this — the user sees cached data while the pool builds in the background.
+- The event-ID comparison requires a single DB lookup per access (`findLatestByPubkeyAndKind` for kind 3). This is a lightweight indexed query. If even this is too frequent, the event ID could also be cached in the user session or in a short-TTL Redis key, but the DB query is fast enough that this is unlikely to matter.
+- Followed authors may change their own relay lists without the user's kind 3 event changing. This is a known limitation — the pool reflects relay lists as they were at build time. The 30-day hard TTL provides a backstop. A future enhancement could also track relay list staleness per followed author and selectively re-resolve the oldest entries.
+- Some relays in the pool may require AUTH. When the relay gateway is enabled, pool relays should be warm connections. Without the gateway, direct WebSocket fallback works but may be slower for AUTH-gated relays.
 
 ---
 
@@ -323,24 +425,37 @@ final class KindBundles
 | **Combined** | — | **1 REQ** (Phase 3) |
 | **Total relay round-trips** | **3–6** | **1** |
 
+### Follows Feed Content
+
+| Data | Before | After (Phase 4) |
+|------|--------|------------------|
+| Follows list (3) | 1 REQ (relay fallback) | DB (Phase 1 populates) |
+| Per-author relay list (10002) | N × 1 REQ (one per followed author) | 1 batch DB query + network for misses |
+| Per-author articles (30023) | N × 1 REQ (one per author relay set) | 1 REQ to consolidated pool |
+| **Total relay round-trips** | **2N + 1** (N authors) | **1–2** |
+
 ---
 
 ## 5. Implementation Order & Dependencies
 
 ```
-Phase 0: KindBundles class (no dependencies)
+Phase 0: KindBundles class (no dependencies)              ✅ Done
     │
-    ├── Phase 1: User Context combined fetch
-    │       └── Phase 4: Local relay first (depends on Phase 1 patterns)
+    ├── Phase 1: User Context combined fetch               ✅ Done
     │
-    ├── Phase 2: Article Social combined fetch (independent of Phase 1)
+    ├── Phase 2: Article Social combined fetch              ✅ Done
     │
-    ├── Phase 3: Author Content consolidated (independent of Phase 1/2)
+    ├── Phase 3: Author Content consolidated                ✅ Done
     │
-    └── Phase 5: strfry router expansion (independent, deploy anytime)
+    ├── Phase 5: strfry router expansion                    ✅ Done
+    │
+    └── Phase 4: Per-user follows relay pool                ✅ Done
+            depends on Phase 1 (follows list in DB)
+            depends on Phase 3 (combined content fetch)
+            depends on Phase 5 (relay lists cached locally)
 ```
 
-Phases 1, 2, 3 can be implemented in parallel. Phase 5 can be deployed at any time (it's a config change).
+All phases are implemented.
 
 ---
 

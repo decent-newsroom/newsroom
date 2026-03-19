@@ -77,6 +77,8 @@ framework:
             'App\Message\GatewayWarmConnectionsMessage': async_low_priority
             # Batch event sync on login - fetch user's own events via relay gateway
             'App\Message\SyncUserEventsMessage': async_low_priority
+            # Follows relay pool warming - build consolidated relay pool after login sync
+            'App\Message\WarmFollowsRelayPoolMessage': async_low_priority
             # --- Profiles: heavy background work, isolated to avoid blocking ---
             # Profile updates - relay calls, can be slow
             'App\Message\UpdateProfileProjectionMessage': async_profiles

@@ -610,4 +610,59 @@ class EventRepository extends ServiceEntityRepository
 
         return (int)$conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchOne();
     }
+
+    /**
+     * Batch-fetch the latest kind 10002 (relay list) event for each pubkey.
+     *
+     * Returns one Event per pubkey (the newest), keyed by pubkey hex.
+     * Uses a window function to pick the latest per pubkey in a single query.
+     *
+     * @param string[] $pubkeys Hex pubkeys
+     * @return array<string, Event> pubkey => latest relay list Event
+     */
+    public function findLatestRelayListsByPubkeys(array $pubkeys): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+
+        // Use DISTINCT ON (PostgreSQL) to get the latest event per pubkey in one pass
+        $placeholders = [];
+        $params = [];
+        foreach (array_values($pubkeys) as $i => $pk) {
+            $key = 'pk' . $i;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $pk;
+        }
+
+        $sql = sprintf(
+            'SELECT DISTINCT ON (e.pubkey) e.*
+             FROM event e
+             WHERE e.kind = 10002
+               AND e.pubkey IN (%s)
+             ORDER BY e.pubkey, e.created_at DESC',
+            implode(', ', $placeholders)
+        );
+
+        $rows = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $event = new Event();
+            $event->setId($row['id']);
+            $event->setKind((int) $row['kind']);
+            $event->setPubkey($row['pubkey']);
+            $event->setContent($row['content'] ?? '');
+            $event->setCreatedAt((int) $row['created_at']);
+            $tags = $row['tags'] ?? '[]';
+            $event->setTags(is_string($tags) ? json_decode($tags, true) ?? [] : (array) $tags);
+            $event->setSig($row['sig'] ?? '');
+
+            $result[$row['pubkey']] = $event;
+        }
+
+        return $result;
+    }
 }

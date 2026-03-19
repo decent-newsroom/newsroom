@@ -10,6 +10,7 @@ In progress...
 - Added `SocialEventService::fetchArticleSocial()` — fetches all article social context (reactions, comments, labels, zap requests, zap receipts, highlights) in a single relay REQ filtered by article coordinate, reducing 2 relay round-trips to 1.
 - Consolidated `FetchAuthorContentHandler` to send a single combined REQ for all content types instead of one per type. Events are routed to the correct processing logic via `AuthorContentType::fromKind()`. Reduces 3–6 relay round-trips to 1 per author content fetch.
 - Expanded strfry router `user_data` stream to ingest all user context kinds (0, 3, 10000, 10001, 10002, 10003, 10015, 10020, 10063) from multiple relay sources, enabling local-first DB lookups for user profile data.
+- Added `FollowsRelayPoolService` — builds a per-user consolidated relay pool from all followed authors' declared write relays (kind 10002). The pool is cached in Redis with a 30-day TTL, keyed to the kind 3 event ID, and only rebuilds when the follows list actually changes. Pool is warmed asynchronously after login sync via `WarmFollowsRelayPoolMessage`. Reduces follows-feed relay connections from N (one per followed author) to the top 25 health-ranked relays from the consolidated pool.
 
 
 ## v0.0.16

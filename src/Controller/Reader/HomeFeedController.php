@@ -12,6 +12,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\FollowPackService;
 use App\Service\MutedPubkeysService;
+use App\Service\Nostr\FollowsRelayPoolService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
@@ -34,11 +35,12 @@ class HomeFeedController extends AbstractController
         EntityManagerInterface $em,
         NostrClient $nostrClient,
         FollowPackService $followPackService,
+        FollowsRelayPoolService $followsRelayPoolService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
             'latest' => $this->latestTab($redisCacheService, $viewStore, $mutedPubkeysService, $articleSearchFactory),
-            'follows' => $this->followsTab($em, $nostrClient, $redisCacheService, $logger),
+            'follows' => $this->followsTab($em, $nostrClient, $redisCacheService, $followsRelayPoolService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
@@ -105,6 +107,7 @@ class HomeFeedController extends AbstractController
         EntityManagerInterface $em,
         NostrClient $nostrClient,
         RedisCacheService $redisCacheService,
+        FollowsRelayPoolService $followsRelayPoolService,
         LoggerInterface $logger,
     ): Response {
         /** @var User|null $user */
@@ -145,6 +148,14 @@ class HomeFeedController extends AbstractController
         $articles = [];
         $authorsMetadata = [];
 
+        // Resolve the consolidated relay pool for this user's follows
+        $followsRelayPool = [];
+        try {
+            $followsRelayPool = $followsRelayPoolService->getPoolForUser($pubkeyHex);
+        } catch (\Throwable $e) {
+            $logger->warning('Failed to get follows relay pool', ['error' => $e->getMessage()]);
+        }
+
         if (!empty($followedPubkeys)) {
             $articleRepo = $em->getRepository(Article::class);
             $qb = $articleRepo->createQueryBuilder('a');
@@ -177,6 +188,7 @@ class HomeFeedController extends AbstractController
             'authorsMetadata' => $authorsMetadata,
             'isLoggedIn' => true,
             'followCount' => count($followedPubkeys),
+            'followsRelayPool' => $followsRelayPool,
         ]);
     }
 
