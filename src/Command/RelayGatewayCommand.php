@@ -7,6 +7,7 @@ namespace App\Command;
 use App\Service\Nostr\GatewayConnection;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
+use App\Message\PersistGatewayEventsMessage;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -17,6 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Uuid;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -37,14 +39,20 @@ use WebSocket\Message\Text;
  *   relay:control        — lifecycle commands: warm, close (Redis Streams)
  *   relay:responses:{id} — per-correlation-ID response streams
  *
- * Connection model (on-demand):
- *   All connections are opened lazily when a query or publish first targets a
- *   relay, then kept alive for an idle TTL (default 5 min for shared, 30 min
- *   for user). No persistent connections are held at startup. User warm
- *   commands pre-open connections for AUTH-gated relays before the first
- *   request arrives.
+ * Connection model (on-demand + persistent):
+ *   System-configured relays (content, profile, project, local from
+ *   RelayRegistry) are opened on first use and kept alive permanently —
+ *   they are never idle-closed and are auto-reconnected when they drop.
+ *   This avoids the overhead of repeatedly opening/closing connections
+ *   to relays that are queried frequently.
+ *
+ *   Other shared connections are opened lazily when a query or publish
+ *   first targets a relay, then kept alive for an idle TTL (default 15 min).
+ *   User warm commands pre-open connections for AUTH-gated relays before
+ *   the first request arrives.
  *
  *   On-demand: keyed by relay URL — opened when needed, closed after idle
+ *   Persistent: keyed by relay URL — opened when needed, never idle-closed
  *   User:      keyed by relay::pubkey — opened via warm, authed as user's npub
  */
 #[AsCommand(
@@ -63,8 +71,8 @@ class RelayGatewayCommand extends Command
     private int $maxConnectionsPerUser = 5;
     private int $maxTotalUserConnections = 200;
     private int $maxSharedConnections = 20;
-    private int $userIdleTimeout = 1800; // 30 minutes
-    private int $onDemandIdleTimeout = 300; // 5 minutes for on-demand shared connections
+    private int $userIdleTimeout = 7200; // 2 hours
+    private int $onDemandIdleTimeout = 900; // 15 minutes for on-demand shared connections
     private int $authTimeout = 60; // seconds
 
     /** @var array<string, GatewayConnection> Keyed by connection key */
@@ -165,6 +173,7 @@ class RelayGatewayCommand extends Command
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly HubInterface $hub,
+        private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -225,8 +234,8 @@ class RelayGatewayCommand extends Command
             ->addOption('max-user-conns', null, InputOption::VALUE_OPTIONAL, 'Max connections per user', '5')
             ->addOption('max-total-user-conns', null, InputOption::VALUE_OPTIONAL, 'Max total user connections', '200')
             ->addOption('max-shared-conns', null, InputOption::VALUE_OPTIONAL, 'Max on-demand shared connections', '20')
-            ->addOption('user-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'User connection idle timeout (seconds)', '1800')
-            ->addOption('on-demand-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'On-demand shared connection idle timeout (seconds)', '300')
+            ->addOption('user-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'User connection idle timeout (seconds)', '7200')
+            ->addOption('on-demand-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'On-demand shared connection idle timeout (seconds)', '900')
             ->addOption('auth-timeout', null, InputOption::VALUE_OPTIONAL, 'AUTH roundtrip timeout (seconds)', '60')
             ->addOption('time-limit', null, InputOption::VALUE_OPTIONAL, 'Max runtime in seconds before graceful restart (0=unlimited)', '3600');
     }
@@ -264,6 +273,13 @@ class RelayGatewayCommand extends Command
         // relay, kept alive for the on-demand idle TTL, then closed. User warm
         // commands pre-open authenticated connections for AUTH-gated relays.
         $io->success('Gateway started (on-demand connections). Entering event loop.');
+
+        // Write initial heartbeat so the status command detects us immediately
+        try {
+            $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
+            $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
+            $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
+        } catch (\RedisException) {}
 
         // Main event loop
         $lastMaintenanceCheck = 0;
@@ -317,6 +333,9 @@ class RelayGatewayCommand extends Command
         // Graceful shutdown
         $io->section('Shutting down gateway...');
         $this->closeAllConnections();
+        try {
+            $this->redis->del('relay_gateway:heartbeat');
+        } catch (\RedisException) {}
         $io->success('Gateway stopped.');
 
         return Command::SUCCESS;
@@ -463,6 +482,16 @@ class RelayGatewayCommand extends Command
             $conn->connectedAt = time();
             $conn->lastActivity = time();
             $conn->reconnectAttempts = 0;
+
+            // Mark shared connections to system-configured relays (content,
+            // profile, project, local) as persistent — they are never
+            // idle-closed and are auto-reconnected when they drop.
+            if ($conn->isShared() && $this->relayRegistry->isConfiguredRelay($relayUrl)) {
+                $conn->persistent = true;
+                $this->logger->info('Gateway: connection marked as persistent (configured relay)', [
+                    'relay' => $relayUrl,
+                ]);
+            }
 
             $this->connections[$key] = $conn;
 
@@ -633,10 +662,32 @@ class RelayGatewayCommand extends Command
             $relayUrls,
         )));
 
-        $this->logger->debug('Gateway: handling query', [
+        // Summarise the filter for logging
+        $filterSummary = [];
+        if (isset($filter['kinds'])) {
+            $filterSummary['kinds'] = $filter['kinds'];
+        }
+        if (isset($filter['authors'])) {
+            $filterSummary['authors'] = count($filter['authors']) . ' author(s)';
+        }
+        if (isset($filter['ids'])) {
+            $filterSummary['ids'] = count($filter['ids']) . ' id(s)';
+        }
+        if (isset($filter['limit'])) {
+            $filterSummary['limit'] = $filter['limit'];
+        }
+        foreach ($filter as $k => $v) {
+            if (str_starts_with($k, '#') && is_array($v)) {
+                $filterSummary[$k] = count($v) . ' value(s)';
+            }
+        }
+
+        $this->logger->info('Gateway: query request', [
             'correlation_id' => $correlationId,
-            'relays' => $relayUrls,
-            'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
+            'relays'         => $relayUrls,
+            'filter'         => $filterSummary,
+            'timeout'        => $timeout,
+            'pubkey'         => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
         ]);
 
         $deadline = time() + $timeout;
@@ -718,6 +769,12 @@ class RelayGatewayCommand extends Command
                 // Send immediately — optimistic for 'none' auth status
                 $conn->getClient()->text($reqPayload);
                 $conn->touch();
+
+                $this->logger->info('Gateway: REQ sent', [
+                    'relay'           => $relayUrl,
+                    'subscription_id' => $subscriptionId,
+                    'correlation_id'  => $correlationId,
+                ]);
 
             } catch (\Throwable $e) {
                 $errors[$relayUrl] = $e->getMessage();
@@ -1105,6 +1162,16 @@ class RelayGatewayCommand extends Command
                             if (isset($decoded[2]) && is_array($decoded[2])) {
                                 $this->pendingQueries[$subId]['events'][] = $decoded[2];
                                 $this->healthStore->recordEventReceived($conn->relayUrl);
+
+                                $eventData = $decoded[2];
+                                $this->logger->info('Gateway: EVENT received', [
+                                    'relay'           => $conn->relayUrl,
+                                    'subscription_id' => $subId,
+                                    'event_id'        => substr($eventData['id'] ?? '', 0, 12),
+                                    'kind'            => $eventData['kind'] ?? '?',
+                                    'author'          => substr($eventData['pubkey'] ?? '', 0, 8),
+                                    'count'           => count($this->pendingQueries[$subId]['events']),
+                                ]);
                             }
                         }
                         break;
@@ -1112,6 +1179,13 @@ class RelayGatewayCommand extends Command
                     case 'EOSE':
                         $subId = $decoded[1] ?? null;
                         if ($subId && isset($this->pendingQueries[$subId]) && !$this->pendingQueries[$subId]['done']) {
+                            $eventCount = count($this->pendingQueries[$subId]['events']);
+                            $this->logger->info('Gateway: EOSE received', [
+                                'relay'           => $conn->relayUrl,
+                                'subscription_id' => $subId,
+                                'correlation_id'  => $this->pendingQueries[$subId]['correlationId'],
+                                'events_received' => $eventCount,
+                            ]);
                             $this->completeQuery($subId, $conn);
                         }
                         break;
@@ -1289,7 +1363,7 @@ class RelayGatewayCommand extends Command
                 );
             }
 
-            $this->logger->debug('Gateway: publish OK received', [
+            $this->logger->info('Gateway: publish OK received', [
                 'relay'    => $relayUrl,
                 'event_id' => substr($eventId ?? '', 0, 16),
                 'accepted' => $accepted,
@@ -1343,7 +1417,7 @@ class RelayGatewayCommand extends Command
                 continue;
             }
 
-            $this->logger->debug('Gateway: query subscription timed out', [
+            $this->logger->warning('Gateway: query subscription timed out', [
                 'subscription_id' => $subId,
                 'correlation_id'  => $pending['correlationId'],
                 'relay'           => $pending['relayUrl'],
@@ -1376,7 +1450,7 @@ class RelayGatewayCommand extends Command
                 continue;
             }
 
-            $this->logger->debug('Gateway: publish timed out waiting for OK', [
+            $this->logger->warning('Gateway: publish timed out waiting for OK', [
                 'pending_key'    => $pendingKey,
                 'correlation_id' => $pending['correlationId'],
                 'relay'          => $pending['relayUrl'],
@@ -1824,6 +1898,12 @@ class RelayGatewayCommand extends Command
 
     private function writeResponse(string $correlationId, array $events, array $errors): void
     {
+        $this->logger->info('Gateway: query complete', [
+            'correlation_id' => $correlationId,
+            'total_events'   => count($events),
+            'errors'         => !empty($errors) ? $errors : null,
+        ]);
+
         try {
             $responseKey = self::RESPONSE_PREFIX . $correlationId;
             $this->redis->xAdd($responseKey, '*', [
@@ -1838,6 +1918,9 @@ class RelayGatewayCommand extends Command
                 'error' => $e->getMessage(),
             ]);
         }
+
+        // Dispatch async persistence for received events
+        $this->dispatchEventPersistence($events);
     }
 
     /**
@@ -1921,11 +2004,60 @@ class RelayGatewayCommand extends Command
     }
 
     // =========================================================================
+    // Event persistence dispatch
+    // =========================================================================
+
+    /**
+     * Dispatch events for async persistence to the database.
+     *
+     * Deduplicates by event ID (same event can arrive from multiple relays)
+     * and dispatches a Messenger message so the worker persists them.
+     *
+     * @param array<int, array<string, mixed>> $events Raw event arrays
+     */
+    private function dispatchEventPersistence(array $events): void
+    {
+        if (empty($events)) {
+            return;
+        }
+
+        // Deduplicate by event ID — same event may arrive from multiple relays
+        $unique = [];
+        foreach ($events as $event) {
+            $id = $event['id'] ?? null;
+            if ($id !== null && !isset($unique[$id])) {
+                $unique[$id] = $event;
+            }
+        }
+
+        if (empty($unique)) {
+            return;
+        }
+
+        try {
+            $this->messageBus->dispatch(new PersistGatewayEventsMessage(array_values($unique)));
+        } catch (\Throwable $e) {
+            $this->logger->warning('Gateway: failed to dispatch event persistence', [
+                'count' => count($unique),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    // =========================================================================
     // Maintenance
     // =========================================================================
 
     private function performMaintenance(): void
     {
+        // Write heartbeat + cursor positions so the status command can detect
+        // whether we're alive and whether we've caught up with the streams.
+        try {
+            $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
+            $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
+            $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
+        } catch (\RedisException) {}
+
         // Close idle OR dead user connections
         foreach ($this->connections as $key => $conn) {
             if (!$conn->isUserConnection()) {
@@ -1949,11 +2081,50 @@ class RelayGatewayCommand extends Command
             }
         }
 
-        // Close idle or dead on-demand shared connections.
+        // Handle persistent shared connections: auto-reconnect dead ones,
+        // never idle-close them.
+        foreach ($this->connections as $key => $conn) {
+            if (!$conn->isShared() || !$conn->persistent) {
+                continue;
+            }
+            if (!$conn->isConnected()) {
+                $delay = $conn->getReconnectDelay();
+                $this->logger->info('Gateway: reconnecting dead persistent connection', [
+                    'relay'              => $conn->relayUrl,
+                    'reconnect_attempts' => $conn->reconnectAttempts,
+                    'delay_seconds'      => $delay,
+                ]);
+                // Remove the dead connection and re-open
+                $relayUrl = $conn->relayUrl;
+                $this->closeConnection($key);
+                try {
+                    $newConn = $this->openConnection($relayUrl, null);
+                    $newConn->reconnectAttempts = $conn->reconnectAttempts + 1;
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Gateway: failed to reconnect persistent connection', [
+                        'relay' => $relayUrl,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            // Persistent connections are never idle-closed — skip timeout check
+            // Send a keepalive ping if idle for more than 45 seconds to prevent
+            // the remote relay or intermediate proxies from dropping the socket.
+            if ($conn->isConnected() && $conn->getIdleSeconds() > 45) {
+                try {
+                    $conn->getClient()->ping();
+                    $conn->touch();
+                } catch (\Throwable) {
+                    $conn->markDisconnected();
+                }
+            }
+        }
+
+        // Close idle or dead on-demand (non-persistent) shared connections.
         // On-demand connections are opened lazily and closed after the idle TTL.
         // No reconnection — they'll be re-opened when next needed.
         foreach ($this->connections as $key => $conn) {
-            if (!$conn->isShared()) {
+            if (!$conn->isShared() || $conn->persistent) {
                 continue;
             }
             if (!$conn->isConnected()) {
@@ -1974,18 +2145,23 @@ class RelayGatewayCommand extends Command
 
         // Log stats
         $sharedCount = 0;
+        $persistentCount = 0;
         $userCount = 0;
         foreach ($this->connections as $conn) {
             if ($conn->isShared()) {
                 $sharedCount++;
+                if ($conn->persistent) {
+                    $persistentCount++;
+                }
             } else {
                 $userCount++;
             }
         }
 
         $this->logger->info('Gateway: maintenance complete', [
-            'on_demand_connections' => $sharedCount,
-            'user_connections'      => $userCount,
+            'persistent_connections' => $persistentCount,
+            'on_demand_connections'  => $sharedCount - $persistentCount,
+            'user_connections'       => $userCount,
             'pending_auths'         => count($this->pendingAuths),
             'pending_queries'       => count($this->pendingQueries),
             'pending_publishes'     => count($this->pendingPublishes),

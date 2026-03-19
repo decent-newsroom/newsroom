@@ -200,6 +200,30 @@ class RelayRegistry
     }
 
     /**
+     * Check whether the given URL is one of the system-configured relays
+     * (local, project, content, profile, or signer).
+     *
+     * Used by the relay gateway to decide whether a shared connection should
+     * be persistent (never idle-closed, auto-reconnected on drop).
+     */
+    public function isConfiguredRelay(string $url): bool
+    {
+        $normalized = rtrim(strtolower($url), '/');
+        foreach ($this->relays as $purpose => $urls) {
+            // Skip USER purpose — those are runtime-added, not system-configured
+            if ($purpose === RelayPurpose::USER->value) {
+                continue;
+            }
+            foreach ($urls as $configuredUrl) {
+                if (rtrim(strtolower($configuredUrl), '/') === $normalized) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Fallback relay list: LOCAL or PROJECT (never both).
      *
      * LOCAL and PROJECT are the same physical strfry instance. When LOCAL is

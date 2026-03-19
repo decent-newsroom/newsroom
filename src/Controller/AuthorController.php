@@ -532,6 +532,7 @@ class AuthorController extends AbstractController
                 $curation->getId(),
                 $missingEventIds,
                 array_values(array_unique($relayHints)),
+                $pubkeyHex,
             ));
         }
 

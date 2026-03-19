@@ -13,7 +13,8 @@ The `app:run-workers` command manages all background processes in a single super
 | Media | `app:subscribe-local-media` | Subscribe to local relay for media (kinds 20, 21, 22) |
 | Magazines | `app:subscribe-local-magazines` | Subscribe to local relay for magazine indices (kind 30040) |
 | Profiles | `app:profile-refresh-worker` | Periodic profile metadata updates |
-| Gateway | `app:relay-gateway` | Persistent relay connections (if `RELAY_GATEWAY_ENABLED=true`) |
+
+The **Relay Gateway** (`app:relay-gateway`) runs as a separate Docker service. See [relay-gateway-service.md](../Nostr/relay-gateway-service.md).
 
 ### Usage
 
@@ -37,7 +38,6 @@ docker compose exec php bin/console app:run-workers --without-media --without-pr
 | `--without-magazines` | false | Disable magazine hydration |
 | `--without-profiles` | false | Disable profile refresh |
 | `--without-messenger` | false | Disable messenger consumer |
-| `--without-gateway` | false | Disable relay gateway |
 | `--profile-interval` | 600 | Profile refresh interval (seconds) |
 | `--profile-batch-size` | 100 | Profiles per refresh batch |
 

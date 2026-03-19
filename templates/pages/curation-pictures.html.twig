@@ -36,10 +36,15 @@
 
                 {% for event in mediaEvents %}
                     {% if event.notFound is defined and event.notFound %}
-                        <div class="curation-picture-grid__placeholder">
+                        <div class="curation-picture-grid__placeholder curation-picture-grid__placeholder--missing"
+                             {% if event.id is defined and event.id %}data-missing-event-id="{{ event.id }}"{% endif %}>
                             <div>
-                                <p class="mb-1 small">Not synced</p>
-                                <small>{{ event.id ?? event.coordinate ?? 'Unknown' }}</small>
+                                {% if hasPendingMediaSync %}
+                                    <p class="mb-1 small">⏳ {{ 'curation.syncing'|trans|default('Syncing…') }}</p>
+                                {% else %}
+                                    <p class="mb-1 small">⚠ {{ 'curation.not_found'|trans|default('Not found on relays') }}</p>
+                                {% endif %}
+                                <code class="small" title="{{ event.id ?? event.coordinate ?? '' }}">{{ (event.id ?? event.coordinate ?? 'Unknown')|slice(0, 16) }}…</code>
                             </div>
                         </div>
                     {% else %}

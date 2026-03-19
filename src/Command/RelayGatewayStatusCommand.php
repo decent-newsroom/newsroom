@@ -80,18 +80,58 @@ class RelayGatewayStatusCommand extends Command
 
         // ── Stream lengths ────────────────────────────────────────────────────
         $io->section('Redis Streams');
+        $cursorKeys = [
+            self::REQUEST_STREAM => 'relay_gateway:cursor:requests',
+            self::CONTROL_STREAM => 'relay_gateway:cursor:control',
+        ];
         $table = [];
         foreach ([self::REQUEST_STREAM, self::CONTROL_STREAM] as $stream) {
             try {
                 $len  = $this->redis->xLen($stream);
                 $info = $this->redis->xInfo('STREAM', $stream);
-                $last = $info['last-generated-id'] ?? 'n/a';
-                $table[] = [$stream, $len, $last];
+                $lastId = $info['last-generated-id'] ?? 'n/a';
+
+                // Read the gateway's cursor to determine if it's caught up
+                $cursor = $this->redis->get($cursorKeys[$stream]);
+                if ($cursor) {
+                    // Count entries after the cursor to find actual pending
+                    $pending = 0;
+                    try {
+                        // xRange from cursor+1 (exclusive) to end, limited
+                        $afterCursor = $this->redis->xRange($stream, $this->incrementStreamId($cursor), '+', 100);
+                        $pending = $afterCursor ? count($afterCursor) : 0;
+                    } catch (\Throwable) {}
+
+                    $status = $pending === 0 ? '✓ caught up' : sprintf('%d pending', $pending);
+                } else {
+                    $status = '— (no cursor)';
+                }
+
+                $table[] = [$stream, $len . ' (buffer)', $lastId, $status];
             } catch (\Throwable) {
-                $table[] = [$stream, 'n/a (does not exist)', 'n/a'];
+                $table[] = [$stream, 'n/a', 'n/a', '—'];
             }
         }
-        $io->table(['Stream', 'Length', 'Last ID'], $table);
+        $io->table(['Stream', 'Length', 'Last ID', 'Gateway'], $table);
+
+        // ── Gateway heartbeat (is it consuming?) ──────────────────────────────
+        $io->section('Gateway Process');
+        try {
+            $heartbeat = $this->redis->get('relay_gateway:heartbeat');
+            if ($heartbeat) {
+                $ago = time() - (int) $heartbeat;
+                if ($ago < 120) {
+                    $io->text(sprintf('<info>✓ Gateway alive</info> — last heartbeat %ds ago', $ago));
+                } else {
+                    $io->text(sprintf('<error>✗ Gateway stale</error> — last heartbeat %ds ago (>120s)', $ago));
+                }
+            } else {
+                $io->text('<error>✗ No gateway heartbeat found.</error> Is the relay-gateway service running?');
+                $io->text('  Start with: <comment>docker compose --profile gateway up -d</comment>');
+            }
+        } catch (\Throwable $e) {
+            $io->text('<error>' . $e->getMessage() . '</error>');
+        }
 
         // ── Last 5 request messages ───────────────────────────────────────────
         $io->section('Last 5 Request Messages');
@@ -140,7 +180,7 @@ class RelayGatewayStatusCommand extends Command
         try {
             $keys = $this->redis->keys(self::RESPONSE_PREFIX . '*');
             if (empty($keys)) {
-                $io->text('<comment>None.</comment>');
+                $io->text('<comment>None (normal — response streams are transient, 60s TTL).</comment>');
             } else {
                 $rows = [];
                 foreach (array_slice($keys, 0, 10) as $key) {
@@ -155,24 +195,27 @@ class RelayGatewayStatusCommand extends Command
         }
 
         // ── Health store summary ──────────────────────────────────────────────
-        $io->section('Health Store (relay:health:*)');
+        $io->section('Health Store (relay_health:*)');
         try {
-            $keys = $this->redis->keys('relay:health:*');
+            $keys = $this->redis->keys('relay_health:*');
             if (empty($keys)) {
                 $io->text('<comment>No relay health data.</comment>');
             } else {
                 $rows = [];
                 foreach ($keys as $key) {
                     $data = $this->redis->hGetAll($key);
-                    $url  = str_replace('relay:health:', '', $key);
+                    $url  = str_replace('relay_health:', '', $key);
                     $rows[] = [
                         $url,
                         $data['auth_required'] ?? '0',
                         $data['consecutive_failures'] ?? '0',
                         $data['auth_status'] ?? 'unknown',
+                        isset($data['last_success']) ? date('H:i:s', (int) $data['last_success']) : '—',
+                        isset($data['last_event_received']) ? date('H:i:s', (int) $data['last_event_received']) : '—',
+                        isset($data['avg_latency_ms']) ? round((float) $data['avg_latency_ms']) . 'ms' : '—',
                     ];
                 }
-                $io->table(['Relay', 'AuthRequired', 'Failures', 'AuthStatus'], $rows);
+                $io->table(['Relay', 'AuthReq', 'Failures', 'AuthStatus', 'LastSuccess', 'LastEvent', 'Latency'], $rows);
             }
         } catch (\Throwable $e) {
             $io->text('<error>' . $e->getMessage() . '</error>');
@@ -244,11 +287,26 @@ class RelayGatewayStatusCommand extends Command
 
         if (!$got) {
             $io->error('No response from gateway within 8s. Is app:relay-gateway running?');
-            $io->text('Check: docker compose logs worker | grep relay-gateway');
+            $io->text('Check: docker compose logs relay-gateway');
             return Command::FAILURE;
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Increment a Redis stream ID by 1 sequence number so xRange excludes
+     * the given ID (i.e. returns only entries strictly after it).
+     *
+     * Stream IDs are "{timestamp_ms}-{seq}". We increment the seq part.
+     */
+    private function incrementStreamId(string $id): string
+    {
+        $parts = explode('-', $id, 2);
+        if (count($parts) !== 2) {
+            return $id;
+        }
+        return $parts[0] . '-' . ((int) $parts[1] + 1);
     }
 }
 

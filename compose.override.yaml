@@ -85,7 +85,60 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
-      # Use HTTP for internal Docker network (no TLS issues), the php service listens on port 80 internally
+      MERCURE_PUBLIC_URL: http://php/.well-known/mercure
+    depends_on:
+      php:
+        condition: service_started
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  worker-relay:
+    volumes:
+      - ./:/app
+      - /app/vendor
+    environment:
+      APP_ENV: dev
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+    depends_on:
+      php:
+        condition: service_started
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  worker-profiles:
+    volumes:
+      - ./:/app
+      - /app/vendor
+    environment:
+      APP_ENV: dev
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
+    depends_on:
+      php:
+        condition: service_started
+      database:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  relay-gateway:
+    volumes:
+      - ./:/app
+      - /app/vendor
+    environment:
+      APP_ENV: dev
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       MERCURE_PUBLIC_URL: http://php/.well-known/mercure
     depends_on:
       php:

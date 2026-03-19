@@ -21,7 +21,7 @@ framework:
                     delete_after_reject: false
             
             
-            # Low-priority transport for profile updates - processed slower to not block main queue
+            # Low-priority transport for login warmup, gateway persistence, relay lists
             async_low_priority:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -36,6 +36,26 @@ framework:
                     max_retries: 1
                     delay: 5000
                     multiplier: 2
+
+            # Dedicated transport for heavy profile refresh work.
+            # Profile batch updates make relay calls (25 pubkeys per batch) and
+            # can take tens of seconds each, starving faster messages on the
+            # low-priority queue. Isolating them here lets gateway persistence,
+            # login warmup, and relay list messages process without waiting.
+            async_profiles:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: '%kernel.environment%:messenger:async_profiles'
+                    group: '%kernel.environment%-profiles'
+                    consumer: 'consumer-%kernel.environment%-profiles'
+                    stream_max_entries: 5000
+                    redeliver_timeout: 900
+                    delete_after_ack: false
+                    delete_after_reject: false
+                retry_strategy:
+                    max_retries: 1
+                    delay: 10000
+                    multiplier: 2
             
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             # failed: 'doctrine://default?queue_name=failed'
@@ -43,22 +63,27 @@ framework:
 
         routing:
             # Route your messages to the transports
+            # --- High priority: fast, user-facing content fetches ---
             'App\Message\FetchCommentsMessage': async
             'App\Message\FetchAuthorArticlesMessage': async
             'App\Message\FetchAuthorContentMessage': async
             'App\Message\FetchMediaEventsMessage': async
             'App\Message\ProjectMagazineMessage': async
-            # Profile updates go to low priority queue - less urgent
-            'App\Message\UpdateProfileProjectionMessage': async_low_priority
-            'App\Message\BatchUpdateProfileProjectionMessage': async_low_priority
-            # Profile cache revalidation - background refresh for stale-while-revalidate
-            'App\Message\RevalidateProfileCacheMessage': async_low_priority
+            # --- Low priority: login warmup, gateway persistence, relay lists ---
             # Relay list warming on login - fetch from network and persist to DB
             'App\Message\UpdateRelayListMessage': async_low_priority
             # Gateway connection warming - open persistent WebSocket connections for user
             'App\Message\GatewayWarmConnectionsMessage': async_low_priority
             # Batch event sync on login - fetch user's own events via relay gateway
             'App\Message\SyncUserEventsMessage': async_low_priority
+            # Persist events received by the relay gateway to the local database
+            'App\Message\PersistGatewayEventsMessage': async_low_priority
+            # --- Profiles: heavy background work, isolated to avoid blocking ---
+            # Profile updates - relay calls, can be slow
+            'App\Message\UpdateProfileProjectionMessage': async_profiles
+            'App\Message\BatchUpdateProfileProjectionMessage': async_profiles
+            # Profile cache revalidation - background refresh for stale-while-revalidate
+            'App\Message\RevalidateProfileCacheMessage': async_profiles
 
 # when@test:
 #    framework:

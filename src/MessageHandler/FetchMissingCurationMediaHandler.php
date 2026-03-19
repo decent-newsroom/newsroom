@@ -9,6 +9,8 @@ use App\Message\FetchMissingCurationMediaMessage;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayRegistry;
+use App\Service\Nostr\UserRelayListService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -24,6 +26,9 @@ final class FetchMissingCurationMediaHandler
         private readonly EntityManagerInterface $entityManager,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly HubInterface $hub,
+        private readonly UserRelayListService $userRelayListService,
+        private readonly RelayRegistry $relayRegistry,
+        private readonly \Redis $redis,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -44,15 +49,39 @@ final class FetchMissingCurationMediaHandler
             return;
         }
 
+        // Build relay list: author's declared relays + hint relays + local relay
+        $relays = $this->buildRelayList($message);
+
+        $this->logger->info('Fetching missing curation media events', [
+            'curation_id' => $message->curationId,
+            'missing_count' => count($missingIds),
+            'missing_ids' => array_map(fn(string $id) => substr($id, 0, 12) . '…', $missingIds),
+            'relay_count' => count($relays),
+            'relays' => $relays,
+            'author_pubkey' => $message->authorPubkey ? substr($message->authorPubkey, 0, 12) . '…' : null,
+            'hint_relays' => $message->relays,
+        ]);
+
+        // Store fetch metadata in Redis so the sync-status endpoint can report it
+        $this->recordFetchAttempt($message->curationId, $missingIds, $relays);
+
         try {
-            $fetchedEvents = $this->nostrClient->getEventsByIds($missingIds, $message->relays);
+            $fetchedEvents = $this->nostrClient->getEventsByIds($missingIds, $relays);
         } catch (\Throwable $e) {
             $this->logger->error('Failed to fetch missing curation media events', [
                 'curation_id' => $message->curationId,
+                'relays_tried' => $relays,
                 'error' => $e->getMessage(),
             ]);
             return;
         }
+
+        $this->logger->info('Curation media fetch completed', [
+            'curation_id' => $message->curationId,
+            'fetched_count' => count($fetchedEvents),
+            'fetched_ids' => array_map(fn(string $id) => substr($id, 0, 12) . '…', array_keys($fetchedEvents)),
+            'still_missing' => count($missingIds) - count($fetchedEvents),
+        ]);
 
         if ($fetchedEvents === []) {
             return;
@@ -97,6 +126,67 @@ final class FetchMissingCurationMediaHandler
         }
 
         $this->publish($message->curationId, $persisted);
+    }
+
+    /**
+     * Build a comprehensive relay list for fetching missing media:
+     *   1. Board author's write relays (kind 10002) — most likely source
+     *   2. Relay hints from e-tags in the curation event
+     *   3. Local relay as baseline
+     */
+    private function buildRelayList(FetchMissingCurationMediaMessage $message): array
+    {
+        $relays = [];
+
+        // 1. Author's declared relays (the board creator's write relays)
+        if ($message->authorPubkey !== '') {
+            try {
+                $authorRelayList = $this->userRelayListService->getRelayList($message->authorPubkey);
+                // Prefer write relays (author likely published media to these)
+                $authorRelays = !empty($authorRelayList['write'])
+                    ? $authorRelayList['write']
+                    : ($authorRelayList['all'] ?? []);
+                $relays = array_merge($relays, $authorRelays);
+            } catch (\Throwable $e) {
+                $this->logger->debug('Could not resolve author relay list for curation media fetch', [
+                    'author_pubkey' => substr($message->authorPubkey, 0, 12) . '…',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // 2. Hint relays from e-tags
+        if (!empty($message->relays)) {
+            $relays = array_merge($relays, $message->relays);
+        }
+
+        // 3. Ensure local relay is included
+        $localRelay = $this->relayRegistry->getLocalRelay();
+        if ($localRelay !== null && !in_array($localRelay, $relays, true)) {
+            array_unshift($relays, $localRelay);
+        }
+
+        return array_values(array_unique($relays));
+    }
+
+    /**
+     * Store fetch attempt metadata in Redis so the sync-status endpoint can
+     * report which relays were tried and when.
+     */
+    private function recordFetchAttempt(string $curationId, array $missingIds, array $relays): void
+    {
+        try {
+            $key = sprintf('curation_sync:%s', $curationId);
+            $data = json_encode([
+                'attempted_at' => date('c'),
+                'timestamp' => time(),
+                'missing_ids' => $missingIds,
+                'relays_tried' => $relays,
+            ]);
+            $this->redis->setex($key, 3600, $data); // 1 hour TTL
+        } catch (\Throwable) {
+            // Best-effort — don't fail the fetch
+        }
     }
 
     /** @param Event[] $persisted */

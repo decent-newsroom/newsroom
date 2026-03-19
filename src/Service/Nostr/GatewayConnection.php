@@ -25,6 +25,13 @@ class GatewayConnection
     public int $reconnectAttempts = 0;
     public bool $connected = false;
 
+    /**
+     * Persistent connections are never idle-closed. Dead persistent connections
+     * are automatically reconnected during maintenance. Used for main configured
+     * relays (content, profile, project, local) that are queried frequently.
+     */
+    public bool $persistent = false;
+
     /** The swentel Relay object — wraps the WebSocket client */
     public ?Relay $relay = null;
 

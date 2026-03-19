@@ -12,6 +12,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class CurationSyncController extends AbstractController
 {
+    public function __construct(
+        private readonly \Redis $redis,
+    ) {}
+
     #[Route('/api/curation/{curationId}/media-sync-status', name: 'api_curation_media_sync_status', methods: ['GET'])]
     public function status(string $curationId, EventRepository $eventRepository): JsonResponse
     {
@@ -38,11 +42,22 @@ final class CurationSyncController extends AbstractController
         );
         $missingIds = array_values(array_diff($eventIds, $foundIds));
 
+        // Read fetch attempt metadata from Redis
+        $fetchAttempt = null;
+        try {
+            $raw = $this->redis->get(sprintf('curation_sync:%s', $curationId));
+            if ($raw) {
+                $fetchAttempt = json_decode($raw, true);
+            }
+        } catch (\Throwable) {}
+
         return new JsonResponse([
             'pending' => $missingIds !== [],
             'missingCount' => count($missingIds),
             'foundCount' => count($foundIds),
             'totalCount' => count($eventIds),
+            'missingIds' => $missingIds,
+            'fetchAttempt' => $fetchAttempt,
         ]);
     }
 }

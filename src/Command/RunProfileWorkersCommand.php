@@ -5,27 +5,29 @@ namespace App\Command;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
 /**
- * Messenger consumer worker for async and async_low_priority queues.
+ * Dedicated worker for profile-related background tasks.
  *
- * Runs two Symfony Messenger consumer processes:
- *   - async: high-priority content fetches (articles, comments, media, magazines)
- *   - async_low_priority: gateway persistence, login warmup, relay lists
+ * Runs as its own Docker service (worker-profiles) so that heavy relay work
+ * (batch metadata fetches for 25 pubkeys at a time) cannot starve the main
+ * worker's messenger queues.
  *
- * Relay subscriptions run in a separate service (worker-relay) via app:run-relay-workers.
- * Profile work runs in worker-profiles via app:run-profile-workers.
- *
- * Both consumers run in parallel and are automatically restarted on failure.
+ * Subprocesses:
+ *   - Profile refresh daemon: periodically finds stale profiles and dispatches
+ *     BatchUpdateProfileProjectionMessage to the async_profiles queue.
+ *   - Messenger consumer (async_profiles): processes batch profile updates,
+ *     individual profile projections, and cache revalidation messages.
  */
 #[AsCommand(
-    name: 'app:run-workers',
-    description: 'Run messenger consumers (async + async_low_priority)'
+    name: 'app:run-profile-workers',
+    description: 'Run profile refresh daemon and async_profiles messenger consumer'
 )]
-class RunWorkersCommand extends Command
+class RunProfileWorkersCommand extends Command
 {
     private array $processes = [];
     private bool $shouldStop = false;
@@ -33,15 +35,28 @@ class RunWorkersCommand extends Command
     protected function configure(): void
     {
         $this
+            ->addOption(
+                'profile-interval',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Profile refresh interval in seconds',
+                '600'
+            )
+            ->addOption(
+                'profile-batch-size',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Profile refresh batch size',
+                '100'
+            )
             ->setHelp(
-                'Runs Symfony Messenger consumers for the async and async_low_priority queues.' . "\n\n" .
-                'Consumers:' . "\n" .
-                '  - async: High-priority content fetches (articles, comments, media, magazines)' . "\n" .
-                '  - async_low_priority: Gateway persistence, login warmup, relay lists' . "\n\n" .
-                'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
-                'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
-                'The relay gateway runs as a separate Docker service (relay-gateway).' . "\n" .
-                'Both consumers restart automatically on failure.'
+                'Runs the profile refresh daemon and the async_profiles messenger consumer.' . "\n\n" .
+                'Workers:' . "\n" .
+                '  - Profile refresh: Finds stale profiles and dispatches batch update messages' . "\n" .
+                '  - Messenger consumer (async_profiles): Processes profile batch updates,' . "\n" .
+                '    individual profile projections, and cache revalidation' . "\n\n" .
+                'This command is designed to run as the worker-profiles Docker service,' . "\n" .
+                'isolated from the main worker so heavy relay calls cannot block other queues.'
             );
     }
 
@@ -54,29 +69,33 @@ class RunWorkersCommand extends Command
             pcntl_signal(SIGINT, [$this, 'handleShutdownSignal']);
         }
 
-        $io->title('Messenger Workers Manager');
-        $io->info('Starting messenger consumers...');
+        $io->title('Profile Workers Manager');
+        $io->info('Starting profile background workers...');
         $io->newLine();
 
+        $interval = $input->getOption('profile-interval');
+        $batchSize = $input->getOption('profile-batch-size');
+
         $workers = [
-            'messenger' => [
+            'profile-refresh' => [
                 'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async',
-                    '-vv', '--memory-limit=256M', '--time-limit=3600',
+                    'php', 'bin/console', 'app:profile-refresh-worker',
+                    '--interval=' . $interval,
+                    '--batch-size=' . $batchSize,
                 ],
-                'description' => 'Messenger consumer (async: articles, comments, media, magazines)',
+                'description' => 'Profile refresh daemon',
             ],
-            'messenger-low' => [
+            'messenger-profiles' => [
                 'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async_low_priority',
+                    'php', 'bin/console', 'messenger:consume', 'async_profiles',
                     '-vv', '--memory-limit=128M', '--time-limit=3600',
                 ],
-                'description' => 'Messenger consumer (async_low_priority: gateway persistence, login warmup)',
+                'description' => 'Messenger consumer (async_profiles)',
             ],
         ];
 
         // Display enabled workers
-        $io->section('Enabled Consumers');
+        $io->section('Enabled Workers');
         foreach ($workers as $name => $config) {
             $io->writeln(sprintf('  ✓ <info>%s</info>: %s', ucfirst($name), $config['description']));
         }
@@ -87,8 +106,8 @@ class RunWorkersCommand extends Command
             $this->startWorker($name, $config, $io);
         }
 
-        $io->success('All messenger consumers started. Monitoring...');
-        $io->info('Press Ctrl+C to stop all consumers gracefully.');
+        $io->success('All profile workers started. Monitoring...');
+        $io->info('Press Ctrl+C to stop all workers gracefully.');
         $io->newLine();
 
         // Monitor and auto-restart
@@ -101,7 +120,7 @@ class RunWorkersCommand extends Command
 
                     $exitCode = $process->getExitCode();
                     $io->warning(sprintf(
-                        'Consumer "%s" stopped (exit code: %d). Restarting...',
+                        'Worker "%s" stopped (exit code: %d). Restarting...',
                         $name,
                         $exitCode
                     ));
@@ -119,7 +138,7 @@ class RunWorkersCommand extends Command
         }
 
         // Graceful shutdown
-        $io->section('Shutting down consumers...');
+        $io->section('Shutting down profile workers...');
         foreach ($this->processes as $name => $process) {
             if ($process->isRunning()) {
                 $io->writeln(sprintf('Stopping %s...', $name));
@@ -127,7 +146,7 @@ class RunWorkersCommand extends Command
             }
         }
 
-        $io->success('All messenger consumers stopped successfully.');
+        $io->success('All profile workers stopped successfully.');
         return Command::SUCCESS;
     }
 
@@ -154,3 +173,4 @@ class RunWorkersCommand extends Command
         $this->shouldStop = true;
     }
 }
+

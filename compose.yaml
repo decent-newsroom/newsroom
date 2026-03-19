@@ -15,11 +15,11 @@
 #   - php: FrankenPHP (Symfony app + Caddy web server + Mercure)
 #   - database: PostgreSQL database
 #   - cron: Scheduled tasks (background jobs)
-#   - worker: Consolidated worker that runs all background processes:
-#       • Messenger consumer (async job processing)
-#       • Article hydration (subscribe to relay for articles)
-#       • Media hydration (subscribe to relay for media)
-#       • Profile refresh (periodic profile metadata updates)
+#   - worker: Messenger consumers (async + async_low_priority queues)
+#   - worker-relay: Local relay subscriptions (articles, media, magazines)
+#   - worker-profiles: Profile refresh daemon + async_profiles queue
+#   - relay-gateway: Persistent relay connection pool with NIP-42 AUTH
+#       (activated via --profile gateway or COMPOSE_PROFILES=gateway)
 #   - strfry: Nostr relay (article/event caching)
 #
 # =============================================================================
@@ -119,11 +119,8 @@ services:
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-false}
 
-  # Consolidated worker that runs all background processes:
-  # - Messenger consumer (async jobs)
-  # - Article hydration (subscribe to relay for articles)
-  # - Media hydration (subscribe to relay for media)
-  # - Profile refresh (periodic profile metadata updates)
+  # Messenger consumers: async (content fetches) + async_low_priority (gateway
+  # persistence, login warmup, relay lists). No relay connections here.
   worker:
       image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
       working_dir: /app
@@ -132,8 +129,99 @@ services:
           - php
           - bin/console
           - app:run-workers
+      restart: unless-stopped
+      depends_on:
+          php:
+              condition: service_started
+          database:
+              condition: service_healthy
+      environment:
+            APP_ENV: ${APP_ENV:-dev}
+            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
+            NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
+            MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
+            REDIS_HOST: ${REDIS_HOST:-redis}
+            REDIS_PORT: ${REDIS_PORT:-6379}
+            REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+            MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
+            MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+
+  # Local relay subscription workers: maintains persistent WebSocket connections
+  # to the local strfry relay, hydrating articles (kind 30023), media (kinds
+  # 20/21/22), and magazines (kind 30040) into the database. Isolated so that
+  # long-lived relay connections don't compete with messenger consumers.
+  worker-relay:
+      image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
+      working_dir: /app
+      entrypoint: ["docker-entrypoint"]
+      command:
+          - php
+          - bin/console
+          - app:run-relay-workers
+      restart: unless-stopped
+      depends_on:
+          php:
+              condition: service_started
+          database:
+              condition: service_healthy
+          strfry:
+              condition: service_started
+      environment:
+            APP_ENV: ${APP_ENV:-dev}
+            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
+            NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
+            REDIS_HOST: ${REDIS_HOST:-redis}
+            REDIS_PORT: ${REDIS_PORT:-6379}
+            REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+
+  # Dedicated profile worker: runs the profile refresh daemon (finds stale
+  # profiles, dispatches batch update messages) and the async_profiles messenger
+  # consumer (processes batch metadata fetches, individual projections, cache
+  # revalidation). Isolated from the main worker because each batch makes relay
+  # calls for 25 pubkeys and can take tens of seconds.
+  worker-profiles:
+      image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
+      working_dir: /app
+      entrypoint: ["docker-entrypoint"]
+      command:
+          - php
+          - bin/console
+          - app:run-profile-workers
           - --profile-interval=14400
           - --profile-batch-size=50
+      restart: unless-stopped
+      depends_on:
+          php:
+              condition: service_started
+          database:
+              condition: service_healthy
+      environment:
+            APP_ENV: ${APP_ENV:-dev}
+            DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}}
+            NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
+            MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
+            REDIS_HOST: ${REDIS_HOST:-redis}
+            REDIS_PORT: ${REDIS_PORT:-6379}
+            REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+
+  # Persistent relay connection gateway with NIP-42 AUTH support.
+  # Maintains WebSocket connections to external Nostr relays on demand,
+  # handles AUTH challenges via Mercure roundtrip signing, and serves as
+  # the single point of relay communication for all FrankenPHP request workers.
+  #
+  # Activate with: docker compose --profile gateway up -d
+  # Requires: RELAY_GATEWAY_ENABLED=true on the php service
+  relay-gateway:
+      image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
+      profiles: [gateway]
+      working_dir: /app
+      entrypoint: ["docker-entrypoint"]
+      command:
+          - php
+          - bin/console
+          - app:relay-gateway
+          - -vv
+          - --time-limit=3600
       restart: unless-stopped
       depends_on:
           php:
@@ -152,7 +240,7 @@ services:
             REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
             MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
             MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-            RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
+            RELAY_GATEWAY_ENABLED: "true"
 
 ###> strfry relay ###
   strfry:
