@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## v0.0.17
-In progress...
+Fetch in batches.
 
 - Added automatic role promotion: any npub that publishes an article receives `ROLE_WRITER`, and anyone publishing a reading list or magazine receives `ROLE_EDITOR`. Introduced `UserRolePromoter` service to centralize role-assignment logic. Promotion is applied in the article editor, `ArticleEventProjector` (relay-ingested articles), `MagazineWizardController` (reading list/magazine publishing), and `GenericEventProjector` (relay-ingested kind 30040 events). Only users with an existing account (have logged in) are promoted; unknown npubs are silently skipped.
 - Fixed `Maximum execution time of 10 seconds exceeded` error when loading articles via `/article/naddr1...` links. Increased `set_time_limit` from 10s to 25s to accommodate two sequential gateway relay queries (primary + fallback, each up to 10s). The controller now checks the database first and skips the relay round-trip entirely when the article is already saved.
