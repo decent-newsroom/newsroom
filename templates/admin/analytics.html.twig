@@ -11,12 +11,22 @@
                 <h2>Article Publish Activity</h2>
                 <ul class="analytics-stats">
                     <li><strong>Last hour:</strong> {{ articlePublishStats.last_hour|number_format }}</li>
-                    <li><strong>Last 24 hours:</strong> {{ articlePublishStats.last_24_hours|number_format  }}</li>
-                    <li><strong>Last 7 days:</strong> {{ articlePublishStats.last_7_days|number_format  }}</li>
-                    <li><strong>Last 30 days:</strong> {{ articlePublishStats.last_30_days|number_format  }}</li>
-                    <li><strong>All time:</strong> {{ articlePublishStats.all_time|number_format  }}</li>
+                    <li><strong>Last 24 hours:</strong> {{ articlePublishStats.last_24_hours|number_format }}</li>
+                    <li><strong>Last 7 days:</strong> {{ articlePublishStats.last_7_days|number_format }}</li>
+                    <li><strong>Last 30 days:</strong> {{ articlePublishStats.last_30_days|number_format }}</li>
+                    <li><strong>All time:</strong> {{ articlePublishStats.all_time|number_format }}</li>
                 </ul>
-                <p class="analytics-note">Number of times articles were published via the API endpoint</p>
+                <p class="analytics-note">Tracked from recorded <code>/api/article/publish</code> requests. These API utility calls are excluded from the generic visit totals below.</p>
+            </div>
+
+            <div class="analytics-card">
+                <h2>Referrer Traffic</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last 24 hours:</strong> {{ referredVisitsLast24Hours|number_format }}</li>
+                    <li><strong>Last 7 days:</strong> {{ referredVisitsLast7Days|number_format }}</li>
+                    <li><strong>All time:</strong> {{ totalReferredVisits|number_format }}</li>
+                </ul>
+                <p class="analytics-note">Tracked visits with a non-empty HTTP referer header. Generic visitor metrics exclude <code>/api/*</code> utility traffic.</p>
             </div>
 
             <div class="analytics-card">
@@ -49,7 +59,7 @@
                     <li><strong>Last 7 days:</strong> {{ uniqueVisitorsLast7Days }}</li>
                     <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
                 </ul>
-                <p class="analytics-note">Tracked by session ID (includes both anonymous and logged-in visitors)</p>
+                <p class="analytics-note">Tracked by visitor ID (session-based for logged-in visitors, cookie-based for anonymous visitors)</p>
             </div>
 
             <div class="analytics-card">
@@ -111,6 +121,39 @@
                 </table>
             {% else %}
                 <p>No article visits recorded in the last 24 hours.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Top Referrers (Last 30 Days)</h2>
+            {% if topReferersLast30Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                    <tr>
+                        <th>Referrer</th>
+                        <th class="text-right">Visits</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for stat in topReferersLast30Days %}
+                        {% set isHttpReferer = stat.referer starts with 'http://' or stat.referer starts with 'https://' %}
+                        <tr>
+                            <td>
+                                {% if isHttpReferer %}
+                                    <a href="{{ stat.referer }}" target="_blank" rel="noopener noreferrer" title="{{ stat.referer }}">
+                                        {{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}
+                                    </a>
+                                {% else %}
+                                    <span title="{{ stat.referer }}">{{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right">{{ stat.count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No referrer visits recorded in the last 30 days.</p>
             {% endif %}
         </div>
 
@@ -179,6 +222,7 @@
                         <tr>
                             <th>Route</th>
                             <th>Session ID</th>
+                            <th>Referrer</th>
                             <th>Visited At</th>
                         </tr>
                     </thead>
@@ -187,6 +231,20 @@
                             <tr>
                                 <td>{{ visit.route }}</td>
                                 <td><code>{{ visit.sessionId|slice(0, 12) }}...</code></td>
+                                <td>
+                                    {% if visit.referer %}
+                                        {% set isHttpReferer = visit.referer starts with 'http://' or visit.referer starts with 'https://' %}
+                                        {% if isHttpReferer %}
+                                            <a href="{{ visit.referer }}" target="_blank" rel="noopener noreferrer" title="{{ visit.referer }}">
+                                                {{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}
+                                            </a>
+                                        {% else %}
+                                            <span title="{{ visit.referer }}">{{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="analytics-note">Direct / unknown</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
                             </tr>
                         {% endfor %}
@@ -253,7 +311,7 @@
         </div>
 
         <div class="analytics-info">
-            <p>Visit tracking is automated via event listener. Session IDs track all unique visitors (both anonymous and logged-in) for accurate engagement analytics.</p>
+            <p>Visit tracking is automated via event listener. Visitor IDs cover both anonymous cookie-based visitors and logged-in session-based visitors. API requests are still recorded for endpoint-specific analytics, but generic visitor metrics exclude <code>/api/*</code> utility traffic.</p>
         </div>
     </div>
 {% endblock %}

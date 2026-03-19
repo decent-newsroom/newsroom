@@ -83,6 +83,7 @@ For **environment setup & operations** (Dockerized Symfony stack, deployment, tr
 ### Business
 - [Architecture Overview](Business/architecture-overview.md)
 - [Error Analytics](Business/error-analytics-system.md)
+- [Visitor Analytics](Business/visitor-analytics.md)
 - [Subscriptions Spec](Business/Subscriptions/subscriptions.md) — ReWire relay and scope subscriptions
 - [Submissions](Business/Submissions/submissions.md)
 

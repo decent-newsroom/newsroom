@@ -20,6 +20,12 @@ class VisitorAnalyticsController extends AbstractController
         $visitsLast24Hours = $visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
         $visitsLast7Days = $visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
 
+        // Visits with HTTP referers
+        $referredVisitsLast24Hours = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-24 hours'));
+        $referredVisitsLast7Days = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-7 days'));
+        $totalReferredVisits = $visitRepository->countVisitsWithReferer();
+        $topReferersLast30Days = $visitRepository->getTopReferers(15, new \DateTimeImmutable('-30 days'));
+
         // Most read articles in the last 24 hrs
         $topArticlesLast24Hours = $visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
 
@@ -45,23 +51,7 @@ class VisitorAnalyticsController extends AbstractController
         $recentVisitRecords = $visitRepository->getRecentVisits(10);
 
         // Unique visitors per day for the last 7 days
-        $dailyUniqueVisitorCountsLast7Days = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $day = (new \DateTimeImmutable("today"))->modify("-{$i} days");
-            $start = $day->setTime(0, 0, 0);
-            $end = $day->setTime(23, 59, 59);
-            $qb = $visitRepository->createQueryBuilder('v');
-            $qb->select('COUNT(DISTINCT v.sessionId)')
-                ->where('v.visitedAt BETWEEN :start AND :end')
-                ->andWhere('v.sessionId IS NOT NULL')
-                ->setParameter('start', $start)
-                ->setParameter('end', $end);
-            $count = (int) $qb->getQuery()->getSingleScalarResult();
-            $dailyUniqueVisitorCountsLast7Days[] = [
-                'day' => $day->format('Y-m-d'),
-                'count' => $count
-            ];
-        }
+        $dailyUniqueVisitorCountsLast7Days = $visitRepository->getDailyUniqueVisitors(7);
 
         // Article publish statistics
         $articlePublishStats = $visitRepository->getArticlePublishStats();
@@ -73,6 +63,9 @@ class VisitorAnalyticsController extends AbstractController
             'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsLast24Hours' => $visitsLast24Hours,
             'visitsLast7Days' => $visitsLast7Days,
+            'referredVisitsLast24Hours' => $referredVisitsLast24Hours,
+            'referredVisitsLast7Days' => $referredVisitsLast7Days,
+            'totalReferredVisits' => $totalReferredVisits,
             'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
             'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
             'totalUniqueVisitors' => $totalUniqueVisitors,
@@ -82,6 +75,7 @@ class VisitorAnalyticsController extends AbstractController
             'bounceRate' => $bounceRate,
             'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
             'topRoutesAllTime' => $topRoutesAllTime,
+            'topReferersLast30Days' => $topReferersLast30Days,
             'recentVisitRecords' => $recentVisitRecords,
             'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
             'topArticlesLast24Hours' => $topArticlesLast24Hours,

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Visit;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -12,6 +13,9 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class VisitRepository extends ServiceEntityRepository
 {
+    private const TRACKED_VISIT_API_ROOT = '/api';
+    private const TRACKED_VISIT_API_PREFIX = '/api/%';
+
     private ManagerRegistry $registry;
 
     public function __construct(ManagerRegistry $registry)
@@ -50,6 +54,8 @@ class VisitRepository extends ServiceEntityRepository
                ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
         }
 
+        $this->applyTrackedVisitFilters($qb);
+
         return $qb->getQuery()->getResult();
     }
 
@@ -62,6 +68,8 @@ class VisitRepository extends ServiceEntityRepository
             ->select('COUNT(v.id)')
             ->where('v.visitedAt >= :since')
             ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        $this->applyTrackedVisitFilters($qb);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
@@ -76,6 +84,8 @@ class VisitRepository extends ServiceEntityRepository
             ->where('v.visitedAt >= :since')
             ->andWhere('v.sessionId IS NOT NULL')
             ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        $this->applyTrackedVisitFilters($qb);
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
@@ -96,6 +106,8 @@ class VisitRepository extends ServiceEntityRepository
                ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
         }
 
+        $this->applyTrackedVisitFilters($qb);
+
         return $qb->getQuery()->getResult();
     }
 
@@ -108,6 +120,8 @@ class VisitRepository extends ServiceEntityRepository
             ->select('COUNT(DISTINCT v.sessionId)')
             ->where('v.sessionId IS NOT NULL');
 
+        $this->applyTrackedVisitFilters($qb);
+
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
@@ -116,10 +130,12 @@ class VisitRepository extends ServiceEntityRepository
      */
     public function getTotalVisits(): int
     {
-        return (int) $this->createQueryBuilder('v')
-            ->select('COUNT(v.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)');
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -127,11 +143,13 @@ class VisitRepository extends ServiceEntityRepository
      */
     public function getUniqueVisitors(): int
     {
-        return (int) $this->createQueryBuilder('v')
+        $qb = $this->createQueryBuilder('v')
             ->select('COUNT(DISTINCT v.sessionId)')
-            ->where('v.sessionId IS NOT NULL')
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->where('v.sessionId IS NOT NULL');
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
     }
 
     /**
@@ -144,11 +162,17 @@ class VisitRepository extends ServiceEntityRepository
         $sql = 'SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
+                AND route <> :apiRoot
+                AND route NOT LIKE :apiPrefix
                 GROUP BY day
                 ORDER BY day ASC';
         $result = $conn->executeQuery(
             $sql,
-            ['from' => $from->format('Y-m-d H:i:s')]
+            [
+                'from' => $from->format('Y-m-d H:i:s'),
+                'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+                'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+            ]
         );
         return $result->fetchAllAssociative();
     }
@@ -158,13 +182,15 @@ class VisitRepository extends ServiceEntityRepository
      */
     public function getMostPopularRoutes(int $limit = 5): array
     {
-        return $this->createQueryBuilder('v')
+        $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
             ->groupBy('v.route')
             ->orderBy('count', 'DESC')
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($limit);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
     }
 
     /**
@@ -172,12 +198,85 @@ class VisitRepository extends ServiceEntityRepository
      */
     public function getRecentVisits(int $limit = 10): array
     {
-        return $this->createQueryBuilder('v')
-            ->select('v.route, v.sessionId, v.visitedAt')
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.route, v.sessionId, v.referer, v.visitedAt')
             ->orderBy('v.visitedAt', 'DESC')
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($limit);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns the number of tracked visits that include a referer header.
+     */
+    public function countVisitsWithReferer(?\DateTimeImmutable $since = null): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)');
+
+        if ($since) {
+            $qb->where('v.visitedAt >= :since')
+                ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        $this->applyTrackedVisitFilters($qb);
+        $this->applyRefererPresenceFilter($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns the most common referers for tracked visits.
+     */
+    public function getTopReferers(int $limit = 10, ?\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.referer, COUNT(v.id) as count')
+            ->groupBy('v.referer')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($since) {
+            $qb->where('v.visitedAt >= :since')
+                ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        $this->applyTrackedVisitFilters($qb);
+        $this->applyRefererPresenceFilter($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns daily unique visitor counts for the last N days, excluding utility routes.
+     */
+    public function getDailyUniqueVisitors(int $days = 7): array
+    {
+        $result = [];
+
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $day = (new \DateTimeImmutable('today'))->modify("-{$i} days");
+            $start = $day->setTime(0, 0, 0);
+            $end = $day->setTime(23, 59, 59);
+
+            $qb = $this->createQueryBuilder('v')
+                ->select('COUNT(DISTINCT v.sessionId)')
+                ->where('v.visitedAt BETWEEN :start AND :end')
+                ->andWhere('v.sessionId IS NOT NULL')
+                ->setParameter('start', $start)
+                ->setParameter('end', $end);
+
+            $this->applyTrackedVisitFilters($qb);
+
+            $result[] = [
+                'day' => $day->format('Y-m-d'),
+                'count' => (int) $qb->getQuery()->getSingleScalarResult(),
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -202,6 +301,9 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.sessionId, COUNT(v.id) as visitCount')
             ->where('v.sessionId IS NOT NULL')
             ->groupBy('v.sessionId');
+
+        $this->applyTrackedVisitFilters($qb);
+
         $sessions = $qb->getQuery()->getResult();
         $singleVisitSessions = 0;
         $totalSessions = 0;
@@ -445,5 +547,33 @@ class VisitRepository extends ServiceEntityRepository
             'last_30_days' => $this->countZapInvoicesSince(new \DateTimeImmutable('-30 days')),
             'all_time' => $allTime,
         ];
+    }
+
+    private function applyTrackedVisitFilters(QueryBuilder $qb, string $alias = 'v'): void
+    {
+        $this->addCondition($qb, sprintf('%s.route <> :trackedVisitApiRoot', $alias));
+        $this->addCondition($qb, sprintf('%s.route NOT LIKE :trackedVisitApiPrefix', $alias));
+
+        $qb->setParameter('trackedVisitApiRoot', self::TRACKED_VISIT_API_ROOT);
+        $qb->setParameter('trackedVisitApiPrefix', self::TRACKED_VISIT_API_PREFIX);
+    }
+
+    private function applyRefererPresenceFilter(QueryBuilder $qb, string $alias = 'v'): void
+    {
+        $this->addCondition($qb, sprintf('%s.referer IS NOT NULL', $alias));
+        $this->addCondition($qb, sprintf('%s.referer <> :trackedVisitEmptyReferer', $alias));
+
+        $qb->setParameter('trackedVisitEmptyReferer', '');
+    }
+
+    private function addCondition(QueryBuilder $qb, string $condition): void
+    {
+        if (null === $qb->getDQLPart('where')) {
+            $qb->where($condition);
+
+            return;
+        }
+
+        $qb->andWhere($condition);
     }
 }

@@ -1,7 +1,12 @@
 # CHANGELOG
 
+## v0.0.17
+
+- Updated visitor analytics to exclude `/api/*` utility routes from generic visit counts while still recording API usage for endpoint analytics, and added referrer traffic summaries, top-referrer listings, and referrer details in recent visits.
+
+
 ## v0.0.16
-Feeds, walls, boards, whatever you want to call them.
+Feeds, walls, playlists, galleries, boards, whatever you want to call them.
 
 - Reworked media discovery page (`/multimedia`) into a tabbed interface with Latest, Follows, and Interests tabs, mirroring the home feed pattern. Follows and Interests tabs are disabled for anonymous users.
 - Added media follows support (kind 10020, NIP-68): fetches the user's multimedia follow list on login, with fallback to regular follows (kind 3) when no media follow list exists.

@@ -57,10 +57,8 @@ class VisitTrackingListener
         $request = $event->getRequest();
         $route = $request->getPathInfo();
 
-        foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
-            if (str_starts_with($route, $excludedRoute)) {
-                return;
-            }
+        if ($this->isExcludedRoute($route)) {
+            return;
         }
 
         try {
@@ -119,5 +117,16 @@ class VisitTrackingListener
         } catch (\Throwable $e) {
             // Never crash for analytics
         }
+    }
+
+    private function isExcludedRoute(string $route): bool
+    {
+        foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
+            if (str_starts_with($route, $excludedRoute)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
