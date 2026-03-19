@@ -1,6 +1,11 @@
 # CHANGELOG
 
 ## v0.0.17
+In progress...
+
+
+## v0.0.16
+Feeds, walls, playlists, galleries, boards, whatever you want to call them.
 
 - Fixed curation media-sync Mercure updates never reaching the browser: `FetchMissingCurationMediaMessage` was not routed to any Messenger transport, so it was handled synchronously during the HTTP request — the Mercure update was published before the page loaded and the EventSource connected. Now routed to the `async` transport so the worker processes it after the browser subscribes.
 - Switched curation media-sync updates from polling the `/api/curation/{id}/media-sync-status` endpoint to Mercure SSE: the frontend now subscribes to the Mercure topic and reloads instantly when the handler publishes persisted events, instead of polling every 2 seconds.
@@ -13,11 +18,6 @@
 - Extracted RelayGateway from the worker service into its own dedicated Docker service (`relay-gateway`), enabling independent scaling, restarts, and resource allocation for the persistent WebSocket connection pool. Activate with `docker compose --profile gateway up -d`.
 - Fixed relay gateway status command showing no health data: the status command searched for `relay:health:*` keys but `RelayHealthStore` writes to `relay_health:*` (underscore). Also added a gateway heartbeat indicator, richer health table columns (last success, last event, latency), and clarified that empty response streams are normal (transient, 60s TTL).
 - Updated visitor analytics to exclude `/api/*` utility routes from generic visit counts while still recording API usage for endpoint analytics, and added referrer traffic summaries, top-referrer listings, and referrer details in recent visits.
-
-
-## v0.0.16
-Feeds, walls, playlists, galleries, boards, whatever you want to call them.
-
 - Reworked media discovery page (`/multimedia`) into a tabbed interface with Latest, Follows, and Interests tabs, mirroring the home feed pattern. Follows and Interests tabs are disabled for anonymous users.
 - Added media follows support (kind 10020, NIP-68): fetches the user's multimedia follow list on login, with fallback to regular follows (kind 3) when no media follow list exists.
 - Added `findMediaEventsByPubkeys()` and `findNonNSFWMediaEventsByPubkeys()` to EventRepository for querying media events across multiple followed authors.
