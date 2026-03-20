@@ -6,7 +6,7 @@
 <div class="admin-dashboard">
     <h1>Groups — {{ community.name }}</h1>
 
-    <form method="post" action="{{ path('admin_chat_group_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+    <form method="post" action="{{ path('admin_chat_group_create', {communityId: community.id}) }}">
         <div class="form-group" style="margin:0;">
             <label for="name">Name</label>
             <input type="text" id="name" name="name" required placeholder="General">
@@ -15,7 +15,9 @@
             <label for="slug">Slug</label>
             <input type="text" id="slug" name="slug" required placeholder="general" pattern="[a-z0-9\-]+">
         </div>
-        <button type="submit" class="btn btn--primary">Create Group</button>
+        <div class="actions">
+            <button type="submit" class="btn btn--primary">Create Group</button>
+        </div>
     </form>
 
     <table class="admin-table">

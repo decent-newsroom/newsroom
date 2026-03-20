@@ -73,6 +73,10 @@ main {
     word-break: break-word;
 }
 
+.aside-wrapper {
+    margin-top: 90px;
+}
+
 main.static {
     margin-left: auto;
     margin-right: auto;
@@ -182,6 +186,10 @@ aside header {
     main {
         margin-top: 60px;
         padding: 0;
+    }
+
+    .aside-wrapper {
+        margin-top: 0;
     }
 
     article {

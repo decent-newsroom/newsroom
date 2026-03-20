@@ -36,8 +36,10 @@
         </div>
         {% endif %}
 
-        <button type="submit" class="btn btn--primary">{{ community ? 'Update' : 'Create' }}</button>
-        <a href="{{ path('admin_chat_communities') }}" class="btn">Cancel</a>
+        <div class="actions">
+            <button type="submit" class="btn btn--primary">{{ community ? 'Update' : 'Create' }}</button>
+            <a href="{{ path('admin_chat_communities') }}" class="btn">Cancel</a>
+        </div>
     </form>
 </div>
 {% endblock %}

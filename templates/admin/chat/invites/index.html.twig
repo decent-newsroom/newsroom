@@ -6,7 +6,7 @@
 <div class="admin-dashboard">
     <h1>Invites — {{ community.name }}</h1>
 
-    <form method="post" action="{{ path('admin_chat_invite_generate', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+    <form method="post" action="{{ path('admin_chat_invite_generate', {communityId: community.id}) }}">
         <div class="form-group" style="margin:0;">
             <label for="role">Role to Grant</label>
             <select id="role" name="role">
@@ -19,7 +19,9 @@
             <label for="max_uses">Max Uses (0 = unlimited)</label>
             <input type="number" id="max_uses" name="max_uses" value="0" min="0">
         </div>
-        <button type="submit" class="btn btn--primary">Generate Invite</button>
+        <div class="actions">
+            <button type="submit" class="btn btn--primary">Generate Invite</button>
+        </div>
     </form>
 
     <table class="admin-table">

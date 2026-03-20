@@ -6,7 +6,7 @@
 <div class="admin-dashboard">
     <h1>Users — {{ community.name }}</h1>
 
-    <form method="post" action="{{ path('admin_chat_user_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap;">
+    <form method="post" action="{{ path('admin_chat_user_create', {communityId: community.id}) }}">
         <div class="form-group" style="margin:0;">
             <label for="npub">npub <small>(leave empty for custodial)</small></label>
             <input type="text" id="npub" name="npub" placeholder="npub1…" style="font-family: monospace; min-width: 300px;">
@@ -23,7 +23,9 @@
                 <option value="admin">Admin</option>
             </select>
         </div>
-        <button type="submit" class="btn btn--primary">Create User</button>
+        <div class="actions">
+            <button type="submit" class="btn btn--primary">Create User</button>
+        </div>
     </form>
 
     <table class="admin-table">
