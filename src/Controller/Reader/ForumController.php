@@ -86,7 +86,7 @@ class ForumController extends AbstractController
         $currentInterestTags = [];
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-            $currentInterestTags = $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
+            $currentInterestTags = $nostrClient->getUserInterests($pubkey);
         } catch (\Exception $e) {
             // Ignore errors
         }
@@ -238,7 +238,7 @@ class ForumController extends AbstractController
             if (!!$user) {
                 try {
                     $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                    $interests = $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
+                    $interests = $nostrClient->getUserInterests($pubkey);
                     if (!empty($interests)) {
                         $allTags = array_map('strtolower', array_values($interests));
                     }
@@ -573,7 +573,7 @@ class ForumController extends AbstractController
     {
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-            $interests = $prefetchedInterests ?? $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
+            $interests = $prefetchedInterests ?? $nostrClient->getUserInterests($pubkey);
             if (!empty($interests)) {
                 try {
                     $counts = $articleSearch->getTagCounts(array_values($interests)); // ['tag' => count]

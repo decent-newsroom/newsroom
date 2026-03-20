@@ -484,9 +484,9 @@ class NostrClient
     }
 
     /** @see UserProfileService::getInterests() */
-    public function getUserInterests(string $pubkey, ?array $relays = null): array
+    public function getUserInterests(string $pubkey): array
     {
-        return $this->userProfileService->getInterests($pubkey, $relays);
+        return $this->userProfileService->getInterests($pubkey);
     }
 
     /** @see UserProfileService::getFollows() */

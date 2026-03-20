@@ -252,17 +252,15 @@ class UserProfileService
     /**
      * Return the 't' tags from the user's latest kind-10015 interest list.
      *
-     * Strategy: DB-first with relay fallback.
+     * Strategy: local DB only (populated from local strfry relay).
      *
-     * 1. Check the local database — SyncUserEventsHandler populates this on
-     *    login, so the event is almost always available immediately.
-     * 2. Fall back to a live relay query only when the DB has no record yet
-     *    (first page-load before the async sync job has finished, or the user
-     *    has never published an interest list).
+     * SyncUserEventsHandler fetches user events from their NIP-65 relays on
+     * login and forwards them to the local strfry relay. Subscription workers
+     * then persist them to the DB. If the interests event is not in the DB,
+     * the user probably hasn't published one yet.
      */
-    public function getInterests(string $pubkey, ?array $relays = null): array
+    public function getInterests(string $pubkey): array
     {
-        // ── 1. DB lookup ──────────────────────────────────────────────────────
         $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
 
         if ($dbEvent !== null) {
@@ -272,20 +270,13 @@ class UserProfileService
             return $this->extractTTags($dbEvent->getTags());
         }
 
-        // ── 2. Relay fallback (combined user context fetch) ────────────────
-        $this->logger->debug('UserProfileService: interests not in DB, querying relay via combined fetch', [
+        $this->logger->debug('UserProfileService: no interests event found in local DB', [
             'pubkey' => substr($pubkey, 0, 8) . '...',
         ]);
 
-        $latestByKind = $this->fetchUserContext($pubkey, $relays);
-
-        $interestEvent = $latestByKind[KindsEnum::INTERESTS->value] ?? null;
-        if ($interestEvent === null) {
-            return [];
-        }
-
-        return $this->extractTTags((array) ($interestEvent->tags ?? []));
+        return [];
     }
+
 
     /**
      * Persist a kind-10015 event to the local DB.

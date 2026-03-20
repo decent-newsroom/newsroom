@@ -219,7 +219,7 @@ class MediaDiscoveryController extends AbstractController
         $interestTags = [];
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-            $interestTags = $nostrClient->getUserInterests($pubkey, $user->getRelays()['all'] ?? null);
+            $interestTags = $nostrClient->getUserInterests($pubkey);
         } catch (\Throwable $e) {
             $logger->error('Failed to fetch interests for media interests tab', ['error' => $e->getMessage()]);
         }
