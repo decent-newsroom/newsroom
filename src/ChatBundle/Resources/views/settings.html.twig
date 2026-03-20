@@ -3,7 +3,25 @@
 {% block body %}
 <div class="chat-settings">
     <h2>Settings</h2>
-    <p>Chat settings coming soon.</p>
+
+    <section class="chat-settings__section">
+        <h3>Notification preferences</h3>
+        {% if memberships is defined and memberships|length > 0 %}
+        <ul class="chat-settings__mute-list">
+            {% for membership in memberships %}
+            <li class="chat-settings__mute-item">
+                <span class="chat-settings__group-name">{{ membership.group.name }}</span>
+                <form method="post" action="/settings/groups/{{ membership.group.slug }}/mute-notifications" class="chat-settings__mute-form">
+                    <button type="submit" class="btn btn--small {{ membership.mutedNotifications ? 'btn--muted' : '' }}">
+                        {{ membership.mutedNotifications ? 'Unmute' : 'Mute' }} notifications
+                    </button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>You are not a member of any groups.</p>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}
-

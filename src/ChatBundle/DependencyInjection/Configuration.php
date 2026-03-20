@@ -20,6 +20,14 @@ class Configuration implements ConfigurationInterface
                     ->defaultValue('ws://strfry-chat:7778')
                     ->info('WebSocket URL of the private chat relay')
                 ->end()
+                ->arrayNode('vapid')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('subject')->defaultValue('')->end()
+                        ->scalarNode('public_key')->defaultValue('')->end()
+                        ->scalarNode('private_key')->defaultValue('')->end()
+                    ->end()
+                ->end()
             ->end()
         ;
 

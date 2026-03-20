@@ -5,6 +5,7 @@
 {% block head %}
     {{ parent() }}
     <script type="module" src="{{ asset('controllers/chat/chat_messages_controller.js') }}" defer></script>
+    <script type="module" src="{{ asset('controllers/chat/chat_push_controller.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
@@ -23,6 +24,11 @@
     <header class="chat-room__header">
         <a href="/groups" class="chat-room__back">&larr;</a>
         <h2 class="chat-room__title">{{ group.name }}</h2>
+        <form method="post" action="/settings/groups/{{ group.slug }}/mute-notifications" class="chat-room__mute-form">
+            <button type="submit" class="chat-room__bell" title="{{ isMuted|default(false) ? 'Unmute notifications' : 'Mute notifications' }}">
+                {{ isMuted|default(false) ? '🔕' : '🔔' }}
+            </button>
+        </form>
     </header>
 
     <div class="chat-room__messages" data-chat--messages-target="messageList">

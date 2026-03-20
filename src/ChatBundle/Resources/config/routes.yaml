@@ -91,6 +91,36 @@ chat_settings:
     methods: [GET]
     condition: "request.attributes.has('_chat_community')"
 
+# Settings — toggle mute notifications for a group
+chat_settings_mute_notifications:
+    path: /settings/groups/{slug}/mute-notifications
+    controller: App\ChatBundle\Controller\ChatSettingsController::toggleMuteNotifications
+    methods: [POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Push notifications — VAPID public key
+chat_push_vapid_key:
+    path: /push/vapid-key
+    controller: App\ChatBundle\Controller\ChatPushController::vapidKey
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Push notifications — subscribe
+chat_push_subscribe:
+    path: /push/subscribe
+    controller: App\ChatBundle\Controller\ChatPushController::subscribe
+    methods: [POST]
+    condition: "request.attributes.has('_chat_community')"
+
+# Push notifications — unsubscribe
+chat_push_unsubscribe:
+    path: /push/unsubscribe
+    controller: App\ChatBundle\Controller\ChatPushController::unsubscribe
+    methods: [POST]
+    condition: "request.attributes.has('_chat_community')"
+
 # Scoped management — group settings
 chat_manage_group:
     path: /manage/groups/{slug}

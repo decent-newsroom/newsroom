@@ -59,12 +59,16 @@ class ChatGroupController extends AbstractController
             50,
         );
 
+        $membership = $this->membershipRepo->findByUserAndGroup($user, $group);
+        $isMuted = $membership !== null && $membership->isMutedNotifications();
+
         return $this->render('@Chat/groups/show.html.twig', [
             'community' => $community,
             'group' => $group,
             'messages' => $messages,
             'currentUserPubkey' => $user->getPubkey(),
             'isCustodial' => $user->isCustodial(),
+            'isMuted' => $isMuted,
             'relayUrl' => $this->relayClient->getRelayUrl($community),
         ]);
     }

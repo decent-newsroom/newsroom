@@ -111,6 +111,8 @@ class ChatMessageService
         $topic = sprintf('/chat/%d/group/%s', $community->getId(), $group->getSlug());
         $this->hub->publish(new Update($topic, json_encode($dto)));
 
+        $this->webPushService->dispatchPushNotification($group, $user);
+
         return $dto;
     }
 

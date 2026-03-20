@@ -2,6 +2,10 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        bind:
+            $vapidSubject: '%chat.vapid_subject%'
+            $vapidPublicKey: '%chat.vapid_public_key%'
+            $vapidPrivateKey: '%chat.vapid_private_key%'
 
     App\ChatBundle\:
         resource: '../../'

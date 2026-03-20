@@ -53,6 +53,7 @@ For **environment setup & operations** (Dockerized Symfony stack, deployment, tr
 - [Chat Specification](chat.md) — Product specification for community chat
 - [Chat Bundle](chat-bundle.md) — Technical documentation for the ChatBundle
 - [Chat Setup Guide](chat-setup.md) — Step-by-step setup guide for creating a chat community
+- [Chat Push Notifications](chat-push-notifications.md) — Web Push notification implementation plan
 - [Chat Implementation Plan](chat-implementation-plan.md) — Phased implementation plan
 - [Workers](Processes/workers.md) — Consolidated worker, event-driven processing
 - [Elasticsearch](Elasticsearch/elasticsearch.md) — Optional search backend (feature-flagged)

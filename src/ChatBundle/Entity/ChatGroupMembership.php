@@ -36,6 +36,10 @@ class ChatGroupMembership
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $joinedAt;
 
+    /** Per-user per-group mute for push notifications */
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $mutedNotifications = false;
+
     public function __construct()
     {
         $this->joinedAt = new \DateTimeImmutable();
@@ -87,6 +91,17 @@ class ChatGroupMembership
     public function getJoinedAt(): \DateTimeImmutable
     {
         return $this->joinedAt;
+    }
+
+    public function isMutedNotifications(): bool
+    {
+        return $this->mutedNotifications;
+    }
+
+    public function setMutedNotifications(bool $mutedNotifications): self
+    {
+        $this->mutedNotifications = $mutedNotifications;
+        return $this;
     }
 }
 

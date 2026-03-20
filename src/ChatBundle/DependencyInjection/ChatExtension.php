@@ -18,6 +18,9 @@ class ChatExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $container->setParameter('chat.relay_url', $config['relay_url']);
+        $container->setParameter('chat.vapid_subject', $config['vapid']['subject']);
+        $container->setParameter('chat.vapid_public_key', $config['vapid']['public_key']);
+        $container->setParameter('chat.vapid_private_key', $config['vapid']['private_key']);
 
         $loader = new YamlFileLoader(
             $container,

@@ -85,6 +85,8 @@ framework:
             'App\Message\BatchUpdateProfileProjectionMessage': async_profiles
             # Profile cache revalidation - background refresh for stale-while-revalidate
             'App\Message\RevalidateProfileCacheMessage': async_profiles
+            # --- Chat: push notifications dispatched non-blocking ---
+            'App\ChatBundle\Message\SendChatPushNotificationMessage': async_low_priority
 
 # when@test:
 #    framework:

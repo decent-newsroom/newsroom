@@ -18,6 +18,19 @@
     </nav>
 
     <main class="chat-main">
+        {% if vapidPublicKey is defined and vapidPublicKey %}
+        <div data-controller="chat--push"
+             data-chat--push-vapid-key-value="{{ vapidPublicKey }}"
+             data-chat--push-subscribe-url-value="/push/subscribe"
+             data-chat--push-unsubscribe-url-value="/push/unsubscribe">
+            <div data-chat--push-target="prompt" class="chat-push-prompt" style="display:none;">
+                <span>Enable notifications to know when new messages arrive</span>
+                <button data-action="chat--push#requestPermission" class="btn btn--small">Enable</button>
+                <button data-action="chat--push#dismissPrompt" class="btn btn--small btn--muted">Not now</button>
+            </div>
+        </div>
+        {% endif %}
+
         {% for flash in app.flashes('success') %}
             <div class="chat-flash chat-flash--success">{{ flash }}</div>
         {% endfor %}
