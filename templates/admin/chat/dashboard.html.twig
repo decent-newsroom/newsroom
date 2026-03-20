@@ -1,0 +1,46 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Chat Administration{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Chat Administration</h1>
+    </div>
+
+    <div class="admin-section">
+        <h2>Communities</h2>
+        <a href="{{ path('admin_chat_community_new') }}" class="btn btn--primary">New Community</a>
+
+        {% if communities is empty %}
+            <p>No chat communities yet.</p>
+        {% else %}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Subdomain</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for community in communities %}
+                    <tr>
+                        <td><code>{{ community.subdomain }}</code></td>
+                        <td>{{ community.name }}</td>
+                        <td>{{ community.status.value }}</td>
+                        <td>{{ community.createdAt|date('Y-m-d') }}</td>
+                        <td>
+                            <a href="{{ path('admin_chat_community_show', {id: community.id}) }}">Manage</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

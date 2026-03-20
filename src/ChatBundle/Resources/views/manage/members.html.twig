@@ -1,0 +1,20 @@
+{% extends '@Chat/layout.html.twig' %}
+{% block title %}Members — {{ group.name }}{% endblock %}
+{% block body %}
+<div class="chat-manage">
+    <h2>{{ group.name }} — Members</h2>
+    <table class="chat-table">
+        <thead><tr><th>Name</th><th>Role</th><th>Joined</th></tr></thead>
+        <tbody>
+        {% for m in members %}
+            <tr>
+                <td>{{ m.user.displayName }}</td>
+                <td>{{ m.role }}</td>
+                <td>{{ m.joinedAt|date('Y-m-d') }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

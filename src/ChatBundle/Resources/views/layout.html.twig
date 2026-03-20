@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chat{% endblock %} — {{ community.name }}</title>
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/chat.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="chat-app">
+    <nav class="chat-nav">
+        <a href="/groups" class="chat-nav__brand">{{ community.name }}</a>
+        <div class="chat-nav__links">
+            <a href="/groups">Groups</a>
+            <a href="/contacts">Contacts</a>
+            <a href="/profile">Profile</a>
+        </div>
+    </nav>
+
+    <main class="chat-main">
+        {% for flash in app.flashes('success') %}
+            <div class="chat-flash chat-flash--success">{{ flash }}</div>
+        {% endfor %}
+        {% for flash in app.flashes('error') %}
+            <div class="chat-flash chat-flash--error">{{ flash }}</div>
+        {% endfor %}
+
+        {% block body %}{% endblock %}
+    </main>
+</body>
+</html>
+

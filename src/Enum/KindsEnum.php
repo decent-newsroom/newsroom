@@ -14,6 +14,11 @@ enum KindsEnum: int
     case IMAGE = 20; // NIP-68, images
     case VIDEO = 21; // NIP-71, video events
     case SHORT_VIDEO = 22; // NIP-71, short-form portrait video events
+    case CHANNEL_CREATE = 40; // NIP-28, channel creation
+    case CHANNEL_METADATA = 41; // NIP-28, channel metadata update
+    case CHANNEL_MESSAGE = 42; // NIP-28, channel message (used for chat text messages)
+    case CHANNEL_HIDE_MESSAGE = 43; // NIP-28, hide message
+    case CHANNEL_MUTE_USER = 44; // NIP-28, mute user
     case FILE_METADATA = 1063; // NIP-94
     case COMMENTS = 1111;
     case TABULAR_DATA = 1450; // NIP-XX, Tabular Data (CSV)

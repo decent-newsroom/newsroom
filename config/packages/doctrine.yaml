@@ -32,6 +32,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Credits/Entity'
                 prefix: 'App\Credits\Entity'
                 alias: Credits
+            ChatBundle:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/ChatBundle/Entity'
+                prefix: 'App\ChatBundle\Entity'
+                alias: ChatBundle
         controller_resolver:
             auto_mapping: false
 

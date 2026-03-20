@@ -1,0 +1,11 @@
+{% extends '@Chat/layout.html.twig' %}
+{% block title %}Group Settings{% endblock %}
+{% block body %}
+<div class="chat-manage">
+    <h2>{{ group.name }} — Settings</h2>
+    <p>Status: {{ group.status.value }}</p>
+    <p>Channel Event: <code>{{ group.channelEventId }}</code></p>
+    <a href="/manage/groups/{{ group.slug }}/members" class="chat-btn">Manage Members</a>
+</div>
+{% endblock %}
+

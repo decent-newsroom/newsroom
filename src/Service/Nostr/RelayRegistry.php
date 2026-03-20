@@ -37,12 +37,14 @@ class RelayRegistry
         array $contentRelays = [],
         array $projectRelays = [],
         array $signerRelays = [],
+        array $chatRelays = [],
     ) {
         $this->relays[RelayPurpose::LOCAL->value] = $this->nostrDefaultRelay ? [$this->nostrDefaultRelay] : [];
         $this->relays[RelayPurpose::PROFILE->value] = $profileRelays;
         $this->relays[RelayPurpose::CONTENT->value] = $contentRelays;
         $this->relays[RelayPurpose::PROJECT->value] = $projectRelays;
         $this->relays[RelayPurpose::SIGNER->value] = $signerRelays;
+        $this->relays[RelayPurpose::CHAT->value] = $chatRelays;
         $this->relays[RelayPurpose::USER->value] = [];
 
         $this->logger->info('RelayRegistry initialized', [
@@ -51,6 +53,7 @@ class RelayRegistry
             'content' => count($this->relays[RelayPurpose::CONTENT->value]),
             'project' => count($this->relays[RelayPurpose::PROJECT->value]),
             'signer' => count($this->relays[RelayPurpose::SIGNER->value]),
+            'chat' => count($this->relays[RelayPurpose::CHAT->value]),
         ]);
     }
 
@@ -163,6 +166,13 @@ class RelayRegistry
     public function getSignerRelays(): array
     {
         return $this->getForPurpose(RelayPurpose::SIGNER);
+    }
+
+    /** Private chat relay URL (NIP-28 channel events). */
+    public function getChatRelay(): ?string
+    {
+        $relays = $this->getForPurpose(RelayPurpose::CHAT);
+        return $relays[0] ?? null;
     }
 
     /**

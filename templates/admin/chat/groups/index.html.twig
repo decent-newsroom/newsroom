@@ -1,0 +1,47 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Groups — {{ community.name }}{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>Groups — {{ community.name }}</h1>
+
+    <form method="post" action="{{ path('admin_chat_group_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+        <div class="form-group" style="margin:0;">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required placeholder="General">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label for="slug">Slug</label>
+            <input type="text" id="slug" name="slug" required placeholder="general" pattern="[a-z0-9\-]+">
+        </div>
+        <button type="submit" class="btn btn--primary">Create Group</button>
+    </form>
+
+    <table class="admin-table">
+        <thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Channel Event</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for group in groups %}
+            <tr>
+                <td>{{ group.name }}</td>
+                <td><code>{{ group.slug }}</code></td>
+                <td>{{ group.status.value }}</td>
+                <td><code>{{ group.channelEventId[:12] }}…</code></td>
+                <td>
+                    <a href="{{ path('admin_chat_group_members', {communityId: community.id, groupId: group.id}) }}">Members</a>
+                    <a href="{{ path('admin_chat_view', {communityId: community.id, groupSlug: group.slug}) }}">View Chat</a>
+                    {% if group.status.value == 'active' %}
+                        <form method="post" action="{{ path('admin_chat_group_archive', {communityId: community.id, groupId: group.id}) }}" style="display:inline;">
+                            <button type="submit" class="btn btn--small">Archive</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('admin_chat_community_show', {id: community.id}) }}" class="btn">Back</a>
+</div>
+{% endblock %}
+

@@ -262,6 +262,22 @@ services:
         - "7777:7777"  # Expose for local testing (ws://localhost:7777)
 ###< strfry relay ###
 
+###> strfry-chat relay (private, NIP-28 only) ###
+  strfry-chat:
+    image: dockurr/strfry:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - ./strfry relay /etc/strfry.conf
+    volumes:
+        - ./docker/strfry-chat/strfry.conf:/etc/strfry.conf:ro
+        - ./docker/strfry-chat/write-policy.sh:/app/write-policy.sh:ro
+        - strfry_chat_data:/var/lib/strfry
+    ports:
+        - "7778:7778"
+###< strfry-chat relay ###
+
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
 
@@ -276,3 +292,8 @@ volumes:
 ###> strfry relay ###
   strfry_data:
 ###< strfry relay ###
+
+###> strfry-chat relay ###
+  strfry_chat_data:
+###< strfry-chat relay ###
+

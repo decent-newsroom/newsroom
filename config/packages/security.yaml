@@ -3,11 +3,23 @@ security:
     providers:
         user_dto_provider:
             id: App\Security\UserDTOProvider
+        chat_user_provider:
+            id: App\ChatBundle\Security\ChatUserProvider
 
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+        chat:
+            request_matcher: App\ChatBundle\Security\ChatRequestMatcher
+            lazy: false
+            stateless: false
+            provider: chat_user_provider
+            custom_authenticators:
+                - App\ChatBundle\Security\ChatSessionAuthenticator
+            logout:
+                path: /chat/logout
+            entry_point: App\ChatBundle\Security\ChatSessionAuthenticator
         main:
             lazy: false
             stateless: false

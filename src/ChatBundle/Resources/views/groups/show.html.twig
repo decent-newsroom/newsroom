@@ -1,0 +1,46 @@
+{% extends '@Chat/layout.html.twig' %}
+
+{% block title %}{{ group.name }}{% endblock %}
+
+{% block head %}
+    {{ parent() }}
+    <script type="module" src="{{ asset('controllers/chat/chat_messages_controller.js') }}" defer></script>
+{% endblock %}
+
+{% block body %}
+<div class="chat-room"
+     data-controller="chat--messages"
+     data-chat--messages-group-slug-value="{{ group.slug }}"
+     data-chat--messages-community-id-value="{{ community.id }}"
+     data-chat--messages-send-url-value="/groups/{{ group.slug }}/messages"
+     data-chat--messages-history-url-value="/groups/{{ group.slug }}/history"
+     data-chat--messages-current-pubkey-value="{{ currentUserPubkey }}">
+
+    <header class="chat-room__header">
+        <a href="/groups" class="chat-room__back">&larr;</a>
+        <h2 class="chat-room__title">{{ group.name }}</h2>
+    </header>
+
+    <div class="chat-room__messages" data-chat--messages-target="messageList">
+        <button class="chat-room__load-more" data-chat--messages-target="loadMore" data-action="chat--messages#loadMore">
+            Load older messages
+        </button>
+
+        {% for message in messages %}
+            {% include '@Chat/partials/message.html.twig' with {message: message, isOwn: message.senderPubkey == currentUserPubkey} %}
+        {% endfor %}
+    </div>
+
+    <form class="chat-room__input" data-action="submit->chat--messages#send">
+        <textarea
+            class="chat-room__textarea"
+            data-chat--messages-target="input"
+            placeholder="Type a message…"
+            rows="1"></textarea>
+        <button type="submit" class="chat-room__send" data-chat--messages-target="sendButton">
+            Send
+        </button>
+    </form>
+</div>
+{% endblock %}
+

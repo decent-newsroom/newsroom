@@ -1,0 +1,24 @@
+{% extends '@Chat/layout.html.twig' %}
+
+{% block title %}Groups{% endblock %}
+
+{% block body %}
+<div class="chat-groups-list">
+    <h2>Your Groups</h2>
+
+    {% if groups is empty %}
+        <p class="chat-empty">You're not a member of any groups yet.</p>
+    {% else %}
+        <ul class="chat-groups-list__items">
+            {% for group in groups %}
+                <li class="chat-groups-list__item">
+                    <a href="/groups/{{ group.slug }}" class="chat-groups-list__link">
+                        <span class="chat-groups-list__name">{{ group.name }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}
+

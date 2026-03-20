@@ -1,0 +1,21 @@
+{% extends '@Chat/layout.html.twig' %}
+
+{% block title %}Contacts{% endblock %}
+
+{% block body %}
+<div class="chat-contacts">
+    <h2>Community Members</h2>
+
+    <ul class="chat-contacts__list">
+        {% for member in users %}
+            <li class="chat-contacts__item {% if member.pubkey == currentUser.pubkey %}chat-contacts__item--self{% endif %}">
+                <span class="chat-contacts__name">{{ member.displayName }}</span>
+                {% if member.about %}
+                    <span class="chat-contacts__about">{{ member.about }}</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}
+

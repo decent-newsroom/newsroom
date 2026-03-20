@@ -51,6 +51,9 @@ parameters:
     newsroom.latest_articles.excluded_pubkeys: []
     newsroom.latest_articles.exclude_bot_profiles: true
 
+    # ChatBundle defaults
+    chat_relay_default: 'ws://strfry-chat:7778'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -145,6 +148,7 @@ services:
             $contentRelays: '%relay_registry.content_relays%'
             $projectRelays: '%relay_registry.project_relays%'
             $signerRelays: '%relay_registry.signer_relays%'
+            $chatRelays: ['%chat_relay_default%']
 
     # Relay Health Store — Redis-backed health persistence
     App\Service\Nostr\RelayHealthStore:
@@ -296,6 +300,38 @@ services:
         arguments:
             $baseDomain: '%base_domain%'
             $recipientLud16: '%active_indexing_recipient_lud16%'
+
+    # ChatBundle service bindings
+
+    App\ChatBundle\Service\ChatEncryptionService:
+        arguments:
+            $encryptionKey: '%encryption_key%'
+
+    App\ChatBundle\EventListener\ChatRequestListener:
+        arguments:
+            $baseDomain: '%base_domain%'
+
+    App\ChatBundle\Service\ChatRelayClient:
+        arguments:
+            $chatRelayUrl: '%chat.relay_url%'
+
+    App\ChatBundle\Controller\ChatGroupController:
+        tags: ['controller.service_arguments']
+
+    App\ChatBundle\Controller\ChatActivateController:
+        tags: ['controller.service_arguments']
+
+    App\ChatBundle\Controller\ChatProfileController:
+        tags: ['controller.service_arguments']
+
+    App\ChatBundle\Controller\ChatContactsController:
+        tags: ['controller.service_arguments']
+
+    App\ChatBundle\Controller\ChatManageController:
+        tags: ['controller.service_arguments']
+
+    App\ChatBundle\Controller\ChatSettingsController:
+        tags: ['controller.service_arguments']
 
     # Reading List Workflow Service - bind the specific workflow
     App\Service\ReadingListWorkflowService:

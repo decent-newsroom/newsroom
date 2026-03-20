@@ -47,5 +47,8 @@ enum RelayPurpose: string
 
     /** Relays used for NIP-46 bunker / nostr-connect signing */
     case SIGNER = 'signer';
+
+    /** Private chat relay (separate strfry instance for NIP-28 events) */
+    case CHAT = 'chat';
 }
 

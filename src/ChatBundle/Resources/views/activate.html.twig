@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invite — {{ community.name }}</title>
+    <link rel="stylesheet" href="{{ asset('styles/04-pages/chat.css') }}">
+</head>
+<body class="chat-app chat-activate">
+    <div class="chat-activate__card">
+        <h1>{{ community.name }}</h1>
+
+        {% if error is defined and error %}
+            <div class="chat-flash chat-flash--error">{{ error }}</div>
+            <p>Please contact the community administrator for a new invite link.</p>
+        {% else %}
+            <p>Setting up your account…</p>
+        {% endif %}
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,8 @@
+<div class="chat-message {% if isOwn|default(false) %}chat-message--own{% endif %}">
+    <div class="chat-message__sender">{{ message.senderDisplayName }}</div>
+    <div class="chat-message__content">{{ message.content }}</div>
+    <time class="chat-message__time" datetime="{{ message.createdAt }}">
+        {{ message.createdAt|date('H:i') }}
+    </time>
+</div>
+

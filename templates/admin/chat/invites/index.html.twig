@@ -1,0 +1,51 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Invites — {{ community.name }}{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>Invites — {{ community.name }}</h1>
+
+    <form method="post" action="{{ path('admin_chat_invite_generate', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+        <div class="form-group" style="margin:0;">
+            <label for="role">Role to Grant</label>
+            <select id="role" name="role">
+                <option value="user">User</option>
+                <option value="guardian">Guardian</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label for="max_uses">Max Uses (0 = unlimited)</label>
+            <input type="number" id="max_uses" name="max_uses" value="0" min="0">
+        </div>
+        <button type="submit" class="btn btn--primary">Generate Invite</button>
+    </form>
+
+    <table class="admin-table">
+        <thead><tr><th>Type</th><th>Role</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for invite in invites %}
+            <tr>
+                <td>{{ invite.type.value }}</td>
+                <td>{{ invite.roleToGrant }}</td>
+                <td>{{ invite.usedCount }}</td>
+                <td>{{ invite.maxUses ?? '∞' }}</td>
+                <td>{{ invite.expiresAt ? invite.expiresAt|date('Y-m-d') : 'Never' }}</td>
+                <td>{{ invite.revokedAt ? 'Revoked' : (invite.isValid ? 'Active' : 'Expired') }}</td>
+                <td>
+                    {% if invite.isValid and not invite.revokedAt %}
+                        <form method="post" action="{{ path('admin_chat_invite_revoke', {communityId: community.id, inviteId: invite.id}) }}" style="display:inline;">
+                            <button type="submit" class="btn btn--small">Revoke</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('admin_chat_community_show', {id: community.id}) }}" class="btn">Back</a>
+</div>
+{% endblock %}
+

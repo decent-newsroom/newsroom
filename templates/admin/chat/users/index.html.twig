@@ -1,0 +1,53 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Users — {{ community.name }}{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>Users — {{ community.name }}</h1>
+
+    <form method="post" action="{{ path('admin_chat_user_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+        <div class="form-group" style="margin:0;">
+            <label for="display_name">Display Name</label>
+            <input type="text" id="display_name" name="display_name" required placeholder="New user name">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label for="role">Role</label>
+            <select id="role" name="role">
+                <option value="user">User</option>
+                <option value="guardian">Guardian</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn--primary">Create User</button>
+    </form>
+
+    <table class="admin-table">
+        <thead><tr><th>Name</th><th>Pubkey</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>{{ user.displayName }}</td>
+                <td><code>{{ user.pubkey[:12] }}…</code></td>
+                <td>{{ user.status.value }}</td>
+                <td>{{ user.createdAt|date('Y-m-d') }}</td>
+                <td>
+                    {% if user.status.value == 'active' %}
+                        <form method="post" action="{{ path('admin_chat_user_suspend', {communityId: community.id, userId: user.id}) }}" style="display:inline;">
+                            <button type="submit" class="btn btn--small">Suspend</button>
+                        </form>
+                    {% else %}
+                        <form method="post" action="{{ path('admin_chat_user_activate', {communityId: community.id, userId: user.id}) }}" style="display:inline;">
+                            <button type="submit" class="btn btn--small">Activate</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('admin_chat_community_show', {id: community.id}) }}" class="btn">Back</a>
+</div>
+{% endblock %}
+

@@ -1,0 +1,25 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Communities{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>Chat Communities</h1>
+    <a href="{{ path('admin_chat_community_new') }}" class="btn btn--primary">New Community</a>
+
+    <table class="admin-table">
+        <thead><tr><th>Subdomain</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for c in communities %}
+            <tr>
+                <td><code>{{ c.subdomain }}</code></td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.status.value }}</td>
+                <td><a href="{{ path('admin_chat_community_show', {id: c.id}) }}">Manage</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

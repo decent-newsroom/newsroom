@@ -1,0 +1,3 @@
+chat:
+    relay_url: '%env(default:chat_relay_default:CHAT_RELAY_URL)%'
+

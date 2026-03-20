@@ -1,0 +1,21 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ community.name }}{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>{{ community.name }} <small>({{ community.subdomain }})</small></h1>
+    <p>Status: <strong>{{ community.status.value }}</strong></p>
+    <p>Relay: <code>{{ community.relayUrl ?? 'default' }}</code></p>
+    <p>Created: {{ community.createdAt|date('Y-m-d H:i') }}</p>
+
+    <div class="admin-actions" style="margin: 1rem 0; display: flex; gap: 0.5rem;">
+        <a href="{{ path('admin_chat_community_edit', {id: community.id}) }}" class="btn">Edit</a>
+        <a href="{{ path('admin_chat_users', {communityId: community.id}) }}" class="btn">Users</a>
+        <a href="{{ path('admin_chat_groups', {communityId: community.id}) }}" class="btn">Groups</a>
+        <a href="{{ path('admin_chat_invites', {communityId: community.id}) }}" class="btn">Invites</a>
+        <a href="{{ path('admin_chat_sessions', {communityId: community.id}) }}" class="btn">Sessions</a>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,103 @@
+# ChatBundle Routes
+# These routes only match when ChatRequestListener has identified a valid chat community subdomain
+# The listener sets _chat_community request attribute for registered community subdomains
+
+# Invite activation (public — no session required)
+chat_activate:
+    path: /activate/{token}
+    controller: App\ChatBundle\Controller\ChatActivateController::activate
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Group listing
+chat_groups:
+    path: /groups
+    controller: App\ChatBundle\Controller\ChatGroupController::index
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Group chat view
+chat_group_show:
+    path: /groups/{slug}
+    controller: App\ChatBundle\Controller\ChatGroupController::show
+    methods: [GET]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Send message (AJAX)
+chat_group_send:
+    path: /groups/{slug}/messages
+    controller: App\ChatBundle\Controller\ChatGroupController::sendMessage
+    methods: [POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Load older messages (AJAX)
+chat_group_history:
+    path: /groups/{slug}/history
+    controller: App\ChatBundle\Controller\ChatGroupController::history
+    methods: [GET]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Profile
+chat_profile:
+    path: /profile
+    controller: App\ChatBundle\Controller\ChatProfileController::index
+    methods: [GET, POST]
+    condition: "request.attributes.has('_chat_community')"
+
+# Contacts
+chat_contacts:
+    path: /contacts
+    controller: App\ChatBundle\Controller\ChatContactsController::index
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Settings
+chat_settings:
+    path: /settings
+    controller: App\ChatBundle\Controller\ChatSettingsController::index
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Scoped management — group settings
+chat_manage_group:
+    path: /manage/groups/{slug}
+    controller: App\ChatBundle\Controller\ChatManageController::group
+    methods: [GET]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Scoped management — group members
+chat_manage_group_members:
+    path: /manage/groups/{slug}/members
+    controller: App\ChatBundle\Controller\ChatManageController::members
+    methods: [GET, POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Scoped management — invites
+chat_manage_invites:
+    path: /manage/invites
+    controller: App\ChatBundle\Controller\ChatManageController::invites
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+
+# Logout
+chat_logout:
+    path: /chat/logout
+    condition: "request.attributes.has('_chat_community')"
+
+# Chat home — redirect to groups
+chat_home:
+    path: /
+    controller: App\ChatBundle\Controller\ChatGroupController::index
+    methods: [GET]
+    condition: "request.attributes.has('_chat_community')"
+

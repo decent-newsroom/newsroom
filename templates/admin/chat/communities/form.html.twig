@@ -1,0 +1,44 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ community ? 'Edit' : 'New' }} Community{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>{{ community ? 'Edit Community: ' ~ community.name : 'New Community' }}</h1>
+
+    <form method="post">
+        <div class="form-group">
+            <label for="subdomain">Subdomain</label>
+            {% if community %}
+                <input type="text" id="subdomain" value="{{ community.subdomain }}" disabled>
+            {% else %}
+                <input type="text" id="subdomain" name="subdomain" required placeholder="e.g. oakclub">
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required value="{{ community ? community.name : '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="relay_url">Relay URL (optional, leave empty for default)</label>
+            <input type="text" id="relay_url" name="relay_url" value="{{ community ? community.relayUrl : '' }}" placeholder="ws://strfry-chat:7778">
+        </div>
+
+        {% if community %}
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="active" {{ community.status.value == 'active' ? 'selected' : '' }}>Active</option>
+                <option value="suspended" {{ community.status.value == 'suspended' ? 'selected' : '' }}>Suspended</option>
+            </select>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn--primary">{{ community ? 'Update' : 'Create' }}</button>
+        <a href="{{ path('admin_chat_communities') }}" class="btn">Cancel</a>
+    </form>
+</div>
+{% endblock %}
+

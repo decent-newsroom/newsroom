@@ -1,0 +1,28 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Chat — {{ group.name }}{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <h1>{{ group.name }} — Chat Log ({{ community.name }})</h1>
+    <p class="text-muted">Admin view: all messages shown, including hidden/muted.</p>
+
+    <div class="admin-chat-log">
+        {% for message in messages %}
+            <div class="admin-chat-message {% if message.isHidden %}admin-chat-message--hidden{% endif %}">
+                <strong>{{ message.senderDisplayName }}</strong>
+                {% if message.isHidden %}<span class="badge badge--warning">Hidden</span>{% endif %}
+                <br>
+                <span>{{ message.content }}</span>
+                <br>
+                <small class="text-muted">{{ message.createdAt|date('Y-m-d H:i:s') }} · <code>{{ message.eventId[:12] }}…</code></small>
+            </div>
+        {% else %}
+            <p>No messages in this group yet.</p>
+        {% endfor %}
+    </div>
+
+    <a href="{{ path('admin_chat_groups', {communityId: community.id}) }}" class="btn">Back to Groups</a>
+</div>
+{% endblock %}
+
