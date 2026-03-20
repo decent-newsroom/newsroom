@@ -333,6 +333,21 @@ services:
     App\ChatBundle\Controller\ChatSettingsController:
         tags: ['controller.service_arguments']
 
+    App\ChatBundle\Controller\ChatPushController:
+        tags: ['controller.service_arguments']
+        arguments:
+            $vapidPublicKey: '%chat.vapid_public_key%'
+
+    App\ChatBundle\MessageHandler\SendChatPushNotificationHandler:
+        arguments:
+            $vapidSubject: '%chat.vapid_subject%'
+            $vapidPublicKey: '%chat.vapid_public_key%'
+            $vapidPrivateKey: '%chat.vapid_private_key%'
+
+    App\ChatBundle\Twig\ChatPushExtension:
+        arguments:
+            $vapidPublicKey: '%chat.vapid_public_key%'
+
     # Reading List Workflow Service - bind the specific workflow
     App\Service\ReadingListWorkflowService:
         arguments:
