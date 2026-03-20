@@ -8,16 +8,17 @@ use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\FollowPackPurpose;
+use App\Enum\KindsEnum;
+use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\FollowPackService;
 use App\Service\MutedPubkeysService;
-use App\Service\Nostr\FollowsRelayPoolService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\NostrKeyUtil;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,15 +33,15 @@ class HomeFeedController extends AbstractController
         RedisViewStore $viewStore,
         MutedPubkeysService $mutedPubkeysService,
         ArticleSearchFactory $articleSearchFactory,
-        EntityManagerInterface $em,
+        ArticleRepository $articleRepository,
+        EventRepository $eventRepository,
         NostrClient $nostrClient,
         FollowPackService $followPackService,
-        FollowsRelayPoolService $followsRelayPoolService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
             'latest' => $this->latestTab($redisCacheService, $viewStore, $mutedPubkeysService, $articleSearchFactory),
-            'follows' => $this->followsTab($em, $nostrClient, $redisCacheService, $followsRelayPoolService, $logger),
+            'follows' => $this->followsTab($articleRepository, $eventRepository, $redisCacheService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
@@ -104,10 +105,9 @@ class HomeFeedController extends AbstractController
     }
 
     private function followsTab(
-        EntityManagerInterface $em,
-        NostrClient $nostrClient,
+        ArticleRepository $articleRepository,
+        EventRepository $eventRepository,
         RedisCacheService $redisCacheService,
-        FollowsRelayPoolService $followsRelayPoolService,
         LoggerInterface $logger,
     ): Response {
         /** @var User|null $user */
@@ -132,54 +132,42 @@ class HomeFeedController extends AbstractController
             ]);
         }
 
+        // ── 1. Resolve followed pubkeys from local DB only (no relay fallback) ──
+        // The kind 3 event is synced on login via SyncUserEventsHandler.
+        // If it's not in the DB yet, show an empty state — no blocking relay calls.
         $followedPubkeys = [];
         try {
-            $followedPubkeys = $nostrClient->getUserFollows($pubkeyHex, $user->getRelays()['all'] ?? null);
+            $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
+            if ($followsEvent !== null) {
+                foreach ($followsEvent->getTags() as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                        $followedPubkeys[] = $tag[1];
+                    }
+                }
+            }
         } catch (\Throwable $e) {
-            $logger->error('Failed to fetch follows for home tab', ['error' => $e->getMessage()]);
+            $logger->error('Failed to load follows from DB', ['error' => $e->getMessage()]);
+        }
+
+        if (empty($followedPubkeys)) {
             return $this->render('home/tabs/_follows.html.twig', [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'isLoggedIn' => true,
-                'error' => 'Unable to fetch your follow list',
+                'followCount' => 0,
             ]);
         }
 
-        $articles = [];
+        // ── 2. Query articles from local DB using indexed lookup ──
+        $articles = $articleRepository->findLatestByPubkeys($followedPubkeys, 50);
+
+        // ── 3. Batch-resolve author metadata from Redis cache ──
         $authorsMetadata = [];
-
-        // Resolve the consolidated relay pool for this user's follows
-        $followsRelayPool = [];
-        try {
-            $followsRelayPool = $followsRelayPoolService->getPoolForUser($pubkeyHex);
-        } catch (\Throwable $e) {
-            $logger->warning('Failed to get follows relay pool', ['error' => $e->getMessage()]);
-        }
-
-        if (!empty($followedPubkeys)) {
-            $articleRepo = $em->getRepository(Article::class);
-            $qb = $articleRepo->createQueryBuilder('a');
-            $qb->where($qb->expr()->in('a.pubkey', ':pubkeys'))
-                ->setParameter('pubkeys', $followedPubkeys)
-                ->orderBy('a.createdAt', 'DESC')
-                ->setMaxResults(50);
-            $articles = $qb->getQuery()->getResult();
-
-            // Deduplicate by slug+pubkey
-            $seen = [];
-            $articles = array_values(array_filter($articles, function (Article $a) use (&$seen) {
-                $key = $a->getPubkey() . ':' . $a->getSlug();
-                if (isset($seen[$key])) return false;
-                $seen[$key] = true;
-                return true;
-            }));
-
-            $authorPubkeys = array_unique(array_map(fn(Article $a) => $a->getPubkey(), $articles));
-            if (!empty($authorPubkeys)) {
-                $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
-                foreach ($metadataMap as $pk => $metadata) {
-                    $authorsMetadata[$pk] = $metadata instanceof UserMetadata ? $metadata->toStdClass() : $metadata;
-                }
+        $authorPubkeys = array_unique(array_map(fn(Article $a) => $a->getPubkey(), $articles));
+        if (!empty($authorPubkeys)) {
+            $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
+            foreach ($metadataMap as $pk => $metadata) {
+                $authorsMetadata[$pk] = $metadata instanceof UserMetadata ? $metadata->toStdClass() : $metadata;
             }
         }
 
@@ -188,7 +176,6 @@ class HomeFeedController extends AbstractController
             'authorsMetadata' => $authorsMetadata,
             'isLoggedIn' => true,
             'followCount' => count($followedPubkeys),
-            'followsRelayPool' => $followsRelayPool,
         ]);
     }
 

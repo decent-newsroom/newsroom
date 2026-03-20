@@ -179,6 +179,51 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find latest articles from a set of authors, deduplicated by coordinate (pubkey+slug).
+     *
+     * Uses the composite index (pubkey, created_at DESC) for efficient lookup.
+     * Fetches extra rows to compensate for deduplication, then trims to $limit.
+     *
+     * @param string[] $pubkeys Hex pubkeys of followed authors
+     * @param int $limit Max articles to return
+     * @return Article[]
+     */
+    public function findLatestByPubkeys(array $pubkeys, int $limit = 50): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('a');
+        $qb->where($qb->expr()->in('a.pubkey', ':pubkeys'))
+            ->setParameter('pubkeys', $pubkeys)
+            ->andWhere('a.title IS NOT NULL')
+            ->andWhere('a.slug IS NOT NULL')
+            ->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults($limit * 2); // overfetch for deduplication
+
+        /** @var Article[] $articles */
+        $articles = $qb->getQuery()->getResult();
+
+        // Deduplicate by coordinate (pubkey:slug) — newest revision wins
+        $seen = [];
+        $result = [];
+        foreach ($articles as $article) {
+            $key = $article->getPubkey() . ':' . $article->getSlug();
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $article;
+            if (count($result) >= $limit) {
+                break;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Find articles by pubkey (author)
      *
      * @param string $pubkey

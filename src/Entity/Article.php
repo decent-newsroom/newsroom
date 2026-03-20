@@ -17,6 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
  * NIP-23, kinds 30023, 30024
  */
 #[ORM\Entity(repositoryClass: ArticleRepository::class)]
+#[ORM\Index(columns: ['pubkey', 'created_at'], name: 'idx_article_pubkey_created')]
 class Article
 {
     #[ORM\Id]
