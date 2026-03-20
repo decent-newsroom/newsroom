@@ -25,6 +25,10 @@ class ChatEventSigner
      */
     public function signForUser(ChatUser $user, int $kind, array $tags, string $content = ''): string
     {
+        if (!$user->isCustodial()) {
+            throw new \RuntimeException('Cannot server-sign for a self-sovereign user. Use client-side signing.');
+        }
+
         $privateKey = $this->keyManager->decryptPrivateKey($user);
 
         try {

@@ -11,7 +11,7 @@ Phased implementation plan for the private, invite-only, community-scoped chat m
 | **Structure** | `src/ChatBundle/` — self-contained Symfony bundle (like `UnfoldBundle`) |
 | **Auth model** | Separate `chat` firewall with cookie/session auth (not NIP-98) |
 | **Identity** | Custodial Nostr keypairs, server-side signing |
-| **Relay** | Separate `strfry-chat` instance (port 7778), kinds 0, 24, 40-41, 43-44 only |
+| **Relay** | Separate `strfry-chat` instance (port 7778), kinds 0, 40-44 only |
 | **Message storage** | **Relay-only** — no DB persistence of messages; the chat relay is the sole store |
 | **Real-time** | Mercure SSE to browser, Stimulus controllers |
 | **History** | Backend queries chat relay via WebSocket REQ; returns JSON to frontend |
@@ -150,7 +150,7 @@ Browser → POST /groups/{slug}/messages
 Browser → GET /groups/{slug}
   → ChatGroupController (validates session + membership)
     → ChatRelayClient.fetchMessages(channelEventId, limit: 50)
-      → WebSocket REQ to strfry-chat: {"kinds":[24],"#e":["<channelEventId>"],"limit":50}
+      → WebSocket REQ to strfry-chat: {"kinds":[42],"#e":["<channelEventId>"],"limit":50}
       → Also fetches kind 43 (hide) and 44 (mute) for filtering
     → Resolves sender display names from ChatUser table
   ← Rendered HTML with initial messages
@@ -473,7 +473,7 @@ Add `strfry_chat_data` to volumes.
 #### `ChatRelayClient`
 Thin wrapper around `NostrRelayPool` scoped to the chat relay. All relay I/O goes through this service.
 - `publish(Event $event): array` — publishes a signed event to the chat relay
-- `fetchMessages(string $channelEventId, int $limit = 50, ?int $until = null): array` — REQ `{"kinds":[24],"#e":["<channelEventId>"],"limit":<limit>,"until":<until>}`, returns raw event objects
+- `fetchMessages(string $channelEventId, int $limit = 50, ?int $until = null): array` — REQ `{"kinds":[42],"#e":["<channelEventId>"],"limit":<limit>,"until":<until>}`, returns raw event objects
 - `fetchModeration(string $channelEventId): array` — REQ `{"kinds":[43,44],"#e":["<channelEventId>"]}`, returns hide/mute events
 - `fetchChannelMetadata(string $channelEventId): ?object` — REQ `{"kinds":[41],"#e":["<channelEventId>"],"limit":1}`
 

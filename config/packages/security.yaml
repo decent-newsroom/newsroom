@@ -16,6 +16,7 @@ security:
             stateless: false
             provider: chat_user_provider
             custom_authenticators:
+                - App\ChatBundle\Security\ChatMainAppAuthenticator
                 - App\ChatBundle\Security\ChatSessionAuthenticator
             logout:
                 path: /chat/logout

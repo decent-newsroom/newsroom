@@ -8,6 +8,7 @@ use App\ChatBundle\Enum\ChatRole;
 use App\ChatBundle\Repository\ChatCommunityRepository;
 use App\ChatBundle\Repository\ChatUserRepository;
 use App\ChatBundle\Service\ChatUserService;
+use App\Repository\UserEntityRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +23,7 @@ class ChatUserAdminController extends AbstractController
         private readonly ChatCommunityRepository $communityRepo,
         private readonly ChatUserRepository $userRepo,
         private readonly ChatUserService $userService,
+        private readonly UserEntityRepository $userEntityRepo,
     ) {}
 
     #[Route('', name: 'admin_chat_users')]
@@ -41,13 +43,31 @@ class ChatUserAdminController extends AbstractController
     {
         $community = $this->communityRepo->find($communityId) ?? throw $this->createNotFoundException();
 
+        $npub = trim($request->request->get('npub', ''));
         $displayName = $request->request->get('display_name', 'New User');
         $roleValue = $request->request->get('role', 'user');
         $role = ChatRole::from($roleValue);
 
-        $this->userService->createUser($community, $displayName, $role);
+        if ($npub !== '') {
+            // Self-sovereign admin: link to existing main-app User by npub
+            $mainAppUser = $this->userEntityRepo->findOneBy(['npub' => $npub]);
+            if ($mainAppUser === null) {
+                $this->addFlash('error', 'No main-app user found with that npub. They must log in at least once first.');
+                return $this->redirectToRoute('admin_chat_users', ['communityId' => $communityId]);
+            }
 
-        $this->addFlash('success', 'User created.');
+            try {
+                $this->userService->createAdminFromMainUser($community, $mainAppUser, $role);
+                $this->addFlash('success', 'Self-sovereign user linked.');
+            } catch (\RuntimeException $e) {
+                $this->addFlash('error', $e->getMessage());
+            }
+        } else {
+            // Custodial user: generate keypair server-side
+            $this->userService->createUser($community, $displayName, $role);
+            $this->addFlash('success', 'Custodial user created.');
+        }
+
         return $this->redirectToRoute('admin_chat_users', ['communityId' => $communityId]);
     }
 

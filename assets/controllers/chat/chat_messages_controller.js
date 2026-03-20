@@ -4,6 +4,10 @@ import { Controller } from '@hotwired/stimulus';
  * Chat messages controller — handles sending, receiving (via Mercure SSE),
  * and loading older messages from the relay via the backend API.
  *
+ * Supports two signing modes:
+ * - custodial: server signs events (POST plaintext to sendUrl)
+ * - self-sovereign: client signs kind-42 events via NIP-07/NIP-46 (POST signed JSON to signedSendUrl)
+ *
  * data-controller="chat--messages"
  */
 export default class extends Controller {
@@ -11,8 +15,12 @@ export default class extends Controller {
         groupSlug: String,
         communityId: String,
         sendUrl: String,
+        signedSendUrl: String,
         historyUrl: String,
         currentPubkey: String,
+        signingMode: { type: String, default: 'custodial' },
+        channelEventId: String,
+        relayUrl: String,
     };
 
     static targets = ['messageList', 'input', 'sendButton', 'loadMore'];
@@ -56,27 +64,78 @@ export default class extends Controller {
         this.sendButtonTarget.disabled = true;
 
         try {
-            const response = await fetch(this.sendUrlValue, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ content }),
-            });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                console.error('Send failed:', data.error || response.status);
-                return;
+            if (this.signingModeValue === 'self-sovereign') {
+                await this.sendSelfSovereign(content);
+            } else {
+                await this.sendCustodial(content);
             }
-
             this.inputTarget.value = '';
         } catch (e) {
             console.error('Send error:', e);
         } finally {
             this.sendButtonTarget.disabled = false;
             this.inputTarget.focus();
+        }
+    }
+
+    /**
+     * Custodial path: POST plaintext content, server signs the event.
+     */
+    async sendCustodial(content) {
+        const response = await fetch(this.sendUrlValue, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ content }),
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            console.error('Send failed:', data.error || response.status);
+        }
+    }
+
+    /**
+     * Self-sovereign path: build kind-42 event, sign client-side via NIP-07/NIP-46,
+     * then POST the signed event to the server for validation and relay publishing.
+     */
+    async sendSelfSovereign(content) {
+        const { getSigner } = await import('../nostr/signer_manager.js');
+        const signer = await getSigner();
+
+        const tags = [
+            ['e', this.channelEventIdValue, this.relayUrlValue, 'root'],
+        ];
+
+        const unsignedEvent = {
+            kind: 42,
+            content: content,
+            tags: tags,
+            created_at: Math.floor(Date.now() / 1000),
+        };
+
+        let signedEvent;
+        if (typeof signer.signEvent === 'function') {
+            // NIP-07 browser extension
+            signedEvent = await signer.signEvent(unsignedEvent);
+        } else {
+            throw new Error('Signer does not support signEvent');
+        }
+
+        const response = await fetch(this.signedSendUrlValue, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(signedEvent),
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            console.error('Signed send failed:', data.error || response.status);
         }
     }
 

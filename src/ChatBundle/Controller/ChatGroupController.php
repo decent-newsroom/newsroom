@@ -64,6 +64,8 @@ class ChatGroupController extends AbstractController
             'group' => $group,
             'messages' => $messages,
             'currentUserPubkey' => $user->getPubkey(),
+            'isCustodial' => $user->isCustodial(),
+            'relayUrl' => $this->relayClient->getRelayUrl($community),
         ]);
     }
 
@@ -75,6 +77,10 @@ class ChatGroupController extends AbstractController
 
         if ($group === null || !$this->authChecker->canSendMessage($user, $group)) {
             return new JsonResponse(['error' => 'Forbidden'], 403);
+        }
+
+        if (!$user->isCustodial()) {
+            return new JsonResponse(['error' => 'Self-sovereign users must use the /messages/signed endpoint'], 400);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -90,6 +96,74 @@ class ChatGroupController extends AbstractController
             return new JsonResponse(['ok' => true, 'eventId' => $dto->eventId]);
         } catch (\RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Accept a pre-signed kind-42 event from a self-sovereign user.
+     */
+    public function sendSignedMessage(string $slug, Request $request): JsonResponse
+    {
+        $community = $this->communityResolver->resolve();
+        $user = $this->getChatUser();
+        $group = $this->groupRepo->findBySlugAndCommunity($slug, $community);
+
+        if ($group === null || !$this->authChecker->canSendMessage($user, $group)) {
+            return new JsonResponse(['error' => 'Forbidden'], 403);
+        }
+
+        $signedEventJson = $request->getContent();
+        if (empty($signedEventJson)) {
+            return new JsonResponse(['error' => 'Empty request body'], 400);
+        }
+
+        try {
+            $dto = $this->messageService->publishSignedMessage($user, $group, $signedEventJson);
+            return new JsonResponse(['ok' => true, 'eventId' => $dto->eventId]);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Accept a pre-signed kind-43 (hide) event from a self-sovereign admin.
+     */
+    public function hideSignedMessage(string $slug, Request $request): JsonResponse
+    {
+        $community = $this->communityResolver->resolve();
+        $user = $this->getChatUser();
+        $group = $this->groupRepo->findBySlugAndCommunity($slug, $community);
+
+        if ($group === null) {
+            return new JsonResponse(['error' => 'Not found'], 404);
+        }
+
+        try {
+            $this->messageService->publishSignedModeration($user, $group, $request->getContent(), 43);
+            return new JsonResponse(['ok' => true]);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Accept a pre-signed kind-44 (mute) event from a self-sovereign admin.
+     */
+    public function muteSignedUser(string $slug, Request $request): JsonResponse
+    {
+        $community = $this->communityResolver->resolve();
+        $user = $this->getChatUser();
+        $group = $this->groupRepo->findBySlugAndCommunity($slug, $community);
+
+        if ($group === null) {
+            return new JsonResponse(['error' => 'Not found'], 404);
+        }
+
+        try {
+            $this->messageService->publishSignedModeration($user, $group, $request->getContent(), 44);
+            return new JsonResponse(['ok' => true]);
+        } catch (\RuntimeException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
         }
     }
 

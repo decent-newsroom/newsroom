@@ -14,6 +14,7 @@ framework:
         cookie_secure: auto
         cookie_samesite: lax
         cookie_lifetime: 0 # Session cookie will expire when the browser is closed
+        cookie_domain: '%env(default::SESSION_COOKIE_DOMAIN)%' # .decentnewsroom.com in prod — enables cross-subdomain auth for chat admins
     trusted_proxies: '%env(TRUSTED_PROXIES)%'
     trusted_headers: ['forwarded', 'x-forwarded-for', 'x-forwarded-proto']
     # trusted_proxies: '%env(TRUSTED_PROXIES)%'

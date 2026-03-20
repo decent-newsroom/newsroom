@@ -6,6 +6,7 @@ namespace App\ChatBundle\Repository;
 
 use App\ChatBundle\Entity\ChatCommunity;
 use App\ChatBundle\Entity\ChatUser;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -19,6 +20,15 @@ class ChatUserRepository extends ServiceEntityRepository
     public function findByPubkeyAndCommunity(string $pubkey, ChatCommunity $community): ?ChatUser
     {
         return $this->findOneBy(['pubkey' => $pubkey, 'community' => $community]);
+    }
+
+    /**
+     * Find a ChatUser linked to a main-app User in a specific community.
+     * Used by ChatMainAppAuthenticator for self-sovereign admin login.
+     */
+    public function findByMainAppUserAndCommunity(User $mainAppUser, ChatCommunity $community): ?ChatUser
+    {
+        return $this->findOneBy(['mainAppUser' => $mainAppUser, 'community' => $community]);
     }
 
     /** @return ChatUser[] */

@@ -13,8 +13,12 @@
      data-chat--messages-group-slug-value="{{ group.slug }}"
      data-chat--messages-community-id-value="{{ community.id }}"
      data-chat--messages-send-url-value="/groups/{{ group.slug }}/messages"
+     data-chat--messages-signed-send-url-value="/groups/{{ group.slug }}/messages/signed"
      data-chat--messages-history-url-value="/groups/{{ group.slug }}/history"
-     data-chat--messages-current-pubkey-value="{{ currentUserPubkey }}">
+     data-chat--messages-current-pubkey-value="{{ currentUserPubkey }}"
+     data-chat--messages-signing-mode-value="{{ isCustodial ? 'custodial' : 'self-sovereign' }}"
+     data-chat--messages-channel-event-id-value="{{ group.channelEventId }}"
+     data-chat--messages-relay-url-value="{{ relayUrl }}">
 
     <header class="chat-room__header">
         <a href="/groups" class="chat-room__back">&larr;</a>

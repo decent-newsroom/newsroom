@@ -39,10 +39,15 @@ class ChatKeyManager
 
     /**
      * Decrypt a ChatUser's private key. The caller MUST NOT log or persist the return value.
+     * Only valid for custodial users — self-sovereign users have no stored key.
      */
     public function decryptPrivateKey(ChatUser $user): string
     {
-        return $this->encryption->decrypt($user->getEncryptedPrivateKey());
+        $encryptedKey = $user->getEncryptedPrivateKey();
+        if ($encryptedKey === null) {
+            throw new \RuntimeException('Cannot decrypt private key for a self-sovereign user (no custodial key stored)');
+        }
+        return $this->encryption->decrypt($encryptedKey);
     }
 }
 

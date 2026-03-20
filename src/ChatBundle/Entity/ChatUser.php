@@ -6,17 +6,19 @@ namespace App\ChatBundle\Entity;
 
 use App\ChatBundle\Enum\ChatUserStatus;
 use App\ChatBundle\Repository\ChatUserRepository;
+use App\Entity\User;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Application account with a custodial Nostr identity.
- * The user does not manage keys directly — the system generates and stores them.
+ * Chat account — either custodial (server-managed keys) or self-sovereign
+ * (linked to a main-app User who signs with NIP-07/NIP-46).
  */
 #[ORM\Entity(repositoryClass: ChatUserRepository::class)]
 #[ORM\Table(name: 'chat_user')]
 #[ORM\UniqueConstraint(name: 'chat_user_community_pubkey', columns: ['community_id', 'pubkey'])]
+#[ORM\UniqueConstraint(name: 'chat_user_community_main_user', columns: ['community_id', 'main_app_user_id'])]
 class ChatUser implements UserInterface
 {
     #[ORM\Id]
@@ -38,9 +40,17 @@ class ChatUser implements UserInterface
     #[ORM\Column(length: 64)]
     private string $pubkey;
 
-    /** AES-256-GCM encrypted private key (base64 encoded) */
-    #[ORM\Column(type: Types::TEXT)]
-    private string $encryptedPrivateKey;
+    /** AES-256-GCM encrypted private key (base64 encoded). Null for self-sovereign users. */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $encryptedPrivateKey = null;
+
+    /**
+     * Link to the main-app User for self-sovereign (admin) accounts.
+     * Null for custodial users created via invite.
+     */
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'main_app_user_id', nullable: true, onDelete: 'SET NULL')]
+    private ?User $mainAppUser = null;
 
     #[ORM\Column(length: 20)]
     private string $status = ChatUserStatus::PENDING->value;
@@ -142,12 +152,12 @@ class ChatUser implements UserInterface
         return $this;
     }
 
-    public function getEncryptedPrivateKey(): string
+    public function getEncryptedPrivateKey(): ?string
     {
         return $this->encryptedPrivateKey;
     }
 
-    public function setEncryptedPrivateKey(string $encryptedPrivateKey): self
+    public function setEncryptedPrivateKey(?string $encryptedPrivateKey): self
     {
         $this->encryptedPrivateKey = $encryptedPrivateKey;
         return $this;
@@ -184,5 +194,23 @@ class ChatUser implements UserInterface
         $this->activatedAt = $activatedAt;
         return $this;
     }
-}
 
+    public function getMainAppUser(): ?User
+    {
+        return $this->mainAppUser;
+    }
+
+    public function setMainAppUser(?User $mainAppUser): self
+    {
+        $this->mainAppUser = $mainAppUser;
+        return $this;
+    }
+
+    /**
+     * Custodial users have server-managed keys. Self-sovereign users are linked to a main-app User.
+     */
+    public function isCustodial(): bool
+    {
+        return $this->mainAppUser === null;
+    }
+}

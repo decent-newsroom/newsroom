@@ -25,10 +25,37 @@ chat_group_show:
         slug: '[a-z0-9\-]+'
     condition: "request.attributes.has('_chat_community')"
 
-# Send message (AJAX)
+# Send message (AJAX) — custodial users
 chat_group_send:
     path: /groups/{slug}/messages
     controller: App\ChatBundle\Controller\ChatGroupController::sendMessage
+    methods: [POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Send pre-signed message (AJAX) — self-sovereign users
+chat_group_send_signed:
+    path: /groups/{slug}/messages/signed
+    controller: App\ChatBundle\Controller\ChatGroupController::sendSignedMessage
+    methods: [POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Hide message with pre-signed event (AJAX) — self-sovereign admins
+chat_group_hide_signed:
+    path: /groups/{slug}/hide/signed
+    controller: App\ChatBundle\Controller\ChatGroupController::hideSignedMessage
+    methods: [POST]
+    requirements:
+        slug: '[a-z0-9\-]+'
+    condition: "request.attributes.has('_chat_community')"
+
+# Mute user with pre-signed event (AJAX) — self-sovereign admins
+chat_group_mute_signed:
+    path: /groups/{slug}/mute/signed
+    controller: App\ChatBundle\Controller\ChatGroupController::muteSignedUser
     methods: [POST]
     requirements:
         slug: '[a-z0-9\-]+'

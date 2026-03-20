@@ -6,10 +6,14 @@
 <div class="admin-dashboard">
     <h1>Users — {{ community.name }}</h1>
 
-    <form method="post" action="{{ path('admin_chat_user_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end;">
+    <form method="post" action="{{ path('admin_chat_user_create', {communityId: community.id}) }}" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap;">
         <div class="form-group" style="margin:0;">
-            <label for="display_name">Display Name</label>
-            <input type="text" id="display_name" name="display_name" required placeholder="New user name">
+            <label for="npub">npub <small>(leave empty for custodial)</small></label>
+            <input type="text" id="npub" name="npub" placeholder="npub1…" style="font-family: monospace; min-width: 300px;">
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label for="display_name">Display Name <small>(custodial only)</small></label>
+            <input type="text" id="display_name" name="display_name" placeholder="New user name">
         </div>
         <div class="form-group" style="margin:0;">
             <label for="role">Role</label>
@@ -23,12 +27,19 @@
     </form>
 
     <table class="admin-table">
-        <thead><tr><th>Name</th><th>Pubkey</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Pubkey</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
         <tbody>
         {% for user in users %}
             <tr>
                 <td>{{ user.displayName }}</td>
                 <td><code>{{ user.pubkey[:12] }}…</code></td>
+                <td>
+                    {% if user.custodial %}
+                        <span class="badge badge--muted">Custodial</span>
+                    {% else %}
+                        <span class="badge badge--info">Self-sovereign</span>
+                    {% endif %}
+                </td>
                 <td>{{ user.status.value }}</td>
                 <td>{{ user.createdAt|date('Y-m-d') }}</td>
                 <td>
