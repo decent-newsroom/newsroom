@@ -12,6 +12,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class VisitorAnalyticsController extends AbstractController
 {
+    public function __construct(
+        private readonly string $baseDomain,
+    ) {}
+
     #[Route('/admin/analytics', name: 'admin_analytics')]
     #[IsGranted('ROLE_ADMIN')]
     public function index(VisitRepository $visitRepository): Response
@@ -25,6 +29,7 @@ class VisitorAnalyticsController extends AbstractController
         $referredVisitsLast7Days = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-7 days'));
         $totalReferredVisits = $visitRepository->countVisitsWithReferer();
         $topReferersLast30Days = $visitRepository->getTopReferers(15, new \DateTimeImmutable('-30 days'));
+        $topExternalReferersLast30Days = $visitRepository->getTopExternalReferers($this->baseDomain, 15, new \DateTimeImmutable('-30 days'));
 
         // Most read articles in the last 24 hrs
         $topArticlesLast24Hours = $visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
@@ -76,6 +81,7 @@ class VisitorAnalyticsController extends AbstractController
             'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
             'topRoutesAllTime' => $topRoutesAllTime,
             'topReferersLast30Days' => $topReferersLast30Days,
+            'topExternalReferersLast30Days' => $topExternalReferersLast30Days,
             'recentVisitRecords' => $recentVisitRecords,
             'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
             'topArticlesLast24Hours' => $topArticlesLast24Hours,

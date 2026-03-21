@@ -250,6 +250,30 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns the most common referers that do NOT contain the given base domain (external referers).
+     */
+    public function getTopExternalReferers(string $baseDomain, int $limit = 15, ?\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.referer, COUNT(v.id) as count')
+            ->groupBy('v.referer')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($since) {
+            $qb->where('v.visitedAt >= :since')
+                ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        $this->applyTrackedVisitFilters($qb);
+        $this->applyRefererPresenceFilter($qb);
+        $this->addCondition($qb, 'v.referer NOT LIKE :baseDomainPattern');
+        $qb->setParameter('baseDomainPattern', '%' . $baseDomain . '%');
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Returns daily unique visitor counts for the last N days, excluding utility routes.
      */
     public function getDailyUniqueVisitors(int $days = 7): array

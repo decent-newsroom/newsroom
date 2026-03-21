@@ -158,6 +158,39 @@
         </div>
 
         <div class="analytics-card">
+            <h2>External Referrers (Last 30 Days)</h2>
+            {% if topExternalReferersLast30Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                    <tr>
+                        <th>Referrer</th>
+                        <th class="text-right">Visits</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for stat in topExternalReferersLast30Days %}
+                        {% set isHttpReferer = stat.referer starts with 'http://' or stat.referer starts with 'https://' %}
+                        <tr>
+                            <td>
+                                {% if isHttpReferer %}
+                                    <a href="{{ stat.referer }}" target="_blank" rel="noopener noreferrer" title="{{ stat.referer }}">
+                                        {{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}
+                                    </a>
+                                {% else %}
+                                    <span title="{{ stat.referer }}">{{ stat.referer|length > 100 ? stat.referer|slice(0, 100) ~ '…' : stat.referer }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right">{{ stat.count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No external referrer visits recorded in the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
             <h2>Visits Per Day (Last 30 Days)</h2>
             {% if dailyVisitCountsLast30Days|length > 0 %}
                 <canvas id="visitsPerDayChart"
