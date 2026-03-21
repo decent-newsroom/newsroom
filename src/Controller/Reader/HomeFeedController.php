@@ -14,7 +14,7 @@ use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\FollowPackService;
-use App\Service\MutedPubkeysService;
+use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
@@ -31,7 +31,7 @@ class HomeFeedController extends AbstractController
         string $tab,
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
-        MutedPubkeysService $mutedPubkeysService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
@@ -40,7 +40,7 @@ class HomeFeedController extends AbstractController
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
-            'latest' => $this->latestTab($redisCacheService, $viewStore, $mutedPubkeysService, $articleSearchFactory),
+            'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory),
             'follows' => $this->followsTab($articleRepository, $eventRepository, $redisCacheService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
@@ -51,7 +51,7 @@ class HomeFeedController extends AbstractController
     private function latestTab(
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
-        MutedPubkeysService $mutedPubkeysService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
     ): Response {
         $cachedView = $viewStore->fetchLatestArticles();
@@ -70,7 +70,8 @@ class HomeFeedController extends AbstractController
                 }
             }
         } else {
-            $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+            // Unified exclusion: config-level deny-list + admin-muted users
+            $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 

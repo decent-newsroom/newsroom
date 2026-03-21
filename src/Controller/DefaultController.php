@@ -9,7 +9,6 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Service\MutedPubkeysService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
@@ -176,7 +175,7 @@ class DefaultController extends AbstractController
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         CacheItemPoolInterface $articlesCache,
-        MutedPubkeysService $mutedPubkeysService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory
     ): Response
     {
@@ -203,7 +202,8 @@ class DefaultController extends AbstractController
             $fromCache = true;
         } else {
             // Fallback path: Use search service if Redis view not available
-            $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+            // Unified exclusion: config-level deny-list + admin-muted users
+            $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
 
             // Use the search factory to get the appropriate search service
             $articleSearch = $articleSearchFactory->create();
@@ -264,12 +264,11 @@ class DefaultController extends AbstractController
         RedisCacheService $redisCacheService,
         NostrClient $nostrClient,
         RedisViewStore $viewStore,
-        MutedPubkeysService $mutedPubkeysService,
         LatestArticlesExclusionPolicy $exclusionPolicy,
     ): Response
     {
-        // Get muted pubkeys from database/cache
-        $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+        // Unified exclusion: config-level deny-list + admin-muted users
+        $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
 
         // Fast path: Try Redis cache first (single GET - super fast!)
         $cachedView = $viewStore->fetchLatestArticles();
@@ -298,18 +297,18 @@ class DefaultController extends AbstractController
 
 
             try {
-                // Fetch fresh from relay
-                $articles = $nostrClient->getLatestLongFormArticles(50);
+                // Fetch a larger pool from the relay so that after filtering
+                // excluded authors we still have enough articles to display.
+                $articles = $nostrClient->getLatestLongFormArticles(150);
 
-                // Filter out excluded pubkeys
+                // Filter out excluded pubkeys immediately
                 $articles = array_values(array_filter($articles, function ($article) use ($excludedPubkeys) {
-                    if (!method_exists($article, 'getPubkey')) {
-                        return true;
-                    }
-
-                    $pubkey = $article->getPubkey();
+                    $pubkey = method_exists($article, 'getPubkey') ? $article->getPubkey() : null;
                     return !($pubkey && in_array($pubkey, $excludedPubkeys, true));
                 }));
+
+                // Trim back to display limit after filtering
+                $articles = array_slice($articles, 0, 50);
 
                 // Collect author pubkeys for metadata
                 $authorPubkeys = [];

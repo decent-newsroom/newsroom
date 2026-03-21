@@ -10,7 +10,6 @@ use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
-use App\Service\MutedPubkeysService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -29,7 +28,6 @@ class CacheLatestArticlesCommand extends Command
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
         private readonly LatestArticlesExclusionPolicy $exclusionPolicy,
-        private readonly MutedPubkeysService $mutedPubkeysService,
     ) {
         parent::__construct();
     }
@@ -53,8 +51,14 @@ class CacheLatestArticlesCommand extends Command
 
         $output->writeln('<comment>Querying database for latest articles...</comment>');
 
-        // Muted pubkeys are always excluded from latest feeds.
-        $excludedPubkeys = $this->mutedPubkeysService->getMutedPubkeys();
+        // Unified exclusion: config-level deny-list + admin-muted users,
+        // applied at the DB-query level so excluded authors never consume
+        // the row budget.
+        $excludedPubkeys = $this->exclusionPolicy->getAllExcludedPubkeys();
+
+        if (!empty($excludedPubkeys)) {
+            $output->writeln(sprintf('<info>Excluding %d pubkeys from initial query (muted + config deny-list)</info>', count($excludedPubkeys)));
+        }
 
         // Fetch a large initial pool — most authors are bots/RSS, so we need
         // many more candidates than the target to end up with enough human articles.

@@ -6,6 +6,7 @@ namespace App\Service\LatestArticles;
 
 use App\Dto\UserMetadata;
 use App\Entity\Article;
+use App\Service\MutedPubkeysService;
 
 /**
  * Central policy for excluding bot-type authors from "latest articles" feeds.
@@ -13,6 +14,12 @@ use App\Entity\Article;
  * Contract:
  * - Input: Article entity and optionally already-fetched author metadata.
  * - Output: true if the article should be excluded from latest feeds.
+ *
+ * The policy merges two exclusion sources into one list so that callers
+ * can push the exclusion into the initial DB/relay query instead of
+ * filtering in PHP after the fetch:
+ *   1. Config-level deny-list (`$excludedPubkeys` parameter)
+ *   2. Admin-muted users via `MutedPubkeysService`
  */
 class LatestArticlesExclusionPolicy
 {
@@ -20,9 +27,27 @@ class LatestArticlesExclusionPolicy
      * @param string[] $excludedPubkeys Hex pubkeys to always exclude
      */
     public function __construct(
+        private readonly MutedPubkeysService $mutedPubkeysService,
         private readonly array $excludedPubkeys = [],
         private readonly bool $excludeBotProfiles = true,
     ) {}
+
+    /**
+     * Return every pubkey that should be excluded from latest feeds.
+     * Merges the config-level deny-list with the admin-muted users.
+     *
+     * Use this in the initial DB/relay query (`NOT IN (...)`) so that
+     * excluded authors never consume the row budget.
+     *
+     * @return string[] Unique hex pubkeys
+     */
+    public function getAllExcludedPubkeys(): array
+    {
+        return array_values(array_unique(array_merge(
+            $this->excludedPubkeys,
+            $this->mutedPubkeysService->getMutedPubkeys(),
+        )));
+    }
 
     public function shouldExclude(Article $article, array|\stdClass|UserMetadata|null $authorMetadata = null): bool
     {
