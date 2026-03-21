@@ -9,6 +9,7 @@ use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
@@ -83,7 +84,7 @@ class UserMetadataSyncListener
                     ]);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Exception|ExceptionInterface $e) {
             // Don't fail the login if dispatch fails
             $this->logger->warning('Failed to dispatch relay list warming: ' . $e->getMessage());
         }
