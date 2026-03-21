@@ -47,6 +47,7 @@ class SettingsController extends AbstractController
         private readonly VanityNameService $vanityNameService,
         private readonly ActiveIndexingService $activeIndexingService,
         private readonly PublicationSubdomainService $publicationSubdomainService,
+        private readonly UserProfileService $userProfileService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -385,55 +386,31 @@ class SettingsController extends AbstractController
     }
 
     /**
-     * Backfill kind 0 from the npub cache into the event table.
+     * Backfill kind 0 into the event table by fetching from relays.
      *
      * Called when the Events tab would show kind 0 as "not found" even though
      * the User entity has profile data. This happens when the user visits
-     * settings before the user-context subscription worker has persisted the
-     * event from strfry.
+     * settings before the async pipeline has persisted the event.
      *
-     * Returns the persisted Event entity, or null if the cache has no raw event.
+     * Fetches directly from the local strfry relay (+ fallback to public relays)
+     * via UserProfileService, which is synchronous and reliable — no dependency
+     * on Messenger workers or subscription daemons.
+     *
+     * Returns the persisted Event entity, or null if no kind 0 is found.
      */
     private function backfillMetadataEvent(string $pubkeyHex): ?EventEntity
     {
         try {
-            $item = $this->npubCache->getItem('pubkey_meta_' . $pubkeyHex);
-            if (!$item->isHit()) {
-                return null;
-            }
+            $rawEvent = $this->userProfileService->getMetadata($pubkeyHex);
 
-            $cached = $item->get();
-            if (!is_object($cached) || !isset($cached->id, $cached->kind)) {
-                return null;
-            }
+            // Persist to event table (handles duplicates, replaceable semantics)
+            $this->userProfileService->persistUserEvent($rawEvent);
 
-            // Already in the event table (race condition with worker)
-            $existing = $this->eventRepository->find($cached->id);
-            if ($existing !== null) {
-                return $existing;
-            }
-
-            $entity = new EventEntity();
-            $entity->setId($cached->id);
-            $entity->setKind((int) ($cached->kind ?? 0));
-            $entity->setPubkey($cached->pubkey ?? $pubkeyHex);
-            $entity->setContent($cached->content ?? '');
-            $entity->setCreatedAt((int) ($cached->created_at ?? 0));
-            $entity->setTags(is_array($cached->tags ?? null) ? $cached->tags : []);
-            $entity->setSig($cached->sig ?? '');
-            $entity->extractAndSetDTag();
-
-            $this->entityManager->persist($entity);
-            $this->entityManager->flush();
-
-            $this->logger->info('Settings: backfilled kind 0 event from cache', [
-                'event_id' => substr($cached->id, 0, 16) . '...',
-                'pubkey' => substr($pubkeyHex, 0, 16) . '...',
-            ]);
-
-            return $entity;
+            // Re-read from event table to return the entity
+            return $this->eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::METADATA->value);
         } catch (\Throwable $e) {
-            $this->logger->debug('Settings: could not backfill kind 0 from cache', [
+            $this->logger->debug('Settings: could not backfill kind 0 from relay', [
+                'pubkey' => substr($pubkeyHex, 0, 16) . '...',
                 'error' => $e->getMessage(),
             ]);
             return null;
