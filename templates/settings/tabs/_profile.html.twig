@@ -2,10 +2,13 @@
 <div class="settings-section"
      data-controller="nostr--nostr-settings-profile"
      data-nostr--nostr-settings-profile-publish-url-value="{{ path('api_settings_profile_publish') }}"
-     data-nostr--nostr-settings-profile-profile-value="{{ profile|json_encode }}">
+     data-nostr--nostr-settings-profile-profile-value="{{ profile|json_encode }}"
+     {% if rawProfileContent is defined and rawProfileContent is not null %}
+     data-nostr--nostr-settings-profile-existing-content-value="{{ rawProfileContent|json_encode }}"
+     {% endif %}>
 
-    <h2 class="settings-section__title">{{ 'settings.profile.heading'|trans }}</h2>
-    <p class="settings-section__desc">{{ 'settings.profile.description'|trans }}</p>
+    <h2 class="settings-section__title hidden">{{ 'settings.profile.heading'|trans }}</h2>
+    <p class="settings-section__desc hidden">{{ 'settings.profile.description'|trans }}</p>
 
     {# Current profile preview #}
     <div class="settings-profile-preview">
@@ -105,5 +108,13 @@
             </button>
         </div>
     </form>
+
+    {# Raw kind 0 content JSON — shows all fields including ones DN doesn't manage #}
+    {% if rawProfileContent is defined and rawProfileContent is not null %}
+        <details class="settings-raw-json">
+            <summary class="settings-raw-json__toggle">{{ 'settings.profile.rawJson'|trans }}</summary>
+            <pre class="settings-raw-json__content"><code>{{ rawProfileContent|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</code></pre>
+        </details>
+    {% endif %}
 </div>
 

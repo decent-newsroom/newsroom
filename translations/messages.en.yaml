@@ -499,6 +499,7 @@ settings:
         lightningAddress: 'Lightning Address'
         website: 'Website'
         signAndPublish: 'Sign & Publish Profile'
+        rawJson: 'Raw Profile JSON (kind 0)'
     events:
         heading: 'Your Nostr Events'
         description: 'Overview of all Nostr events used by Decent Newsroom to personalize your experience.'
@@ -531,6 +532,8 @@ settings:
         view: 'View'
         create: 'Create'
         andMore: 'and %count% more'
+        syncButton: 'Sync from relays'
+        syncHint: 'Fetch your latest events from your Nostr relays'
     subscriptions:
         heading: 'Subscriptions'
         description: 'Your active subscriptions and services.'

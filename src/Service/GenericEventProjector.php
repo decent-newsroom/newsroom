@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Graph\RecordIdentityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
@@ -16,6 +17,10 @@ use Psr\Log\LoggerInterface;
 /**
  * Projects generic Nostr events into Event entities
  * Used for event kinds that don't have specialized projectors
+ *
+ * Handles replaceable event semantics (NIP-01):
+ *   - kind 0, 3, 10000–19999: only the latest event per pubkey+kind is kept
+ *   - kind 30000–39999: only the latest event per pubkey+kind+d_tag is kept
  */
 class GenericEventProjector
 {
@@ -25,6 +30,7 @@ class GenericEventProjector
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly UserRolePromoter $userRolePromoter,
+        private readonly RecordIdentityService $recordIdentityService,
     ) {
     }
 
@@ -67,6 +73,22 @@ class GenericEventProjector
                 'relay' => $relayUrl
             ]);
             return $existing;
+        }
+
+        // For replaceable events, skip if a newer version already exists.
+        // This prevents re-inserting stale events that arrive out of order.
+        $kind = (int) ($event->kind ?? 0);
+        $pubkey = $event->pubkey ?? '';
+        if ($pubkey !== '' && $this->isReplaceableOrParameterized($kind)) {
+            $newerExists = $this->newerReplaceableExists($kind, $pubkey, $event);
+            if ($newerExists) {
+                $this->logger->debug('Skipping older replaceable event — newer version exists', [
+                    'event_id' => $event->id,
+                    'kind' => $kind,
+                    'pubkey' => substr($pubkey, 0, 16) . '...',
+                ]);
+                return $newerExists;
+            }
         }
 
         // Create new Event entity
@@ -113,6 +135,11 @@ class GenericEventProjector
             ]);
         }
 
+        // Clean up older versions of replaceable events (NIP-01).
+        // For kind 0, 3, 10000–19999: only keep latest per pubkey+kind.
+        // For kind 30000–39999: only keep latest per pubkey+kind+d_tag.
+        $this->removeOlderReplaceableVersions($entity);
+
         $this->logger->info('Generic event saved to database', [
             'event_id' => $event->id,
             'kind' => $event->kind,
@@ -133,6 +160,138 @@ class GenericEventProjector
         }
 
         return $entity;
+    }
+
+    /**
+     * Check if a kind is replaceable or parameterized replaceable (NIP-01).
+     */
+    private function isReplaceableOrParameterized(int $kind): bool
+    {
+        return $this->recordIdentityService->isReplaceable($kind)
+            || $this->recordIdentityService->isParameterizedReplaceable($kind);
+    }
+
+    /**
+     * Return the existing DB event if it is newer than the incoming one.
+     * Returns null when the incoming event should be stored.
+     */
+    private function newerReplaceableExists(int $kind, string $pubkey, object $incoming): ?Event
+    {
+        $currentEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, $kind);
+        if ($currentEvent === null) {
+            return null;
+        }
+
+        // For parameterized replaceable, d_tag must also match
+        if ($this->recordIdentityService->isParameterizedReplaceable($kind)) {
+            $incomingDTag = $this->extractDTag($incoming);
+            if (($currentEvent->getDTag() ?? '') !== ($incomingDTag ?? '')) {
+                return null; // different d_tag — not the same logical record
+            }
+        }
+
+        $incomingCreatedAt = (int) ($incoming->created_at ?? 0);
+        $existingCreatedAt = $currentEvent->getCreatedAt();
+
+        // Existing is strictly newer → skip incoming
+        if ($existingCreatedAt > $incomingCreatedAt) {
+            return $currentEvent;
+        }
+
+        // Same timestamp → NIP-01 tie-break: lower event id wins
+        if ($existingCreatedAt === $incomingCreatedAt
+            && $currentEvent->getId() < $incoming->id) {
+            return $currentEvent;
+        }
+
+        return null; // incoming is newer (or wins tie-break) → proceed
+    }
+
+    /**
+     * Extract the d tag value from a raw event object.
+     */
+    private function extractDTag(object $event): ?string
+    {
+        $tags = $event->tags ?? [];
+        if (!is_array($tags)) {
+            return null;
+        }
+        foreach ($tags as $tag) {
+            if (is_array($tag) && ($tag[0] ?? '') === 'd' && array_key_exists(1, $tag)) {
+                return (string) $tag[1];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Remove older versions of a replaceable or parameterized-replaceable event.
+     *
+     * NIP-01 semantics:
+     *   - Replaceable (kind 0, 3, 10000–19999): one event per pubkey+kind
+     *   - Parameterized replaceable (kind 30000–39999): one event per pubkey+kind+d_tag
+     *
+     * Called after the new event is already persisted, so there is no window
+     * where zero events exist for the coordinate.
+     */
+    private function removeOlderReplaceableVersions(Event $newEvent): void
+    {
+        $kind = $newEvent->getKind();
+        $pubkey = $newEvent->getPubkey();
+
+        if (!$this->recordIdentityService->isReplaceable($kind)
+            && !$this->recordIdentityService->isParameterizedReplaceable($kind)) {
+            return; // regular event — nothing to clean up
+        }
+
+        try {
+            $em = $this->em();
+            $qb = $em->createQueryBuilder();
+
+            $qb->delete(Event::class, 'e')
+                ->where('e.pubkey = :pubkey')
+                ->andWhere('e.kind = :kind')
+                ->andWhere('e.id != :currentId')
+                ->andWhere(
+                    $qb->expr()->orX(
+                        'e.created_at < :createdAt',
+                        $qb->expr()->andX(
+                            'e.created_at = :createdAt',
+                            'e.id > :currentId'   // NIP-01 tie-break: lower id wins
+                        )
+                    )
+                )
+                ->setParameter('pubkey', $pubkey)
+                ->setParameter('kind', $kind)
+                ->setParameter('currentId', $newEvent->getId())
+                ->setParameter('createdAt', $newEvent->getCreatedAt());
+
+            // For parameterized replaceable events, also match on d_tag
+            if ($this->recordIdentityService->isParameterizedReplaceable($kind)) {
+                $qb->andWhere('e.dTag = :dTag')
+                    ->setParameter('dTag', $newEvent->getDTag() ?? '');
+            }
+
+            $deleted = $qb->getQuery()->execute();
+
+            if ($deleted > 0) {
+                $this->logger->debug('Removed older replaceable event versions', [
+                    'kind' => $kind,
+                    'pubkey' => substr($pubkey, 0, 16) . '...',
+                    'd_tag' => $newEvent->getDTag(),
+                    'deleted_count' => $deleted,
+                    'kept_event_id' => $newEvent->getId(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal — stale events won't break lookups since
+            // findLatestByPubkeyAndKind() always sorts by created_at DESC
+            $this->logger->warning('Failed to clean up older replaceable event versions', [
+                'kind' => $kind,
+                'pubkey' => substr($pubkey, 0, 16) . '...',
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

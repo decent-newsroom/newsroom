@@ -18,6 +18,7 @@ export default class extends Controller {
   static values = {
     publishUrl: String,
     profile: Object,
+    existingContent: Object, // Raw kind 0 content from cache — may include unknown fields
   };
 
   connect() {
@@ -44,8 +45,8 @@ export default class extends Controller {
       this.showStatus('Preparing profile event...');
       const pubkey = await signer.getPublicKey();
 
-      // Collect form values
-      const fields = {
+      // Collect form values (only DN-known fields)
+      const formFields = {
         display_name: this.hasDisplayNameTarget ? this.displayNameTarget.value.trim() : '',
         name: this.hasNameTarget ? this.nameTarget.value.trim() : '',
         about: this.hasAboutTarget ? this.aboutTarget.value.trim() : '',
@@ -56,21 +57,29 @@ export default class extends Controller {
         website: this.hasWebsiteTarget ? this.websiteTarget.value.trim() : '',
       };
 
-      // Build tags (new format) — only include non-empty fields
+      // Start from existing content (preserves unknown fields like bot, pronouns, etc.)
+      const existingContent = this.hasExistingContentValue ? { ...this.existingContentValue } : {};
+
+      // Merge form fields into existing content — form values override, empty = remove
+      const contentObj = { ...existingContent };
+      for (const [key, value] of Object.entries(formFields)) {
+        if (value) {
+          contentObj[key] = value;
+        } else {
+          delete contentObj[key]; // user cleared the field — remove it
+        }
+      }
+
+      // Build tags — known editable fields as tags
       const tags = [];
-      for (const [key, value] of Object.entries(fields)) {
+
+      // Add non-empty form fields as tags
+      for (const [key, value] of Object.entries(formFields)) {
         if (value) {
           tags.push([key, value]);
         }
       }
 
-      // Build content JSON (legacy format for compatibility with other clients)
-      const contentObj = {};
-      for (const [key, value] of Object.entries(fields)) {
-        if (value) {
-          contentObj[key] = value;
-        }
-      }
 
       const skeleton = {
         kind: 0,

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Event as EventEntity;
+use App\Entity\User;
 use App\Enum\KindBundles;
 use App\Enum\KindsEnum;
+use App\Message\UpdateRelayListMessage;
 use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
 use App\Service\Nostr\NostrClient;
@@ -15,12 +17,15 @@ use App\Service\Nostr\UserRelayListService;
 use App\Service\PublicationSubdomainService;
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -37,6 +42,8 @@ class SettingsController extends AbstractController
 {
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly CacheItemPoolInterface $npubCache,
         private readonly VanityNameService $vanityNameService,
         private readonly ActiveIndexingService $activeIndexingService,
         private readonly PublicationSubdomainService $publicationSubdomainService,
@@ -47,14 +54,28 @@ class SettingsController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function index(): Response
     {
-        $npub = $this->getUser()->getUserIdentifier();
+        /** @var User $user */
+        $user = $this->getUser();
+        $npub = $user->getUserIdentifier();
         $pubkeyHex = NostrKeyUtil::npubToHex($npub);
 
-        // Load all user context events from DB
+        // Load all user context events from DB (for the Events tab)
         $events = $this->loadUserEvents($pubkeyHex);
 
-        // Parse profile metadata from kind 0 event
-        $profile = $this->parseProfileFromEvent($events[KindsEnum::METADATA->value] ?? null);
+        // If kind 0 is missing from the event table, try to backfill from
+        // the npub cache so the Events tab shows it consistently.
+        if (($events[KindsEnum::METADATA->value] ?? null) === null) {
+            $backfilled = $this->backfillMetadataEvent($pubkeyHex);
+            if ($backfilled !== null) {
+                $events[KindsEnum::METADATA->value] = $backfilled;
+            }
+        }
+
+        // Profile comes from the User entity (populated by UserMetadataSyncService on login)
+        $profile = $this->buildProfileFromUser($user);
+
+        // Raw kind 0 content — read from event table (persistent), fall back to cache
+        $rawProfileContent = $this->getRawProfileContent($pubkeyHex, $events[KindsEnum::METADATA->value] ?? null);
 
         // Subscriptions
         $vanityName = $this->vanityNameService->getByNpub($npub);
@@ -65,6 +86,7 @@ class SettingsController extends AbstractController
             'npub' => $npub,
             'pubkeyHex' => $pubkeyHex,
             'profile' => $profile,
+            'rawProfileContent' => $rawProfileContent,
             'events' => $events,
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
@@ -120,6 +142,15 @@ class SettingsController extends AbstractController
 
             // Persist to local DB (persistInterestEvent is a public alias for persistEvent)
             $userProfileService->persistUserEvent((object) $signedEvent);
+
+            // Update the User entity so settings page reflects changes immediately
+            /** @var User $user */
+            $user = $this->getUser();
+            $this->updateUserEntityFromEvent($user, $signedEvent);
+
+            // Update the npub cache with the new raw event so the raw JSON
+            // section shows updated content on next page load
+            $this->cacheRawProfileEvent($signedEvent);
 
             // Collect relays for publishing
             $pubkey = $signedEvent['pubkey'];
@@ -224,6 +255,36 @@ class SettingsController extends AbstractController
     }
 
     /**
+     * API endpoint to trigger a full relay sync (same pipeline as login).
+     *
+     * Dispatches UpdateRelayListMessage which cascades into SyncUserEventsMessage,
+     * batch-fetching all user events from NIP-65 relays asynchronously.
+     */
+    #[Route('/api/settings/sync', name: 'api_settings_sync', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function syncFromRelays(
+        MessageBusInterface $messageBus,
+    ): JsonResponse {
+        try {
+            /** @var User $user */
+            $user = $this->getUser();
+            $npub = $user->getUserIdentifier();
+            $pubkeyHex = NostrKeyUtil::npubToHex($npub);
+
+            $messageBus->dispatch(new UpdateRelayListMessage($pubkeyHex));
+
+            $this->logger->info('Settings: dispatched relay sync for user', [
+                'npub' => substr($npub, 0, 16) . '...',
+            ]);
+
+            return new JsonResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Settings: relay sync dispatch failed', ['error' => $e->getMessage()]);
+            return new JsonResponse(['error' => 'Sync failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Load all user context events from the local DB.
      *
      * @return array<int, EventEntity|null> kind => latest Event entity
@@ -254,44 +315,204 @@ class SettingsController extends AbstractController
     }
 
     /**
-     * Parse profile metadata from a kind 0 event.
+     * Update User entity fields from a signed kind 0 event.
+     *
+     * Called after publishing so the profile page reflects changes immediately
+     * without waiting for the next login sync cycle.
      */
-    private function parseProfileFromEvent(?EventEntity $event): array
+    private function updateUserEntityFromEvent(User $user, array $signedEvent): void
     {
-        $profile = [
-            'display_name' => '',
-            'name' => '',
-            'about' => '',
-            'picture' => '',
-            'banner' => '',
-            'nip05' => '',
-            'lud16' => '',
-            'website' => '',
-        ];
-
-        if ($event === null) {
-            return $profile;
+        // Extract from tags first (primary), then content JSON (fallback)
+        $fields = [];
+        foreach ($signedEvent['tags'] ?? [] as $tag) {
+            if (is_array($tag) && count($tag) >= 2) {
+                $fields[$tag[0]] = $tag[1];
+            }
         }
 
-        // Try content JSON first (legacy format still common)
-        $content = json_decode($event->getContent(), true);
+        $content = json_decode($signedEvent['content'] ?? '{}', true);
         if (is_array($content)) {
-            $profile = array_merge($profile, array_intersect_key($content, $profile));
+            // Tags take priority — only fill in fields not already set from tags
+            $fields = array_merge($content, $fields);
         }
 
-        // Override with tags if present (newer format)
-        foreach ($event->getTags() as $tag) {
-            if (!is_array($tag) || count($tag) < 2) {
-                continue;
+        if (isset($fields['display_name'])) {
+            $user->setDisplayName($fields['display_name']);
+        }
+        if (isset($fields['name'])) {
+            $user->setName($fields['name']);
+        }
+        if (isset($fields['about'])) {
+            $user->setAbout($fields['about']);
+        }
+        if (isset($fields['picture'])) {
+            $user->setPicture($fields['picture']);
+        }
+        if (isset($fields['banner'])) {
+            $user->setBanner($fields['banner']);
+        }
+        if (isset($fields['nip05'])) {
+            $user->setNip05($fields['nip05']);
+        }
+        if (isset($fields['lud16'])) {
+            $user->setLud16($fields['lud16']);
+        }
+        if (isset($fields['website'])) {
+            $user->setWebsite($fields['website']);
+        }
+
+        $user->setLastMetadataRefresh(new \DateTimeImmutable());
+        $this->entityManager->flush();
+    }
+
+    /**
+     * Backfill kind 0 from the npub cache into the event table.
+     *
+     * Called when the Events tab would show kind 0 as "not found" even though
+     * the User entity has profile data. This happens when the user visits
+     * settings before the user-context subscription worker has persisted the
+     * event from strfry.
+     *
+     * Returns the persisted Event entity, or null if the cache has no raw event.
+     */
+    private function backfillMetadataEvent(string $pubkeyHex): ?EventEntity
+    {
+        try {
+            $item = $this->npubCache->getItem('pubkey_meta_' . $pubkeyHex);
+            if (!$item->isHit()) {
+                return null;
             }
-            $key = $tag[0];
-            $value = $tag[1];
-            if (array_key_exists($key, $profile)) {
-                $profile[$key] = $value;
+
+            $cached = $item->get();
+            if (!is_object($cached) || !isset($cached->id, $cached->kind)) {
+                return null;
+            }
+
+            // Already in the event table (race condition with worker)
+            $existing = $this->eventRepository->find($cached->id);
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $entity = new EventEntity();
+            $entity->setId($cached->id);
+            $entity->setKind((int) ($cached->kind ?? 0));
+            $entity->setPubkey($cached->pubkey ?? $pubkeyHex);
+            $entity->setContent($cached->content ?? '');
+            $entity->setCreatedAt((int) ($cached->created_at ?? 0));
+            $entity->setTags(is_array($cached->tags ?? null) ? $cached->tags : []);
+            $entity->setSig($cached->sig ?? '');
+            $entity->extractAndSetDTag();
+
+            $this->entityManager->persist($entity);
+            $this->entityManager->flush();
+
+            $this->logger->info('Settings: backfilled kind 0 event from cache', [
+                'event_id' => substr($cached->id, 0, 16) . '...',
+                'pubkey' => substr($pubkeyHex, 0, 16) . '...',
+            ]);
+
+            return $entity;
+        } catch (\Throwable $e) {
+            $this->logger->debug('Settings: could not backfill kind 0 from cache', [
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Get the raw kind 0 content JSON.
+     *
+     * Primary source: event table (persistent, includes all fields).
+     * Fallback: npub cache (may have the raw event before the worker persists it).
+     *
+     * Returns the full content object (all fields, including ones DN doesn't
+     * know about). Used by the JS controller to merge form edits on top
+     * of the existing profile so unknown fields are preserved, and shown
+     * as raw JSON in the template for transparency.
+     */
+    private function getRawProfileContent(string $pubkeyHex, ?EventEntity $metadataEvent): ?array
+    {
+        // 1. Event table (reliable, persistent)
+        if ($metadataEvent !== null) {
+            $content = json_decode($metadataEvent->getContent(), true);
+            if (is_array($content) && !empty($content)) {
+                return $content;
             }
         }
 
-        return $profile;
+        // 2. Npub cache fallback (raw relay event)
+        try {
+            $item = $this->npubCache->getItem('pubkey_meta_' . $pubkeyHex);
+            if ($item->isHit()) {
+                $cached = $item->get();
+                if (is_object($cached) && isset($cached->content)) {
+                    $content = json_decode($cached->content, true);
+                    if (is_array($content)) {
+                        return $content;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Non-critical
+        }
+
+        return null;
+    }
+
+    /**
+     * Update the npub cache with a freshly published kind 0 event.
+     *
+     * Ensures the raw JSON section shows the new content on next page load
+     * without waiting for a relay round-trip.
+     */
+    private function cacheRawProfileEvent(array $signedEvent): void
+    {
+        try {
+            $pubkey = $signedEvent['pubkey'] ?? '';
+            if ($pubkey === '') {
+                return;
+            }
+
+            $cacheKey = 'pubkey_meta_' . $pubkey;
+            $item = $this->npubCache->getItem($cacheKey);
+            $item->set((object) $signedEvent);
+            $item->expiresAfter(84000); // ~24 h
+            $this->npubCache->save($item);
+        } catch (\Throwable $e) {
+            $this->logger->debug('Could not update npub cache after profile publish', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Build the profile array from the User entity.
+     *
+     * The User entity is the canonical source for profile metadata — it is
+     * populated by UserMetadataSyncService from the Redis metadata cache on
+     * every login. Kind 0 events may or may not exist in the event table;
+     * the User entity is always up to date.
+     */
+    private function buildProfileFromUser(User $user): array
+    {
+        // getName() falls back to the npub — don't pre-populate the form with it
+        $name = $user->getName();
+        if ($name === $user->getUserIdentifier()) {
+            $name = '';
+        }
+
+        return [
+            'display_name' => $user->getDisplayName() ?? '',
+            'name'         => $name ?? '',
+            'about'        => $user->getAbout() ?? '',
+            'picture'      => $user->getPicture() ?? '',
+            'banner'       => $user->getBanner() ?? '',
+            'nip05'        => $user->getNip05() ?? '',
+            'lud16'        => $user->getLud16() ?? '',
+            'website'      => $user->getWebsite() ?? '',
+        ];
     }
 }
 

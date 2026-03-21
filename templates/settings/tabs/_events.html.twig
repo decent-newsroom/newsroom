@@ -1,7 +1,23 @@
 {# Events dashboard tab — shows all Nostr events used by the newsroom #}
 <div class="settings-section">
-    <h2 class="settings-section__title">{{ 'settings.events.heading'|trans }}</h2>
-    <p class="settings-section__desc">{{ 'settings.events.description'|trans }}</p>
+    <div class="settings-section__header">
+        <div>
+            <h2 class="settings-section__title">{{ 'settings.events.heading'|trans }}</h2>
+            <p class="settings-section__desc">{{ 'settings.events.description'|trans }}</p>
+        </div>
+        <div class="settings-sync"
+             data-controller="nostr--nostr-sync-events"
+             data-nostr--nostr-sync-events-sync-url-value="{{ path('api_settings_sync') }}">
+            <button class="btn btn--small btn--outline"
+                    data-nostr--nostr-sync-events-target="button"
+                    data-action="click->nostr--nostr-sync-events#sync"
+                    title="{{ 'settings.events.syncHint'|trans }}">
+                ⟳ {{ 'settings.events.syncButton'|trans }}
+            </button>
+            <div class="settings-sync__status hidden"
+                 data-nostr--nostr-sync-events-target="status"></div>
+        </div>
+    </div>
 
     <div class="event-cards">
 
