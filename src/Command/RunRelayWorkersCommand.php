@@ -14,18 +14,21 @@ use Symfony\Component\Process\Process;
  * Relay subscription worker that hydrates local data from the strfry relay.
  *
  * Maintains persistent WebSocket subscriptions to the local strfry relay,
- * processing incoming events to create/update articles, media, and magazines
- * in the database. Runs as its own Docker service (worker-relay) so that
- * long-lived relay connections don't share resources with messenger consumers.
+ * processing incoming events to create/update articles, media, magazines,
+ * and user context events in the database. Runs as its own Docker service
+ * (worker-relay) so that long-lived relay connections don't share resources
+ * with messenger consumers.
  *
  * Subprocesses:
  *   - Article hydration: subscribes to kind 30023 (longform articles)
  *   - Media hydration: subscribes to kinds 20, 21, 22 (images, video)
  *   - Magazine hydration: subscribes to kind 30040 (publication indices)
+ *   - User context hydration: subscribes to user identity/social graph kinds
+ *     (0, 3, 5, 10000–10063, 30003–30015, 30024, 34139, 39089)
  */
 #[AsCommand(
     name: 'app:run-relay-workers',
-    description: 'Run local relay subscription workers (articles, media, magazines)'
+    description: 'Run local relay subscription workers (articles, media, magazines, user context)'
 )]
 class RunRelayWorkersCommand extends Command
 {
@@ -53,12 +56,20 @@ class RunRelayWorkersCommand extends Command
                 InputOption::VALUE_NONE,
                 'Disable magazine hydration worker'
             )
+            ->addOption(
+                'without-user-context',
+                null,
+                InputOption::VALUE_NONE,
+                'Disable user context hydration worker'
+            )
             ->setHelp(
                 'Runs local relay subscription workers in a single process.' . "\n\n" .
                 'Workers:' . "\n" .
                 '  - Article hydration: Subscribes to relay for article events (kind 30023)' . "\n" .
                 '  - Media hydration: Subscribes to relay for media events (kinds 20, 21, 22)' . "\n" .
-                '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n\n" .
+                '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
+                '  - User context hydration: Subscribes to relay for user identity/social events' . "\n" .
+                '    (follows, bookmarks, interests, relay lists, etc.)' . "\n\n" .
                 'This command is designed to run as the worker-relay Docker service.' . "\n" .
                 'Messenger consumers run in the worker service (app:run-workers).' . "\n" .
                 'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
@@ -99,6 +110,13 @@ class RunRelayWorkersCommand extends Command
             $workers['magazines'] = [
                 'command' => ['php', 'bin/console', 'magazines:subscribe-local-relay', '-vv'],
                 'description' => 'Magazine hydration worker',
+            ];
+        }
+
+        if (!$input->getOption('without-user-context')) {
+            $workers['user-context'] = [
+                'command' => ['php', 'bin/console', 'user-context:subscribe-local-relay', '-vv'],
+                'description' => 'User context hydration worker',
             ];
         }
 

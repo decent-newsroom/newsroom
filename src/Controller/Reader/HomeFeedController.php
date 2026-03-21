@@ -242,9 +242,3 @@ class HomeFeedController extends AbstractController
         ]);
     }
 }
-
-
-
-
-
-
