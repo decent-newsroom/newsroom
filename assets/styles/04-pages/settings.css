@@ -340,7 +340,6 @@
 /* ===== Raw JSON ===== */
 .settings-raw-json {
     margin-top: var(--spacing-4);
-    border-top: 1px solid var(--color-border);
     padding-top: var(--spacing-3);
 }
 

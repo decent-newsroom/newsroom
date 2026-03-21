@@ -19,6 +19,7 @@ export default class extends Controller {
     publishUrl: String,
     profile: Object,
     existingContent: Object, // Raw kind 0 content from cache — may include unknown fields
+    existingTags: Array,     // Pre-existing tags from current kind 0 — preserves unknown tags
   };
 
   connect() {
@@ -70,10 +71,14 @@ export default class extends Controller {
         }
       }
 
-      // Build tags — known editable fields as tags
-      const tags = [];
+      // Build tags — preserve existing unknown tags, override form-managed ones
+      const formFieldKeys = new Set(Object.keys(formFields));
 
-      // Add non-empty form fields as tags
+      // Start with existing tags, keeping only those NOT managed by the form
+      const tags = (this.hasExistingTagsValue ? this.existingTagsValue : [])
+        .filter(tag => Array.isArray(tag) && tag.length >= 2 && !formFieldKeys.has(tag[0]));
+
+      // Add non-empty form fields as tags (replaces any previous values)
       for (const [key, value] of Object.entries(formFields)) {
         if (value) {
           tags.push([key, value]);

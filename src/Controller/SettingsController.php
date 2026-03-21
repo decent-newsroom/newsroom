@@ -74,8 +74,25 @@ class SettingsController extends AbstractController
         // Profile comes from the User entity (populated by UserMetadataSyncService on login)
         $profile = $this->buildProfileFromUser($user);
 
-        // Raw kind 0 content — read from event table (persistent), fall back to cache
-        $rawProfileContent = $this->getRawProfileContent($pubkeyHex, $events[KindsEnum::METADATA->value] ?? null);
+        // Raw kind 0 event — complete event for display, content extracted for JS merge
+        $rawProfileEvent = $this->getRawProfileEvent($pubkeyHex, $events[KindsEnum::METADATA->value] ?? null);
+
+        // Extract content and tags from raw event for JS merge (preserves unknown fields/tags)
+        $existingContent = null;
+        $existingTags = [];
+        if ($rawProfileEvent !== null) {
+            if (isset($rawProfileEvent['content'])) {
+                $parsed = is_string($rawProfileEvent['content'])
+                    ? json_decode($rawProfileEvent['content'], true)
+                    : $rawProfileEvent['content'];
+                if (is_array($parsed) && !empty($parsed)) {
+                    $existingContent = $parsed;
+                }
+            }
+            if (!empty($rawProfileEvent['tags'])) {
+                $existingTags = $rawProfileEvent['tags'];
+            }
+        }
 
         // Subscriptions
         $vanityName = $this->vanityNameService->getByNpub($npub);
@@ -86,7 +103,9 @@ class SettingsController extends AbstractController
             'npub' => $npub,
             'pubkeyHex' => $pubkeyHex,
             'profile' => $profile,
-            'rawProfileContent' => $rawProfileContent,
+            'rawProfileEvent' => $rawProfileEvent,
+            'existingContent' => $existingContent,
+            'existingTags' => $existingTags,
             'events' => $events,
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
@@ -422,24 +441,27 @@ class SettingsController extends AbstractController
     }
 
     /**
-     * Get the raw kind 0 content JSON.
+     * Get the raw kind 0 event as a complete array.
      *
-     * Primary source: event table (persistent, includes all fields).
+     * Primary source: event table (persistent).
      * Fallback: npub cache (may have the raw event before the worker persists it).
      *
-     * Returns the full content object (all fields, including ones DN doesn't
-     * know about). Used by the JS controller to merge form edits on top
-     * of the existing profile so unknown fields are preserved, and shown
-     * as raw JSON in the template for transparency.
+     * Returns the full Nostr event (id, pubkey, kind, created_at, content,
+     * tags, sig) — shown as raw JSON in the template for transparency.
      */
-    private function getRawProfileContent(string $pubkeyHex, ?EventEntity $metadataEvent): ?array
+    private function getRawProfileEvent(string $pubkeyHex, ?EventEntity $metadataEvent): ?array
     {
         // 1. Event table (reliable, persistent)
         if ($metadataEvent !== null) {
-            $content = json_decode($metadataEvent->getContent(), true);
-            if (is_array($content) && !empty($content)) {
-                return $content;
-            }
+            return [
+                'id'         => $metadataEvent->getId(),
+                'pubkey'     => $metadataEvent->getPubkey(),
+                'kind'       => $metadataEvent->getKind(),
+                'created_at' => $metadataEvent->getCreatedAt(),
+                'content'    => $metadataEvent->getContent(),
+                'tags'       => $metadataEvent->getTags(),
+                'sig'        => $metadataEvent->getSig(),
+            ];
         }
 
         // 2. Npub cache fallback (raw relay event)
@@ -447,11 +469,16 @@ class SettingsController extends AbstractController
             $item = $this->npubCache->getItem('pubkey_meta_' . $pubkeyHex);
             if ($item->isHit()) {
                 $cached = $item->get();
-                if (is_object($cached) && isset($cached->content)) {
-                    $content = json_decode($cached->content, true);
-                    if (is_array($content)) {
-                        return $content;
-                    }
+                if (is_object($cached) && isset($cached->id, $cached->kind)) {
+                    return [
+                        'id'         => $cached->id ?? '',
+                        'pubkey'     => $cached->pubkey ?? $pubkeyHex,
+                        'kind'       => (int) ($cached->kind ?? 0),
+                        'created_at' => (int) ($cached->created_at ?? 0),
+                        'content'    => $cached->content ?? '',
+                        'tags'       => is_array($cached->tags ?? null) ? $cached->tags : [],
+                        'sig'        => $cached->sig ?? '',
+                    ];
                 }
             }
         } catch (\Throwable) {

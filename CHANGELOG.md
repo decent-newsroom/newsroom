@@ -3,6 +3,7 @@
 ## v0.0.17
 Fetch in batches.
 
+- Fixed profile publishing losing pre-existing kind 0 tags: the JS controller now starts from the existing event's tags and only replaces form-managed fields (`display_name`, `name`, `about`, `picture`, `banner`, `nip05`, `lud16`, `website`), preserving all other tags (e.g. `client`, `proxy`, `i`, `alt`, custom tags from other Nostr clients). The raw profile event display now shows the complete Nostr event (id, pubkey, kind, created_at, content, tags, sig) instead of just the content field.
 - Kind 0 metadata events fetched from relays during profile projection updates (single and batch) are now persisted to the Event table via `GenericEventProjector`, ensuring the event store stays in sync with user entity updates. Previously only the User entity was updated while the raw event was discarded.
 - Added "Sync from relays" button on the settings Events tab, allowing users to manually trigger a full relay sync (relay list revalidation + batch event fetch) on demand, not only on login. Uses the same async pipeline (`UpdateRelayListMessage` → `SyncUserEventsMessage`) as the login flow.
 - Added NIP-01 replaceable event semantics to `GenericEventProjector`: kind 0, 3, and 10000–19999 events now replace older versions for the same pubkey+kind; kind 30000–39999 events replace older versions for the same pubkey+kind+d_tag. Incoming stale events are skipped when a newer version already exists in the DB. Ensures kind 0 metadata updates propagate correctly through the user context pipeline.
