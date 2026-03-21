@@ -62,6 +62,7 @@ import './styles/04-pages/magazine-wizard.css';
 import './styles/04-pages/my-content.css';
 import './styles/04-pages/media-manager.css';
 import './styles/04-pages/home-feed.css';
+import './styles/04-pages/settings.css';
 import './styles/04-pages/curation-page.css';
 import './styles/04-pages/curation-picture-grid.css';
 import './styles/04-pages/curation-video-playlist.css';

@@ -1,0 +1,109 @@
+{# Profile editing tab — kind 0 metadata #}
+<div class="settings-section"
+     data-controller="nostr--nostr-settings-profile"
+     data-nostr--nostr-settings-profile-publish-url-value="{{ path('api_settings_profile_publish') }}"
+     data-nostr--nostr-settings-profile-profile-value="{{ profile|json_encode }}">
+
+    <h2 class="settings-section__title">{{ 'settings.profile.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.profile.description'|trans }}</p>
+
+    {# Current profile preview #}
+    <div class="settings-profile-preview">
+        {% if profile.banner %}
+            <div class="settings-profile-preview__banner">
+                <img src="{{ profile.banner }}" alt="Banner" loading="lazy">
+            </div>
+        {% endif %}
+        <div class="settings-profile-preview__info">
+            {% if profile.picture %}
+                <img src="{{ profile.picture }}" alt="Avatar" class="settings-profile-preview__avatar" loading="lazy">
+            {% else %}
+                <div class="settings-profile-preview__avatar settings-profile-preview__avatar--placeholder">
+                    {{ (profile.display_name ?? profile.name ?? npub[:2])|slice(0, 2)|upper }}
+                </div>
+            {% endif %}
+            <div>
+                <strong>{{ profile.display_name ?? profile.name ?? 'Anonymous' }}</strong>
+                {% if profile.nip05 %}
+                    <span class="text-muted">{{ profile.nip05 }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Edit form #}
+    <form class="settings-form" data-action="submit->nostr--nostr-settings-profile#publish">
+        <div class="settings-form__group">
+            <label for="profile-display-name">{{ 'settings.profile.displayName'|trans }}</label>
+            <input type="text" id="profile-display-name"
+                   data-nostr--nostr-settings-profile-target="displayName"
+                   value="{{ profile.display_name }}"
+                   placeholder="{{ 'settings.profile.displayNamePlaceholder'|trans }}">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-name">{{ 'settings.profile.username'|trans }}</label>
+            <input type="text" id="profile-name"
+                   data-nostr--nostr-settings-profile-target="name"
+                   value="{{ profile.name }}"
+                   placeholder="{{ 'settings.profile.usernamePlaceholder'|trans }}">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-about">{{ 'settings.profile.about'|trans }}</label>
+            <textarea id="profile-about"
+                      data-nostr--nostr-settings-profile-target="about"
+                      rows="4"
+                      placeholder="{{ 'settings.profile.aboutPlaceholder'|trans }}">{{ profile.about }}</textarea>
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-picture">{{ 'settings.profile.pictureUrl'|trans }}</label>
+            <input type="url" id="profile-picture"
+                   data-nostr--nostr-settings-profile-target="picture"
+                   value="{{ profile.picture }}"
+                   placeholder="https://example.com/avatar.jpg">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-banner">{{ 'settings.profile.bannerUrl'|trans }}</label>
+            <input type="url" id="profile-banner"
+                   data-nostr--nostr-settings-profile-target="banner"
+                   value="{{ profile.banner }}"
+                   placeholder="https://example.com/banner.jpg">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-nip05">NIP-05</label>
+            <input type="text" id="profile-nip05"
+                   data-nostr--nostr-settings-profile-target="nip05"
+                   value="{{ profile.nip05 }}"
+                   placeholder="you@example.com">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-lud16">{{ 'settings.profile.lightningAddress'|trans }}</label>
+            <input type="text" id="profile-lud16"
+                   data-nostr--nostr-settings-profile-target="lud16"
+                   value="{{ profile.lud16 }}"
+                   placeholder="you@walletofsatoshi.com">
+        </div>
+
+        <div class="settings-form__group">
+            <label for="profile-website">{{ 'settings.profile.website'|trans }}</label>
+            <input type="url" id="profile-website"
+                   data-nostr--nostr-settings-profile-target="website"
+                   value="{{ profile.website }}"
+                   placeholder="https://yoursite.com">
+        </div>
+
+        <div class="settings-form__actions">
+            <div data-nostr--nostr-settings-profile-target="status" class="settings-status"></div>
+            <button type="submit" class="btn btn--primary"
+                    data-nostr--nostr-settings-profile-target="publishButton">
+                {{ 'settings.profile.signAndPublish'|trans }}
+            </button>
+        </div>
+    </form>
+</div>
+

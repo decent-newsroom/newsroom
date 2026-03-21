@@ -1,0 +1,320 @@
+/**
+ * Settings Page Styles
+ * Tabbed layout for user profile, events, and subscriptions management.
+ */
+
+/* ===== Layout ===== */
+.settings-layout {
+    max-width: 800px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* ===== Tabs ===== */
+.settings-tabs {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-1);
+    margin-bottom: var(--spacing-4);
+    overflow-x: auto;
+    background: var(--color-bg);
+}
+
+.settings-tab {
+    padding: var(--spacing-2) var(--spacing-3);
+    color: var(--color-text-mid);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.settings-tab:hover {
+    color: var(--color-text);
+}
+
+.settings-tab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+/* ===== Panels ===== */
+.settings-panel {
+    display: none;
+}
+
+.settings-panel.active {
+    display: block;
+}
+
+/* ===== Sections ===== */
+.settings-section__title {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-1);
+}
+
+.settings-section__desc {
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-4);
+}
+
+.settings-section__subtitle {
+    font-size: 1.1rem;
+    margin-top: var(--spacing-5);
+    margin-bottom: var(--spacing-3);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+}
+
+/* ===== Profile Preview ===== */
+.settings-profile-preview {
+    overflow: hidden;
+    margin-bottom: var(--spacing-4);
+}
+
+.settings-profile-preview__banner {
+    overflow: hidden;
+    background: var(--color-bg-light);
+}
+
+.settings-profile-preview__banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.settings-profile-preview__info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+}
+
+.settings-profile-preview__avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--color-bg);
+    margin-top: -28px;
+    background: var(--color-bg);
+}
+
+.settings-profile-preview__avatar--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary);
+    color: var(--color-text-contrast);
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+/* ===== Form ===== */
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.settings-form__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.settings-form__group label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+.settings-form__group input:focus,
+.settings-form__group textarea:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-alpha, rgba(99, 102, 241, 0.15));
+}
+
+.settings-form__group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.settings-form__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-2);
+}
+
+/* ===== Status Messages ===== */
+.settings-status {
+    font-size: 0.9rem;
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: 4px;
+}
+
+.settings-status--info {
+    color: var(--color-primary);
+}
+
+.settings-status--success {
+    color: var(--color-success, #16a34a);
+}
+
+.settings-status--error {
+    color: var(--color-error, #dc2626);
+}
+
+/* ===== Event Cards ===== */
+.event-cards {
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.event-card {
+    background: var(--color-bg-light);
+    padding: var(--spacing-3);
+}
+
+.event-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+}
+
+.event-card__kind {
+    font-family: monospace;
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    background: var(--color-bg);
+    border-radius: 4px;
+    color: var(--color-text-mid);
+}
+
+.event-card__label {
+    font-weight: 600;
+    flex: 1;
+}
+
+.event-card__badge {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.event-card__badge--found {
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--color-success, #16a34a);
+}
+
+.event-card__badge--missing {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-error, #dc2626);
+}
+
+.event-card__badge--pending {
+    background: rgba(234, 179, 8, 0.1);
+    color: #b45309;
+}
+
+.event-card__meta {
+    font-size: 0.9rem;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-1);
+}
+
+.event-card__empty {
+    color: var(--color-text-mid);
+    font-style: italic;
+    margin: var(--spacing-1) 0;
+}
+
+.event-card__actions {
+    margin-top: var(--spacing-2);
+}
+
+.event-card__detail {
+    margin-top: var(--spacing-2);
+}
+
+.event-card__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.event-card__list li {
+    padding: 2px 0;
+}
+
+.event-card__list code {
+    font-size: 0.8rem;
+    background: var(--color-bg-light);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* ===== Quick Links ===== */
+.settings-links {
+    display: grid;
+    gap: var(--spacing-2);
+}
+
+.settings-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--color-text);
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.settings-link:hover {
+    border-color: var(--color-primary);
+    background: var(--color-bg-light);
+}
+
+.settings-link__icon {
+    font-size: 1.5rem;
+    width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.settings-link strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.settings-link small {
+    color: var(--color-text-mid);
+    font-size: 0.85rem;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+    .settings-tabs {
+        gap: 0;
+    }
+
+    .settings-tab {
+        padding: var(--spacing-2);
+        font-size: 0.9rem;
+    }
+
+    .settings-profile-preview__banner {
+        height: 80px;
+    }
+}
+

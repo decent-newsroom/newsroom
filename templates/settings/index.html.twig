@@ -1,0 +1,53 @@
+{% extends 'layout.html.twig' %}
+{% block title %}{{ 'settings.title'|trans }}{% endblock %}
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'settings.heading'|trans }}" tagline="{{ 'settings.tagline'|trans }}" />
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="settings-layout" data-controller="ui--settings-tabs">
+        <nav class="settings-tabs">
+            <a href="#profile" class="settings-tab active"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="profile">
+                {{ 'settings.tab.profile'|trans }}
+            </a>
+            <a href="#events" class="settings-tab"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="events">
+                {{ 'settings.tab.events'|trans }}
+            </a>
+            <a href="#subscriptions" class="settings-tab"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="subscriptions">
+                {{ 'settings.tab.subscriptions'|trans }}
+            </a>
+        </nav>
+
+        <div class="settings-panels">
+            <div class="settings-panel active"
+                 data-ui--settings-tabs-target="panel" data-panel="profile">
+                {% include 'settings/tabs/_profile.html.twig' %}
+            </div>
+
+            <div class="settings-panel"
+                 data-ui--settings-tabs-target="panel" data-panel="events">
+                {% include 'settings/tabs/_events.html.twig' %}
+            </div>
+
+            <div class="settings-panel"
+                 data-ui--settings-tabs-target="panel" data-panel="subscriptions">
+                {% include 'settings/tabs/_subscriptions.html.twig' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

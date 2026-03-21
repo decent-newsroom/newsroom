@@ -52,6 +52,7 @@ nav:
     myMagazines: 'Moje revije'
     myReadingLists: 'Moji bralni seznami'
     myInterests: 'Moji interesi'
+    settings: 'Nastavitve'
     create: 'Ustvari'
     magazine: 'Revija'
     readingList: 'Bralni seznam'

@@ -1,0 +1,106 @@
+{# Subscriptions & Content Links tab #}
+<div class="settings-section">
+    <h2 class="settings-section__title">{{ 'settings.subscriptions.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.subscriptions.description'|trans }}</p>
+
+    <div class="event-cards">
+
+        {# Vanity Name (NIP-05) #}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__label">{{ 'settings.subscriptions.vanityName'|trans }}</span>
+                {% if vanityName and vanityName.status.isActive %}
+                    <span class="event-card__badge event-card__badge--found">{{ 'settings.subscriptions.active'|trans }}</span>
+                {% elseif vanityName %}
+                    <span class="event-card__badge event-card__badge--pending">{{ vanityName.status.label }}</span>
+                {% endif %}
+            </div>
+            {% if vanityName %}
+                <div class="event-card__meta">
+                    <strong>{{ vanityName.vanityName }}</strong>
+                </div>
+                {% if vanityName.expiresAt %}
+                    <div class="event-card__meta">
+                        {{ 'settings.subscriptions.expires'|trans }}: {{ vanityName.expiresAt|date('F j, Y') }}
+                    </div>
+                {% endif %}
+                <div class="event-card__actions">
+                    <a href="{{ path('vanity_settings') }}" class="btn btn--small">{{ 'settings.subscriptions.manage'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.subscriptions.noVanityName'|trans }}</p>
+                <p class="text-muted">Short name for your profile links, optional NIP-05.</p>
+                <div class="event-card__actions">
+                    <a href="{{ path('vanity_index') }}" class="btn btn--small btn--primary">{{ 'settings.subscriptions.getVanityName'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Active Indexing #}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__label">{{ 'settings.subscriptions.activeIndexing'|trans }}</span>
+                {% if activeIndexing and activeIndexing.isActive %}
+                    <span class="event-card__badge event-card__badge--found">{{ 'settings.subscriptions.active'|trans }}</span>
+                {% elseif activeIndexing %}
+                    <span class="event-card__badge event-card__badge--pending">{{ activeIndexing.status.label }}</span>
+                {% endif %}
+            </div>
+            {% if activeIndexing %}
+                <div class="event-card__meta">
+                    {{ 'settings.subscriptions.tier'|trans }}: <strong>{{ activeIndexing.tier.value }}</strong>
+                </div>
+                {% if activeIndexing.expiresAt %}
+                    <div class="event-card__meta">
+                        {{ 'settings.subscriptions.expires'|trans }}: {{ activeIndexing.expiresAt|date('F j, Y') }}
+                        {% if activeIndexing.daysRemaining is not null %}
+                            ({{ activeIndexing.daysRemaining }} {{ 'settings.subscriptions.daysLeft'|trans }})
+                        {% endif %}
+                    </div>
+                {% endif %}
+                <div class="event-card__meta">
+                    {{ activeIndexing.articlesIndexed }} {{ 'settings.subscriptions.articlesIndexed'|trans }}
+                </div>
+                <div class="event-card__actions">
+                    <a href="{{ path('active_indexing_settings') }}" class="btn btn--small">{{ 'settings.subscriptions.manage'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.subscriptions.noActiveIndexing'|trans }}</p>
+                <p class="text-muted">Get found, no matter where you publish your content.</p>
+                <div class="event-card__actions">
+                    <a href="{{ path('active_indexing_index') }}" class="btn btn--small btn--primary">{{ 'settings.subscriptions.subscribe'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Publication Subdomain #}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__label">{{ 'settings.subscriptions.publicationSubdomain'|trans }}</span>
+                {% if publicationSubdomain and publicationSubdomain.isActiveAndValid %}
+                    <span class="event-card__badge event-card__badge--found">{{ 'settings.subscriptions.active'|trans }}</span>
+                {% elseif publicationSubdomain %}
+                    <span class="event-card__badge event-card__badge--pending">{{ publicationSubdomain.status.label ?? '' }}</span>
+                {% endif %}
+            </div>
+            {% if publicationSubdomain %}
+                <div class="event-card__meta">
+                    <strong>{{ publicationSubdomain.subdomain }}</strong>
+                </div>
+                <div class="event-card__actions">
+                    <a href="{{ path('publication_subdomain_settings') }}" class="btn btn--small">{{ 'settings.subscriptions.manage'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.subscriptions.noSubdomain'|trans }}</p>
+                <p class="text-muted">A home for your magazine.</p>
+                <div class="event-card__actions">
+                    <a href="{{ path('publication_subdomain_index') }}" class="btn btn--small btn--primary">{{ 'settings.subscriptions.getSubdomain'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+
+

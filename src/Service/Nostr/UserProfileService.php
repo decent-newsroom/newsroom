@@ -280,9 +280,18 @@ class UserProfileService
 
     /**
      * Persist a kind-10015 event to the local DB.
-     * Public alias of persistEvent() kept for ForumController compatibility.
+     * Public alias kept for ForumController compatibility.
      */
     public function persistInterestEvent(object $event): void
+    {
+        $this->persistEvent($event);
+    }
+
+    /**
+     * Persist any Nostr event to the local DB (public entry point).
+     * No-ops silently if the event already exists or data is invalid.
+     */
+    public function persistUserEvent(object $event): void
     {
         $this->persistEvent($event);
     }

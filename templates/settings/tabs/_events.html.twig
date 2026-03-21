@@ -1,0 +1,284 @@
+{# Events dashboard tab — shows all Nostr events used by the newsroom #}
+<div class="settings-section">
+    <h2 class="settings-section__title">{{ 'settings.events.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.events.description'|trans }}</p>
+
+    <div class="event-cards">
+
+        {# Kind 0 — Profile Metadata #}
+        {% set metadataEvent = events[0] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 0</span>
+                <span class="event-card__label">{{ 'settings.events.metadata'|trans }}</span>
+                {% if metadataEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if metadataEvent %}
+                <div class="event-card__meta">
+                    {{ 'settings.events.lastUpdated'|trans }}: {{ metadataEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+                <div class="event-card__actions">
+                    <a href="#profile" class="btn btn--small" data-action="click->ui--settings-tabs#switchToProfile">{{ 'settings.events.edit'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+                <div class="event-card__actions">
+                    <a href="#profile" class="btn btn--small btn--primary" data-action="click->ui--settings-tabs#switchToProfile">{{ 'settings.events.create'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Kind 3 — Follows #}
+        {% set followsEvent = events[3] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 3</span>
+                <span class="event-card__label">{{ 'settings.events.follows'|trans }}</span>
+                {% if followsEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if followsEvent %}
+                {% set pTagCount = followsEvent.tags|filter(t => t[0] is defined and t[0] == 'p')|length %}
+                <div class="event-card__meta">
+                    {{ pTagCount }} {{ 'settings.events.followedAccounts'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ followsEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10002 — Relay List #}
+        {% set relayEvent = events[10002] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10002</span>
+                <span class="event-card__label">{{ 'settings.events.relayList'|trans }}</span>
+                {% if relayEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if relayEvent %}
+                {% set relayCount = relayEvent.tags|filter(t => t[0] is defined and t[0] == 'r')|length %}
+                <div class="event-card__meta">
+                    {{ relayCount }} {{ 'settings.events.relays'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ relayEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+                <div class="event-card__detail">
+                    <ul class="event-card__list">
+                        {% for tag in relayEvent.tags|filter(t => t[0] is defined and t[0] == 'r')|slice(0, 5) %}
+                            <li><code>{{ tag[1] }}</code>{% if tag[2] is defined %} <small>({{ tag[2] }})</small>{% endif %}</li>
+                        {% endfor %}
+                        {% if relayCount > 5 %}
+                            <li class="text-muted">… {{ 'settings.events.andMore'|trans({'%count%': relayCount - 5}) }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10003 — Bookmarks #}
+        {% set bookmarksEvent = events[10003] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10003</span>
+                <span class="event-card__label">{{ 'settings.events.bookmarks'|trans }}</span>
+                {% if bookmarksEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if bookmarksEvent %}
+                {% set bookmarkCount = bookmarksEvent.tags|length %}
+                <div class="event-card__meta">
+                    {{ bookmarkCount }} {{ 'settings.events.items'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ bookmarksEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+                <div class="event-card__actions">
+                    <a href="{{ path('my_bookmarks') }}" class="btn btn--small">{{ 'settings.events.view'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10015 — Interests #}
+        {% set interestsEvent = events[10015] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10015</span>
+                <span class="event-card__label">{{ 'settings.events.interests'|trans }}</span>
+                {% if interestsEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if interestsEvent %}
+                {% set tTagCount = interestsEvent.tags|filter(t => t[0] is defined and t[0] == 't')|length %}
+                <div class="event-card__meta">
+                    {{ tTagCount }} {{ 'settings.events.tags'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ interestsEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+                <div class="event-card__actions">
+                    <a href="{{ path('my_interests') }}" class="btn btn--small">{{ 'settings.events.edit'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.noInterests'|trans }}</p>
+                <div class="event-card__actions">
+                    <a href="{{ path('my_interests') }}" class="btn btn--small btn--primary">{{ 'settings.events.setupInterests'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Kind 10020 — Media Follows #}
+        {% set mediaFollowsEvent = events[10020] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10020</span>
+                <span class="event-card__label">{{ 'settings.events.mediaFollows'|trans }}</span>
+                {% if mediaFollowsEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if mediaFollowsEvent %}
+                {% set mpTagCount = mediaFollowsEvent.tags|filter(t => t[0] is defined and t[0] == 'p')|length %}
+                <div class="event-card__meta">
+                    {{ mpTagCount }} {{ 'settings.events.followedAccounts'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ mediaFollowsEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.noMediaFollows'|trans }}</p>
+                <p class="text-muted">{{ 'settings.events.mediaFollowsHint'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10000 — Mute List #}
+        {% set muteEvent = events[10000] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10000</span>
+                <span class="event-card__label">{{ 'settings.events.muteList'|trans }}</span>
+                {% if muteEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if muteEvent %}
+                {% set muteCount = muteEvent.tags|filter(t => t[0] is defined and t[0] == 'p')|length %}
+                <div class="event-card__meta">
+                    {{ muteCount }} {{ 'settings.events.mutedAccounts'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ muteEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10001 — Pin List #}
+        {% set pinEvent = events[10001] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10001</span>
+                <span class="event-card__label">{{ 'settings.events.pinList'|trans }}</span>
+                {% if pinEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if pinEvent %}
+                {% set pinCount = pinEvent.tags|length %}
+                <div class="event-card__meta">
+                    {{ pinCount }} {{ 'settings.events.pinnedItems'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ pinEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 10063 — Blossom Server List #}
+        {% set blossomEvent = events[10063] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10063</span>
+                <span class="event-card__label">{{ 'settings.events.blossomServers'|trans }}</span>
+                {% if blossomEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if blossomEvent %}
+                {% set serverCount = blossomEvent.tags|filter(t => t[0] is defined and t[0] == 'server')|length %}
+                <div class="event-card__meta">
+                    {{ serverCount }} {{ 'settings.events.servers'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ blossomEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Kind 30015 — Interest Sets #}
+        {% set interestSetsEvent = events[30015] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 30015</span>
+                <span class="event-card__label">{{ 'settings.events.interestSets'|trans }}</span>
+                {% if interestSetsEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if interestSetsEvent %}
+                <div class="event-card__meta">
+                    {{ 'settings.events.lastUpdated'|trans }}: {{ interestSetsEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+        {# Follow Packs #}
+        {% set followPacks = events['follow_packs'] ?? [] %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 39089</span>
+                <span class="event-card__label">{{ 'settings.events.followPacks'|trans }}</span>
+                {% if followPacks|length > 0 %}
+                    <span class="event-card__badge event-card__badge--found">{{ followPacks|length }}</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if followPacks|length > 0 %}
+                <div class="event-card__meta">
+                    {{ followPacks|length }} {{ 'settings.events.packs'|trans }}
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+

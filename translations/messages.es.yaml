@@ -52,6 +52,7 @@ nav:
     myMagazines: 'Mis revistas'
     myReadingLists: 'Mis listas de lectura'
     myInterests: 'Mis intereses'
+    settings: 'Configuración'
     create: 'Crear'
     magazine: 'Revista'
     readingList: 'Lista de lectura'
