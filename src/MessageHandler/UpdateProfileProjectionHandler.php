@@ -5,6 +5,7 @@ namespace App\MessageHandler;
 use App\Entity\User;
 use App\Message\UpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
+use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
@@ -33,7 +34,8 @@ class UpdateProfileProjectionHandler
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
-        private readonly UserRelayListService $userRelayListService
+        private readonly UserRelayListService $userRelayListService,
+        private readonly GenericEventProjector $genericEventProjector,
     ) {
     }
 
@@ -152,6 +154,17 @@ class UpdateProfileProjectionHandler
                     'pubkey' => substr($pubkeyHex, 0, 8) . '...'
                 ]);
                 return false;
+            }
+
+            // Persist raw kind 0 event to Event table (handles duplicates & replaceable semantics)
+            try {
+                $this->genericEventProjector->projectEventFromNostrEvent($rawEvent, 'relay-fetch');
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to persist kind 0 event to Event table', [
+                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+                // Non-fatal — continue with User entity update
             }
 
             // Parse metadata

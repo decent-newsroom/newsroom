@@ -5,6 +5,7 @@ namespace App\MessageHandler;
 use App\Entity\User;
 use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
+use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +27,8 @@ class BatchUpdateProfileProjectionHandler
         private readonly NostrClient $nostrClient,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly GenericEventProjector $genericEventProjector,
     ) {
     }
 
@@ -99,6 +101,17 @@ class BatchUpdateProfileProjectionHandler
 
                 // Update from batch-fetched metadata
                 if (isset($metadataMap[$pubkeyHex])) {
+                    // Persist raw kind 0 event to Event table (handles duplicates & replaceable semantics)
+                    try {
+                        $this->genericEventProjector->projectEventFromNostrEvent($metadataMap[$pubkeyHex], 'batch-fetch');
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Failed to persist kind 0 event to Event table', [
+                            'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Non-fatal — continue with User entity update
+                    }
+
                     $this->updateUserFromMetadata($user, $metadataMap[$pubkeyHex]);
                     $updated++;
                 }
