@@ -9,6 +9,7 @@ use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\Nostr\UserProfileService;
 use App\Dto\UserMetadata;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
@@ -22,6 +23,7 @@ class FollowsController extends AbstractController
     public function index(
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
+        UserProfileService $userProfileService,
         RedisCacheService $redisCacheService,
         LoggerInterface $logger
     ): Response
@@ -55,8 +57,10 @@ class FollowsController extends AbstractController
             ]);
         }
 
-        // Resolve followed pubkeys from the local DB only (no relay fallback).
-        // The kind 3 event is synced on login via SyncUserEventsHandler.
+        // Resolve followed pubkeys from the local DB first.
+        // If kind 3 is missing (async pipeline hasn't persisted it yet),
+        // fall back to UserProfileService which fetches from the local relay
+        // (+ user's NIP-65 relays) and persists the event for next time.
         $followedPubkeys = [];
         try {
             $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
@@ -66,8 +70,11 @@ class FollowsController extends AbstractController
                         $followedPubkeys[] = $tag[1];
                     }
                 }
+            } else {
+                $logger->info('Kind 3 not in DB, attempting relay backfill', ['pubkey' => substr($pubkeyHex, 0, 8) . '...']);
+                $followedPubkeys = $userProfileService->getFollows($pubkeyHex);
             }
-            $logger->info('Loaded follow list from DB', [
+            $logger->info('Loaded follow list', [
                 'user_pubkey' => $pubkeyHex,
                 'follows_count' => count($followedPubkeys)
             ]);

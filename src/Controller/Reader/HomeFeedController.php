@@ -16,6 +16,7 @@ use App\Service\Cache\RedisViewStore;
 use App\Service\FollowPackService;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserProfileService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\NostrKeyUtil;
@@ -36,12 +37,13 @@ class HomeFeedController extends AbstractController
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
         NostrClient $nostrClient,
+        UserProfileService $userProfileService,
         FollowPackService $followPackService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
             'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory),
-            'follows' => $this->followsTab($articleRepository, $eventRepository, $redisCacheService, $logger),
+            'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
@@ -108,6 +110,7 @@ class HomeFeedController extends AbstractController
     private function followsTab(
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
+        UserProfileService $userProfileService,
         RedisCacheService $redisCacheService,
         LoggerInterface $logger,
     ): Response {
@@ -133,13 +136,19 @@ class HomeFeedController extends AbstractController
             ]);
         }
 
-        // ── 1. Resolve followed pubkeys from local DB only (no relay fallback) ──
+        // ── 1. Resolve followed pubkeys from local DB ──
         // The kind 3 event is synced on login via SyncUserEventsHandler.
-        // If it's not in the DB yet, show an empty state — no blocking relay calls.
+        // If it's not in the DB yet, try a one-time backfill from the relay
+        // (fast — local strfry is checked first).
         $followedPubkeys = [];
         try {
             $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
-            if ($followsEvent !== null) {
+
+            // DB miss: backfill from relay (local strfry first, then user's NIP-65 relays)
+            if ($followsEvent === null) {
+                $logger->info('Kind 3 not in DB, attempting relay backfill', ['pubkey' => substr($pubkeyHex, 0, 8) . '...']);
+                $followedPubkeys = $userProfileService->getFollows($pubkeyHex);
+            } else {
                 foreach ($followsEvent->getTags() as $tag) {
                     if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
                         $followedPubkeys[] = $tag[1];
@@ -147,7 +156,7 @@ class HomeFeedController extends AbstractController
                 }
             }
         } catch (\Throwable $e) {
-            $logger->error('Failed to load follows from DB', ['error' => $e->getMessage()]);
+            $logger->error('Failed to load follows', ['error' => $e->getMessage()]);
         }
 
         if (empty($followedPubkeys)) {

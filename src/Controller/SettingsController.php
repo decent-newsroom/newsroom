@@ -63,14 +63,11 @@ class SettingsController extends AbstractController
         // Load all user context events from DB (for the Events tab)
         $events = $this->loadUserEvents($pubkeyHex);
 
-        // If kind 0 is missing from the event table, try to backfill from
-        // the npub cache so the Events tab shows it consistently.
-        if (($events[KindsEnum::METADATA->value] ?? null) === null) {
-            $backfilled = $this->backfillMetadataEvent($pubkeyHex);
-            if ($backfilled !== null) {
-                $events[KindsEnum::METADATA->value] = $backfilled;
-            }
-        }
+        // If any critical user context events are missing from the event table,
+        // backfill them by fetching from the local relay (+ fallback to external
+        // relays). This handles the case where the async pipeline hasn't
+        // persisted the events yet (workers not running, first visit, etc.).
+        $events = $this->backfillMissingUserEvents($pubkeyHex, $events);
 
         // Profile comes from the User entity (populated by UserMetadataSyncService on login)
         $profile = $this->buildProfileFromUser($user);
@@ -386,35 +383,66 @@ class SettingsController extends AbstractController
     }
 
     /**
-     * Backfill kind 0 into the event table by fetching from relays.
+     * Backfill missing user context events by fetching from relays.
      *
-     * Called when the Events tab would show kind 0 as "not found" even though
-     * the User entity has profile data. This happens when the user visits
-     * settings before the async pipeline has persisted the event.
+     * When the async pipeline hasn't persisted events yet (workers not running,
+     * first visit, new user), this fetches ALL user context kinds from the local
+     * strfry relay (+ fallback to user's NIP-65 relays) in a single REQ via
+     * UserProfileService::fetchUserContext(). That method persists each event it
+     * finds, so subsequent page loads will hit the DB directly.
      *
-     * Fetches directly from the local strfry relay (+ fallback to public relays)
-     * via UserProfileService, which is synchronous and reliable — no dependency
-     * on Messenger workers or subscription daemons.
+     * Only triggers the relay round-trip when at least one critical event is
+     * missing from the DB (kind 0, 3, or 10002).
      *
-     * Returns the persisted Event entity, or null if no kind 0 is found.
+     * @param array<int|string, EventEntity|EventEntity[]|null> $events Current DB events
+     * @return array<int|string, EventEntity|EventEntity[]|null> Updated events array
      */
-    private function backfillMetadataEvent(string $pubkeyHex): ?EventEntity
+    private function backfillMissingUserEvents(string $pubkeyHex, array $events): array
     {
+        // Check if any critical replaceable events are missing
+        $criticalKinds = [
+            KindsEnum::METADATA->value,   // 0
+            KindsEnum::FOLLOWS->value,    // 3
+            KindsEnum::RELAY_LIST->value, // 10002
+        ];
+
+        $hasMissing = false;
+        foreach ($criticalKinds as $kind) {
+            if (($events[$kind] ?? null) === null) {
+                $hasMissing = true;
+                break;
+            }
+        }
+
+        if (!$hasMissing) {
+            return $events;
+        }
+
         try {
-            $rawEvent = $this->userProfileService->getMetadata($pubkeyHex);
+            // Fetch all user context kinds in one relay round-trip and persist
+            $this->userProfileService->fetchUserContext($pubkeyHex);
 
-            // Persist to event table (handles duplicates, replaceable semantics)
-            $this->userProfileService->persistUserEvent($rawEvent);
+            // Reload only the kinds that were missing
+            foreach (KindBundles::USER_CONTEXT as $kind) {
+                if (($events[$kind] ?? null) === null) {
+                    $found = $this->eventRepository->findLatestByPubkeyAndKind($pubkeyHex, $kind);
+                    if ($found !== null) {
+                        $events[$kind] = $found;
+                    }
+                }
+            }
 
-            // Re-read from event table to return the entity
-            return $this->eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::METADATA->value);
+            $this->logger->info('Settings: backfilled user context events from relay', [
+                'pubkey' => substr($pubkeyHex, 0, 16) . '...',
+            ]);
         } catch (\Throwable $e) {
-            $this->logger->debug('Settings: could not backfill kind 0 from relay', [
+            $this->logger->debug('Settings: could not backfill user context events from relay', [
                 'pubkey' => substr($pubkeyHex, 0, 16) . '...',
                 'error' => $e->getMessage(),
             ]);
-            return null;
         }
+
+        return $events;
     }
 
     /**
