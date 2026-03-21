@@ -290,7 +290,7 @@ class SettingsController extends AbstractController
             $npub = $user->getUserIdentifier();
             $pubkeyHex = NostrKeyUtil::npubToHex($npub);
 
-            $messageBus->dispatch(new UpdateRelayListMessage($pubkeyHex));
+            $messageBus->dispatch(new UpdateRelayListMessage($pubkeyHex, fullSync: true));
 
             $this->logger->info('Settings: dispatched relay sync for user', [
                 'npub' => substr($npub, 0, 16) . '...',

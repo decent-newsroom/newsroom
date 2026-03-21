@@ -43,6 +43,7 @@ class UpdateRelayListHandler
 
         $this->logger->info('UpdateRelayListHandler: warming relay list', [
             'pubkey' => substr($pubkey, 0, 16) . '...',
+            'full_sync' => $message->fullSync,
         ]);
 
         try {
@@ -58,7 +59,7 @@ class UpdateRelayListHandler
             }
 
             // Dispatch batch event sync — relay list is now warm so relays are known
-            $this->dispatchEventSync($pubkey);
+            $this->dispatchEventSync($pubkey, $message->fullSync);
 
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: revalidation failed', [
@@ -117,7 +118,7 @@ class UpdateRelayListHandler
         }
     }
 
-    private function dispatchEventSync(string $pubkey): void
+    private function dispatchEventSync(string $pubkey, bool $fullSync = false): void
     {
         try {
             // Pass the freshly-warmed read relay list so the handler doesn't
@@ -125,16 +126,18 @@ class UpdateRelayListHandler
             $relays = $this->relayListService->getRelayList($pubkey);
             $readRelays = $relays['read'] ?? $relays['all'] ?? [];
 
-            // Only fetch events from the last 24 hours to reduce relay load.
-            // Older events are already in the DB from previous syncs or hydration.
-            $since = time() - 86400;
+            // Full sync: no time restriction — fetches all replaceable events
+            // (kind 0, 3, 10002, etc.) regardless of age.
+            // Login sync: only last 24 hours to reduce relay load.
+            $since = $fullSync ? 0 : time() - 86400;
 
             $this->messageBus->dispatch(new SyncUserEventsMessage($pubkey, $readRelays, $since));
 
             $this->logger->info('UpdateRelayListHandler: dispatched event sync', [
                 'pubkey'      => substr($pubkey, 0, 16) . '...',
                 'relay_count' => count($readRelays),
-                'since'       => date('c', $since),
+                'full_sync'   => $fullSync,
+                'since'       => $since ?: 'all-time',
             ]);
         } catch (\Throwable $e) {
             $this->logger->warning('UpdateRelayListHandler: event sync dispatch failed', [

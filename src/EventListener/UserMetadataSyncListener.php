@@ -63,7 +63,11 @@ class UserMetadataSyncListener
 
                 if ($shouldSync) {
                     $hex = NostrKeyUtil::npubToHex($npub);
-                    $this->messageBus->dispatch(new UpdateRelayListMessage($hex));
+                    // First sync (never refreshed before): full fetch without time restriction
+                    // so replaceable events (kind 0, 3, 10002…) are fetched regardless of age.
+                    // Subsequent syncs: only last 24 hours to reduce relay load.
+                    $fullSync = $lastRefresh === null;
+                    $this->messageBus->dispatch(new UpdateRelayListMessage($hex, $fullSync));
 
                     if ($this->gatewayEnabled && $event->getRequest()->hasSession()) {
                         $event->getRequest()->getSession()->getFlashBag()->add('relay_auth_listen', '1');
