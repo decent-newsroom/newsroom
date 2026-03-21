@@ -9,6 +9,8 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,12 +20,26 @@ use Psr\Log\LoggerInterface;
 class GenericEventProjector
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly ManagerRegistry $managerRegistry,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly UserRolePromoter $userRolePromoter,
     ) {
+    }
+
+    /**
+     * Returns a live (non-closed) EntityManager.
+     * After a failed flush the injected EM is stale/closed;
+     * always go through the registry so we get the current instance.
+     */
+    private function em(): ObjectManager
+    {
+        $em = $this->managerRegistry->getManagerForClass(Event::class);
+        if ($em === null || ($em instanceof EntityManagerInterface && !$em->isOpen())) {
+            $em = $this->managerRegistry->resetManager();
+        }
+        return $em;
     }
 
     /**
@@ -33,7 +49,7 @@ class GenericEventProjector
      * @param string $relayUrl The relay URL where the event was received
      * @return Event The persisted Event entity
      * @throws \InvalidArgumentException If event is invalid
-     * @throws \Exception If database operation fails
+     * @throws \Exception|\Throwable If database operation fails
      */
     public function projectEventFromNostrEvent(object $event, string $relayUrl): Event
     {
@@ -65,8 +81,27 @@ class GenericEventProjector
         $entity->extractAndSetDTag();
 
         // Persist to database
-        $this->em->persist($entity);
-        $this->em->flush();
+        $em = $this->em();
+        try {
+            $em->persist($entity);
+            $em->flush();
+        } catch (\Throwable $e) {
+            // Reset entity manager so subsequent events can still be processed
+            $this->managerRegistry->resetManager();
+
+            // Duplicate key (SQLSTATE 23505) = another worker inserted the same
+            // event between our find() check and flush(). This is expected with
+            // concurrent subscription workers; treat it as "already exists".
+            if (str_contains($e->getMessage(), '23505') || str_contains($e->getMessage(), 'duplicate key')) {
+                $this->logger->debug('Event inserted by concurrent worker, skipping', [
+                    'event_id' => $event->id,
+                    'kind' => $event->kind,
+                ]);
+                return $this->eventRepository->find($event->id) ?? $entity;
+            }
+
+            throw $e;
+        }
 
         // Update graph layer tables (parsed_reference + current_record)
         try {
@@ -108,7 +143,8 @@ class GenericEventProjector
      */
     public function getEventStats(array $kinds = []): array
     {
-        $qb = $this->em->createQueryBuilder();
+        $em = $this->em();
+        $qb = $em->createQueryBuilder();
         $qb->select('e.kind', 'COUNT(e.id) as count')
             ->from(Event::class, 'e')
             ->groupBy('e.kind')
