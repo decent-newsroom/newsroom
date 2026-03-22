@@ -212,7 +212,7 @@ class DefaultController extends AbstractController
             // Fetch author metadata for fallback path
             $authorPubkeys = [];
             foreach ($articles as $article) {
-                if ($article instanceof \App\Entity\Article) {
+                if ($article instanceof Article) {
                     $pubkey = $article->getPubkey();
                     if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
                         $authorPubkeys[] = $pubkey;
@@ -262,7 +262,6 @@ class DefaultController extends AbstractController
     #[Route('/latest-articles', name: 'latest_articles')]
     public function latestArticles(
         RedisCacheService $redisCacheService,
-        NostrClient $nostrClient,
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
@@ -303,7 +302,7 @@ class DefaultController extends AbstractController
             // Collect author pubkeys for metadata
             $authorPubkeys = [];
             foreach ($articles as $article) {
-                if ($article instanceof \App\Entity\Article) {
+                if ($article instanceof Article) {
                     $pk = $article->getPubkey();
                 } elseif (method_exists($article, 'getPubkey')) {
                     $pk = $article->getPubkey();
@@ -427,7 +426,6 @@ class DefaultController extends AbstractController
                         // Chapter exists in database
                         $chapter = new Event();
                         $chapter->setId($eventData['id']);
-                        $chapter->setEventId($eventData['event_id']);
                         $chapter->setKind((int)$eventData['kind']);
                         $chapter->setPubkey($eventData['pubkey']);
                         $chapter->setContent($eventData['content']);
@@ -483,7 +481,6 @@ class DefaultController extends AbstractController
     public function magRead(
         string $mag,
         EntityManagerInterface $entityManager,
-        RedisCacheService $redisCacheService,
         Converter $converter,
         CacheItemPoolInterface $articlesCache,
         LoggerInterface $logger
