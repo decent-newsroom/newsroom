@@ -47,11 +47,6 @@
 		}
 	}
 
-	# Hard request timeout — last-resort safety net. With only 4 FrankenPHP
-	# worker threads, a single stuck request can starve the entire pool and
-	# cause 504s for all users. This kills the connection after 30s even if
-	# PHP is still processing (e.g., relay WebSocket stuck mid-read).
-	request_timeout 30s
 
 	# Nostr relay WebSocket proxy
 	@relay host {$RELAY_DOMAIN:relay.localhost}
