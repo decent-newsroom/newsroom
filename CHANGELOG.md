@@ -7,6 +7,8 @@ Actions.
 - [Bug] Fixed bookmark deduplication: kind 10003 is replaceable.
 - Consolidated article actions into a single dropdown.
 - Removed deprecated components superseded by the article actions dropdown.
+- Wired all article actions dropdown feedback (copy, bookmark, broadcast) into toast notifications instead of inline status text.
+
 
 ## v0.0.18
 User settings and event management.

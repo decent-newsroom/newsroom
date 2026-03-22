@@ -7,10 +7,13 @@ import { getSigner } from '../nostr/signer_manager.js';
  * Consolidates share (copy), bookmark, broadcast, and highlights toggle
  * into a single dropdown. Keeps the action bar clean by grouping secondary
  * actions behind a kebab menu (⋮).
+ *
+ * All publish feedback is routed through the global toast notification
+ * system (window.showToast) instead of inline status elements.
  */
 export default class extends Controller {
   static targets = [
-    'trigger', 'menu', 'status',
+    'trigger', 'menu',
     'bookmarkItem', 'bookmarkIcon', 'bookmarkLabel',
     'broadcastItem',
   ];
@@ -80,10 +83,10 @@ export default class extends Controller {
     if (!text) return;
 
     navigator.clipboard.writeText(text).then(() => {
-      this.showStatus('Copied!', 'success');
+      this.toast('Copied!', 'success');
       this.close();
     }).catch(() => {
-      this.showStatus('Failed to copy', 'error');
+      this.toast('Failed to copy', 'danger');
     });
   }
 
@@ -117,10 +120,10 @@ export default class extends Controller {
 
     let signer;
     try {
-      this.showStatus('Connecting to signer…', 'info');
+      this.toast('Connecting to signer…', 'info');
       signer = await getSigner();
     } catch (e) {
-      this.showStatus('No Nostr signer available', 'error');
+      this.toast('No Nostr signer available', 'danger');
       return;
     }
 
@@ -132,10 +135,8 @@ export default class extends Controller {
         newTags = this.bookmarkTags.filter(
           tag => !(Array.isArray(tag) && tag[0] === 'a' && tag[1] === this.coordinateValue)
         );
-        this.showStatus('Removing bookmark…', 'info');
       } else {
         newTags = [...this.bookmarkTags, ['a', this.coordinateValue]];
-        this.showStatus('Adding bookmark…', 'info');
       }
 
       const skeleton = {
@@ -146,21 +147,18 @@ export default class extends Controller {
         pubkey,
       };
 
-      this.showStatus('Requesting signature…', 'info');
       const signedEvent = await signer.signEvent(skeleton);
-
-      this.showStatus('Publishing…', 'info');
       await this.postJSON(this.bookmarkPublishUrlValue, { event: signedEvent });
 
       this.isBookmarked = !this.isBookmarked;
       this.bookmarkTags = newTags;
       this.updateBookmarkUI();
 
-      const action = this.isBookmarked ? 'added' : 'removed';
-      this.showStatus(`Bookmark ${action}!`, 'success');
+      const action = this.isBookmarked ? 'Bookmarked!' : 'Bookmark removed';
+      this.toast(action, 'success');
     } catch (error) {
       console.error('[article-actions] Bookmark error:', error);
-      this.showStatus(`Failed: ${error.message}`, 'error');
+      this.toast(`Bookmark failed: ${error.message}`, 'danger');
     }
   }
 
@@ -199,17 +197,13 @@ export default class extends Controller {
       const data = await this.postJSON('/api/broadcast-article', payload);
 
       if (data.success) {
-        const msg = `Broadcast to ${data.broadcast.successful}/${data.broadcast.total_relays} relays`;
-        this.showStatus(msg, 'success');
-        if (window.showToast) window.showToast(msg, 'success', 5000);
+        this.toast(`Broadcast to ${data.broadcast.successful}/${data.broadcast.total_relays} relays`, 'success', 5000);
       } else {
         throw new Error(data.error || 'Broadcast failed');
       }
     } catch (error) {
       console.error('[article-actions] Broadcast error:', error);
-      const msg = `Broadcast failed: ${error.message}`;
-      this.showStatus(msg, 'error');
-      if (window.showToast) window.showToast(msg, 'danger', 5000);
+      this.toast(`Broadcast failed: ${error.message}`, 'danger', 5000);
     } finally {
       btn.classList.remove('loading');
     }
@@ -255,22 +249,14 @@ export default class extends Controller {
     return data;
   }
 
-  showStatus(message, type = 'info') {
-    if (!this.hasStatusTarget) return;
-    this.statusTarget.textContent = message;
-    this.statusTarget.className = `article-actions-status article-actions-status--${type}`;
-
-    if (type === 'success' || type === 'info') {
-      clearTimeout(this._statusTimeout);
-      this._statusTimeout = setTimeout(() => {
-        if (this.hasStatusTarget) this.statusTarget.textContent = '';
-      }, 3000);
-    }
-    if (type === 'error') {
-      clearTimeout(this._statusTimeout);
-      this._statusTimeout = setTimeout(() => {
-        if (this.hasStatusTarget) this.statusTarget.textContent = '';
-      }, 5000);
+  /**
+   * Show a toast notification via the global toast system.
+   */
+  toast(message, type = 'info', duration = 3000) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, type, duration);
+    } else {
+      console.log(`[article-actions] ${type}: ${message}`);
     }
   }
 }

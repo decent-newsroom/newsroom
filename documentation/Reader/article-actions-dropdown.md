@@ -62,7 +62,6 @@ Targets:
 |--------|---------|
 | `trigger` | Kebab menu button |
 | `menu` | Dropdown menu container |
-| `status` | Status feedback text |
 | `bookmarkItem` | Bookmark dropdown item (for active styling) |
 | `bookmarkIcon` | Bookmark SVG icon (fill toggled) |
 | `bookmarkLabel` | Bookmark text label |
@@ -85,7 +84,8 @@ Key classes:
 - `.article-actions-dropdown` — wrapper with inline-flex layout
 - `.article-actions-trigger` — square kebab button, no caret
 - `.dropdown-item--active` — accent color for bookmarked state
-- `.article-actions-status--{info,success,error}` — feedback text colors
+
+All user feedback (copy, bookmark, broadcast) is routed through the global `window.showToast()` notification system instead of inline status elements.
 
 ## Removed Components
 
