@@ -208,6 +208,9 @@ bookmarks:
     noItems: 'Aucun élément dans cette liste'
     noBookmarks: 'Aucun signet trouvé.'
     noBookmarksHint: 'Ajoutez des articles en signet depuis votre client Nostr et ils apparaîtront ici.'
+bookmark:
+    add: 'Signet'
+    remove: 'Sauvegardé'
 
 # ── Abonnements ────────────────────────────────────────────────────
 follows:

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.18
+Actions.
+
+- Fixed bookmark deduplication: kind 10003 is replaceable.
+- Added 'Bookmark' action to articles: logged-in users can now bookmark/unbookmark articles directly from the article page.
+
+
 ## v0.0.17
 Fetch in batches.
 

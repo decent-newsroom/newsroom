@@ -208,6 +208,9 @@ bookmarks:
     noItems: 'No hay elementos en esta lista'
     noBookmarks: 'No se encontraron marcadores.'
     noBookmarksHint: 'Marca artículos desde tu cliente Nostr y aparecerán aquí.'
+bookmark:
+    add: 'Guardar'
+    remove: 'Guardado'
 
 # ── Seguidos ──────────────────────────────────────────────────────────
 follows:

@@ -208,6 +208,9 @@ bookmarks:
     noItems: 'Ni elementov na tem seznamu'
     noBookmarks: 'Ni najdenih zaznamkov.'
     noBookmarksHint: 'Zaznamujte članke v svojem Nostr odjemalcu in se bodo prikazali tukaj.'
+bookmark:
+    add: 'Zaznamek'
+    remove: 'Zaznamovano'
 
 # ── Sledenje ──────────────────────────────────────────────────────
 follows:

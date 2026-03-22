@@ -1,0 +1,21 @@
+<div {{ attributes.defaults({class: 'bookmark-button-component'}) }}
+     data-controller="nostr--nostr-bookmark"
+     data-nostr--nostr-bookmark-coordinate-value="{{ coordinate }}"
+     data-nostr--nostr-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+     data-nostr--nostr-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}">
+    <button type="button"
+            class="btn bookmark-btn"
+            data-nostr--nostr-bookmark-target="button"
+            data-action="click->nostr--nostr-bookmark#toggle"
+            title="{{ 'bookmark.add'|trans }}">
+        <svg data-nostr--nostr-bookmark-target="icon"
+             xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span data-nostr--nostr-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
+    </button>
+    <span class="bookmark-status" data-nostr--nostr-bookmark-target="status"></span>
+</div>
+

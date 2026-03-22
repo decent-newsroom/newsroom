@@ -86,6 +86,7 @@
 
                 {% if app.user %}
                     <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
+                    <twig:Molecules:BookmarkButton coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
                 {% endif %}
 
                 {# Zap Button with split payment support #}

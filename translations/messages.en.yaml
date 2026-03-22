@@ -221,6 +221,9 @@ bookmarks:
     noItems: 'No items in this list'
     noBookmarks: 'No bookmarks found.'
     noBookmarksHint: 'Bookmark articles from your Nostr client and they will appear here.'
+bookmark:
+    add: 'Bookmark'
+    remove: 'Bookmarked'
 
 # ── Follows ───────────────────────────────────────────────────────
 follows:

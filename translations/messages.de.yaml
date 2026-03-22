@@ -208,6 +208,9 @@ bookmarks:
     noItems: 'Keine Einträge in dieser Liste'
     noBookmarks: 'Keine Lesezeichen gefunden.'
     noBookmarksHint: 'Setzen Sie Lesezeichen in Ihrem Nostr-Client, und sie erscheinen hier.'
+bookmark:
+    add: 'Lesezeichen'
+    remove: 'Gespeichert'
 
 # ── Folgen ────────────────────────────────────────────────────────────
 follows:
