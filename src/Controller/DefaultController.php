@@ -1240,7 +1240,7 @@ class DefaultController extends AbstractController
     /**
      * Nostr Preview endpoint for Nostr identifiers (naddr, nevent, note, npub, nprofile)
      */
-    #[Route('/preview/', name: 'nostr_preview', methods: ['POST'])]
+    #[Route('/api/preview/', name: 'nostr_preview', methods: ['POST'])]
     public function nostrPreview(RequestStack $requestStack, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
     {
         $request = $requestStack->getCurrentRequest();

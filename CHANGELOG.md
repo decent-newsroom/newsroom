@@ -3,6 +3,7 @@
 ## v0.0.20
 Bugs, downtime, limits. 
 
+- Moved `/preview/` route to `/api/preview/` so it is not counted in page visits.
 - [Bug] Fixed periodic 504 Gateway Timeout caused by FrankenPHP worker pool exhaustion: the `/latest-articles` route's cache-miss fallback was synchronously fetching 150 articles from Nostr relays with a 5-minute `set_time_limit(300)`, blocking one of only 4 workers for up to 5 minutes. Replaced with a fast database search fallback (same as `/discover`). The cron job (`app:cache_latest_articles`, every 15 min) handles relay fetching asynchronously.
 - [Bug] Added global `max_execution_time = 30` to PHP config as a safety net: prevents any single request from blocking a FrankenPHP worker indefinitely.
 - [Bug] Added Caddy `request_timeout 30s` to the Caddyfile: kills connections after 30s even if PHP is stuck on a relay WebSocket mid-read, preventing indefinite connection holds.

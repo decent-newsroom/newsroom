@@ -46,7 +46,7 @@ export default class extends Controller {
                   type: this.typeValue,
                   decoded: this.decodedValue
                 };
-                fetch("/preview/", {
+                fetch("/api/preview/", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json"
