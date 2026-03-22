@@ -29,6 +29,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
+use App\Service\UserMuteListService;
 
 class DefaultController extends AbstractController
 {
@@ -176,9 +177,22 @@ class DefaultController extends AbstractController
         RedisViewStore $viewStore,
         CacheItemPoolInterface $articlesCache,
         LatestArticlesExclusionPolicy $exclusionPolicy,
-        ArticleSearchFactory $articleSearchFactory
+        ArticleSearchFactory $articleSearchFactory,
+        UserMuteListService $userMuteListService,
     ): Response
     {
+        // ── Resolve user-level mute list (kind 10000, NIP-51) ──
+        $userMutedPubkeys = [];
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical — proceed without user mutes
+            }
+        }
+
         // Fast path: Try to get from Redis views first (single GET)
         $cachedView = $viewStore->fetchLatestArticles();
         $fromCache = false;
@@ -191,6 +205,11 @@ class DefaultController extends AbstractController
 
             foreach ($cachedView as $baseObject) {
                 if (isset($baseObject['article'])) {
+                    // Skip articles from user-muted pubkeys
+                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
+                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                        continue;
+                    }
                     $articles[] = (object) $baseObject['article']; // Cast to object for template
                 }
                 if (isset($baseObject['profiles'])) {
@@ -202,8 +221,11 @@ class DefaultController extends AbstractController
             $fromCache = true;
         } else {
             // Fallback path: Use search service if Redis view not available
-            // Unified exclusion: config-level deny-list + admin-muted users
-            $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
+            // Unified exclusion: config-level deny-list + admin-muted + user-muted
+            $excludedPubkeys = array_values(array_unique(array_merge(
+                $exclusionPolicy->getAllExcludedPubkeys(),
+                $userMutedPubkeys,
+            )));
 
             // Use the search factory to get the appropriate search service
             $articleSearch = $articleSearchFactory->create();
@@ -265,10 +287,26 @@ class DefaultController extends AbstractController
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
+        UserMuteListService $userMuteListService,
     ): Response
     {
-        // Unified exclusion: config-level deny-list + admin-muted users
-        $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
+        // ── Resolve user-level mute list (kind 10000, NIP-51) ──
+        $userMutedPubkeys = [];
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical — proceed without user mutes
+            }
+        }
+
+        // Unified exclusion: config-level deny-list + admin-muted + user-muted
+        $excludedPubkeys = array_values(array_unique(array_merge(
+            $exclusionPolicy->getAllExcludedPubkeys(),
+            $userMutedPubkeys,
+        )));
 
         // Fast path: Try Redis cache first (single GET - super fast!)
         $cachedView = $viewStore->fetchLatestArticles();
@@ -280,6 +318,11 @@ class DefaultController extends AbstractController
 
             foreach ($cachedView as $baseObject) {
                 if (isset($baseObject['article'])) {
+                    // Skip articles from user-muted pubkeys
+                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
+                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                        continue;
+                    }
                     $articles[] = (object) $baseObject['article'];
                 }
                 if (isset($baseObject['profiles'])) {

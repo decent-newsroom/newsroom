@@ -19,6 +19,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
+use App\Service\UserMuteListService;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -39,10 +40,11 @@ class HomeFeedController extends AbstractController
         NostrClient $nostrClient,
         UserProfileService $userProfileService,
         FollowPackService $followPackService,
+        UserMuteListService $userMuteListService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
-            'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory),
+            'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
             'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
@@ -55,7 +57,21 @@ class HomeFeedController extends AbstractController
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
+        UserMuteListService $userMuteListService,
     ): Response {
+        // ── Resolve user-level mute list (kind 10000, NIP-51) ──
+        $userMutedPubkeys = [];
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical — proceed without user mutes
+            }
+        }
+
         $cachedView = $viewStore->fetchLatestArticles();
 
         if ($cachedView !== null) {
@@ -63,6 +79,11 @@ class HomeFeedController extends AbstractController
             $authorsMetadata = [];
             foreach ($cachedView as $baseObject) {
                 if (isset($baseObject['article'])) {
+                    // Skip articles from user-muted pubkeys
+                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
+                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                        continue;
+                    }
                     $articles[] = (object) $baseObject['article'];
                 }
                 if (isset($baseObject['profiles'])) {
@@ -72,8 +93,11 @@ class HomeFeedController extends AbstractController
                 }
             }
         } else {
-            // Unified exclusion: config-level deny-list + admin-muted users
-            $excludedPubkeys = $exclusionPolicy->getAllExcludedPubkeys();
+            // Unified exclusion: config-level deny-list + admin-muted + user-muted
+            $excludedPubkeys = array_values(array_unique(array_merge(
+                $exclusionPolicy->getAllExcludedPubkeys(),
+                $userMutedPubkeys,
+            )));
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 

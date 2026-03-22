@@ -9,6 +9,12 @@
 - Added `dn:graph:rebuild-record` command — single-coordinate surgical repair that replays newest-wins resolution and re-parses references. 
 - Added `GraphMagazineListService` — graph-backed replacement for `MagazineRepository` listing queries. Uses `current_record` + event metadata to list top-level magazines, filter by pubkey, and count. 
 - Deprecated `MagazineProjector`, `ProjectMagazineMessage`, `ProjectMagazineMessageHandler`, and `ProjectMagazinesCommand`. The graph layer (`current_record` + `parsed_reference` + `GraphLookupService`) replaces periodic magazine projection.
+- [Bug] Fixed highlights not showing on article pages: removed `HIGHLIGHTS_ENABLED` feature gate that was left on after the async refactor resolved the original performance issue.
+- [Bug] Fixed highlight-to-article coordinate mismatch: all ingestion paths now extract the canonical coordinate from the event's own `a` tag, ensuring consistency between cron-fetched and async-refreshed highlights.
+- Improved highlight relay coverage: highlights are now fetched from both the local strfry relay and default relays instead of only the local relay.
+- Added highlighting UI: logged-in users can select text in an article and click "Highlight" to publish a NIP-84 kind 9802 event, which is signed via the user's Nostr signer, published to relays, and persisted locally for immediate display.
+- [Bug] Fixed user-muted pubkeys (kind 10000, NIP-51) not being excluded from the latest articles feed: the personal mute list was synced on login but never applied during feed filtering. Added `UserMuteListService` to read the user's mute list from the database and applied it as a post-filter on the latest tab (home feed), discover page, and latest-articles page.
+- [Bug] Fixed Redis view cache silently losing data due to compression flag desync: the `:compressed` flag was stored as a separate Redis key that could outlive or expire independently of the data key, causing `gzuncompress()` to be called on raw JSON (or raw JSON to be decoded from compressed binary), returning `null` and making the cache appear lost. Replaced with auto-detection from data content (JSON starts with `[`/`{`, zlib starts with `0x78`). Corrupt entries are now self-healing (deleted on read failure, rebuilt by next cron run).
 
 
 ## v0.0.20

@@ -127,15 +127,11 @@ class RedisViewStore
 
             $json = json_encode($cacheData, JSON_THROW_ON_ERROR);
             $compressed = $this->shouldCompress($json) ? gzcompress($json, 6) : $json;
-            $isCompressed = $compressed !== $json;
 
             $this->redis->setex($key, self::PROFILE_MAX_TTL, $compressed);
 
-            if ($isCompressed) {
-                $this->redis->setex($key . ':compressed', self::PROFILE_MAX_TTL, '1');
-            } else {
-                $this->redis->del($key . ':compressed');
-            }
+            // Clean up any legacy :compressed flag
+            $this->redis->del($key . ':compressed');
 
             $this->logger->debug('Stored profile tab data', [
                 'key' => $key,
@@ -163,22 +159,24 @@ class RedisViewStore
         $key = sprintf(self::KEY_PROFILE_TAB, $pubkey, $tab);
 
         try {
-            $compressed = $this->redis->get($key);
+            $rawData = $this->redis->get($key);
 
-            if ($compressed === false || $compressed === null) {
+            if ($rawData === false || $rawData === null) {
                 return ['data' => null, 'isStale' => true, 'isCached' => false];
             }
 
-            // Check if compressed
-            $isCompressed = $this->redis->get($key . ':compressed') !== false;
+            // Auto-detect compression from data content
+            $firstByte = $rawData[0] ?? '';
+            $isCompressed = $firstByte !== '[' && $firstByte !== '{';
 
             if ($isCompressed) {
-                $json = gzuncompress($compressed);
+                $json = @gzuncompress($rawData);
                 if ($json === false) {
+                    $this->redis->del($key);
                     return ['data' => null, 'isStale' => true, 'isCached' => false];
                 }
             } else {
-                $json = $compressed;
+                $json = $rawData;
             }
 
             $cacheData = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -235,7 +233,9 @@ class RedisViewStore
     {
         try {
             $this->redis->del(self::KEY_LATEST_ARTICLES);
+            $this->redis->del(self::KEY_LATEST_ARTICLES . ':compressed');
             $this->redis->del(self::KEY_LATEST_HIGHLIGHTS);
+            $this->redis->del(self::KEY_LATEST_HIGHLIGHTS . ':compressed');
             $this->logger->info('Invalidated all view caches');
         } catch (\Exception $e) {
             $this->logger->error('Failed to invalidate all caches', ['error' => $e->getMessage()]);
@@ -271,10 +271,9 @@ class RedisViewStore
                 $this->redis->set($key, $data);
             }
 
-            // Store compression flag
-            if ($isCompressed) {
-                $this->redis->setex($key . ':compressed', $ttl ?? self::DEFAULT_TTL, '1');
-            }
+            // Clean up any legacy :compressed flag from previous implementation.
+            // Compression is now detected from the data itself (zlib header vs JSON).
+            $this->redis->del($key . ':compressed');
 
             $this->logger->debug('Stored view in Redis', [
                 'key' => $key,
@@ -312,14 +311,21 @@ class RedisViewStore
                 return null;
             }
 
-            // Check if data is compressed
-            $isCompressed = $this->redis->get($key . ':compressed') !== false;
+            // Auto-detect compression from data content.
+            // JSON arrays/objects always start with '[' or '{' (0x5B / 0x7B).
+            // zlib-compressed data (gzcompress) starts with 0x78.
+            // This replaces the old separate :compressed flag key which
+            // could get out of sync and cause silent cache corruption.
+            $firstByte = $data[0] ?? '';
+            $isCompressed = $firstByte !== '[' && $firstByte !== '{';
 
             // Decompress if needed
             if ($isCompressed) {
-                $json = gzuncompress($data);
+                $json = @gzuncompress($data);
                 if ($json === false) {
                     $this->logger->error('Failed to decompress data', ['key' => $key]);
+                    // Data is corrupted — delete and let the cron rebuild it
+                    $this->redis->del($key);
                     return null;
                 }
             } else {
@@ -337,10 +343,12 @@ class RedisViewStore
 
             return $normalized;
         } catch (\JsonException $e) {
-            $this->logger->error('JSON decoding failed', [
+            $this->logger->error('JSON decoding failed — deleting corrupt cache entry', [
                 'key' => $key,
                 'error' => $e->getMessage(),
             ]);
+            // Data is not valid JSON — delete and let the cron rebuild
+            $this->redis->del($key);
             return null;
         } catch (\Exception $e) {
             $this->logger->error('Failed to fetch view from Redis', [

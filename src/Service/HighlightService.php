@@ -209,10 +209,22 @@ class HighlightService
                 continue;
             }
 
+            // Extract the canonical coordinate from the event's own 'a' tag
+            // This ensures consistency with FetchHighlightsCommand which also reads from the event
+            $eventCoordinate = $articleCoordinate;
+            foreach ($event->tags ?? [] as $tag) {
+                if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['a', 'A'])) {
+                    if (str_starts_with($tag[1] ?? '', '30023:') || str_starts_with($tag[1] ?? '', '30024:')) {
+                        $eventCoordinate = $tag[1];
+                        break;
+                    }
+                }
+            }
+
             // Create new highlight entity
             $highlight = new Highlight();
             $highlight->setEventId($event->id);
-            $highlight->setArticleCoordinate($articleCoordinate);
+            $highlight->setArticleCoordinate($eventCoordinate);
             $highlight->setContent($event->content ?? '');
             $highlight->setPubkey($event->pubkey ?? '');
             $highlight->setCreatedAt($event->created_at ?? time());

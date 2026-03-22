@@ -236,6 +236,7 @@ class SocialEventService
 
     /**
      * Get highlights (kind 9802) for a specific article coordinate.
+     * Queries both the local relay and default relays for broader coverage.
      */
     public function getHighlightsForArticle(string $articleCoordinate, int $limit = 100): array
     {
@@ -250,25 +251,29 @@ class SocialEventService
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 
+        // Build relay list: local relay + default relays for broader coverage
+        $relayUrls = [];
         if ($this->nostrDefaultRelay) {
-            $relayUrls = [$this->nostrDefaultRelay];
-            $this->logger->info('Using local relay for highlights fetch', [
-                'relay'      => $this->nostrDefaultRelay,
-                'coordinate' => $articleCoordinate,
-            ]);
-        } else {
-            $defaultRelays = $this->relayPool->getDefaultRelays();
-            $relayUrls     = empty($defaultRelays) ? [] : [$defaultRelays[0]];
-            $this->logger->info('Using fallback relay for highlights fetch', [
-                'coordinate' => $articleCoordinate,
-                'relay'      => $relayUrls[0] ?? 'none',
-            ]);
+            $relayUrls[] = $this->nostrDefaultRelay;
         }
+        $defaultRelays = $this->relayPool->getDefaultRelays();
+        foreach ($defaultRelays as $relay) {
+            if (!in_array($relay, $relayUrls)) {
+                $relayUrls[] = $relay;
+            }
+        }
+        // Limit to 3 relays to keep it fast
+        $relayUrls = array_slice($relayUrls, 0, 3);
 
         if (empty($relayUrls)) {
             $this->logger->warning('No relays available for highlights fetch', ['coordinate' => $articleCoordinate]);
             return [];
         }
+
+        $this->logger->info('Fetching highlights from relays', [
+            'coordinate' => $articleCoordinate,
+            'relays' => $relayUrls,
+        ]);
 
         $responses = $this->relayPool->sendToRelays(
             $relayUrls,

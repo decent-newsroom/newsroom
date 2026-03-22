@@ -325,16 +325,12 @@ class ArticleController  extends AbstractController
             }
         }
         $canonical = $this->generateUrl('author-draft-slug', ['npub' => $npub, 'slug' => $draft->getSlug()], 0);
-        // TEMP: Disable highlights lookup to diagnose slow/unstable article loads behind proxies.
-        // Re-enable by setting env HIGHLIGHTS_ENABLED=1.
         $highlights = [];
-        if ((string) ($_SERVER['HIGHLIGHTS_ENABLED'] ?? '') === '1') {
-            try {
-                $draftCoordinate = '30024:' . $draft->getPubkey() . ':' . $draft->getSlug();
-                $highlights = $highlightService->getHighlightsForArticle($draftCoordinate);
-            } catch (\Throwable $e) {
-                // Best-effort only
-            }
+        try {
+            $draftCoordinate = '30024:' . $draft->getPubkey() . ':' . $draft->getSlug();
+            $highlights = $highlightService->getHighlightsForArticle($draftCoordinate);
+        } catch (\Throwable $e) {
+            // Best-effort only
         }
 
         // Reuse article.html.twig template - drafts use the same Article entity
@@ -428,16 +424,12 @@ class ArticleController  extends AbstractController
             }
         }
         $canonical = $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $article->getSlug()], 0);
-        // TEMP: Disable highlights lookup to diagnose slow/unstable article loads behind proxies.
-        // Re-enable by setting env HIGHLIGHTS_ENABLED=1.
         $highlights = [];
-        if ((string) ($_SERVER['HIGHLIGHTS_ENABLED'] ?? '') === '1') {
-            try {
-                $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-                $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
-            } catch (\Throwable $e) {
-                // Best-effort only
-            }
+        try {
+            $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+        } catch (\Throwable $e) {
+            // Best-effort only
         }
 
         // Find prev/next articles from reading lists

@@ -33,7 +33,15 @@
         <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
     {% endif %}
 
-    <article class="w-container" data-controller="ui--highlights-toggle">
+    <article class="w-container"
+             data-controller="ui--highlights-toggle{% if app.user and not (isDraft is defined and isDraft) %} nostr--nostr-highlight{% endif %}"
+             {% if app.user and not (isDraft is defined and isDraft) %}
+             data-nostr--nostr-highlight-publish-url-value="{{ path('highlight_publish') }}"
+             data-nostr--nostr-highlight-csrf-token-value="{{ csrf_token('highlight_publish') }}"
+             data-nostr--nostr-highlight-coordinate-value="30023:{{ article.pubkey }}:{{ article.slug }}"
+             data-nostr--nostr-highlight-author-pubkey-value="{{ article.pubkey }}"
+             {% endif %}
+    >
         {% if isDraft is defined and isDraft %}
             <div class="alert alert-info" role="alert">
                 <strong>{{ 'article.draftPreview'|trans }}:</strong> {{ 'article.draftPreviewHint'|trans }}
