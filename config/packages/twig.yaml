@@ -4,7 +4,7 @@ twig:
         '%kernel.project_dir%/src/UnfoldBundle/Resources/views': Unfold
     globals:
         brand_name: 'Decent Newsroom'
-        brand_version: 'v0.0.17 Preprint'
+        brand_version: 'v0.0.18 Preprint'
         project_npub: 'npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'
         dev_npub: 'npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'
         mercure_public_hub_url: '%mercure_public_hub_url%'

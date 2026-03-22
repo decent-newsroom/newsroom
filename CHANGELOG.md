@@ -1,14 +1,14 @@
 # CHANGELOG
 
-## v0.0.18
+## v0.0.19
 Actions.
 
 - Fixed bookmark deduplication: kind 10003 is replaceable.
 - Added 'Bookmark' action to articles: logged-in users can now bookmark/unbookmark articles directly from the article page.
 
 
-## v0.0.17
-Fetch in batches.
+## v0.0.18
+User settings and event management.
 
 - Added external referrers list to admin analytics page: a new "External Referrers (Last 30 Days)" table shows only referrers whose URL does not contain the configured base domain, making it easy to identify traffic from external sources.
 - Fixed profile publishing losing pre-existing kind 0 tags: the JS controller now starts from the existing event's tags and only replaces form-managed fields (`display_name`, `name`, `about`, `picture`, `banner`, `nip05`, `lud16`, `website`), preserving all other tags (e.g. `client`, `proxy`, `i`, `alt`, custom tags from other Nostr clients). The raw profile event display now shows the complete Nostr event (id, pubkey, kind, created_at, content, tags, sig) instead of just the content field.
@@ -27,6 +27,11 @@ Fetch in batches.
 - Added chat push notifications via Web Push API (RFC 8030). Browser push notifications for chat messages when users are not actively viewing a chat group. Includes VAPID key configuration, `ChatPushSubscription` entity for multi-device subscriptions, `SendChatPushNotificationMessage` async Messenger handler with 30-second per-group throttle, `ChatPushController` for subscription management, `ChatWebPushService` for non-blocking dispatch, Service Worker (`chat-sw.js`) with tab-visibility suppression and notification-click focusing, Stimulus `chat_push_controller` for permission prompting, per-group notification mute toggle on `ChatGroupMembership`, and settings page with mute controls. Push payload contains only group name and sender display name for privacy. Requires `minishlink/web-push` package.
 - Added dual-auth support for ChatBundle: chat admins now use self-sovereign Nostr keys (NIP-07/NIP-46) via the main DN login flow, while invited users keep custodial identities. Added `ChatMainAppAuthenticator` for cross-subdomain session sharing, `mainAppUser` FK on `ChatUser` with `isCustodial()` helper, client-side event signing path in the Stimulus controller, pre-signed event endpoints (`/messages/signed`, `/hide/signed`, `/mute/signed`) with server-side validation, and admin panel npub-based user creation. Session cookie scoped to base domain for subdomain access.
 - Added ChatBundle: self-contained private community chat module with custodial Nostr identities, invite-only access, and relay-only message storage. Uses NIP-28 kind 42 for chat text messages, NIP-28 kinds 40/41 for channel setup, and kinds 43/44 for moderation. Includes 7 entities (ChatCommunity, ChatUser, ChatGroup, ChatGroupMembership, ChatCommunityMembership, ChatInvite, ChatSession), dedicated strfry-chat relay instance, AES-256-GCM key encryption, separate security firewall with cookie/session auth, admin CRUD controllers, Mercure SSE real-time updates, Stimulus chat controller, and relay-native moderation (kind 43/44 filtering).
+
+
+## v0.0.17
+Fetch in batches.
+
 - Added automatic role promotion: any npub that publishes an article receives `ROLE_WRITER`, and anyone publishing a reading list or magazine receives `ROLE_EDITOR`. Introduced `UserRolePromoter` service to centralize role-assignment logic. Promotion is applied in the article editor, `ArticleEventProjector` (relay-ingested articles), `MagazineWizardController` (reading list/magazine publishing), and `GenericEventProjector` (relay-ingested kind 30040 events). Only users with an existing account (have logged in) are promoted; unknown npubs are silently skipped.
 - Fixed `Maximum execution time of 10 seconds exceeded` error when loading articles via `/article/naddr1...` links. Increased `set_time_limit` from 10s to 25s to accommodate two sequential gateway relay queries (primary + fallback, each up to 10s). The controller now checks the database first and skips the relay round-trip entirely when the article is already saved.
 - Improved relay selection for naddr article fetches: the primary relay set now combines naddr hint relays, the author's declared write relays (kind 10002), and the local relay into a single best-guess set, instead of querying hint relays alone. This finds articles in one round-trip more often, reducing the need for the slower fallback query.
