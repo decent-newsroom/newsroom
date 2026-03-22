@@ -49,6 +49,10 @@ class EventController extends AbstractController
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
+        // Cap execution time — relay lookups can block for multiple seconds
+        // per relay, and with only 4 FrankenPHP workers this can cause 504s.
+        set_time_limit(15);
+
         try {
             // Decode nevent - nevent1... is a NIP-19 encoded event identifier
             $decoded = new Bech32($nevent);

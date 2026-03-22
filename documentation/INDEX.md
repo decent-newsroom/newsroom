@@ -50,11 +50,11 @@ For **environment setup & operations** (Dockerized Symfony stack, deployment, tr
 - [Cron Processing](Cron/cron-processing.md) — Background job schedule and configuration
 
 ### Chat
-- [Chat Specification](chat.md) — Product specification for community chat
-- [Chat Bundle](chat-bundle.md) — Technical documentation for the ChatBundle
-- [Chat Setup Guide](chat-setup.md) — Step-by-step setup guide for creating a chat community
-- [Chat Push Notifications](chat-push-notifications.md) — Web Push notification implementation plan
-- [Chat Implementation Plan](chat-implementation-plan.md) — Phased implementation plan
+- [Chat Specification](Chat/chat.md) — Product specification for community chat
+- [Chat Bundle](Chat/chat-bundle.md) — Technical documentation for the ChatBundle
+- [Chat Setup Guide](Chat/chat-setup.md) — Step-by-step setup guide for creating a chat community
+- [Chat Push Notifications](Chat/chat-push-notifications.md) — Web Push notification implementation plan
+- [Chat Implementation Plan](Chat/chat-implementation-plan.md) — Phased implementation plan
 - [Workers](Processes/workers.md) — Consolidated worker, event-driven processing
 - [Elasticsearch](Elasticsearch/elasticsearch.md) — Optional search backend (feature-flagged)
 - [Priority Queue](Processes/priority-queue-setup.md) — Messenger queue priority configuration

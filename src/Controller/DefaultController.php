@@ -265,6 +265,7 @@ class DefaultController extends AbstractController
         NostrClient $nostrClient,
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
+        ArticleSearchFactory $articleSearchFactory,
     ): Response
     {
         // Unified exclusion: config-level deny-list + admin-muted users
@@ -291,42 +292,34 @@ class DefaultController extends AbstractController
 
             $fromCache = true;
         } else {
-            // Cache miss: Fetch fresh from relay (slower but ensures we have data)
-            set_time_limit(300);
-            ini_set('max_execution_time', '300');
+            // Cache miss: fall back to database search (fast, non-blocking).
+            // The cron job (app:cache_latest_articles, every 15 min) will
+            // repopulate Redis. Do NOT fetch from relays synchronously here —
+            // relay round-trips can take 30s+ and block a FrankenPHP worker,
+            // causing 504s for all other users.
+            $articleSearch = $articleSearchFactory->create();
+            $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 
-
-            try {
-                // Fetch a larger pool from the relay so that after filtering
-                // excluded authors we still have enough articles to display.
-                $articles = $nostrClient->getLatestLongFormArticles(150);
-
-                // Filter out excluded pubkeys immediately
-                $articles = array_values(array_filter($articles, function ($article) use ($excludedPubkeys) {
-                    $pubkey = method_exists($article, 'getPubkey') ? $article->getPubkey() : null;
-                    return !($pubkey && in_array($pubkey, $excludedPubkeys, true));
-                }));
-
-                // Trim back to display limit after filtering
-                $articles = array_slice($articles, 0, 50);
-
-                // Collect author pubkeys for metadata
-                $authorPubkeys = [];
-                foreach ($articles as $article) {
-                    if (method_exists($article, 'getPubkey')) {
-                        $authorPubkeys[] = $article->getPubkey();
-                    } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                        $authorPubkeys[] = $article->pubkey;
-                    }
+            // Collect author pubkeys for metadata
+            $authorPubkeys = [];
+            foreach ($articles as $article) {
+                if ($article instanceof \App\Entity\Article) {
+                    $pk = $article->getPubkey();
+                } elseif (method_exists($article, 'getPubkey')) {
+                    $pk = $article->getPubkey();
+                } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
+                    $pk = $article->pubkey;
+                } else {
+                    $pk = null;
                 }
-                $authorPubkeys = array_unique($authorPubkeys);
-                $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
-
-                $fromCache = false;
-            } catch (\Exception $e) {
-                // Relay fetch failed and no cache available
-                throw $e;
+                if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                    $authorPubkeys[] = $pk;
+                }
             }
+            $authorPubkeys = array_unique($authorPubkeys);
+            $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
+            $fromCache = false;
         }
 
         // Convert UserMetadata objects to stdClass for template compatibility

@@ -70,10 +70,10 @@ class ArticleController  extends AbstractController
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
     public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
     {
-        // Allow enough time for two sequential relay queries (primary + fallback).
-        // Each gateway call can take up to 8s + 2s grace. 25s gives headroom for
-        // both attempts plus DB lookups and processing without hitting proxy 502s.
-        set_time_limit(25);
+        // Allow enough time for a relay fetch (primary + fallback) after the
+        // DB check below. Keep this tight — each blocked worker starves the
+        // entire 4-thread pool during slow relay conditions.
+        set_time_limit(15);
 
         $decoded = new Bech32($naddr);
 
@@ -262,7 +262,6 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        set_time_limit(30);
         $slug = urldecode($slug);
         $key = new Key();
         $pubkey = $key->convertToHex($npub);
@@ -374,7 +373,6 @@ class ArticleController  extends AbstractController
 
         $npub = $resolved['npub'];
 
-        set_time_limit(30);
         $slug = urldecode($slug);
         $key = new Key();
         $pubkey = $key->convertToHex($npub);

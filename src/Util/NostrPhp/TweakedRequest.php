@@ -23,7 +23,7 @@ final class TweakedRequest implements RequestInterface
     private RelaySet $relays;
     private string $payload;
     private array $responses = [];
-    private int $timeout = 5;
+    private int $timeout = 3;
     private RelaySubscriptionHandler $handler;
 
     /** Optional: when set, CLOSE & disconnect immediately once this id arrives */
