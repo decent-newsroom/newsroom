@@ -40,7 +40,7 @@ import './styles/03-components/image-upload.css';
 import './styles/03-components/zaps.css';
 import './styles/03-components/back-to-top.css';
 import './styles/03-components/article-nav.css';
-import './styles/03-components/bookmark-button.css';
+import './styles/03-components/article-actions-dropdown.css';
 
 // Toast notifications
 import './styles/toast.css';

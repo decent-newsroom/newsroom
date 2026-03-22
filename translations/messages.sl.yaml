@@ -243,6 +243,15 @@ article:
     trySearchingHint: 'Če imate Nostr naslov članka (naddr), ga prilepite v iskalno polje spodaj. Poskusili ga bomo pridobiti z relejev in dodati v naš indeks.'
     returnHome: 'Nazaj na domačo stran'
 
+# ── Spustni meni z dejanji članka ─────────────────────────────────
+articleActions:
+    more: 'Več dejanj'
+    share: 'Deli'
+    copyLink: 'Kopiraj povezavo'
+    copyNaddr: 'Kopiraj Nostr naslov'
+    broadcast: 'Oddaj na releje'
+    highlights: 'Označbe'
+
 # ── Razločevanje člankov ──────────────────────────────────────────
 disambiguation:
     heading: 'Razločevanje: Več člankov za "%slug%"'

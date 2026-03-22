@@ -243,6 +243,15 @@ article:
     trySearchingHint: 'Wenn Sie die Nostr-Adresse (naddr) des Artikels haben, fügen Sie sie in das Suchfeld unten ein. Wir versuchen, ihn von den Relays abzurufen und zu unserem Index hinzuzufügen.'
     returnHome: 'Zurück zur Startseite'
 
+# ── Artikel-Aktionen-Dropdown ────────────────────────────────────────
+articleActions:
+    more: 'Weitere Aktionen'
+    share: 'Teilen'
+    copyLink: 'Link kopieren'
+    copyNaddr: 'Nostr-Adresse kopieren'
+    broadcast: 'An Relays senden'
+    highlights: 'Markierungen'
+
 # ── Artikelunterscheidung ─────────────────────────────────────────────
 disambiguation:
     heading: 'Unterscheidung: Mehrere Artikel für „%slug%"'

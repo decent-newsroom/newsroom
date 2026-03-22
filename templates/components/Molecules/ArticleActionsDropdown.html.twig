@@ -1,0 +1,123 @@
+{# ── Article Actions Dropdown ──────────────────────────────────────
+     Consolidates share, bookmark, broadcast, and highlights toggle into
+     a single "⋯" kebab-menu dropdown so the action bar stays clean.
+     Zap and Reading List remain as standalone prominent buttons.
+──────────────────────────────────────────────────────────────────── #}
+<div {{ attributes.defaults({class: 'article-actions-dropdown'}) }}
+     data-controller="ui--article-actions-dropdown"
+     {% if app.user %}
+     data-ui--article-actions-dropdown-coordinate-value="{{ coordinate }}"
+     data-ui--article-actions-dropdown-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+     data-ui--article-actions-dropdown-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
+     {% endif %}
+     >
+    <div class="dropdown">
+        <button class="btn btn-secondary article-actions-trigger"
+                type="button"
+                data-ui--article-actions-dropdown-target="trigger"
+                data-action="click->ui--article-actions-dropdown#toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                title="{{ 'articleActions.more'|trans }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                 viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <circle cx="12" cy="5" r="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <circle cx="12" cy="19" r="2"/>
+            </svg>
+        </button>
+
+        <div class="dropdown-menu dropdown-menu-end"
+             data-ui--article-actions-dropdown-target="menu">
+
+            {# ── Share section ── #}
+            <div class="dropdown-header">{{ 'articleActions.share'|trans }}</div>
+            <button class="dropdown-item"
+                    type="button"
+                    data-action="click->ui--article-actions-dropdown#copy"
+                    data-copy="{{ canonicalUrl|e('html_attr') }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                </svg>
+                {{ 'articleActions.copyLink'|trans }}
+            </button>
+            <button class="dropdown-item"
+                    type="button"
+                    data-action="click->ui--article-actions-dropdown#copy"
+                    data-copy="{{ naddrEncoded|e('html_attr') }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                {{ 'articleActions.copyNaddr'|trans }}
+            </button>
+
+            {% if app.user %}
+                <li><hr class="dropdown-divider"></li>
+
+                {# ── Bookmark ── #}
+                <button class="dropdown-item"
+                        type="button"
+                        data-ui--article-actions-dropdown-target="bookmarkItem"
+                        data-action="click->ui--article-actions-dropdown#toggleBookmark">
+                    <svg data-ui--article-actions-dropdown-target="bookmarkIcon"
+                         xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                         class="action-icon">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span data-ui--article-actions-dropdown-target="bookmarkLabel">{{ 'bookmark.add'|trans }}</span>
+                </button>
+
+                {# ── Broadcast ── #}
+                {% if not isProtected %}
+                <button class="dropdown-item"
+                        type="button"
+                        data-ui--article-actions-dropdown-target="broadcastItem"
+                        data-action="click->ui--article-actions-dropdown#broadcast"
+                        data-article-id="{{ article.id }}"
+                        data-coordinate="{{ coordinate }}"
+                        {% if relays is not null %}
+                        data-relays="{{ relays|json_encode|e('html_attr') }}"
+                        {% endif %}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+                        <path d="M22 2L11 13"></path>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                    </svg>
+                    {{ 'articleActions.broadcast'|trans }}
+                </button>
+                {% endif %}
+            {% endif %}
+
+            {# ── Highlights ── #}
+            {% if highlightCount > 0 %}
+                <li><hr class="dropdown-divider"></li>
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->ui--article-actions-dropdown#toggleHighlights">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    {{ 'articleActions.highlights'|trans }} ({{ highlightCount }})
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Status feedback #}
+    <span class="article-actions-status"
+          data-ui--article-actions-dropdown-target="status"></span>
+</div>
+

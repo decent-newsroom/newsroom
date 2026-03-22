@@ -60,38 +60,18 @@ Kind 10003 events were not being deduplicated in the bookmarks display. If a use
 
 #### Frontend
 
-**Stimulus Controller**: `nostr--nostr-bookmark` (`assets/controllers/nostr/nostr_bookmark_controller.js`)
+Bookmark toggling is handled by the consolidated `ArticleActionsDropdown` component.
+See [article-actions-dropdown.md](article-actions-dropdown.md) for full frontend details.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `coordinateValue` | String | Article coordinate (`30023:<pubkey>:<slug>`) |
-| `fetchUrlValue` | String | URL for `GET /api/bookmarks/current` |
-| `publishUrlValue` | String | URL for `POST /api/bookmarks/publish` |
-
-| Target | Element | Purpose |
-|--------|---------|---------|
-| `button` | `<button>` | The bookmark toggle button |
-| `icon` | `<svg>` | Bookmark icon (fill toggled) |
-| `label` | `<span>` | Button text ("Bookmark"/"Bookmarked") |
-| `status` | `<span>` | Status/error messages |
-
-**Twig Component**: `BookmarkButton` (`src/Twig/Components/Molecules/BookmarkButton.php`)
-
-Usage:
-```twig
-<twig:Molecules:BookmarkButton coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
-```
-
-#### Styles
-`assets/styles/03-components/bookmark-button.css` — bookmark button component styles.
+The `ui--article-actions-dropdown` Stimulus controller (`assets/controllers/ui/article_actions_dropdown_controller.js`)
+fetches the user's current bookmarks on connect, renders a filled/unfilled bookmark icon in the dropdown,
+and on toggle builds a new kind 10003 event with the article's `a` tag added/removed, signs, and publishes.
 
 ## Files
 
 - `src/Controller/Reader/BookmarksController.php` — dedup logic + API endpoints
-- `src/Twig/Components/Molecules/BookmarkButton.php` — Twig component
-- `templates/components/Molecules/BookmarkButton.html.twig` — component template
-- `assets/controllers/nostr/nostr_bookmark_controller.js` — Stimulus controller
-- `assets/styles/03-components/bookmark-button.css` — button styles
+- `assets/controllers/ui/article_actions_dropdown_controller.js` — bookmark toggle (inside consolidated dropdown)
+- `templates/components/Molecules/ArticleActionsDropdown.html.twig` — dropdown template with bookmark item
 - `templates/pages/article.html.twig` — bookmark button placement
 - `translations/messages.{en,de,es,fr,sl}.yaml` — bookmark translations
 

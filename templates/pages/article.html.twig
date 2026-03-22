@@ -46,47 +46,12 @@
         </div>
         {% else %}
             <div class="article-actions">
-                <div data-controller="utility--share-dropdown" class="dropdown share-dropdown" style="display:inline-block;position:relative;">
-                    <button data-utility--share-dropdown-target="button"
-                            class="btn btn-secondary"
-                            id="shareBtn"
-                            type="button"
-                            aria-haspopup="true"
-                            aria-expanded="false"
-                            data-action="click->utility--share-dropdown#toggle">
-                        {{ 'article.share'|trans }}
-                    </button>
-                    <div data-utility--share-dropdown-target="menu"
-                         class="dropdown-menu"
-                         id="shareDropdown"
-                         style="display:none;position:absolute;z-index:1000;min-width:200px;">
-                        <button class="dropdown-item"
-                                type="button"
-                                data-action="click->utility--share-dropdown#copy"
-                                data-copy="{{ canonical|e('html_attr') }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
-                            </svg>
-                            {{ 'article.newsroomLink'|trans }}
-                        </button>
-                        <button class="dropdown-item"
-                                type="button"
-                                data-action="click->utility--share-dropdown#copy"
-                                data-copy="{{ article|naddrEncode }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
-                            </svg>
-                            Naddr
-                        </button>
-                    </div>
-                </div>
                 {% if canEdit %}
                     <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">{{ 'article.editArticle'|trans }}</a>
                 {% endif %}
 
                 {% if app.user %}
                     <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
-                    <twig:Molecules:BookmarkButton coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
                 {% endif %}
 
                 {# Zap Button with split payment support #}
@@ -112,20 +77,7 @@
                         recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
                 {% endif %}
 
-                {# Highlights toggle button #}
-                {% if highlights is defined and highlights|length > 0 %}
-                    <button data-ui--highlights-toggle-target="button"
-                            data-action="click->ui--highlights-toggle#toggle"
-                            class="btn btn-secondary"
-                            type="button"
-                            aria-pressed="false"
-                            title="Toggle highlights">
-                        Highlights ({{ highlights|length }})
-                    </button>
-                {% endif %}
-
-                {# Broadcast #}
-                {# Only if the article has no '-' (protected) tag set #}
+                {# Consolidated actions dropdown: share, bookmark, broadcast, highlights #}
                 {% set isProtected = false %}
                 {% if article.raw is defined and article.raw.tags is defined %}
                     {% for tag in article.raw.tags %}
@@ -134,10 +86,31 @@
                         {% endif %}
                     {% endfor %}
                 {% endif %}
-                {% if app.user and not isProtected %}
-                    {% set userRelays = app.user.relays %}
-                    {% set writeRelays = userRelays is not null and userRelays.write is defined ? userRelays.write : (userRelays is not null and userRelays.all is defined ? userRelays.all : null) %}
-                    <twig:Molecules:BroadcastButton :article="article" :relays="writeRelays" />
+                {% set userRelays = null %}
+                {% if app.user %}
+                    {% set relayData = app.user.relays %}
+                    {% set userRelays = relayData is not null and relayData.write is defined ? relayData.write : (relayData is not null and relayData.all is defined ? relayData.all : null) %}
+                {% endif %}
+                <twig:Molecules:ArticleActionsDropdown
+                    :article="article"
+                    coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+                    canonicalUrl="{{ canonical }}"
+                    naddrEncoded="{{ article|naddrEncode }}"
+                    :isProtected="isProtected"
+                    :highlightCount="highlights is defined ? highlights|length : 0"
+                    :relays="userRelays" />
+
+                {# Hidden highlights toggle button — triggered by the dropdown controller #}
+                {% if highlights is defined and highlights|length > 0 %}
+                    <button data-ui--highlights-toggle-target="button"
+                            data-action="click->ui--highlights-toggle#toggle"
+                            class="btn btn-secondary"
+                            type="button"
+                            aria-pressed="false"
+                            title="Toggle highlights"
+                            hidden>
+                        Highlights ({{ highlights|length }})
+                    </button>
                 {% endif %}
             </div>
         {% endif %}

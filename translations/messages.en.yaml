@@ -280,6 +280,15 @@ article:
     trySearchingHint: "If you have the article's Nostr address (naddr), paste it in the search box below. We'll attempt to fetch it from the relays and add it to our index."
     returnHome: 'Return to Homepage'
 
+# ── Article Actions Dropdown ─────────────────────────────────────
+articleActions:
+    more: 'More actions'
+    share: 'Share'
+    copyLink: 'Copy Link'
+    copyNaddr: 'Copy Nostr Address'
+    broadcast: 'Broadcast to Relays'
+    highlights: 'Highlights'
+
 # ── Article disambiguation ────────────────────────────────────────
 disambiguation:
     heading: 'Disambiguation: Multiple Articles for "%slug%"'

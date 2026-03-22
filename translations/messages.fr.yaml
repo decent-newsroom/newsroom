@@ -243,6 +243,15 @@ article:
     trySearchingHint: "Si vous avez l'adresse Nostr de l'article (naddr), collez-la dans le champ de recherche ci-dessous. Nous tenterons de le récupérer depuis les relais et de l'ajouter à notre index."
     returnHome: "Retour à la page d'accueil"
 
+# ── Menu déroulant des actions d'article ─────────────────────────────
+articleActions:
+    more: "Plus d'actions"
+    share: 'Partager'
+    copyLink: 'Copier le lien'
+    copyNaddr: "Copier l'adresse Nostr"
+    broadcast: 'Diffuser aux relais'
+    highlights: 'Surlignements'
+
 # ── Désambiguïsation d'articles ────────────────────────────────────
 disambiguation:
     heading: 'Désambiguïsation : Plusieurs articles pour « %slug% »'

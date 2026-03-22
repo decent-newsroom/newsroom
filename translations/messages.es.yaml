@@ -243,6 +243,15 @@ article:
     trySearchingHint: 'Si tienes la dirección Nostr del artículo (naddr), pégala en el cuadro de búsqueda. Intentaremos obtenerlo de los relays y agregarlo a nuestro índice.'
     returnHome: 'Volver a la página principal'
 
+# ── Desplegable de acciones del artículo ──────────────────────────────
+articleActions:
+    more: 'Más acciones'
+    share: 'Compartir'
+    copyLink: 'Copiar enlace'
+    copyNaddr: 'Copiar dirección Nostr'
+    broadcast: 'Transmitir a relays'
+    highlights: 'Resaltados'
+
 # ── Desambiguación de artículos ────────────────────────────────────────
 disambiguation:
     heading: 'Desambiguación: Múltiples artículos para "%slug%"'

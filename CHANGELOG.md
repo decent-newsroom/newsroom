@@ -3,9 +3,10 @@
 ## v0.0.19
 Actions.
 
-- Fixed bookmark deduplication: kind 10003 is replaceable.
 - Added 'Bookmark' action to articles: logged-in users can now bookmark/unbookmark articles directly from the article page.
-
+- [Bug] Fixed bookmark deduplication: kind 10003 is replaceable.
+- Consolidated article actions into a single dropdown.
+- Removed deprecated components superseded by the article actions dropdown.
 
 ## v0.0.18
 User settings and event management.
