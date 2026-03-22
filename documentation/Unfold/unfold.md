@@ -36,6 +36,12 @@ Themes use Handlebars templates rendered by `HandlebarsRenderer`. Theme assets a
 
 `StaleWhileRevalidateCache` serves cached content immediately while refreshing in the background. Warm-up runs every 30 minutes via cron.
 
+The `SiteConfigCacheWarmer` performs the following steps when warming:
+
+1. **Network refresh**: Fetches the latest magazine and category events from relays and ingests them into the local DB + graph tables (`current_record`, `parsed_reference`). This ensures the graph layer has up-to-date references before cache population.
+2. **SiteConfig reload**: Invalidates and reloads the SiteConfig from the freshly updated DB.
+3. **Content cache warm**: Invalidates and repopulates the SWR cache for categories, category posts, and home posts using the graph layer (now guaranteed to be current).
+
 ## Zaps on Unfold Pages
 
 Unfold pages include basic zap invoice support — resolving the magazine author's `lud16` address and displaying a Lightning QR code.

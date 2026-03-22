@@ -15,6 +15,7 @@
 - Added highlighting UI: logged-in users can select text in an article and click "Highlight" to publish a NIP-84 kind 9802 event, which is signed via the user's Nostr signer, published to relays, and persisted locally for immediate display.
 - [Bug] Fixed user-muted pubkeys (kind 10000, NIP-51) not being excluded from the latest articles feed: the personal mute list was synced on login but never applied during feed filtering. Added `UserMuteListService` to read the user's mute list from the database and applied it as a post-filter on the latest tab (home feed), discover page, and latest-articles page.
 - [Bug] Fixed Redis view cache silently losing data due to compression flag desync: the `:compressed` flag was stored as a separate Redis key that could outlive or expire independently of the data key, causing `gzuncompress()` to be called on raw JSON (or raw JSON to be decoded from compressed binary), returning `null` and making the cache appear lost. Replaced with auto-detection from data content (JSON starts with `[`/`{`, zlib starts with `0x78`). Corrupt entries are now self-healing (deleted on read failure, rebuilt by next cron run).
+- [Bug] Fixed `unfold:cache:warm` not refreshing with latest articles in categories: the warm command only invalidated the SWR cache and re-read from the graph layer (`current_record` + `parsed_reference`), which could be stale if the latest category events hadn't been ingested from relays.
 
 
 ## v0.0.20
