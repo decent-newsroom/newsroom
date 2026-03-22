@@ -46,7 +46,7 @@ export default class extends Controller {
     //  Insert into editor (mode-aware, Quill or CodeMirror)
     // =====================================================================
 
-    _insertIntoEditor(text) {
+    _insertIntoEditor(text, imageData = null) {
         const mdPane = document.querySelector('.editor-pane--markdown');
         const isMdMode = mdPane && !mdPane.classList.contains('is-hidden');
 
@@ -66,8 +66,15 @@ export default class extends Controller {
             const quill = window.appQuill;
             const range = quill.getSelection(true);
             const index = range ? range.index : quill.getLength() - 1;
-            quill.insertText(index, text, 'user');
-            quill.setSelection(index + text.length, 0, 'user');
+
+            if (imageData && imageData.src) {
+                // Insert as a visual image embed in Quill
+                quill.insertEmbed(index, 'imageAlt', { src: imageData.src, alt: imageData.alt || '' }, 'user');
+                quill.setSelection(index + 1, 0, 'user');
+            } else {
+                quill.insertText(index, text, 'user');
+                quill.setSelection(index + text.length, 0, 'user');
+            }
         }
     }
 
@@ -79,7 +86,7 @@ export default class extends Controller {
         const { url, filename } = event.detail;
         if (url) {
             const alt = (filename || 'image').replace(/\.[^.]+$/, '');
-            this._insertIntoEditor(`\n![${alt}](${url})\n`);
+            this._insertIntoEditor(`\n![${alt}](${url})\n`, { src: url, alt });
 
             // Refresh "Your uploads" list
             this.uploadsOffset = 0;
@@ -149,7 +156,7 @@ export default class extends Controller {
         const btn = event.currentTarget;
         const url = btn.dataset.url;
         const name = (btn.dataset.name || 'image').replace(/\.[^.]+$/, '');
-        if (url) this._insertIntoEditor(`\n![${name}](${url})\n`);
+        if (url) this._insertIntoEditor(`\n![${name}](${url})\n`, { src: url, alt: name });
     }
 
     // =====================================================================
@@ -222,7 +229,7 @@ export default class extends Controller {
         const btn = event.currentTarget;
         const url = btn.dataset.url;
         const title = (btn.dataset.title || 'media').replace(/\n/g, ' ');
-        if (url) this._insertIntoEditor(`\n![${title}](${url})\n`);
+        if (url) this._insertIntoEditor(`\n![${title}](${url})\n`, { src: url, alt: title });
     }
 }
 

@@ -3,6 +3,9 @@
 ## v0.0.21
 
 - Deprecated search query counting, throttling, result limitations, and credit transaction records. Search is now unrestricted for all users (anonymous and authenticated alike) with no credit cost. The credits system (`CreditsManager`, `RedisCreditStore`, `CreditTransaction`, `GetCreditsComponent`) and admin transaction dashboard are marked `@deprecated` and will be removed in a future release.
+- [Bug] Fixed images added via QuillJS editor toolbar not surviving round-trip through markdown: `![alt](url)` syntax was parsed as a link instead of an image embed, causing images to be lost or mangled on mode switch.
+- [Bug] Fixed images inserted from the sidebar media manager showing as raw markdown text in the QuillJS editor instead of rendering as visual image embeds.
+
 
 ## v0.0.20
 Bugs, downtime, limits. 

@@ -14,7 +14,7 @@
 // - > blockquote (single-line)
 // - ordered lists ("1. item") and bullet lists ("- item" or "* item") with indentation by leading spaces
 // - fenced code blocks ```
-// - inline: `code`, **bold**, *italic*, ~~strike~~, [label](url)
+// - inline: `code`, **bold**, *italic*, ~~strike~~, [label](url), ![alt](url)
 //
 // Underline intentionally unsupported.
 
@@ -32,6 +32,7 @@ export function deltaToMarkdown(delta, opts = {}) {
     embedToMarkdown: (embed) => {
       if (!embed || typeof embed !== 'object') return '';
       if (embed.nostrMention) return `nostr:${embed.nostrMention.npub || ''}`;
+      if (embed.imageAlt) return `![${embed.imageAlt.alt || ''}](${String(embed.imageAlt.src || '')})`;
       if (embed.image) return `![](${String(embed.image)})`;
       if (embed.video) return String(embed.video);
       if (embed.nostr) return String(embed.nostr);
@@ -403,6 +404,27 @@ function inlineMarkdownToOps(text, mentionNames) {
       pushText('`'); i += 1; continue;
     }
 
+    // image: ![alt](url)
+    if (text[i] === '!' && text[i + 1] === '[') {
+      const closeBracket = text.indexOf(']', i + 2);
+      if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
+        const closeParen = text.indexOf(')', closeBracket + 2);
+        if (closeParen !== -1) {
+          const alt = text.slice(i + 2, closeBracket);
+          const src = text.slice(closeBracket + 2, closeParen).replace(/%20/g, ' ');
+          if (src) ops.push({ insert: { imageAlt: { src, alt: alt || '' } } });
+          i = closeParen + 1;
+          continue;
+        }
+      }
+      pushText('!'); i += 1; continue;
+    }
+
+    // standalone '!' (not followed by '[') — consume as text
+    if (text[i] === '!') {
+      pushText('!'); i += 1; continue;
+    }
+
     // link: [label](url)
     if (text[i] === '[') {
       const closeBracket = text.indexOf(']', i + 1);
@@ -465,7 +487,7 @@ function inlineMarkdownToOps(text, mentionNames) {
 }
 
 function nextSpecialIndex(text, start) {
-  const specials = ['`', '[', '*', '~'];
+  const specials = ['`', '[', '!', '*', '~'];
   let min = text.length;
   for (const ch of specials) {
     const idx = text.indexOf(ch, start);
