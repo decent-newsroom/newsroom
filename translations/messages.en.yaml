@@ -28,9 +28,6 @@ heading:
     search: 'Search'
     index: 'Index'
 
-credit:
-    balance: '{0} No credits|{1} 1 credit|]1,Inf] %count% credits'
-    getFreeCredits: 'Get 5 Free Credits'
 
 # ── Brand ─────────────────────────────────────────────────────────
 brand:
@@ -135,8 +132,6 @@ discover:
 search:
     heading: 'Search'
     tagline: 'for hidden gems'
-    limitedResults: 'Showing limited results (5 articles)'
-    signInForMore: 'Sign in to see more results and unlock full search capabilities!'
     addToList: 'Add to list'
 
 # ── Highlights ────────────────────────────────────────────────────

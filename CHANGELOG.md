@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.21
+
+- Deprecated search query counting, throttling, result limitations, and credit transaction records. Search is now unrestricted for all users (anonymous and authenticated alike) with no credit cost. The credits system (`CreditsManager`, `RedisCreditStore`, `CreditTransaction`, `GetCreditsComponent`) and admin transaction dashboard are marked `@deprecated` and will be removed in a future release.
+
 ## v0.0.20
 Bugs, downtime, limits. 
 

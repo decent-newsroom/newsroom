@@ -28,9 +28,6 @@ heading:
     search: 'Suche'
     index: 'Index'
 
-credit:
-    balance: '{0} Keine Credits|{1} 1 Credit|]1,Inf] %count% Credits'
-    getFreeCredits: '5 kostenlose Credits erhalten'
 
 # ── Marke ──────────────────────────────────────────────────────────
 brand:
@@ -135,8 +132,6 @@ discover:
 search:
     heading: 'Suche'
     tagline: 'für verborgene Schätze'
-    limitedResults: 'Eingeschränkte Ergebnisse angezeigt (5 Artikel)'
-    signInForMore: 'Melden Sie sich an, um mehr Ergebnisse und vollständige Suchfunktionen freizuschalten!'
     addToList: 'Zur Liste hinzufügen'
 
 # ── Highlights ─────────────────────────────────────────────────────

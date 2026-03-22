@@ -7,6 +7,9 @@ use App\Credits\Util\RedisCreditStore;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 
+/**
+ * @deprecated Since v0.0.21 — Search credits system has been deprecated.
+ */
 readonly class CreditsManager
 {
     public function __construct(

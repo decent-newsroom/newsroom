@@ -14,22 +14,7 @@
                 />
                 <button type="submit"><twig:ux:icon name="iconoir:search" class="icon" /></button>
             </label>
-            {% if is_granted('IS_AUTHENTICATED_FULLY') %}
-            <div class="search-credits">
-                {% set count = credits > 0 ? credits : 0 %}
-                <small class="help-text">
-                    <em>{{ 'credit.balance'|trans({'%count%': count, 'count': count}) }}</em>
-                </small>
-            </div>
-            {% endif %}
         </form>
-
-
-        {% if is_granted('IS_AUTHENTICATED_FULLY') and not credits > 0 %}
-            <div class="mb-5">
-                <twig:GetCreditsComponent />
-            </div>
-        {% endif %}
 
         <!-- Loading Indicator -->
             <div class="search-loading">
@@ -75,15 +60,6 @@
                 </div>
             {% else %}
                 <twig:Organisms:CardList :list="this.results" class="article-list" />
-
-                {# Show message to anonymous users about limited results #}
-                {% if not is_granted('IS_AUTHENTICATED_FULLY') and this.results is not empty %}
-                    <div class="notice info mt-4">
-                        <p><strong>{{ 'search.limitedResults'|trans }}</strong></p>
-                        <p>{{ 'search.signInForMore'|trans }}</p>
-                        <a href="{{ path('app_login') }}" class="btn btn-primary btn-sm mt-2">{{ 'text.signIn'|trans }}</a>
-                    </div>
-                {% endif %}
             {% endif %}
         {% elseif this.query is not empty %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>

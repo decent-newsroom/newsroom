@@ -7,6 +7,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Contracts\Cache\CacheInterface;
 
+/**
+ * @deprecated Since v0.0.21 — Search credits system has been deprecated.
+ */
 readonly class RedisCreditStore
 {
     public function __construct(

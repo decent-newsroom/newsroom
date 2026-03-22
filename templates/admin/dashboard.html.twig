@@ -122,35 +122,6 @@
         {% endif %}
     </section>
 
-    <!-- Transaction Summary -->
-    <section class="metric-section">
-        <h2>Credit Transactions</h2>
-        <div class="metric-grid">
-            <div class="metric-card {% if metrics.transactions.error|default(false) %}metric-error{% endif %}">
-                <div class="metric-value">{{ metrics.transactions.total_transactions|number_format }}</div>
-                <div class="metric-label">Total Transactions</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-value">{{ metrics.transactions.recent_transactions_24h|number_format }}</div>
-                <div class="metric-label">Last 24 Hours</div>
-            </div>
-            <div class="metric-card metric-positive">
-                <div class="metric-value">{{ metrics.transactions.total_credits|number_format }}</div>
-                <div class="metric-label">Total Credits Issued</div>
-            </div>
-            <div class="metric-card metric-negative">
-                <div class="metric-value">{{ metrics.transactions.total_debits|number_format }}</div>
-                <div class="metric-label">Total Debits</div>
-            </div>
-            {% if metrics.transactions.last_transaction_time %}
-            <div class="metric-card">
-                <div class="metric-value">{{ metrics.transactions.last_transaction_time|date('H:i') }}</div>
-                <div class="metric-label">Last Transaction</div>
-                <div class="metric-subtitle">{{ metrics.transactions.last_transaction_time|date('Y-m-d') }}</div>
-            </div>
-            {% endif %}
-        </div>
-    </section>
 
     <!-- Relay Health -->
     <section class="metric-section">
@@ -207,10 +178,6 @@
             <a href="{{ path('admin_analytics') }}" class="nav-card">
                 <div class="nav-title">Visit Analytics</div>
                 <div class="nav-description">Detailed visitor tracking and analysis</div>
-            </a>
-            <a href="{{ path('admin_credit_transactions') }}" class="nav-card">
-                <div class="nav-title">Transactions</div>
-                <div class="nav-description">Credit transaction history</div>
             </a>
             <a href="{{ path('admin_relay_index') }}" class="nav-card">
                 <div class="nav-title">Relay Management</div>

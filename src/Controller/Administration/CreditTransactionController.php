@@ -10,6 +10,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
+/**
+ * @deprecated Since v0.0.21 — Search credits system has been deprecated. Transaction records are no longer generated.
+ */
 class CreditTransactionController extends AbstractController
 {
     #[Route('/admin/transactions', name: 'admin_credit_transactions')]

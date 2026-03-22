@@ -10,6 +10,9 @@ use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\ComponentToolsTrait;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
+/**
+ * @deprecated Since v0.0.21 — Search credits system has been deprecated. This component is no longer used.
+ */
 #[AsLiveComponent]
 final class GetCreditsComponent
 {

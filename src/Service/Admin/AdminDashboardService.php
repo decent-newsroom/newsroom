@@ -42,7 +42,6 @@ class AdminDashboardService
             'content' => $this->getContentStats(),
             'users' => $this->getUserStats(),
             'visits' => $this->getVisitStats(),
-            'transactions' => $this->getTransactionStats(),
             'relay' => $this->getRelayStats(),
             'database' => $this->getDatabaseStats(),
         ];
@@ -185,6 +184,7 @@ class AdminDashboardService
 
     /**
      * Get transaction statistics
+     * @deprecated Since v0.0.21 — Search credits system has been deprecated.
      */
     public function getTransactionStats(): array
     {

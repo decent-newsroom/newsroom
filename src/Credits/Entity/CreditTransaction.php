@@ -4,6 +4,9 @@ namespace App\Credits\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
+/**
+ * @deprecated Since v0.0.21 — Search credits system has been deprecated.
+ */
 #[ORM\Entity]
 class CreditTransaction
 {

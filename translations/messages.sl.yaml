@@ -28,9 +28,6 @@ heading:
     search: 'Iskanje'
     index: 'Indeks'
 
-credit:
-    balance: '{0} Ni kreditov|{1} 1 kredit|{2} 2 kredita|{3} 3 krediti|{4} 4 krediti|]4,Inf] %count% kreditov'
-    getFreeCredits: 'Dobi 5 brezplačnih kreditov'
 
 # ── Blagovna znamka ───────────────────────────────────────────────
 brand:
@@ -135,8 +132,6 @@ discover:
 search:
     heading: 'Iskanje'
     tagline: 'za skrite bisere'
-    limitedResults: 'Prikazani omejeni rezultati (5 člankov)'
-    signInForMore: 'Prijavite se za več rezultatov in polne zmožnosti iskanja!'
     addToList: 'Dodaj na seznam'
 
 # ── Poudarki ──────────────────────────────────────────────────────

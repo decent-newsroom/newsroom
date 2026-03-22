@@ -28,9 +28,6 @@ heading:
     search: 'Buscar'
     index: 'Índice'
 
-credit:
-    balance: '{0} Sin créditos|{1} 1 crédito|]1,Inf] %count% créditos'
-    getFreeCredits: 'Obtener 5 créditos gratuitos'
 
 # ── Marca ──────────────────────────────────────────────────────────
 brand:
@@ -135,8 +132,6 @@ discover:
 search:
     heading: 'Buscar'
     tagline: 'para joyas ocultas'
-    limitedResults: 'Mostrando resultados limitados (5 artículos)'
-    signInForMore: '¡Inicia sesión para ver más resultados y desbloquear la búsqueda completa!'
     addToList: 'Agregar a lista'
 
 # ── Destacados ──────────────────────────────────────────────────────
