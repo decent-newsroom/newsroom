@@ -11,8 +11,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Projects Nostr magazine indices (kind 30040) into Magazine entities
- * Recursively traverses magazine structure to extract all nested data
+ * Projects Nostr magazine indices (kind 30040) into Magazine entities.
+ * Recursively traverses magazine structure to extract all nested data.
+ *
+ * @deprecated Use GraphMagazineListService + GraphLookupService instead.
+ *             The graph layer (current_record + parsed_reference) replaces
+ *             this periodic projection. Will be removed once the graph layer
+ *             is verified stable in production.
  */
 class MagazineProjector
 {

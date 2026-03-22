@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Message;
 
 /**
- * Message to trigger magazine projection
+ * Message to trigger magazine projection.
+ *
+ * @deprecated Use GraphMagazineListService + GraphLookupService instead.
+ *             The graph layer replaces periodic magazine projection.
  */
 class ProjectMagazineMessage
 {

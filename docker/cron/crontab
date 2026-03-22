@@ -41,3 +41,8 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # ensure SWR cache is always pre-warmed so no visitor hits a cold miss.
 */30 * * * * /app/docker/cron/unfold_cache_warm.sh >> /var/log/cron-unfold-cache.log 2>&1
 
+# Graph layer consistency audit
+# Runs daily at 3 AM to detect drift between event/article tables and
+# graph tables (current_record, parsed_reference). Auto-repairs issues.
+0 3 * * * . /etc/environment && /usr/local/bin/php /app/bin/console dn:graph:audit --fix >> /var/log/cron-graph-audit.log 2>&1
+

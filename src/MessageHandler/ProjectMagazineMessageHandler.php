@@ -9,6 +9,10 @@ use App\Service\MagazineProjector;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * @deprecated Use GraphMagazineListService + GraphLookupService instead.
+ *             The graph layer replaces periodic magazine projection.
+ */
 #[AsMessageHandler]
 class ProjectMagazineMessageHandler
 {

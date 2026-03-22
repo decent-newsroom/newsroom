@@ -189,7 +189,66 @@ Uses the new `d_tag` column index instead of JSONB scanning. Falls back to JSONB
 
 ## Remaining Steps
 
-1. **Add cron-based consistency check** to detect drift between relational and graph data
-2. Proceed to AGE Phase 2 (Apache AGE graph extension) for richer graph queries if needed
-3. Deprecate `MagazineProjector` once graph layer is proven stable
+1. ~~**Add cron-based consistency check** to detect drift between relational and graph data~~ Done
+2. Proceed to AGE Phase 2 (Apache AGE graph extension) for richer graph queries if needed (BLOCKED on human infrastructure approval)
+3. ~~Deprecate `MagazineProjector` once graph layer is proven stable~~ Started — deprecation annotations added, `GraphMagazineListService` wired as primary path
+4. Remove `MagazineProjector`, `ProjectMagazineMessage`, `ProjectMagazineMessageHandler`, `ProjectMagazinesCommand`, and `project_magazines.sh` cron once graph layer has been stable for one release cycle
+5. Drop `Magazine` entity and table
 
+---
+
+## Phase 1.5: Operational Hardening
+
+### `dn:graph:audit` command
+
+**File:** `src/Command/GraphAuditCommand.php`
+
+Cron-safe consistency checker with three audits:
+
+1. **Current-record freshness** — compares `current_record.current_event_id` against the actual newest event per coordinate in the `event` table using a `LATERAL` subquery. Reports stale entries.
+2. **Parsed-reference completeness** — samples events with `a` tags, re-parses via `ReferenceParserService`, and compares expected vs stored reference counts.
+3. **Orphan detection** — finds `current_record` entries whose `current_event_id` no longer exists in either `event` or `article` tables.
+
+Flags: `--fix`, `--fix-versions`, `--fix-references`, `--limit N`.
+
+Cron: runs daily at 3 AM with `--fix` in `docker/cron/crontab`.
+
+### `dn:graph:rebuild-record` command
+
+**File:** `src/Command/GraphRebuildRecordCommand.php`
+
+Single-record rebuild for surgical repair:
+
+```bash
+docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>"
+docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>" --cascade
+docker compose exec php bin/console dn:graph:rebuild-record "30040:<pubkey>:<slug>" --dry-run
+```
+
+- Finds all events matching the coordinate in both `event` and `article` tables
+- Clears and re-runs `CurrentVersionResolver::updateIfCurrent()` in `created_at ASC` order
+- Re-parses references for the winning event
+- `--cascade` rebuilds all structural children recursively
+
+### `GraphMagazineListService`
+
+**File:** `src/Service/Graph/GraphMagazineListService.php`
+
+Graph-backed replacement for `MagazineRepository` listing queries:
+- `listAllMagazines()` — all top-level magazines from `current_record` + event metadata
+- `listByPubkey(pubkey)` — filtered by author
+- `countMagazines()` — count of kind 30040 records
+
+Wired into `ZineList` (primary path) and `AdminDashboardService` (magazine counts).
+
+### Magazine deprecation annotations
+
+The following classes are marked `@deprecated`:
+- `MagazineProjector`, `ProjectMagazineMessage`, `ProjectMagazineMessageHandler`, `ProjectMagazinesCommand`
+
+### Unit tests
+
+Tests in `tests/Unit/Service/Graph/`:
+- `RecordIdentityServiceTest` — coordinate derivation, record UID, ref type, entity type, a-tag decomposition
+- `ReferenceParserServiceTest` — a-tag parsing, ordering, structural classification, marker extraction
+- `EventIngestionListenerTest` — processEvent, processRawEvent, d-tag extraction

@@ -5,6 +5,10 @@
 - Deprecated search query counting, throttling, result limitations, and credit transaction records. Search is now unrestricted for all users (anonymous and authenticated alike) with no credit cost. The credits system (`CreditsManager`, `RedisCreditStore`, `CreditTransaction`, `GetCreditsComponent`) and admin transaction dashboard are marked `@deprecated` and will be removed in a future release.
 - [Bug] Fixed images added via QuillJS editor toolbar not surviving round-trip through markdown: `![alt](url)` syntax was parsed as a link instead of an image embed, causing images to be lost or mangled on mode switch.
 - [Bug] Fixed images inserted from the sidebar media manager showing as raw markdown text in the QuillJS editor instead of rendering as visual image embeds.
+- Added `dn:graph:audit` command — cron-safe consistency checker that detects drift between `event`/`article` tables and graph tables (`current_record`, `parsed_reference`). 
+- Added `dn:graph:rebuild-record` command — single-coordinate surgical repair that replays newest-wins resolution and re-parses references. 
+- Added `GraphMagazineListService` — graph-backed replacement for `MagazineRepository` listing queries. Uses `current_record` + event metadata to list top-level magazines, filter by pubkey, and count. 
+- Deprecated `MagazineProjector`, `ProjectMagazineMessage`, `ProjectMagazineMessageHandler`, and `ProjectMagazinesCommand`. The graph layer (`current_record` + `parsed_reference` + `GraphLookupService`) replaces periodic magazine projection.
 
 
 ## v0.0.20

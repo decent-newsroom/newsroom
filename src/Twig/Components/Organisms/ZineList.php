@@ -5,6 +5,7 @@ namespace App\Twig\Components\Organisms;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\MagazineRepository;
+use App\Service\Graph\GraphMagazineListService;
 use Doctrine\ORM\EntityManagerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -20,6 +21,8 @@ final class ZineList
     public ?string $pubkey = null;
 
     public function __construct(
+        private readonly GraphMagazineListService $graphMagazineList,
+        /** @deprecated Use GraphMagazineListService instead */
         private readonly MagazineRepository $magazineRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly TokenStorageInterface $tokenStorage,
@@ -41,21 +44,34 @@ final class ZineList
             }
         }
 
-        // If filtering by a specific pubkey, return only their magazines
+        // Primary: graph-backed listing
         if ($this->pubkey) {
-            $this->nzines = $this->magazineRepository->findByPubkey($this->pubkey);
+            $graphResults = $this->graphMagazineList->listByPubkey($this->pubkey);
+        } else {
+            $graphResults = $this->graphMagazineList->listAllMagazines();
+        }
+
+        if (!empty($graphResults)) {
+            $this->nzines = $graphResults;
             return;
         }
 
-        // Prefer Magazine entities; fall back to Event table
-        $this->nzines = $this->magazineRepository->findAllPublished();
+        // Fallback 1: Magazine entities (deprecated — will be removed)
+        if ($this->pubkey) {
+            $this->nzines = $this->magazineRepository->findByPubkey($this->pubkey);
+        } else {
+            $this->nzines = $this->magazineRepository->findAllPublished();
+        }
         if (!empty($this->nzines)) {
             return;
         }
 
-        // Fallback: filter Event entities (same legacy logic)
-        $allIndices = $this->entityManager->getRepository(Event::class)
-            ->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+        // Fallback 2: filter Event entities (legacy)
+        $criteria = ['kind' => KindsEnum::PUBLICATION_INDEX];
+        if ($this->pubkey) {
+            $criteria['pubkey'] = $this->pubkey;
+        }
+        $allIndices = $this->entityManager->getRepository(Event::class)->findBy($criteria);
 
         $filtered = array_filter($allIndices, function (Event $index) {
             $tags = $index->getTags();

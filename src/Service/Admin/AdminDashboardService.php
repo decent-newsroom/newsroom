@@ -12,6 +12,7 @@ use App\Repository\MagazineRepository;
 use App\Repository\UnfoldSiteRepository;
 use App\Repository\UserEntityRepository;
 use App\Repository\VisitRepository;
+use App\Service\Graph\GraphMagazineListService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -22,6 +23,7 @@ class AdminDashboardService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly UserEntityRepository $userRepository,
+        /** @deprecated Use GraphMagazineListService instead */
         private readonly MagazineRepository $magazineRepository,
         private readonly VisitRepository $visitRepository,
         private readonly EventRepository $eventRepository,
@@ -29,7 +31,8 @@ class AdminDashboardService
         private readonly UnfoldSiteRepository $unfoldSiteRepository,
         private readonly RelayAdminService $relayAdminService,
         private readonly CacheInterface $cache,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ?GraphMagazineListService $graphMagazineList = null,
     ) {
     }
 
@@ -71,9 +74,9 @@ class AdminDashboardService
                 $articlesLast7d = (int) $conn->executeQuery($last7dQuery)->fetchOne();
                 $articlesLast30d = (int) $conn->executeQuery($last30dQuery)->fetchOne();
 
-                // Magazine stats
-                $totalMagazines = $this->magazineRepository->count([]);
-                $publishedMagazines = $this->magazineRepository->count(['publishedAt' => null]);
+                // Magazine stats — prefer graph layer, fall back to Magazine entity
+                $totalMagazines = $this->graphMagazineList?->countMagazines() ?? $this->magazineRepository->count([]);
+                $publishedMagazines = $totalMagazines; // graph layer doesn't track published_at
 
                 return [
                     'total_articles' => $totalArticles,

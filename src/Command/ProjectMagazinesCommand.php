@@ -17,6 +17,11 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/**
+ * @deprecated Use GraphMagazineListService + GraphLookupService instead.
+ *             The graph layer replaces periodic magazine projection.
+ *             Will be removed once graph layer is verified stable in production.
+ */
 #[AsCommand(
     name: 'app:project-magazines',
     description: 'Project magazine indices from Nostr events to Magazine entities',
