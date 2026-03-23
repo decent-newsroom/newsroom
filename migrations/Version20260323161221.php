@@ -20,9 +20,8 @@ final class Version20260323161221 extends AbstractMigration
     public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('DROP SEQUENCE parsed_reference_id_seq CASCADE');
-        $this->addSql('DROP TABLE current_record');
-        $this->addSql('DROP TABLE parsed_reference');
+        // NOTE: DO NOT drop current_record / parsed_reference — they are raw-SQL
+        // graph-layer tables managed outside Doctrine ORM (created in Version20260315140001).
         $this->addSql('COMMENT ON COLUMN app_user.last_metadata_refresh IS \'\'');
         $this->addSql('COMMENT ON COLUMN app_user.last_login_at IS \'\'');
         $this->addSql('ALTER TABLE chat_community ALTER id DROP DEFAULT');
@@ -88,15 +87,7 @@ final class Version20260323161221 extends AbstractMigration
     public function down(Schema $schema): void
     {
         // this down() migration is auto-generated, please modify it to your needs
-        $this->addSql('CREATE SEQUENCE parsed_reference_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
-        $this->addSql('CREATE TABLE current_record (record_uid VARCHAR(800) NOT NULL, coord VARCHAR(800) NOT NULL, kind INT NOT NULL, pubkey VARCHAR(255) NOT NULL, d_tag VARCHAR(512) DEFAULT NULL, current_event_id VARCHAR(225) NOT NULL, current_created_at BIGINT NOT NULL, updated_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT \'now()\' NOT NULL, PRIMARY KEY (record_uid))');
-        $this->addSql('CREATE INDEX idx_current_record_pubkey ON current_record (pubkey)');
-        $this->addSql('CREATE UNIQUE INDEX current_record_coord_key ON current_record (coord)');
-        $this->addSql('CREATE INDEX idx_current_record_kind ON current_record (kind)');
-        $this->addSql('CREATE TABLE parsed_reference (id INT DEFAULT nextval(\'parsed_reference_id_seq\'::regclass) NOT NULL, source_event_id VARCHAR(225) NOT NULL, tag_name VARCHAR(10) DEFAULT \'a\' NOT NULL, target_ref_type VARCHAR(20) DEFAULT \'coordinate\' NOT NULL, target_kind INT DEFAULT NULL, target_pubkey VARCHAR(255) DEFAULT NULL, target_d_tag VARCHAR(512) DEFAULT NULL, target_coord VARCHAR(800) DEFAULT NULL, relation VARCHAR(50) DEFAULT \'references\' NOT NULL, marker VARCHAR(255) DEFAULT NULL, "position" INT DEFAULT 0 NOT NULL, is_structural BOOLEAN DEFAULT false NOT NULL, is_resolvable BOOLEAN DEFAULT true NOT NULL, PRIMARY KEY (id))');
-        $this->addSql('CREATE INDEX idx_parsed_ref_target_parts ON parsed_reference (target_kind, target_pubkey, target_d_tag)');
-        $this->addSql('CREATE INDEX idx_parsed_ref_source ON parsed_reference (source_event_id)');
-        $this->addSql('CREATE INDEX idx_parsed_ref_target_coord ON parsed_reference (target_coord)');
+        // NOTE: current_record / parsed_reference are managed outside Doctrine ORM.
         $this->addSql('COMMENT ON COLUMN app_user.last_metadata_refresh IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('COMMENT ON COLUMN app_user.last_login_at IS \'(DC2Type:datetime_immutable)\'');
         $this->addSql('ALTER TABLE chat_community ALTER id SET DEFAULT nextval(\'chat_community_id_seq\'::regclass)');

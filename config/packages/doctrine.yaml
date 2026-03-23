@@ -2,6 +2,7 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
         driver: pdo_pgsql
+        schema_filter: '~^(?!current_record|parsed_reference)~'
         types:
             jsonb: App\Doctrine\DBAL\Types\JsonbType
         # IMPORTANT: You MUST configure your server version,
