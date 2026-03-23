@@ -94,6 +94,7 @@ class GraphMagazineListService
                     'event_id' => $record['current_event_id'],
                     'pubkey' => $record['pubkey'],
                     'd_tag' => $record['d_tag'],
+                    'slug' => $record['d_tag'],
                     'title' => $meta['title'],
                     'summary' => $meta['summary'],
                     'image' => $meta['image'],
@@ -109,7 +110,7 @@ class GraphMagazineListService
     }
 
     /**
-     * A top-level magazine has a type=magazine tag or contains child 30040 categories.
+     * A top-level magazine must have a type=magazine tag.
      */
     private function isTopLevelMagazine(?array $eventRow): bool
     {
@@ -120,14 +121,6 @@ class GraphMagazineListService
         foreach ($tags as $tag) {
             if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
                 return true;
-            }
-        }
-        foreach ($tags as $tag) {
-            if (($tag[0] ?? '') === 'a') {
-                $parts = explode(':', $tag[1] ?? '', 3);
-                if (($parts[0] ?? '') === '30040') {
-                    return true;
-                }
             }
         }
         return false;
