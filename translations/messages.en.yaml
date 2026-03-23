@@ -43,6 +43,7 @@ nav:
     highlights: 'Highlights'
     newsroom: 'Newsroom'
     newsstand: 'Newsstand'
+    bookshelf: 'Bookshelf'
     collections: 'Collections'
     myContent: 'My Content'
     bookmarks: 'Bookmarks'
@@ -122,6 +123,16 @@ newsstand:
     onlyBeginning: 'this is only the beginning'
     gotIdea: 'Got an idea?'
     createMagazine: 'Create magazine'
+
+# ── Bookshelf page ────────────────────────────────────────────────
+bookshelf:
+    heading: 'Bookshelf'
+    eyebrow: 'long-form collections'
+    description: 'Browse books and long-form publications built from structured content sections.'
+    noBooks: 'No books yet.'
+    moreSoon: 'More books soon'
+    onlyBeginning: 'this is only the beginning'
+    gotIdea: 'Got something to share?'
 
 # ── Discover / Search page ────────────────────────────────────────
 discover:
@@ -399,6 +410,10 @@ myContent:
     readingLists: 'reading-lists'
     articlesDirName: 'articles'
     draftsDirName: 'drafts'
+
+# ── Magazine ──────────────────────────────────────────────────────
+magazine:
+    allChapters: 'All chapters'
 
 # ── Magazine wizard ───────────────────────────────────────────────
 wizard:

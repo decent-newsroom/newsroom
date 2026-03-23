@@ -8,41 +8,70 @@
                 {% if summary %} &mdash; <em>{{ summary }}</em>{% endif %}
             </small>
         </div>
-        <div {{ attributes }}>
-            <div>
-                {% set feature = list[0] %}
-                <div class="card">
-                    <a href="{{ path('magazine-category-article', {slug: feature.slug|url_encode, cat: catSlug, mag: mag}) }}">
+
+        {% if isChapterCategory %}
+            {# Chapter-based category — show first chapter + link to all #}
+            {% set feature = list[0] %}
+            <div class="card">
+                <a href="{{ path('magazine-chapter', {mag: mag, slug: feature.slug}) }}">
+                    {% if feature.image is defined and feature.image %}
                         <div class="card-header">
-                            {% if feature.image %}
-                                <img src="{{ feature.image }}" alt="Cover image for {{ feature.title }}">
-                            {% endif %}
-                        </div>
-                        <div class="card-body">
-                            <h2 class="card-title">{{ feature.title }}</h2>
-                            <p class="lede truncate">
-                                {{ feature.summary }}
-                            </p>
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div>
-                {% for item in list %}
-                    {% if item != feature %}
-                        <div class="card">
-                            <a href="{{ path('magazine-category-article', {slug: item.slug|url_encode, cat: catSlug, mag: mag}) }}">
-                                <div class="card-body">
-                                    <h2 class="card-title">{{ item.title }}</h2>
-                                    <p class="lede truncate">
-                                        {{ item.summary }}
-                                    </p>
-                                </div>
-                            </a>
+                            <img src="{{ feature.image }}" alt="Cover image for {{ feature.title }}">
                         </div>
                     {% endif %}
-                {% endfor %}
+                    <div class="card-body">
+                        <h2 class="card-title">{{ feature.title }}</h2>
+                        {% if feature.summary is defined and feature.summary %}
+                            <p class="lede truncate">{{ feature.summary }}</p>
+                        {% endif %}
+                    </div>
+                </a>
             </div>
-        </div>
+            {% if list|length > 1 %}
+                <div class="mt-3 mb-5">
+                    <a href="{{ path('magazine-category', { slug: catSlug, mag: mag }) }}" class="btn btn-sm btn-secondary">
+                        {{ 'magazine.allChapters'|trans }}
+                    </a>
+                </div>
+            {% endif %}
+        {% else %}
+            {# Standard article-based category #}
+            <div {{ attributes }}>
+                <div>
+                    {% set feature = list[0] %}
+                    <div class="card">
+                        <a href="{{ path('magazine-category-article', {slug: feature.slug|url_encode, cat: catSlug, mag: mag}) }}">
+                            <div class="card-header">
+                                {% if feature.image %}
+                                    <img src="{{ feature.image }}" alt="Cover image for {{ feature.title }}">
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <h2 class="card-title">{{ feature.title }}</h2>
+                                <p class="lede truncate">
+                                    {{ feature.summary }}
+                                </p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    {% for item in list %}
+                        {% if item != feature %}
+                            <div class="card">
+                                <a href="{{ path('magazine-category-article', {slug: item.slug|url_encode, cat: catSlug, mag: mag}) }}">
+                                    <div class="card-body">
+                                        <h2 class="card-title">{{ item.title }}</h2>
+                                        <p class="lede truncate">
+                                            {{ item.summary }}
+                                        </p>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
     {% endif %}
 </div>

@@ -1,0 +1,32 @@
+<div {{ attributes }}>
+    {% if books is not empty %}
+    {% for item in books %}
+        <div class="card p-3 ln-section--reader">
+            <div class="card-body text-center">
+                <h2 class="card-title">
+                    <a href="{{ path('magazine-index', {mag: item.slug}) }}">
+                    {% if item and item.title %}
+                        {{ item.title }}
+                    {% elseif item.slug %}
+                        {{ item.slug }}
+                    {% else %}
+                        Untitled Book
+                    {% endif %}
+                    </a>
+                </h2>
+                {% if item and item.summary %}
+                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ item.summary }}</p>
+                {% endif %}
+                {% if pubkey and currentUserPubkey and item.pubkey == currentUserPubkey %}
+                    <div class="mt-3">
+                        <a href="{{ path('mag_wizard_edit', {slug: item.slug}) }}" class="btn btn-sm btn-secondary">Edit</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+    {% else %}
+    <p><small>{{ 'bookshelf.noBooks'|trans }}</small></p>
+    {% endif %}
+</div>
+

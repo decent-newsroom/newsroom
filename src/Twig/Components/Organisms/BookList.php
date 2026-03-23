@@ -8,12 +8,12 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 #[AsTwigComponent]
-final class ZineList
+final class BookList
 {
-    public array $nzines = [];
+    public array $books = [];
     public ?string $currentUserPubkey = null;
 
-    /** Optional: when set, only magazines owned by this hex pubkey are shown. */
+    /** Optional: when set, only books owned by this hex pubkey are shown. */
     public ?string $pubkey = null;
 
     public function __construct(
@@ -39,13 +39,14 @@ final class ZineList
 
         // Primary: graph-backed listing
         if ($this->pubkey) {
-            $graphResults = $this->graphMagazineList->listByPubkey($this->pubkey);
+            $graphResults = $this->graphMagazineList->listBooksByPubkey($this->pubkey);
         } else {
-            $graphResults = $this->graphMagazineList->listAllMagazines();
+            $graphResults = $this->graphMagazineList->listAllBooks();
         }
 
         if (!empty($graphResults)) {
-            $this->nzines = $graphResults;
+            $this->books = $graphResults;
         }
     }
 }
+

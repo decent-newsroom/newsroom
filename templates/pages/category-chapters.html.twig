@@ -1,0 +1,105 @@
+{% extends 'layout.html.twig' %}
+
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ category.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ category.summary is defined ? (category.summary ?? '') : '' }}">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title, "url": url('magazine-index', {'mag': mag})},
+        {"name": category.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
+
+    {# JSON-LD Structured Data for Chapter Collection Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": {{ category.title|json_encode|raw }},
+        {% if category.summary is defined and category.summary %}
+        "description": {{ category.summary|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "Periodical",
+            "name": {{ magazine.title|json_encode|raw }},
+            "url": "{{ url('magazine-index', {'mag': mag}) }}"
+        }
+    }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine" />
+
+    <div class="w-container mb-5">
+        {% if category.title is defined and category.title %}
+            <div class="mb-3">
+                <h2 class="featured-cat mb-0">{{ category.title }}</h2>
+                {% if category.summary is defined and category.summary %}
+                    <p class="text-muted">{{ category.summary }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if chapters is not empty %}
+            <div class="article-list">
+                {% for chapter in chapters %}
+                    {% if chapter.fetched %}
+                        {# Fetched chapter — show full card #}
+                        {% set chapterEvent = chapter.event %}
+                        {% set chapterSlug = '' %}
+                        {% for tag in chapterEvent.tags %}
+                            {% if tag[0] == 'd' %}
+                                {% set chapterSlug = tag[1] %}
+                            {% endif %}
+                        {% endfor %}
+
+                        <div class="card">
+                            <a href="{{ path('magazine-chapter', {mag: mag, slug: chapterSlug}) }}">
+                                {% if chapterEvent.image %}
+                                    <div class="card-header">
+                                        <img src="{{ chapterEvent.image }}" alt="Cover image for {{ chapterEvent.title }}">
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h3 class="card-title">{{ chapterEvent.title }}</h3>
+                                    {% if chapterEvent.summary %}
+                                        <p class="lede truncate">{{ chapterEvent.summary }}</p>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </div>
+                    {% else %}
+                        {# Unfetched chapter — show placeholder #}
+                        <div class="card card-placeholder" data-coordinate="{{ chapter.coordinate }}">
+                            <div class="card-body">
+                                <h3 class="card-title text-muted">
+                                    {{ chapter.slug }}
+                                </h3>
+                                <p class="text-muted">
+                                    <small>Chapter not yet fetched from relays</small>
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                <p>No chapters found in this section yet.</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+

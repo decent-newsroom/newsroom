@@ -56,6 +56,15 @@ class DefaultController extends AbstractController
     }
 
     /**
+     * Bookshelf – lists all books (kind 30040 events referencing 30041 content)
+     */
+    #[Route('/bookshelf', name: 'bookshelf')]
+    public function bookshelf(): Response
+    {
+        return $this->render('pages/bookshelf.html.twig');
+    }
+
+    /**
      * My Magazines – newsstand filtered for the current user
      */
     #[Route('/my-magazines', name: 'my_magazines')]
@@ -1049,6 +1058,82 @@ class DefaultController extends AbstractController
             }
         }
 
+        // Detect whether this category references 30041 chapters or articles
+        $isChapterCategory = false;
+        if (!empty($coordinates)) {
+            $firstParts = explode(':', $coordinates[0], 3);
+            $firstKind = (int)($firstParts[0] ?? 0);
+            $isChapterCategory = ($firstKind === KindsEnum::PUBLICATION_CONTENT->value);
+        }
+
+        if ($isChapterCategory) {
+            // Fetch 30041 chapter events directly
+            $chapters = [];
+            foreach ($coordinates as $coordinate) {
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+                $chapterSlug = $parts[2];
+
+                $chapterSql = "SELECT e.* FROM event e
+                    WHERE e.tags @> ?::jsonb
+                    AND e.kind = ?
+                    ORDER BY e.created_at DESC
+                    LIMIT 1";
+
+                $chapterResult = $conn->executeQuery($chapterSql, [
+                    json_encode([['d', $chapterSlug]]),
+                    KindsEnum::PUBLICATION_CONTENT->value,
+                ]);
+
+                $chapterData = $chapterResult->fetchAssociative();
+                if ($chapterData) {
+                    $chapter = new Event();
+                    $chapter->setId($chapterData['id']);
+                    $chapter->setKind((int)$chapterData['kind']);
+                    $chapter->setPubkey($chapterData['pubkey']);
+                    $chapter->setContent($chapterData['content']);
+                    $chapter->setCreatedAt((int)$chapterData['created_at']);
+                    $chapter->setTags(json_decode($chapterData['tags'], true) ?? []);
+                    $chapter->setSig($chapterData['sig']);
+                    $chapters[] = [
+                        'event' => $chapter,
+                        'coordinate' => $coordinate,
+                        'slug' => $chapterSlug,
+                        'fetched' => true,
+                    ];
+                } else {
+                    $chapters[] = [
+                        'event' => null,
+                        'coordinate' => $coordinate,
+                        'slug' => $chapterSlug,
+                        'pubkey' => $parts[1],
+                        'kind' => (int)$parts[0],
+                        'fetched' => false,
+                    ];
+                }
+            }
+
+            // Create a proper Event object for template compatibility
+            $catIndex = new \swentel\nostr\Event\Event();
+            $catIndex->setId($eventData['id']);
+            $catIndex->setPublicKey($eventData['pubkey']);
+            $catIndex->setCreatedAt($eventData['created_at']);
+            $catIndex->setKind($eventData['kind']);
+            $catIndex->setTags($tags);
+            $catIndex->setContent($eventData['content']);
+            $catIndex->setSignature($eventData['sig']);
+
+            return $this->render('pages/category-chapters.html.twig', [
+                'mag' => $mag,
+                'magazine' => $magazine,
+                'chapters' => $chapters,
+                'category' => $category,
+                'index' => $catIndex,
+            ]);
+        }
+
         if (!empty($coordinates)) {
             // Extract slugs for query
             $slugs = array_map(function($coordinate) {
@@ -1093,25 +1178,6 @@ class DefaultController extends AbstractController
                 $logger->info('There were missing articles', [
                     'missing' => $missingCoordinates
                 ]);
-
-//                try {
-//                    $nostrArticles = $nostrClient->getArticlesByCoordinates($missingCoordinates);
-//
-//                    foreach ($nostrArticles as $coordinate => $event) {
-//                        $parts = explode(':', $coordinate);
-//                        if (count($parts) === 3) {
-//                            $article = $articleFactory->createFromLongFormContentEvent($event);
-//                            // Save article to database for future queries
-//                            $nostrClient->saveEachArticleToTheDatabase($article);
-//                            // Add to the slugMap
-//                            $slugMap[$article->getSlug()] = $article;
-//                        }
-//                    }
-//                } catch (\Exception $e) {
-//                    $logger->error('Error fetching missing articles', [
-//                        'error' => $e->getMessage()
-//                    ]);
-//                }
             }
 
             // Build ordered list based on original coordinates order

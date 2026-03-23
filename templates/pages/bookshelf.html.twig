@@ -1,0 +1,56 @@
+{% extends 'layout.html.twig' %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ 'bookshelf.heading'|trans }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ 'bookshelf.description'|trans }}">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# JSON-LD Structured Data for Bookshelf #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": {{ 'bookshelf.heading'|trans|json_encode|raw }},
+        "description": {{ 'bookshelf.description'|trans|json_encode|raw }},
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "Newsroom",
+            "url": "{{ url('home') }}"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "Digital Books"
+        }
+    }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-5">
+            <h1>{{ 'bookshelf.heading'|trans }}</h1>
+            <p class="eyebrow">{{ 'bookshelf.eyebrow'|trans }}</p>
+        </div>
+    </section>
+    <section class="mb-5">
+        <twig:Organisms:BookList />
+    </section>
+
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5">
+            <h1>{{ 'bookshelf.moreSoon'|trans }}</h1>
+            <p class="eyebrow">{{ 'bookshelf.onlyBeginning'|trans }}</p>
+        </div>
+        <div class="mb-5">
+            <p class="measure">{{ 'bookshelf.gotIdea'|trans }}</p>
+        </div>
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <twig:Atoms:FeaturedWriters />
+{% endblock %}
+

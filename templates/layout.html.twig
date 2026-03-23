@@ -21,6 +21,7 @@
                     <div class="nav-section__label">{{ 'nav.newsroom'|trans }}</div>
                     <ul class="user-nav">
                         <li><a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a></li>
+                        <li class="hidden"><a href="{{ path('bookshelf') }}">{{ 'nav.bookshelf'|trans }}</a></li>
                         <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
                         {% if app.user %}
                             <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
