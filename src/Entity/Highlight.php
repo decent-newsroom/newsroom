@@ -14,6 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['article_coordinate'], name: 'idx_article_coordinate')]
 #[ORM\Index(columns: ['event_id'], name: 'idx_event_id')]
 #[ORM\Index(columns: ['created_at'], name: 'idx_created_at')]
+#[ORM\Index(columns: ['article_coordinate', 'cached_at'], name: 'idx_article_coordinate_cached_at')]
 class Highlight
 {
     #[ORM\Id]

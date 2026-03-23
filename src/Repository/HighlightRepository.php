@@ -28,6 +28,76 @@ class HighlightRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find highlights for an article, deduplicated by content+pubkey at DB level.
+     * Keeps the most recent highlight per unique content+pubkey pair.
+     */
+    public function findByArticleCoordinateDeduplicated(string $articleCoordinate): array
+    {
+        // Pick the MAX(id) per content+pubkey group via raw SQL,
+        // then fetch only those rows as Doctrine entities.
+        // This avoids loading duplicates into PHP.
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = <<<SQL
+            SELECT MAX(h.id) AS id
+            FROM highlight h
+            WHERE h.article_coordinate = :coordinate
+            GROUP BY MD5(CONCAT(h.content, '|', h.pubkey))
+        SQL;
+
+        $ids = $conn->fetchFirstColumn($sql, ['coordinate' => $articleCoordinate]);
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('h')
+            ->where('h.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('h.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Get cache status in a single query: whether a full refresh or top-off is needed.
+     * Replaces separate needsRefresh() + getLastCacheTime() calls.
+     *
+     * @return array{needsFullRefresh: bool, needsTopOff: bool, lastCacheTime: ?\DateTimeImmutable}
+     */
+    public function getCacheStatus(string $articleCoordinate, int $fullRefreshHours = 24, int $topOffHours = 1): array
+    {
+        $result = $this->createQueryBuilder('h')
+            ->select('MAX(h.cachedAt) AS lastCached')
+            ->where('h.articleCoordinate = :coordinate')
+            ->setParameter('coordinate', $articleCoordinate)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        $lastCachedStr = $result['lastCached'] ?? null;
+
+        if ($lastCachedStr === null) {
+            return [
+                'needsFullRefresh' => true,
+                'needsTopOff' => false,
+                'lastCacheTime' => null,
+            ];
+        }
+
+        $lastCached = $lastCachedStr instanceof \DateTimeImmutable
+            ? $lastCachedStr
+            : new \DateTimeImmutable($lastCachedStr);
+        $now = new \DateTimeImmutable();
+        $diffSeconds = $now->getTimestamp() - $lastCached->getTimestamp();
+
+        return [
+            'needsFullRefresh' => $diffSeconds >= ($fullRefreshHours * 3600),
+            'needsTopOff' => $diffSeconds >= ($topOffHours * 3600),
+            'lastCacheTime' => $lastCached,
+        ];
+    }
+
+    /**
      * Debug: Get all unique article coordinates in the database
      */
     public function getAllArticleCoordinates(): array

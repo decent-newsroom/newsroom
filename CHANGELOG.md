@@ -2,6 +2,7 @@
 
 ## v0.0.21
 
+- Optimized highlight lookup on article pages: added Redis caching layer (Redis → DB fallback) eliminating 3 DB queries per page load on cache hit, consolidated remaining DB queries into a single call, moved deduplication from PHP to the database, and added a compound index on `(article_coordinate, cached_at)`.
 - Added Bookshelf page (`/bookshelf`) — lists all books (kind 30040 events referencing kind 30041 content sections), with navigation link alongside Newsstand.
 - [Bug] Fixed hybrid collections (top-level 30040 → sub-level 30040 → 30041 chapters) failing to display chapters on the newsstand: `FeaturedList` and `magCategory` now detect when a sub-index's `a` tags reference kind 30041 events and fetch/display them as chapters instead of searching for articles.
 - Deprecated search query counting, throttling, result limitations, and credit transaction records. Search is now unrestricted for all users (anonymous and authenticated alike) with no credit cost. The credits system (`CreditsManager`, `RedisCreditStore`, `CreditTransaction`, `GetCreditsComponent`) and admin transaction dashboard are marked `@deprecated` and will be removed in a future release.
