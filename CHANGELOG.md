@@ -1,6 +1,11 @@
 # CHANGELOG
 
+## v0.0.22
+
+
+
 ## v0.0.21
+Graph layer, highlights, and various bug fixes.
 
 - Optimized highlight lookup on article pages: added Redis caching layer (Redis → DB fallback) eliminating 3 DB queries per page load on cache hit, consolidated remaining DB queries into a single call, moved deduplication from PHP to the database, and added a compound index on `(article_coordinate, cached_at)`.
 - Added Bookshelf page (`/bookshelf`) — lists all books (kind 30040 events referencing kind 30041 content sections), with navigation link alongside Newsstand.
