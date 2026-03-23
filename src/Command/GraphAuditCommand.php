@@ -35,6 +35,11 @@ class GraphAuditCommand extends Command
 {
     private const BATCH_SIZE = 500;
 
+    /** @var int Per-query statement timeout in seconds (0 = no timeout) */
+    private const QUERY_TIMEOUT_SECONDS = 120;
+
+    private bool $interrupted = false;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly CurrentVersionResolver $currentVersionResolver,
@@ -54,6 +59,18 @@ class GraphAuditCommand extends Command
         ;
     }
 
+    public function getSubscribedSignals(): array
+    {
+        return [\SIGINT, \SIGTERM];
+    }
+
+    public function handleSignal(int $signal, int|false $previousExitCode = 0): int|false
+    {
+        $this->interrupted = true;
+
+        return false; // let execute() finish its current iteration and exit cleanly
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
@@ -62,11 +79,29 @@ class GraphAuditCommand extends Command
         $fixReferences = $fixAll || $input->getOption('fix-references');
         $limit = (int) $input->getOption('limit');
 
+        // Install PCNTL signal handler for graceful Ctrl+C
+        if (\function_exists('pcntl_signal')) {
+            \pcntl_signal(\SIGINT, function () {
+                $this->interrupted = true;
+            });
+            \pcntl_signal(\SIGTERM, function () {
+                $this->interrupted = true;
+            });
+        }
+
         $io->title('Graph Layer Audit');
+
+        // Set a session-level statement timeout so no single query can stall forever
+        $this->setStatementTimeout(self::QUERY_TIMEOUT_SECONDS);
 
         // ── Check 1: current_record freshness ──────────────────────────────
         $io->section('1. Current-record freshness');
         $staleRecords = $this->auditCurrentRecordFreshness($io, $limit);
+
+        if ($this->interrupted) {
+            $io->warning('Interrupted by signal.');
+            return Command::FAILURE;
+        }
 
         if ($fixVersions && !empty($staleRecords)) {
             $io->info(sprintf('Repairing %d stale current_record entries...', count($staleRecords)));
@@ -78,10 +113,20 @@ class GraphAuditCommand extends Command
         $io->section('2. Parsed-reference completeness');
         $refIssues = $this->auditParsedReferences($io, $limit);
 
+        if ($this->interrupted) {
+            $io->warning('Interrupted by signal.');
+            return Command::FAILURE;
+        }
+
         if ($fixReferences && !empty($refIssues)) {
             $io->info(sprintf('Repairing %d events with stale/missing references...', count($refIssues)));
-            $repaired = $this->repairReferences($refIssues);
+            $repaired = $this->repairReferences($refIssues, $io);
             $io->success(sprintf('Repaired %d / %d events.', $repaired, count($refIssues)));
+        }
+
+        if ($this->interrupted) {
+            $io->warning('Interrupted by signal.');
+            return Command::FAILURE;
         }
 
         // ── Check 3: orphan detection ──────────────────────────────────────
@@ -111,61 +156,127 @@ class GraphAuditCommand extends Command
             'fix_applied' => $fixVersions || $fixReferences,
         ]);
 
+        // Reset statement timeout
+        $this->setStatementTimeout(0);
+
         return $totalIssues === 0 ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Set PostgreSQL session-level statement timeout.
+     */
+    private function setStatementTimeout(int $seconds): void
+    {
+        try {
+            $ms = $seconds * 1000;
+            $this->connection->executeStatement("SET statement_timeout = {$ms}");
+        } catch (\Throwable $e) {
+            $this->logger->warning('Graph audit: could not set statement_timeout', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Dispatch pending signals (if pcntl is available).
+     */
+    private function dispatchSignals(): void
+    {
+        if (\function_exists('pcntl_signal_dispatch')) {
+            \pcntl_signal_dispatch();
+        }
     }
 
     /**
      * Check 1: For each current_record, verify that its current_event_id
      * matches the actual newest event for that coordinate in the event table.
      *
+     * Processes in batches to avoid a single long-running LATERAL query over
+     * the entire current_record table.
+     *
      * @return array<array{coord: string, stored_event_id: string, actual_event_id: string, kind: int, pubkey: string, d_tag: ?string}>
      */
     private function auditCurrentRecordFreshness(SymfonyStyle $io, int $limit): array
     {
-        // Find current_record entries where the stored event is NOT the newest
-        // for that (kind, pubkey, d_tag) tuple in the event table.
-        $sql = <<<'SQL'
-            SELECT
-                cr.coord,
-                cr.current_event_id AS stored_event_id,
-                cr.kind,
-                cr.pubkey,
-                cr.d_tag,
-                newest.id AS actual_event_id,
-                newest.created_at AS actual_created_at,
-                cr.current_created_at AS stored_created_at
-            FROM current_record cr
-            JOIN LATERAL (
-                SELECT e.id, e.created_at
-                FROM event e
-                WHERE e.kind = cr.kind
-                  AND e.pubkey = cr.pubkey
-                  AND (
-                      (cr.d_tag IS NOT NULL AND e.d_tag = cr.d_tag)
-                      OR (cr.d_tag IS NULL AND e.d_tag IS NULL)
-                  )
-                ORDER BY e.created_at DESC, e.id ASC
-                LIMIT 1
-            ) newest ON TRUE
-            WHERE newest.id != cr.current_event_id
-        SQL;
+        // Count total current_record entries to process
+        $totalRecords = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM current_record');
+        $checkLimit = $limit > 0 ? $limit : $totalRecords;
 
-        if ($limit > 0) {
-            $sql .= ' LIMIT ' . $limit;
-        }
-
-        try {
-            $stale = $this->connection->fetchAllAssociative($sql);
-        } catch (\Throwable $e) {
-            $io->error('Failed to check current_record freshness: ' . $e->getMessage());
-            $this->logger->error('Graph audit: current_record freshness check failed', ['error' => $e->getMessage()]);
+        if ($totalRecords === 0) {
+            $io->info('✓ No current_record entries to check.');
             return [];
         }
 
+        $io->info(sprintf('Checking %d current_record entries in batches of %d…', min($checkLimit, $totalRecords), self::BATCH_SIZE));
+
+        $stale = [];
+        $offset = 0;
+        $checked = 0;
+        $io->progressStart(min($checkLimit, $totalRecords));
+
+        while ($offset < $checkLimit && !$this->interrupted) {
+            $batchLimit = min(self::BATCH_SIZE, $checkLimit - $offset);
+
+            $sql = <<<SQL
+                SELECT
+                    cr.coord,
+                    cr.current_event_id AS stored_event_id,
+                    cr.kind,
+                    cr.pubkey,
+                    cr.d_tag,
+                    newest.id AS actual_event_id,
+                    newest.created_at AS actual_created_at,
+                    cr.current_created_at AS stored_created_at
+                FROM (
+                    SELECT * FROM current_record ORDER BY record_uid LIMIT :batch_limit OFFSET :batch_offset
+                ) cr
+                JOIN LATERAL (
+                    SELECT e.id, e.created_at
+                    FROM event e
+                    WHERE e.kind = cr.kind
+                      AND e.pubkey = cr.pubkey
+                      AND (
+                          (cr.d_tag IS NOT NULL AND e.d_tag = cr.d_tag)
+                          OR (cr.d_tag IS NULL AND e.d_tag IS NULL)
+                      )
+                    ORDER BY e.created_at DESC, e.id ASC
+                    LIMIT 1
+                ) newest ON TRUE
+                WHERE newest.id != cr.current_event_id
+            SQL;
+
+            try {
+                $rows = $this->connection->fetchAllAssociative($sql, [
+                    'batch_limit' => $batchLimit,
+                    'batch_offset' => $offset,
+                ], [
+                    'batch_limit' => ParameterType::INTEGER,
+                    'batch_offset' => ParameterType::INTEGER,
+                ]);
+
+                foreach ($rows as $row) {
+                    $stale[] = $row;
+                }
+            } catch (\Throwable $e) {
+                $io->error(sprintf('Failed at offset %d: %s', $offset, $e->getMessage()));
+                $this->logger->error('Graph audit: current_record freshness check failed', [
+                    'offset' => $offset,
+                    'error' => $e->getMessage(),
+                ]);
+                break;
+            }
+
+            $checked += $batchLimit;
+            $io->progressAdvance($batchLimit);
+            $offset += $batchLimit;
+
+            $this->dispatchSignals();
+        }
+
+        $io->progressFinish();
+
         if (empty($stale)) {
-            $io->info('✓ All current_record entries are fresh.');
+            $io->info(sprintf('✓ All %d current_record entries are fresh.', $checked));
         } else {
-            $io->warning(sprintf('Found %d stale current_record entries.', count($stale)));
+            $io->warning(sprintf('Found %d stale current_record entries (checked %d).', count($stale), $checked));
             $sample = array_slice($stale, 0, 5);
             $rows = array_map(fn(array $r) => [
                 $r['coord'],
@@ -185,6 +296,7 @@ class GraphAuditCommand extends Command
      *
      * Uses JSONB containment operator (@>) to leverage the GIN index instead of
      * casting to text. Batch-fetches stored counts to avoid N+1 queries.
+     * Drops ORDER BY — we just need a sample, not the most recent ones.
      *
      * @return array<array{event_id: string, kind: int, expected: int, stored: int, tags: array}>
      */
@@ -192,17 +304,28 @@ class GraphAuditCommand extends Command
     {
         $checkLimit = $limit > 0 ? $limit : 1000;
 
+        $io->info(sprintf('Sampling up to %d events with a tags…', $checkLimit));
+
         // Use JSONB containment operator — hits the GIN index (jsonb_path_ops)
-        $rows = $this->connection->fetchAllAssociative(
-            "SELECT id, kind, tags FROM event WHERE tags @> :pattern ORDER BY created_at DESC LIMIT :lim",
-            ['pattern' => '[["a"]]', 'lim' => $checkLimit],
-            ['pattern' => ParameterType::STRING, 'lim' => ParameterType::INTEGER],
-        );
+        // No ORDER BY: we just need a sample, sorting all matching rows is expensive
+        try {
+            $rows = $this->connection->fetchAllAssociative(
+                "SELECT id, kind, tags FROM event WHERE tags @> :pattern LIMIT :lim",
+                ['pattern' => '[["a"]]', 'lim' => $checkLimit],
+                ['pattern' => ParameterType::STRING, 'lim' => ParameterType::INTEGER],
+            );
+        } catch (\Throwable $e) {
+            $io->error('Failed to query events with a tags: ' . $e->getMessage());
+            $this->logger->error('Graph audit: parsed_reference query failed', ['error' => $e->getMessage()]);
+            return [];
+        }
 
         if (empty($rows)) {
             $io->info('✓ No events with a tags found.');
             return [];
         }
+
+        $io->info(sprintf('Fetched %d events, checking reference counts…', count($rows)));
 
         // Batch-fetch stored reference counts for all sampled events in one query
         $eventIds = array_column($rows, 'id');
@@ -212,6 +335,10 @@ class GraphAuditCommand extends Command
         $io->progressStart(count($rows));
 
         foreach ($rows as $row) {
+            if ($this->interrupted) {
+                break;
+            }
+
             $tags = is_string($row['tags']) ? json_decode($row['tags'], true) : $row['tags'];
             if (!is_array($tags)) {
                 $io->progressAdvance();
@@ -233,6 +360,7 @@ class GraphAuditCommand extends Command
             }
 
             $io->progressAdvance();
+            $this->dispatchSignals();
         }
 
         $io->progressFinish();
@@ -290,6 +418,8 @@ class GraphAuditCommand extends Command
      */
     private function auditOrphans(SymfonyStyle $io, bool $fix): int
     {
+        $io->info('Checking for orphaned current_record entries…');
+
         $sql = <<<'SQL'
             SELECT cr.coord, cr.current_event_id, cr.kind
             FROM current_record cr
@@ -338,6 +468,10 @@ class GraphAuditCommand extends Command
         $repaired = 0;
 
         foreach ($staleRecords as $record) {
+            if ($this->interrupted) {
+                break;
+            }
+
             try {
                 $becameCurrent = $this->currentVersionResolver->updateIfCurrent(
                     eventId: $record['actual_event_id'],
@@ -356,6 +490,8 @@ class GraphAuditCommand extends Command
                     'error' => $e->getMessage(),
                 ]);
             }
+
+            $this->dispatchSignals();
         }
 
         return $repaired;
@@ -367,13 +503,20 @@ class GraphAuditCommand extends Command
      * Uses tags carried forward from the audit phase to avoid re-fetching events.
      * Processes in batches with bulk insert for performance.
      */
-    private function repairReferences(array $issues): int
+    private function repairReferences(array $issues, SymfonyStyle $io): int
     {
         $repaired = 0;
-        $batchRefs = [];
-        $batchEventIds = [];
+        $totalChunks = (int) ceil(count($issues) / self::BATCH_SIZE);
+        $chunkNum = 0;
 
         foreach (array_chunk($issues, self::BATCH_SIZE) as $chunk) {
+            if ($this->interrupted) {
+                break;
+            }
+
+            $chunkNum++;
+            $io->info(sprintf('Processing batch %d / %d (%d events)…', $chunkNum, $totalChunks, count($chunk)));
+
             $batchRefs = [];
             $batchEventIds = [];
 
@@ -432,6 +575,8 @@ class GraphAuditCommand extends Command
             if (!empty($batchRefs)) {
                 $this->bulkInsertReferences($batchRefs);
             }
+
+            $this->dispatchSignals();
         }
 
         return $repaired;

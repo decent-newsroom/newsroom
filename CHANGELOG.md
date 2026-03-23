@@ -2,7 +2,7 @@
 
 ## v0.0.22
 
-- [Bug] Fixed `dn:graph:audit` stalling on production: replaced `tags::text LIKE` with JSONB containment operator (`@>`) to use the GIN index, eliminated N+1 reference count queries with a single batched `GROUP BY` query, added progress bars during audit and repair phases, switched repair to batched bulk inserts (matching backfill command pattern), and carried parsed tags forward from audit to repair to avoid redundant event fetches. Same `tags::text LIKE` fix applied to `dn:graph:backfill-references`.
+- [Bug] Fixed `dn:graph:audit` stalling on production and ignoring Ctrl+C: added PCNTL signal handling for graceful interruption, set PostgreSQL `statement_timeout` (120s) so no single query blocks forever, batched the Check 1 LATERAL join (was scanning all `current_record` rows in one query), replaced `tags::text LIKE` with JSONB containment (`@>`) for GIN index use, dropped unnecessary `ORDER BY` from Check 2, eliminated N+1 reference count queries with a single batched `GROUP BY`, added progress bars and status messages to all phases, switched repair to bulk inserts with tags carried forward from audit. Same `tags::text LIKE` fix applied to `dn:graph:backfill-references`.
 
 ## v0.0.21
 Graph layer, highlights, and various bug fixes.
