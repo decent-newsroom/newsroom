@@ -28,3 +28,4 @@
 /docker/strfry/data/
 ###< strfry relay ###
 
+config/reference.php
