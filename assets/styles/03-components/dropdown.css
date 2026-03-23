@@ -111,7 +111,7 @@ button.dropdown-item:disabled {
 
 /* Dropdown menu positioning variants */
 .dropdown-menu-end {
-    right: 0;
+    right: auto;
     left: auto;
 }
 

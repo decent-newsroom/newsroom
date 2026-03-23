@@ -57,9 +57,10 @@ class GraphBackfillReferencesCommand extends Command
             $this->connection->executeStatement('TRUNCATE TABLE parsed_reference');
         }
 
-        // Count events that have `a` tags (using text search on JSONB for speed)
+        // Count events that have `a` tags — use JSONB containment to leverage the GIN index
         $totalCount = (int) $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM event WHERE tags::text LIKE '%\"a\"%'"
+            "SELECT COUNT(*) FROM event WHERE tags @> :pattern",
+            ['pattern' => '[["a"]]'],
         );
 
         if ($totalCount === 0) {
@@ -76,8 +77,8 @@ class GraphBackfillReferencesCommand extends Command
 
         while ($offset < $totalCount) {
             $rows = $this->connection->fetchAllAssociative(
-                "SELECT id, kind, pubkey, tags FROM event WHERE tags::text LIKE '%\"a\"%' ORDER BY id LIMIT :limit OFFSET :offset",
-                ['limit' => $batchSize, 'offset' => $offset],
+                "SELECT id, kind, pubkey, tags FROM event WHERE tags @> :pattern ORDER BY id LIMIT :limit OFFSET :offset",
+                ['pattern' => '[["a"]]', 'limit' => $batchSize, 'offset' => $offset],
                 ['limit' => ParameterType::INTEGER, 'offset' => ParameterType::INTEGER],
             );
 

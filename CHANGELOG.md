@@ -2,7 +2,7 @@
 
 ## v0.0.22
 
-
+- [Bug] Fixed `dn:graph:audit` stalling on production: replaced `tags::text LIKE` with JSONB containment operator (`@>`) to use the GIN index, eliminated N+1 reference count queries with a single batched `GROUP BY` query, added progress bars during audit and repair phases, switched repair to batched bulk inserts (matching backfill command pattern), and carried parsed tags forward from audit to repair to avoid redundant event fetches. Same `tags::text LIKE` fix applied to `dn:graph:backfill-references`.
 
 ## v0.0.21
 Graph layer, highlights, and various bug fixes.

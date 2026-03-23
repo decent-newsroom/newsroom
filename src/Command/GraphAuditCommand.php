@@ -183,34 +183,44 @@ class GraphAuditCommand extends Command
     /**
      * Check 2: Sample events with `a` tags and verify parsed_reference count matches.
      *
-     * @return array<array{event_id: string, kind: int, expected: int, stored: int}>
+     * Uses JSONB containment operator (@>) to leverage the GIN index instead of
+     * casting to text. Batch-fetches stored counts to avoid N+1 queries.
+     *
+     * @return array<array{event_id: string, kind: int, expected: int, stored: int, tags: array}>
      */
     private function auditParsedReferences(SymfonyStyle $io, int $limit): array
     {
         $checkLimit = $limit > 0 ? $limit : 1000;
 
-        // Get a sample of events that have a-tags
+        // Use JSONB containment operator — hits the GIN index (jsonb_path_ops)
         $rows = $this->connection->fetchAllAssociative(
-            "SELECT id, kind, tags FROM event WHERE tags::text LIKE '%\"a\"%' ORDER BY created_at DESC LIMIT :lim",
-            ['lim' => $checkLimit],
-            ['lim' => ParameterType::INTEGER],
+            "SELECT id, kind, tags FROM event WHERE tags @> :pattern ORDER BY created_at DESC LIMIT :lim",
+            ['pattern' => '[["a"]]', 'lim' => $checkLimit],
+            ['pattern' => ParameterType::STRING, 'lim' => ParameterType::INTEGER],
         );
 
+        if (empty($rows)) {
+            $io->info('✓ No events with a tags found.');
+            return [];
+        }
+
+        // Batch-fetch stored reference counts for all sampled events in one query
+        $eventIds = array_column($rows, 'id');
+        $storedCounts = $this->batchFetchReferenceCounts($eventIds);
+
         $issues = [];
+        $io->progressStart(count($rows));
 
         foreach ($rows as $row) {
             $tags = is_string($row['tags']) ? json_decode($row['tags'], true) : $row['tags'];
             if (!is_array($tags)) {
+                $io->progressAdvance();
                 continue;
             }
 
             $expected = $this->referenceParser->parseFromTagsArray($row['id'], (int) $row['kind'], $tags);
             $expectedCount = count($expected);
-
-            $storedCount = (int) $this->connection->fetchOne(
-                'SELECT COUNT(*) FROM parsed_reference WHERE source_event_id = ?',
-                [$row['id']],
-            );
+            $storedCount = $storedCounts[$row['id']] ?? 0;
 
             if ($expectedCount !== $storedCount) {
                 $issues[] = [
@@ -218,9 +228,14 @@ class GraphAuditCommand extends Command
                     'kind' => (int) $row['kind'],
                     'expected' => $expectedCount,
                     'stored' => $storedCount,
+                    'tags' => $tags, // carry forward to avoid re-fetching during repair
                 ];
             }
+
+            $io->progressAdvance();
         }
+
+        $io->progressFinish();
 
         if (empty($issues)) {
             $io->info(sprintf('✓ Checked %d events — all parsed_reference rows match.', count($rows)));
@@ -237,6 +252,36 @@ class GraphAuditCommand extends Command
         }
 
         return $issues;
+    }
+
+    /**
+     * Fetch reference counts for a batch of event IDs in a single query.
+     *
+     * @param string[] $eventIds
+     * @return array<string, int> eventId => count
+     */
+    private function batchFetchReferenceCounts(array $eventIds): array
+    {
+        if (empty($eventIds)) {
+            return [];
+        }
+
+        $counts = [];
+
+        // Process in chunks to avoid exceeding parameter limits
+        foreach (array_chunk($eventIds, self::BATCH_SIZE) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            $rows = $this->connection->fetchAllAssociative(
+                "SELECT source_event_id, COUNT(*) AS cnt FROM parsed_reference WHERE source_event_id IN ({$placeholders}) GROUP BY source_event_id",
+                array_values($chunk),
+            );
+
+            foreach ($rows as $row) {
+                $counts[$row['source_event_id']] = (int) $row['cnt'];
+            }
+        }
+
+        return $counts;
     }
 
     /**
@@ -318,38 +363,130 @@ class GraphAuditCommand extends Command
 
     /**
      * Repair missing/stale parsed_reference rows by re-parsing from event tags.
+     *
+     * Uses tags carried forward from the audit phase to avoid re-fetching events.
+     * Processes in batches with bulk insert for performance.
      */
     private function repairReferences(array $issues): int
     {
         $repaired = 0;
+        $batchRefs = [];
+        $batchEventIds = [];
 
-        foreach ($issues as $issue) {
-            $eventId = $issue['event_id'];
+        foreach (array_chunk($issues, self::BATCH_SIZE) as $chunk) {
+            $batchRefs = [];
+            $batchEventIds = [];
 
-            try {
-                $row = $this->connection->fetchAssociative(
-                    'SELECT id, kind, tags FROM event WHERE id = ?',
-                    [$eventId],
-                );
+            foreach ($chunk as $issue) {
+                $eventId = $issue['event_id'];
 
-                if ($row === false) {
-                    continue;
+                try {
+                    // Prefer tags carried from audit phase; fall back to DB
+                    $tags = $issue['tags'] ?? null;
+                    $kind = $issue['kind'];
+
+                    if ($tags === null) {
+                        $row = $this->connection->fetchAssociative(
+                            'SELECT id, kind, tags FROM event WHERE id = ?',
+                            [$eventId],
+                        );
+
+                        if ($row === false) {
+                            continue;
+                        }
+
+                        $tags = is_string($row['tags']) ? json_decode($row['tags'], true) : $row['tags'];
+                        $kind = (int) $row['kind'];
+                    }
+
+                    if (!is_array($tags)) {
+                        continue;
+                    }
+
+                    $refs = $this->referenceParser->parseFromTagsArray($eventId, $kind, $tags);
+                    $batchEventIds[] = $eventId;
+
+                    foreach ($refs as $ref) {
+                        $batchRefs[] = $ref;
+                    }
+
+                    $repaired++;
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Graph audit: failed to parse references for repair', [
+                        'event_id' => $eventId,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
+            }
 
-                $tags = is_string($row['tags']) ? json_decode($row['tags'], true) : $row['tags'];
-                if (!is_array($tags)) {
-                    continue;
-                }
-
-                $refs = $this->referenceParser->parseFromTagsArray($eventId, (int) $row['kind'], $tags);
-
-                // Delete existing and reinsert
+            // Batch delete existing references
+            if (!empty($batchEventIds)) {
+                $placeholders = implode(',', array_fill(0, count($batchEventIds), '?'));
                 $this->connection->executeStatement(
-                    'DELETE FROM parsed_reference WHERE source_event_id = ?',
-                    [$eventId],
+                    "DELETE FROM parsed_reference WHERE source_event_id IN ({$placeholders})",
+                    array_values($batchEventIds),
                 );
+            }
 
-                foreach ($refs as $ref) {
+            // Bulk insert all references for this batch
+            if (!empty($batchRefs)) {
+                $this->bulkInsertReferences($batchRefs);
+            }
+        }
+
+        return $repaired;
+    }
+
+    /**
+     * @param \App\Service\Graph\ParsedReferenceDto[] $refs
+     */
+    private function bulkInsertReferences(array $refs): void
+    {
+        $sql = <<<'SQL'
+            INSERT INTO parsed_reference
+                (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, relation, marker, position, is_structural, is_resolvable)
+            VALUES
+        SQL;
+
+        $values = [];
+        $params = [];
+        $types = [];
+        $i = 0;
+
+        foreach ($refs as $ref) {
+            $values[] = sprintf(
+                '(:sei%d, :tn%d, :trt%d, :tk%d, :tp%d, :td%d, :tc%d, :rel%d, :mk%d, :pos%d, :is%d, :ir%d)',
+                $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i, $i
+            );
+            $params["sei{$i}"] = $ref->sourceEventId;
+            $params["tn{$i}"] = $ref->tagName;
+            $params["trt{$i}"] = $ref->targetRefType;
+            $params["tk{$i}"] = $ref->targetKind;
+            $params["tp{$i}"] = $ref->targetPubkey;
+            $params["td{$i}"] = $ref->targetDTag;
+            $params["tc{$i}"] = $ref->targetCoord;
+            $params["rel{$i}"] = $ref->relation;
+            $params["mk{$i}"] = $ref->marker;
+            $params["pos{$i}"] = $ref->position;
+            $params["is{$i}"] = $ref->isStructural;
+            $types["is{$i}"] = ParameterType::BOOLEAN;
+            $params["ir{$i}"] = $ref->isResolvable;
+            $types["ir{$i}"] = ParameterType::BOOLEAN;
+            $i++;
+        }
+
+        $fullSql = $sql . "\n" . implode(",\n", $values);
+
+        try {
+            $this->connection->executeStatement($fullSql, $params, $types);
+        } catch (\Throwable $e) {
+            $this->logger->error('Graph audit: bulk insert failed, falling back to individual inserts', [
+                'count' => count($refs),
+                'error' => $e->getMessage(),
+            ]);
+
+            foreach ($refs as $ref) {
+                try {
                     $this->connection->executeStatement(
                         'INSERT INTO parsed_reference (source_event_id, tag_name, target_ref_type, target_kind, target_pubkey, target_d_tag, target_coord, relation, marker, position, is_structural, is_resolvable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         [
@@ -365,18 +502,15 @@ class GraphAuditCommand extends Command
                             ParameterType::INTEGER, ParameterType::BOOLEAN, ParameterType::BOOLEAN,
                         ],
                     );
+                } catch (\Throwable $inner) {
+                    $this->logger->warning('Graph audit: failed to insert single reference', [
+                        'source' => $ref->sourceEventId,
+                        'target' => $ref->targetCoord,
+                        'error' => $inner->getMessage(),
+                    ]);
                 }
-
-                $repaired++;
-            } catch (\Throwable $e) {
-                $this->logger->warning('Graph audit: failed to repair references', [
-                    'event_id' => $eventId,
-                    'error' => $e->getMessage(),
-                ]);
             }
         }
-
-        return $repaired;
     }
 }
 
