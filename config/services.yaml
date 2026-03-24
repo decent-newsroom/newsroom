@@ -18,6 +18,7 @@ parameters:
         - 'wss://relay.damus.io'
     relay_registry.content_relays:
         - 'wss://theforest.nostr1.com'
+        - 'wss://thecitadel.nostr1.com/'
         - 'wss://relay.damus.io'
         - 'wss://relay.primal.net'
         - 'wss://nos.lol'
@@ -29,7 +30,6 @@ parameters:
         - 'wss://relay.decentnewsroom.com'
         - 'wss://relay.primal.net'
         - 'wss://relay.damus.io'
-        - 'wss://nos.lol'
     
     # Contribution/donation settings
     project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
