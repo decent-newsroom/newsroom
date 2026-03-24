@@ -11,6 +11,7 @@ use App\Form\CategoryArticlesType;
 use App\Form\MagazineCategoriesType;
 use App\Form\MagazineSetupType;
 use App\Message\ProjectMagazineMessage;
+use App\Service\Graph\EventIngestionListener;
 use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\PublicationSubdomainService;
@@ -323,6 +324,7 @@ class MagazineWizardController extends AbstractController
         NostrClient               $nostrClient,
         LoggerInterface           $logger,
         UserRolePromoter          $userRolePromoter,
+        EventIngestionListener    $eventIngestionListener,
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
         if (!$data || !isset($data['event'])) {
@@ -386,6 +388,19 @@ class MagazineWizardController extends AbstractController
                 'error' => $e->getMessage(),
             ]);
             return new JsonResponse(['error' => 'Database error: ' . $e->getMessage()], 500);
+        }
+
+        // Update graph tables (current_record + parsed_reference) so the
+        // magazine appears immediately on the newsstand / bookshelf
+        try {
+            $eventIngestionListener->processEvent($event);
+        } catch (\Throwable $e) {
+            $logger->warning('Failed to update graph tables for magazine event', [
+                'event_id' => $eventObj->getId(),
+                'slug' => $slug,
+                'error' => $e->getMessage(),
+            ]);
+            // Non-fatal: graph will be updated by backfill or relay subscription
         }
 
         // Grant ROLE_EDITOR to the publishing user

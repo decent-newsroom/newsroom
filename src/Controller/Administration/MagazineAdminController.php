@@ -8,9 +8,11 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Entity\Nzine;
 use App\Enum\KindsEnum;
+use App\Repository\HiddenCoordinateRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Redis as RedisClient;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -20,14 +22,57 @@ class MagazineAdminController extends AbstractController
 {
     #[Route('/admin/magazines', name: 'admin_magazines')]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(RedisClient $redis, CacheInterface $appCache, EntityManagerInterface $em): Response
+    public function index(RedisClient $redis, CacheInterface $appCache, EntityManagerInterface $em, HiddenCoordinateRepository $hiddenCoordinateRepo): Response
     {
         // Optimized database-first approach
         $magazines = $this->getMagazinesFromDatabase($em, $redis, $appCache);
 
+        // Load hidden coordinates so the template can show status
+        try {
+            $hiddenCoordinates = $hiddenCoordinateRepo->findAllCoordinates();
+        } catch (\Throwable) {
+            $hiddenCoordinates = [];
+        }
+
         return $this->render('admin/magazines.html.twig', [
             'magazines' => $magazines,
+            'hiddenCoordinates' => $hiddenCoordinates,
         ]);
+    }
+
+    #[Route('/admin/magazines/hide', name: 'admin_magazine_hide', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function hide(Request $request, HiddenCoordinateRepository $hiddenCoordinateRepo): Response
+    {
+        $coordinate = $request->request->get('coordinate');
+        if (!$coordinate) {
+            $this->addFlash('error', 'No coordinate provided.');
+            return $this->redirectToRoute('admin_magazines');
+        }
+
+        $hiddenCoordinateRepo->hide($coordinate);
+        $this->addFlash('success', sprintf('Hidden coordinate: %s', $coordinate));
+
+        return $this->redirectToRoute('admin_magazines');
+    }
+
+    #[Route('/admin/magazines/unhide', name: 'admin_magazine_unhide', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function unhide(Request $request, HiddenCoordinateRepository $hiddenCoordinateRepo): Response
+    {
+        $coordinate = $request->request->get('coordinate');
+        if (!$coordinate) {
+            $this->addFlash('error', 'No coordinate provided.');
+            return $this->redirectToRoute('admin_magazines');
+        }
+
+        if ($hiddenCoordinateRepo->unhide($coordinate)) {
+            $this->addFlash('success', sprintf('Unhidden coordinate: %s', $coordinate));
+        } else {
+            $this->addFlash('warning', 'Coordinate was not hidden.');
+        }
+
+        return $this->redirectToRoute('admin_magazines');
     }
 
     #[Route('/admin/magazines/{npub}/delete', name: 'admin_magazine_delete', methods: ['POST'])]
@@ -358,6 +403,7 @@ class MagazineAdminController extends AbstractController
             $magazines[] = [
                 'name' => $magazineData['title'],
                 'slug' => $magazineData['slug'],
+                'coordinate' => sprintf('30040:%s:%s', $event->getPubkey(), $magazineData['slug']),
                 'categories' => $categories,
             ];
         }

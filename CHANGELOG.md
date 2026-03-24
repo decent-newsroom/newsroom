@@ -2,6 +2,8 @@
 
 ## v0.0.23
 
+- Added admin "Hide/Unhide" toggle for magazines: admins can hide specific magazine coordinates (e.g. test events or malformed publications) from the public newsstand, bookshelf, and magazines manifest. Hidden magazines remain visible in the admin panel with a "hidden" badge and an "Unhide" button.
+- [Bug] Fixed newly created magazines not appearing on the newsstand: the magazine wizard saved events to the database but did not update the graph layer (`current_record`), which the newsstand queries. Added `EventIngestionListener::processEvent()` call after persisting magazine/reading-list events.
 - [Bug] Fixed `wss://relay.decentnewsroom.com` in user relay lists (NIP-65) not being remapped to the local strfry.
 
 

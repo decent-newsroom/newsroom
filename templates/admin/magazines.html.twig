@@ -5,18 +5,41 @@
     <h1>Magazines</h1>
   </div>
 
+  {% for label, messages in app.flashes %}
+    {% for message in messages %}
+      <div class="notice {{ label }}">{{ message }}</div>
+    {% endfor %}
+  {% endfor %}
+
   {% if magazines is empty %}
     <p>No magazines found.</p>
   {% else %}
     <ul class="list-unstyled mb-3">
       {% for mag in magazines %}
+        {% set isHidden = mag.coordinate is defined and mag.coordinate in hiddenCoordinates %}
         <li class="mb-2">
           <details open>
             <summary>
               <strong>📁 {{ mag.name }}</strong>
               <small class="text-muted">(slug: {{ mag.slug }})</small>
+              {% if isHidden %}
+                <span class="badge" style="background:#fef2f2;color:#991b1b;font-size:0.7rem;padding:0.1rem 0.35rem;border-radius:0.2rem;margin-left:0.25rem;">hidden</span>
+              {% endif %}
               <!-- Top-level Edit now points to wizard category management -->
               <a class="btn btn-sm ms-2" href="{{ path('mag_wizard_edit', {slug: mag.slug}) }}">Edit</a>
+              {% if mag.coordinate is defined %}
+                {% if isHidden %}
+                  <form method="post" action="{{ path('admin_magazine_unhide') }}" style="display:inline;">
+                    <input type="hidden" name="coordinate" value="{{ mag.coordinate }}">
+                    <button type="submit" class="btn btn-sm" title="Show this magazine on the public newsstand">👁 Unhide</button>
+                  </form>
+                {% else %}
+                  <form method="post" action="{{ path('admin_magazine_hide') }}" style="display:inline;">
+                    <input type="hidden" name="coordinate" value="{{ mag.coordinate }}">
+                    <button type="submit" class="btn btn-sm" title="Hide this magazine from the public newsstand">🚫 Hide</button>
+                  </form>
+                {% endif %}
+              {% endif %}
             </summary>
             {% if mag.categories is not empty %}
               <ul class="list-unstyled ms-3 mt-2">

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Nostr\NostrClient;
@@ -94,6 +95,7 @@ class DefaultController extends AbstractController
     #[Route('/magazines/manifest.json', name: 'magazines-manifest')]
     public function magazinesManifest(
         EntityManagerInterface $entityManager,
+        HiddenCoordinateRepository $hiddenCoordinateRepo,
         LoggerInterface $logger
     ): JsonResponse
     {
@@ -104,10 +106,24 @@ class DefaultController extends AbstractController
                 ['created_at' => 'DESC']
             );
 
+            // Load hidden coordinates (graceful if migration not yet run)
+            try {
+                $hiddenCoordinates = $hiddenCoordinateRepo->findAllCoordinates();
+            } catch (\Throwable) {
+                $hiddenCoordinates = [];
+            }
+
             // Group by slug and keep only the latest version of each
             $magazinesBySlug = [];
             foreach ($nzines as $magazine) {
                 $slug = $magazine->getSlug();
+
+                // Skip hidden coordinates
+                $coord = sprintf('30040:%s:%s', $magazine->getPubkey(), $slug);
+                if (!empty($hiddenCoordinates) && in_array($coord, $hiddenCoordinates, true)) {
+                    continue;
+                }
+
                 if (!isset($magazinesBySlug[$slug]) ||
                     $magazine->getCreatedAt() > $magazinesBySlug[$slug]->getCreatedAt()) {
                     $magazinesBySlug[$slug] = $magazine;

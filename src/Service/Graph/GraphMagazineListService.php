@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Graph;
 
+use App\Repository\HiddenCoordinateRepository;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 
@@ -18,6 +19,7 @@ class GraphMagazineListService
     public function __construct(
         private readonly Connection $connection,
         private readonly GraphLookupService $graphLookup,
+        private readonly HiddenCoordinateRepository $hiddenCoordinateRepository,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -99,11 +101,19 @@ class GraphMagazineListService
                 return [];
             }
 
+            // Load hidden coordinates (graceful: if table missing, skip filtering)
+            $hiddenCoordinates = $this->loadHiddenCoordinates();
+
             $eventIds = array_column($records, 'current_event_id');
             $eventRows = $this->graphLookup->fetchEventRows($eventIds);
 
             $magazines = [];
             foreach ($records as $record) {
+                // Skip hidden coordinates
+                if (!empty($hiddenCoordinates) && in_array($record['coord'], $hiddenCoordinates, true)) {
+                    continue;
+                }
+
                 $eventRow = $eventRows[$record['current_event_id']] ?? null;
                 if (!$this->isTopLevelMagazine($eventRow)) {
                     continue;
@@ -150,11 +160,19 @@ class GraphMagazineListService
                 return [];
             }
 
+            // Load hidden coordinates (graceful: if table missing, skip filtering)
+            $hiddenCoordinates = $this->loadHiddenCoordinates();
+
             $eventIds = array_column($records, 'current_event_id');
             $eventRows = $this->graphLookup->fetchEventRows($eventIds);
 
             $books = [];
             foreach ($records as $record) {
+                // Skip hidden coordinates
+                if (!empty($hiddenCoordinates) && in_array($record['coord'], $hiddenCoordinates, true)) {
+                    continue;
+                }
+
                 $eventRow = $eventRows[$record['current_event_id']] ?? null;
                 if (!$this->isBook($eventRow)) {
                     continue;
@@ -247,6 +265,24 @@ class GraphMagazineListService
             $tags = json_decode($tags, true);
         }
         return is_array($tags) ? $tags : [];
+    }
+
+    /**
+     * Load hidden coordinates with graceful fallback.
+     * Returns an empty array if the table doesn't exist yet (migration not run).
+     *
+     * @return string[]
+     */
+    private function loadHiddenCoordinates(): array
+    {
+        try {
+            return $this->hiddenCoordinateRepository->findAllCoordinates();
+        } catch (\Throwable $e) {
+            $this->logger->debug('GraphMagazineListService: hidden_coordinate table not available, skipping filter', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 }
 
