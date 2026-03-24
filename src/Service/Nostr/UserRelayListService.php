@@ -55,6 +55,10 @@ class UserRelayListService
     /**
      * Get the structured relay list for a pubkey.
      *
+     * The returned URLs have the project relay (wss://relay.decentnewsroom.com)
+     * remapped to the local strfry URL (ws://strfry:7777) so that server-side
+     * code never tries to reach the public alias from inside the Docker network.
+     *
      * @return array{read: string[], write: string[], all: string[], created_at: ?int}
      */
     public function getRelayList(string $pubkeyOrNpub): array
@@ -64,7 +68,7 @@ class UserRelayListService
         // 1. Hot cache
         $cached = $this->fromCache($hex);
         if ($cached !== null) {
-            return $cached;
+            return $this->remapProjectRelayToLocal($cached);
         }
 
         // 2. Database (durable stale copy)
@@ -72,13 +76,13 @@ class UserRelayListService
         if ($dbResult !== null) {
             // Warm cache from DB, then trigger async revalidation (best-effort)
             $this->writeCache($hex, $dbResult);
-            return $dbResult;
+            return $this->remapProjectRelayToLocal($dbResult);
         }
 
         // 3. Network fetch (blocking)
         $networkResult = $this->fromNetwork($hex);
         if ($networkResult !== null) {
-            return $networkResult;
+            return $this->remapProjectRelayToLocal($networkResult);
         }
 
         // 4. Fallback
@@ -575,6 +579,48 @@ class UserRelayListService
     private function isValidRelay(string $url): bool
     {
         return str_starts_with($url, 'wss://') && !str_contains($url, 'localhost');
+    }
+
+    /**
+     * Replace the project relay's public hostname (wss://relay.decentnewsroom.com)
+     * with the local strfry URL (ws://strfry:7777) in all relay list arrays.
+     *
+     * LOCAL and PROJECT are the same physical relay. Server-side code must always
+     * reach strfry via the internal Docker hostname because the public alias is
+     * not resolvable from inside the container network. The original event data
+     * in the database is left untouched — remapping happens only at read time.
+     *
+     * @param array{read: string[], write: string[], all: string[], created_at: ?int} $relayList
+     * @return array{read: string[], write: string[], all: string[], created_at: ?int}
+     */
+    private function remapProjectRelayToLocal(array $relayList): array
+    {
+        $localRelay = $this->relayRegistry->getLocalRelay();
+        if ($localRelay === null) {
+            return $relayList;
+        }
+
+        $remap = function (array $urls) use ($localRelay): array {
+            $result = [];
+            foreach ($urls as $url) {
+                if ($this->relayRegistry->isProjectRelay($url)) {
+                    // Replace with local relay, avoid duplicates
+                    if (!in_array($localRelay, $result, true)) {
+                        $result[] = $localRelay;
+                    }
+                } else {
+                    $result[] = $url;
+                }
+            }
+            return array_values($result);
+        };
+
+        return [
+            'read' => $remap($relayList['read'] ?? []),
+            'write' => $remap($relayList['write'] ?? []),
+            'all' => $remap($relayList['all'] ?? []),
+            'created_at' => $relayList['created_at'] ?? null,
+        ];
     }
 }
 

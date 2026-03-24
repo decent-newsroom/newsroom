@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.23
+
+- [Bug] Fixed `wss://relay.decentnewsroom.com` in user relay lists (NIP-65) not being remapped to the local strfry.
+
+
 ## v0.0.22
 Admin roles, relay gateway, highlights, and magazine journey.
 
