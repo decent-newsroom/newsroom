@@ -258,6 +258,12 @@ class FetchAuthorContentHandler
                         $article = $this->articleFactory->createFromLongFormContentEvent($event);
                         if ($article) {
                             $this->saveArticle($article);
+
+                            // Update graph layer so current_record stays in sync.
+                            try {
+                                $this->eventIngestionListener->processRawEvent($event);
+                            } catch (\Throwable) {}
+
                             $processedData[] = $this->serializeArticle($article);
                         }
                         break;

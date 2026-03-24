@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Repository\EventRepository;
+use App\Service\Graph\EventIngestionListener;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -18,6 +18,7 @@ class MediaEventProjector
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly EventIngestionListener $eventIngestionListener,
     ) {
     }
 
@@ -86,6 +87,16 @@ class MediaEventProjector
                 'event_id' => $event->id,
                 'kind' => $event->kind
             ]);
+
+            // Update graph layer tables (parsed_reference + current_record)
+            try {
+                $this->eventIngestionListener->processEvent($mediaEvent);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to update graph tables for media event', [
+                    'event_id' => $event->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
         } catch (\InvalidArgumentException $e) {
             // Re-throw validation errors

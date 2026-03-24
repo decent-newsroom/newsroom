@@ -11,6 +11,7 @@ use App\Factory\ArticleFactory;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisViewStore;
+use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\UserRelayListService;
@@ -272,6 +273,7 @@ class EditorController extends AbstractController
         RedisViewStore $redisViewStore,
         MessageBusInterface $messageBus,
         UserRolePromoter $userRolePromoter,
+        EventIngestionListener $eventIngestionListener,
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -323,6 +325,16 @@ class EditorController extends AbstractController
             // Save to database
             $entityManager->persist($article);
             $entityManager->flush();
+
+            // Update graph layer tables (parsed_reference + current_record)
+            try {
+                $eventIngestionListener->processRawEvent((object)$signedEvent);
+            } catch (\Throwable $e) {
+                $logger->warning('Failed to update graph tables for published article', [
+                    'event_id' => $signedEvent['id'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Grant ROLE_WRITER to the publishing user (only for published articles, not drafts)
             if (!$isDraft) {

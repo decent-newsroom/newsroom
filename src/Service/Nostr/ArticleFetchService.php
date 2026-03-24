@@ -7,6 +7,7 @@ namespace App\Service\Nostr;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
+use App\Service\Graph\EventIngestionListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -29,6 +30,7 @@ class ArticleFetchService
         private readonly EntityManagerInterface $entityManager,
         private readonly ManagerRegistry       $managerRegistry,
         private readonly LoggerInterface       $logger,
+        private readonly EventIngestionListener $eventIngestionListener,
         private readonly ?string               $nostrDefaultRelay = null,
     ) {}
 
@@ -63,6 +65,12 @@ class ArticleFetchService
             handler: function ($event) {
                 $article = $this->articleFactory->createFromLongFormContentEvent($event);
                 $this->save($article);
+
+                // Update graph layer so current_record stays in sync.
+                try {
+                    $this->eventIngestionListener->processRawEvent($event);
+                } catch (\Throwable) {}
+
                 return $article;
             }
         );
@@ -164,6 +172,12 @@ class ArticleFetchService
                     try {
                         $article = $this->articleFactory->createFromLongFormContentEvent($event);
                         $this->save($article);
+
+                        // Update graph layer so current_record stays in sync.
+                        try {
+                            $this->eventIngestionListener->processRawEvent($event);
+                        } catch (\Throwable) {}
+
                         return $article;
                     } catch (\Throwable $e) {
                         $this->logger->error('Failed converting event to Article', [
@@ -311,6 +325,17 @@ class ArticleFetchService
         foreach ($events as $event) {
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
             $this->save($article);
+
+            // Update graph layer (parsed_reference + current_record) so the
+            // nightly audit does not need to repair these entries.
+            try {
+                $this->eventIngestionListener->processRawEvent($event);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to update graph tables for ingested article', [
+                    'event_id' => $event->id ?? 'unknown',
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
@@ -345,6 +370,16 @@ class ArticleFetchService
     {
         $article = $this->articleFactory->createFromLongFormContentEvent($event);
         $this->save($article);
+
+        // Update graph layer so current_record stays in sync.
+        try {
+            $this->eventIngestionListener->processRawEvent($event);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to update graph tables for article', [
+                'event_id' => $event->id ?? 'unknown',
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

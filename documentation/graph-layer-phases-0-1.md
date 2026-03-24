@@ -165,9 +165,13 @@ Result: cache warming resolves the entire magazine tree from local PostgreSQL in
 **File:** `src/Service/Graph/EventIngestionListener.php`
 
 Automatically updates `parsed_reference` and `current_record` when events are persisted. Hooked into:
-- `GenericEventProjector` (primary event save path)
-- `FetchAuthorContentHandler` (async article/media fetching)
-- `SyncUserEventsHandler` (login-time event sync)
+- `GenericEventProjector` (magazine/user-context event save path)
+- `ArticleEventProjector` (article hydration from local relay subscription)
+- `ArticleFetchService` (article fetching by pubkey, naddr, coordinate, range ingestion, latest)
+- `MediaEventProjector` (media hydration from local relay subscription)
+- `FetchAuthorContentHandler` (async article/media/highlight fetching)
+- `PersistGatewayEventsHandler` (relay gateway event persistence)
+- `EditorController::publishNostrEvent()` (article publish from editor)
 
 Safe to call multiple times for the same event (idempotent — deletes existing refs before reinserting).
 

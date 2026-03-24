@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Factory\ArticleFactory;
 use App\Message\UpdateProfileProjectionMessage;
+use App\Service\Graph\EventIngestionListener;
 use App\Util\CommonMark\Converter;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
@@ -27,6 +28,7 @@ class ArticleEventProjector
         private readonly Converter $converter,
         private readonly MessageBusInterface $messageBus,
         private readonly UserRolePromoter $userRolePromoter,
+        private readonly EventIngestionListener $eventIngestionListener,
     ) {
     }
 
@@ -113,6 +115,17 @@ class ArticleEventProjector
                 'event_id' => $article->getEventId(),
                 'db_id' => $article->getId()
             ]);
+
+            // Update graph layer tables (parsed_reference + current_record)
+            // so the graph stays in sync without needing backfill/audit repair.
+            try {
+                $this->eventIngestionListener->processRawEvent($event);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to update graph tables for article event', [
+                    'event_id' => $article->getEventId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Trigger async profile fetch for the article author
             try {
