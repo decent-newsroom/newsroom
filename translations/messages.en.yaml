@@ -437,7 +437,7 @@ wizard:
         chooseHeading: 'Pick Your Web Address'
         chooseDescription: 'Choose a subdomain for your magazine. This will be the address people visit to read your articles.'
         pricing: 'Annual managed hosting license: %price% sats per year via Lightning'
-        placeholder: 'yourblog'
+        placeholder: 'yourmagazine'
         skipForNow: 'Skip for now'
         continueToPay: 'Continue to Payment →'
         hint: 'You can also set up a subdomain later from your settings or the publication subdomain page.'
