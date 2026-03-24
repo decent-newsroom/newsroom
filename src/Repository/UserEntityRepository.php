@@ -168,6 +168,31 @@ class UserEntityRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find all users that have any roles beyond the default ROLE_USER
+     * @return User[]
+     * @throws Exception
+     */
+    public function findUsersWithAnyRoles(): array
+    {
+        $conn = $this->entityManager->getConnection();
+        // Find users whose roles column is not empty ('[]')
+        $sql = "SELECT id FROM app_user WHERE roles::text != '[]' AND roles::text != 'null' AND roles IS NOT NULL";
+        $result = $conn->executeQuery($sql);
+
+        $ids = $result->fetchFirstColumn();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('u.npub', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Find all users with the ROLE_MUTED role
      * @return User[]
      * @throws Exception

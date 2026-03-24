@@ -33,10 +33,15 @@ class RoleController extends AbstractController
         $mutedUsers = $userRepository->findMutedUsers();
         $mutedUsersData = $this->enrichUsersWithMetadata($mutedUsers, $redisCacheService);
 
+        // Get all users with any roles for the overview table
+        $usersWithRoles = $userRepository->findUsersWithAnyRoles();
+        $usersWithRolesData = $this->enrichUsersWithMetadata($usersWithRoles, $redisCacheService);
+
         return $this->render('admin/roles.html.twig', [
             'form' => $form->createView(),
             'featuredWriters' => $featuredWritersData,
             'mutedUsers' => $mutedUsersData,
+            'usersWithRoles' => $usersWithRolesData,
         ]);
     }
 
@@ -238,6 +243,41 @@ class RoleController extends AbstractController
         $mutedPubkeysService->refreshCache();
 
         $this->addFlash('success', 'User removed from muted list');
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/user/{id}/remove-role', name: 'admin_user_role_remove', methods: ['POST'])]
+    public function removeUserRole(int $id, Request $request, UserEntityRepository $userRepository, EntityManagerInterface $em, MutedPubkeysService $mutedPubkeysService): Response
+    {
+        $user = $userRepository->find($id);
+
+        if (!$user) {
+            $this->addFlash('error', 'User not found');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $role = $request->request->get('role');
+
+        if (!$role || !str_starts_with($role, 'ROLE_')) {
+            $this->addFlash('error', 'Invalid role');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        if ($role === 'ROLE_ADMIN') {
+            $this->addFlash('error', 'Cannot remove ROLE_ADMIN from another user via this action');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user->removeRole($role);
+        $em->flush();
+
+        // Refresh muted pubkeys cache if muted role was removed
+        if ($role === RolesEnum::MUTED->value) {
+            $mutedPubkeysService->refreshCache();
+        }
+
+        $this->addFlash('success', sprintf('Removed %s from user', $role));
 
         return $this->redirectToRoute('admin_roles');
     }
