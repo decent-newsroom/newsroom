@@ -1,0 +1,195 @@
+/* ===================================================================
+   Blog Journey — page-specific styles
+   =================================================================== */
+
+/* ── Journey card (centered content card for each step) ─────────── */
+.blog-journey-step {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--spacing-4) 0;
+}
+
+.journey-card {
+    background: var(--color-bg-light, #fff);
+    padding: var(--spacing-5, 2rem);
+    text-align: center;
+}
+
+.journey-card--success {
+    border-color: var(--color-success, #22c55e);
+    background: color-mix(in oklab, var(--color-success, #22c55e) 5%, var(--color-bg-light, #fff));
+}
+
+.journey-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-2);
+}
+
+.journey-card p {
+    color: var(--color-text-mid, #555);
+    max-width: 50ch;
+    margin-inline: auto;
+}
+
+/* ── Login actions ──────────────────────────────────────────────── */
+.journey-login-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    align-items: center;
+    margin-top: var(--spacing-3);
+}
+
+
+/* ── Journey actions (button row) ───────────────────────────────── */
+.journey-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    justify-content: center;
+    align-items: center;
+}
+
+/* ── Journey hints (small text below actions) ───────────────────── */
+.journey-hint {
+    font-size: var(--font-size-sm, 0.8rem);
+    color: var(--color-text-muted, #999);
+    margin-top: var(--spacing-2);
+    text-align: center;
+}
+
+/* ── Highlight callout ──────────────────────────────────────────── */
+.journey-highlight {
+    font-weight: 600;
+    color: var(--color-primary, #6366f1);
+    margin-top: var(--spacing-2);
+}
+
+/* ── Subdomain picker ───────────────────────────────────────────── */
+.subdomain-picker {
+    margin-top: var(--spacing-3);
+    max-width: 400px;
+    margin-inline: auto;
+    text-align: left;
+}
+
+.subdomain-picker__input-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.subdomain-picker__input-row .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    flex: 1;
+}
+
+.subdomain-picker__domain {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-bg-muted, #f5f5f5);
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.9rem;
+    color: var(--color-text-muted, #666);
+    white-space: nowrap;
+}
+
+.subdomain-status {
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-sm, 0.85rem);
+    min-height: 1.5em;
+}
+
+.subdomain-status--success {
+    color: var(--color-success, #22c55e);
+}
+
+.subdomain-status--error {
+    color: var(--color-error, #ef4444);
+}
+
+.subdomain-status--neutral {
+    color: var(--color-text-muted, #999);
+}
+
+.subdomain-preview {
+    margin-top: var(--spacing-1);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-primary, #6366f1);
+    text-align: center;
+}
+
+/* ── Tips list ──────────────────────────────────────────────────── */
+.journey-tips,
+.journey-next-steps {
+    text-align: left;
+    max-width: 50ch;
+    margin-inline: auto;
+}
+
+.journey-tips h3,
+.journey-next-steps h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-1);
+}
+
+.journey-tips ul,
+.journey-next-steps ul {
+    padding-left: 1.25rem;
+    margin: 0;
+}
+
+.journey-tips li,
+.journey-next-steps li {
+    margin-bottom: var(--spacing-1);
+    font-size: 0.9rem;
+    color: var(--color-text-mid, #555);
+}
+
+/* ── Subdomain status badge ─────────────────────────────────────── */
+.journey-subdomain-status {
+    text-align: center;
+}
+
+.badge--success {
+    background: var(--color-success, #22c55e);
+    color: #fff;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge--warning {
+    background: var(--color-warning, #f59e0b);
+    color: #fff;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* ── Large CTA button ───────────────────────────────────────────── */
+.btn--lg {
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .journey-card {
+        padding: var(--spacing-3, 1rem);
+    }
+
+    .subdomain-picker__domain {
+        font-size: 0.75rem;
+    }
+}
+

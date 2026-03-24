@@ -1,0 +1,24 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'journey.setup.title'|trans }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'journey.setup.heading'|trans }}" tagline="{{ 'journey.setup.tagline'|trans }}"/>
+
+    {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 1 } %}
+
+    <div class="w-container blog-journey-step">
+        <div class="journey-card" data-controller="utility--login utility--signer-modal">
+            <h2>{{ 'journey.setup.loginHeading'|trans }}</h2>
+            <p>{{ 'journey.setup.loginDescription'|trans }}</p>
+
+            <div class="journey-login-actions">
+                <div data-utility--login-target="nostrError" class="nostr-error-message" style="display:none;color:#b00;margin-bottom:0.5em;"></div>
+                <twig:Atoms:Button {{ ...stimulus_action('utility--login', 'loginAct') }} tag="a" variant="accent">{{ 'auth.extension'|trans }}</twig:Atoms:Button>
+                <twig:Atoms:Button {{ ...stimulus_action('utility--signer-modal', 'openDialog') }} tag="a" variant="accent">{{ 'auth.signer'|trans }}</twig:Atoms:Button>
+            </div>
+            <twig:SignerModal />
+        </div>
+    </div>
+{% endblock %}
+

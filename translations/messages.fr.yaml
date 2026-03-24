@@ -437,6 +437,48 @@ unfold:
     advancedDesc: "Unfold est fondamentalement un moteur de rendu de magazine autonome. Si vous explorez un déploiement indépendant ou une personnalisation plus poussée, contactez"
     browseMagazines: 'Parcourir les magazines'
 
+# ── Parcours magazine (page d'accueil & invite de connexion) ──────────────
+journey:
+    landing:
+        title: 'Lancez votre magazine sur Nostr'
+        hero: 'Transformez vos articles Nostr en un vrai magazine'
+        eyebrow: 'Une publication structurée et lisible avec sa propre adresse web'
+        lede: 'Decent Newsroom vous permet de prendre les articles que vous avez publiés sur Nostr et de les organiser en magazine : avec des catégories, des articles invités, des pages d''articles stables et des sous-domaines hébergés en option. Pas de configuration spéciale, pas de verrouillage de plateforme.'
+        cta: 'Commencer →'
+        quickSetup:
+            heading: 'Comment ça marche'
+            eyebrow: 'Connectez-vous, importez vos articles, organisez votre publication'
+            description: 'Connectez-vous avec votre identité Nostr et Decent Newsroom récupérera vos articles longform publiés depuis les relais. Ensuite, vous pouvez les organiser en catégories, choisir une mise en page et publier un site de style magazine propre en quelques minutes.'
+        organized:
+            heading: 'Pas une timeline — une publication'
+            eyebrow: 'Organisé par rubrique, pas enterré dans un flux'
+            description: 'Au lieu de présenter vos écrits comme un flux défilant de publications, votre magazine est organisé en rubriques comme Actualités, Essais, Tutoriels ou Opinion. Cela offre aux lecteurs un espace stable et lisible pour votre travail.'
+        nostrNative:
+            heading: 'Le magazine lui-même vit sur Nostr'
+            eyebrow: 'Pas seulement les articles — la structure aussi'
+            description: 'Sur Decent Newsroom, un magazine est plus qu''une vue web de vos écrits. Les catégories, les articles inclus et la structure éditoriale sont également définis par des événements Nostr. Cela signifie que votre publication est portable, remixable et non enfermée dans un CMS privé.'
+        guestPosts:
+            heading: 'Conçu pour la publication collaborative'
+            eyebrow: 'Articles invités, curation et syndication font partie du modèle'
+            description: 'Un magazine sur Decent Newsroom ne doit pas se limiter à un seul auteur. Vous pouvez inclure des articles d''autres auteurs Nostr dans vos catégories, mettre en avant des contributions invitées ou organiser des numéros et collections thématiques.'
+        anyRelay:
+            heading: 'Fonctionne dans tout l''écosystème Nostr'
+            eyebrow: 'Vos écrits restent sur Nostr, votre publication leur donne forme'
+            description: 'Peu importe quelle application ou quel relais vous avez utilisé pour publier vos articles. Decent Newsroom peut les assembler en une publication cohérente, de sorte que votre magazine n''est pas lié à un seul client ou silo.'
+        subdomain:
+            heading: 'Donnez-lui sa propre adresse'
+            eyebrow: 'votrenom.decentnewsroom.com'
+            description: 'Vous pouvez publier votre magazine sur un sous-domaine dédié, lui offrant un espace web stable et des liens d''articles propres que vous pouvez partager partout. Les sous-domaines hébergés sont disponibles pour 120 000 sats par an via Lightning.'
+        ready:
+            heading: 'Commencez avec les articles que vous avez déjà'
+            description: 'Si vous publiez du contenu longform sur Nostr, vous pouvez le transformer en un magazine organisé avec sa propre présence web en quelques minutes seulement.'
+    setup:
+        title: 'Créez votre magazine'
+        heading: 'Créez votre magazine'
+        tagline: 'Connectez-vous pour commencer'
+        loginHeading: 'Connectez-vous pour commencer'
+        loginDescription: 'Connectez-vous avec votre identité Nostr pour que nous puissions trouver vos articles et configurer votre magazine.'
+
 # ── Sélecteur de langue ────────────────────────────────────────────────
 language:
     switcher: 'Langue'

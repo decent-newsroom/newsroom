@@ -73,9 +73,14 @@ class PublicationSubdomainController extends AbstractController
         $npub = $this->getUser()?->getUserIdentifier();
         $subdomain = $request->request->get('subdomain', '');
         $magazineCoordinate = $request->request->get('magazine_coordinate', '');
+        $errorRedirect = $request->request->get('_error_redirect', '');
+
+        // Determine the fallback route for errors
+        $errorRoute = $errorRedirect ?: 'publication_subdomain_subscribe';
+
         if (!$this->isCsrfTokenValid('publication_subdomain_create', $request->request->get('_token'))) {
             $this->addFlash('error', 'Invalid security token.');
-            return $this->redirectToRoute('publication_subdomain_subscribe');
+            return $this->redirectToRoute($errorRoute);
         }
         try {
             $subscription = $this->service->createSubscription($npub, $subdomain, $magazineCoordinate);
@@ -83,7 +88,7 @@ class PublicationSubdomainController extends AbstractController
             return $this->redirectToRoute('publication_subdomain_invoice');
         } catch (\Exception $e) {
             $this->addFlash('error', $e->getMessage());
-            return $this->redirectToRoute('publication_subdomain_subscribe');
+            return $this->redirectToRoute($errorRoute);
         }
     }
 

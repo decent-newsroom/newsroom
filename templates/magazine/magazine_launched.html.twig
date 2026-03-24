@@ -1,0 +1,68 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'wizard.launched.title'|trans }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'wizard.launched.heading'|trans }}" tagline="{{ 'wizard.launched.tagline'|trans }}"/>
+
+    {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 6 } %}
+
+    <div class="w-container blog-journey-step">
+
+        <div class="journey-card journey-card--success">
+            <h2>{{ 'wizard.launched.congratulations'|trans }}</h2>
+            <p>{{ 'wizard.launched.description'|trans }}</p>
+
+            <div class="journey-actions mt-4">
+                <a class="btn btn--primary" href="{{ path('my_magazines') }}">{{ 'wizard.launched.viewMagazine'|trans }}</a>
+                <a class="btn btn-secondary" href="{{ path('newsstand') }}">{{ 'wizard.launched.browseNewsstand'|trans }}</a>
+            </div>
+
+            {% if existingSubscription %}
+                <div class="journey-subdomain-status mt-4">
+                    <h3>{{ 'wizard.launched.subdomainStatus'|trans }}</h3>
+                    <p>
+                        <strong>{{ existingSubscription.subdomain }}.{{ baseDomain }}</strong>
+                        —
+                        {% if existingSubscription.status.value == 'active' %}
+                            <span class="badge badge--success">{{ 'wizard.launched.statusActive'|trans }}</span>
+                        {% elseif existingSubscription.status.value == 'pending' %}
+                            <span class="badge badge--warning">{{ 'wizard.launched.statusPending'|trans }}</span>
+                        {% endif %}
+                    </p>
+
+                    {% if existingSubscription.status.value == 'pending' %}
+                        <div class="notice info">
+                            <p>{{ 'wizard.launched.pendingExplanation'|trans }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <div class="journey-tips mt-4">
+                <h3>{{ 'wizard.launched.tipsHeading'|trans }}</h3>
+                <ul>
+                    <li>{{ 'wizard.launched.tip1'|trans }}</li>
+                    <li>{{ 'wizard.launched.tip2'|trans }}</li>
+                    <li>{{ 'wizard.launched.tip3'|trans }}</li>
+                </ul>
+            </div>
+
+            <div class="journey-next-steps mt-4">
+                <h3>{{ 'wizard.launched.whatsNext'|trans }}</h3>
+                <ul>
+                    <li>{{ 'wizard.launched.next1'|trans }}</li>
+                    <li>{{ 'wizard.launched.next2'|trans }}</li>
+                    <li>{{ 'wizard.launched.next3'|trans }}</li>
+                    <li>{{ 'wizard.launched.next4'|trans }}</li>
+                </ul>
+            </div>
+
+            <div class="journey-actions mt-4">
+                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'wizard.launched.editMagazine'|trans }}</a>
+                <a class="btn btn-secondary" href="{{ path('home') }}">{{ 'wizard.launched.goHome'|trans }}</a>
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

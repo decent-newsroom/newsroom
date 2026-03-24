@@ -2,7 +2,7 @@
 
 ## Overview
 
-The magazine wizard has been upgraded from a 2-step flow into a 4-step flow with improved UX for each step.
+The magazine wizard has been upgraded from a 2-step flow into a 6-step flow with improved UX for each step. Magazine creation is free; subdomain hosting is a paid service (120,000 sats/year via Lightning).
 
 ## Steps
 
@@ -33,6 +33,21 @@ The magazine wizard has been upgraded from a 2-step flow into a 4-step flow with
   - Wizard step indicator
   - Login prompt for unauthenticated users
   - "Back" button to return to the articles step
+
+### Step 5: Subdomain (`/magazine/wizard/subdomain`)
+- **What it does:** Offers paid subdomain hosting for the just-published magazine.
+- **Payment flow:** The form posts directly to the existing `publication_subdomain_create` route, which creates a subscription and generates a Lightning invoice. The user is redirected to the invoice page with a QR code.
+- **Magazine coordinate auto-fill:** The magazine coordinate (`30040:pubkey:slug`) is automatically built from the wizard draft's slug and the user's npub, passed as a hidden field.
+- **Pricing:** Displays the current price (120,000 sats/year) inline using `PublicationSubdomainSubscription::PRICE_SATS`.
+- **Subdomain availability:** Uses the existing `blog--subdomain-check` Stimulus controller to check availability in real time. The submit button is disabled until availability is confirmed.
+- **Error handling:** On validation or creation errors, the user is redirected back to the wizard subdomain step (not the standalone subscribe page) via an `_error_redirect` hidden field.
+- **Skip option:** Users can skip subdomain setup and proceed directly to the launched/done step.
+- **Existing subscription:** If the user already has an active or pending subscription, they see a summary and a link to continue.
+
+### Step 6: Done / Launched (`/magazine/wizard/launched`)
+- Congratulations and next-steps page.
+- Shows subdomain status (active/pending) if the user set one up.
+- Links to "My Magazines" and the newsstand.
 
 ## Wizard Progress Indicator
 

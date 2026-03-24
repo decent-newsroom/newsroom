@@ -437,6 +437,48 @@ unfold:
     advancedDesc: 'Unfold es en esencia un renderizador de revistas independiente. Si estás explorando despliegue independiente o personalización más profunda, contacta a'
     browseMagazines: 'Explorar revistas'
 
+# ── Recorrido del magazine (página de inicio e invitación de inicio de sesión) ──
+journey:
+    landing:
+        title: 'Inicia tu revista en Nostr'
+        hero: 'Convierte tus artículos de Nostr en una revista real'
+        eyebrow: 'Una publicación estructurada y legible con su propia dirección web'
+        lede: 'Decent Newsroom te permite tomar los artículos que has publicado en Nostr y organizarlos en una revista: con categorías, artículos invitados, páginas de artículos estables y subdominios alojados opcionales. Sin configuración especial, sin dependencia de plataforma.'
+        cta: 'Comenzar →'
+        quickSetup:
+            heading: 'Cómo funciona'
+            eyebrow: 'Inicia sesión, importa tus artículos, organiza tu publicación'
+            description: 'Inicia sesión con tu identidad Nostr y Decent Newsroom importará tus artículos longform publicados desde los relays. Desde ahí, puedes organizarlos en categorías, elegir un diseño y publicar un sitio estilo revista limpio en minutos.'
+        organized:
+            heading: 'No es una línea de tiempo — es una publicación'
+            eyebrow: 'Organizado por sección, no enterrado en un feed'
+            description: 'En lugar de presentar tu escritura como un flujo continuo de publicaciones, tu revista está organizada en secciones como Noticias, Ensayos, Tutoriales u Opinión. Eso da a los lectores un hogar estable y legible para tu trabajo.'
+        nostrNative:
+            heading: 'La revista misma vive en Nostr'
+            eyebrow: 'No solo los artículos — también la estructura'
+            description: 'En Decent Newsroom, una revista es más que una vista web de tu escritura. Las categorías, los artículos incluidos y la estructura editorial también están definidos por eventos Nostr. Eso significa que tu publicación es portable, remezclable y no está encerrada en un CMS privado.'
+        guestPosts:
+            heading: 'Diseñado para la publicación colaborativa'
+            eyebrow: 'Artículos invitados, curación y sindicación son parte del modelo'
+            description: 'Una revista en Decent Newsroom no tiene que limitarse a un solo autor. Puedes incluir artículos de otros escritores de Nostr en tus categorías, destacar contribuciones invitadas o curar ediciones y colecciones temáticas.'
+        anyRelay:
+            heading: 'Funciona en todo el ecosistema Nostr'
+            eyebrow: 'Tu escritura se queda en Nostr, tu publicación le da forma'
+            description: 'No importa qué aplicación o relay usaste para publicar tus artículos. Decent Newsroom puede ensamblarlos en una publicación coherente, así que tu revista no está atada a un solo cliente o silo.'
+        subdomain:
+            heading: 'Dale su propia dirección'
+            eyebrow: 'tunombre.decentnewsroom.com'
+            description: 'Puedes publicar tu revista en un subdominio dedicado, dándole un hogar web estable y enlaces de artículos limpios que puedes compartir en cualquier lugar. Los subdominios alojados están disponibles por 120.000 sats al año a través de Lightning.'
+        ready:
+            heading: 'Comienza con los artículos que ya tienes'
+            description: 'Si publicas contenido longform en Nostr, puedes convertirlo en una revista organizada con su propia presencia web en solo unos minutos.'
+    setup:
+        title: 'Crea tu revista'
+        heading: 'Crea tu revista'
+        tagline: 'Inicia sesión para empezar'
+        loginHeading: 'Inicia sesión para empezar'
+        loginDescription: 'Inicia sesión con tu identidad Nostr para que podamos encontrar tus artículos y configurar tu revista.'
+
 # ── Selector de idioma ─────────────────────────────────────────────────────────
 language:
     switcher: 'Idioma'

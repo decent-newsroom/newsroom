@@ -6,11 +6,20 @@ Users can host their magazines on a custom subdomain of decentnewsroom.com via a
 
 ## User Flow
 
+There are two entry points to subdomain subscription:
+
+### Standalone flow
 1. **Landing page** (`/subscription/publication-subdomain`) — view pricing, existing subscription
 2. **Subscribe** (`/subscription/publication-subdomain/subscribe`) — choose subdomain name, enter magazine coordinate
-3. **Payment** (`/subscription/publication-subdomain/invoice`) — Lightning invoice QR code, 20,000 sats
+3. **Payment** (`/subscription/publication-subdomain/invoice`) — Lightning invoice QR code, 120,000 sats
 4. **Settings** (`/subscription/publication-subdomain/settings`) — view subscription details, expiration, publication URL
 5. **Cancel** (POST to `/subscription/publication-subdomain/cancel`) — cancel pending subscriptions to release subdomain reservation
+
+### Magazine wizard flow (integrated)
+1. **Wizard Step 5** (`/magazine/wizard/subdomain`) — subdomain picker with inline pricing; magazine coordinate auto-filled from draft
+2. **Form posts to** `publication_subdomain_create` — creates subscription, generates Lightning invoice
+3. **Payment** (`/subscription/publication-subdomain/invoice`) — same invoice page as standalone
+4. Error redirects return to wizard step 5 (via `_error_redirect` hidden field) instead of standalone subscribe page
 
 ## Architecture
 

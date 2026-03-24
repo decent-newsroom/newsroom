@@ -63,6 +63,12 @@ class StaticController extends AbstractController
         return $this->render('static/unfold.html.twig');
     }
 
+    #[Route('/start-blog', name: 'start_blog')]
+    public function startBlog(): Response
+    {
+        return $this->redirectToRoute('blog_journey_landing');
+    }
+
     #[Route('/api/static-routes', name: 'api_static_routes', methods: ['GET'])]
     public function getStaticRoutes(): JsonResponse
     {
@@ -72,6 +78,7 @@ class StaticController extends AbstractController
             '/tos',
             '/landing',
             '/unfold',
+            '/start-blog',
         ];
 
         return new JsonResponse([

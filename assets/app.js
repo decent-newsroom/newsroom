@@ -68,6 +68,7 @@ import './styles/04-pages/curation-page.css';
 import './styles/04-pages/curation-picture-grid.css';
 import './styles/04-pages/curation-video-playlist.css';
 import './styles/04-pages/translation-helper.css';
+import './styles/04-pages/blog-journey.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

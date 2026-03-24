@@ -437,6 +437,48 @@ unfold:
     advancedDesc: 'Unfold ist im Kern ein eigenständiger Magazin-Renderer. Wenn Sie eine unabhängige Bereitstellung oder tiefere Anpassungen erkunden, wenden Sie sich an'
     browseMagazines: 'Magazine durchsuchen'
 
+# ── Magazin-Reise (Landingpage & Login-Aufforderung) ──────────────────────
+journey:
+    landing:
+        title: 'Starten Sie Ihr Magazin auf Nostr'
+        hero: 'Verwandeln Sie Ihre Nostr-Artikel in ein echtes Magazin'
+        eyebrow: 'Eine strukturierte, lesbare Publikation mit eigener Webadresse'
+        lede: 'Mit Decent Newsroom können Sie Ihre auf Nostr veröffentlichten Artikel in ein Magazin verwandeln: mit Kategorien, Gastbeiträgen, stabilen Artikelseiten und optionalen gehosteten Subdomains. Keine spezielle Einrichtung, keine Plattformabhängigkeit.'
+        cta: 'Jetzt starten →'
+        quickSetup:
+            heading: 'So funktioniert es'
+            eyebrow: 'Anmelden, Artikel importieren, Publikation organisieren'
+            description: 'Melden Sie sich mit Ihrer Nostr-Identität an und Decent Newsroom holt Ihre veröffentlichten Langform-Artikel von den Relays. Von dort aus können Sie sie in Kategorien einordnen, ein Layout wählen und in Minuten eine saubere Magazin-Website veröffentlichen.'
+        organized:
+            heading: 'Keine Timeline — eine Publikation'
+            eyebrow: 'Nach Rubriken organisiert, nicht in einem Feed begraben'
+            description: 'Statt Ihre Texte als scrollenden Strom von Beiträgen zu präsentieren, ist Ihr Magazin in Rubriken wie Nachrichten, Essays, Tutorials oder Meinung gegliedert. Das gibt Lesern ein stabiles, lesbares Zuhause für Ihre Arbeit.'
+        nostrNative:
+            heading: 'Das Magazin selbst lebt auf Nostr'
+            eyebrow: 'Nicht nur die Artikel — auch die Struktur'
+            description: 'Bei Decent Newsroom ist ein Magazin mehr als eine Website-Ansicht Ihrer Texte. Die Kategorien, enthaltenen Artikel und die redaktionelle Struktur werden ebenfalls durch Nostr-Events definiert. Das bedeutet, Ihre Publikation ist portabel, remixbar und nicht in einem privaten CMS eingesperrt.'
+        guestPosts:
+            heading: 'Für kollaboratives Publizieren gebaut'
+            eyebrow: 'Gastbeiträge, Kuration und Syndizierung sind Teil des Modells'
+            description: 'Ein Magazin auf Decent Newsroom muss sich nicht auf einen Autor beschränken. Sie können Artikel anderer Nostr-Autoren in Ihre Kategorien aufnehmen, Gastbeiträge präsentieren oder thematische Ausgaben und Sammlungen kuratieren.'
+        anyRelay:
+            heading: 'Funktioniert im gesamten Nostr-Ökosystem'
+            eyebrow: 'Ihre Texte bleiben auf Nostr, Ihre Publikation gibt ihnen Form'
+            description: 'Es spielt keine Rolle, welche App oder welchen Relay Sie zum Veröffentlichen Ihrer Artikel verwendet haben. Decent Newsroom kann sie zu einer kohärenten Publikation zusammenfügen, sodass Ihr Magazin nicht an einen einzelnen Client oder ein Silo gebunden ist.'
+        subdomain:
+            heading: 'Geben Sie ihm eine eigene Adresse'
+            eyebrow: 'ihrname.decentnewsroom.com'
+            description: 'Sie können Ihr Magazin auf einer dedizierten Subdomain veröffentlichen und ihm so ein stabiles Web-Zuhause und saubere Artikel-Links geben, die Sie überall teilen können. Gehostete Subdomains sind für 120.000 Sats pro Jahr über Lightning verfügbar.'
+        ready:
+            heading: 'Starten Sie mit den Artikeln, die Sie bereits haben'
+            description: 'Wenn Sie Langform-Inhalte auf Nostr veröffentlichen, können Sie sie in nur wenigen Minuten in ein organisiertes Magazin mit eigener Web-Präsenz verwandeln.'
+    setup:
+        title: 'Erstellen Sie Ihr Magazin'
+        heading: 'Erstellen Sie Ihr Magazin'
+        tagline: 'Melden Sie sich an, um loszulegen'
+        loginHeading: 'Anmelden, um loszulegen'
+        loginDescription: 'Melden Sie sich mit Ihrer Nostr-Identität an, damit wir Ihre Artikel finden und Ihr Magazin einrichten können.'
+
 # ── Sprachumschalter ──────────────────────────────────────────────────────
 language:
     switcher: 'Sprache'

@@ -1,0 +1,73 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'wizard.subdomainStep.title'|trans }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'wizard.subdomainStep.heading'|trans }}" tagline="{{ 'wizard.subdomainStep.tagline'|trans }}"/>
+
+    {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 5 } %}
+
+    <div class="w-container blog-journey-step">
+
+        {% if existingSubscription %}
+            <div class="journey-card">
+                <h2>{{ 'wizard.subdomainStep.alreadyHave'|trans }}</h2>
+                <p>{{ 'wizard.subdomainStep.yourSubdomain'|trans }}: <strong>{{ existingSubscription.subdomain }}.{{ baseDomain }}</strong></p>
+                <p class="journey-hint">{{ 'wizard.subdomainStep.status'|trans }}: {{ existingSubscription.status.value }}</p>
+                <div class="journey-actions mt-4">
+                    <a class="btn btn--primary" href="{{ path('mag_wizard_launched') }}">{{ 'wizard.subdomainStep.continue'|trans }}</a>
+                </div>
+            </div>
+        {% else %}
+            {% for message in app.flashes('error') %}
+                <div class="notice error mb-3">{{ message }}</div>
+            {% endfor %}
+
+            <div class="journey-card"
+                 data-controller="blog--subdomain-check"
+                 data-blog--subdomain-check-check-url-value="{{ path('mag_wizard_subdomain_check') }}"
+                 data-blog--subdomain-check-base-domain-value="{{ baseDomain }}">
+
+                <h2>{{ 'wizard.subdomainStep.chooseHeading'|trans }}</h2>
+                <p>{{ 'wizard.subdomainStep.chooseDescription'|trans }}</p>
+
+                <form action="{{ path('publication_subdomain_create') }}" method="post">
+                    <input type="hidden" name="_token" value="{{ csrf_token('publication_subdomain_create') }}">
+                    <input type="hidden" name="magazine_coordinate" value="{{ magazineCoordinate }}">
+                    <input type="hidden" name="_error_redirect" value="mag_wizard_subdomain">
+
+                    <div class="subdomain-picker">
+                        <div class="subdomain-picker__input-row">
+                            <input type="text"
+                                   name="subdomain"
+                                   class="form-control"
+                                   placeholder="{{ 'wizard.subdomainStep.placeholder'|trans }}"
+                                   data-blog--subdomain-check-target="input"
+                                   data-action="input->blog--subdomain-check#check"
+                                   pattern="[a-z0-9\-]+"
+                                   minlength="3"
+                                   maxlength="50"
+                                   autocomplete="off"
+                                   spellcheck="false"
+                                   required>
+                            <span class="subdomain-picker__domain">.{{ baseDomain }}</span>
+                        </div>
+                        <div class="subdomain-status" data-blog--subdomain-check-target="status"></div>
+                    </div>
+
+                    <div class="notice info mt-3">
+                        <p>{{ 'wizard.subdomainStep.pricing'|trans({'%price%': priceInSats|number_format}) }}</p>
+                    </div>
+
+                    <div class="journey-actions mt-4">
+                        <a class="btn btn-secondary" href="{{ path('mag_wizard_launched') }}">{{ 'wizard.subdomainStep.skipForNow'|trans }}</a>
+                        <button type="submit" class="btn btn--primary" data-blog--subdomain-check-target="submit" disabled>{{ 'wizard.subdomainStep.continueToPay'|trans }}</button>
+                    </div>
+                </form>
+
+                <p class="journey-hint mt-3">{{ 'wizard.subdomainStep.hint'|trans }}</p>
+            </div>
+        {% endif %}
+
+    </div>
+{% endblock %}

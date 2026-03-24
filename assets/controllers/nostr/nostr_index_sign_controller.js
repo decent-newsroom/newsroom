@@ -7,7 +7,8 @@ export default class extends Controller {
     categoryEvents: String,
     magazineEvent: String,
     publishUrl: String,
-    csrfToken: String
+    csrfToken: String,
+    redirectUrl: { type: String, default: '' }
   };
 
   async connect() {
@@ -135,6 +136,11 @@ export default class extends Controller {
       console.log('[nostr-index-sign] Magazine published:', magSlug);
 
       this.showSuccess('✅ Published magazine and all categories successfully!');
+
+      // Redirect to next wizard step after a brief pause
+      if (this.redirectUrlValue) {
+        setTimeout(() => { window.location.href = this.redirectUrlValue; }, 1500);
+      }
     } catch (e) {
       console.error('[nostr-index-sign] Error:', e);
       this.showError(e.message || 'Publish failed');

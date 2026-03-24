@@ -13,6 +13,7 @@ use App\Form\MagazineSetupType;
 use App\Message\ProjectMagazineMessage;
 use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
 use App\Service\UserRolePromoter;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,12 +27,13 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Magazine Wizard Controller
  *
  * Handles the multi-step creation and editing of magazines.
- * Steps: 1) Setup  2) Categories  3) Articles  4) Review & Sign
+ * Steps: 1) Setup  2) Categories  3) Articles  4) Review & Sign  5) Subdomain  6) Done
  * Magazines are hierarchical structures: Magazine -> Categories -> Articles
  * All represented as Nostr kind 30040 events with coordinate references.
  */
@@ -43,6 +45,8 @@ class MagazineWizardController extends AbstractController
         private readonly MessageBusInterface $messageBus,
         private readonly ReadingListManager $readingListManager,
         private readonly MagazineProjector $magazineProjector,
+        private readonly PublicationSubdomainService $subdomainService,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -308,6 +312,7 @@ class MagazineWizardController extends AbstractController
             'magazineEventJson' => json_encode($magazineEvent, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
             'backRoute' => $backRoute,
+            'redirectUrl' => $this->generateUrl('mag_wizard_subdomain'),
         ]);
     }
 
@@ -436,6 +441,106 @@ class MagazineWizardController extends AbstractController
         }
 
         return new JsonResponse(['ok' => true]);
+    }
+
+    /**
+     * Step 5: Choose a subdomain for the magazine (paid).
+     * The user can skip this step.
+     */
+    #[Route('/magazine/wizard/subdomain', name: 'mag_wizard_subdomain')]
+    #[IsGranted('ROLE_USER')]
+    public function subdomain(Request $request): Response
+    {
+        $npub = $this->getUser()?->getUserIdentifier();
+        $existingSubscription = null;
+
+        if ($npub) {
+            $subscription = $this->subdomainService->getByNpub($npub);
+            if ($subscription !== null &&
+                ($subscription->getStatus()->value === 'active' ||
+                 $subscription->getStatus()->value === 'pending')) {
+                $existingSubscription = $subscription;
+            }
+        }
+
+        // Build the magazine coordinate from the wizard draft
+        $magazineCoordinate = '';
+        $draft = $this->getDraft($request);
+        if ($draft && $draft->slug && $npub) {
+            try {
+                $key = new Key();
+                $pubkeyHex = $key->convertToHex($npub);
+                if ($pubkeyHex) {
+                    $magazineCoordinate = sprintf('30040:%s:%s', $pubkeyHex, $draft->slug);
+                }
+            } catch (\Throwable $e) {
+                // Non-fatal — user can enter manually
+            }
+        }
+
+        return $this->render('magazine/magazine_subdomain.html.twig', [
+            'currentStep' => 5,
+            'baseDomain' => $this->subdomainService->getBaseDomain(),
+            'existingSubscription' => $existingSubscription,
+            'magazineCoordinate' => $magazineCoordinate,
+            'priceInSats' => \App\Entity\PublicationSubdomainSubscription::PRICE_SATS,
+        ]);
+    }
+
+    /**
+     * Step 6: Done — confirmation, tips & next steps.
+     */
+    #[Route('/magazine/wizard/launched', name: 'mag_wizard_launched')]
+    #[IsGranted('ROLE_USER')]
+    public function launched(Request $request): Response
+    {
+        $npub = $this->getUser()?->getUserIdentifier();
+        $existingSubscription = null;
+
+        if ($npub) {
+            $subscription = $this->subdomainService->getByNpub($npub);
+            if ($subscription !== null) {
+                $existingSubscription = $subscription;
+            }
+        }
+
+        // Clear the blog journey flag if present
+        $request->getSession()->remove('blog_journey');
+
+        return $this->render('magazine/magazine_launched.html.twig', [
+            'currentStep' => 6,
+            'existingSubscription' => $existingSubscription,
+            'baseDomain' => $this->subdomainService->getBaseDomain(),
+        ]);
+    }
+
+    /**
+     * API: Check subdomain availability (used by subdomain step).
+     */
+    #[Route('/magazine/wizard/api/subdomain-check', name: 'mag_wizard_subdomain_check', methods: ['GET'])]
+    public function subdomainCheck(Request $request): JsonResponse
+    {
+        $name = trim((string) $request->query->get('name', ''));
+
+        if ($name === '' || strlen($name) < 3) {
+            return $this->json(['available' => false, 'reason' => 'Subdomain must be at least 3 characters.']);
+        }
+
+        if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $name)) {
+            return $this->json(['available' => false, 'reason' => 'Only lowercase letters, numbers, and hyphens allowed.']);
+        }
+
+        try {
+            $available = $this->subdomainService->isSubdomainAvailable($name);
+            return $this->json([
+                'available' => $available,
+                'reason' => $available ? null : 'This subdomain is already taken.',
+                'preview' => $name . '.' . $this->subdomainService->getBaseDomain(),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Subdomain check failed', ['error' => $e->getMessage()]);
+            return $this->json(['available' => false, 'reason' => 'Unable to check availability right now.']);
+        }
     }
 
     #[Route('/magazine/wizard/cancel', name: 'mag_wizard_cancel', methods: ['GET'])]

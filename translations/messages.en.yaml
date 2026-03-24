@@ -53,6 +53,7 @@ nav:
     settings: 'Settings'
     create: 'Create'
     magazine: 'Magazine'
+    startBlog: 'Start a Blog'
     readingList: 'Reading List'
     article: 'Article'
     sendFeedback: 'Send Feedback'
@@ -107,6 +108,8 @@ home:
         eyebrow: 'like no other'
         description: 'Create your own magazine, define categories, manage submissions, and collaborate with editors and contributors.'
         cta: 'Create a magazine'
+    blog:
+        cta: 'Start a blog'
     unfold:
         heading: 'Unfold'
         eyebrow: 'your magazine'
@@ -421,6 +424,46 @@ wizard:
     categories: 'Categories'
     articles: 'Articles'
     review: 'Review'
+    subdomain: 'Subdomain'
+    done: 'Done'
+    subdomainStep:
+        title: 'Choose a Subdomain'
+        heading: 'Choose a Subdomain'
+        tagline: 'Pick a web address for your magazine'
+        alreadyHave: 'You already have a subdomain!'
+        yourSubdomain: 'Your subdomain'
+        status: 'Status'
+        continue: 'Continue →'
+        chooseHeading: 'Pick Your Web Address'
+        chooseDescription: 'Choose a subdomain for your magazine. This will be the address people visit to read your articles.'
+        pricing: '⚡ Subdomain hosting: %price% sats per year via Lightning'
+        placeholder: 'yourblog'
+        skipForNow: 'Skip for now'
+        continueToPay: 'Continue to Payment →'
+        hint: 'You can also set up a subdomain later from your settings or the publication subdomain page.'
+    launched:
+        title: 'Magazine Launched!'
+        heading: 'You''re Live!'
+        tagline: 'Your magazine is ready'
+        congratulations: 'Congratulations!'
+        description: 'Your magazine is set up and published on Nostr. Here''s what happens next.'
+        viewMagazine: 'View My Magazine'
+        browseNewsstand: 'Browse Newsstand'
+        subdomainStatus: 'Your Subdomain'
+        statusActive: 'Live'
+        statusPending: 'Pending'
+        pendingExplanation: 'Your subdomain is being set up. We''ll notify you when it''s live — this usually takes a short while as we configure DNS and SSL. Hang tight!'
+        tipsHeading: 'Quick Tips'
+        tip1: 'You can edit your magazine anytime from "My Magazines" in the navigation.'
+        tip2: 'Add or reorder articles and categories whenever you like — changes take effect immediately.'
+        tip3: 'Share your magazine link with your audience. It works on any browser, no app needed.'
+        whatsNext: 'What''s Next?'
+        next1: 'Share your magazine link with friends and followers.'
+        next2: 'Add new articles to your categories anytime — just edit the magazine.'
+        next3: 'Feature guest posts by adding other authors'' article coordinates.'
+        next4: 'Keep publishing articles on any Nostr client — they''ll be available to add to your magazine.'
+        editMagazine: 'Edit Magazine'
+        goHome: 'Go Home'
 
 # ── Error pages ───────────────────────────────────────────────────
 error:
@@ -574,3 +617,46 @@ settings:
         noActiveIndexing: 'No active indexing subscription'
         noSubdomain: 'No publication subdomain'
         getSubdomain: 'Get a Subdomain'
+
+# ── Blog Journey (landing page & login prompt) ────────────────────
+journey:
+    landing:
+        title: 'Start Your Magazine on Nostr'
+        hero: 'Turn Your Nostr Articles Into a Real Magazine'
+        eyebrow: 'A structured, readable publication with its own web address'
+        lede: 'Decent Newsroom lets you take articles you''ve published on Nostr and organize them into a magazine: with categories, guest posts, stable article pages, and optional hosted subdomains. No custom setup, no platform lock-in.'
+        cta: 'Get Started →'
+        quickSetup:
+            heading: 'How It Works'
+            eyebrow: 'Log in, import your articles, organize your publication'
+            description: 'Sign in with your Nostr identity and Decent Newsroom will pull in your published longform articles from relays. From there, you can arrange them into categories, choose a layout, and publish a clean magazine-style site in minutes.'
+        organized:
+            heading: 'Not a Timeline — a Publication'
+            eyebrow: 'Organized by section, not buried in a feed'
+            description: 'Instead of presenting your writing as a scrolling stream of posts, your magazine is organized into sections like News, Essays, Tutorials, or Opinion. That gives readers a stable, readable home for your work.'
+        nostrNative:
+            heading: 'The Magazine Itself Lives on Nostr'
+            eyebrow: 'Not just the articles — the structure too'
+            description: 'On Decent Newsroom, a magazine is more than a website view of your writing. The categories, included articles, and editorial structure are also defined by Nostr events. That means your publication is portable, remixable, and not locked inside a private CMS.'
+        guestPosts:
+            heading: 'Built for Collaborative Publishing'
+            eyebrow: 'Guest posts, curation, and syndication are part of the model'
+            description: 'A magazine on Decent Newsroom does not have to be limited to one author. You can include articles by other Nostr writers in your categories, feature guest contributions, or curate themed issues and collections.'
+        anyRelay:
+            heading: 'Works Across the Nostr Ecosystem'
+            eyebrow: 'Your writing stays on Nostr, your publication gives it shape'
+            description: 'It does not matter which app or relay you used to publish your articles. Decent Newsroom can assemble them into one coherent publication, so your magazine is not tied to a single client or silo.'
+        subdomain:
+            heading: 'Give It Its Own Address'
+            eyebrow: 'yourname.decentnewsroom.com'
+            description: 'You can publish your magazine on a dedicated subdomain, giving it a stable web home and clean article links you can share anywhere. Hosted subdomains are available for 120,000 sats per year via Lightning.'
+        ready:
+            heading: 'Start With the Articles You Already Have'
+            description: 'If you publish longform on Nostr, you can turn it into an organized magazine with its own web presence in just a few minutes.'
+    setup:
+        title: 'Create Your Magazine'
+        heading: 'Create Your Magazine'
+        tagline: 'Log in to get started'
+        loginHeading: 'Log In to Get Started'
+        loginDescription: 'Sign in with your Nostr identity so we can find your articles and set up your magazine.'
+

@@ -1,0 +1,102 @@
+{% extends 'layout-full.html.twig' %}
+
+{% block title %}{{ 'journey.landing.title'|trans }}{% endblock %}
+
+{% block body %}
+    <div class="mt-5">
+        <section class="ln-hero d-flex gap-3 center">
+            <h1 class="brand">{{ 'journey.landing.hero'|trans }}</h1>
+            <p class="eyebrow">{{ 'journey.landing.eyebrow'|trans }}</p>
+            <p class="lede measure mb-3">{{ 'journey.landing.lede'|trans }}</p>
+            <div class="cta-row mb-5">
+                <a class="btn btn--primary btn--lg" href="/blog/setup">{{ 'journey.landing.cta'|trans }}</a>
+            </div>
+        </section>
+
+        <section class="ln-hero d-flex gap-3 center mt-0 pt-0">
+            <div class="ln-hero__frame">
+                <div class="frame">
+                    <img class="ln-preview-img" src="{{ asset('images/preview-unfold.png') }}" alt="{{ 'journey.landing.organized.heading'|trans }}" loading="eager" width="560">
+                </div>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--newsstand">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.quickSetup.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.quickSetup.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.quickSetup.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--editor">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.organized.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.organized.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.organized.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="ln-hero d-flex gap-3 center ln-section--editor mt-0 pt-0">
+            <div class="ln-hero__frame">
+                <div class="frame">
+                    <img class="ln-preview-img" src="{{ asset('images/preview-unfold-2.png') }}" alt="{{ 'journey.landing.nostrNative.heading'|trans }}" loading="lazy" width="560">
+                </div>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--newsroom">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.nostrNative.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.nostrNative.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.nostrNative.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--unfold">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.anyRelay.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.anyRelay.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.anyRelay.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--newsroom">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.guestPosts.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.guestPosts.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.guestPosts.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center ln-section--search">
+            <div class="container mt-5">
+                <h2>{{ 'journey.landing.subdomain.heading'|trans }}</h2>
+                <p class="eyebrow">{{ 'journey.landing.subdomain.eyebrow'|trans }}</p>
+            </div>
+            <div class="mb-5">
+                <p class="measure">{{ 'journey.landing.subdomain.description'|trans }}</p>
+            </div>
+        </section>
+
+        <section class="d-flex gap-3 center">
+            <div class="container mt-5 mb-5">
+                <h2>{{ 'journey.landing.ready.heading'|trans }}</h2>
+                <p class="lede">{{ 'journey.landing.ready.description'|trans }}</p>
+                <div class="cta-row">
+                    <a class="btn btn--primary btn--lg" href="/blog/setup">{{ 'journey.landing.cta'|trans }}</a>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

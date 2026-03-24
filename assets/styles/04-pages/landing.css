@@ -18,10 +18,17 @@
 .ln-hero__copy{ }
 .ln-hero__frame{ display:flex; justify-content:center; }
 .frame{
-    width: min(560px, 40vw);
+    width: min(560px, 90vw);
     border-radius: 14px;
     background: linear-gradient(180deg, color-mix(in oklab, var(--color-bg-light) 80%, var(--color-bg)), var(--color-bg));
     overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,.12);
+}
+.ln-preview-img{
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
 }
 
 /* Split layout for features */
