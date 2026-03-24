@@ -1,0 +1,223 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Gateway Status{% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay Gateway"
+    tagline="all relays, gateway process, and muting"
+/>
+
+<div class="w-container">
+
+    {# Flash messages #}
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ type }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: 0.375rem; font-size: 0.875rem;
+                {% if type == 'success' %}background: #dcfce7; color: #166534; border: 1px solid #86efac;{% endif %}
+                {% if type == 'error' %}background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5;{% endif %}
+            ">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Navigation #}
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ path('admin_relay_index') }}" style="font-size: 0.875rem;">← Back to Relay Administration</a>
+    </div>
+
+    {# Gateway Process Heartbeat #}
+    <div class="status-grid">
+        <div class="status-card">
+            <h2>Gateway Process</h2>
+            {% if status.gateway.timestamp %}
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value">
+                        {% if status.gateway.alive %}
+                            <span class="status-indicator healthy"></span> Alive
+                        {% else %}
+                            <span class="status-indicator error"></span> Stale
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Last Heartbeat</span>
+                    <span class="stat-value">{{ status.gateway.age_seconds }}s ago ({{ status.gateway.timestamp|date('Y-m-d H:i:s') }})</span>
+                </div>
+            {% else %}
+                <div class="stat-row">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value">
+                        <span class="status-indicator error"></span> No heartbeat found
+                    </span>
+                </div>
+                <p style="color: #9ca3af; font-size: 0.8rem; margin-top: 0.5rem;">
+                    Is the relay-gateway service running?<br>
+                    Start with: <code>docker compose --profile gateway up -d</code>
+                </p>
+            {% endif %}
+        </div>
+
+        {# Redis Streams #}
+        <div class="status-card">
+            <h2>Redis Streams</h2>
+            {% if status.streams|length > 0 %}
+                <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Stream</th>
+                            <th style="text-align:right; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Length</th>
+                            <th style="text-align:left; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Last ID</th>
+                            <th style="text-align:left; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Gateway</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for stream in status.streams %}
+                        <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                            <td style="padding:0.4rem 0.5rem; font-family:monospace; font-size:0.8rem;">{{ stream.name }}</td>
+                            <td style="padding:0.4rem 0.5rem; text-align:right;">{{ stream.length is not null ? stream.length : 'n/a' }}</td>
+                            <td style="padding:0.4rem 0.5rem; font-family:monospace; font-size:0.75rem;">{{ stream.last_id ?? 'n/a' }}</td>
+                            <td style="padding:0.4rem 0.5rem; font-size:0.8rem;">{{ stream.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color: #9ca3af;">No stream data available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Summary #}
+    <div class="status-card" style="margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="margin: 0;">All Known Relays</h2>
+            <span style="font-size: 0.8rem; color: #9ca3af;">
+                {{ status.relays|length }} relay(s) seen
+                {% set muted_count = status.relays|filter(r => r.is_muted)|length %}
+                {% if muted_count > 0 %}
+                    · <span style="color: #dc2626;">{{ muted_count }} muted</span>
+                {% endif %}
+            </span>
+        </div>
+
+        {% if status.relays|length > 0 %}
+        <div style="overflow-x: auto;">
+            <table class="relay-health-table" style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Relay URL</th>
+                        <th style="text-align:center; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Type</th>
+                        <th style="text-align:center; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Score</th>
+                        <th style="text-align:center; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Status</th>
+                        <th style="text-align:right; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Failures</th>
+                        <th style="text-align:right; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Latency</th>
+                        <th style="text-align:center; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">AUTH</th>
+                        <th style="text-align:right; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Last OK</th>
+                        <th style="text-align:right; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Last Event</th>
+                        <th style="text-align:center; padding:0.5rem 0.5rem; border-bottom:1px solid var(--color-border, #ddd);">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for relay in status.relays %}
+                    <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);{% if relay.is_muted %} opacity: 0.5;{% endif %}">
+                        <td style="padding:0.4rem 0.5rem; font-family:monospace; font-size:0.75rem; word-break:break-all; max-width:300px;">
+                            {{ relay.url }}
+                            {% if relay.is_local %}
+                                <span style="font-family:sans-serif; font-size:0.65rem; color:#2563eb; margin-left:0.25rem;">(local)</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:center;">
+                            {% if relay.is_configured %}
+                                <span style="font-size:0.7rem; padding:0.1rem 0.35rem; background:#dbeafe; color:#1e40af; border-radius:0.2rem;">configured</span>
+                            {% else %}
+                                <span style="font-size:0.7rem; padding:0.1rem 0.35rem; background:var(--color-surface-2,#f5f5f5); color:#6b7280; border-radius:0.2rem;">discovered</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:center;">
+                            {% if relay.is_muted %}
+                                <span style="color:#9ca3af;">—</span>
+                            {% else %}
+                                {% set score = relay.health_score %}
+                                {% if score >= 0.7 %}
+                                    <span style="color:#16a34a; font-weight:600;">{{ score|number_format(2) }}</span>
+                                {% elseif score >= 0.4 %}
+                                    <span style="color:#d97706; font-weight:600;">{{ score|number_format(2) }}</span>
+                                {% else %}
+                                    <span style="color:#dc2626; font-weight:600;">{{ score|number_format(2) }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:center;">
+                            {% if relay.is_muted %}
+                                <span style="font-size:0.7rem; padding:0.1rem 0.35rem; background:#fef2f2; color:#991b1b; border-radius:0.2rem;">muted</span>
+                            {% elseif relay.healthy %}
+                                <span class="status-indicator healthy"></span>
+                            {% else %}
+                                <span class="status-indicator error"></span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:right;">{{ relay.consecutive_failures }}</td>
+                        <td style="padding:0.4rem 0.5rem; text-align:right;">
+                            {{ relay.avg_latency_ms is not null ? relay.avg_latency_ms|round ~ 'ms' : '—' }}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:center; font-size:0.75rem;">
+                            {% if relay.auth_required %}
+                                <span title="{{ relay.auth_status }}" style="color:#7c3aed;">✓ {{ relay.auth_status }}</span>
+                            {% else %}
+                                <span style="color:#9ca3af;">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:right; font-size:0.75rem;">
+                            {{ relay.last_success is not null ? relay.last_success|date('H:i:s') : '—' }}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:right; font-size:0.75rem;">
+                            {{ relay.last_event_received is not null ? relay.last_event_received|date('H:i:s') : '—' }}
+                        </td>
+                        <td style="padding:0.4rem 0.5rem; text-align:center; white-space:nowrap;">
+                            {% if not relay.is_local %}
+                                {% if relay.is_muted %}
+                                    <form method="post" action="{{ path('admin_relay_gateway_unmute') }}" style="display:inline;">
+                                        <input type="hidden" name="url" value="{{ relay.url }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('relay_mute') }}">
+                                        <button type="submit" style="font-size:0.7rem; padding:0.2rem 0.5rem; background:#dcfce7; color:#166534; border:1px solid #86efac; border-radius:0.2rem; cursor:pointer;" title="Unmute this relay">Unmute</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{{ path('admin_relay_gateway_mute') }}" style="display:inline;">
+                                        <input type="hidden" name="url" value="{{ relay.url }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('relay_mute') }}">
+                                        <button type="submit" style="font-size:0.7rem; padding:0.2rem 0.5rem; background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; border-radius:0.2rem; cursor:pointer;" title="Mute this relay — it will be excluded from relay operations">Mute</button>
+                                    </form>
+                                {% endif %}
+                                {% if relay.consecutive_failures > 0 %}
+                                    <form method="post" action="{{ path('admin_relay_gateway_reset') }}" style="display:inline; margin-left:0.25rem;">
+                                        <input type="hidden" name="url" value="{{ relay.url }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('relay_mute') }}">
+                                        <button type="submit" style="font-size:0.7rem; padding:0.2rem 0.5rem; background:#f0f9ff; color:#0369a1; border:1px solid #7dd3fc; border-radius:0.2rem; cursor:pointer;" title="Reset failure count">Reset</button>
+                                    </form>
+                                {% endif %}
+                            {% else %}
+                                <span style="font-size:0.7rem; color:#9ca3af;">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <p style="color:#9ca3af;">No relay health data found in Redis. Relays appear here after the first connection attempt.</p>
+        {% endif %}
+    </div>
+
+    {# Legend #}
+    <div class="text-muted mt-3 mb-3">
+        <strong>Legend:</strong>
+        <span style="display:inline-block; margin-left:0.5rem;"><span style="padding:0.1rem 0.35rem; background:#dbeafe; color:#1e40af; border-radius:0.2rem;">configured</span> = defined in services.yaml</span>
+        <span style="display:inline-block; margin-left:0.5rem;"><span style="padding:0.1rem 0.35rem; background:var(--color-surface-2,#f5f5f5); color:#6b7280; border-radius:0.2rem;">discovered</span> = seen via user relay lists (NIP-65)</span>
+        <span style="display:inline-block; margin-left:0.5rem;"><span style="padding:0.1rem 0.35rem; background:#fef2f2; color:#991b1b; border-radius:0.2rem;">muted</span> = excluded from all relay operations</span>
+        <span style="display:inline-block; margin-left:0.5rem;"><span style="color:#2563eb;">(local)</span> = strfry relay, cannot be muted</span>
+    </div>
+</div>
+{% endblock %}
+

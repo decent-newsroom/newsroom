@@ -7,6 +7,7 @@ namespace App\Controller\Administration;
 use App\Service\Admin\RelayAdminService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -38,6 +39,85 @@ class RelayAdminController extends AbstractController
             'pool_status' => $poolStatus,
             'worker_heartbeats' => $workerHeartbeats,
         ]);
+    }
+
+    #[Route('/gateway', name: 'gateway')]
+    public function gatewayStatus(): Response
+    {
+        $status = $this->relayAdminService->getGatewayStatus();
+
+        return $this->render('admin/relay/gateway.html.twig', [
+            'status' => $status,
+        ]);
+    }
+
+    #[Route('/gateway/mute', name: 'gateway_mute', methods: ['POST'])]
+    public function muteRelay(Request $request): Response
+    {
+        $url = $request->request->get('url');
+        $token = $request->request->get('_token');
+
+        if (!$this->isCsrfTokenValid('relay_mute', $token)) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        if (!$url) {
+            $this->addFlash('error', 'No relay URL provided.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        if ($this->relayAdminService->muteRelay($url)) {
+            $this->addFlash('success', sprintf('Relay muted: %s', $url));
+        } else {
+            $this->addFlash('error', 'Cannot mute the local relay.');
+        }
+
+        return $this->redirectToRoute('admin_relay_gateway');
+    }
+
+    #[Route('/gateway/unmute', name: 'gateway_unmute', methods: ['POST'])]
+    public function unmuteRelay(Request $request): Response
+    {
+        $url = $request->request->get('url');
+        $token = $request->request->get('_token');
+
+        if (!$this->isCsrfTokenValid('relay_mute', $token)) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        if (!$url) {
+            $this->addFlash('error', 'No relay URL provided.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        $this->relayAdminService->unmuteRelay($url);
+        $this->addFlash('success', sprintf('Relay unmuted: %s', $url));
+
+        return $this->redirectToRoute('admin_relay_gateway');
+    }
+
+    #[Route('/gateway/reset', name: 'gateway_reset', methods: ['POST'])]
+    public function resetRelayHealth(Request $request): Response
+    {
+        $url = $request->request->get('url');
+        $token = $request->request->get('_token');
+
+        if (!$this->isCsrfTokenValid('relay_mute', $token)) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        if (!$url) {
+            $this->addFlash('error', 'No relay URL provided.');
+            return $this->redirectToRoute('admin_relay_gateway');
+        }
+
+        $this->relayAdminService->resetRelayHealth($url);
+        $this->addFlash('success', sprintf('Health reset for: %s', $url));
+
+        return $this->redirectToRoute('admin_relay_gateway');
     }
 
     #[Route('/pool', name: 'pool', methods: ['GET'])]

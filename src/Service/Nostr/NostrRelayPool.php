@@ -137,6 +137,8 @@ class NostrRelayPool implements RelayPoolInterface
 
         // Sort external relays by health score (highest first) before connecting
         $externalUrls = array_filter($relayUrlsNormalized, fn($url) => $url !== $localRelay);
+        // Exclude muted relays (never mute the local relay)
+        $externalUrls = array_filter($externalUrls, fn($url) => !$this->healthStore->isMuted($url));
         $externalUrls = $this->sortByHealthScore(array_values($externalUrls));
 
         foreach ($externalUrls as $url) {
@@ -169,6 +171,14 @@ class NostrRelayPool implements RelayPoolInterface
     public function sendToRelays(array $relayUrls, callable $messageBuilder, ?int $timeout = null, ?string $subscriptionId = null, ?string $pubkey = null): array
     {
         $timeout = $timeout ?? self::CONNECTION_TIMEOUT;
+
+        // Exclude muted relays (never mute the local relay)
+        $localRelay = $this->nostrDefaultRelay ? $this->normalizeRelayUrl($this->nostrDefaultRelay) : null;
+        $relayUrls = array_filter($relayUrls, function (string $url) use ($localRelay) {
+            $normalized = $this->normalizeRelayUrl($url);
+            return $normalized === $localRelay || !$this->healthStore->isMuted($normalized);
+        });
+        $relayUrls = array_values($relayUrls);
 
         // When gateway is enabled, route external relays through it
         if ($this->gatewayEnabled && $this->gatewayClient) {

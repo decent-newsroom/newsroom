@@ -194,10 +194,14 @@ class RelayHealthStore
 
     /**
      * Check if a relay is considered healthy.
-     * A relay is unhealthy if it has 3+ consecutive failures.
+     * A relay is unhealthy if it has 3+ consecutive failures or is muted.
      */
     public function isHealthy(string $relayUrl, int $maxConsecutiveFailures = 3): bool
     {
+        if ($this->isMuted($relayUrl)) {
+            return false;
+        }
+
         $health = $this->getHealth($relayUrl);
         return $health['consecutive_failures'] < $maxConsecutiveFailures;
     }
@@ -205,9 +209,13 @@ class RelayHealthStore
     /**
      * Compute a simple health score (0.0 to 1.0).
      * Higher is better. Considers failure rate and latency.
+     * Returns 0 for muted relays.
      */
     public function getHealthScore(string $relayUrl): float
     {
+        if ($this->isMuted($relayUrl)) {
+            return 0.0;
+        }
         $health = $this->getHealth($relayUrl);
 
         // Base score: penalize consecutive failures
@@ -221,6 +229,85 @@ class RelayHealthStore
         }
 
         return max(0.0, min(1.0, $score));
+    }
+
+    // ----- muting -----
+
+    private const MUTED_SET = 'relay_muted_urls';
+
+    /**
+     * Mute a relay — it will be excluded from relay operations.
+     */
+    public function muteRelay(string $relayUrl): void
+    {
+        try {
+            $this->redis->sAdd(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+        } catch (\RedisException $e) {
+            $this->logger->warning('RelayHealthStore: failed to mute relay', ['url' => $relayUrl, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Unmute a relay — it will be included in relay operations again.
+     */
+    public function unmuteRelay(string $relayUrl): void
+    {
+        try {
+            $this->redis->sRem(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+        } catch (\RedisException $e) {
+            $this->logger->warning('RelayHealthStore: failed to unmute relay', ['url' => $relayUrl, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Check if a relay is muted.
+     */
+    public function isMuted(string $relayUrl): bool
+    {
+        try {
+            return (bool) $this->redis->sIsMember(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+        } catch (\RedisException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get all muted relay URLs.
+     *
+     * @return string[]
+     */
+    public function getMutedRelays(): array
+    {
+        try {
+            $members = $this->redis->sMembers(self::MUTED_SET);
+            return is_array($members) ? $members : [];
+        } catch (\RedisException $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get ALL relay URLs that have health data in Redis (relay_health:* keys).
+     * This includes relays from user relay lists, not just configured ones.
+     *
+     * @return string[]
+     */
+    public function getAllKnownRelayUrls(): array
+    {
+        try {
+            $keys = $this->redis->keys(self::KEY_PREFIX . '*');
+            if (!$keys) {
+                return [];
+            }
+
+            return array_map(
+                fn(string $key) => str_replace(self::KEY_PREFIX, '', $key),
+                $keys,
+            );
+        } catch (\RedisException $e) {
+            $this->logger->debug('RelayHealthStore: failed to scan relay_health keys', ['error' => $e->getMessage()]);
+            return [];
+        }
     }
 
     // ----- internals -----

@@ -19,11 +19,15 @@ use swentel\nostr\Subscription\Subscription;
  */
 class RelayAdminService
 {
+    private const REQUEST_STREAM = 'relay:requests';
+    private const CONTROL_STREAM = 'relay:control';
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly NostrRelayPool $relayPool,
+        private readonly \Redis $redis,
         private readonly ?string $nostrDefaultRelay = null
     ) {
     }
@@ -373,5 +377,198 @@ class RelayAdminService
             $this->logger->warning('RelayAdminService: failed to collect heartbeats', ['error' => $e->getMessage()]);
             return [];
         }
+    }
+
+    /**
+     * Get full gateway status: all known relays, gateway heartbeat, Redis streams.
+     *
+     * Mirrors the data from RelayGatewayStatusCommand but returns it as an array
+     * for the admin web UI.
+     */
+    public function getGatewayStatus(): array
+    {
+        $result = [
+            'relays' => [],
+            'gateway' => $this->getGatewayHeartbeat(),
+            'streams' => $this->getStreamStatus(),
+        ];
+
+        try {
+            // Get ALL relays from Redis health store (not just configured)
+            $allUrls = $this->healthStore->getAllKnownRelayUrls();
+            $configuredUrls = $this->relayRegistry->getAllUrls();
+            $mutedUrls = $this->healthStore->getMutedRelays();
+
+            foreach ($allUrls as $url) {
+                $health = $this->healthStore->getHealth($url);
+                $result['relays'][] = [
+                    'url' => $url,
+                    'is_configured' => in_array($url, $configuredUrls, true),
+                    'is_local' => $this->isLocalRelay($url),
+                    'is_muted' => in_array(rtrim(trim($url), '/'), $mutedUrls, true),
+                    'health_score' => round($this->healthStore->getHealthScore($url), 2),
+                    'healthy' => $this->healthStore->isHealthy($url),
+                    'consecutive_failures' => $health['consecutive_failures'],
+                    'avg_latency_ms' => $health['avg_latency_ms'],
+                    'last_success' => $health['last_success'],
+                    'last_failure' => $health['last_failure'],
+                    'auth_required' => $health['auth_required'],
+                    'auth_status' => $health['auth_status'],
+                    'last_event_received' => $health['last_event_received'],
+                ];
+            }
+
+            // Also include muted relays that no longer have health data
+            foreach ($mutedUrls as $mutedUrl) {
+                $alreadyIncluded = array_filter($result['relays'], fn($r) => rtrim(trim($r['url']), '/') === $mutedUrl);
+                if (empty($alreadyIncluded)) {
+                    $result['relays'][] = [
+                        'url' => $mutedUrl,
+                        'is_configured' => in_array($mutedUrl, $configuredUrls, true),
+                        'is_local' => $this->isLocalRelay($mutedUrl),
+                        'is_muted' => true,
+                        'health_score' => 0,
+                        'healthy' => false,
+                        'consecutive_failures' => 0,
+                        'avg_latency_ms' => null,
+                        'last_success' => null,
+                        'last_failure' => null,
+                        'auth_required' => false,
+                        'auth_status' => 'none',
+                        'last_event_received' => null,
+                    ];
+                }
+            }
+
+            // Sort: configured first, then by health score desc
+            usort($result['relays'], function ($a, $b) {
+                if ($a['is_configured'] !== $b['is_configured']) {
+                    return $b['is_configured'] <=> $a['is_configured'];
+                }
+                return $b['health_score'] <=> $a['health_score'];
+            });
+        } catch (\Throwable $e) {
+            $this->logger->warning('RelayAdminService: failed to build gateway status', ['error' => $e->getMessage()]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get gateway process heartbeat information.
+     */
+    private function getGatewayHeartbeat(): array
+    {
+        try {
+            $heartbeat = $this->redis->get('relay_gateway:heartbeat');
+            if ($heartbeat) {
+                $ago = time() - (int) $heartbeat;
+                return [
+                    'alive' => $ago < 120,
+                    'age_seconds' => $ago,
+                    'timestamp' => (int) $heartbeat,
+                ];
+            }
+        } catch (\Throwable) {}
+
+        return [
+            'alive' => false,
+            'age_seconds' => null,
+            'timestamp' => null,
+        ];
+    }
+
+    /**
+     * Get Redis stream status for relay:requests and relay:control.
+     */
+    private function getStreamStatus(): array
+    {
+        $cursorKeys = [
+            self::REQUEST_STREAM => 'relay_gateway:cursor:requests',
+            self::CONTROL_STREAM => 'relay_gateway:cursor:control',
+        ];
+
+        $streams = [];
+        foreach ([self::REQUEST_STREAM, self::CONTROL_STREAM] as $stream) {
+            try {
+                $len = $this->redis->xLen($stream);
+                $info = $this->redis->xInfo('STREAM', $stream);
+                $lastId = $info['last-generated-id'] ?? 'n/a';
+
+                $cursor = $this->redis->get($cursorKeys[$stream]);
+                $pending = null;
+                $status = '— (no cursor)';
+
+                if ($cursor) {
+                    try {
+                        $parts = explode('-', $cursor, 2);
+                        $nextId = count($parts) === 2 ? $parts[0] . '-' . ((int) $parts[1] + 1) : $cursor;
+                        $afterCursor = $this->redis->xRange($stream, $nextId, '+', 100);
+                        $pending = $afterCursor ? count($afterCursor) : 0;
+                        $status = $pending === 0 ? '✓ caught up' : sprintf('%d pending', $pending);
+                    } catch (\Throwable) {
+                        $status = '— (cursor error)';
+                    }
+                }
+
+                $streams[] = [
+                    'name' => $stream,
+                    'length' => $len,
+                    'last_id' => $lastId,
+                    'pending' => $pending,
+                    'status' => $status,
+                ];
+            } catch (\Throwable) {
+                $streams[] = [
+                    'name' => $stream,
+                    'length' => null,
+                    'last_id' => null,
+                    'pending' => null,
+                    'status' => '— (unavailable)',
+                ];
+            }
+        }
+
+        return $streams;
+    }
+
+    /**
+     * Mute a relay URL. The local relay cannot be muted.
+     */
+    public function muteRelay(string $url): bool
+    {
+        if ($this->isLocalRelay($url)) {
+            return false;
+        }
+
+        $this->healthStore->muteRelay($url);
+        return true;
+    }
+
+    /**
+     * Unmute a relay URL.
+     */
+    public function unmuteRelay(string $url): void
+    {
+        $this->healthStore->unmuteRelay($url);
+    }
+
+    /**
+     * Reset health data for a relay (clear consecutive failures).
+     */
+    public function resetRelayHealth(string $url): void
+    {
+        $this->healthStore->recordSuccess($url);
+    }
+
+    /**
+     * Check whether a URL is the local (strfry) relay.
+     */
+    public function isLocalRelay(string $url): bool
+    {
+        if (!$this->nostrDefaultRelay) {
+            return false;
+        }
+        return rtrim(strtolower(trim($url)), '/') === rtrim(strtolower(trim($this->nostrDefaultRelay)), '/');
     }
 }
