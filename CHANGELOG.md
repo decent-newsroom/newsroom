@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## v0.0.22
+Admin roles, relay gateway, highlights, and magazine journey.
 
 - Added "Users with Roles" overview table to the admin roles page (`/admin/role`): displays all users that have any roles assigned beyond the default `ROLE_USER`, showing avatar, name, npub, role badges (color-coded by role type), and per-role remove actions. Includes a new route for removing arbitrary roles from any user.
 - Added Relay Gateway Status admin page (`/admin/relay/gateway`): shows all relays ever seen in the health store (configured and discovered via user relay lists), gateway process heartbeat, Redis stream status, and per-relay mute/unmute/reset controls. Muted relays are excluded from all relay operations (queries, publishes, health scoring) but can be unmuted at any time. The local strfry relay cannot be muted.
