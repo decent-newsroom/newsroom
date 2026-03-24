@@ -6,7 +6,7 @@
     <p class="mb-4 text-center">
         <a href="{{ path('publication_subdomain_index') }}">← Back to Publication Subdomain</a>
     </p>
-    <div class="d-flex gap-4 flex-wrap justify-content-center">
+    <div class="d-flex gap-4 flex-wrap justify-content-center align-items-center">
         <div class="card" style="flex: 1; max-width: 500px;">
             <div style="text-align: center;">
                 <p class="mb-3">
@@ -24,7 +24,7 @@
                         <label class="form-label">Lightning Invoice:</label>
                         <div class="input-group">
                             <input type="text" class="form-control" value="{{ bolt11 }}" readonly id="invoice-input" style="font-size: 0.75rem;">
-                            <button class="btn btn-secondary" type="button" onclick="copyInvoice()">Copy</button>
+                            <button class="btn btn-secondary mt-1" type="button" onclick="copyInvoice()">Copy</button>
                         </div>
                     </div>
                     <div class="mb-4">

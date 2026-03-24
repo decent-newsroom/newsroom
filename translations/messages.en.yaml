@@ -436,7 +436,7 @@ wizard:
         continue: 'Continue →'
         chooseHeading: 'Pick Your Web Address'
         chooseDescription: 'Choose a subdomain for your magazine. This will be the address people visit to read your articles.'
-        pricing: '⚡ Subdomain hosting: %price% sats per year via Lightning'
+        pricing: 'Annual managed hosting license: %price% sats per year via Lightning'
         placeholder: 'yourblog'
         skipForNow: 'Skip for now'
         continueToPay: 'Continue to Payment →'

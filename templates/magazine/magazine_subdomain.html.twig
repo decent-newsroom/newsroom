@@ -59,6 +59,27 @@
                         <p>{{ 'wizard.subdomainStep.pricing'|trans({'%price%': priceInSats|number_format}) }}</p>
                     </div>
 
+                    <div style="margin-top: var(--spacing-4);">
+                        <ul class="feature-list">
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Dedicated subdomain
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Production-ready Unfold rendering for your magazine using the default presentation
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                {{ durationDays }}-day namespace allocation
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Renew anytime before expiry
+                            </li>
+                        </ul>
+                    </div>
+
                     <div class="journey-actions mt-4">
                         <a class="btn btn-secondary" href="{{ path('mag_wizard_launched') }}">{{ 'wizard.subdomainStep.skipForNow'|trans }}</a>
                         <button type="submit" class="btn btn--primary" data-blog--subdomain-check-target="submit" disabled>{{ 'wizard.subdomainStep.continueToPay'|trans }}</button>
