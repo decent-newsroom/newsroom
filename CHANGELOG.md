@@ -2,6 +2,7 @@
 
 ## v0.0.22
 
+- Removed highlight relay refresh from article page load: highlights are now served purely from Redis/DB cache with no async refresh dispatch during the web request. Relay ingestion happens entirely via cron jobs (`app:fetch-highlights`, `app:cache-latest-highlights`) and relay subscription workers.
 - Added Magazine Journey: a 6-step onboarding wizard (`/blog/start`) that guides creators through setting up a blog/magazine on Nostr — from syncing articles from relays, through magazine setup and category organization, to choosing a free subdomain and launch confirmation. Includes a marketing landing page (`/start-blog`), Mercure-powered sync progress, inline subdomain availability checker, and full English translations.
 - [Bug] Fixed `dn:graph:audit` stalling on production and ignoring Ctrl+C: added PCNTL signal handling for graceful interruption, set PostgreSQL `statement_timeout` (120s) so no single query blocks forever, batched the Check 1 LATERAL join (was scanning all `current_record` rows in one query), replaced `tags::text LIKE` with JSONB containment (`@>`) for GIN index use, dropped unnecessary `ORDER BY` from Check 2, eliminated N+1 reference count queries with a single batched `GROUP BY`, added progress bars and status messages to all phases, switched repair to bulk inserts with tags carried forward from audit. Same `tags::text LIKE` fix applied to `dn:graph:backfill-references`.
 

@@ -3,17 +3,14 @@
 namespace App\Service;
 
 use App\Entity\Highlight;
-use App\Message\RefreshArticleHighlightsMessage;
 use App\Repository\HighlightRepository;
 use App\Service\Nostr\NostrClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 class HighlightService
 {
-    private const CACHE_DURATION_HOURS = 24; // Refresh every 24 hours
-    private const TOP_OFF_DURATION_HOURS = 1; // Top off every hour
+    private const CACHE_DURATION_HOURS = 24; // Redis metadata TTL
     private const REDIS_TTL = 600; // 10 minutes Redis cache for highlight results
     private const REDIS_PREFIX = 'highlights:article:';
 
@@ -22,13 +19,16 @@ class HighlightService
         private readonly HighlightRepository $highlightRepository,
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
-        private readonly MessageBusInterface $messageBus,
         private readonly \Redis $redis,
     ) {}
 
     /**
      * Get highlights for an article, using Redis → DB cache layers.
      * Redis serves the hot path; DB queries only run on Redis miss.
+     *
+     * No relay refresh is triggered during the web request — highlights are
+     * ingested asynchronously by cron (app:fetch-highlights,
+     * app:cache-latest-highlights) and relay subscription workers.
      */
     public function getHighlightsForArticle(string $articleCoordinate): array
     {
@@ -43,8 +43,6 @@ class HighlightService
                         'coordinate' => $articleCoordinate,
                         'count' => count($decoded),
                     ]);
-                    // Still dispatch async refresh if stale (fire-and-forget, no DB query)
-                    $this->maybeDispatchRefresh($articleCoordinate);
                     return $decoded;
                 }
             }
@@ -54,18 +52,7 @@ class HighlightService
             ]);
         }
 
-        // Slow path: single DB query to get cache metadata + highlights
-        $cacheStatus = $this->highlightRepository->getCacheStatus($articleCoordinate, self::CACHE_DURATION_HOURS);
-
-        if ($cacheStatus['needsFullRefresh']) {
-            $this->logger->debug('Dispatching async full refresh for highlights', ['coordinate' => $articleCoordinate]);
-            $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: true));
-        } elseif ($cacheStatus['needsTopOff']) {
-            $this->logger->debug('Dispatching async top-off for highlights', ['coordinate' => $articleCoordinate]);
-            $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: false));
-        }
-
-        // Load from DB only when Redis missed
+        // Slow path: load from DB (no relay refresh dispatch)
         $highlights = $this->getCachedHighlights($articleCoordinate);
 
         // Warm Redis for subsequent requests
@@ -74,33 +61,6 @@ class HighlightService
         return $highlights;
     }
 
-    /**
-     * Lightweight staleness check using a Redis timestamp key.
-     * Avoids any DB query when Redis already has data.
-     */
-    private function maybeDispatchRefresh(string $articleCoordinate): void
-    {
-        $metaKey = self::REDIS_PREFIX . md5($articleCoordinate) . ':meta';
-        try {
-            $meta = $this->redis->hGetAll($metaKey);
-            if (empty($meta)) {
-                // No metadata — dispatch full refresh
-                $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: true));
-                return;
-            }
-
-            $lastRefresh = (int) ($meta['last_refresh'] ?? 0);
-            $now = time();
-
-            if (($now - $lastRefresh) > self::CACHE_DURATION_HOURS * 3600) {
-                $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: true));
-            } elseif (($now - $lastRefresh) > self::TOP_OFF_DURATION_HOURS * 3600) {
-                $this->messageBus->dispatch(new RefreshArticleHighlightsMessage($articleCoordinate, fullRefresh: false));
-            }
-        } catch (\RedisException) {
-            // Ignore — will catch up on next DB-path request
-        }
-    }
 
     /**
      * Store highlight results in Redis and update metadata.
@@ -186,42 +146,6 @@ class HighlightService
         }
     }
 
-    /**
-     * Top off - fetch only recent highlights to supplement cache
-     */
-    private function topOffHighlights(string $articleCoordinate): void
-    {
-        try {
-            $lastCacheTime = $this->highlightRepository->getLastCacheTime($articleCoordinate);
-
-            // Fetch recent highlights (since last cache time)
-            $highlightEvents = $this->nostrClient->getHighlightsForArticle($articleCoordinate, 50);
-
-            // Filter to only new events (created after last cache)
-            if ($lastCacheTime) {
-                $cutoffTimestamp = $lastCacheTime->getTimestamp();
-                $highlightEvents = array_filter($highlightEvents, function ($event) use ($cutoffTimestamp) {
-                    return ($event->created_at ?? 0) > $cutoffTimestamp;
-                });
-            }
-
-            if (!empty($highlightEvents)) {
-                $this->logger->debug('Adding new highlights to cache', [
-                    'coordinate' => $articleCoordinate,
-                    'count' => count($highlightEvents)
-                ]);
-
-                $this->saveHighlights($articleCoordinate, $highlightEvents);
-            }
-
-        } catch (\Exception $e) {
-            $this->logger->warning('Failed to top off highlights', [
-                'coordinate' => $articleCoordinate,
-                'error' => $e->getMessage()
-            ]);
-            // Non-critical, just log and continue
-        }
-    }
 
     /**
      * Save highlight events to database

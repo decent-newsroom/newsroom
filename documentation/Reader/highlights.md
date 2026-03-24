@@ -46,15 +46,15 @@ Highlights are stored with an `articleCoordinate` matching the format `30023:<pu
 
 ## Caching Strategy
 
-Highlights use a two-tier cache to minimise article page load latency:
+Highlights use a two-tier read-only cache to minimise article page load latency. **No relay refresh is triggered during a web request** — article pages serve whatever is already cached.
 
-1. **Redis (hot cache, 10 min TTL)**: `getHighlightsForArticle()` checks Redis first. On hit, the response is returned with zero DB queries. A lightweight Redis-only staleness check dispatches an async refresh if data is old enough, without touching the database.
+1. **Redis (hot cache, 10 min TTL)**: `getHighlightsForArticle()` checks Redis first. On hit, the response is returned with zero DB queries.
 
-2. **PostgreSQL (warm cache)**: On Redis miss, a single `getCacheStatus()` query retrieves the latest `cached_at` timestamp for the coordinate, determining whether an async full-refresh or top-off is needed. Highlights are then loaded via `findByArticleCoordinateDeduplicated()` — a DB-level dedup query (GROUP BY `MD5(content||pubkey)`) that avoids pulling duplicate rows into PHP.
+2. **PostgreSQL (warm cache)**: On Redis miss, highlights are loaded via `findByArticleCoordinateDeduplicated()` — a DB-level dedup query (GROUP BY `MD5(content||pubkey)`) that avoids pulling duplicate rows into PHP. The result is written back to Redis for subsequent requests.
 
-3. **Async refresh (Messenger)**: When data is stale, a `RefreshArticleHighlightsMessage` is dispatched to the worker. The worker fetches from relays, persists to DB, and invalidates the Redis key so the next page load picks up fresh data.
+3. **Async ingestion (cron + relay workers)**: Highlights are fetched from relays and persisted to the database entirely in the background by cron jobs (`app:fetch-highlights` every 15 min, `app:cache-latest-highlights` every 30 min) and relay subscription workers. After saving new highlights the Redis key is invalidated so the next page load picks up fresh data.
 
-**Compound index**: `idx_article_coordinate_cached_at` on `(article_coordinate, cached_at)` covers both the `getCacheStatus()` aggregate and the per-coordinate lookups in a single B-tree scan.
+**Compound index**: `idx_article_coordinate_cached_at` on `(article_coordinate, cached_at)` covers both aggregate and per-coordinate lookups in a single B-tree scan.
 
 ## Cron Schedule
 
@@ -63,9 +63,9 @@ Highlights use a two-tier cache to minimise article page load latency:
 
 ## Lessons Learned
 
-- **Performance**: Highlights fetch was moved to async (Messenger + cron) rather than inline during page load. This eliminated slow article page renders when relay connections were slow.
+- **Performance**: Highlights fetch was moved entirely out of the web request path. Article pages serve only from Redis/DB cache — no relay calls and no async message dispatches. Relay ingestion runs exclusively in cron jobs and relay subscription workers.
 - **Feature gate removed**: The `HIGHLIGHTS_ENABLED` env flag was removed after the async refactor solved the original performance concern.
 - **Coordinate mismatch bug**: Fixed an issue where `FetchHighlightsCommand` stored coordinates from the event's `a` tag, while `RefreshArticleHighlightsHandler` used the controller-supplied coordinate. Both now canonicalise from the event's `a` tag.
-- **Redis cache layer**: Added a Redis → DB two-tier cache. On Redis hit (10 min TTL), article pages load with zero DB queries for highlights. Staleness checks use Redis metadata only, dispatching async refreshes without touching the database.
-- **Query consolidation**: Replaced 3 separate DB queries per page load (`needsRefresh`, `getLastCacheTime`, `findByArticleCoordinate` + PHP dedup) with a single `getCacheStatus()` call and DB-level deduplication via `GROUP BY MD5(content||pubkey)`.
+- **Redis cache layer**: Added a Redis → DB two-tier cache. On Redis hit (10 min TTL), article pages load with zero DB queries for highlights. On miss, a single DB query loads and re-warms Redis.
+- **Query consolidation**: Replaced multiple DB queries per page load with a single `findByArticleCoordinateDeduplicated()` call using DB-level deduplication via `GROUP BY MD5(content||pubkey)`.
 - **Multi-relay queries**: Highlights are now fetched from both the local strfry relay and default relays for broader coverage.
