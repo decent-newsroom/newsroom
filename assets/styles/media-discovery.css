@@ -112,7 +112,7 @@
 
 /* Containers without dimensions stretch naturally with content */
 .masonry-image-container:not(.has-dimensions) {
-    min-height: 200px;
+    min-height: auto;
 }
 
 .masonry-image-container:not(.has-dimensions) img {
