@@ -343,6 +343,154 @@
             {% endif %}
         </div>
 
+        {# ── Subdomain Analytics ──────────────────────────────────────── #}
+        <h2 style="margin-top: 2rem;">Subdomain Analytics</h2>
+
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
+                <h2>Subdomain Visits</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Last 24 hours:</strong> {{ subdomainVisitsLast24Hours|number_format }}</li>
+                    <li><strong>Last 7 days:</strong> {{ subdomainVisitsLast7Days|number_format }}</li>
+                    <li><strong>All time:</strong> {{ totalSubdomainVisits|number_format }}</li>
+                </ul>
+                <p class="analytics-note">Page visits on Unfold subdomain sites (e.g. <code>yoursite.{{ app.request.host }}</code>)</p>
+            </div>
+
+            <div class="analytics-card">
+                <h2>Unique Subdomain Visitors (Last 7 Days)</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Unique visitors:</strong> {{ subdomainUniqueVisitorsLast7Days|number_format }}</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <h2>Visits by Subdomain (Last 30 Days)</h2>
+            {% if subdomainVisitCountsLast30Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Subdomain</th>
+                            <th class="text-right">Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in subdomainVisitCountsLast30Days %}
+                            <tr>
+                                <td><code>{{ stat.subdomain }}</code></td>
+                                <td class="text-right">{{ stat.count|number_format }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No subdomain visits recorded in the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Subdomain Visits Per Day (Last 30 Days)</h2>
+            {% if subdomainVisitsPerDayLast30Days|length > 0 %}
+                <canvas id="subdomainVisitsPerDayChart"
+                    data-controller="analytics--visits-per-day-chart"
+                    data-analytics--visits-per-day-chart-labels-value='{{ subdomainVisitsPerDayLast30Days|map(stat => stat.day|date('Y-m-d'))|json_encode()|e('html_attr') }}'
+                    data-analytics--visits-per-day-chart-counts-value='{{ subdomainVisitsPerDayLast30Days|map(stat => stat.count)|json_encode()|e('html_attr') }}'
+                    height="80"></canvas>
+                <noscript>
+                    <p><em>Enable JavaScript to see the subdomain visits per day chart.</em></p>
+                </noscript>
+                <div style="margin-top:1em"></div>
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th class="text-right">Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in subdomainVisitsPerDayLast30Days %}
+                            <tr>
+                                <td>{{ stat.day|date('Y-m-d') }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No subdomain visit data for the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Top Subdomain Routes (Last 7 Days)</h2>
+            {% if topSubdomainRoutesLast7Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Subdomain</th>
+                            <th>Route</th>
+                            <th class="text-right">Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in topSubdomainRoutesLast7Days %}
+                            <tr>
+                                <td><code>{{ stat.subdomain }}</code></td>
+                                <td>{{ stat.route }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No subdomain route data recorded in the last 7 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Recent Subdomain Visits</h2>
+            {% if recentSubdomainVisits|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Subdomain</th>
+                            <th>Route</th>
+                            <th>Session ID</th>
+                            <th>Referrer</th>
+                            <th>Visited At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for visit in recentSubdomainVisits %}
+                            <tr>
+                                <td><code>{{ visit.subdomain }}</code></td>
+                                <td>{{ visit.route }}</td>
+                                <td><code>{{ visit.sessionId|slice(0, 12) }}...</code></td>
+                                <td>
+                                    {% if visit.referer %}
+                                        {% set isHttpReferer = visit.referer starts with 'http://' or visit.referer starts with 'https://' %}
+                                        {% if isHttpReferer %}
+                                            <a href="{{ visit.referer }}" target="_blank" rel="noopener noreferrer" title="{{ visit.referer }}">
+                                                {{ visit.referer|length > 60 ? visit.referer|slice(0, 60) ~ '…' : visit.referer }}
+                                            </a>
+                                        {% else %}
+                                            <span title="{{ visit.referer }}">{{ visit.referer|length > 60 ? visit.referer|slice(0, 60) ~ '…' : visit.referer }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="analytics-note">Direct / unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No recent subdomain visits recorded.</p>
+            {% endif %}
+        </div>
+
         <div class="analytics-info">
             <p>Visit tracking is automated via event listener. Visitor IDs cover both anonymous cookie-based visitors and logged-in session-based visitors. API requests are still recorded for endpoint-specific analytics, but generic visitor metrics exclude <code>/api/*</code> utility traffic.</p>
         </div>

@@ -573,6 +573,141 @@ class VisitRepository extends ServiceEntityRepository
         ];
     }
 
+    // ── Subdomain analytics ─────────────────────────────────────────────
+
+    /**
+     * Returns visit counts grouped by subdomain for tracked visits.
+     * Only includes rows where subdomain IS NOT NULL.
+     */
+    public function getSubdomainVisitCounts(?\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.subdomain, COUNT(v.id) as count')
+            ->andWhere('v.subdomain IS NOT NULL')
+            ->groupBy('v.subdomain')
+            ->orderBy('count', 'DESC');
+
+        if ($since) {
+            $qb->andWhere('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns total subdomain visit count since a given datetime.
+     */
+    public function countSubdomainVisitsSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.subdomain IS NOT NULL')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns total subdomain visits (all time).
+     */
+    public function countTotalSubdomainVisits(): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.subdomain IS NOT NULL');
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns unique visitors (sessions) for subdomain traffic since a given datetime.
+     */
+    public function countUniqueSubdomainVisitorsSince(\DateTimeImmutable $since): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(DISTINCT v.sessionId)')
+            ->where('v.visitedAt >= :since')
+            ->andWhere('v.subdomain IS NOT NULL')
+            ->andWhere('v.sessionId IS NOT NULL')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns visits per day for subdomain traffic over the last N days.
+     */
+    public function getSubdomainVisitsPerDay(int $days = 30): array
+    {
+        $from = (new \DateTimeImmutable())->modify("-{$days} days");
+        $conn = $this->getEntityManager()->getConnection();
+        $sql = 'SELECT DATE(visited_at) as day, COUNT(id) as count
+                FROM visit
+                WHERE visited_at >= :from
+                AND subdomain IS NOT NULL
+                AND route <> :apiRoot
+                AND route NOT LIKE :apiPrefix
+                GROUP BY day
+                ORDER BY day ASC';
+        $result = $conn->executeQuery(
+            $sql,
+            [
+                'from' => $from->format('Y-m-d H:i:s'),
+                'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+                'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+            ]
+        );
+        return $result->fetchAllAssociative();
+    }
+
+    /**
+     * Returns the top routes visited on subdomains.
+     */
+    public function getTopSubdomainRoutes(int $limit = 10, ?\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.subdomain, v.route, COUNT(v.id) as count')
+            ->andWhere('v.subdomain IS NOT NULL')
+            ->groupBy('v.subdomain, v.route')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($since) {
+            $qb->andWhere('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns recent visits on subdomains.
+     */
+    public function getRecentSubdomainVisits(int $limit = 10): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.subdomain, v.route, v.sessionId, v.referer, v.visitedAt')
+            ->andWhere('v.subdomain IS NOT NULL')
+            ->orderBy('v.visitedAt', 'DESC')
+            ->setMaxResults($limit);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
     private function applyTrackedVisitFilters(QueryBuilder $qb, string $alias = 'v'): void
     {
         $this->addCondition($qb, sprintf('%s.route <> :trackedVisitApiRoot', $alias));

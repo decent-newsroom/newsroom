@@ -18,6 +18,7 @@ For each tracked main request, the application stores:
 - the visitor identifier (`sessionId` field, used for both authenticated sessions and anonymous cookie-based continuity)
 - the visit timestamp
 - the HTTP `Referer` header when present
+- the subdomain name when the request is for an Unfold subdomain site (null for main domain requests)
 
 ### Referrer analytics
 
@@ -37,6 +38,21 @@ API requests are still recorded in the `visit` table.
 
 That allows endpoint-specific analytics, such as article publish activity from `/api/article/publish`, to continue working even though those requests are excluded from generic visitor totals.
 
+### Subdomain analytics
+
+When a visit lands on an Unfold subdomain (e.g. `support.decentnewsroom.com`), the `VisitTrackingListener` reads the `_unfold_subdomain` request attribute — already set by `UnfoldRequestListener` (priority 32, runs before the visit listener at priority 0) — and stores the subdomain name on the `Visit` entity.
+
+The admin analytics page includes a dedicated **Subdomain Analytics** section with:
+
+- total subdomain visit counts (24h / 7d / all time)
+- unique subdomain visitors (last 7 days)
+- visits broken down by subdomain (last 30 days)
+- subdomain visits per day chart (last 30 days)
+- top subdomain routes table (last 7 days)
+- recent subdomain visits table
+
+Subdomain metrics are separate from (and additive to) the main-domain analytics. Visits with `subdomain IS NULL` are main-domain traffic; visits with a non-null subdomain are Unfold traffic.
+
 ## Excluded routes
 
 Generic visitor analytics now exclude all requests under `/api/*`.
@@ -50,10 +66,12 @@ This keeps visitor counts focused on navigational page traffic instead of intern
 
 ## Affected files
 
+- `src/Entity/Visit.php`
 - `src/EventListener/VisitTrackingListener.php`
 - `src/Repository/VisitRepository.php`
 - `src/Controller/Administration/VisitorAnalyticsController.php`
 - `templates/admin/analytics.html.twig`
+- `migrations/Version20260325120000.php`
 
 ## Notes
 

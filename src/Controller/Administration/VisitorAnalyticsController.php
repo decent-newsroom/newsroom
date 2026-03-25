@@ -64,6 +64,16 @@ class VisitorAnalyticsController extends AbstractController
         // Zap invoice statistics
         $zapInvoiceStats = $visitRepository->getZapInvoiceStats();
 
+        // Subdomain analytics
+        $subdomainVisitsLast24Hours = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-24 hours'));
+        $subdomainVisitsLast7Days = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-7 days'));
+        $totalSubdomainVisits = $visitRepository->countTotalSubdomainVisits();
+        $subdomainUniqueVisitorsLast7Days = $visitRepository->countUniqueSubdomainVisitorsSince(new \DateTimeImmutable('-7 days'));
+        $subdomainVisitCountsLast30Days = $visitRepository->getSubdomainVisitCounts(new \DateTimeImmutable('-30 days'));
+        $subdomainVisitsPerDayLast30Days = $visitRepository->getSubdomainVisitsPerDay(30);
+        $topSubdomainRoutesLast7Days = $visitRepository->getTopSubdomainRoutes(15, new \DateTimeImmutable('-7 days'));
+        $recentSubdomainVisits = $visitRepository->getRecentSubdomainVisits(10);
+
         return $this->render('admin/analytics.html.twig', [
             'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsLast24Hours' => $visitsLast24Hours,
@@ -87,6 +97,14 @@ class VisitorAnalyticsController extends AbstractController
             'topArticlesLast24Hours' => $topArticlesLast24Hours,
             'articlePublishStats' => $articlePublishStats,
             'zapInvoiceStats' => $zapInvoiceStats,
+            'subdomainVisitsLast24Hours' => $subdomainVisitsLast24Hours,
+            'subdomainVisitsLast7Days' => $subdomainVisitsLast7Days,
+            'totalSubdomainVisits' => $totalSubdomainVisits,
+            'subdomainUniqueVisitorsLast7Days' => $subdomainUniqueVisitorsLast7Days,
+            'subdomainVisitCountsLast30Days' => $subdomainVisitCountsLast30Days,
+            'subdomainVisitsPerDayLast30Days' => $subdomainVisitsPerDayLast30Days,
+            'topSubdomainRoutesLast7Days' => $topSubdomainRoutesLast7Days,
+            'recentSubdomainVisits' => $recentSubdomainVisits,
         ]);
     }
 }

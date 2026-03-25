@@ -26,11 +26,15 @@ class Visit
     #[ORM\Column(length: 2048, nullable: true)]
     private ?string $referer = null;
 
-    public function __construct(string $route, ?string $sessionId = null, ?string $referer = null)
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $subdomain = null;
+
+    public function __construct(string $route, ?string $sessionId = null, ?string $referer = null, ?string $subdomain = null)
     {
         $this->route = $route;
         $this->sessionId = $sessionId;
         $this->referer = $referer;
+        $this->subdomain = $subdomain;
         $this->visitedAt = new \DateTimeImmutable();
     }
 
@@ -74,6 +78,17 @@ class Visit
     public function setReferer(?string $referer): self
     {
         $this->referer = $referer;
+        return $this;
+    }
+
+    public function getSubdomain(): ?string
+    {
+        return $this->subdomain;
+    }
+
+    public function setSubdomain(?string $subdomain): self
+    {
+        $this->subdomain = $subdomain;
         return $this;
     }
 }

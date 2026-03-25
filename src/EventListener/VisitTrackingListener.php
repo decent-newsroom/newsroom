@@ -82,7 +82,7 @@ class VisitTrackingListener
                 }
             }
 
-            $visit = new Visit($route, $visitorId, $request->headers->get('referer'));
+            $visit = new Visit($route, $visitorId, $request->headers->get('referer'), $request->attributes->get('_unfold_subdomain'));
             $this->visitRepository->save($visit);
         } catch (\Throwable $e) {
             $this->logger?->warning('VisitTrackingListener: failed to record visit', [
