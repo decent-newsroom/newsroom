@@ -53,7 +53,7 @@ nav:
     settings: 'Settings'
     create: 'Create'
     magazine: 'Magazine'
-    startBlog: 'Start a Blog'
+    startBlog: 'Start a Magazine'
     readingList: 'Reading List'
     article: 'Article'
     sendFeedback: 'Send Feedback'
@@ -109,7 +109,7 @@ home:
         description: 'Create your own magazine, define categories, manage submissions, and collaborate with editors and contributors.'
         cta: 'Create a magazine'
     blog:
-        cta: 'Start a blog'
+        cta: 'Start a magazine'
     unfold:
         heading: 'Unfold'
         eyebrow: 'your magazine'
@@ -629,7 +629,7 @@ journey:
         title: 'Start Your Magazine on Nostr'
         hero: 'Turn Your Nostr Articles Into a Real Magazine'
         eyebrow: 'A structured, readable publication with its own web address'
-        lede: 'Decent Newsroom lets you take articles you''ve published on Nostr and organize them into a magazine: with categories, guest posts, stable article pages, and optional hosted subdomains. No custom setup, no platform lock-in.'
+        lede: 'Decent Newsroom lets you take articles you''ve published on Nostr and organize them into a magazine: with categories, guest posts, static article links, and optional hosted subdomains. No custom setup, no platform lock-in.'
         cta: 'Get Started →'
         quickSetup:
             heading: 'How It Works'
