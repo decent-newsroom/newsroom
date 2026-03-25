@@ -4,6 +4,7 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Message\FetchEventFromRelaysMessage;
 use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
 use App\Service\Nostr\NostrClient;
@@ -19,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class ArticleController  extends AbstractController
@@ -68,13 +70,8 @@ class ArticleController  extends AbstractController
         ]);
     }
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
-    public function naddr(NostrClient $nostrClient, EntityManagerInterface $em, $naddr)
+    public function naddr(EntityManagerInterface $em, MessageBusInterface $messageBus, $naddr)
     {
-        // Allow enough time for a relay fetch (primary + fallback) after the
-        // DB check below. Keep this tight — each blocked worker starves the
-        // entire 4-thread pool during slow relay conditions.
-        set_time_limit(15);
-
         $decoded = new Bech32($naddr);
 
         if ($decoded->type !== 'naddr') {
@@ -105,38 +102,20 @@ class ArticleController  extends AbstractController
             return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
         }
 
-        // Not in DB — try fetching from relays
-        $found = false;
-        try {
-            // Best-effort: try to fetch quickly. If relays are slow/offline, don't block the web request.
-            $found = (bool) $nostrClient->getLongFormFromNaddr($slug, $relays, $author, $kind);
-        } catch (\Throwable) {
-            $found = false;
-        }
+        // Not in DB — dispatch async fetch and show loading page
+        $lookupKey = sprintf('naddr:%d:%s:%s', $kind, $author, $slug);
+        $messageBus->dispatch(new FetchEventFromRelaysMessage(
+            lookupKey: $lookupKey,
+            type: 'naddr',
+            kind: $kind,
+            pubkey: $author,
+            identifier: $slug,
+            relays: $relays,
+        ));
 
-        // Re-check DB after relay fetch
-        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
-        if ($slug && $article) {
-            $keys = new Key();
-            $npub = $keys->convertPublicKeyToBech32($author);
-            return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
-        }
-
-        // Provide a more informative error message
-        if (!$found) {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => sprintf(
-                    'No article found for slug "%s" by author %s. The article may not exist or the relays may be offline.',
-                    $slug,
-                    substr($author, 0, 8) . '...'
-                ),
-                'searchQuery' => $naddr
-            ]);
-        }
-
-        return $this->render('pages/article_not_found.html.twig', [
-            'message' => 'Article was retrieved from relays but could not be saved to the database.',
-            'searchQuery' => $naddr
+        return $this->render('event/loading.html.twig', [
+            'nevent' => $naddr,
+            'lookupKey' => $lookupKey,
         ]);
     }
 

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.24
+
+- Replaced synchronous relay fetching on the `/e/naddr1…` (and `nevent`/`note`) route with an async Messenger job. The page now instantly renders a loading placeholder with a spinner, subscribes to a Mercure topic for the result, and automatically reloads when the event is found — or shows a "not found on relays" state with a retry button after timeout. This eliminates the `Maximum execution time of 15 seconds exceeded` error and stops slow relay lookups from blocking FrankenPHP workers.
+
+
 ## v0.0.23
 Management.
 

@@ -6,10 +6,9 @@ namespace App\Controller;
 
 use App\Entity\Event as EventEntity;
 use App\Enum\KindsEnum;
+use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Service\GenericEventProjector;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use Exception;
 use nostriphant\NIP19\Bech32;
@@ -18,6 +17,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class EventController extends AbstractController
@@ -42,16 +42,12 @@ class EventController extends AbstractController
      * @throws Exception
      */
     #[Route('/e/{nevent}', name: 'nevent', requirements: ['nevent' => '^(nevent|note|naddr|nprofile)1.*'])]
-    public function index($nevent, \Symfony\Component\HttpFoundation\Request $request, NostrClient $nostrClient,
+    public function index($nevent, \Symfony\Component\HttpFoundation\Request $request,
                           RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser,
                           LoggerInterface $logger, EventRepository $eventRepository,
-                          GenericEventProjector $genericEventProjector): Response
+                          MessageBusInterface $messageBus): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
-
-        // Cap execution time — relay lookups can block for multiple seconds
-        // per relay, and with only 4 FrankenPHP workers this can cause 504s.
-        set_time_limit(15);
 
         try {
             // Decode nevent - nevent1... is a NIP-19 encoded event identifier
@@ -75,8 +71,18 @@ class EventController extends AbstractController
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        $logger->info('Event not in database, fetching from relays', ['eventId' => $eventId]);
-                        $event = $nostrClient->getEventById($eventId);
+                        // Dispatch async fetch and show loading page
+                        $lookupKey = 'note:' . $eventId;
+                        $logger->info('Event not in database, dispatching async fetch', ['eventId' => $eventId]);
+                        $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                            lookupKey: $lookupKey,
+                            type: 'note',
+                            eventId: $eventId,
+                        ));
+                        return $this->render('event/loading.html.twig', [
+                            'nevent' => $nevent,
+                            'lookupKey' => $lookupKey,
+                        ]);
                     }
                     break;
 
@@ -95,9 +101,20 @@ class EventController extends AbstractController
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        $logger->info('Event not in database, fetching from relays', ['eventId' => $eventId]);
-                        $relays = $data->relays ?? null;
-                        $event = $nostrClient->getEventById($eventId, $relays);
+                        // Dispatch async fetch and show loading page
+                        $relays = $data->relays ?? [];
+                        $lookupKey = 'nevent:' . $eventId;
+                        $logger->info('Event not in database, dispatching async fetch', ['eventId' => $eventId]);
+                        $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                            lookupKey: $lookupKey,
+                            type: 'nevent',
+                            eventId: $eventId,
+                            relays: $relays,
+                        ));
+                        return $this->render('event/loading.html.twig', [
+                            'nevent' => $nevent,
+                            'lookupKey' => $lookupKey,
+                        ]);
                     }
                     break;
 
@@ -117,33 +134,25 @@ class EventController extends AbstractController
                         ]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        $logger->info('Event not in database, fetching from relays', [
+                        // Dispatch async fetch and show loading page
+                        $relays = $data->relays ?? [];
+                        $lookupKey = sprintf('naddr:%d:%s:%s', $data->kind, $data->pubkey, $data->identifier);
+                        $logger->info('Event not in database, dispatching async fetch', [
                             'kind' => $data->kind,
-                            'identifier' => $data->identifier
-                        ]);
-                        $decodedData = [
-                            'kind' => $data->kind,
-                            'pubkey' => $data->pubkey,
                             'identifier' => $data->identifier,
-                            'relays' => $data->relays ?? []
-                        ];
-                        $event = $nostrClient->getEventByNaddr($decodedData);
-
-                        if ($event !== null) {
-                            try {
-                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
-                                    $event,
-                                    $data->relays[0] ?? 'naddr-lookup'
-                                );
-                                $event = $this->entityToObject($persisted);
-                            } catch (\Throwable $e) {
-                                $logger->warning('Failed to persist naddr event after relay fetch', [
-                                    'kind' => $data->kind,
-                                    'identifier' => $data->identifier,
-                                    'error' => $e->getMessage(),
-                                ]);
-                            }
-                        }
+                        ]);
+                        $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                            lookupKey: $lookupKey,
+                            type: 'naddr',
+                            kind: $data->kind,
+                            pubkey: $data->pubkey,
+                            identifier: $data->identifier,
+                            relays: $relays,
+                        ));
+                        return $this->render('event/loading.html.twig', [
+                            'nevent' => $nevent,
+                            'lookupKey' => $lookupKey,
+                        ]);
                     }
 
                     if ($data->kind === KindsEnum::LONGFORM->value) {
