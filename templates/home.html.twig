@@ -67,6 +67,9 @@
         <p class="lede mb-5">{{ 'home.hero.lede'|trans }}</p>
     </section>
 
+    <!-- Preview -->
+    <!--twig:Organisms:MagazinePreview subdomain="newsroommag" /-->
+
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5">
             <h1>{{ 'home.newsstand.heading'|trans }}</h1>
@@ -127,8 +130,7 @@
         <div class="mb-5">
             <p class="measure">{{ 'home.newsroom.description'|trans }}</p>
             <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'home.newsroom.cta'|trans }}</a>
-                <a class="btn btn-secondary" href="{{ path('blog_journey_landing') }}">{{ 'home.blog.cta'|trans }}</a>
+                <a class="btn" href="{{ path('blog_journey_landing') }}">{{ 'home.newsroom.cta'|trans }}</a>
             </div>
         </div>
     </section>

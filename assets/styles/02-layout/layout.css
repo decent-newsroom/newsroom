@@ -213,12 +213,13 @@ aside header {
     }
 
     .mobile-toggles .toggle {
-        background: var(--color-primary);
-        color: var(--color-text-contrast);
+        background: transparent;
+        color: var(--color-primary);
         border: none;
         padding: .4rem .75rem;
         cursor: pointer;
         font: inherit;
+        font-weight: bold;
     }
 
     nav.is-open, aside.is-open {

@@ -417,6 +417,11 @@ myContent:
 # ── Magazine ──────────────────────────────────────────────────────
 magazine:
     allChapters: 'All chapters'
+    preview:
+        previous: 'Previous'
+        next: 'Next'
+        noArticles: 'No articles yet'
+        visitSite: 'Visit site'
 
 # ── Magazine wizard ───────────────────────────────────────────────
 wizard:

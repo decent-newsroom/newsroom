@@ -1,0 +1,97 @@
+{% if title %}
+<section {{ attributes.defaults({class: 'magazine-preview-section'}) }}>
+    <div class="magazine-preview">
+        <div class="magazine-preview__header">
+            {% if externalUrl %}
+                <h2 class="magazine-preview__title">
+                    <a href="{{ externalUrl }}" target="_blank" rel="noopener">{{ title }}</a>
+                </h2>
+            {% elseif mag %}
+                <h2 class="magazine-preview__title">
+                    <a href="{{ path('magazine-index', {mag: mag}) }}">{{ title }}</a>
+                </h2>
+            {% else %}
+                <h2 class="magazine-preview__title">{{ title }}</h2>
+            {% endif %}
+
+            {% if summary %}
+                <p class="magazine-preview__summary">{{ summary }}</p>
+            {% endif %}
+        </div>
+
+        {% if categories|length > 0 %}
+            <div class="category-slider"
+                 data-controller="ui--category-slider"
+            >
+                {# Navigation arrows #}
+                <button class="category-slider__arrow category-slider__arrow--prev"
+                        data-ui--category-slider-target="prevBtn"
+                        data-action="click->ui--category-slider#scrollLeft"
+                        aria-label="{{ 'magazine.preview.previous'|trans }}"
+                        type="button">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div class="category-slider__track"
+                     data-ui--category-slider-target="track">
+                    {% for cat in categories %}
+                        <div class="category-slider__slide">
+                            <div class="category-slider__category-name">
+                                <a href="{{ path('magazine-category', {slug: cat.slug, mag: mag}) }}">
+                                    {{ cat.title }}
+                                </a>
+                            </div>
+
+                            {% if cat.article %}
+                                <a href="{{ path('magazine-category-article', {slug: cat.article.slug|url_encode, cat: cat.slug, mag: mag}) }}"
+                                   class="category-slider__card">
+                                    {% if cat.article.image %}
+                                        <div class="category-slider__card-image">
+                                            <img src="{{ cat.article.image }}"
+                                                 alt="{{ cat.article.title }}"
+                                                 loading="lazy">
+                                        </div>
+                                    {% endif %}
+                                    <div class="category-slider__card-body">
+                                        <h3 class="category-slider__card-title">{{ cat.article.title }}</h3>
+                                        {% if cat.article.summary %}
+                                            <p class="category-slider__card-summary">{{ cat.article.summary|length > 120 ? cat.article.summary|slice(0, 120) ~ '…' : cat.article.summary }}</p>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            {% else %}
+                                <div class="category-slider__card category-slider__card--empty">
+                                    <div class="category-slider__card-body">
+                                        <p class="text-muted">{{ 'magazine.preview.noArticles'|trans }}</p>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <button class="category-slider__arrow category-slider__arrow--next"
+                        data-ui--category-slider-target="nextBtn"
+                        data-action="click->ui--category-slider#scrollRight"
+                        aria-label="{{ 'magazine.preview.next'|trans }}"
+                        type="button">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        {% endif %}
+
+        {% if externalUrl %}
+            <div class="magazine-preview__cta">
+                <a href="{{ externalUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">
+                    {{ 'magazine.preview.visitSite'|trans }} ↗
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+

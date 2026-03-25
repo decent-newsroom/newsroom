@@ -1,0 +1,223 @@
+/**
+ * Magazine Preview Section + Category Slider
+ * Used on the home page to showcase a magazine with a horizontal category slider.
+ */
+
+/* ===== Section wrapper ===== */
+.magazine-preview-section {
+    padding: var(--spacing-4) 0;
+    background: color-mix(in oklab, var(--color-primary) 8%, var(--color-bg));
+}
+
+/* ===== Preview container ===== */
+.magazine-preview {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-3);
+}
+
+.magazine-preview__header {
+    text-align: center;
+    margin-bottom: var(--spacing-4);
+}
+
+.magazine-preview__title {
+    font-size: 1.75rem;
+    margin: 0 0 var(--spacing-1);
+}
+
+.magazine-preview__title a {
+    text-decoration: none;
+    color: var(--color-text);
+}
+
+.magazine-preview__title a:hover {
+    text-decoration: underline;
+}
+
+.magazine-preview__summary {
+    color: var(--color-text-mid);
+    font-size: 0.95rem;
+    margin: 0;
+    max-width: 60ch;
+    margin-inline: auto;
+}
+
+.magazine-preview__cta {
+    text-align: center;
+    margin-top: var(--spacing-3);
+}
+
+/* ===== Slider container ===== */
+.category-slider {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+/* ===== Arrow buttons ===== */
+.category-slider__arrow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    align-self: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    color: var(--color-text);
+    height: 36px;
+}
+
+.category-slider__arrow:hover {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.category-slider__arrow--hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.category-slider__arrow--prev {
+    margin-right: var(--spacing-2);
+}
+
+.category-slider__arrow--next {
+    margin-left: var(--spacing-2);
+}
+
+/* ===== Track (scrollable row) ===== */
+.category-slider__track {
+    display: flex;
+    gap: var(--spacing-3);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;          /* Firefox */
+    flex: 1 1 auto;
+    padding: var(--spacing-2) 0;
+}
+
+.category-slider__track::-webkit-scrollbar {
+    display: none;                  /* Chrome / Safari */
+}
+
+/* ===== Individual slide ===== */
+.category-slider__slide {
+    flex: 0 0 280px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== Category label ===== */
+.category-slider__category-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--spacing-1);
+    color: var(--color-text-mid);
+}
+
+.category-slider__category-name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.category-slider__category-name a:hover {
+    text-decoration: underline;
+}
+
+/* ===== Card inside slide ===== */
+.category-slider__card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg);
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--color-text);
+    border: 1px solid var(--color-border, #eee);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+    flex: 1;
+}
+
+.category-slider__card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.category-slider__card--empty {
+    justify-content: center;
+    align-items: center;
+    min-height: 120px;
+}
+
+.category-slider__card-image {
+    width: 100%;
+    height: 160px;
+    overflow: hidden;
+}
+
+.category-slider__card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.category-slider__card-body {
+    padding: var(--spacing-2);
+    flex: 1;
+}
+
+.category-slider__card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-1);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.category-slider__card-summary {
+    font-size: 0.82rem;
+    color: var(--color-text-mid);
+    margin: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ===== Responsive ===== */
+@media screen and (max-width: 600px) {
+    .category-slider__slide {
+        flex: 0 0 240px;
+    }
+
+    .category-slider__arrow {
+        display: none;
+    }
+
+    .magazine-preview__title {
+        font-size: 1.4rem;
+    }
+}
+
+@media screen and (min-width: 900px) {
+    .category-slider__slide {
+        flex: 0 0 300px;
+    }
+}
+
+
