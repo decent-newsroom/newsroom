@@ -6,58 +6,57 @@
       <button type="button" class="close" data-action="click->utility--signer-modal#closeDialog">&times;</button>
     </div>
     <div class="modal-body">
-      {# Bunker reconnect — for users who already have an active session #}
-      <div class="mb-4 p-3 hidden" style="background:  #f8f9fa;">
-        <label for="signer-modal-bunker-input" class="small fw-bold d-block mb-1">{{ 'signerModal.bunkerLabel'|trans }}</label>
-        <p class="small text-muted mb-2">{{ 'signerModal.bunkerHint'|trans|raw }}</p>
-        <div class="input-group input-group-sm d-flex flex-row">
-          <input type="text"
-                 id="signer-modal-bunker-input"
-                 class="form-control font-monospace small"
-                 data-utility--signer-modal-target="bunkerInput"
-                 style="font-size: 0.75rem;"
-                 placeholder="bunker://...">
-          <button class="btn btn-outline-secondary"
-                  type="button"
-                  data-action="click->utility--signer-modal#connectBunker">
-            {{ 'signerModal.connect'|trans }}
-          </button>
+        <div>
+            <h5 class="mt-0">{{ 'signerModal.status'|trans }}:</h5>
+            <div data-utility--signer-modal-target="status" class="small text-muted">{{ 'signerModal.initializing'|trans }}</div>
+            <p class="small text-muted mb-1 hidden">{{ 'signerModal.afterPairing'|trans }}</p>
+            <p class="small text-muted hidden">{{ 'signerModal.stallHint'|trans }}</p>
         </div>
-      </div>
-
-      <hr class="my-3">
-      <p class="text-muted mb-3">{{ 'signerModal.orNewPairing'|trans }}</p>
-      <div class="row">
-        <div class="col-md-6 text-center mb-3">
-          <div data-utility--signer-modal-target="qr" class="mb-2"></div>
+        <div>
+          <h5>Pair with signer:</h5>
+          <p class="text-muted mb-3">Scan the QR code or copy the connection string.</p>
+          <div class="text-center mb-3">
+              <div data-utility--signer-modal-target="qr" class="mb-2"></div>
+          </div>
           <div class="mt-3">
-            <label for="signer-modal-uri-input" class="small text-muted mb-2 d-block">{{ 'signerModal.copyString'|trans }}</label>
-            <div class="input-group input-group-sm d-flex flex-row">
-              <input type="text"
-                     id="signer-modal-uri-input"
-                     class="form-control font-monospace small"
-                     data-utility--signer-modal-target="uriInput"
-                     readonly
-                     style="font-size: 0.75rem;"
-                     placeholder="Loading...">
-              <button class="btn btn-outline-secondary"
-                      type="button"
-                      data-action="click->utility--signer-modal#copyUri"
-                      data-utility--signer-modal-target="copyButton">
-                {{ 'signerModal.copy'|trans }}
-              </button>
-            </div>
-            <p class="small text-muted mt-1 mb-0">{{ 'signerModal.pasteHint'|trans }}</p>
+              <label for="signer-modal-uri-input" class="small text-muted mb-2 d-block hidden">Connection string:</label>
+              <div class="input-group input-group-sm d-flex flex-row">
+                  <input type="text"
+                         id="signer-modal-uri-input"
+                         class="form-control font-monospace small"
+                         data-utility--signer-modal-target="uriInput"
+                         readonly
+                         placeholder="Loading...">
+                  <button class="btn"
+                          type="button"
+                          data-action="click->utility--signer-modal#copyUri"
+                          data-utility--signer-modal-target="copyButton">
+                      {{ 'signerModal.copy'|trans }}
+                  </button>
+              </div>
+              <p class="small text-muted mt-1 mb-0">{{ 'signerModal.pasteHint'|trans }}</p>
           </div>
         </div>
-        <div class="col-md-6">
-          <h6>{{ 'signerModal.status'|trans }}</h6>
-          <div data-utility--signer-modal-target="status" class="small text-muted">{{ 'signerModal.initializing'|trans }}</div>
-          <hr>
-          <p class="small text-muted mb-1">{{ 'signerModal.afterPairing'|trans }}</p>
-          <p class="small text-muted">{{ 'signerModal.stallHint'|trans }}</p>
+        {# Bunker reconnect — for users who already have an active session #}
+        <div class="mb-4">
+            <h5>Reconnect:</h5>
+            <p class="text-muted mb-3">{{ 'signerModal.bunkerLabel'|trans }}</p>
+
+            <label for="signer-modal-bunker-input" class="small fw-bold d-block mb-1 hidden">Connection string:</label>
+            <div class="input-group input-group-sm d-flex flex-row">
+                <input type="text"
+                       id="signer-modal-bunker-input"
+                       class="form-control font-monospace small"
+                       data-utility--signer-modal-target="bunkerInput"
+                       placeholder="bunker://...">
+                <button class="btn"
+                        type="button"
+                        data-action="click->utility--signer-modal#connectBunker">
+                    {{ 'signerModal.connect'|trans }}
+                </button>
+            </div>
+            <p class="small text-muted mt-1 mb-0">{{ 'signerModal.bunkerHint'|trans }}</p>
         </div>
-      </div>
     </div>
   </div>
 </div>

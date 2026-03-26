@@ -291,12 +291,12 @@ auth:
 signerModal:
     title: 'Connexion avec signataire distant'
     bunkerLabel: 'Vous avez une session bunker existante ?'
-    bunkerHint: 'Collez votre chaîne de connexion <code>bunker://</code> pour vous reconnecter.'
+    bunkerHint: 'Collez votre chaîne de connexion pour vous reconnecter.'
     connect: 'Connecter'
     orNewPairing: "Ou démarrez un nouvel appairage — scannez le QR avec un signataire compatible NIP-46."
     copyString: 'Ou copiez la chaîne de connexion :'
     copy: 'Copier'
-    pasteHint: "Collez ceci dans votre application de signature si elle est sur le même appareil"
+    pasteHint: "Collez ceci dans votre application de signature si elle est sur le même appareil."
     status: 'Statut'
     initializing: 'Initialisation…'
     afterPairing: "Après l'appairage, toute page utilisant window.nostr utilisera automatiquement cette session de signataire distant."

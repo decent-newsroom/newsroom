@@ -191,7 +191,7 @@ blockquote > * {
     padding: var(--spacing-1) var(--spacing-3);
     background-color: var(--color-primary);
     color: var(--color-text-contrast);
-    border-radius: 0;
+    border-radius: 4px;
     font-size: var(--font-size-sm);
     font-weight: 500;
     text-decoration: none;

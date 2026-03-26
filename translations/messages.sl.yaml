@@ -290,8 +290,8 @@ auth:
 # ── Modalno okno podpisnika ───────────────────────────────────────
 signerModal:
     title: 'Prijava z oddaljenim podpisnikom'
-    bunkerLabel: 'Imate obstoječo sejo bunkerja?'
-    bunkerHint: 'Prilepite svoj <code>bunker://</code> povezovalni niz za ponovno povezavo.'
+    bunkerLabel: 'Imate obstoječo sejo podpisnika?'
+    bunkerHint: 'Prilepite svoj povezovalni niz za ponovno povezavo.'
     connect: 'Poveži'
     orNewPairing: 'Ali začnite novo sejo — skenirajte QR kodo z NIP-46 združljivim podpisnikom.'
     copyString: 'Ali kopirajte povezovalni niz:'

@@ -155,7 +155,7 @@ export default class extends Controller {
       if (this.hasUriInputTarget) {
         this.uriInputTarget.value = this._uri;
       }
-      this._setStatus('Paste into your bunker (NIP-46)…');
+      this._setStatus('Awaiting signal…');
 
       // Wait for the bunker to respond
       this._signer = await signerPromise;

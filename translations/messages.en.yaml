@@ -341,13 +341,13 @@ auth:
 # ── Signer Modal ──────────────────────────────────────────────────
 signerModal:
     title: 'Remote Signer Login'
-    bunkerLabel: 'Have an existing bunker session?'
-    bunkerHint: 'Paste your <code>bunker://</code> connection string to reconnect.'
+    bunkerLabel: 'Have an existing signer session?'
+    bunkerHint: 'Paste your connection string to reconnect.'
     connect: 'Connect'
     orNewPairing: 'Or start a new pairing — scan the QR with a NIP-46 compatible bunker signer.'
     copyString: 'Or copy the connection string:'
     copy: 'Copy'
-    pasteHint: "Paste this into your signer app if it's on the same device"
+    pasteHint: "Paste this into your signer app if it's on the same device."
     status: 'Status'
     initializing: 'Initializing…'
     afterPairing: 'After pairing, any page that uses window.nostr will automatically use this remote signer session.'

@@ -5,7 +5,7 @@
 
 
 :root {
-    --color-bg: #1a1a1a;        /* Deep charcoal background */
+    --color-bg: #1b1b1b;        /* Deep charcoal background */
     --color-bg-light: #2a2a2a;  /* Slightly lighter charcoal */
     --color-bg-primary: #2e1f2e; /* Muted aubergine for a rich, elegant feel */
     --color-bg-muted: #333333;  /* Muted background for subtle containers */
@@ -15,9 +15,9 @@
     --color-text-contrast: #000; /* Black text for contrast */
     --color-primary: #5F7355;   /* Mossy green primary */
     --color-primary-link: #495544; /* Darker green for links */
-    --color-secondary: #B5692A; /* Burnt orange secondary — warm complement to green */
-    --color-secondary-light: #D4955A; /* Lighter orange for hovers */
-    --color-secondary-bg: rgba(181, 105, 42, 0.12); /* Ultra-light orange background */
+    --color-secondary: #D4803F; /* Burnt orange secondary — warm complement to green (≥ 5:1 on dark bg) */
+    --color-secondary-light: #E8A76A; /* Lighter orange for hovers */
+    --color-secondary-bg: rgba(212, 128, 63, 0.12); /* Ultra-light orange background */
     --color-border: #3a3a3a;     /* Subtle gray border */
     --font-family: 'Montserrat', serif; /* Set the Montserrat font as default */
     --main-body-font: 'Newsreader', serif; /* Set the font for the main body */
@@ -98,6 +98,9 @@
     --color-text-mid: #3a3a3a;
     --color-text-muted: #666666;
     --color-text-contrast: #f4f1ee;
+    --color-secondary: #A0541B; /* Darker burnt orange — ≥ 4.5:1 on light bg */
+    --color-secondary-light: #8B4716; /* Deeper orange for hovers */
+    --color-secondary-bg: rgba(160, 84, 27, 0.10);
     --color-border: #ccc8c2;
     --brand-color: black;
 
@@ -120,6 +123,7 @@
 
     --color-primary: #c095f4;    /* Vibrant purple (the new brand) */
     --color-primary-light: #c9b9eb;        /* Lighter variant for hovers/effects */
+    --color-primary-link: #a78bfa;
     --color-secondary: #e8bb8d;            /* Warm tan/peach for complementary balance */
     --color-secondary-light: #f4d6b6;      /* Lighter peach tone */
     --color-secondary-bg: #fbebdb;         /* Ultra-light background variant */
