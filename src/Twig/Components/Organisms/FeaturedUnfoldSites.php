@@ -80,6 +80,12 @@ final class FeaturedUnfoldSites
             ];
         }
 
+        // Show two random featured magazines (rotates every cache rebuild)
+        if (count($resolved) > 2) {
+            shuffle($resolved);
+            $resolved = array_slice($resolved, 0, 2);
+        }
+
         return $resolved;
     }
 
