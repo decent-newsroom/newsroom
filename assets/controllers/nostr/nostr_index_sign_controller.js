@@ -73,9 +73,11 @@ export default class extends Controller {
       const magSkeleton = JSON.parse(this.magazineEventValue || '{}');
       const categoryCoordinates = [];
 
-      // 1) Publish each category index
+      // 1) Publish each category index (skipping rejected ones)
       const totalEvents = catSkeletons.length + 1; // categories + magazine
       let currentEvent = 0;
+      const skipped = [];
+      const published = [];
 
       for (let i = 0; i < catSkeletons.length; i++) {
         currentEvent++;
@@ -84,18 +86,32 @@ export default class extends Controller {
         this.ensureContent(evt);
         evt.pubkey = pubkey;
         const slug = this.extractSlug(evt.tags);
-        if (!slug) throw new Error('Category missing slug (d tag)');
+        if (!slug) {
+          console.warn(`[nostr-index-sign] Category ${i + 1} missing slug (d tag), skipping`);
+          skipped.push(`Category ${i + 1} (missing slug)`);
+          continue;
+        }
 
         this.showStatus(`[${currentEvent}/${totalEvents}] Requesting signature for category "${slug}"… (Please confirm in your signer)`);
         console.log(`[nostr-index-sign] Signing category ${i + 1}/${catSkeletons.length}: ${slug}`);
 
-        // Sign with timeout and wait for response
-        const signed = await this.signEventWithRetry(signer, evt, slug);
-        console.log(`[nostr-index-sign] Category signed successfully: ${slug}`, signed);
+        try {
+          // Sign with timeout and wait for response
+          const signed = await this.signEventWithRetry(signer, evt, slug);
+          console.log(`[nostr-index-sign] Category signed successfully: ${slug}`, signed);
 
-        this.showStatus(`[${currentEvent}/${totalEvents}] Publishing category "${slug}"…`);
-        await this.publishSigned(signed);
-        console.log(`[nostr-index-sign] Category published: ${slug}`);
+          this.showStatus(`[${currentEvent}/${totalEvents}] Publishing category "${slug}"…`);
+          await this.publishSigned(signed);
+          console.log(`[nostr-index-sign] Category published: ${slug}`);
+          published.push(`Category "${slug}"`);
+
+          // Coordinate for the category index (kind:pubkey:slug)
+          const coord = `30040:${pubkey}:${slug}`;
+          categoryCoordinates.push(coord);
+        } catch (e) {
+          console.warn(`[nostr-index-sign] Skipping category "${slug}":`, e.message);
+          skipped.push(`Category "${slug}"`);
+        }
 
         // Add delay between events to ensure remote signer relay has processed the response
         // and is ready for the next request
@@ -103,13 +119,9 @@ export default class extends Controller {
           console.log('[nostr-index-sign] Waiting 1000ms before next signing request...');
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        // Coordinate for the category index (kind:pubkey:slug)
-        const coord = `30040:${pubkey}:${slug}`;
-        categoryCoordinates.push(coord);
       }
 
-      // 2) Build magazine event with 'a' tags referencing cats
+      // 2) Build magazine event with 'a' tags referencing published cats
       currentEvent++;
       const magSlug = this.extractSlug(magSkeleton.tags);
       this.showStatus(`[${currentEvent}/${totalEvents}] Preparing magazine index "${magSlug}"…`);
@@ -120,7 +132,8 @@ export default class extends Controller {
       magSkeleton.tags = (magSkeleton.tags || []).filter(t => t[0] !== 'a');
       categoryCoordinates.forEach(c => magSkeleton.tags.push(['a', c]));
 
-      // 3) Sign and publish magazine
+      // 3) Sign and publish magazine (also skippable)
+      let magazinePublished = false;
       this.showStatus(`[${currentEvent}/${totalEvents}] Requesting signature for magazine "${magSlug}"… (Please confirm in your signer)`);
       console.log('[nostr-index-sign] Signing magazine index:', magSlug);
 
@@ -128,18 +141,33 @@ export default class extends Controller {
       console.log('[nostr-index-sign] Waiting 1000ms before magazine signing request...');
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const signedMag = await this.signEventWithRetry(signer, magSkeleton, magSlug);
-      console.log('[nostr-index-sign] Magazine signed successfully:', magSlug, signedMag);
+      try {
+        const signedMag = await this.signEventWithRetry(signer, magSkeleton, magSlug);
+        console.log('[nostr-index-sign] Magazine signed successfully:', magSlug, signedMag);
 
-      this.showStatus(`[${currentEvent}/${totalEvents}] Publishing magazine index "${magSlug}"…`);
-      await this.publishSigned(signedMag);
-      console.log('[nostr-index-sign] Magazine published:', magSlug);
+        this.showStatus(`[${currentEvent}/${totalEvents}] Publishing magazine index "${magSlug}"…`);
+        await this.publishSigned(signedMag);
+        console.log('[nostr-index-sign] Magazine published:', magSlug);
+        published.push(`Magazine "${magSlug}"`);
+        magazinePublished = true;
+      } catch (e) {
+        console.warn(`[nostr-index-sign] Skipping magazine "${magSlug}":`, e.message);
+        skipped.push(`Magazine "${magSlug}"`);
+      }
 
-      this.showSuccess('✅ Published magazine and all categories successfully!');
+      // 4) Show summary
+      if (published.length === 0) {
+        this.showError('All events were skipped — nothing was published.');
+      } else if (skipped.length === 0) {
+        this.showSuccess('✅ Published magazine and all categories successfully!');
+      } else {
+        const summary = `✅ Published ${published.length} of ${totalEvents}: ${published.join(', ')}. Skipped ${skipped.length}: ${skipped.join(', ')}.`;
+        this.showSuccess(summary);
+      }
 
-      // Redirect to next wizard step after a brief pause
-      if (this.redirectUrlValue) {
-        setTimeout(() => { window.location.href = this.redirectUrlValue; }, 1500);
+      // Redirect to next wizard step after a brief pause (only if something was published)
+      if (this.redirectUrlValue && published.length > 0) {
+        setTimeout(() => { window.location.href = this.redirectUrlValue; }, 2000);
       }
     } catch (e) {
       console.error('[nostr-index-sign] Error:', e);
@@ -183,12 +211,18 @@ export default class extends Controller {
       } catch (error) {
         console.error(`[nostr-index-sign] Signing attempt ${attempt + 1} failed for "${slug}":`, error);
 
+        // Detect user rejection — don't retry
+        const msg = (error.message || '').toLowerCase();
+        if (msg.includes('reject') || msg.includes('denied') || msg.includes('cancel') || msg.includes('declined') || msg.includes('user refused')) {
+          throw new Error(`Signing rejected for "${slug}"`);
+        }
+
         // If this was the last attempt, throw the error
         if (attempt >= maxRetries) {
           throw new Error(`Failed to sign "${slug}" after ${maxRetries + 1} attempts: ${error.message}`);
         }
 
-        // Otherwise, log and retry
+        // Otherwise, log and retry (transient/timeout errors)
         console.log(`[nostr-index-sign] Will retry signing "${slug}"...`);
       }
     }
