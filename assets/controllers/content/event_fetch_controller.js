@@ -2,8 +2,8 @@ import { Controller } from '@hotwired/stimulus';
 
 /**
  * Subscribes to a Mercure topic for async event-fetch results and reloads the
- * page when the event has been persisted to the database.  Falls back to a
- * timeout that shows a "not found" state with a retry button.
+ * page when the event has been persisted to the database.  Falls back to
+ * polling the status API endpoint when Mercure SSE is unavailable.
  *
  * stimulusFetch: 'lazy'
  */
@@ -11,7 +11,9 @@ export default class extends Controller {
     static values = {
         topic: String,
         reloadUrl: String,
+        statusUrl: String,
         timeout: { type: Number, default: 30000 },
+        pollInterval: { type: Number, default: 3000 },
     };
 
     static targets = ['spinner', 'notFound'];
@@ -23,8 +25,8 @@ export default class extends Controller {
             || document.querySelector('meta[name="mercure-hub"]')?.content;
 
         if (!hubUrl || !this.hasTopicValue || !this.topicValue) {
-            console.debug('[event-fetch] No hub URL or topic — falling back to timeout');
-            this._startTimeoutOnly();
+            console.debug('[event-fetch] No hub URL or topic — falling back to polling');
+            this._startPolling();
             return;
         }
 
@@ -40,12 +42,16 @@ export default class extends Controller {
         this.es.onmessage = (event) => this._onMessage(event);
         this.es.onerror = () => {
             if (this.es?.readyState === EventSource.CLOSED) {
-                console.warn('[event-fetch] SSE connection closed, falling back to timeout');
+                console.warn('[event-fetch] SSE connection closed, falling back to polling');
+                this._startPolling();
             }
         };
 
         // Timeout fallback in case the worker is slow or Mercure misses the update
         this._timeoutId = window.setTimeout(() => this._onTimeout(), this.timeoutValue);
+
+        // Also start polling alongside Mercure — belt and suspenders
+        this._startPolling();
     }
 
     disconnect() {
@@ -55,18 +61,60 @@ export default class extends Controller {
             window.clearTimeout(this._timeoutId);
             this._timeoutId = null;
         }
+        if (this._pollId) {
+            window.clearInterval(this._pollId);
+            this._pollId = null;
+        }
         this._started = false;
     }
 
-    _startTimeoutOnly() {
+    _startPolling() {
+        if (this._pollId) return; // already polling
+
         this._started = true;
-        // Without Mercure, poll the page after a delay — the worker may have
-        // persisted the event by then.
-        this._timeoutId = window.setTimeout(() => {
-            // Try reloading once — if the event was persisted the controller
-            // will render normally instead of the loading page again.
-            this._reload();
-        }, 8000);
+
+        // If no status URL is available, fall back to timed reload
+        if (!this.hasStatusUrlValue || !this.statusUrlValue) {
+            console.debug('[event-fetch] No status URL — falling back to timed reload');
+            this._timeoutId = window.setTimeout(() => {
+                this._reload();
+            }, 8000);
+            return;
+        }
+
+        console.debug('[event-fetch] Starting status polling every', this.pollIntervalValue, 'ms');
+        this._pollCount = 0;
+        this._pollId = window.setInterval(() => this._poll(), this.pollIntervalValue);
+    }
+
+    async _poll() {
+        this._pollCount++;
+
+        // Give up after ~30s of polling
+        if (this._pollCount > Math.ceil(this.timeoutValue / this.pollIntervalValue)) {
+            console.debug('[event-fetch] Poll limit reached');
+            this._onTimeout();
+            return;
+        }
+
+        try {
+            const resp = await fetch(this.statusUrlValue);
+            if (!resp.ok) return;
+
+            const data = await resp.json();
+            console.debug('[event-fetch] Poll result:', data);
+
+            if (data.status === 'found') {
+                this.disconnect();
+                this._reload();
+            } else if (data.status === 'not_found' || data.status === 'error') {
+                this.disconnect();
+                this._showNotFound();
+            }
+            // 'pending' → keep polling
+        } catch (e) {
+            console.debug('[event-fetch] Poll error:', e);
+        }
     }
 
     _onMessage(event) {
@@ -121,4 +169,3 @@ export default class extends Controller {
         }
     }
 }
-

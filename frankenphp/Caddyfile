@@ -75,6 +75,7 @@
 
 			anonymous
 			subscriptions
+			cors_origins {$MERCURE_CORS_ORIGINS:*}
 			write_timeout 10s
 			dispatch_timeout 5s
 

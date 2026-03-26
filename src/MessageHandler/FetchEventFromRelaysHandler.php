@@ -48,6 +48,7 @@ final class FetchEventFromRelaysHandler
             $this->logger->info('Event already in DB, skipping relay fetch', [
                 'lookup_key' => $message->lookupKey,
             ]);
+            $this->recordResult($message->lookupKey, 'found');
             $this->publishResult($message->lookupKey, 'found', $event->getId());
             return;
         }

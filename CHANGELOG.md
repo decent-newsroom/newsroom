@@ -2,6 +2,8 @@
 
 ## v0.0.24
 
+- [Bug] Fixed Mercure SSE subscriptions not working in production.
+- Added polling fallback for async event fetching: the Stimulus controller now polls a new `/api/event-fetch-status/{lookupKey}` endpoint alongside Mercure SSE.
 - Replaced synchronous relay fetching on the `/e/naddr1…` (and `nevent`/`note`) route with an async Messenger job. The page now instantly renders a loading placeholder with a spinner, subscribes to a Mercure topic for the result, and automatically reloads when the event is found — or shows a "not found on relays" state with a retry button after timeout. This eliminates the `Maximum execution time of 15 seconds exceeded` error and stops slow relay lookups from blocking FrankenPHP workers.
 - Added magazine preview section to the home page: shows the Newsroom Magazine title with a horizontal category slider, each category displaying its latest article card. Includes a Stimulus-driven slider with arrow navigation, touch/swipe support, and a link to the external Unfold site.
 - Added subdomain analytics to the admin visitor analytics page.

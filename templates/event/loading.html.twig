@@ -8,6 +8,7 @@
                  data-controller="content--event-fetch"
                  data-content--event-fetch-topic-value="/event-fetch/{{ lookupKey }}"
                  data-content--event-fetch-reload-url-value="{{ path('nevent', { nevent: nevent }) }}"
+                 data-content--event-fetch-status-url-value="{{ path('api_event_fetch_status', { lookupKey: lookupKey }) }}"
                  data-content--event-fetch-timeout-value="30000">
 
             {# ── Loading state (shown initially) ── #}
