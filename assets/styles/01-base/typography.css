@@ -125,7 +125,7 @@ strong:not(>h2), .strong {
 
 /* Links */
 a {
-    color: var(--color-secondary);
+    color: var(--color-primary-link);
     text-decoration: none;
 }
 

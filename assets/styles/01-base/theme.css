@@ -14,6 +14,7 @@
     --color-text-muted: #999999; /* Muted text for captions, timestamps */
     --color-text-contrast: #000; /* Black text for contrast */
     --color-primary: #5F7355;   /* Mossy green primary */
+    --color-primary-link: #495544; /* Darker green for links */
     --color-secondary: #B5692A; /* Burnt orange secondary — warm complement to green */
     --color-secondary-light: #D4955A; /* Lighter orange for hovers */
     --color-secondary-bg: rgba(181, 105, 42, 0.12); /* Ultra-light orange background */

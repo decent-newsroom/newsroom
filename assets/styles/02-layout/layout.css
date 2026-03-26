@@ -283,14 +283,7 @@ footer .footer-links {
     margin: var(--spacing-4) 0;
 }
 
-footer a {
-    color: var(--color-accent);
-    text-decoration: none;
-    transition: color var(--transition-base);
-}
-
 footer a:hover {
-    color: var(--color-text);
     text-decoration: underline;
 }
 

@@ -15,7 +15,7 @@ final class Button
         return match ($this->variant) {
             'success' => 'btn-success',
             'danger' => 'btn-danger',
-            'accent' => 'btn-accent btn-sm',
+            'accent' => 'btn-accent',
             default => 'btn-primary',
         };
     }
