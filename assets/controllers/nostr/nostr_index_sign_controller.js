@@ -92,6 +92,12 @@ export default class extends Controller {
           continue;
         }
 
+        // Always include the coordinate in the magazine index — the category
+        // already exists on relays from a previous publish, so skipping the
+        // re-sign should not remove it from the magazine's 'a' tags.
+        const coord = `30040:${pubkey}:${slug}`;
+        categoryCoordinates.push(coord);
+
         this.showStatus(`[${currentEvent}/${totalEvents}] Requesting signature for category "${slug}"… (Please confirm in your signer)`);
         console.log(`[nostr-index-sign] Signing category ${i + 1}/${catSkeletons.length}: ${slug}`);
 
@@ -104,10 +110,6 @@ export default class extends Controller {
           await this.publishSigned(signed);
           console.log(`[nostr-index-sign] Category published: ${slug}`);
           published.push(`Category "${slug}"`);
-
-          // Coordinate for the category index (kind:pubkey:slug)
-          const coord = `30040:${pubkey}:${slug}`;
-          categoryCoordinates.push(coord);
         } catch (e) {
           console.warn(`[nostr-index-sign] Skipping category "${slug}":`, e.message);
           skipped.push(`Category "${slug}"`);
@@ -121,7 +123,7 @@ export default class extends Controller {
         }
       }
 
-      // 2) Build magazine event with 'a' tags referencing published cats
+      // 2) Build magazine event with 'a' tags referencing all categories
       currentEvent++;
       const magSlug = this.extractSlug(magSkeleton.tags);
       this.showStatus(`[${currentEvent}/${totalEvents}] Preparing magazine index "${magSlug}"…`);
