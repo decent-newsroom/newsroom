@@ -132,22 +132,17 @@ blockquote > * {
 }
 
 .table-of-contents {
-    border-left: var(--color-secondary) 6px solid;
     margin: var(--spacing-5) 0;
 }
 
-.table-of-contents li {
-    list-style: none;
-    margin-left: 0;
-}
-
 .heading-permalink {
-    margin-right: var(--spacing-1);
+    margin-right: var(--spacing-2);
+    opacity: 0.5;
 }
 
 .heading-permalink:hover {
     text-decoration: none;
-    font-weight: bold;
+    opacity: 1;
 }
 
 .embedded-content iframe,
