@@ -41,13 +41,15 @@ class HighlightsController extends AbstractController
                 $highlights = [];
 
                 foreach ($cachedView as $baseObject) {
-                    if (isset($baseObject['highlight']) && isset($baseObject['article'])) {
-                        $article = $baseObject['article'];
+                    if (isset($baseObject['highlight'])) {
+                        $article = $baseObject['article'] ?? null;
 
-                        // Build article coordinate from article data (kind:pubkey:slug)
+                        // Build article coordinate: prefer article data, fall back to highlight refs
                         $articleCoordinate = null;
-                        if (isset($article['kind']) && isset($article['pubkey']) && isset($article['slug'])) {
+                        if ($article && isset($article['kind']) && isset($article['pubkey']) && isset($article['slug'])) {
                             $articleCoordinate = $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug'];
+                        } elseif (isset($baseObject['highlight']['refs']['article_coordinate'])) {
+                            $articleCoordinate = $baseObject['highlight']['refs']['article_coordinate'];
                         }
 
                         // Generate naddr and preview data for NostrPreview component
@@ -70,7 +72,7 @@ class HighlightsController extends AbstractController
                             'pubkey' => $baseObject['highlight']['pubkey'] ?? null,
                             'context' => $baseObject['highlight']['context'] ?? null,
                             'article_ref' => $articleCoordinate,
-                            'article_title' => $article['title'] ?? null,
+                            'article_title' => ($article && !empty($article['title'])) ? $article['title'] : null,
                             'article_author' => $article['pubkey'] ?? null,
                             'article_slug' => $article['slug'] ?? null,
                             'naddr' => $naddr,

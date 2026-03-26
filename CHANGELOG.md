@@ -2,6 +2,8 @@
 
 ## v0.0.24
 
+- Highlights from external sources (articles not in the local database) are now shown on the highlights page. Previously, highlights referencing articles only available on remote relays were silently dropped. Now a minimal article view is built from the highlight's article coordinate, and the article author's profile is fetched from the metadata cache for display.
+
 
 ## v0.0.23
 Styles, magazines, and bug fixes.

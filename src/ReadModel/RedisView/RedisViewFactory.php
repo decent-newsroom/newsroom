@@ -194,6 +194,65 @@ class RedisViewFactory
     }
 
     /**
+     * Build a RedisBaseObject for a highlight without a local Article entity.
+     * Uses the article coordinate to extract pubkey/slug/kind and fetches
+     * the article author's profile from Redis metadata cache.
+     */
+    public function highlightBaseObjectWithoutArticle(
+        Highlight $highlight,
+        array|\stdClass|\App\Dto\UserMetadata|null $highlightAuthorMetadata = null,
+    ): RedisBaseObject {
+        $highlightView = $this->highlightToView($highlight);
+
+        // Fetch highlight author metadata if not provided
+        if ($highlightAuthorMetadata === null) {
+            $highlightAuthorMetadata = $this->redisCacheService->getMetadata($highlight->getPubkey());
+        }
+
+        $highlightAuthorView = $this->profileToView($highlightAuthorMetadata, $highlight->getPubkey());
+
+        $profiles = [];
+        if ($highlightAuthorView !== null) {
+            $profiles[$highlightAuthorView->pubkey] = $highlightAuthorView;
+        }
+
+        // Try to build a minimal article view from the coordinate
+        $articleView = null;
+        $coordinate = $highlight->getArticleCoordinate();
+        if ($coordinate) {
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) === 3) {
+                [$kind, $pubkey, $identifier] = $parts;
+
+                // Fetch article author profile if different from highlight author
+                if ($pubkey !== $highlight->getPubkey()) {
+                    $articleAuthorMeta = $this->redisCacheService->getMetadata($pubkey);
+                    $articleAuthorView = $this->profileToView($articleAuthorMeta, $pubkey);
+                    if ($articleAuthorView !== null) {
+                        $profiles[$articleAuthorView->pubkey] = $articleAuthorView;
+                    }
+                }
+
+                $articleView = new RedisArticleView(
+                    id: '',
+                    slug: $identifier,
+                    title: '',
+                    pubkey: $pubkey,
+                    kind: (int) $kind,
+                );
+            }
+        }
+
+        return new RedisBaseObject(
+            article: $articleView,
+            highlight: $highlightView,
+            author: $highlightAuthorView,
+            profiles: $profiles,
+            meta: [],
+        );
+    }
+
+    /**
      * Normalize RedisBaseObject to array for JSON storage
      */
     public function normalizeBaseObject(RedisBaseObject $obj): array

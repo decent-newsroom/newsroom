@@ -70,6 +70,13 @@ class CacheLatestHighlightsCommand extends Command
                 if ($article && $article->getPubkey()) {
                     $pubkeys[] = $article->getPubkey();
                 }
+                // Also extract pubkey from coordinate for external highlights
+                if (!$article && $highlight->getArticleCoordinate()) {
+                    $parts = explode(':', $highlight->getArticleCoordinate(), 3);
+                    if (count($parts) === 3) {
+                        $pubkeys[] = $parts[1];
+                    }
+                }
             }
             $pubkeys = array_unique(array_filter($pubkeys));
 
@@ -82,7 +89,6 @@ class CacheLatestHighlightsCommand extends Command
             $baseObjects = [];
             $skipped = 0;
             $skippedNoCoordinate = 0;
-            $skippedNoArticle = 0;
 
             foreach ($highlightsWithArticles as $item) {
                 $highlight = $item['highlight'];
@@ -97,28 +103,26 @@ class CacheLatestHighlightsCommand extends Command
                     continue;
                 }
 
-                // Skip if article not found
-                if (!$article) {
-                    $skippedNoArticle++;
-                    $this->logger->debug('Skipping highlight - article not found', [
-                        'highlight_id' => $highlight->getEventId(),
-                        'coordinate' => $highlight->getArticleCoordinate(),
-                    ]);
-                    continue;
-                }
-
-                // Get metadata for both authors
+                // Get metadata for highlight author
                 $highlightAuthorMeta = $metadataMap[$highlight->getPubkey()] ?? null;
-                $articleAuthorMeta = $metadataMap[$article->getPubkey()] ?? null;
 
-                // Build base object
+                // Build base object - with or without local article
                 try {
-                    $baseObject = $this->viewFactory->highlightBaseObject(
-                        $highlight,
-                        $article,
-                        $highlightAuthorMeta,
-                        $articleAuthorMeta
-                    );
+                    if ($article) {
+                        $articleAuthorMeta = $metadataMap[$article->getPubkey()] ?? null;
+                        $baseObject = $this->viewFactory->highlightBaseObject(
+                            $highlight,
+                            $article,
+                            $highlightAuthorMeta,
+                            $articleAuthorMeta
+                        );
+                    } else {
+                        // Article not in local DB — build from coordinate (external source)
+                        $baseObject = $this->viewFactory->highlightBaseObjectWithoutArticle(
+                            $highlight,
+                            $highlightAuthorMeta,
+                        );
+                    }
                     $baseObjects[] = $baseObject;
                 } catch (\Exception $e) {
                     $this->logger->error('Failed to build highlight base object', [
@@ -131,9 +135,6 @@ class CacheLatestHighlightsCommand extends Command
 
             if ($skippedNoCoordinate > 0) {
                 $output->writeln(sprintf('<comment>Skipped %d highlights without article coordinates</comment>', $skippedNoCoordinate));
-            }
-            if ($skippedNoArticle > 0) {
-                $output->writeln(sprintf('<comment>Skipped %d highlights with missing articles</comment>', $skippedNoArticle));
             }
             if ($skipped > 0) {
                 $output->writeln(sprintf('<comment>Skipped %d highlights (errors)</comment>', $skipped));
