@@ -3,10 +3,10 @@
 ## v0.0.24
 
 
-
 ## v0.0.23
 Styles, magazines, and bug fixes.
 
+- Magazine wizard now skips step 5 (subdomain) when editing a magazine for which the user already has an active subdomain subscription. The wizard progress indicator removes the subdomain step entirely and the review step redirects straight to done.
 - [Bug] Fixed magazine index signing flow aborting entirely when the user rejects signing any single category or the magazine event. Rejected or failed signings are now skipped gracefully, and the signer advances to the next item in the list. A summary is shown at the end indicating which events were published and which were skipped.
 - Added featured Unfold sites section: Unfold-hosted magazine subdomains are now shown as premium content at the top of the discover page and the authenticated home feed. Each card displays the magazine title, summary, and cover image resolved from the local event database, with a link to the hosted subdomain. Results are cached for 15 minutes.
 - [Bug] Fixed Stimulus controllers from `ui/` and `utility/` folders not loading (article actions, login, sidebar, etc. all broken). The `asset-map:compile` command added to the docker-entrypoint was generating a truncated `controllers.js` that silently dropped ~30 controllers. Pre-compiled assets in `public/assets/` override Symfony's dynamic asset serving, so the broken file was served to every browser. Fix: `asset-map:compile` now only runs when `APP_ENV=prod`; in dev mode, any stale pre-compiled assets are automatically removed so the stimulus-bundle compiler generates the full controller map dynamically.

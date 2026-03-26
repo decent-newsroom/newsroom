@@ -81,6 +81,7 @@ class MagazineWizardController extends AbstractController
             'draft' => $draft,
             'isLoggedIn' => $this->isGranted('ROLE_USER'),
             'isNewDraft' => $isNewDraft,
+            'skipSubdomain' => $this->hasActiveSubdomainSubscription(),
         ]);
     }
 
@@ -145,6 +146,7 @@ class MagazineWizardController extends AbstractController
         return $this->render('magazine/magazine_categories.html.twig', [
             'form' => $form->createView(),
             'draft' => $draft,
+            'skipSubdomain' => $this->hasActiveSubdomainSubscription(),
         ]);
     }
 
@@ -218,6 +220,7 @@ class MagazineWizardController extends AbstractController
         return $this->render('magazine/magazine_articles.html.twig', [
             'form' => $form->createView(),
             'hasExistingLists' => count($editableCategories) < count($draft->categories),
+            'skipSubdomain' => $this->hasActiveSubdomainSubscription(),
         ]);
     }
 
@@ -307,13 +310,21 @@ class MagazineWizardController extends AbstractController
         $hasEditableCategories = !empty(array_filter($draft->categories, fn($cat) => !$cat->isExistingList()));
         $backRoute = $hasEditableCategories ? 'mag_wizard_articles' : 'mag_wizard_categories';
 
+        // Skip subdomain step if user already has an active subscription
+        $skipSubdomain = $this->hasActiveSubdomainSubscription();
+
+        $redirectUrl = $skipSubdomain
+            ? $this->generateUrl('mag_wizard_launched')
+            : $this->generateUrl('mag_wizard_subdomain');
+
         return $this->render('magazine/magazine_review.html.twig', [
             'draft' => $draft,
             'categoryEventsJson' => json_encode($categoryEvents, JSON_UNESCAPED_SLASHES),
             'magazineEventJson' => json_encode($magazineEvent, JSON_UNESCAPED_SLASHES),
             'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
             'backRoute' => $backRoute,
-            'redirectUrl' => $this->generateUrl('mag_wizard_subdomain'),
+            'redirectUrl' => $redirectUrl,
+            'skipSubdomain' => $skipSubdomain,
         ]);
     }
 
@@ -476,6 +487,11 @@ class MagazineWizardController extends AbstractController
                  $subscription->getStatus()->value === 'pending')) {
                 $existingSubscription = $subscription;
             }
+
+            // If user already has an active subscription, skip straight to done
+            if ($existingSubscription !== null && $existingSubscription->getStatus()->value === 'active') {
+                return $this->redirectToRoute('mag_wizard_launched');
+            }
         }
 
         // Build the magazine coordinate from the wizard draft
@@ -522,10 +538,13 @@ class MagazineWizardController extends AbstractController
         // Clear the blog journey flag if present
         $request->getSession()->remove('blog_journey');
 
+        $skipSubdomain = $this->hasActiveSubdomainSubscription();
+
         return $this->render('magazine/magazine_launched.html.twig', [
-            'currentStep' => 6,
+            'currentStep' => $skipSubdomain ? 5 : 6,
             'existingSubscription' => $existingSubscription,
             'baseDomain' => $this->subdomainService->getBaseDomain(),
+            'skipSubdomain' => $skipSubdomain,
         ]);
     }
 
@@ -676,6 +695,21 @@ class MagazineWizardController extends AbstractController
     private function clearDraft(Request $request): void
     {
         $request->getSession()->remove(self::SESSION_KEY);
+    }
+
+    /**
+     * Check if the current user already has an active subdomain subscription,
+     * meaning step 5 (subdomain) can be skipped in the wizard.
+     */
+    private function hasActiveSubdomainSubscription(): bool
+    {
+        $npub = $this->getUser()?->getUserIdentifier();
+        if (!$npub) {
+            return false;
+        }
+
+        $subscription = $this->subdomainService->getByNpub($npub);
+        return $subscription !== null && $subscription->getStatus()->value === 'active';
     }
 
     private function slugifyWithRandom(string $title): string
