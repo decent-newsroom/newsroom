@@ -112,7 +112,7 @@ blockquote > p {
 .chapter-content blockquote .blockquote-footer {
     margin-top: var(--spacing-3);
     font-size: 0.9em;
-    color: var(--color-text-muted, #666);
+    color: var(--color-text-muted);
     text-align: right;
     background: none;
 }
@@ -196,11 +196,11 @@ blockquote > * {
     padding: var(--spacing-1) var(--spacing-3);
     background-color: var(--color-primary);
     color: var(--color-text-contrast);
-    border-radius: 1.5rem;
-    font-size: 0.875rem;
+    border-radius: 0;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     text-decoration: none;
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    transition: background-color var(--transition-base), transform var(--transition-base);
 }
 
 .tag:hover {
@@ -243,11 +243,11 @@ article p > img {
 
 .article-main aside.sidebar,
 .chapter-content aside.sidebar {
-    background-color: var(--color-bg-light, #f9f9f9);
+    background-color: var(--color-bg-light);
     border-left: 4px solid var(--color-primary);
     padding: var(--spacing-3);
     margin: var(--spacing-4) 0;
-    border-radius: 4px;
+    border-radius: 0;
 }
 
 .article-main aside.sidebar p:first-child,
@@ -265,7 +265,7 @@ article p > img {
 .chapter-content .admonition {
     padding: var(--spacing-3);
     margin: var(--spacing-4) 0;
-    border-radius: 4px;
+    border-radius: 0;
     border-left: 4px solid;
 }
 
@@ -296,32 +296,32 @@ article p > img {
 /* Admonition type colors */
 .article-main .admonition-note,
 .chapter-content .admonition-note {
-    background-color: #e3f2fd;
-    border-left-color: #2196f3;
+    background-color: var(--color-info-bg);
+    border-left-color: var(--color-info);
 }
 
 .article-main .admonition-tip,
 .chapter-content .admonition-tip {
-    background-color: #f1f8e9;
-    border-left-color: #8bc34a;
+    background-color: var(--color-success-bg);
+    border-left-color: var(--color-success);
 }
 
 .article-main .admonition-warning,
 .chapter-content .admonition-warning {
-    background-color: #fff3e0;
-    border-left-color: #ff9800;
+    background-color: var(--color-warning-bg);
+    border-left-color: var(--color-warning);
 }
 
 .article-main .admonition-important,
 .chapter-content .admonition-important {
-    background-color: #fce4ec;
-    border-left-color: #e91e63;
+    background-color: var(--color-error-bg);
+    border-left-color: var(--color-error);
 }
 
 .article-main .admonition-caution,
 .chapter-content .admonition-caution {
-    background-color: #ffebee;
-    border-left-color: #f44336;
+    background-color: var(--color-error-bg);
+    border-left-color: var(--color-error);
 }
 
 /* Admonition attribution */
@@ -329,7 +329,7 @@ article p > img {
 .chapter-content .admonition-attribution {
     margin-top: var(--spacing-2);
     font-style: italic;
-    color: var(--color-text-muted, #666);
+    color: var(--color-text-muted);
     text-align: right;
 }
 
@@ -339,7 +339,7 @@ article p > img {
     max-width: 100%;
     height: auto;
     margin: var(--spacing-2) 0;
-    border-radius: 4px;
+    border-radius: 0;
 }
 
 /* Audio blocks */
@@ -364,7 +364,7 @@ article p > img {
 .chapter-content .admonition-audio figcaption {
     margin-top: var(--spacing-1);
     font-size: 0.9em;
-    color: var(--color-text-muted, #666);
+    color: var(--color-text-muted);
     font-style: italic;
 }
 

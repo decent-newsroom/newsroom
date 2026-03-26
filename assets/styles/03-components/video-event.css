@@ -45,7 +45,7 @@
     padding: var(--spacing-3);
     background-color: var(--color-accent-strong);
     border: 1px solid var(--color-accent-600);
-    border-radius: 4px;
+    border-radius: 0;
     margin-bottom: var(--spacing-3);
 }
 
@@ -59,9 +59,9 @@
     margin-top: var(--spacing-2);
     padding: var(--spacing-2) var(--spacing-3);
     background-color: var(--color-primary);
-    color: white;
+    color: var(--color-text-contrast);
     border: none;
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     font-size: 0.9em;
 }
@@ -99,7 +99,7 @@
     display: inline-block;
     padding: var(--spacing-1) var(--spacing-2);
     background-color: var(--color-bg-light);
-    border-radius: 12px;
+    border-radius: 0;
     font-size: 0.85em;
     color: var(--color-primary);
 }
@@ -131,7 +131,7 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .video-player {
-        border-radius: 2px;
+        border-radius: 0;
     }
 
     .video-hashtags {

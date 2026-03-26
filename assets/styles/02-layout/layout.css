@@ -20,13 +20,13 @@ body {
     margin: 0 auto;
     flex-grow: 1;
     display: grid;
-    grid-template-columns: 240px auto 350px;
+    grid-template-columns: var(--sidebar-width) auto var(--aside-width);
 }
 
 nav, aside {
     position: sticky;
-    top: 80px;
-    max-height: calc(100vh - 80px);
+    top: var(--header-height-with-gap);
+    max-height: calc(100vh - var(--header-height-with-gap));
     overflow: auto;
 }
 
@@ -38,7 +38,7 @@ nav {
 header {
     position: fixed;
     width: 100%;
-    min-height: 60px;
+    min-height: var(--header-height);
     top: 0;
     left: 0;
 }
@@ -66,7 +66,7 @@ nav a:hover {
 main {
     display: flex;
     flex-direction: column;
-    margin-top: 90px;
+    margin-top: calc(var(--header-height) + var(--spacing-4));
     flex-grow: 1;
     min-width: 0;
     padding: 0 var(--spacing-3);
@@ -74,17 +74,17 @@ main {
 }
 
 .aside-wrapper {
-    margin-top: 90px;
+    margin-top: calc(var(--header-height) + var(--spacing-4));
 }
 
 main.static {
     margin-left: auto;
     margin-right: auto;
-    max-width: 960px;
+    max-width: var(--content-max-width);
 }
 
 .w-container {
-    max-width: 960px;
+    max-width: var(--content-max-width);
     margin-left: auto;
     margin-right: auto;
     width: 100%;
@@ -96,14 +96,14 @@ main.static {
 
 .user-menu {
     position: fixed;
-    top: 100px;
+    top: calc(var(--header-height) + 40px);
     min-width: 150px;
     max-width: 270px;
 }
 
 .user-nav {
-    padding: 10px;
-    margin: 10px 0;
+    padding: var(--spacing-2);
+    margin: var(--spacing-2) 0;
 }
 
 /* Nav sections with dividers */
@@ -113,45 +113,45 @@ main.static {
 }
 
 .nav-section__label {
-    font-size: 0.7rem;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--color-text-mid, #888);
-    padding: 0.75em 10px 0.15em;
+    color: var(--color-text-mid);
+    padding: 0.75em var(--spacing-2) 0.15em;
 }
 
 .nav-section .user-nav {
     margin: 0;
-    padding: 0.25em 10px 0.5em;
+    padding: 0.25em var(--spacing-2) 0.5em;
 }
 
 /* Right sidebar */
 aside {
     display: flex;
     flex-direction: column;
-    margin-top: 80px;
-    padding: 0 1em;
+    margin-top: var(--header-height-with-gap);
+    padding: 0 var(--spacing-3);
 }
 
 table {
     width: 100%;
-    margin: 20px 0;
+    margin: var(--spacing-4) 0;
 }
 
 pre, code {
     text-wrap: wrap;
     padding: 3px;
     background-color: var(--color-bg-light);
-    font-size: 1rem;
+    font-size: var(--font-size-base);
 }
 
 hr {
-    margin: 20px 0;
+    margin: var(--spacing-4) 0;
 }
 
 dt {
-    margin-top: 10px;
+    margin-top: var(--spacing-2);
 }
 
 .mobile-toggles {
@@ -166,7 +166,7 @@ aside header {
 /* Responsive adjustments */
 @media (max-width: 1200px) {
     .layout {
-        grid-template-columns: 240px auto;
+        grid-template-columns: var(--sidebar-width) auto;
     }
     aside {
         display: none; /* Hide the sidebars on small screens */
@@ -184,7 +184,7 @@ aside header {
     }
 
     main {
-        margin-top: 60px;
+        margin-top: var(--header-height);
         padding: 0;
     }
 
@@ -230,10 +230,10 @@ aside header {
         width: 80%;
         max-width: 260px;
         background: var(--color-bg);
-        box-shadow: 0 0 12px rgba(0,0,0,.4);
+        box-shadow: var(--shadow-overlay);
         overflow-y: auto;
-        z-index: 1200;
-        padding: 90px 1em 1em; /* space for global header height */
+        z-index: var(--z-modal);
+        padding: calc(var(--header-height) + var(--spacing-4)) var(--spacing-3) var(--spacing-3);
         animation: slideIn .25s ease;
         max-height: 100%;
     }
@@ -271,8 +271,8 @@ aside header {
 
 /* Footer */
 footer {
-    background-color: #333;
-    color: white;
+    background-color: var(--color-bg-muted);
+    color: var(--color-text);
     text-align: center;
     padding: var(--spacing-3) 0;
     position: relative;
@@ -284,19 +284,19 @@ footer .footer-links {
 }
 
 footer a {
-    color: var(--color-accent, #8FCB7E);
+    color: var(--color-accent);
     text-decoration: none;
-    transition: color 0.2s ease;
+    transition: color var(--transition-base);
 }
 
 footer a:hover {
-    color: white;
+    color: var(--color-text);
     text-decoration: underline;
 }
 
 footer p {
     margin: var(--spacing-2) 0;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--color-text-mid);
 }
 
 nav > header, aside > header { /* prevent global header fixed rules applying to nested headers */

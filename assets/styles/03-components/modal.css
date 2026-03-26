@@ -2,7 +2,7 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: var(--z-overlay);
 }
 
 .iu-modal {
@@ -10,11 +10,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #fff;
+    background: var(--color-bg);
     width: min(600px, 90vw);
     max-height: 80vh;
     overflow: auto;
-    z-index: 1000;
+    z-index: var(--z-modal);
 }
 
 .iu-modal .modal-header {

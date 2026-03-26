@@ -8,11 +8,15 @@
     --color-bg: #1a1a1a;        /* Deep charcoal background */
     --color-bg-light: #2a2a2a;  /* Slightly lighter charcoal */
     --color-bg-primary: #2e1f2e; /* Muted aubergine for a rich, elegant feel */
+    --color-bg-muted: #333333;  /* Muted background for subtle containers */
     --color-text: #f5f5f5;       /* Soft white for readability */
     --color-text-mid: #d8d8d8;   /* Warm light gray */
+    --color-text-muted: #999999; /* Muted text for captions, timestamps */
     --color-text-contrast: #000; /* Black text for contrast */
-    --color-primary: #5F7355;   /* Plum primary color */
-    --color-secondary: #495544; /*  secondary color */
+    --color-primary: #5F7355;   /* Mossy green primary */
+    --color-secondary: #B5692A; /* Burnt orange secondary — warm complement to green */
+    --color-secondary-light: #D4955A; /* Lighter orange for hovers */
+    --color-secondary-bg: rgba(181, 105, 42, 0.12); /* Ultra-light orange background */
     --color-border: #3a3a3a;     /* Subtle gray border */
     --font-family: 'Montserrat', serif; /* Set the Montserrat font as default */
     --main-body-font: 'Newsreader', serif; /* Set the font for the main body */
@@ -30,24 +34,87 @@
     --color-teal-400: #8ED5CC;
     --color-lilac-500: #B98BDC;
     --color-lilac-400: #C7A1E3;
+
+    /* Semantic status colors */
+    --color-success: #22c55e;
+    --color-success-bg: rgba(22, 197, 94, 0.1);
+    --color-success-border: rgba(22, 197, 94, 0.3);
+    --color-error: #ef4444;
+    --color-error-bg: rgba(239, 68, 68, 0.1);
+    --color-error-border: rgba(239, 68, 68, 0.3);
+    --color-warning: #f59e0b;
+    --color-warning-bg: rgba(245, 158, 11, 0.1);
+    --color-warning-border: rgba(245, 158, 11, 0.3);
+    --color-info: #3b82f6;
+    --color-info-bg: rgba(59, 130, 246, 0.1);
+    --color-info-border: rgba(59, 130, 246, 0.3);
+
+    /* Nostr / link accent (used for npub links, nostr identifiers) */
+    --color-nostr: #6c5ce7;
+    --color-nostr-bg: rgba(108, 92, 231, 0.1);
+    --color-nostr-profile: #00b894;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+    --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.4);
+
+    /* Z-index scale */
+    --z-dropdown: 1000;
+    --z-sticky: 1000;
+    --z-overlay: 1050;
+    --z-modal: 1100;
+    --z-toast: 9999;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Layout */
+    --header-height: 60px;
+    --header-height-with-gap: 80px;
+    --sidebar-width: 240px;
+    --aside-width: 350px;
+    --content-max-width: 960px;
+
+    /* Font sizes */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.1rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2.2rem;
+    --font-size-3xl: 3.2rem;
 }
 
 [data-theme="light"] {
     --color-bg: #f4f1ee;
     --color-bg-light: #e8e4df;
+    --color-bg-muted: #ddd8d2;
     --color-text: #2a2a2a;
-    --color-text-mid: #3a3a3a;   /* Warm light gray */
+    --color-text-mid: #3a3a3a;
+    --color-text-muted: #666666;
     --color-text-contrast: #f4f1ee;
+    --color-border: #ccc8c2;
     --brand-color: black;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
+    --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="space"] {
     --color-bg: #141120;             /* Deep violet-black */
     --color-bg-light: #1e1a2e;       /* Slightly lighter for contrast */
     --color-bg-primary: #251634;     /* Rich purple base (darkened brand tone) */
+    --color-bg-muted: #2a2440;       /* Muted violet for containers */
 
     --color-text: #f4f0fc;           /* Near-white with a lavender hue */
     --color-text-mid: #c9b9eb;       /* Soft pastel lavender */
+    --color-text-muted: #9a8cbf;     /* Muted text for captions */
     --color-text-contrast: #0c0712;  /* Near-black for contrast */
 
     --color-primary: #c095f4;    /* Vibrant purple (the new brand) */
@@ -61,5 +128,8 @@
     --brand-color: rgb(147, 51, 234);
     --brand-font: 'Poppins', sans-serif; /* A classic, refined branding font */
 
+    --color-nostr: #a78bfa;
+    --color-nostr-bg: rgba(167, 139, 250, 0.15);
+    --color-nostr-profile: #34d399;
 }
 

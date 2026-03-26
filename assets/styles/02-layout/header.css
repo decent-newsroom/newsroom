@@ -24,7 +24,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 20px;
+    gap: var(--spacing-4);
     padding: 0;
 }
 
@@ -44,7 +44,7 @@
     background-color: var(--color-bg);
     color: var(--color-text);
     padding: 0;
-    margin: 0 0 2rem 0;
+    margin: 0 0 var(--spacing-5) 0;
     border-radius: 0;  /* Sharp edges */
 }
 
@@ -63,7 +63,7 @@
 }
 
 .card-header {
-    margin: 10px 0;
+    margin: var(--spacing-2) 0;
 }
 
 .header__logo {
@@ -97,13 +97,13 @@
 
 .card-footer {
     border-top: 1px solid var(--color-border);
-    margin: 20px 0;
+    margin: var(--spacing-4) 0;
 }
 
 /* Featured cards layout */
 .featured-cat {
     border-bottom: 2px solid var(--color-border);
-    padding-left: 10px;
+    padding-left: var(--spacing-2);
 }
 
 .featured-list {
@@ -114,8 +114,8 @@
 
 .featured-list > * {
     box-sizing: border-box;
-    margin-bottom: 10px;
-    padding: 10px;
+    margin-bottom: var(--spacing-2);
+    padding: var(--spacing-2);
 }
 
 div:nth-child(odd) .featured-list {
@@ -139,7 +139,7 @@ div:nth-child(odd) .featured-list {
 }
 
 .featured-list .card {
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-4);
 }
 
 .featured-list .card:not(:last-child) {
@@ -165,7 +165,7 @@ div:nth-child(odd) .featured-list {
     }
 
     .featured-list .card-header {
-        margin-top: 20px;
+        margin-top: var(--spacing-4);
     }
 
     .featured-list .card {
@@ -173,8 +173,7 @@ div:nth-child(odd) .featured-list {
     }
 
     .featured-list > * {
-        margin-bottom: 10px;
+        margin-bottom: var(--spacing-2);
         padding: 0;
     }
 }
-

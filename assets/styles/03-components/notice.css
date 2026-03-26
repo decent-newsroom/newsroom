@@ -1,7 +1,7 @@
 .notice {
-    padding: var(--spacing-2); /* Padding around the content */
-    border-radius: 5px; /* Rounded corners */
-    margin: var(--spacing-2) 0; /* Margin above and below the notice */
+    padding: var(--spacing-2);
+    border-radius: 0;
+    margin: var(--spacing-2) 0;
 }
 
 .notice p {

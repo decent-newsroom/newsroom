@@ -8,8 +8,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1050;
-    padding: 1rem;
+    z-index: var(--z-overlay);
+    padding: var(--spacing-3);
 }
 
 .zap-modal-content {
@@ -20,21 +20,21 @@
 }
 
 .zap-modal-content .card-body {
-    padding: 1.5rem;
+    padding: var(--spacing-4);
 }
 
 .qr-container svg {
     max-width: 100%;
     height: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    padding: var(--spacing-2);
     background: white;
 }
 
 .zap-trigger:hover {
     transform: scale(1.05);
-    transition: transform 0.2s ease;
+    transition: transform var(--transition-base);
 }
 
 /* Prevent body scroll when modal is open */

@@ -2,15 +2,15 @@
 
 /* Workflow Status Component */
 .workflow-status-card {
-    padding: 1rem;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
+    padding: var(--spacing-3);
+    background: var(--color-bg-light);
+    border-radius: 0;
+    border: 1px solid var(--color-border);
 }
 
 .workflow-status-card .progress {
-    border-radius: 4px;
-    background-color: #e9ecef;
+    border-radius: 0;
+    background-color: var(--color-bg-muted);
     overflow: hidden;
 }
 
@@ -67,9 +67,9 @@
 .workflow-status-card .progress-bar.bg-warning {
     background: linear-gradient(
         90deg,
-        #ffc107 0%,
-        #ffeb3b 50%,
-        #ffc107 100%
+        var(--color-warning) 0%,
+        var(--color-accent-strong) 50%,
+        var(--color-warning) 100%
     );
     background-size: 200% 100%;
     animation: workflow-shimmer 2s ease-in-out infinite;
@@ -81,7 +81,7 @@
 }
 
 .workflow-status-card .next-steps li {
-    color: #495057;
+    color: var(--color-text-mid);
 }
 
 .workflow-state-info {
@@ -98,7 +98,7 @@
 }
 
 .reading-list-selector .alert-info {
-    border-left: 3px solid #0dcaf0;
+    border-left: 3px solid var(--color-info);
 }
 
 

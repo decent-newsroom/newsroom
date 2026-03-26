@@ -1,23 +1,23 @@
 /* Advanced Metadata Styles */
 .zap-share-display {
-    font-size: 0.875rem;
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #6c757d;
+    color: var(--color-text-muted);
 }
 
 .upload-area {
-    border: 2px dashed #dee2e6;
-    border-radius: 0.375rem;
-    padding: 2rem;
+    border: 2px dashed var(--color-border);
+    border-radius: 0;
+    padding: var(--spacing-5);
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s;
-    margin: 1rem 0;
+    transition: all var(--transition-base);
+    margin: var(--spacing-3) 0;
 }
 
 .upload-area:hover {
-    border-color: #0d6efd;
-    background-color: #f8f9fa;
+    border-color: var(--color-primary);
+    background-color: var(--color-bg-light);
 }
 
 .upload-area input[type="file"] {
@@ -31,7 +31,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1050;
+    z-index: var(--z-overlay);
 }
 
 .iu-dialog.active {
@@ -48,8 +48,8 @@
 }
 
 .modal-header {
-    padding: 1rem;
-    border-bottom: 1px solid #dee2e6;
+    padding: var(--spacing-3);
+    border-bottom: 1px solid var(--color-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -58,46 +58,46 @@
 .modal-header .close {
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: var(--font-size-xl);
     cursor: pointer;
-    color: #6c757d;
+    color: var(--color-text-muted);
 }
 
 .modal-body {
-    padding: 1rem;
+    padding: var(--spacing-3);
 }
 
 .upload-progress,
 .upload-error {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    border-radius: 0.375rem;
+    margin-top: var(--spacing-3);
+    padding: var(--spacing-2);
+    border-radius: 0;
 }
 
 .upload-progress {
-    background-color: #d1ecf1;
-    color: #0c5460;
+    background-color: var(--color-info-bg);
+    color: var(--color-info);
 }
 
 .upload-error {
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: var(--color-error-bg);
+    color: var(--color-error);
 }
 
 /* Form validation styles */
 .form-control.is-invalid {
-    border-color: #dc3545;
+    border-color: var(--color-error);
 }
 
 .form-control.is-valid {
-    border-color: #28a745;
+    border-color: var(--color-success);
 }
 
 .invalid-feedback {
     display: block;
-    margin-top: 0.25rem;
-    font-size: 0.875em;
-    color: #dc3545;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-sm);
+    color: var(--color-error);
 }
 
 .cursor-pointer {

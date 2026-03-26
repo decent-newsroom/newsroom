@@ -1,6 +1,12 @@
 /**
  * Button Component
  * Primary button styles and variants
+ *
+ * Hierarchy:
+ *   .btn (default)         — solid green primary, accent hover
+ *   .btn.btn-secondary     — orange outline, fills orange on hover (ghost)
+ *   .btn.btn-secondary-filled — solid orange, lighter orange on hover
+ *   .btn.btn-accent        — light green bg, primary text
  */
 
 button, .btn, a.btn {
@@ -10,6 +16,7 @@ button, .btn, a.btn {
     padding: 0.75em 1.5em;
     font-family: var(--font-family), sans-serif;
     cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 button:hover, .btn:hover, a.btn:hover {
@@ -29,6 +36,8 @@ a.btn, a.btn:hover, a.btn:active {
     text-align: center;
 }
 
+/* ── Accent: light green background, green text ── */
+
 .btn.btn-accent {
     background-color: var(--color-accent-300);
     border-color: var(--color-accent-300);
@@ -37,13 +46,21 @@ a.btn, a.btn:hover, a.btn:active {
 }
 
 .btn.btn-accent:hover {
-    border: 1px solid var(--color-secondary);
-    color: var(--color-secondary);
+    background-color: var(--color-accent-400);
+    border-color: var(--color-accent-400);
+    color: var(--color-primary);
     text-decoration: none;
 }
 
+.btn.btn-accent:active {
+    background-color: var(--color-accent-300);
+    border-color: var(--color-accent-300);
+}
+
+/* ── Secondary (ghost): transparent, orange border ── */
+
 .btn.btn-secondary {
-    color: var(--color-text);
+    color: var(--color-secondary);
     background-color: transparent;
     border: 1px solid var(--color-secondary);
     text-decoration: none;
@@ -52,6 +69,34 @@ a.btn, a.btn:hover, a.btn:active {
 .btn.btn-secondary:hover {
     background-color: var(--color-secondary);
     color: var(--color-text-contrast);
-    border: 1px solid var(--color-secondary);
+    border-color: var(--color-secondary);
     text-decoration: none;
 }
+
+.btn.btn-secondary:active {
+    background-color: var(--color-secondary-light);
+    border-color: var(--color-secondary-light);
+    color: var(--color-text-contrast);
+}
+
+/* ── Secondary filled: solid orange ── */
+
+.btn.btn-secondary-filled {
+    background-color: var(--color-secondary);
+    border-color: var(--color-secondary);
+    color: var(--color-text-contrast);
+    text-decoration: none;
+}
+
+.btn.btn-secondary-filled:hover {
+    background-color: var(--color-secondary-light);
+    border-color: var(--color-secondary-light);
+    color: var(--color-text-contrast);
+    text-decoration: none;
+}
+
+.btn.btn-secondary-filled:active {
+    background-color: var(--color-secondary);
+    border-color: var(--color-secondary);
+}
+

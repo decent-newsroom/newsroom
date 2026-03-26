@@ -136,11 +136,11 @@
 }
 
 .error-message {
-    background: #fee;
-    border: 1px solid #fcc;
-    padding: 1rem;
-    margin: 1rem 0;
-    color: #c00;
+    background: var(--color-error-bg);
+    border: 1px solid var(--color-error-border);
+    padding: var(--spacing-3);
+    margin: var(--spacing-3) 0;
+    color: var(--color-error);
 }
 .highlights-stats {
     display: flex;

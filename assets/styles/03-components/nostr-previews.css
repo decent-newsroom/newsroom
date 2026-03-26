@@ -15,12 +15,12 @@
 
 .nostr-preview .nostr-event-preview,
 .nostr-preview .nostr-profile-preview {
-    border-left: 3px solid #6c5ce7;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 3px solid var(--color-nostr);
+    box-shadow: var(--shadow-sm);
 }
 
 .nostr-preview .nostr-profile-preview {
-    border-left-color: #00b894;
+    border-left-color: var(--color-nostr-profile);
 }
 
 .nostr-preview .card-text {
@@ -60,36 +60,37 @@
 
 /* Style for nostr links in text */
 .nostr-link {
-    color: #6c5ce7;
-    background-color: rgba(108, 92, 231, 0.1);
+    color: var(--color-nostr);
+    background-color: var(--color-nostr-bg);
     padding: 0 var(--spacing-1);
-    border-radius: 3px;
+    border-radius: 0;
     text-decoration: none;
 }
 
 .nostr-link:hover {
-    background-color: rgba(108, 92, 231, 0.2);
+    background-color: var(--color-nostr-bg);
+    filter: brightness(0.9);
 }
 
 
 .event-container {
     max-width: 800px;
-    margin: 2rem auto;
-    background: #fff;
-    border-radius: 8px;
+    margin: var(--spacing-5) auto;
+    background: var(--color-bg);
+    border-radius: 0;
 }
 
 .event-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #eee;
-    padding: 1rem;
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--spacing-3);
 }
 
 .event-content {
-    padding: 1rem;
-    font-size: 1.1rem;
+    padding: var(--spacing-3);
+    font-size: var(--font-size-lg);
     line-height: 1.6;
 }
 
@@ -99,34 +100,34 @@
 
 /* NIP-68 Picture Event Styles */
 .content-warning {
-    background-color: #fff3cd;
-    border: 2px solid #ffc107;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
+    background-color: var(--color-warning-bg);
+    border: 2px solid var(--color-warning);
+    padding: var(--spacing-3);
+    border-radius: 0;
+    margin-bottom: var(--spacing-3);
     text-align: center;
 }
 
 .btn-show-nsfw {
-    margin-top: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: #ffc107;
+    margin-top: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: var(--color-warning);
     border: none;
-    border-radius: 4px;
+    border-radius: 0;
     cursor: pointer;
     font-weight: bold;
 }
 
 .btn-show-nsfw:hover {
-    background-color: #e0a800;
+    filter: brightness(0.9);
 }
 
 .picture-location {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: #555;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
+    color: var(--color-text-muted);
     font-size: 0.95rem;
 }
 
@@ -135,9 +136,9 @@
 }
 
 .geohash {
-    background-color: #e9ecef;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
+    background-color: var(--color-bg-light);
+    padding: 0.2rem var(--spacing-2);
+    border-radius: 0;
     font-family: monospace;
     font-size: 0.85rem;
     cursor: help;
@@ -146,19 +147,19 @@
 .picture-source {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
     font-size: 0.95rem;
 }
 
 .source-label {
     font-weight: 600;
-    color: #495057;
+    color: var(--color-text-mid);
     flex-shrink: 0;
 }
 
 .source-link {
-    color: #0066cc;
+    color: var(--color-info);
     text-decoration: none;
     word-break: break-all;
 }
@@ -168,10 +169,10 @@
 }
 
 .nostr-links {
-    margin: 1.5rem 0;
-    padding: 1rem;
-    background-color: #f9f9f9;
-    border-radius: 4px;
+    margin: var(--spacing-4) 0;
+    padding: var(--spacing-3);
+    background-color: var(--color-bg-light);
+    border-radius: 0;
 }
 
 .link-list {
@@ -184,17 +185,17 @@
 }
 
 .link-type {
-    color: #6c757d;
+    color: var(--color-text-muted);
     font-size: 0.9rem;
-    margin-left: 0.5rem;
+    margin-left: var(--spacing-2);
 }
 
 .event-footer {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 1rem;
-    border-top: 1px solid #eee;
+    padding: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
 }
 
 .event-tags {
@@ -211,8 +212,8 @@
 }
 
 .error {
-    color: #dc3545;
-    padding: 1rem;
+    color: var(--color-error);
+    padding: var(--spacing-3);
     text-align: center;
 }
 
@@ -226,16 +227,16 @@
 .embedded-event-card {
     border: none;
     border-radius: 0;
-    padding: 12px;
-    margin: 8px 0;
-    background: #f8f9fa;
+    padding: var(--spacing-3);
+    margin: var(--spacing-2) 0;
+    background: var(--color-bg-light);
 }
 
 .embedded-event-card .event-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
 }
 
 .embedded-event-card .avatar-small {
@@ -249,17 +250,17 @@
 }
 
 .embedded-event-card .nip05 {
-    color: #6c757d;
+    color: var(--color-text-muted);
     font-size: 0.85em;
 }
 
 .embedded-event-card .event-meta {
-    color: #6c757d;
+    color: var(--color-text-muted);
     font-size: 0.8em;
 }
 
 .embedded-event-card .event-content {
-    margin: 8px 0;
+    margin: var(--spacing-2) 0;
     line-height: 1.4;
 }
 
@@ -268,7 +269,7 @@
 }
 
 .embedded-event-card .view-full {
-    color: #007bff;
+    color: var(--color-info);
     text-decoration: none;
     font-size: 0.85em;
 }
@@ -278,12 +279,12 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin: 1rem 0;
-    padding: 0.85rem 1rem;
-    border: 1px dashed var(--color-border, #d0d0d0);
-    border-radius: 8px;
-    background: var(--color-bg-light, #f8f9fa);
-    color: var(--color-text-mid, #6c757d);
+    margin: var(--spacing-3) 0;
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px dashed var(--color-border);
+    border-radius: 0;
+    background: var(--color-bg-light);
+    color: var(--color-text-mid);
     font-size: 0.9rem;
     line-height: 1.4;
 }
@@ -307,7 +308,7 @@
 .nostr-placeholder-ref {
     font-family: monospace;
     font-size: 0.8rem;
-    color: #6c5ce7;
+    color: var(--color-nostr);
     text-decoration: none;
     overflow: hidden;
     text-overflow: ellipsis;

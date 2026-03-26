@@ -45,21 +45,21 @@
 .list-unstyled{list-style:none;padding-left:0;margin:0}
 
 /* Typography & colors */
-.text-muted{color:#6c757d!important}
-.text-secondary{color:#6c757d!important}
+.text-muted{color:var(--color-text-muted)!important}
+.text-secondary{color:var(--color-text-muted)!important}
 .text-center{text-align:center!important}
 .small{font-size:.875em}
 .hidden{display:none!important}
 
 /* Badge */
-.badge{display:inline-block;padding:.25em .5em;font-size:.75em;font-weight:600;color:#fff;background:#6c757d;border-radius:.25rem;vertical-align:baseline}
+.badge{display:inline-block;padding:.25em .5em;font-size:.75em;font-weight:600;color:var(--color-text-contrast);background:var(--color-text-muted);border-radius:0;vertical-align:baseline}
 
 /* Alerts */
-.alert{position:relative;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid transparent;border-radius:.25rem}
+.alert{position:relative;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid transparent;border-radius:0}
 .alert-default{color:var(--color-text);background-color:var(--color-secondary-bg);border-color:var(--color-secondary-bg)}
-.alert-info{color:#055160;background-color:#e9f5ff;border-color:#b6e0fe}
-.alert-success{color:#0f5132;background-color:#edf7ed;border-color:#c6e6c6}
-.alert-danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7}
+.alert-info{color:var(--color-info);background-color:var(--color-info-bg);border-color:var(--color-info-border)}
+.alert-success{color:var(--color-success);background-color:var(--color-success-bg);border-color:var(--color-success-border)}
+.alert-danger{color:var(--color-error);background-color:var(--color-error-bg);border-color:var(--color-error-border)}
 
 /* Buttons - sizes only (base buttons defined elsewhere) */
 .btn.btn-sm{padding:.25rem .5rem;font-size:.875rem;line-height:1.25;border-radius:.2rem}

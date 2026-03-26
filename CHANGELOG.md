@@ -7,6 +7,7 @@
 - Replaced synchronous relay fetching on the `/e/naddr1…` (and `nevent`/`note`) route with an async Messenger job. The page now instantly renders a loading placeholder with a spinner, subscribes to a Mercure topic for the result, and automatically reloads when the event is found — or shows a "not found on relays" state with a retry button after timeout. This eliminates the `Maximum execution time of 15 seconds exceeded` error and stops slow relay lookups from blocking FrankenPHP workers.
 - Added magazine preview section to the home page: shows the Newsroom Magazine title with a horizontal category slider, each category displaying its latest article card. Includes a Stimulus-driven slider with arrow navigation, touch/swipe support, and a link to the external Unfold site.
 - Added subdomain analytics to the admin visitor analytics page.
+- CSS variable audit: extended `theme.css` with semantic status colors (`--color-success`, `--color-error`, `--color-warning`, `--color-info`), nostr accent (`--color-nostr`), shadow tokens (`--shadow-sm/md/lg`), z-index scale, transition tokens, layout constants (`--header-height`, `--sidebar-width`), and font-size scale. Replaced ~200 hardcoded color/spacing/border-radius values across 25+ files with CSS variables. Enforced "no rounded edges" project rule (all `border-radius` set to 0). All three themes (default, light, space) now properly inherit all tokens.
 
 
 ## v0.0.23
