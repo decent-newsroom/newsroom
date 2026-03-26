@@ -2,6 +2,13 @@
     {% if nzines is not empty %}
     {% for item in nzines %}
         <div class="card p-3 ln-section--reader">
+            {% if item.image is defined and item.image %}
+                <div class="card-header m-0">
+                    <a href="{{ path('magazine-index', {mag: item.slug}) }}">
+                        <img src="{{ item.image }}" alt="{{ item.title|default(item.slug|default('Magazine')) }}" loading="lazy">
+                    </a>
+                </div>
+            {% endif %}
             <div class="card-body text-center">
                 <h2 class="card-title">
                     <a href="{{ path('magazine-index', {mag: item.slug}) }}">

@@ -37,10 +37,10 @@
     color: var(--color-text);
 }
 
-/* ===== Grid ===== */
+/* ===== Layout ===== */
 .featured-unfold__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: flex;
+    justify-content: center;
     gap: var(--spacing-3);
 }
 
@@ -52,6 +52,8 @@
     text-decoration: none;
     color: var(--color-text);
     overflow: hidden;
+    width: 340px;
+    flex-shrink: 0;
 }
 
 a.featured-unfold__card:hover {
@@ -102,7 +104,12 @@ a.featured-unfold__card:hover {
 /* ===== Responsive ===== */
 @media screen and (max-width: 600px) {
     .featured-unfold__grid {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .featured-unfold__card {
+        width: 100%;
     }
 
     .featured-unfold__heading {
