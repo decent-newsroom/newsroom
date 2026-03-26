@@ -1,10 +1,11 @@
 <header>
+    {{#if site.logo}}
+    <div class="site-cover">
+        <a href="/"><img src="{{site.logo}}" alt="{{site.title}}" class="cover-image"></a>
+    </div>
+    {{/if}}
     <div class="site-title">
-        {{#if site.logo}}
-        <a href="/"><img src="{{site.logo}}" alt="{{site.title}}" height="40"></a>
-        {{else}}
         <a href="/">{{site.title}}</a>
-        {{/if}}
     </div>
     {{#if site.description}}
     <p class="site-description">{{site.description}}</p>
