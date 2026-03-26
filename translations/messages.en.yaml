@@ -414,6 +414,11 @@ myContent:
     articlesDirName: 'articles'
     draftsDirName: 'drafts'
 
+# ── Featured Unfold Sites ─────────────────────────────────────────
+featured_unfold:
+    label: 'Premium'
+    heading: 'Featured Publications'
+
 # ── Magazine ──────────────────────────────────────────────────────
 magazine:
     allChapters: 'All chapters'

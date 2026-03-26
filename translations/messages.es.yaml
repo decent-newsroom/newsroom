@@ -488,3 +488,7 @@ language:
     es: 'Español'
     fr: 'Français'
 
+# ── Publicaciones destacadas de Unfold ─────────────────────────────
+featured_unfold:
+    label: 'Premium'
+    heading: 'Publicaciones destacadas'

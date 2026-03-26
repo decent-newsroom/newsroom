@@ -42,6 +42,7 @@ import './styles/03-components/back-to-top.css';
 import './styles/03-components/article-nav.css';
 import './styles/03-components/article-actions-dropdown.css';
 import './styles/03-components/magazine-preview.css';
+import './styles/03-components/featured-unfold.css';
 
 // Toast notifications
 import './styles/toast.css';

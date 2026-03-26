@@ -1,0 +1,112 @@
+/**
+ * Featured Unfold Sites
+ * Premium content strip showing Unfold-hosted magazine subdomains
+ * at the top of the articles/discover page.
+ */
+
+/* ===== Section wrapper ===== */
+.featured-unfold-section {
+    padding: var(--spacing-4) 0;
+}
+
+/* ===== Container ===== */
+.featured-unfold {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-3);
+}
+
+/* ===== Header ===== */
+.featured-unfold__header {
+    margin-bottom: var(--spacing-3);
+}
+
+.featured-unfold__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-primary);
+    margin: 0 0 var(--spacing-1);
+}
+
+.featured-unfold__heading {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--color-text);
+}
+
+/* ===== Grid ===== */
+.featured-unfold__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-3);
+}
+
+/* ===== Card ===== */
+.featured-unfold__card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-light);
+    text-decoration: none;
+    color: var(--color-text);
+    overflow: hidden;
+}
+
+a.featured-unfold__card:hover {
+    text-decoration: none;
+    background: var(--color-secondary-bg);
+}
+
+/* ===== Card image ===== */
+.featured-unfold__card-image {
+    width: 100%;
+    height: 160px;
+    overflow: hidden;
+}
+
+.featured-unfold__card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ===== Card body ===== */
+.featured-unfold__card-body {
+    padding: var(--spacing-2) var(--spacing-3);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.featured-unfold__card-title {
+    font-weight: 700;
+    margin: 0 0 var(--spacing-1);
+    line-height: 1.3;
+}
+
+.featured-unfold__card-summary {
+    font-size: 0.85rem;
+    color: var(--color-text-mid);
+    margin: 0 0 var(--spacing-2);
+    line-height: 1.5;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+
+/* ===== Responsive ===== */
+@media screen and (max-width: 600px) {
+    .featured-unfold__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .featured-unfold__heading {
+        font-size: 1.25rem;
+    }
+}
+

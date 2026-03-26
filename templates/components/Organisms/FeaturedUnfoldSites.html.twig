@@ -1,0 +1,27 @@
+{% if sites|length > 0 %}
+<section {{ attributes.defaults({class: 'featured-unfold-section'}) }}>
+    <div class="featured-unfold">
+        <div class="featured-unfold__header">
+            <p class="featured-unfold__label">{{ 'featured_unfold.label'|trans }}</p>
+            <h2 class="featured-unfold__heading">{{ 'featured_unfold.heading'|trans }}</h2>
+        </div>
+        <div class="featured-unfold__grid">
+            {% for site in sites %}
+                <a href="{{ site.url }}" target="_blank" rel="noopener" class="featured-unfold__card">
+                    {% if site.image %}
+                        <div class="featured-unfold__card-image">
+                            <img src="{{ site.image }}" alt="{{ site.title }}" loading="lazy">
+                        </div>
+                    {% endif %}
+                    <div class="featured-unfold__card-body">
+                        <h3 class="featured-unfold__card-title">{{ site.title }}</h3>
+                        {% if site.summary %}
+                            <p class="featured-unfold__card-summary">{{ site.summary|length > 140 ? site.summary|slice(0, 140) ~ '...' : site.summary }}</p>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

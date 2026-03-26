@@ -488,3 +488,7 @@ language:
     es: 'Español'
     fr: 'Français'
 
+# ── Hervorgehobene Unfold-Seiten ─────────────────────────────────
+featured_unfold:
+    label: 'Premium'
+    heading: 'Ausgewählte Publikationen'
