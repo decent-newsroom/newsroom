@@ -1,59 +1,60 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-  <h1>Create Reading List</h1>
+    <twig:Atoms:PageHeading heading="Reading List" />
+    <div class="p-2">
+        {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
+        {{ form_row(form.existingListCoordinate, {'row_attr': {'class': 'hidden'}}) }}
+        {{ form_row(form.title, {label: 'Title'}) }}
+        {{ form_row(form.summary) }}
+        <div data-controller="publishing--image-upload">
+            {{ form_row(form.image, {'attr': {'data-publishing--image-upload-target': 'urlInput'}}) }}
 
-  {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
-  {{ form_row(form.existingListCoordinate, {'row_attr': {'class': 'hidden'}}) }}
-  {{ form_row(form.title, {label: 'Title'}) }}
-  {{ form_row(form.summary) }}
-  <div data-controller="publishing--image-upload">
-    {{ form_row(form.image, {'attr': {'data-publishing--image-upload-target': 'urlInput'}}) }}
+            <div class="actions">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-action="click->publishing--image-upload#openDialog">
+                    Upload Image
+                </button>
+            </div>
 
-      <div class="actions">
-          <button type="button"
-                  class="btn btn-secondary"
-                  data-action="click->publishing--image-upload#openDialog">
-              Upload Image
-          </button>
-      </div>
+            <div data-publishing--image-upload-target="dialog" class="iu-dialog">
+                <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
+                <div class="iu-modal">
+                    <div class="modal-header">
+                        <h5>Upload Image</h5>
+                        <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div>
+                            <label for="upload-provider">Upload to</label>
+                            <select id="upload-provider" data-publishing--image-upload-target="provider">
+                                <option value="sovbit">files.sovbit.host</option>
+                                <option value="nostrbuild">nostr.build</option>
+                                <option value="nostrcheck">nostrcheck.me</option>
+                                <option value="blossomband">blossom.band</option>
+                            </select>
+                        </div>
 
-    <div data-publishing--image-upload-target="dialog" class="iu-dialog">
-      <div class="iu-backdrop" data-action="click->publishing--image-upload#closeDialog"></div>
-      <div class="iu-modal">
-        <div class="modal-header">
-          <h5>Upload Image</h5>
-          <button type="button" class="close" data-action="click->publishing--image-upload#closeDialog">&times;</button>
+                        <div data-publishing--image-upload-target="dropArea" class="upload-area">
+                            <span>Drag &amp; drop or click to select an image</span>
+                            <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
+                        </div>
+
+                        <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
+                        <div data-publishing--image-upload-target="error" class="upload-error"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-          <div>
-            <label for="upload-provider">Upload to</label>
-            <select id="upload-provider" data-publishing--image-upload-target="provider">
-              <option value="sovbit">files.sovbit.host</option>
-              <option value="nostrbuild">nostr.build</option>
-              <option value="nostrcheck">nostrcheck.me</option>
-              <option value="blossomband">blossom.band</option>
-            </select>
-          </div>
 
-          <div data-publishing--image-upload-target="dropArea" class="upload-area">
-            <span>Drag &amp; drop or click to select an image</span>
-            <input type="file" accept="image/*" data-publishing--image-upload-target="fileInput">
-          </div>
+        {{ form_row(form.tags) }}
 
-          <div data-publishing--image-upload-target="progress" class="upload-progress"></div>
-          <div data-publishing--image-upload-target="error" class="upload-error"></div>
+        <div class="mt-3 d-flex flex-row gap-2 actions">
+            <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
+            <button class="btn btn-primary">Add articles</button>
         </div>
-      </div>
+        {{ form_end(form) }}
     </div>
-  </div>
-
-  {{ form_row(form.tags) }}
-
-  <div class="mt-3 d-flex flex-row gap-2 actions">
-    <a class="btn btn-secondary" href="{{ path('read_wizard_cancel') }}">Cancel</a>
-    <button class="btn btn-primary">Add articles</button>
-  </div>
-  {{ form_end(form) }}
 {% endblock %}
 
