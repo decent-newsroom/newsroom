@@ -93,6 +93,8 @@ services:
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
       RELAY_GATEWAY_ENABLED: "true"
     depends_on:
+      php:
+        condition: service_healthy
       database:
         condition: service_healthy
       strfry:
@@ -110,6 +112,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
+      php:
+        condition: service_healthy
       database:
         condition: service_healthy
 
@@ -128,7 +132,7 @@ services:
       MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
     depends_on:
       php:
-        condition: service_started
+        condition: service_healthy
       database:
         condition: service_healthy
 
@@ -143,6 +147,8 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
+      php:
+        condition: service_healthy
       database:
         condition: service_healthy
       strfry:

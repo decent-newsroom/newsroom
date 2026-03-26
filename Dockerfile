@@ -55,7 +55,7 @@ COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 
 ENTRYPOINT ["docker-entrypoint"]
 
-HEALTHCHECK --start-period=60s --interval=10s --timeout=5s --retries=3 \
+HEALTHCHECK --start-period=180s --interval=10s --timeout=5s --retries=5 \
     CMD curl -f http://localhost/up || exit 1
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile" ]
 
@@ -96,6 +96,7 @@ RUN set -eux; \
 
 RUN set -eux; \
 	mkdir -p var/cache var/log; \
+	sync; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \

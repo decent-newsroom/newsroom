@@ -72,6 +72,10 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            - '../src/UnfoldBundle/DependencyInjection/'
+            - '../src/UnfoldBundle/UnfoldBundle.php'
+            - '../src/ChatBundle/DependencyInjection/'
+            - '../src/ChatBundle/ChatBundle.php'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

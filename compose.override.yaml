@@ -36,6 +36,15 @@ services:
     extra_hosts:
       # Ensure that host.docker.internal is correctly defined on Linux
       - host.docker.internal:host-gateway
+    # Dev startup is slower (anonymous vendor volume → composer install + asset
+    # compile + DB wait + migrations).  Give the entrypoint up to ~6 minutes
+    # before Docker marks the container unhealthy.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      start_period: 300s
+      interval: 10s
+      timeout: 5s
+      retries: 6
     tty: true
 
 ###> symfony/mercure-bundle ###
@@ -88,9 +97,9 @@ services:
       MERCURE_PUBLIC_URL: http://php/.well-known/mercure
     depends_on:
       php:
-        condition: service_started
+        condition: service_healthy
       database:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -105,9 +114,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
     depends_on:
       php:
-        condition: service_started
+        condition: service_healthy
       database:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -123,9 +132,9 @@ services:
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD:-r_password}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
     depends_on:
       php:
-        condition: service_started
+        condition: service_healthy
       database:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -142,9 +151,9 @@ services:
       MERCURE_PUBLIC_URL: http://php/.well-known/mercure
     depends_on:
       php:
-        condition: service_started
+        condition: service_healthy
       database:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
 

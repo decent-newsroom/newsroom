@@ -4,4 +4,4 @@
 # and only allows requests for registered UnfoldSite subdomains to proceed.
 
 unfold_bundle:
-    resource: '@UnfoldBundle/Resources/config/routes.yaml'
+    resource: '../../src/UnfoldBundle/Resources/config/routes.yaml'

@@ -23,7 +23,12 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	fi
 
 	if [ -z "$(ls -A 'vendor/' 2>/dev/null)" ]; then
-		composer install --prefer-dist --no-progress --no-interaction
+		composer install --prefer-dist --no-progress --no-interaction --no-scripts
+		# Run auto-scripts separately after filesystem has settled.
+		# This avoids transient I/O errors on bind mounts (Windows/Mac)
+		# when cache:clear runs while composer is still writing files.
+		sync 2>/dev/null || true
+		composer run-script auto-scripts --no-interaction || true
 	fi
 
 	# Compile AssetMapper assets (always run this, even without database)

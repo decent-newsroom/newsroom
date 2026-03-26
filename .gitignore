@@ -10,6 +10,9 @@
 /vendor/
 ###< symfony/framework-bundle ###
 
+# Stale cache created when getProjectDir() resolved to src/ (race condition)
+/src/var/
+
 ###> symfony/asset-mapper ###
 /public/assets/
 /assets/vendor/

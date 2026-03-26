@@ -3,5 +3,5 @@
 # and sets _chat_community request attribute for registered community subdomains
 
 chat_bundle:
-    resource: '@ChatBundle/Resources/config/routes.yaml'
+    resource: '../../src/ChatBundle/Resources/config/routes.yaml'
 

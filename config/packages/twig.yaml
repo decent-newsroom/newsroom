@@ -2,6 +2,7 @@ twig:
     file_name_pattern: '*.twig'
     paths:
         '%kernel.project_dir%/src/UnfoldBundle/Resources/views': Unfold
+        '%kernel.project_dir%/src/ChatBundle/Resources/views': Chat
     globals:
         brand_name: 'Decent Newsroom'
         brand_version: 'v0.0.22 Preprint'

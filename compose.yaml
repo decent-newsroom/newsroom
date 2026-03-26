@@ -108,8 +108,10 @@ services:
         # Run cron in foreground
         cron -f
     depends_on:
-      - php
-      - database
+      php:
+        condition: service_healthy
+      database:
+        condition: service_healthy
     environment:
       APP_ENV: prod
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-17}&charset=${POSTGRES_CHARSET:-utf8}
@@ -132,7 +134,7 @@ services:
       restart: unless-stopped
       depends_on:
           php:
-              condition: service_started
+              condition: service_healthy
           database:
               condition: service_healthy
       environment:
@@ -161,7 +163,7 @@ services:
       restart: unless-stopped
       depends_on:
           php:
-              condition: service_started
+              condition: service_healthy
           database:
               condition: service_healthy
           strfry:
@@ -192,7 +194,7 @@ services:
       restart: unless-stopped
       depends_on:
           php:
-              condition: service_started
+              condition: service_healthy
           database:
               condition: service_healthy
       environment:
@@ -225,7 +227,7 @@ services:
       restart: unless-stopped
       depends_on:
           php:
-              condition: service_started
+              condition: service_healthy
           database:
               condition: service_healthy
           strfry:

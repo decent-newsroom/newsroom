@@ -1,7 +1,7 @@
-chat:
-    relay_url: '%env(default:chat_relay_default:CHAT_RELAY_URL)%'
-    vapid:
-        subject: '%env(VAPID_SUBJECT)%'
-        public_key: '%env(VAPID_PUBLIC_KEY)%'
-        private_key: '%env(VAPID_PRIVATE_KEY)%'
+# ChatBundle parameters (de-bundled — no longer loaded via ChatExtension)
+parameters:
+    chat.relay_url: '%env(default:chat_relay_default:CHAT_RELAY_URL)%'
+    chat.vapid_subject: '%env(VAPID_SUBJECT)%'
+    chat.vapid_public_key: '%env(VAPID_PUBLIC_KEY)%'
+    chat.vapid_private_key: '%env(VAPID_PRIVATE_KEY)%'
 
