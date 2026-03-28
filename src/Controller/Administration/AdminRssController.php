@@ -324,6 +324,16 @@ class AdminRssController extends AbstractController
         // Basic HTML → Markdown conversion
         $text = $html;
 
+        // Remove non-content blocks (tags + their contents) before conversion
+        $text = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $text);
+        $text = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $text);
+        $text = preg_replace('/<noscript[^>]*>.*?<\/noscript>/is', '', $text);
+        $text = preg_replace('/<!--.*?-->/s', '', $text);
+        // Ghost/CMS embed widgets and wrapper elements
+        $text = preg_replace('/<lightning-widget[^>]*>.*?<\/lightning-widget>/is', '', $text);
+        $text = preg_replace('/<lightning-widget[^>]*\/?\s*>/is', '', $text);
+        $text = preg_replace('/<\/?(html|head|body|iframe|object|embed|form|input|button|select|textarea|nav|footer|header|aside)\b[^>]*>/is', '', $text);
+
         // Headers
         $text = preg_replace('/<h1[^>]*>(.*?)<\/h1>/is', "# $1\n\n", $text);
         $text = preg_replace('/<h2[^>]*>(.*?)<\/h2>/is', "## $1\n\n", $text);
