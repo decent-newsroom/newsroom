@@ -22,6 +22,8 @@ use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
+use Pagerfanta\Adapter\ArrayAdapter;
+use Pagerfanta\Pagerfanta;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -818,6 +820,20 @@ class AuthorController extends AbstractController
             };
         }
 
+        // Apply pagination for the articles tab (cache stores all articles; paginate at render time)
+        if ($tab === 'articles' && !empty($templateData['articles'])) {
+            $page = max(1, (int) $request->query->get('page', 1));
+            $perPage = 20;
+            $allArticles = $templateData['articles'];
+
+            $pager = new Pagerfanta(new ArrayAdapter($allArticles));
+            $pager->setMaxPerPage($perPage);
+            $pager->setCurrentPage(min($page, max(1, $pager->getNbPages())));
+
+            $templateData['articles'] = array_slice($allArticles, ($pager->getCurrentPage() - 1) * $perPage, $perPage);
+            $templateData['pager'] = $pager;
+        }
+
         // Check if this is a Turbo Frame request (AJAX partial load)
         $isTurboFrameRequest = $request->headers->get('Turbo-Frame') === 'profile-tab-content';
 
@@ -1270,7 +1286,7 @@ class AuthorController extends AbstractController
             }
             $viewData = $this->deduplicateViewData($viewData);
         } else {
-            $articles = $articleSearch->findByPubkey($pubkey, 100, 0);
+            $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
             $articles = $this->filterAndDeduplicateArticles($articles, false); // Always filter out drafts for articles tab
 
             foreach ($articles as $article) {

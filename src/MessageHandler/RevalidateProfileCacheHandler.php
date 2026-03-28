@@ -137,7 +137,7 @@ class RevalidateProfileCacheHandler
             }
         } else {
             // Fallback to database
-            $articles = $this->articleSearch->findByPubkey($pubkey, 100, 0);
+            $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
             $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
 
             foreach ($articles as $article) {

@@ -2,6 +2,10 @@
     <div class="w-container">
         {% if articles|length > 0 %}
             <twig:Organisms:CardList :list="articles" class="article-list"></twig:Organisms:CardList>
+
+            {% if pager is defined and pager.getNbPages() > 1 %}
+                <twig:Atoms:Pagination :pager="pager" route="{{ routePrefix ~ 'profile-tab' }}" :routeParams="useVanity ? {vanity: profileId, tab: 'articles'} : {npub: profileId, tab: 'articles'}" />
+            {% endif %}
         {% else %}
             <div class="no-content">
                 <p>No articles found for this author.</p>

@@ -6,15 +6,23 @@
         {% endif %}
     </h1>
 
+    <div class="flex flex-row gap-2 flex-wrap">
+        <div class="mt-1"
+             data-controller="utility--copy-to-clipboard"
+             data-utility--copy-to-clipboard-text-value="{{ npub }}">
+            <button class="btn btn-sm btn-secondary"
+                    data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy npub</button>
+        </div>
 
-    {% if author.lud16 is defined and author.lud16 %}
-        <twig:Molecules:ZapButton
-            class="mt-2 mb-2"
-            btnClass="btn-sm"
-            recipientPubkey="{{ pubkey }}"
-            recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-        />
-    {% endif %}
+        {% if author.lud16 is defined and author.lud16 %}
+            <twig:Molecules:ZapButton
+                class="mt-2 mb-2"
+                btnClass="btn-sm"
+                recipientPubkey="{{ pubkey }}"
+                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+            />
+        {% endif %}
+    </div>
 
     {% if author.nip05 is defined and author.nip05 is not empty %}
         {% if author.nip05 is iterable %}
@@ -31,12 +39,6 @@
             />
         {% endif %}
     {% endif %}
-    <div class="mt-1"
-         data-controller="utility--copy-to-clipboard"
-         data-utility--copy-to-clipboard-text-value="{{ npub }}">
-        <button class="btn btn-sm btn-secondary"
-                data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy npub</button>
-    </div>
     <div class="mt-2">
         {% if author.about is defined and author.about %}
             {{ author.about|markdown_to_html|mentionify|linkify  }}
