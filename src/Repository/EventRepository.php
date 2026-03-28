@@ -413,7 +413,7 @@ class EventRepository extends ServiceEntityRepository
      * @param int $limit Maximum number of highlights to return
      * @return Event[]
      */
-    public function findHighlights(int $limit = 50): array
+    public function findHighlights(int $limit = 200): array
     {
         $qb = $this->createQueryBuilder('e');
 

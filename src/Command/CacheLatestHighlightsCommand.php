@@ -38,7 +38,7 @@ class CacheLatestHighlightsCommand extends Command
             'l',
             InputOption::VALUE_OPTIONAL,
             'Maximum number of highlights to cache',
-            50
+            200
         );
     }
 

@@ -20,7 +20,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 
 # Fetch highlights from Nostr relays to database
 # Runs every 30 minutes (reduced from 15 — network-intensive external relay calls)
-*/30 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:fetch-highlights --limit=100 >> /var/log/cron-fetch-highlights.log 2>&1
+*/30 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:fetch-highlights --limit=200 >> /var/log/cron-fetch-highlights.log 2>&1
 
 # Cache latest highlights for Redis views
 # Runs every 30 minutes

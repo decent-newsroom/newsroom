@@ -7,7 +7,7 @@ namespace App\Message;
 class FetchHighlightsMessage
 {
     public function __construct(
-        private readonly int $limit = 50
+        private readonly int $limit = 200
     ) {}
 
     public function getLimit(): int

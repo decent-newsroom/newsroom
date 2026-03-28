@@ -167,7 +167,7 @@ class HighlightRepository extends ServiceEntityRepository
      * @param int $limit Maximum number of highlights to return
      * @return array<Highlight>
      */
-    public function findLatest(int $limit = 50): array
+    public function findLatest(int $limit = 200): array
     {
         return $this->createQueryBuilder('h')
             ->orderBy('h.createdAt', 'DESC')
@@ -182,7 +182,7 @@ class HighlightRepository extends ServiceEntityRepository
      * @param int $limit Maximum number of highlights to return
      * @return array<array{highlight: Highlight, article: ?\App\Entity\Article}>
      */
-    public function findLatestWithArticles(int $limit = 50): array
+    public function findLatestWithArticles(int $limit = 200): array
     {
         // First get the highlights
         $highlights = $this->findLatest($limit);

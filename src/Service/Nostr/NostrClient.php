@@ -444,7 +444,7 @@ class NostrClient
     }
 
     /** @see SocialEventService::getHighlights() */
-    public function getArticleHighlights(int $limit = 50): array
+    public function getArticleHighlights(int $limit = 200): array
     {
         return $this->socialEventService->getHighlights($limit);
     }

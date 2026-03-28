@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.25
+
+- [Bug] Fixed highlights page showing very few results due to compounding filters: deduplication now keeps one highlight per article per author (was one per article); the kind filter now accepts all addressable event types including publications (kind 30041), not just articles (kind 30023); the relay fetch window was widened from 30 to 90 days; and all pipeline limits (relay fetch, cron, cache, display) were raised from 50–100 to 200.
+
+
+
 ## v0.0.24
 Styles, RSS import, and admin tools.
 

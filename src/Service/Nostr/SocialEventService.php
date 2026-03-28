@@ -199,7 +199,7 @@ class SocialEventService
     /**
      * Get all highlights (NIP-84, kind 9802) from the local/default relay.
      */
-    public function getHighlights(int $limit = 50): array
+    public function getHighlights(int $limit = 200): array
     {
         $this->logger->info('Fetching highlights from default relay');
 
@@ -208,7 +208,7 @@ class SocialEventService
         $filter         = new Filter();
         $filter->setKinds([9802]);
         $filter->setLimit($limit);
-        $filter->setSince(strtotime('-30 days'));
+        $filter->setSince(strtotime('-90 days'));
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
 

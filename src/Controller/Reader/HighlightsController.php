@@ -18,7 +18,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HighlightsController extends AbstractController
 {
-    private const MAX_DISPLAY_HIGHLIGHTS = 50;
+    private const MAX_DISPLAY_HIGHLIGHTS = 200;
 
     public function __construct(
         private readonly EventRepository $eventRepository,
@@ -176,9 +176,9 @@ class HighlightsController extends AbstractController
                         if (isset($tag[2]) && str_starts_with($tag[2], 'wss://')) {
                             $relayHints[] = $tag[2];
                         }
-                        // Parse to check if it's an article (kind 30023)
+                        // Extract article author from coordinate
                         $parts = explode(':', $tag[1] ?? '', 3);
-                        if (count($parts) === 3 && $parts[0] === '30023') {
+                        if (count($parts) === 3) {
                             $highlight['article_author'] = $parts[1];
                         }
                         break;
@@ -200,27 +200,31 @@ class HighlightsController extends AbstractController
                 }
             }
 
-            // Only include highlights that reference articles (kind 30023)
-            if ($highlight['article_ref'] && str_starts_with($highlight['article_ref'], '30023:')) {
-                // Generate naddr from the coordinate
-                $highlight['naddr'] = $this->generateNaddr($highlight['article_ref'], $relayHints);
+            // Include highlights that reference addressable events (articles, publications, etc.)
+            if ($highlight['article_ref']) {
+                $refParts = explode(':', $highlight['article_ref'], 3);
+                $refKind = $refParts[0] ?? null;
 
-                // Parse naddr to create preview data for NostrPreview component
-                if ($highlight['naddr']) {
-                    $highlight['preview'] = $this->createPreviewData($highlight['naddr']);
+                // Generate naddr for addressable event kinds (30xxx)
+                if ($refKind && str_starts_with($refKind, '30')) {
+                    $highlight['naddr'] = $this->generateNaddr($highlight['article_ref'], $relayHints);
+
+                    if ($highlight['naddr']) {
+                        $highlight['preview'] = $this->createPreviewData($highlight['naddr']);
+                    }
                 }
 
                 $processed[] = $highlight;
             }
         }
 
-        // Sort & dedupe by article_ref
+        // Sort & dedupe by article_ref + highlight author (one highlight per author per article)
         usort($processed, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
         $uniqueHighlights = [];
         foreach ($processed as $highlight) {
-            $ref = $highlight['article_ref'];
-            if (!isset($uniqueHighlights[$ref])) {
-                $uniqueHighlights[$ref] = $highlight;
+            $dedupeKey = ($highlight['article_ref'] ?? '') . '|' . ($highlight['pubkey'] ?? '');
+            if (!isset($uniqueHighlights[$dedupeKey])) {
+                $uniqueHighlights[$dedupeKey] = $highlight;
             }
         }
 

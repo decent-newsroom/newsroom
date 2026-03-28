@@ -88,14 +88,14 @@ class FetchHighlightsCommand extends Command
                         continue;
                     }
 
-                    // Extract article coordinate from tags (looking for 'a' or 'A' tag with 30023: prefix)
+                    // Extract article coordinate from tags (looking for 'a' or 'A' tag with addressable event prefix)
                     $articleCoordinate = null;
                     $context = null;
                     foreach ($nostrEvent->tags ?? [] as $tag) {
                         if (is_array($tag) && count($tag) >= 2) {
                             if (in_array($tag[0], ['a', 'A'])) {
-                                // Check for article reference (kind 30023)
-                                if (str_starts_with($tag[1] ?? '', '30023:')) {
+                                // Accept any addressable event coordinate (30xxx:pubkey:identifier)
+                                if (preg_match('/^30\d+:/', $tag[1] ?? '')) {
                                     $articleCoordinate = $tag[1];
                                 }
                             }
