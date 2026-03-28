@@ -63,10 +63,15 @@ class RssFeedService
             'image' => null,
         ];
 
+        // Resolve all namespaces from the document root so that prefixes
+        // declared on <rss>/<feed> (e.g. xmlns:media) are always available
+        // even when individual <item>/<entry> elements don't redeclare them.
+        $rootNamespaces = $xml->getDocNamespaces(true);
+
         // RSS 2.0
         if (isset($xml->channel->item)) {
             foreach ($xml->channel->item as $item) {
-                $items[] = $this->parseRssItem($item);
+                $items[] = $this->parseRssItem($item, $rootNamespaces);
             }
             $feedMeta['title'] = (string)($xml->channel->title ?? '');
             $feedMeta['description'] = (string)($xml->channel->description ?? '');
@@ -78,7 +83,7 @@ class RssFeedService
         // Atom
         elseif (isset($xml->entry)) {
             foreach ($xml->entry as $entry) {
-                $items[] = $this->parseAtomEntry($entry);
+                $items[] = $this->parseAtomEntry($entry, $rootNamespaces);
             }
             $feedMeta['title'] = (string)($xml->title ?? '');
             $feedMeta['description'] = (string)($xml->subtitle ?? '');
@@ -89,9 +94,8 @@ class RssFeedService
         return ['feed' => $feedMeta, 'items' => $items];
     }
 
-    private function parseRssItem(\SimpleXMLElement $item): array
+    private function parseRssItem(\SimpleXMLElement $item, array $namespaces): array
     {
-        $namespaces = $item->getNamespaces(true);
         $content = '';
 
         // content:encoded
@@ -113,40 +117,24 @@ class RssFeedService
             }
         }
 
-        // media:content image
-        $imageUrl = null;
-        if (isset($namespaces['media'])) {
-            $mediaChildren = $item->children($namespaces['media']);
-            if (isset($mediaChildren->content)) {
-                foreach ($mediaChildren->content as $mediaContent) {
-                    $url = (string) $mediaContent['url'];
-                    if ($url === '') {
-                        continue;
+        // media:content / media:thumbnail image (via XPath to avoid
+        // SimpleXML collision between the 'content' namespace prefix
+        // and the 'content' local name in <media:content>)
+        $imageUrl = $this->extractMediaImage($item, $namespaces);
+
+        // ghost/bitnami quirk — attribute-style access on non-namespaced <content>
+        if (!$imageUrl) {
+            foreach ($item->children() as $child) {
+                if ($child->getName() === 'content') {
+                    $url = (string) $child['url'];
+                    if ($url !== '') {
+                        $medium = (string) ($child['medium'] ?? '');
+                        if ($medium === 'image' || $medium === '') {
+                            $imageUrl = $url;
+                        }
                     }
-                    $medium = (string) $mediaContent['medium'];
-                    $type = (string) $mediaContent['type'];
-                    if ($medium === 'image'
-                        || ($medium === '' && str_starts_with($type, 'image/'))
-                        || ($medium === '' && $type === '' && $this->looksLikeImageUrl($url))
-                    ) {
-                        $imageUrl = $url;
-                        break;
-                    }
+                    break;
                 }
-            }
-            // media:thumbnail fallback
-            if (!$imageUrl && isset($mediaChildren->thumbnail)) {
-                $thumbUrl = (string) $mediaChildren->thumbnail['url'];
-                if ($thumbUrl !== '') {
-                    $imageUrl = $thumbUrl;
-                }
-            }
-        }
-        // ghost/bitnami quirk
-        if (!$imageUrl && isset($item->content) && isset($item->content->_url)) {
-            $medium = isset($item->content->_medium) ? (string)$item->content->_medium : '';
-            if ($medium === 'image' || $medium === '') {
-                $imageUrl = (string)$item->content->_url;
             }
         }
         // enclosure fallback (type="image/*")
@@ -182,7 +170,7 @@ class RssFeedService
         ];
     }
 
-    private function parseAtomEntry(\SimpleXMLElement $entry): array
+    private function parseAtomEntry(\SimpleXMLElement $entry, array $namespaces): array
     {
         // link
         $link = '';
@@ -207,34 +195,7 @@ class RssFeedService
         }
 
         // media:content / media:thumbnail image
-        $imageUrl = null;
-        $namespaces = $entry->getNamespaces(true);
-        if (isset($namespaces['media'])) {
-            $mediaChildren = $entry->children($namespaces['media']);
-            if (isset($mediaChildren->content)) {
-                foreach ($mediaChildren->content as $mediaContent) {
-                    $url = (string) $mediaContent['url'];
-                    if ($url === '') {
-                        continue;
-                    }
-                    $medium = (string) $mediaContent['medium'];
-                    $type = (string) $mediaContent['type'];
-                    if ($medium === 'image'
-                        || ($medium === '' && str_starts_with($type, 'image/'))
-                        || ($medium === '' && $type === '' && $this->looksLikeImageUrl($url))
-                    ) {
-                        $imageUrl = $url;
-                        break;
-                    }
-                }
-            }
-            if (!$imageUrl && isset($mediaChildren->thumbnail)) {
-                $thumbUrl = (string) $mediaChildren->thumbnail['url'];
-                if ($thumbUrl !== '') {
-                    $imageUrl = $thumbUrl;
-                }
-            }
-        }
+        $imageUrl = $this->extractMediaImage($entry, $namespaces);
 
         // pubDate → timestamp int
         $pubTs = null;
@@ -258,6 +219,57 @@ class RssFeedService
             'guid'        => (string) ($entry->id ?? ''),
             'image'       => $imageUrl,
         ];
+    }
+
+    /**
+     * Extract an image URL from media:content or media:thumbnail using XPath.
+     *
+     * XPath is used instead of SimpleXML property access because feeds that
+     * declare both xmlns:content (for content:encoded) and xmlns:media (for
+     * media:content) cause a collision: the local name "content" in
+     * <media:content> clashes with the "content" namespace prefix, making
+     * $element->children($mediaUri)->content unreliable.
+     */
+    private function extractMediaImage(\SimpleXMLElement $element, array $namespaces): ?string
+    {
+        if (!isset($namespaces['media'])) {
+            return null;
+        }
+
+        $mediaUri = $namespaces['media'];
+        $element->registerXPathNamespace('media', $mediaUri);
+
+        // media:content — look for image entries
+        $mediaContents = $element->xpath('media:content');
+        if ($mediaContents) {
+            foreach ($mediaContents as $mc) {
+                $url = (string) $mc['url'];
+                if ($url === '') {
+                    continue;
+                }
+                $medium = (string) $mc['medium'];
+                $type = (string) $mc['type'];
+                if ($medium === 'image'
+                    || ($medium === '' && str_starts_with($type, 'image/'))
+                    || ($medium === '' && $type === '' && $this->looksLikeImageUrl($url))
+                ) {
+                    return $url;
+                }
+            }
+        }
+
+        // media:thumbnail fallback
+        $thumbnails = $element->xpath('media:thumbnail');
+        if ($thumbnails) {
+            foreach ($thumbnails as $thumb) {
+                $url = (string) $thumb['url'];
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
