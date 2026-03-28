@@ -8,7 +8,6 @@
                  data-controller="content--event-fetch"
                  data-content--event-fetch-topic-value="/event-fetch/{{ lookupKey }}"
                  data-content--event-fetch-reload-url-value="{{ path('nevent', { nevent: nevent }) }}"
-                 data-content--event-fetch-status-url-value="{{ path('api_event_fetch_status', { lookupKey: lookupKey }) }}"
                  data-content--event-fetch-timeout-value="30000">
 
             {# ── Loading state (shown initially) ── #}
@@ -16,16 +15,29 @@
                 <div class="spinner">
                     <div class="lds-dual-ring"></div>
                 </div>
-                <h2 class="h5 mt-3">Fetching event from relays…</h2>
-                <p class="text-muted">This may take a few seconds while we search the Nostr network.</p>
+                {% if hasRelayHints|default(false) %}
+                    <h2 class="h5 mt-3" data-content--event-fetch-target="statusHeading">Searching the Nostr network…</h2>
+                    <p class="text-muted" data-content--event-fetch-target="statusDetail">The event wasn't found in the database or on the suggested relays. Expanding the search to additional relays.</p>
+                {% else %}
+                    <h2 class="h5 mt-3" data-content--event-fetch-target="statusHeading">Searching relays for this event…</h2>
+                    <p class="text-muted" data-content--event-fetch-target="statusDetail">The event is not in our database. Querying the Nostr network — this may take a few seconds.</p>
+                {% endif %}
+
+                {# ── Slow-search message (hidden, shown after delay) ── #}
+                <div class="event-loading__slow-notice" data-content--event-fetch-target="slowNotice" style="display:none;">
+                    <p class="text-muted">
+                        <strong>Still searching…</strong> This is taking longer than usual.
+                        The event may be on relays that are slow to respond.
+                    </p>
+                </div>
             </div>
 
             {# ── Not-found state (hidden until timeout or explicit "not_found") ── #}
             <div class="event-loading__not-found" data-content--event-fetch-target="notFound" style="display:none;">
                 <div class="notice info mt-4">
-                    <h3 class="h5 mb-2">⚠ Event not found on relays</h3>
+                    <h3 class="h5 mb-2">⚠ Event not found</h3>
                     <p>
-                        The event could not be found on the relays we checked.
+                        The event could not be found on any of the relays we checked.
                         It may have been deleted, or the relays may be temporarily unavailable.
                     </p>
                 </div>
@@ -38,5 +50,3 @@
         </section>
     </div>
 {% endblock %}
-
-

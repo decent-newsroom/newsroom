@@ -21,7 +21,6 @@ final class FetchEventFromRelaysHandler
         private readonly EventRepository $eventRepository,
         private readonly GenericEventProjector $genericEventProjector,
         private readonly HubInterface $hub,
-        private readonly \Redis $redis,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -48,7 +47,6 @@ final class FetchEventFromRelaysHandler
             $this->logger->info('Event already in DB, skipping relay fetch', [
                 'lookup_key' => $message->lookupKey,
             ]);
-            $this->recordResult($message->lookupKey, 'found');
             $this->publishResult($message->lookupKey, 'found', $event->getId());
             return;
         }
@@ -79,7 +77,6 @@ final class FetchEventFromRelaysHandler
             $this->logger->info('Event not found on relays', [
                 'lookup_key' => $message->lookupKey,
             ]);
-            $this->recordResult($message->lookupKey, 'not_found');
             $this->publishResult($message->lookupKey, 'not_found');
             return;
         }
@@ -94,33 +91,16 @@ final class FetchEventFromRelaysHandler
                 'lookup_key' => $message->lookupKey,
                 'event_id' => $persisted->getId(),
             ]);
-            $this->recordResult($message->lookupKey, 'found');
             $this->publishResult($message->lookupKey, 'found', $persisted->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Failed to persist fetched event', [
                 'lookup_key' => $message->lookupKey,
                 'error' => $e->getMessage(),
             ]);
-            $this->recordResult($message->lookupKey, 'error');
             $this->publishResult($message->lookupKey, 'error');
         }
     }
 
-    /**
-     * Store result in Redis so the polling status endpoint can respond.
-     */
-    private function recordResult(string $lookupKey, string $status): void
-    {
-        try {
-            $key = sprintf('event_fetch:%s', $lookupKey);
-            $this->redis->setex($key, 300, json_encode([
-                'status' => $status,
-                'timestamp' => time(),
-            ]));
-        } catch (\Throwable) {
-            // Best-effort — don't break the handler
-        }
-    }
 
     /**
      * Publish a Mercure update so the browser reacts instantly.

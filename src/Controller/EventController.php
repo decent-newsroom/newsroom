@@ -9,6 +9,8 @@ use App\Enum\KindsEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\GenericEventProjector;
+use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use Exception;
 use nostriphant\NIP19\Bech32;
@@ -45,7 +47,8 @@ class EventController extends AbstractController
     public function index($nevent, \Symfony\Component\HttpFoundation\Request $request,
                           RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser,
                           LoggerInterface $logger, EventRepository $eventRepository,
-                          MessageBusInterface $messageBus): Response
+                          MessageBusInterface $messageBus, NostrClient $nostrClient,
+                          GenericEventProjector $genericEventProjector): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -64,16 +67,16 @@ class EventController extends AbstractController
                 case 'note':
                     // Handle note (regular event) - check DB first
                     $eventId = $data->data;
-                    $logger->info('Looking up event in database', ['eventId' => $eventId]);
+                    $logger->info('Looking up note in database', ['eventId' => $eventId]);
 
                     $dbEvent = $eventRepository->findById($eventId);
                     if ($dbEvent) {
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // Dispatch async fetch and show loading page
+                        // No relay hints for notes — dispatch async fetch
                         $lookupKey = 'note:' . $eventId;
-                        $logger->info('Event not in database, dispatching async fetch', ['eventId' => $eventId]);
+                        $logger->info('Note not in database, dispatching async relay search', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'note',
@@ -82,6 +85,7 @@ class EventController extends AbstractController
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
+                            'hasRelayHints' => false,
                         ]);
                     }
                     break;
@@ -94,17 +98,42 @@ class EventController extends AbstractController
                 case 'nevent':
                     // Handle nevent identifier (event with additional metadata) - check DB first
                     $eventId = $data->id;
-                    $logger->info('Looking up event in database', ['eventId' => $eventId]);
+                    $relays = $data->relays ?? [];
+                    $logger->info('Looking up nevent in database', ['eventId' => $eventId]);
 
                     $dbEvent = $eventRepository->findById($eventId);
                     if ($dbEvent) {
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // Dispatch async fetch and show loading page
-                        $relays = $data->relays ?? [];
+                        // If relay hints exist, try them synchronously first
+                        if (!empty($relays)) {
+                            $logger->info('nevent not in database, querying hint relays synchronously', [
+                                'eventId' => $eventId,
+                                'relays' => $relays,
+                            ]);
+                            try {
+                                $rawEvent = $nostrClient->getEventById($eventId, $relays);
+                                if ($rawEvent !== null) {
+                                    $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                        $rawEvent,
+                                        $relays[0] ?? 'sync-hint-fetch',
+                                    );
+                                    $logger->info('Event found on hint relays and persisted', ['eventId' => $persisted->getId()]);
+                                    $event = $this->entityToObject($persisted);
+                                    break;
+                                }
+                            } catch (\Throwable $e) {
+                                $logger->warning('Hint relay fetch failed for nevent, falling back to async', [
+                                    'eventId' => $eventId,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+
+                        // Hint relays didn't have it (or none provided) — dispatch async broader search
                         $lookupKey = 'nevent:' . $eventId;
-                        $logger->info('Event not in database, dispatching async fetch', ['eventId' => $eventId]);
+                        $logger->info('Dispatching async relay search for nevent', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'nevent',
@@ -114,32 +143,72 @@ class EventController extends AbstractController
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
+                            'hasRelayHints' => !empty($relays),
                         ]);
                     }
                     break;
 
                 case 'naddr':
                     // Handle naddr (parameterized replaceable event) - check DB first
-                    $logger->info('Looking up naddr event in database', [
+                    $relays = $data->relays ?? [];
+                    $logger->info('Looking up naddr in database', [
                         'kind' => $data->kind,
                         'pubkey' => $data->pubkey,
-                        'identifier' => $data->identifier
+                        'identifier' => $data->identifier,
                     ]);
 
                     $dbEvent = $eventRepository->findByNaddr($data->kind, $data->pubkey, $data->identifier);
                     if ($dbEvent) {
                         $logger->info('Event found in database', [
                             'eventId' => $dbEvent->getId(),
-                            'kind' => $data->kind
+                            'kind' => $data->kind,
                         ]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // Dispatch async fetch and show loading page
-                        $relays = $data->relays ?? [];
+                        // If relay hints exist, query them synchronously (high hit rate expected)
+                        if (!empty($relays)) {
+                            $logger->info('naddr not in database, querying hint relays synchronously', [
+                                'kind' => $data->kind,
+                                'pubkey' => $data->pubkey,
+                                'identifier' => $data->identifier,
+                                'relays' => $relays,
+                            ]);
+                            try {
+                                $rawEvent = $nostrClient->getEventByNaddr([
+                                    'kind' => $data->kind,
+                                    'pubkey' => $data->pubkey,
+                                    'identifier' => $data->identifier,
+                                    'relays' => $relays,
+                                ]);
+                                if ($rawEvent !== null) {
+                                    $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                        $rawEvent,
+                                        $relays[0] ?? 'sync-hint-fetch',
+                                    );
+                                    $logger->info('Event found on hint relays and persisted', [
+                                        'eventId' => $persisted->getId(),
+                                        'kind' => $data->kind,
+                                    ]);
+                                    $event = $this->entityToObject($persisted);
+                                    break;
+                                }
+                            } catch (\Throwable $e) {
+                                $logger->warning('Hint relay fetch failed for naddr, falling back to async', [
+                                    'kind' => $data->kind,
+                                    'pubkey' => $data->pubkey,
+                                    'identifier' => $data->identifier,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+
+                        // No relay hints, or hint relays didn't have it — dispatch async broader search
                         $lookupKey = sprintf('naddr:%d:%s:%s', $data->kind, $data->pubkey, $data->identifier);
-                        $logger->info('Event not in database, dispatching async fetch', [
+                        $logger->info('Dispatching async relay search for naddr', [
                             'kind' => $data->kind,
+                            'pubkey' => $data->pubkey,
                             'identifier' => $data->identifier,
+                            'hasRelayHints' => !empty($relays),
                         ]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
@@ -152,6 +221,7 @@ class EventController extends AbstractController
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
+                            'hasRelayHints' => !empty($relays),
                         ]);
                     }
 

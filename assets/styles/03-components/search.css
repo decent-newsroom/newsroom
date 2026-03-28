@@ -12,3 +12,41 @@
     margin-bottom: 1rem;
 }
 
+/* Inline status message shown below search input for Nostr lookups */
+.search-status {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: 1.4;
+}
+
+.search-status--info {
+    color: var(--color-info, #2563eb);
+    background: var(--color-info-bg, rgba(37, 99, 235, 0.08));
+    border-left: 3px solid var(--color-info, #2563eb);
+}
+
+.search-status--error {
+    color: var(--color-error, #dc2626);
+    background: var(--color-error-bg, rgba(220, 38, 38, 0.08));
+    border-left: 3px solid var(--color-error, #dc2626);
+}
+
+/* Event loading page — slow notice */
+.event-loading__slow-notice {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--color-info-bg, rgba(37, 99, 235, 0.08));
+    border-left: 3px solid var(--color-info, #2563eb);
+    animation: fadeInSlowNotice 0.4s ease-out;
+}
+
+.event-loading__slow-notice p {
+    margin: 0;
+    font-size: var(--font-size-sm, 0.875rem);
+}
+
+@keyframes fadeInSlowNotice {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}

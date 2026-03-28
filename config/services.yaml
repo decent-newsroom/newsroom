@@ -160,6 +160,13 @@ services:
         arguments:
             $redis: '@Redis'
 
+    # Mercure Admin Service — hub diagnostics for admin dashboard
+    App\Service\Admin\MercureAdminService:
+        arguments:
+            $mercureUrl: '%env(MERCURE_URL)%'
+            $mercurePublicUrl: '%env(MERCURE_PUBLIC_URL)%'
+            $mercureJwtSecret: '%env(MERCURE_JWT_SECRET)%'
+
     # Relay Gateway Client — Redis Streams interface to the gateway process
     App\Service\Nostr\RelayGatewayClient:
         arguments:

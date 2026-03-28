@@ -2,8 +2,9 @@
         {% if interactive %}
         <form
             class="mb-5"
+            data-controller="search--nostr-redirect"
             data-live-action-param="search"
-            data-action="live#action:prevent">
+            data-action="submit->search--nostr-redirect#submit live#action:prevent">
             <label class="search">
                 <input type="search"
                        placeholder="{{ 'text.search'|trans }}"
@@ -11,6 +12,7 @@
                        value="{{ this.query }}"
                        data-controller="search--search-broadcast"
                        data-action="input->search--search-broadcast#onInput"
+                       data-search--nostr-redirect-target="input"
                 />
                 <button type="submit"><twig:ux:icon name="iconoir:search" class="icon" /></button>
             </label>

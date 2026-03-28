@@ -1,0 +1,272 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mercure Administration{% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Mercure"
+    tagline="real-time SSE hub"
+/>
+
+<div class="w-container"
+     data-controller="ui--mercure-admin"
+     data-ui--mercure-admin-csrf-value="{{ csrf_token('mercure_test') }}"
+     data-ui--mercure-admin-test-publish-url-value="{{ path('admin_mercure_test_publish') }}"
+     data-ui--mercure-admin-test-connectivity-url-value="{{ path('admin_mercure_test_connectivity') }}"
+     data-ui--mercure-admin-subscriptions-url-value="{{ path('admin_mercure_subscriptions') }}"
+>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# ── Hub Status ── #}
+    <div class="status-grid">
+        <div class="status-card">
+            <h2>Hub Connectivity</h2>
+
+            <div class="stat-row">
+                <span class="stat-label">Internal URL</span>
+                <span class="stat-value" style="font-family:monospace; font-size:0.85rem;">{{ config.internal_url }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Public URL</span>
+                <span class="stat-value" style="font-family:monospace; font-size:0.85rem;">{{ config.public_url }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Hub Reachable</span>
+                <span class="stat-value" data-ui--mercure-admin-target="connectivityStatus">
+                    {% if connectivity.reachable %}
+                        <span class="status-indicator healthy"></span> Yes (HTTP {{ connectivity.status_code }}, {{ connectivity.latency_ms }}ms)
+                    {% else %}
+                        <span class="status-indicator error"></span> No
+                        {% if connectivity.error %}<span style="font-size:0.8rem; color:var(--color-text-secondary);"> — {{ connectivity.error }}</span>{% endif %}
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">JWT Secret</span>
+                <span class="stat-value">
+                    {% if config.jwt_secret_set %}
+                        <span class="status-indicator healthy"></span> Configured
+                    {% else %}
+                        <span class="status-indicator error"></span> Not Set
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Anonymous Subscribers</span>
+                <span class="stat-value">{{ config.anonymous_subscribers ? 'Enabled' : 'Disabled' }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Subscriptions API</span>
+                <span class="stat-value">{{ config.subscriptions_api ? 'Enabled' : 'Disabled' }}</span>
+            </div>
+
+            <div style="margin-top:1rem;">
+                <button type="button"
+                        class="btn btn-sm"
+                        data-action="ui--mercure-admin#testConnectivity"
+                        data-ui--mercure-admin-target="connectivityBtn">
+                    Re-test Connectivity
+                </button>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h2>Transport (BoltDB)</h2>
+
+            <div class="stat-row">
+                <span class="stat-label">Database File</span>
+                <span class="stat-value" style="font-family:monospace; font-size:0.85rem;">{{ bolt_db.path }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">File Exists</span>
+                <span class="stat-value">
+                    {% if bolt_db.exists %}
+                        <span class="status-indicator healthy"></span> Yes
+                    {% else %}
+                        <span class="status-indicator error"></span> No
+                    {% endif %}
+                </span>
+            </div>
+
+            {% if bolt_db.exists %}
+            <div class="stat-row">
+                <span class="stat-label">File Size</span>
+                <span class="stat-value">{{ bolt_db.size_human }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Last Modified</span>
+                <span class="stat-value">{{ bolt_db.modified_at }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Age</span>
+                <span class="stat-value">
+                    {% if bolt_db.age_seconds < 60 %}
+                        {{ bolt_db.age_seconds }}s ago
+                        <span class="status-indicator healthy"></span>
+                    {% elseif bolt_db.age_seconds < 300 %}
+                        {{ (bolt_db.age_seconds / 60)|round }}m ago
+                        <span class="status-indicator warning"></span>
+                    {% else %}
+                        {{ (bolt_db.age_seconds / 60)|round }}m ago
+                        <span class="status-indicator error"></span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="stat-row">
+                <span class="stat-label">Cleanup Frequency</span>
+                <span class="stat-value">{{ config.cleanup_frequency }}s</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Write Timeout</span>
+                <span class="stat-value">{{ config.write_timeout }}</span>
+            </div>
+
+            <div class="stat-row">
+                <span class="stat-label">Dispatch Timeout</span>
+                <span class="stat-value">{{ config.dispatch_timeout }}</span>
+            </div>
+        </div>
+    </div>
+
+    {# ── Publish Test ── #}
+    <div class="status-card" style="margin-top:2rem;">
+        <h2>Publish Test</h2>
+        <p style="font-size:0.875rem; color:var(--color-text-secondary); margin-bottom:1rem;">
+            Send a test message to the Mercure hub. Enter a topic or use the default.
+        </p>
+
+        <div style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;">
+                <label for="mercure-test-topic" style="display:block; font-size:0.8rem; margin-bottom:0.25rem; color:var(--color-text-secondary);">Topic</label>
+                <input type="text"
+                       id="mercure-test-topic"
+                       value="/test/admin-ping"
+                       placeholder="/test/admin-ping"
+                       style="width:100%; padding:0.5rem; font-family:monospace; font-size:0.875rem; border:1px solid var(--color-border); background:var(--color-bg); color:var(--color-text);"
+                       data-ui--mercure-admin-target="topicInput">
+            </div>
+            <button type="button"
+                    class="btn btn-sm"
+                    data-action="ui--mercure-admin#publishTest"
+                    data-ui--mercure-admin-target="publishBtn">
+                Publish Test Message
+            </button>
+        </div>
+
+        <div data-ui--mercure-admin-target="publishResult" style="margin-top:1rem; display:none;">
+        </div>
+
+        {# SSE listener for test messages #}
+        <div style="margin-top:1rem; padding:1rem; background:var(--color-bg-light);">
+            <h3 style="font-size:0.9rem; margin-bottom:0.5rem;">SSE Listener</h3>
+            <p style="font-size:0.8rem; color:var(--color-text-secondary); margin-bottom:0.5rem;">
+                Persistently subscribed to the topic above. Messages received via SSE appear here in real-time.
+            </p>
+            <div data-ui--mercure-admin-target="sseStatus" style="font-size:0.8rem; margin-bottom:0.5rem;">
+                <span class="status-indicator warning"></span> Connecting…
+            </div>
+            <div data-ui--mercure-admin-target="sseMessages"
+                 style="max-height:200px; overflow-y:auto; font-family:monospace; font-size:0.8rem; padding:0.5rem; border:1px solid var(--color-border); background:var(--color-bg);">
+                <span style="color:var(--color-text-secondary);">No messages yet.</span>
+            </div>
+        </div>
+    </div>
+
+    {# ── Active Subscriptions ── #}
+    <div class="status-card" style="margin-top:2rem;">
+        <h2>
+            Active Subscriptions
+            <button type="button"
+                    class="btn btn-sm"
+                    style="margin-left:1rem; font-size:0.75rem;"
+                    data-action="ui--mercure-admin#refreshSubscriptions"
+                    data-ui--mercure-admin-target="subsRefreshBtn">
+                Refresh
+            </button>
+        </h2>
+
+        <div data-ui--mercure-admin-target="subscriptionsContainer">
+            {% if not subscriptions.available %}
+                <div class="alert" style="padding:0.75rem; background:var(--color-bg-light); font-size:0.875rem;">
+                    <span class="status-indicator error"></span>
+                    Subscriptions API unavailable{% if subscriptions.error %}: {{ subscriptions.error }}{% endif %}
+                </div>
+            {% elseif subscriptions.total == 0 %}
+                <p style="color:var(--color-text-secondary); font-size:0.875rem;">No active subscriptions.</p>
+            {% else %}
+                <div class="stat-row" style="margin-bottom:1rem;">
+                    <span class="stat-label">Total Active</span>
+                    <span class="stat-value" style="font-weight:600;">{{ subscriptions.total }}</span>
+                </div>
+
+                {% if subscriptions.by_topic|default([])|length > 0 %}
+                <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border);">Topic</th>
+                            <th style="text-align:right; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border);">Subscribers</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for topic, count in subscriptions.by_topic %}
+                        <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                            <td style="padding:0.4rem 0.75rem; font-family:monospace; font-size:0.8rem; word-break:break-all;">{{ topic }}</td>
+                            <td style="padding:0.4rem 0.75rem; text-align:right;">{{ count }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Known Topic Patterns ── #}
+    <div class="status-card" style="margin-top:2rem;">
+        <h2>Known Topic Patterns</h2>
+        <p style="font-size:0.8rem; color:var(--color-text-secondary); margin-bottom:1rem;">
+            Topic patterns registered in the application codebase.
+        </p>
+
+        <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border);">Pattern</th>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border);">Description</th>
+                    <th style="text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--color-border);">Publisher</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for topic in known_topics %}
+                <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                    <td style="padding:0.4rem 0.75rem; font-family:monospace; font-size:0.8rem;">{{ topic.pattern }}</td>
+                    <td style="padding:0.4rem 0.75rem;">{{ topic.description }}</td>
+                    <td style="padding:0.4rem 0.75rem; font-family:monospace; font-size:0.8rem;">{{ topic.publisher }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top:2rem; text-align:center;">
+        <a href="{{ path('admin_dashboard') }}" style="font-size:0.875rem;">← Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+

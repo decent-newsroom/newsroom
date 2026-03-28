@@ -147,6 +147,11 @@ search:
     heading: 'Search'
     tagline: 'for hidden gems'
     addToList: 'Add to list'
+    nostrLookup: 'Looking up event…'
+    nostrLookupRelays: 'Found %count% relay(s) in the address — looking up event…'
+    nostrLookupSlow: 'Still searching… This is taking longer than usual.'
+    nostrInvalidAddress: 'Invalid Nostr address — could not decode.'
+    nostrIncompleteAddress: 'Incomplete Nostr address — missing required fields.'
 
 # ── Highlights ────────────────────────────────────────────────────
 highlights:

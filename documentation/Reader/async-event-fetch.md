@@ -11,7 +11,19 @@ gateway timeouts.
 
 ## Solution
 
-Relay fetching is now **asynchronous**. When an event is not found locally:
+Relay fetching uses a **two-phase strategy**: synchronous hint relay lookup
+first, then async broader search as fallback.
+
+### Phase 1 — Synchronous hint relay lookup (naddr/nevent with relay hints)
+
+When the NIP-19 entity contains relay hints, those relays are queried
+**synchronously** in the controller because they have a high hit rate — the
+address was crafted with those relays for a reason. If found, the event is
+persisted and the page renders immediately with no loading screen.
+
+### Phase 2 — Async broader search (fallback)
+
+If no relay hints exist, or the hint relays didn't have the event:
 
 1. A `FetchEventFromRelaysMessage` is dispatched to the `async` Messenger
    transport.
@@ -35,7 +47,6 @@ Relay fetching is now **asynchronous**. When an event is not found locally:
 | Async handler | `src/MessageHandler/FetchEventFromRelaysHandler.php` |
 | Event controller | `src/Controller/EventController.php` |
 | Article controller | `src/Controller/Reader/ArticleController.php` |
-| Status API endpoint | `src/Controller/Api/EventFetchStatusController.php` |
 | Loading template | `templates/event/loading.html.twig` |
 | Stimulus controller | `assets/controllers/content/event_fetch_controller.js` |
 | Messenger routing | `config/packages/messenger.yaml` (`async` transport) |
@@ -48,32 +59,15 @@ The topic pattern is `/event-fetch/{lookupKey}` where `lookupKey` is:
 - `nevent:{eventId}` for events with relay hints
 - `note:{eventId}` for plain notes
 
-## Redis Status Key
+## Timeout Behaviour
 
-The handler stores the fetch result at `event_fetch:{lookupKey}` (5-minute TTL)
-so that subsequent page loads can check the status without re-dispatching.
+The Stimulus controller subscribes to a Mercure SSE topic. If no result arrives
+within 30 seconds, it attempts one page reload (in case the event was persisted
+but Mercure missed the update). If still on the loading page after reload, the
+"Not found" state is shown with a Retry button.
 
-## Polling Status Endpoint
-
-`GET /api/event-fetch-status/{lookupKey}` reads the Redis status key and returns
-JSON: `{ "status": "pending" | "found" | "not_found" | "error" }`.
-
-The Stimulus controller polls this endpoint every 3 seconds alongside Mercure
-SSE, providing a reliable fallback when SSE is misconfigured or unavailable.
-
-## Fallback Behaviour
-
-The Stimulus controller uses a two-tier fallback strategy:
-
-1. **Mercure SSE + polling** (default): subscribes to the Mercure topic AND polls
-   the status API endpoint every 3 seconds. Whichever responds first wins.
-2. **Polling only**: if the Mercure hub URL is missing, only the status API
-   endpoint is polled.
-3. **Timed reload**: if neither Mercure nor the status URL are available, falls
-   back to a simple timed reload after 8 seconds.
-
-After ~30 seconds with no result, the UI switches to a "Not found on relays"
-state with a Retry button.
+After ~6 seconds of waiting, a "still searching" notice is shown to keep the
+user informed.
 
 ## Production Mercure Configuration
 
@@ -102,4 +96,3 @@ If running behind a reverse proxy (nginx, Cloudflare, etc.), ensure:
 - **nevent** (NIP-01 events with relay hints)
 - **note** (plain event IDs)
 - **nprofile** — still a synchronous redirect (no relay fetch needed)
-
