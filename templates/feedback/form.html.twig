@@ -10,7 +10,7 @@
             "tags": [...recipients|map(r => ["p", r]), ['client', 'Decent Newsroom']],
             "content": ""
         }|json_encode(constant('JSON_UNESCAPED_SLASHES')) }}'
-              data-nostr--nostr-single-sign-publish-url-value="/api/nostr/publish"
+              data-nostr--nostr-single-sign-publish-url-value="{{ path('api_nostr_publish') }}"
               data-nostr--nostr-single-sign-csrf-token-value="{{ csrf_token('feedback') }}"
               data-action="submit->nostr--nostr-single-sign#signAndPublish">
             <div data-nostr--nostr-single-sign-target="status"></div>

@@ -1,0 +1,52 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Feedback Messages{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>Feedback Messages</h1>
+        <div class="admin-actions">
+            <a href="{{ path('admin_dashboard') }}" class="btn btn-sm btn-outline-primary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <p class="text-muted mb-3">Kind 24 events submitted via the <a href="{{ path('feedback_form') }}">/feedback</a> page.</p>
+
+    {% if feedbackEvents is empty %}
+        <div class="notice info">No feedback messages found.</div>
+    {% else %}
+        <table class="admin-articles-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>From</th>
+                    <th>Message</th>
+                    <th>Recipients</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in feedbackEvents %}
+                    {% set recipients = [] %}
+                    {% for tag in event.tags %}
+                        {% if tag[0] == 'p' and tag[1] is defined %}
+                            {% set recipients = recipients|merge([tag[1]]) %}
+                        {% endif %}
+                    {% endfor %}
+                    <tr>
+                        <td style="white-space:nowrap;">{{ event.createdAt|date('Y-m-d H:i', 'UTC') }} UTC</td>
+                        <td><twig:Molecules:UserFromNpub :ident="event.pubkey" /></td>
+                        <td style="max-width:480px; word-break:break-word;">{{ event.content }}</td>
+                        <td>
+                            {% for r in recipients %}
+                                <twig:Molecules:UserFromNpub :ident="r" />{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}
+
