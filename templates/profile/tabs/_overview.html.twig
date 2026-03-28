@@ -8,6 +8,13 @@
                         {% set magSlug = mag.slug|default(null) %}
                         {% if magSlug %}
                         <div class="card p-3 ln-section--reader">
+                            {% if mag.image|default(null) %}
+                                <div class="card-header m-0">
+                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
+                                        <img src="{{ mag.image }}" alt="{{ mag.title|default(magSlug) }}" loading="lazy">
+                                    </a>
+                                </div>
+                            {% endif %}
                             <div class="card-body text-center">
                                 <h2 class="card-title">
                                     <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">

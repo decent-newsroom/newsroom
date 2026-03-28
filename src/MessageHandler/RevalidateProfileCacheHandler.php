@@ -320,6 +320,7 @@ class RevalidateProfileCacheHandler
         return array_values(array_map(function (Event $event) {
             $title = null;
             $summary = null;
+            $image = null;
             foreach ($event->getTags() as $tag) {
                 if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
                     $title = $tag[1];
@@ -327,11 +328,15 @@ class RevalidateProfileCacheHandler
                 if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
                     $summary = $tag[1];
                 }
+                if (($tag[0] ?? '') === 'image' && isset($tag[1])) {
+                    $image = $tag[1];
+                }
             }
             return [
                 'slug' => $event->getSlug(),
                 'title' => $title,
                 'summary' => $summary,
+                'image' => $image,
             ];
         }, $bySlug));
     }

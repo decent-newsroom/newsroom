@@ -8,6 +8,7 @@
 - [Bug] Fixed incomplete articles (missing slug or title) appearing as "Article Not Yet Available" placeholders in the latest articles list, discover page, and home feed. Added empty-string checks to the cache-building query, all three Redis-reading controller paths, and the CardList template (which now silently skips incomplete items instead of rendering a placeholder card).
 - Added `ROLE_RSS` role: users with this role can access the RSS administration page (`/admin/rss`) to import articles from RSS feeds without requiring full admin privileges. Added an "RSS Managers" section to the admin roles page (`/admin/role`) with add/remove forms for granting this role to any npub. The role can also be assigned via CLI with `user:elevate npub1... ROLE_RSS`.
 - [Bug] Fixed RSS-imported articles not appearing in author profiles, discover page, or search results. The RSS publish endpoint was only persisting events to the `event` table via `GenericEventProjector` but not to the `article` table. Added `ArticleEventProjector::projectArticleFromEvent()` call for kind 30023/30024 events so they are properly indexed, HTML-processed, and visible across the application.
+- [Bug] Fixed magazine cards in the profile overview tab missing cover images. The template was not rendering the image block. Also added the `image` field to the fallback Event-to-array conversion in both the controller and the background cache revalidation handler so cover images are available regardless of data source.
 
 
 
