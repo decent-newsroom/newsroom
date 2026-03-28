@@ -3,6 +3,7 @@
 ## v0.0.25
 
 - [Bug] Fixed highlights page showing very few results due to compounding filters: deduplication now keeps one highlight per article per author (was one per article); the kind filter now accepts all addressable event types including publications (kind 30041), not just articles (kind 30023); the relay fetch window was widened from 30 to 90 days; and all pipeline limits (relay fetch, cron, cache, display) were raised from 50–100 to 200.
+- [Bug] Fixed incomplete articles (missing slug or title) appearing as "Article Not Yet Available" placeholders in the latest articles list, discover page, and home feed. Added empty-string checks to the cache-building query, all three Redis-reading controller paths, and the CardList template (which now silently skips incomplete items instead of rendering a placeholder card).
 
 
 

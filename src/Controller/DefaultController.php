@@ -235,6 +235,10 @@ class DefaultController extends AbstractController
                     if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
                         continue;
                     }
+                    // Skip articles without slug or title (incomplete records)
+                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
+                        continue;
+                    }
                     $articles[] = (object) $baseObject['article']; // Cast to object for template
                 }
                 if (isset($baseObject['profiles'])) {
@@ -346,6 +350,10 @@ class DefaultController extends AbstractController
                     // Skip articles from user-muted pubkeys
                     $articlePubkey = $baseObject['article']['pubkey'] ?? null;
                     if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                        continue;
+                    }
+                    // Skip articles without slug or title (incomplete records)
+                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
                         continue;
                     }
                     $articles[] = (object) $baseObject['article'];

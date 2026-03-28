@@ -68,7 +68,9 @@ class CacheLatestArticlesCommand extends Command
         $qb = $this->articleRepository->createQueryBuilder('a');
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
+            ->andWhere("a.slug != ''")
             ->andWhere('a.title IS NOT NULL')
+            ->andWhere("a.title != ''")
             ->andWhere('a.kind != :draftKind')
             ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT);
 

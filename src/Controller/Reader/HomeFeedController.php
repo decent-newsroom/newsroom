@@ -84,6 +84,10 @@ class HomeFeedController extends AbstractController
                     if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
                         continue;
                     }
+                    // Skip articles without slug or title (incomplete records)
+                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
+                        continue;
+                    }
                     $articles[] = (object) $baseObject['article'];
                 }
                 if (isset($baseObject['profiles'])) {
