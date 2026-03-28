@@ -2,6 +2,7 @@
 
 ## v0.0.24
 
+- Added "Copy npub" button to author profile pages, allowing users to copy the author's npub to the clipboard with one click.
 - Implemented RSS administration page (`/admin/rss`): fetch any RSS or Atom feed URL, preview articles with duplicate detection (already-imported items are dimmed), select/deselect articles, then review and batch-sign them as Nostr kind 30023 longform events via the user's Nostr signer. Signed events are persisted locally and published to the user's write relays. Includes per-article progress tracking and relay result feedback.
 - Added Mercure administration page (`/admin/mercure`): shows hub configuration, connectivity test, BoltDB transport status, active SSE subscriptions grouped by topic, a publish-test tool with live SSE listener, and a registry of all known topic patterns used in the application.
 - [Bug] Fixed Mercure SSE connections cycling every 3–4 seconds across the entire app (comments, author content, curation, chat). Two causes: (1) `encode gzip` in the Caddyfile wrapped Mercure SSE responses, and the gzip buffering broke streaming — SSE data was flushed as completed HTTP responses instead of held open; (2) no `heartbeat_interval` was configured, so idle connections were closed by Docker/proxy networking before the default 40 s heartbeat fired. Fix: exclude `/.well-known/mercure*` from gzip encoding, add `heartbeat_interval 15s`, remove the overly aggressive `write_timeout 10s` and `dispatch_timeout 5s`.

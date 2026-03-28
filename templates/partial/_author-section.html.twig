@@ -31,6 +31,12 @@
             />
         {% endif %}
     {% endif %}
+    <div class="mt-1"
+         data-controller="utility--copy-to-clipboard"
+         data-utility--copy-to-clipboard-text-value="{{ npub }}">
+        <button class="btn btn-sm btn-secondary"
+                data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy npub</button>
+    </div>
     <div class="mt-2">
         {% if author.about is defined and author.about %}
             {{ author.about|markdown_to_html|mentionify|linkify  }}
