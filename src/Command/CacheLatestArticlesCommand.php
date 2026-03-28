@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Article;
+use App\Enum\KindsEnum;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
@@ -67,7 +68,9 @@ class CacheLatestArticlesCommand extends Command
         $qb = $this->articleRepository->createQueryBuilder('a');
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
-            ->andWhere('a.title IS NOT NULL');
+            ->andWhere('a.title IS NOT NULL')
+            ->andWhere('a.kind != :draftKind')
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT);
 
         if (!empty($excludedPubkeys)) {
             $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))

@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Article;
+use App\Enum\KindsEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\ParameterType;
@@ -29,6 +30,8 @@ class ArticleRepository extends ServiceEntityRepository
         $qb->where('a.publishedAt IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
             ->andWhere('a.title IS NOT NULL')
+            ->andWhere('a.kind != :draftKind')
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
             ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
             ->setParameter('slugPattern', '%/%')
             ->orderBy('a.createdAt', 'DESC')
@@ -199,6 +202,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->setParameter('pubkeys', $pubkeys)
             ->andWhere('a.title IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
+            ->andWhere('a.kind != :draftKind')
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults($limit * 2); // overfetch for deduplication
 

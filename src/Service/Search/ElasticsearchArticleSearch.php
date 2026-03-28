@@ -3,11 +3,13 @@
 namespace App\Service\Search;
 
 use App\Entity\Article;
+use App\Enum\KindsEnum;
 use Elastica\Aggregation\Filters as FiltersAgg;
 use Elastica\Index;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MultiMatch;
+use Elastica\Query\Term;
 use Elastica\Query\Terms;
 use FOS\ElasticaBundle\Finder\FinderInterface;
 use Psr\Log\LoggerInterface;
@@ -168,6 +170,9 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
 
         try {
             $boolQuery = new BoolQuery();
+
+            // Exclude drafts (kind 30024)
+            $boolQuery->addMustNot(new Term(['kind' => KindsEnum::LONGFORM_DRAFT->value]));
 
             if (!empty($excludedPubkeys)) {
                 $boolQuery->addMustNot(new Terms('pubkey', $excludedPubkeys));

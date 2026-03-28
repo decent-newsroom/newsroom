@@ -2,6 +2,7 @@
 
 ## v0.0.24
 
+- [Bug] Fixed latest articles showing drafts (kind 30024). The cache command, database fallback, and Elasticsearch queries were missing a kind filter, so draft articles appeared alongside published ones in the latest articles feed, discover page, and follows feed.
 - Highlights from external sources (articles not in the local database) are now shown on the highlights page. Previously, highlights referencing articles only available on remote relays were silently dropped. Now a minimal article view is built from the highlight's article coordinate, and the article author's profile is fetched from the metadata cache for display.
 - [Bug] Fixed pagination not appearing on forum topic pages. The Elasticsearch `findByTopics` query was missing `collapse` on the `slug` field, so the same article matched by multiple tags consumed multiple slots in the 200-result limit. After controller-side deduplication, too few unique articles remained to trigger the >1-page threshold. Added slug collapse (matching `findByTag` behaviour) and `DISTINCT`/`ORDER BY`/`LIMIT` to the database implementation.
 
