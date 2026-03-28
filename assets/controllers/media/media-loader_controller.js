@@ -15,6 +15,10 @@ export default class extends Controller {
 
     connect() {
         this.isLoading = false;
+        // Use explicit grid target or fall back to .masonry-grid inside this element
+        this._grid = this.hasGridTarget
+            ? this.gridTarget
+            : this.element.querySelector('.masonry-grid');
     }
 
     async loadMore() {
@@ -32,13 +36,13 @@ export default class extends Controller {
             // Add new media items to the grid
             data.events.forEach(event => {
                 const item = this.createMediaItem(event);
-                this.gridTarget.insertAdjacentHTML('beforeend', item);
+                this._grid.insertAdjacentHTML('beforeend', item);
             });
 
             this.pageValue++;
 
             // Update status
-            const currentCount = this.gridTarget.querySelectorAll('.masonry-item').length;
+            const currentCount = this._grid.querySelectorAll('.masonry-item').length;
             this.statusTarget.textContent = `Showing ${currentCount} of ${data.total} media items`;
 
             // Hide button if no more items

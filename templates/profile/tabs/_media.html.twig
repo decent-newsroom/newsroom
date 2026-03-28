@@ -1,13 +1,19 @@
 <turbo-frame id="profile-tab-content">
-    <div class="w-container media-container">
+    <div class="w-container media-container"
+         data-controller="media--media-loader"
+         data-media--media-loader-npub-value="{{ npub }}"
+         data-media--media-loader-page-value="2"
+         data-media--media-loader-total-value="{{ totalMedia|default(0) }}">
         {% if mediaEvents|default([])|length > 0 %}
             {% include 'partial/_masonry.html.twig' %}
+
+            <div data-media--media-loader-target="status" class="media-status"></div>
 
             {% if hasMore|default(false) %}
                 <div class="load-more">
                     <button class="btn btn-secondary"
-                            data-action="click->content--author-media#loadMore"
-                            data-npub="{{ npub }}">
+                            data-media--media-loader-target="button"
+                            data-action="click->media--media-loader#loadMore">
                         Load more
                     </button>
                 </div>
