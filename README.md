@@ -1,5 +1,7 @@
 # Decent Newsroom
 
+Live at [Decent Newsroom](https://decentnewsroom.com).
+
 ## Intro
 Decentralised Newsroom is a platform for the creation, publishing, and discovery of mixed-media collaborative journals. 
 
@@ -9,7 +11,25 @@ This project is a decentralised digital alternative.
 A lot of talented creators have found their opportunity in the handful of platforms available,
 but there is synergy in collaboration that has been lost in the transition.
 
-Let's bring back high-value professional journalism and collaborative publishing. 
+Let's bring back high-value professional journalism and collaborative publishing.
+
+## 📚 Documentation
+
+> **📖 [Complete Documentation Index](DOCS-INDEX.md)** - All documentation organized by topic and role
+
+### Quick Start
+
+- 🚀 **[Getting Started Guide](GETTING-STARTED.md)** - For readers, writers, and publishers
+- ⭐ **[Features Overview](FEATURES.md)** - Complete feature documentation
+- ❓ **[FAQ](FAQ.md)** - Frequently asked questions
+- 🔖 **[Quick Reference](QUICK-REFERENCE.md)** - Commands and common tasks
+
+### Technical Docs
+
+- 🏗️ **[Architecture Overview](ARCHITECTURE.md)** - System design and data flow
+- 💻 **[Developer Guide](DEVELOPER-GUIDE.md)** - Contributing and extending
+- ⚙️ **[Setup Guide](docs/SETUP.md)** - Installation and deployment
+- 📂 **[Internal Documentation](documentation/INDEX.md)** - Detailed technical docs 
 
 
 ## Constituent parts
@@ -125,8 +145,11 @@ The project includes a private read-only Nostr relay (powered by strfry) that ac
 
 ## Documentation
 
+- [Setup & Ops Docs Index](docs/INDEX.md) - Dockerized Symfony setup, deployment, troubleshooting
+- [Project / Feature Docs Index](documentation/INDEX.md) - Product & feature documentation
 - [Complete Setup Guide](docs/SETUP.md) - Local and production setup
 - [Production Deployment](docs/production.md) - Server preparation and deployment
 - [Relay Production Setup](docs/relay-production.md) - Nostr relay configuration
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
+> Note: documentation is being consolidated: setup/ops stays in `docs/`, while feature docs live in `documentation/` (one-file-per-feature). Old docs will be kept temporarily with pointers.
