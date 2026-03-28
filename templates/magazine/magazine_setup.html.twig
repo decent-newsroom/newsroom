@@ -86,6 +86,10 @@
             {{ form_row(form.language, {row_attr: {class: 'hidden'}}) }}
             {{ form_row(form.tags) }}
 
+            {% if form.zapSplitNpub is defined %}
+                {{ form_row(form.zapSplitNpub) }}
+            {% endif %}
+
             <div class="mt-3 d-flex flex-row gap-2 actions align-items-center">
                 <a class="btn btn-secondary" href="{{ path('mag_wizard_cancel') }}" data-action="click->ui--wizard-autosave#clearAll">Cancel</a>
                 <button class="btn btn-primary">Next: Categories →</button>

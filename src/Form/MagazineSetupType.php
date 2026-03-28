@@ -6,10 +6,12 @@ namespace App\Form;
 
 use App\Dto\MagazineDraft;
 use App\Form\DataTransformer\CommaSeparatedToArrayTransformer;
+use App\Util\NostrKeyUtil;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Magazine setup form — Step 1: basic magazine metadata only.
@@ -62,6 +64,36 @@ class MagazineSetupType extends AbstractType
             ])
         ;
 
+        if ($options['is_admin']) {
+            $builder->add('zapSplitNpub', TextType::class, [
+                'label' => 'Zap split recipient (npub)',
+                'required' => false,
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'npub1…',
+                ],
+                'help' => '100% of zaps on this magazine and its new categories will go to this npub.',
+                'constraints' => [
+                    new Assert\Callback(function ($value, $context) {
+                        if ($value === null || $value === '') {
+                            return;
+                        }
+                        if (!NostrKeyUtil::isNpub($value)) {
+                            $context->buildViolation('Must be a valid npub (starts with npub1).')
+                                ->addViolation();
+                            return;
+                        }
+                        try {
+                            NostrKeyUtil::npubToHex($value);
+                        } catch (\Throwable $e) {
+                            $context->buildViolation('Invalid npub: could not decode.')
+                                ->addViolation();
+                        }
+                    }),
+                ],
+            ]);
+        }
+
         $builder->get('tags')->addModelTransformer($this->transformer);
     }
 
@@ -69,6 +101,7 @@ class MagazineSetupType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => MagazineDraft::class,
+            'is_admin' => false,
         ]);
     }
 }

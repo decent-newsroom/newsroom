@@ -2,6 +2,7 @@
 
 ## v0.0.24
 
+- Added admin-only zap split field in the magazine setup wizard: admins can specify an npub that receives 100% of zaps on the magazine and any newly created categories within it. The zap tag is included in the signed Nostr events and preserved on edit.
 - Added "Copy npub" button to author profile pages, allowing users to copy the author's npub to the clipboard with one click.
 - [Bug] Fixed RSS feed `media:content` images not being detected as cover images. Root cause: feeds like Ghost declare both `xmlns:content` (for `content:encoded`) and `xmlns:media` (for `media:content`). SimpleXML's `$element->children($mediaUri)->content` property access confused the local name "content" with the `content` namespace prefix, silently returning nothing. Switched to XPath (`media:content`) which resolves namespaced elements unambiguously. Also moved namespace resolution to the document root via `getDocNamespaces(true)`, added `media:thumbnail` / `<enclosure type="image/*">` fallbacks, and extended image extraction to Atom feeds.
 - [Bug] Fixed RSS import leaking CSS, JavaScript, and embed markup into article Markdown. Ghost CMS feeds include `<style>`, `<script>`, HTML comments (`<!--kg-card-->`), and custom elements (`<lightning-widget>`) in `content:encoded`. The `strip_tags()` call removed the tags but left their text content (e.g. `span.small { font-size: smaller; }`). Added pre-processing to remove `<style>`, `<script>`, `<noscript>`, HTML comments, embed widgets, and non-content wrapper elements before Markdown conversion.

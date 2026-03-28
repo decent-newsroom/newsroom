@@ -17,6 +17,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
 use App\Service\UserRolePromoter;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
@@ -63,7 +64,9 @@ class MagazineWizardController extends AbstractController
             $draft = new MagazineDraft();
         }
 
-        $form = $this->createForm(MagazineSetupType::class, $draft);
+        $form = $this->createForm(MagazineSetupType::class, $draft, [
+            'is_admin' => $this->isGranted('ROLE_ADMIN'),
+        ]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $draft = $form->getData();
@@ -234,6 +237,17 @@ class MagazineWizardController extends AbstractController
 
         // Build event skeletons (without pubkey/sig/id); created_at client can adjust
         // Only for NEW categories (not existing lists)
+
+        // Resolve zap split npub to hex (admin-only feature)
+        $zapSplitHex = null;
+        if ($draft->zapSplitNpub) {
+            try {
+                $zapSplitHex = NostrKeyUtil::npubToHex($draft->zapSplitNpub);
+            } catch (\Throwable $e) {
+                $zapSplitHex = null;
+            }
+        }
+
         $categoryEvents = [];
         foreach ($draft->categories as $cat) {
             // Skip existing lists - they don't need new events
@@ -251,6 +265,9 @@ class MagazineWizardController extends AbstractController
             foreach ($cat->tags as $t) { $tags[] = ['t', $t]; }
             foreach ($cat->articles as $a) {
                 if (is_string($a) && $a !== '') { $tags[] = ['a', $a]; }
+            }
+            if ($zapSplitHex) {
+                $tags[] = ['zap', $zapSplitHex, '', '100'];
             }
             $categoryEvents[] = [
                 'kind' => 30040,
@@ -297,6 +314,11 @@ class MagazineWizardController extends AbstractController
                     $magTags[] = ['a', sprintf('30040:%s:%s', $pubkeyHex, $cat->slug)];
                 }
             }
+        }
+
+        // Add zap split to magazine event
+        if ($zapSplitHex) {
+            $magTags[] = ['zap', $zapSplitHex, '', '100'];
         }
 
         $magazineEvent = [
@@ -614,6 +636,18 @@ class MagazineWizardController extends AbstractController
         $draft->language = $this->getTagValue($tags, 'l');
         $draft->tags = $this->getAllTagValues($tags, 't');
         $draft->categories = [];
+
+        // Load zap split npub from existing magazine event (admin feature)
+        foreach ($tags as $t) {
+            if (is_array($t) && ($t[0] ?? null) === 'zap' && isset($t[1])) {
+                try {
+                    $draft->zapSplitNpub = NostrKeyUtil::hexToNpub((string)$t[1]);
+                } catch (\Throwable $e) {
+                    // If hex-to-npub conversion fails, skip
+                }
+                break; // Only take the first zap tag
+            }
+        }
 
         $magazinePubkey = $magEventData['pubkey'];
 

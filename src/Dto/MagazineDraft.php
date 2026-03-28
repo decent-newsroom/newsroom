@@ -19,5 +19,10 @@ class MagazineDraft
     #[Assert\Valid]
     public array $categories = [];
     public string $slug = '';
+
+    /**
+     * Admin-only: npub to receive 100% zap split on the magazine and its new categories.
+     */
+    public ?string $zapSplitNpub = null;
 }
 
