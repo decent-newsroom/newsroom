@@ -117,7 +117,7 @@ AssetMapper generates fingerprinted filenames (e.g., `app-abc123.js`), so assets
 
 **File:** `frankenphp/Caddyfile`
 
-Added `cleanup_frequency 5m` (was continuous) and `write_timeout 10s` / `dispatch_timeout 5s` to reduce Bolt DB disk I/O churn from the embedded Mercure hub.
+Added `cleanup_frequency 5m` (was continuous) to reduce Bolt DB disk I/O churn from the embedded Mercure hub. Added `heartbeat_interval 15s` to keep SSE connections alive through Docker networking and proxies. Removed `write_timeout 10s` / `dispatch_timeout 5s` — these caused premature subscriber disconnection and, combined with gzip buffering of SSE responses, produced a visible reconnect cycle every 3–4 seconds in browsers. The `encode gzip` directive now excludes `/.well-known/mercure*` paths so SSE streams are never buffered.
 
 ### 6. Memory Limit: 512M → 256M
 

@@ -61,7 +61,12 @@
 		root /app/public
 		# gzip only — zstd and brotli are CPU-heavy (brotli is 5-10× slower).
 		# If behind a reverse proxy, the proxy should handle compression instead.
-		encode gzip
+		# Exclude Mercure SSE paths — gzip buffering breaks streaming responses
+		# and causes EventSource connections to cycle every few seconds.
+		@notSse {
+			not path /.well-known/mercure*
+		}
+		encode @notSse gzip
 
 		mercure {
 			transport bolt {
@@ -76,8 +81,11 @@
 			anonymous
 			subscriptions
 			cors_origins {$MERCURE_CORS_ORIGINS:*}
-			write_timeout 10s
-			dispatch_timeout 5s
+
+			# Keep SSE connections alive through proxies and Docker networking.
+			# Without this, idle connections are closed before the default 40s
+			# heartbeat fires, causing visible reconnect cycling in browsers.
+			heartbeat_interval 15s
 
 			{$MERCURE_EXTRA_DIRECTIVES}
 		}
