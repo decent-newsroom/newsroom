@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## v0.0.24
+Styles, RSS import, and admin tools.
 
 - Added admin-only zap split field in the magazine setup wizard: admins can specify an npub that receives 100% of zaps on the magazine and any newly created categories within it. The zap tag is included in the signed Nostr events and preserved on edit.
 - Added "Copy npub" button to author profile pages, allowing users to copy the author's npub to the clipboard with one click.
