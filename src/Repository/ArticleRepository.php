@@ -153,29 +153,29 @@ class ArticleRepository extends ServiceEntityRepository
             $types[$key] = ParameterType::STRING;
         }
 
-        $sql = 'SELECT id FROM article WHERE ' . implode(' OR ', $wheres);
+        $sql = 'SELECT DISTINCT id, created_at FROM article WHERE ' . implode(' OR ', $wheres)
+             . ' ORDER BY created_at DESC';
 
-        $ids = $conn->fetchFirstColumn($sql, $params, $types);
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . (int) $limit;
+        }
+        if ($offset > 0) {
+            $sql .= ' OFFSET ' . (int) $offset;
+        }
+
+        $ids = array_column($conn->fetchAllAssociative($sql, $params, $types), 'id');
 
         if (empty($ids)) {
             return [];
         }
 
-        // Fetch the actual Article entities by ID, preserving order
+        // Fetch the actual Article entities by ID
         $qb = $this->createQueryBuilder('a');
         $qb->where($qb->expr()->in('a.id', ':ids'))
             ->setParameter('ids', $ids)
             ->orderBy('a.createdAt', 'DESC');
 
-        $articles = $qb->getQuery()->getResult();
-
-        // Preserve the original order from the native query
-        $idOrder = array_flip($ids);
-        usort($articles, function ($a, $b) use ($idOrder) {
-            return ($idOrder[$a->getId()] ?? 0) <=> ($idOrder[$b->getId()] ?? 0);
-        });
-
-        return $articles;
+        return $qb->getQuery()->getResult();
     }
 
     /**

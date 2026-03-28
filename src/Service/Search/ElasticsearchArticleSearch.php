@@ -119,6 +119,11 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             $mainQuery->setFrom($offset);
             $mainQuery->setSize($limit);
 
+            // Collapse on slug to get unique articles (same as findByTag)
+            $mainQuery->setParam('collapse', [
+                'field' => 'slug'
+            ]);
+
             return $this->finder->find($mainQuery);
         } catch (\Exception $e) {
             $this->logger->error('Elasticsearch findByTopics error: ' . $e->getMessage());
