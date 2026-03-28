@@ -223,6 +223,15 @@ class AdminRssController extends AbstractController
         $slug = $this->generateSlug($slugger, $item['title'] ?? '', $item['pubDate'] ?? null);
 
         $content = $item['content'] ?? $item['description'] ?? '';
+
+        // If we have a cover image, strip its <img> from the HTML content
+        // so it only appears in the ['image', url] tag, not duplicated in body
+        $coverImage = $item['image'] ?? null;
+        if ($coverImage && $content !== '') {
+            $escaped = preg_quote($coverImage, '/');
+            $content = preg_replace('/<img[^>]+src=["\']' . $escaped . '["\'][^>]*\/?>\s*/is', '', $content, 1);
+        }
+
         // Strip HTML for Nostr longform (markdown-ish)
         $content = $this->htmlToMarkdown($content);
 
