@@ -1,0 +1,110 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Review RSS Import | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard"
+     data-controller="nostr--rss-batch-sign"
+     data-nostr--rss-batch-sign-publish-url-value="{{ path('admin_rss_publish') }}"
+     data-nostr--rss-batch-sign-skeletons-value="{{ skeletons|json_encode|e('html_attr') }}">
+
+    <div class="admin-header">
+        <h1>Review &amp; Sign</h1>
+        <p class="eyebrow">
+            Review {{ skeletons|length }} article{{ skeletons|length != 1 ? 's' : '' }} from
+            {% if feedMeta and feedMeta.title %}
+                <strong>{{ feedMeta.title }}</strong>
+            {% else %}
+                the RSS feed
+            {% endif %}
+            before signing and publishing to Nostr relays.
+        </p>
+    </div>
+
+    {# Status area #}
+    <div data-nostr--rss-batch-sign-target="status" class="rss-batch-status"></div>
+
+    {# Progress bar #}
+    <div class="rss-progress-container" data-nostr--rss-batch-sign-target="progressContainer" style="display: none;">
+        <div class="rss-progress-bar">
+            <div class="rss-progress-fill" data-nostr--rss-batch-sign-target="progressFill"></div>
+        </div>
+        <div class="rss-progress-text" data-nostr--rss-batch-sign-target="progressText"></div>
+    </div>
+
+    {# Actions #}
+    <div class="rss-review-actions">
+        <button type="button"
+                class="btn btn-primary"
+                data-nostr--rss-batch-sign-target="signAllButton"
+                data-action="click->nostr--rss-batch-sign#signAll">
+            Sign &amp; Publish All ({{ skeletons|length }})
+        </button>
+        <a href="{{ path('admin_rss_index') }}" class="btn">← Back to Feed</a>
+    </div>
+
+    {# Article cards #}
+    <div class="rss-review-list">
+        {% for skeleton in skeletons %}
+            {% set meta = skeleton._meta %}
+            <div class="rss-review-card" data-nostr--rss-batch-sign-target="card" data-index="{{ loop.index0 }}">
+                <div class="rss-review-card-header">
+                    <div class="rss-review-card-status" data-nostr--rss-batch-sign-target="cardStatus" data-index="{{ loop.index0 }}">
+                        <span class="rss-status-badge rss-status-pending">pending</span>
+                    </div>
+                    <h3>{{ meta.title|default('Untitled') }}</h3>
+                </div>
+
+                {% if meta.image %}
+                    <img src="{{ meta.image }}" alt="" class="rss-review-card-image">
+                {% endif %}
+
+                <div class="rss-review-card-body">
+                    <p class="text-muted">{{ meta.description|default('')|slice(0, 300) }}{% if meta.description|default('')|length > 300 %}…{% endif %}</p>
+
+                    <div class="rss-review-card-meta">
+                        <span class="rss-review-slug">d-tag: <code>{{ meta.slug }}</code></span>
+                        {% if meta.link %}
+                            <a href="{{ meta.link }}" target="_blank" rel="noopener">original ↗</a>
+                        {% endif %}
+                    </div>
+
+                    {# Tags #}
+                    {% set tags = [] %}
+                    {% for tag in skeleton.tags %}
+                        {% if tag[0] == 't' %}
+                            {% set tags = tags|merge([tag[1]]) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if tags|length > 0 %}
+                        <div class="rss-article-tags">
+                            {% for t in tags %}
+                                <span class="rss-tag">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="rss-review-card-actions">
+                    <button type="button"
+                            class="btn btn-sm"
+                            data-action="click->nostr--rss-batch-sign#signSingle"
+                            data-nostr--rss-batch-sign-index-param="{{ loop.index0 }}">
+                        Sign &amp; Publish
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm"
+                            data-action="click->nostr--rss-batch-sign#togglePreview"
+                            data-nostr--rss-batch-sign-index-param="{{ loop.index0 }}">
+                        Preview JSON
+                    </button>
+                </div>
+
+                <div class="rss-review-card-preview" data-nostr--rss-batch-sign-target="preview" data-index="{{ loop.index0 }}" style="display: none;">
+                    <pre><code>{{ skeleton|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES'))|e }}</code></pre>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

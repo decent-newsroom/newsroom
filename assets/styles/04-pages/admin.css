@@ -183,3 +183,286 @@
     font-size: var(--font-size-sm);
     white-space: nowrap;
 }
+
+/* RSS Admin */
+.rss-fetch-form {
+    margin-bottom: var(--spacing-3);
+}
+
+.rss-fetch-row {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+.rss-url-input {
+    flex: 1;
+}
+
+.rss-feed-meta {
+    display: flex;
+    gap: var(--spacing-3);
+    align-items: flex-start;
+}
+
+.rss-feed-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+.rss-feed-details h3 {
+    margin: 0 0 var(--spacing-1) 0;
+}
+
+.rss-select-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    margin-bottom: var(--spacing-3);
+    flex-wrap: wrap;
+}
+
+.rss-articles-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.rss-article-item {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: flex-start;
+    padding: var(--spacing-2);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.rss-article-item:hover {
+    background-color: var(--color-bg-light);
+}
+
+.rss-article-item.rss-article-exists {
+    opacity: 0.6;
+}
+
+.rss-article-content {
+    display: flex;
+    gap: var(--spacing-2);
+    flex: 1;
+    min-width: 0;
+}
+
+.rss-article-thumb {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.rss-article-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.rss-article-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-1);
+}
+
+.rss-article-desc {
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    margin-bottom: var(--spacing-1);
+}
+
+.rss-article-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    font-size: var(--font-size-sm);
+    flex-wrap: wrap;
+}
+
+.rss-article-link {
+    white-space: nowrap;
+}
+
+.rss-article-tags {
+    display: flex;
+    gap: var(--spacing-1);
+    flex-wrap: wrap;
+    margin-top: var(--spacing-1);
+}
+
+.rss-tag {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    background-color: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    font-size: var(--font-size-xs);
+}
+
+.rss-badge {
+    display: inline-block;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.7rem;
+    margin-left: var(--spacing-1);
+    vertical-align: middle;
+}
+
+.rss-badge-exists {
+    background: var(--color-bg-light);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+.rss-submit-actions {
+    margin-top: var(--spacing-3);
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+/* RSS Review */
+.rss-batch-status {
+    margin-bottom: var(--spacing-2);
+}
+
+.rss-progress-container {
+    margin-bottom: var(--spacing-3);
+}
+
+.rss-progress-bar {
+    height: 6px;
+    background-color: var(--color-bg-light);
+    overflow: hidden;
+}
+
+.rss-progress-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width 0.3s;
+    width: 0;
+}
+
+.rss-progress-text {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-1);
+}
+
+.rss-review-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    margin-bottom: var(--spacing-3);
+}
+
+.rss-review-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.rss-review-card {
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-3);
+    transition: border-color 0.2s;
+}
+
+.rss-review-card.rss-card-success {
+    border-color: var(--color-success, #198754);
+}
+
+.rss-review-card.rss-card-error {
+    border-color: var(--color-error, #dc3545);
+}
+
+.rss-review-card.rss-card-signing {
+    border-color: var(--color-info, #0dcaf0);
+}
+
+.rss-review-card.rss-card-skipped {
+    opacity: 0.6;
+}
+
+.rss-review-card-header {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: flex-start;
+    margin-bottom: var(--spacing-2);
+}
+
+.rss-review-card-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.rss-review-card-image {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    margin-bottom: var(--spacing-2);
+}
+
+.rss-review-card-meta {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-1);
+    flex-wrap: wrap;
+}
+
+.rss-review-card-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-2);
+}
+
+.rss-review-card-preview {
+    margin-top: var(--spacing-2);
+    background-color: var(--color-bg-light);
+    padding: var(--spacing-2);
+    overflow-x: auto;
+}
+
+.rss-review-card-preview pre {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.rss-status-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.rss-status-pending {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-muted);
+}
+
+.rss-status-signing {
+    background-color: var(--color-info, #0dcaf0);
+    color: var(--color-text-contrast, #fff);
+}
+
+.rss-status-success {
+    background-color: var(--color-success, #198754);
+    color: var(--color-text-contrast, #fff);
+}
+
+.rss-status-error {
+    background-color: var(--color-error, #dc3545);
+    color: var(--color-text-contrast, #fff);
+}
+
+.rss-status-skipped {
+    background-color: var(--color-bg-light);
+    color: var(--color-text-muted);
+}

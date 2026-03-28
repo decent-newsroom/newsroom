@@ -1,0 +1,152 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}RSS Import | Admin{% endblock %}
+
+{% block body %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1>RSS Import</h1>
+        <p class="eyebrow">Fetch articles from an RSS or Atom feed, review them, and publish as Nostr longform events.</p>
+    </div>
+
+    {# Flash messages #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if error %}
+        <div class="notice error">{{ error }}</div>
+    {% endif %}
+
+    {# Feed URL form #}
+    <section class="metric-section">
+        <h2>Fetch Feed</h2>
+        <form method="post" action="{{ path('admin_rss_fetch') }}" class="rss-fetch-form" data-turbo="false">
+            <div class="rss-fetch-row">
+                <input type="url"
+                       name="feed_url"
+                       value="{{ feedUrl }}"
+                       placeholder="https://example.com/feed.xml"
+                       required
+                       class="form-control rss-url-input">
+                <button type="submit" class="btn btn-primary">Fetch</button>
+            </div>
+        </form>
+    </section>
+
+    {# Feed metadata #}
+    {% if feedMeta %}
+        <section class="metric-section">
+            <h2>Feed Info</h2>
+            <div class="rss-feed-meta">
+                {% if feedMeta.image %}
+                    <img src="{{ feedMeta.image }}" alt="Feed image" class="rss-feed-image">
+                {% endif %}
+                <div class="rss-feed-details">
+                    {% if feedMeta.title %}
+                        <h3>{{ feedMeta.title }}</h3>
+                    {% endif %}
+                    {% if feedMeta.description %}
+                        <p class="text-muted">{{ feedMeta.description }}</p>
+                    {% endif %}
+                    {% if feedMeta.link %}
+                        <a href="{{ feedMeta.link }}" target="_blank" rel="noopener">{{ feedMeta.link }}</a>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+
+    {# Articles list #}
+    {% if articles|length > 0 %}
+        <section class="metric-section">
+            <h2>Articles Found ({{ articles|length }})</h2>
+            <p class="text-muted mb-3">Select articles to import as Nostr longform events. Articles already in the database are marked.</p>
+
+            <form method="post" action="{{ path('admin_rss_review') }}" data-turbo="false">
+                <div class="rss-select-actions">
+                    <button type="button" class="btn btn-sm" onclick="toggleAllRss(true)">Select All</button>
+                    <button type="button" class="btn btn-sm" onclick="toggleAllRss(false)">Deselect All</button>
+                    <button type="button" class="btn btn-sm" onclick="toggleNewRss()">Select New Only</button>
+                    <span class="rss-selection-count text-muted"></span>
+                </div>
+
+                <div class="rss-articles-list">
+                    {% for item in articles %}
+                        <label class="rss-article-item{% if item.existsInDb|default(false) %} rss-article-exists{% endif %}">
+                            <input type="checkbox"
+                                   name="selected[]"
+                                   value="{{ loop.index0 }}"
+                                   {% if not item.existsInDb|default(false) %}checked{% endif %}
+                                   class="rss-article-checkbox"
+                                   onchange="updateRssCount()">
+                            <div class="rss-article-content">
+                                {% if item.image %}
+                                    <img src="{{ item.image }}" alt="" class="rss-article-thumb">
+                                {% endif %}
+                                <div class="rss-article-info">
+                                    <div class="rss-article-title">
+                                        {{ item.title|default('Untitled') }}
+                                        {% if item.existsInDb|default(false) %}
+                                            <span class="rss-badge rss-badge-exists">already imported</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="rss-article-desc text-muted">
+                                        {{ item.description|default('')|slice(0, 200) }}{% if item.description|default('')|length > 200 %}…{% endif %}
+                                    </div>
+                                    <div class="rss-article-meta">
+                                        {% if item.pubDate %}
+                                            <span>{{ item.pubDate|date('M j, Y H:i') }}</span>
+                                        {% endif %}
+                                        {% if item.link %}
+                                            <a href="{{ item.link }}" target="_blank" rel="noopener" class="rss-article-link" onclick="event.stopPropagation()">original ↗</a>
+                                        {% endif %}
+                                        {% if item.categories|default([])|length > 0 %}
+                                            <span class="rss-article-tags">
+                                                {% for cat in item.categories|slice(0, 5) %}
+                                                    <span class="rss-tag">{{ cat }}</span>
+                                                {% endfor %}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+
+                <div class="rss-submit-actions">
+                    <button type="submit" class="btn btn-primary">Review Selected Articles →</button>
+                </div>
+            </form>
+        </section>
+    {% elseif feedUrl and not error %}
+        <section class="metric-section">
+            <p class="text-muted">No articles found in this feed.</p>
+        </section>
+    {% endif %}
+</div>
+
+<script>
+function toggleAllRss(checked) {
+    document.querySelectorAll('.rss-article-checkbox').forEach(cb => cb.checked = checked);
+    updateRssCount();
+}
+function toggleNewRss() {
+    document.querySelectorAll('.rss-article-item').forEach(item => {
+        const cb = item.querySelector('.rss-article-checkbox');
+        cb.checked = !item.classList.contains('rss-article-exists');
+    });
+    updateRssCount();
+}
+function updateRssCount() {
+    const total = document.querySelectorAll('.rss-article-checkbox').length;
+    const checked = document.querySelectorAll('.rss-article-checkbox:checked').length;
+    const counter = document.querySelector('.rss-selection-count');
+    if (counter) counter.textContent = checked + ' of ' + total + ' selected';
+}
+document.addEventListener('DOMContentLoaded', updateRssCount);
+</script>
+{% endblock %}
