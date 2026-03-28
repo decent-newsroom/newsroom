@@ -119,11 +119,26 @@ class RssFeedService
             $mediaChildren = $item->children($namespaces['media']);
             if (isset($mediaChildren->content)) {
                 foreach ($mediaChildren->content as $mediaContent) {
+                    $url = (string) $mediaContent['url'];
+                    if ($url === '') {
+                        continue;
+                    }
                     $medium = (string) $mediaContent['medium'];
-                    if ($medium === 'image' || $medium === '') {
-                        $imageUrl = (string) $mediaContent['url'];
+                    $type = (string) $mediaContent['type'];
+                    if ($medium === 'image'
+                        || ($medium === '' && str_starts_with($type, 'image/'))
+                        || ($medium === '' && $type === '' && $this->looksLikeImageUrl($url))
+                    ) {
+                        $imageUrl = $url;
                         break;
                     }
+                }
+            }
+            // media:thumbnail fallback
+            if (!$imageUrl && isset($mediaChildren->thumbnail)) {
+                $thumbUrl = (string) $mediaChildren->thumbnail['url'];
+                if ($thumbUrl !== '') {
+                    $imageUrl = $thumbUrl;
                 }
             }
         }
@@ -132,6 +147,16 @@ class RssFeedService
             $medium = isset($item->content->_medium) ? (string)$item->content->_medium : '';
             if ($medium === 'image' || $medium === '') {
                 $imageUrl = (string)$item->content->_url;
+            }
+        }
+        // enclosure fallback (type="image/*")
+        if (!$imageUrl && isset($item->enclosure)) {
+            $encType = (string) $item->enclosure['type'];
+            if (str_starts_with($encType, 'image/')) {
+                $encUrl = (string) $item->enclosure['url'];
+                if ($encUrl !== '') {
+                    $imageUrl = $encUrl;
+                }
             }
         }
 
@@ -181,6 +206,36 @@ class RssFeedService
             }
         }
 
+        // media:content / media:thumbnail image
+        $imageUrl = null;
+        $namespaces = $entry->getNamespaces(true);
+        if (isset($namespaces['media'])) {
+            $mediaChildren = $entry->children($namespaces['media']);
+            if (isset($mediaChildren->content)) {
+                foreach ($mediaChildren->content as $mediaContent) {
+                    $url = (string) $mediaContent['url'];
+                    if ($url === '') {
+                        continue;
+                    }
+                    $medium = (string) $mediaContent['medium'];
+                    $type = (string) $mediaContent['type'];
+                    if ($medium === 'image'
+                        || ($medium === '' && str_starts_with($type, 'image/'))
+                        || ($medium === '' && $type === '' && $this->looksLikeImageUrl($url))
+                    ) {
+                        $imageUrl = $url;
+                        break;
+                    }
+                }
+            }
+            if (!$imageUrl && isset($mediaChildren->thumbnail)) {
+                $thumbUrl = (string) $mediaChildren->thumbnail['url'];
+                if ($thumbUrl !== '') {
+                    $imageUrl = $thumbUrl;
+                }
+            }
+        }
+
         // pubDate → timestamp int
         $pubTs = null;
         try {
@@ -201,6 +256,16 @@ class RssFeedService
             'content'     => $content,
             'categories'  => $categories,
             'guid'        => (string) ($entry->id ?? ''),
+            'image'       => $imageUrl,
         ];
+    }
+
+    /**
+     * Heuristic: does the URL path end with a common image extension?
+     */
+    private function looksLikeImageUrl(string $url): bool
+    {
+        $path = strtolower(parse_url($url, PHP_URL_PATH) ?? '');
+        return (bool) preg_match('/\.(jpe?g|png|gif|webp|avif|svg|bmp|tiff?)$/i', $path);
     }
 }
