@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Enum\KindsEnum;
+use App\Service\ArticleEventProjector;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
@@ -142,6 +143,7 @@ class AdminRssController extends AbstractController
         Request $request,
         NostrClient $nostrClient,
         GenericEventProjector $genericEventProjector,
+        ArticleEventProjector $articleEventProjector,
         UserRelayListService $userRelayListService,
         LoggerInterface $logger,
     ): JsonResponse {
@@ -159,11 +161,30 @@ class AdminRssController extends AbstractController
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            // Persist to local database via GenericEventProjector
-            $eventEntity = $genericEventProjector->projectEventFromNostrEvent(
-                (object) $signedEvent,
+            $eventStdClass = (object) $signedEvent;
+
+            // Persist to event table via GenericEventProjector
+            $genericEventProjector->projectEventFromNostrEvent(
+                $eventStdClass,
                 'admin-rss-import'
             );
+
+            // For article events (kind 30023/30024), also persist to the article
+            // table so they appear in profiles, discover, search, etc.
+            $eventKind = (int) ($signedEvent['kind'] ?? 0);
+            if ($eventKind === KindsEnum::LONGFORM->value || $eventKind === KindsEnum::LONGFORM_DRAFT->value) {
+                try {
+                    $articleEventProjector->projectArticleFromEvent(
+                        $eventStdClass,
+                        'admin-rss-import'
+                    );
+                } catch (\Exception $e) {
+                    $logger->warning('Failed to project RSS article to article table', [
+                        'event_id' => $signedEvent['id'] ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // Get user's write relays
             $user = $this->getUser();
