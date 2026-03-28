@@ -200,7 +200,6 @@ class DefaultController extends AbstractController
     public function discover(
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
-        CacheItemPoolInterface $articlesCache,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
         UserMuteListService $userMuteListService,
@@ -220,7 +219,6 @@ class DefaultController extends AbstractController
 
         // Fast path: Try to get from Redis views first (single GET)
         $cachedView = $viewStore->fetchLatestArticles();
-        $fromCache = false;
 
         if ($cachedView !== null) {
             // Redis view data already matches template expectations!
@@ -239,41 +237,32 @@ class DefaultController extends AbstractController
                     if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
                         continue;
                     }
-                    $articles[] = (object) $baseObject['article']; // Cast to object for template
+                    $articles[] = (object) $baseObject['article'];
                 }
                 if (isset($baseObject['profiles'])) {
                     foreach ($baseObject['profiles'] as $pubkey => $profile) {
-                        $authorsMetadata[$pubkey] = (object) $profile; // Cast to object for template
+                        $authorsMetadata[$pubkey] = (object) $profile;
                     }
                 }
             }
-            $fromCache = true;
         } else {
-            // Fallback path: Use search service if Redis view not available
-            // Unified exclusion: config-level deny-list + admin-muted + user-muted
+            // Cache miss: fall back to database search (fast, non-blocking).
+            // The cron job (app:cache_latest_articles, every 15 min) will
+            // repopulate Redis.
             $excludedPubkeys = array_values(array_unique(array_merge(
                 $exclusionPolicy->getAllExcludedPubkeys(),
                 $userMutedPubkeys,
             )));
 
-            // Use the search factory to get the appropriate search service
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 
-            // Fetch author metadata for fallback path
+            // Collect author pubkeys for metadata (findLatest returns Article[])
             $authorPubkeys = [];
             foreach ($articles as $article) {
-                if ($article instanceof Article) {
-                    $pubkey = $article->getPubkey();
-                    if ($pubkey && NostrKeyUtil::isHexPubkey($pubkey)) {
-                        $authorPubkeys[] = $pubkey;
-                    }
-                } elseif (is_object($article)) {
-                    if ($article->getPubkey() !== null && NostrKeyUtil::isHexPubkey($article->getPubkey())) {
-                        $authorPubkeys[] = $article->getPubkey();
-                    } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
-                        $authorPubkeys[] = NostrKeyUtil::npubToHex($article->npub);
-                    }
+                $pk = $article->getPubkey();
+                if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                    $authorPubkeys[] = $pk;
                 }
             }
             $authorPubkeys = array_unique($authorPubkeys);
@@ -287,7 +276,6 @@ class DefaultController extends AbstractController
             if ($metadata instanceof \App\Dto\UserMetadata) {
                 $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
             } else {
-                // Already stdClass from cached view
                 $authorsMetadataStd[$pubkey] = $metadata;
             }
         }
@@ -303,7 +291,6 @@ class DefaultController extends AbstractController
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
             'mainTopicsMap' => $mainTopicsMap,
-            'from_redis_view' => $fromCache,
         ]);
     }
 
@@ -364,37 +351,23 @@ class DefaultController extends AbstractController
                     }
                 }
             }
-
-            $fromCache = true;
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
             // The cron job (app:cache_latest_articles, every 15 min) will
-            // repopulate Redis. Do NOT fetch from relays synchronously here —
-            // relay round-trips can take 30s+ and block a FrankenPHP worker,
-            // causing 504s for all other users.
+            // repopulate Redis.
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 
-            // Collect author pubkeys for metadata
+            // Collect author pubkeys for metadata (findLatest returns Article[])
             $authorPubkeys = [];
             foreach ($articles as $article) {
-                if ($article instanceof Article) {
-                    $pk = $article->getPubkey();
-                } elseif (method_exists($article, 'getPubkey')) {
-                    $pk = $article->getPubkey();
-                } elseif (isset($article->pubkey) && NostrKeyUtil::isHexPubkey($article->pubkey)) {
-                    $pk = $article->pubkey;
-                } else {
-                    $pk = null;
-                }
+                $pk = $article->getPubkey();
                 if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
                     $authorPubkeys[] = $pk;
                 }
             }
             $authorPubkeys = array_unique($authorPubkeys);
             $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
-
-            $fromCache = false;
         }
 
         // Convert UserMetadata objects to stdClass for template compatibility
@@ -404,7 +377,6 @@ class DefaultController extends AbstractController
             if ($metadata instanceof \App\Dto\UserMetadata) {
                 $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
             } else {
-                // Already stdClass from cached view
                 $authorsMetadataStd[$pubkey] = $metadata;
             }
         }
@@ -413,7 +385,6 @@ class DefaultController extends AbstractController
             'articles' => $articles,
             'newsBots' => array_slice($excludedPubkeys, 0, 4),
             'authorsMetadata' => $authorsMetadataStd,
-            'from_redis_view' => $fromCache ?? false,
         ]);
     }
 

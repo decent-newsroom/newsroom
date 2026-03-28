@@ -105,18 +105,10 @@ class HomeFeedController extends AbstractController
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);
 
+            // Collect author pubkeys for metadata (findLatest returns Article[])
             $authorPubkeys = [];
             foreach ($articles as $article) {
-                $pk = null;
-                if ($article instanceof Article) {
-                    $pk = $article->getPubkey();
-                } elseif (is_object($article)) {
-                    if (method_exists($article, 'getPubkey') && $article->getPubkey() !== null) {
-                        $pk = $article->getPubkey();
-                    } elseif (isset($article->npub) && NostrKeyUtil::isNpub($article->npub)) {
-                        $pk = NostrKeyUtil::npubToHex($article->npub);
-                    }
-                }
+                $pk = $article->getPubkey();
                 if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
                     $authorPubkeys[] = $pk;
                 }
