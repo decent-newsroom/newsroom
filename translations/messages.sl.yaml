@@ -278,6 +278,7 @@ auth:
     adminDashboard: 'Nadzorna plošča'
     magazines: 'Revije'
     visitAnalytics: 'Analitika obiskov'
+    rssImport: 'RSS uvoz'
     extension: 'Razširitev'
     signer: 'Podpisnik'
     login: 'Prijava'

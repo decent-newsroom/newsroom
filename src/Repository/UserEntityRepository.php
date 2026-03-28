@@ -216,6 +216,29 @@ class UserEntityRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find all users with the ROLE_RSS role
+     * @return User[]
+     * @throws Exception
+     */
+    public function findRssManagers(): array
+    {
+        $conn = $this->entityManager->getConnection();
+        $sql = 'SELECT id FROM app_user WHERE roles::text LIKE :role';
+        $result = $conn->executeQuery($sql, ['role' => '%' . RolesEnum::RSS->value . '%']);
+
+        $ids = $result->fetchFirstColumn();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Get hex pubkeys of all muted users
      * @return string[]
      * @throws Exception

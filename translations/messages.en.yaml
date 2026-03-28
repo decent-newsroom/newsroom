@@ -334,6 +334,7 @@ auth:
     adminDashboard: 'Admin Dashboard'
     magazines: 'Magazines'
     visitAnalytics: 'Visit Analytics'
+    rssImport: 'RSS Import'
     extension: 'Extension'
     signer: 'Signer'
     login: 'Login'

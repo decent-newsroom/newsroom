@@ -278,6 +278,7 @@ auth:
     adminDashboard: 'Admin-Dashboard'
     magazines: 'Magazine'
     visitAnalytics: 'Besuchsanalyse'
+    rssImport: 'RSS-Import'
     extension: 'Erweiterung'
     signer: 'Signer'
     login: 'Anmelden'

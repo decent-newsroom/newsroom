@@ -20,9 +20,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\AsciiSlugger;
+use Symfony\Component\ExpressionLanguage\Expression;
 
 #[Route('/admin/rss', name: 'admin_rss_')]
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted(new Expression('is_granted("ROLE_ADMIN") or is_granted("ROLE_RSS")'))]
 class AdminRssController extends AbstractController
 {
     public function __construct(

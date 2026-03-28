@@ -11,6 +11,10 @@
             <li><a href="{{ path('admin_magazines') }}">{{ 'auth.magazines'|trans }}</a></li>
             <li><a href="{{ path('admin_analytics') }}">{{ 'auth.visitAnalytics'|trans }}</a></li>
         </ul>
+        {% elseif is_granted('ROLE_RSS') %}
+        <ul class="user-nav">
+            <li><a href="{{ path('admin_rss_index') }}">{{ 'auth.rssImport'|trans }}</a></li>
+        </ul>
         {% endif %}
         <ul class="user-nav">
             <li><a href="{{ path('settings') }}">{{ 'nav.settings'|trans }}</a></li>

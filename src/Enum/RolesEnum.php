@@ -11,4 +11,5 @@ enum RolesEnum: string
     case FEATURED_WRITER = 'ROLE_FEATURED_WRITER';
     case MUTED = 'ROLE_MUTED';
     case ACTIVE_INDEXING = 'ROLE_ACTIVE_INDEXING';
+    case RSS = 'ROLE_RSS';
 }

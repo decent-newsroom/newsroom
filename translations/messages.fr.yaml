@@ -278,6 +278,7 @@ auth:
     adminDashboard: "Tableau de bord d'administration"
     magazines: 'Magazines'
     visitAnalytics: 'Analyse des visites'
+    rssImport: 'Import RSS'
     extension: 'Extension'
     signer: 'Signataire'
     login: 'Connexion'

@@ -117,6 +117,11 @@ class User implements UserInterface, EquatableInterface
         return in_array(RolesEnum::ACTIVE_INDEXING->value, $this->roles, true);
     }
 
+    public function isRssManager(): bool
+    {
+        return in_array(RolesEnum::RSS->value, $this->roles, true);
+    }
+
     public function getId(): ?int
     {
         return $this->id;

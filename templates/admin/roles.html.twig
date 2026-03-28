@@ -99,7 +99,7 @@
                             <td>
                                 {% for role in entry.user.roles %}
                                     {% if role != 'ROLE_USER' %}
-                                        <span class="badge {% if role == 'ROLE_ADMIN' %}bg-danger{% elseif role == 'ROLE_MUTED' %}bg-secondary{% elseif role == 'ROLE_FEATURED_WRITER' %}bg-success{% elseif role == 'ROLE_ACTIVE_INDEXING' %}bg-info{% else %}bg-primary{% endif %}" style="margin-right: 4px;">
+                                        <span class="badge {% if role == 'ROLE_ADMIN' %}bg-danger{% elseif role == 'ROLE_MUTED' %}bg-secondary{% elseif role == 'ROLE_FEATURED_WRITER' %}bg-success{% elseif role == 'ROLE_ACTIVE_INDEXING' %}bg-info{% elseif role == 'ROLE_RSS' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="margin-right: 4px;">
                                             {{ role }}
                                         </span>
                                     {% endif %}
@@ -208,6 +208,87 @@
             <div class="alert alert-info">
                 No featured writers yet. Add one using the form above or with the command:<br>
                 <code>php bin/console user:elevate npub1... ROLE_FEATURED_WRITER</code>
+            </div>
+        {% endif %}
+    </div>
+
+    {# RSS Managers Management #}
+    <div class="rss-managers-admin mt-5">
+        <h2>RSS Managers</h2>
+        <p class="text-muted">Users with ROLE_RSS can access the RSS administration page to import articles from RSS feeds.</p>
+        <small class="text-muted">Enter an npub to grant RSS management access. User will be created if they don't exist.</small>
+
+        {# Add new RSS manager form #}
+        <form action="{{ path('admin_rss_managers_add') }}" method="post" class="mb-4">
+            <div>
+                <div>
+                    <input type="text"
+                           name="npub"
+                           class="form-control"
+                           placeholder="npub1..."
+                           required
+                           pattern="npub1.*"
+                           title="Must be a valid npub starting with npub1">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">Add RSS Manager</button>
+                </div>
+            </div>
+        </form>
+
+        {# List of RSS managers #}
+        {% if rssManagers is defined and rssManagers|length > 0 %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>Name</th>
+                        <th>Npub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for manager in rssManagers %}
+                        <tr>
+                            <td>
+                                {% if manager.metadata.picture is defined and manager.metadata.picture %}
+                                    <img src="{{ manager.metadata.picture }}"
+                                         alt="Avatar"
+                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                {% else %}
+                                    <span style="width: 40px; height: 40px; border-radius: 50%; background: #e0e0e0; display: inline-flex; align-items: center; justify-content: center;">
+                                        <twig:ux:icon name="iconoir:user" style="width: 20px; height: 20px;" />
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if manager.metadata %}
+                                    <a href="{{ path('author-profile', { npub: manager.npub }) }}">
+                                        <twig:Atoms:NameOrNpub :author="manager.metadata" :npub="manager.npub" />
+                                    </a>
+                                {% else %}
+                                    {{ manager.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <code style="font-size: 0.8rem;">{{ manager.npub|shortenNpub }}</code>
+                            </td>
+                            <td>
+                                <form action="{{ path('admin_rss_managers_remove', { id: manager.user.id }) }}"
+                                      method="post"
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Remove RSS management access from this user?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-info">
+                No RSS managers yet. Add one using the form above or with the command:<br>
+                <code>php bin/console user:elevate npub1... ROLE_RSS</code>
             </div>
         {% endif %}
     </div>

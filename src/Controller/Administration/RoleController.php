@@ -33,6 +33,10 @@ class RoleController extends AbstractController
         $mutedUsers = $userRepository->findMutedUsers();
         $mutedUsersData = $this->enrichUsersWithMetadata($mutedUsers, $redisCacheService);
 
+        // Get RSS managers for display
+        $rssManagers = $userRepository->findRssManagers();
+        $rssManagersData = $this->enrichUsersWithMetadata($rssManagers, $redisCacheService);
+
         // Get all users with any roles for the overview table
         $usersWithRoles = $userRepository->findUsersWithAnyRoles();
         $usersWithRolesData = $this->enrichUsersWithMetadata($usersWithRoles, $redisCacheService);
@@ -41,6 +45,7 @@ class RoleController extends AbstractController
             'form' => $form->createView(),
             'featuredWriters' => $featuredWritersData,
             'mutedUsers' => $mutedUsersData,
+            'rssManagers' => $rssManagersData,
             'usersWithRoles' => $usersWithRolesData,
         ]);
     }
@@ -243,6 +248,56 @@ class RoleController extends AbstractController
         $mutedPubkeysService->refreshCache();
 
         $this->addFlash('success', 'User removed from muted list');
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/rss-managers/add', name: 'admin_rss_managers_add', methods: ['POST'])]
+    public function addRssManager(Request $request, UserEntityRepository $userRepository, EntityManagerInterface $em): Response
+    {
+        $npub = $request->request->get('npub');
+
+        if (!$npub || !str_starts_with($npub, 'npub1')) {
+            $this->addFlash('error', 'Invalid npub format');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user = $userRepository->findOneBy(['npub' => $npub]);
+
+        if (!$user) {
+            $user = new User();
+            $user->setNpub($npub);
+            $user->setRoles([RolesEnum::RSS->value]);
+            $em->persist($user);
+            $this->addFlash('success', 'Created new user and added as RSS manager');
+        } else {
+            if ($user->isRssManager()) {
+                $this->addFlash('warning', 'User is already an RSS manager');
+                return $this->redirectToRoute('admin_roles');
+            }
+            $user->addRole(RolesEnum::RSS->value);
+            $this->addFlash('success', 'User added as RSS manager');
+        }
+
+        $em->flush();
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/rss-managers/remove/{id}', name: 'admin_rss_managers_remove', methods: ['POST'])]
+    public function removeRssManager(int $id, UserEntityRepository $userRepository, EntityManagerInterface $em): Response
+    {
+        $user = $userRepository->find($id);
+
+        if (!$user) {
+            $this->addFlash('error', 'User not found');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user->removeRole(RolesEnum::RSS->value);
+        $em->flush();
+
+        $this->addFlash('success', 'User removed from RSS managers');
 
         return $this->redirectToRoute('admin_roles');
     }
