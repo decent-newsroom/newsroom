@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Enum\KindsEnum;
+use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrRelayPool;
 use Psr\Log\LoggerInterface;
@@ -108,6 +109,7 @@ class SubscribeLocalUserContextCommand extends Command
     public function __construct(
         private readonly NostrRelayPool $relayPool,
         private readonly GenericEventProjector $projector,
+        private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -163,6 +165,14 @@ class SubscribeLocalUserContextCommand extends Command
         }
 
         try {
+            // Determine the "since" timestamp so the relay skips events we already have
+            $since = $this->eventRepository->findLatestCreatedAtByKinds(self::SUBSCRIBE_KINDS);
+            if ($since !== null) {
+                $io->info(sprintf('Resuming from last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
+            } else {
+                $io->info('No existing user context events — fetching full history from relay');
+            }
+
             $this->relayPool->subscribeLocal(
                 self::SUBSCRIBE_KINDS,
                 function (object $event, string $relayUrl) use ($io) {
@@ -202,7 +212,8 @@ class SubscribeLocalUserContextCommand extends Command
 
                     $io->newLine();
                 },
-                'user-context'
+                'user-context',
+                $since
             );
 
             // @phpstan-ignore-next-line - This line should never be reached (infinite loop in subscribeLocal)

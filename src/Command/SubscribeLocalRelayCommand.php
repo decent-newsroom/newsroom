@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\Nostr\NostrRelayPool;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class SubscribeLocalRelayCommand extends Command
     public function __construct(
         private readonly NostrRelayPool $relayPool,
         private readonly ArticleEventProjector $projector,
+        private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger
     ) {
         parent::__construct();
@@ -49,6 +51,14 @@ class SubscribeLocalRelayCommand extends Command
         $io->newLine();
 
         try {
+            // Determine the "since" timestamp so the relay skips events we already have
+            $since = $this->eventRepository->findLatestCreatedAtByKinds([30023]);
+            if ($since !== null) {
+                $io->info(sprintf('Resuming from last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
+            } else {
+                $io->info('No existing article events — fetching full history from relay');
+            }
+
             // Start the long-lived subscription
             // This blocks forever and processes events via the callback
             $this->relayPool->subscribeLocalArticles(
@@ -106,7 +116,8 @@ class SubscribeLocalRelayCommand extends Command
                     }
 
                     $io->newLine();
-                }
+                },
+                $since
             );
 
             // @phpstan-ignore-next-line - This line should never be reached (infinite loop in subscribeLocalArticles)

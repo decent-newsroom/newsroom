@@ -83,6 +83,31 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Get the latest created_at timestamp among events of the given kinds.
+     *
+     * Used by subscription workers to set a "since" filter so the relay
+     * only sends events newer than what is already in the database.
+     *
+     * @param int[] $kinds Event kinds to check
+     * @return int|null Unix timestamp of the newest event, or null if none exist
+     */
+    public function findLatestCreatedAtByKinds(array $kinds): ?int
+    {
+        if (empty($kinds)) {
+            return null;
+        }
+
+        $result = $this->createQueryBuilder('e')
+            ->select('MAX(e.created_at)')
+            ->where('e.kind IN (:kinds)')
+            ->setParameter('kinds', $kinds)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result !== null ? (int) $result : null;
+    }
+
+    /**
      * Find media events by kinds (20, 21, 22) excluding muted pubkeys
      *
      * @param array $kinds Array of event kinds to query

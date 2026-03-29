@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Repository\EventRepository;
 use App\Service\MediaEventProjector;
 use App\Service\Nostr\NostrRelayPool;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ class SubscribeLocalMediaCommand extends Command
     public function __construct(
         private readonly NostrRelayPool $relayPool,
         private readonly MediaEventProjector $projector,
+        private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger
     ) {
         parent::__construct();
@@ -72,6 +74,14 @@ class SubscribeLocalMediaCommand extends Command
         }
 
         try {
+            // Determine the "since" timestamp so the relay skips events we already have
+            $since = $this->eventRepository->findLatestCreatedAtByKinds([20, 21, 22]);
+            if ($since !== null) {
+                $io->info(sprintf('Resuming from last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
+            } else {
+                $io->info('No existing media events — fetching full history from relay');
+            }
+
             // Start the long-lived subscription
             // This blocks forever and processes events via the callback
             $this->relayPool->subscribeLocalMedia(
@@ -133,7 +143,8 @@ class SubscribeLocalMediaCommand extends Command
                     }
 
                     $io->newLine();
-                }
+                },
+                $since
             );
 
             // @phpstan-ignore-next-line - This line should never be reached (infinite loop in subscribeLocalMedia)

@@ -663,9 +663,10 @@ class NostrRelayPool implements RelayPoolInterface
      * @param array<int> $kinds     Event kinds to subscribe to
      * @param callable   $onEvent   Callback: function(object $event, string $relayUrl): void
      * @param string     $workerName  Label for heartbeat tracking (e.g. 'articles', 'media')
+     * @param int|null   $since     Only receive events with created_at after this timestamp (avoids replaying known events)
      * @throws \Exception If local relay is not configured
      */
-    public function subscribeLocal(array $kinds, callable $onEvent, string $workerName = 'generic'): void
+    public function subscribeLocal(array $kinds, callable $onEvent, string $workerName = 'generic', ?int $since = null): void
     {
         if (!$this->nostrDefaultRelay) {
             throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
@@ -699,6 +700,15 @@ class NostrRelayPool implements RelayPoolInterface
 
         $filter = new Filter();
         $filter->setKinds($kinds);
+
+        if ($since !== null) {
+            $filter->setSince($since);
+            $this->logger->info('Using since filter to skip already-known events', [
+                'since' => $since,
+                'since_date' => date('Y-m-d H:i:s', $since),
+                'worker' => $workerName,
+            ]);
+        }
 
         $requestMessage = new RequestMessage($subscriptionId, [$filter]);
         $payload = $requestMessage->generate();
@@ -744,7 +754,9 @@ class NostrRelayPool implements RelayPoolInterface
                         if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
                             $event = $relayResponse->event;
 
-                            $this->logger->info('Received event from relay', [
+                            // Log at debug for historical replay (pre-EOSE), info for new events
+                            $logMethod = $eoseReceived ? 'info' : 'debug';
+                            $this->logger->{$logMethod}('Received event from relay', [
                                 'relay' => $relayUrl,
                                 'event_id' => substr($event->id ?? 'unknown', 0, 16) . '...',
                                 'kind' => $event->kind ?? 'unknown',
@@ -881,10 +893,11 @@ class NostrRelayPool implements RelayPoolInterface
      * Thin wrapper around subscribeLocal().
      *
      * @param callable $onArticleEvent Callback: function(object $event, string $relayUrl): void
+     * @param int|null $since Only receive events newer than this timestamp
      */
-    public function subscribeLocalArticles(callable $onArticleEvent): void
+    public function subscribeLocalArticles(callable $onArticleEvent, ?int $since = null): void
     {
-        $this->subscribeLocal([30023], $onArticleEvent, 'articles');
+        $this->subscribeLocal([30023], $onArticleEvent, 'articles', $since);
     }
 
     /**
@@ -892,10 +905,11 @@ class NostrRelayPool implements RelayPoolInterface
      * Thin wrapper around subscribeLocal().
      *
      * @param callable $onMediaEvent Callback: function(object $event, string $relayUrl): void
+     * @param int|null $since Only receive events newer than this timestamp
      */
-    public function subscribeLocalMedia(callable $onMediaEvent): void
+    public function subscribeLocalMedia(callable $onMediaEvent, ?int $since = null): void
     {
-        $this->subscribeLocal([20, 21, 22], $onMediaEvent, 'media');
+        $this->subscribeLocal([20, 21, 22], $onMediaEvent, 'media', $since);
     }
 
     /**
@@ -904,9 +918,10 @@ class NostrRelayPool implements RelayPoolInterface
      *
      * @param array<int> $kinds Event kinds to subscribe to
      * @param callable $onEvent Callback: function(object $event, string $relayUrl): void
+     * @param int|null $since Only receive events newer than this timestamp
      */
-    public function subscribeLocalGenericEvents(array $kinds, callable $onEvent): void
+    public function subscribeLocalGenericEvents(array $kinds, callable $onEvent, ?int $since = null): void
     {
-        $this->subscribeLocal($kinds, $onEvent, 'generic');
+        $this->subscribeLocal($kinds, $onEvent, 'generic', $since);
     }
 }
