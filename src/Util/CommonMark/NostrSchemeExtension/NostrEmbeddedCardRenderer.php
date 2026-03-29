@@ -8,7 +8,7 @@ use League\CommonMark\Renderer\NodeRendererInterface;
 
 class NostrEmbeddedCardRenderer implements NodeRendererInterface
 {
-    public function render(Node $node, ChildNodeRendererInterface $childRenderer)
+    public function render(Node $node, ChildNodeRendererInterface $childRenderer): \Stringable|string|null
     {
         if (!($node instanceof NostrEmbeddedCard)) {
             throw new \InvalidArgumentException('Incompatible inline node type: ' . get_class($node));

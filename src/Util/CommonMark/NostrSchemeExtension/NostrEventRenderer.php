@@ -9,7 +9,7 @@ use League\CommonMark\Renderer\NodeRendererInterface;
 class NostrEventRenderer implements NodeRendererInterface
 {
 
-    public function render(Node $node, ChildNodeRendererInterface $childRenderer)
+    public function render(Node $node, ChildNodeRendererInterface $childRenderer): \Stringable|string|null
     {
         if (!($node instanceof NostrSchemeData)) {
             throw new \InvalidArgumentException('Incompatible inline node type: ' . get_class($node));
