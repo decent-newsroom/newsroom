@@ -76,6 +76,7 @@ services:
             - '../src/UnfoldBundle/UnfoldBundle.php'
             - '../src/ChatBundle/DependencyInjection/'
             - '../src/ChatBundle/ChatBundle.php'
+            - '../src/ChatBundle/Entity/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -174,9 +175,20 @@ services:
 
     # Relay Gateway feature flag wiring
     App\Service\Nostr\NostrRelayPool:
+        lazy: true
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
             $gatewayClient: '@App\Service\Nostr\RelayGatewayClient'
+
+    # Lazy-load the Nostr client stack — these services pull in NostrRelayPool,
+    # Redis, and RelayGatewayClient but are only needed on pages that actually
+    # query relays. Marking them lazy avoids constructing the full chain on pages
+    # like static content, settings, or admin views that never touch relays.
+    App\Service\Nostr\NostrClient:
+        lazy: true
+
+    App\Service\Nostr\NostrRequestExecutor:
+        lazy: true
 
     App\MessageHandler\UpdateRelayListHandler:
         arguments:
@@ -314,6 +326,10 @@ services:
             $recipientLud16: '%active_indexing_recipient_lud16%'
 
     # ChatBundle service bindings
+
+    # Explicit registration: the security firewall references this via request_matcher,
+    # but the reference doesn't prevent RemoveUnusedDefinitionsPass from pruning it.
+    App\ChatBundle\Security\ChatRequestMatcher: ~
 
     App\ChatBundle\Service\ChatEncryptionService:
         arguments:

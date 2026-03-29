@@ -1,8 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
-import { getPublicKey, SimplePool, generateSecretKey, finalizeEvent } from 'nostr-tools';
-import { hexToBytes, bytesToHex } from 'nostr-tools/utils';
-import { BunkerSigner, parseBunkerInput } from "nostr-tools/nip46";
-import { setRemoteSignerSession } from '../nostr/signer_manager.js';
+// nostr-tools imports are lazy-loaded inside methods that need them to avoid
+// pulling the full crypto/WebSocket bundle on pages that never open the modal.
 
 export default class extends Controller {
   static targets = ['dialog', 'qr', 'status', 'uriInput', 'copyButton', 'bunkerInput'];
@@ -62,6 +60,11 @@ export default class extends Controller {
       return;
     }
 
+    // Lazy-load nostr-tools
+    const { SimplePool, generateSecretKey, finalizeEvent } = await import('nostr-tools');
+    const { bytesToHex } = await import('nostr-tools/utils');
+    const { BunkerSigner, parseBunkerInput } = await import('nostr-tools/nip46');
+
     try {
       this._setStatus('Parsing bunker connection…');
       const bunkerPointer = await parseBunkerInput(input);
@@ -113,6 +116,11 @@ export default class extends Controller {
   }
 
   async _init() {
+    // Lazy-load nostr-tools
+    const { getPublicKey, SimplePool, finalizeEvent } = await import('nostr-tools');
+    const { hexToBytes } = await import('nostr-tools/utils');
+    const { BunkerSigner } = await import('nostr-tools/nip46');
+
     try {
       this._setStatus('Requesting pairing QR…');
       const res = await fetch('/nostr-connect/qr');
@@ -173,6 +181,7 @@ export default class extends Controller {
   async _attemptAuth() {
     if (this._didAuth) return;
     this._didAuth = true;
+    const { setRemoteSignerSession } = await import('../nostr/signer_manager.js');
     try {
       const loginEvent = {
         kind: 27235,

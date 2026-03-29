@@ -1,5 +1,5 @@
 <div {{ attributes }}>
-  <div data-controller="utility--login utility--signer-modal">
+  <div data-controller="utility--login">
     {% if app.user %}
         <div class="notice info">
             <twig:Molecules:UserFromNpub ident="{{ app.user.npub }}" />
@@ -25,7 +25,7 @@
             </li>
         </ul>
     {% else %}
-        <div class="nav-section">
+        <div class="nav-section" data-controller="utility--signer-modal">
             <div class="nav-section__label">{{ 'heading.logIn'|trans }}</div>
             <ul class="user-nav">
                 <li>
@@ -36,8 +36,8 @@
                     <twig:Atoms:Button {{ ...stimulus_action('utility--signer-modal', 'openDialog') }} tag="a" class="btn-sm">{{ 'auth.signer'|trans }}</twig:Atoms:Button>
                 </li>
             </ul>
+            <twig:SignerModal />
         </div>
-        <twig:SignerModal />
     {% endif %}
   </div>
 </div>

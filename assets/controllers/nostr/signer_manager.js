@@ -1,7 +1,9 @@
 // Shared signer manager for Nostr signers (remote and extension)
-import { SimplePool, finalizeEvent } from 'nostr-tools';
-import { BunkerSigner } from 'nostr-tools/nip46';
-import { hexToBytes } from 'nostr-tools/utils';
+//
+// IMPORTANT: nostr-tools imports are dynamic (lazy) so that controllers which
+// only need lightweight helpers (clearRemoteSignerSession, getRemoteSignerSession)
+// do not force the browser to download the full nostr-tools / SimplePool bundle
+// on every page load.
 
 const REMOTE_SIGNER_KEY = 'amber_remote_signer';
 const MAX_RETRIES = 3;
@@ -91,6 +93,11 @@ export function getRemoteSignerSession() {
 // Falls back to fromURI() for legacy sessions
 async function createRemoteSignerFromSession(session) {
   console.log('[signer_manager] ===== Recreating BunkerSigner from session =====');
+
+  // Lazy-load nostr-tools only when actually reconnecting a remote signer
+  const { SimplePool, finalizeEvent } = await import('nostr-tools');
+  const { BunkerSigner } = await import('nostr-tools/nip46');
+  const { hexToBytes } = await import('nostr-tools/utils');
 
   const MAX_RETRIES = 3;
   let lastError = null;
