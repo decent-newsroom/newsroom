@@ -252,5 +252,32 @@ class RelayRegistry
 
         return $this->getForPurpose(RelayPurpose::PROJECT);
     }
+
+    /**
+     * Ensure the local relay URL is included at the beginning of a URL list.
+     *
+     * Pure URL manipulation — no connections opened.  Returns the list
+     * unchanged when no local relay is configured.
+     *
+     * @param string[] $relayUrls
+     * @return string[]
+     */
+    public function ensureLocalRelayInList(array $relayUrls): array
+    {
+        $local = $this->getLocalRelay();
+        if ($local === null) {
+            return $relayUrls;
+        }
+
+        $normalizedLocal = rtrim(trim($local), '/');
+        foreach ($relayUrls as $url) {
+            if (rtrim(trim($url), '/') === $normalizedLocal) {
+                return $relayUrls; // already present
+            }
+        }
+
+        array_unshift($relayUrls, $local);
+        return $relayUrls;
+    }
 }
 

@@ -24,7 +24,7 @@ class UserProfileService
         private readonly NostrRequestExecutor  $executor,
         private readonly RelaySetFactory       $relaySetFactory,
         private readonly UserRelayListService  $userRelayListService,
-        private readonly NostrRelayPool        $relayPool,
+        private readonly RelayRegistry         $relayRegistry,
         private readonly EventRepository       $eventRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly CacheItemPoolInterface $npubCache,
@@ -100,7 +100,7 @@ class UserProfileService
      */
     public function getMetadata(string $pubkey): \stdClass
     {
-        $relayUrls = $this->relayPool->ensureLocalRelayInList([
+        $relayUrls = $this->relayRegistry->ensureLocalRelayInList([
             'wss://theforest.nostr1.com',
             'wss://nostr.land',
             'wss://relay.primal.net',

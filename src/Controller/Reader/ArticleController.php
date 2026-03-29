@@ -4,23 +4,18 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
-use App\Message\FetchEventFromRelaysMessage;
 use App\Service\Cache\RedisCacheService;
 use App\Service\HighlightService;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use League\CommonMark\Exception\CommonMarkException;
-use nostriphant\NIP19\Bech32;
-use nostriphant\NIP19\Data\NAddr;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class ArticleController  extends AbstractController
@@ -69,55 +64,20 @@ class ArticleController  extends AbstractController
             'searchQuery' => ''
         ]);
     }
+    /**
+     * Legacy route — delegates all naddr handling to EventController.
+     *
+     * EventController already does: DB lookup (event table) → sync hint-relay
+     * fetch → async fallback → article projection → redirect to author-article-slug.
+     * Duplicating that logic here caused bugs (different table lookups, missing
+     * projections) and the loading template already reloads to /e/… anyway.
+     */
     #[Route('/article/{naddr}', name: 'article-naddr', requirements: ['naddr' => '^(naddr1[0-9a-zA-Z]+)$'])]
-    public function naddr(EntityManagerInterface $em, MessageBusInterface $messageBus, $naddr)
+    public function naddr($naddr): Response
     {
-        $decoded = new Bech32($naddr);
-
-        if ($decoded->type !== 'naddr') {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => 'Invalid Nostr address (naddr). Please check the address and try again.',
-                'searchQuery' => $naddr
-            ]);
-        }
-
-        /** @var NAddr $data */
-        $data = $decoded->data;
-        $slug = $data->identifier;
-        $relays = $data->relays;
-        $author = $data->pubkey;
-        $kind = $data->kind;
-
-        if ($kind !== KindsEnum::LONGFORM->value) {
-            // Non-article kinds are handled by the generic event controller
-            return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
-        }
-
-        // Check database FIRST — skip the relay round-trip when we already have the article.
-        $repository = $em->getRepository(Article::class);
-        $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $author]);
-        if ($slug && $article) {
-            $keys = new Key();
-            $npub = $keys->convertPublicKeyToBech32($author);
-            return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
-        }
-
-        // Not in DB — dispatch async fetch and show loading page
-        $lookupKey = sprintf('naddr:%d:%s:%s', $kind, $author, $slug);
-        $messageBus->dispatch(new FetchEventFromRelaysMessage(
-            lookupKey: $lookupKey,
-            type: 'naddr',
-            kind: $kind,
-            pubkey: $author,
-            identifier: $slug,
-            relays: $relays,
-        ));
-
-        return $this->render('event/loading.html.twig', [
-            'nevent' => $naddr,
-            'lookupKey' => $lookupKey,
-        ]);
+        return $this->redirectToRoute('nevent', ['nevent' => $naddr]);
     }
+
 
 
     #[Route('/article/d/{slug}/draft', name: 'draft-slug', requirements: ['slug' => '.+'])]

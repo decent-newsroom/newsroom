@@ -25,7 +25,6 @@ class NostrClient
 {
     public function __construct(
         private readonly LoggerInterface        $logger,
-        private readonly NostrRelayPool         $relayPool,
         private readonly RelayRegistry          $relayRegistry,
         private readonly UserRelayListService   $userRelayListService,
         private readonly RelaySetFactory        $relaySetFactory,
@@ -46,7 +45,7 @@ class NostrClient
         if (empty($relays)) {
             $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
         } else {
-            $relays = $this->relayPool->ensureLocalRelayInList($relays);
+            $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
         }
 
         $this->logger->info('Publishing event to relays', [
@@ -61,7 +60,7 @@ class NostrClient
 
             // Publish directly to each relay independently. One relay failing
             // does not affect the others.
-            $results  = $this->relayPool->publish($event, $relays, $event->getPublicKey(), $timeout);
+            $results  = $this->executor->publish($event, $relays, $event->getPublicKey(), $timeout);
             $duration = microtime(true) - $startTime;
 
             $this->logger->info('Completed relay publish', [
@@ -93,7 +92,7 @@ class NostrClient
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
-        $relays    = $this->relayPool->ensureLocalRelayInList($relays);
+        $relays    = $this->relayRegistry->ensureLocalRelayInList($relays);
         $allRelays = array_values(array_unique(array_merge($relays, $this->relayRegistry->getContentRelays())));
         $allRelays = array_slice($allRelays, 0, 3);
 
@@ -137,7 +136,7 @@ class NostrClient
         $this->logger->info('Getting events by IDs', ['event_ids' => $eventIds, 'relays' => $relays]);
 
         if (!empty($relays)) {
-            $relays = $this->relayPool->ensureLocalRelayInList($relays);
+            $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
         }
 
         $relaySet = empty($relays)
@@ -161,9 +160,9 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getEventByNaddr(array $decoded): ?object
+    public function getEventByNaddr(array $decoded, bool $hintOnly = false): ?object
     {
-        $this->logger->info('Getting event by naddr', ['decoded' => $decoded]);
+        $this->logger->info('Getting event by naddr', ['decoded' => $decoded, 'hintOnly' => $hintOnly]);
 
         $kind       = $decoded['kind']       ?? 30023;
         $pubkey     = $decoded['pubkey']     ?? '';
@@ -174,12 +173,35 @@ class NostrClient
             return null;
         }
 
+        $filters = ['authors' => [$pubkey], 'tag' => ['#d', [$identifier]]];
+
+        // Targeted mode: only query the hint relays (+ local) with a generous
+        // timeout so the relay has time to EOSE.  No fallback to default relays.
+        if ($hintOnly && !empty($relays)) {
+            $hintUrls = $this->relayRegistry->ensureLocalRelayInList($relays);
+            $primary  = $this->relaySetFactory->fromUrls($hintUrls);
+
+            $this->logger->info('naddr hint-only query', [
+                'relays' => $hintUrls,
+                'kind'   => $kind,
+            ]);
+
+            return $this->executor->fetchFirst(
+                kinds: [$kind],
+                filters: $filters,
+                primary: $primary,
+                fallback: null,
+                gatewayTimeout: 15,
+            );
+        }
+
+        // Broad search: author/hint relays first, then content relays as fallback
         $primary  = $this->relaySetFactory->forAuthorWithFallback($pubkey, $relays);
         $fallback = $this->relaySetFactory->getDefault();
 
         return $this->executor->fetchFirst(
             kinds: [$kind],
-            filters: ['authors' => [$pubkey], 'tag' => ['#d', [$identifier]]],
+            filters: $filters,
             primary: $primary,
             fallback: $fallback,
         );

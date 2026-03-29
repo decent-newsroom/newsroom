@@ -122,7 +122,7 @@ class RelaySetFactory
      */
     public function withLocalRelay(array $relayUrls): RelaySet
     {
-        return $this->fromUrls($this->relayPool->ensureLocalRelayInList($relayUrls));
+        return $this->fromUrls($this->relayRegistry->ensureLocalRelayInList($relayUrls));
     }
 }
 

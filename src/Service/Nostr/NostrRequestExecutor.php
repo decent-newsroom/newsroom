@@ -77,7 +77,7 @@ class NostrRequestExecutor
      *
      * @return array<string, array> relay URL => responses
      */
-    public function execute(TweakedRequest $request, ?string $pubkey = null): array
+    public function execute(TweakedRequest $request, ?string $pubkey = null, int $gatewayTimeout = 8): array
     {
         if (!$this->relayPool->isGatewayEnabled()) {
             return $request->send();
@@ -129,10 +129,10 @@ class NostrRequestExecutor
         }
 
         // External relays: route through gateway.
-        // Keep the timeout well below the messenger worker's 15s execution limit
-        // so there's headroom for local relay queries, processing, and overhead.
+        // The caller can configure the timeout; default (8s) keeps headroom
+        // for the messenger worker's 15s execution limit.  Targeted hint-relay
+        // queries pass a higher value so slow relays have time to EOSE.
         if (!empty($externalUrls)) {
-            $gatewayTimeout = 8;
             $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
 
             if (!empty($gatewayResult['errors'])) {
@@ -258,9 +258,10 @@ class NostrRequestExecutor
         ?RelaySet  $relaySet = null,
         ?callable  $handler = null,
         ?string    $pubkey = null,
+        int        $gatewayTimeout = 8,
     ): array {
         $request = $this->buildRequest($kinds, $filters, $relaySet);
-        return $this->process($this->execute($request, $pubkey), $handler ?? fn($e) => $e);
+        return $this->process($this->execute($request, $pubkey, $gatewayTimeout), $handler ?? fn($e) => $e);
     }
 
     /**
@@ -269,19 +270,24 @@ class NostrRequestExecutor
      * Replaces the 4× "try author relays → fallback to content relays" pattern.
      */
     public function fetchFirst(
-        array    $kinds,
-        array    $filters,
-        RelaySet $primary,
-        RelaySet $fallback,
-        ?string  $pubkey = null,
+        array     $kinds,
+        array     $filters,
+        RelaySet  $primary,
+        ?RelaySet $fallback = null,
+        ?string   $pubkey = null,
+        int       $gatewayTimeout = 8,
     ): ?object {
-        $events = $this->fetch($kinds, $filters, $primary, null, $pubkey);
+        $events = $this->fetch($kinds, $filters, $primary, null, $pubkey, $gatewayTimeout);
         if (!empty($events)) {
             return $events[0];
         }
 
-        $events = $this->fetch($kinds, $filters, $fallback, null, $pubkey);
-        return !empty($events) ? $events[0] : null;
+        if ($fallback !== null) {
+            $events = $this->fetch($kinds, $filters, $fallback, null, $pubkey, $gatewayTimeout);
+            return !empty($events) ? $events[0] : null;
+        }
+
+        return null;
     }
 
     /**
@@ -349,6 +355,23 @@ class NostrRequestExecutor
             }
         }
         return $f;
+    }
+
+    // =========================================================================
+    // Publishing
+    // =========================================================================
+
+    /**
+     * Publish a signed event to a list of relay URLs.
+     *
+     * Delegates to the relay pool's direct-publish path (each relay is contacted
+     * independently, fresh connections, no gateway).
+     *
+     * @return array Results keyed by relay URL
+     */
+    public function publish(\swentel\nostr\Event\Event $event, array $relayUrls, ?string $pubkey = null, int $timeout = 30): array
+    {
+        return $this->relayPool->publish($event, $relayUrls, $pubkey, $timeout);
     }
 }
 

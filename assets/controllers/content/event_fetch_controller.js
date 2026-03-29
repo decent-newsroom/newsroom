@@ -18,6 +18,17 @@ export default class extends Controller {
     connect() {
         if (this._started) return;
 
+        // Break the infinite reload loop: if we already reloaded for this
+        // lookup key and the server is STILL showing the loading template,
+        // the event genuinely wasn't found — show the not-found state now.
+        const storageKey = 'event-fetch-reloaded:' + this.topicValue;
+        if (sessionStorage.getItem(storageKey)) {
+            sessionStorage.removeItem(storageKey);
+            this._started = true;
+            this._showNotFound();
+            return;
+        }
+
         const hubUrl = window.MercureHubUrl
             || document.querySelector('meta[name="mercure-hub"]')?.content;
 
@@ -79,20 +90,22 @@ export default class extends Controller {
             return;
         }
 
-        // status === 'found' — event is now in DB, reload the page
+        // status === 'found' — event is now in DB, clear retry flag and reload
+        const storageKey = 'event-fetch-reloaded:' + this.topicValue;
+        sessionStorage.removeItem(storageKey);
         this.disconnect();
         this._reload();
     }
 
     _onTimeout() {
-        // On timeout, try one reload — if the event was persisted in the
-        // background the page will render normally.  If still not found the
-        // loading template will be served again; in that case we show the
-        // not-found state immediately via a URL flag.
-        if (!this._reloaded) {
-            this._reloaded = true;
+        // Set a flag in sessionStorage so that on reload, if the loading page
+        // is served again, we know the event genuinely wasn't found.
+        const storageKey = 'event-fetch-reloaded:' + this.topicValue;
+        if (!sessionStorage.getItem(storageKey)) {
+            sessionStorage.setItem(storageKey, '1');
             this._reload();
         } else {
+            sessionStorage.removeItem(storageKey);
             this._showNotFound();
         }
         this.disconnect();

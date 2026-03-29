@@ -24,6 +24,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class EventController extends AbstractController
 {
+    public function __construct(
+        private readonly \App\Service\ArticleEventProjector $articleEventProjector,
+    ) {}
+
     /**
      * Convert Event entity to stdClass object compatible with NostrClient responses
      */
@@ -157,6 +161,23 @@ class EventController extends AbstractController
                         'identifier' => $data->identifier,
                     ]);
 
+                    // Fast path for articles: check Article table first and redirect
+                    // directly. This is the canonical path for /article/naddr1... which
+                    // now redirects here, and avoids falling through to the generic
+                    // event renderer when a proper article view is available.
+                    if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
+                        $articleEntity = $eventRepository->getEntityManager()
+                            ->getRepository(\App\Entity\Article::class)
+                            ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                        if ($articleEntity) {
+                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                            return $this->redirectToRoute('author-article-slug', [
+                                'npub' => $npub,
+                                'slug' => $data->identifier,
+                            ]);
+                        }
+                    }
+
                     $dbEvent = $eventRepository->findByNaddr($data->kind, $data->pubkey, $data->identifier);
                     if ($dbEvent) {
                         $logger->info('Event found in database', [
@@ -179,12 +200,27 @@ class EventController extends AbstractController
                                     'pubkey' => $data->pubkey,
                                     'identifier' => $data->identifier,
                                     'relays' => $relays,
-                                ]);
+                                ], hintOnly: true);
                                 if ($rawEvent !== null) {
                                     $persisted = $genericEventProjector->projectEventFromNostrEvent(
                                         $rawEvent,
                                         $relays[0] ?? 'sync-hint-fetch',
                                     );
+                                    // Also project Article entity for long-form content
+                                    // so article routes work after redirect
+                                    $rawKind = (int) ($rawEvent->kind ?? 0);
+                                    if ($rawKind === KindsEnum::LONGFORM->value || $rawKind === KindsEnum::LONGFORM_DRAFT->value) {
+                                        try {
+                                            $this->articleEventProjector->projectArticleFromEvent(
+                                                $rawEvent,
+                                                $relays[0] ?? 'sync-hint-fetch',
+                                            );
+                                        } catch (\Throwable $e) {
+                                            $logger->warning('Article projection failed during naddr sync fetch', [
+                                                'error' => $e->getMessage(),
+                                            ]);
+                                        }
+                                    }
                                     $logger->info('Event found on hint relays and persisted', [
                                         'eventId' => $persisted->getId(),
                                         'kind' => $data->kind,
@@ -226,9 +262,13 @@ class EventController extends AbstractController
                     }
 
                     if ($data->kind === KindsEnum::LONGFORM->value) {
-                        // If it's a long-form content, redirect to the article page
+                        // Redirect to the article page with the author's npub for a direct match
                         $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
-                        return $this->redirectToRoute('article-slug', ['slug' => $data->identifier]);
+                        $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                        return $this->redirectToRoute('author-article-slug', [
+                            'npub' => $npub,
+                            'slug' => $data->identifier,
+                        ]);
                     }
 
                     // Redirect curation sets to their dedicated views
