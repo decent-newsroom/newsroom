@@ -2,6 +2,8 @@
 framework:
     secret: '%env(APP_SECRET)%'
     #csrf_protection: true
+    property_info:
+        with_constructor_extractor: true
 
     http_client:
         default_options:
