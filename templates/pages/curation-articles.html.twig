@@ -9,12 +9,14 @@
 {% endblock %}
 
 {% block body %}
+    {% set totalItems = articles|length + genericEvents|default([])|length %}
+
     <section class="ln-section--newsstand curation-page__hero">
         <div class="curation-page__hero-inner">
             <h1 class="curation-page__hero-title">{{ curation.title }}</h1>
             <div class="curation-page__hero-meta">
                 <span class="badge bg-secondary">{{ type }}</span>
-                <span class="badge bg-info text-dark">{{ articles|length }} item{{ articles|length != 1 ? 's' : '' }}</span>
+                <span class="badge bg-info text-dark">{{ totalItems }} item{{ totalItems != 1 ? 's' : '' }}</span>
             </div>
             {% if curation.summary %}
                 <p class="eyebrow curation-page__hero-summary">{{ curation.summary }}</p>
@@ -26,8 +28,59 @@
     <div class="curation-page__content">
         {% if articles|length > 0 %}
             <twig:Organisms:CardList :list="articles" class="article-list" />
-        {% else %}
-            <p class="curation-page__empty">No articles in this curation set.</p>
+        {% endif %}
+
+        {% if genericEvents|default([])|length > 0 %}
+            <div class="article-list">
+                {% for event in genericEvents %}
+                    {% if event.notFound is defined and event.notFound %}
+                        <twig:Molecules:CardPlaceholder :item="event" />
+                    {% else %}
+                        {% set eventTitle = event.title ?? event.getTitle() ?? null %}
+                        {% set eventSlug = event.slug ?? event.getSlug() ?? null %}
+                        {% set eventKind = event.kind ?? event.getKind() ?? null %}
+                        <div class="card">
+                            <div class="metadata">
+                                <p class="m-0">by <twig:Molecules:UserFromNpub :ident="event.pubkey" /></p>
+                                <small>
+                                    {% if event.createdAt is defined and event.createdAt %}
+                                        {{ event.createdAt|date('F j Y') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <a href="{{ path('nevent', {nevent: event|naddrEncode}) }}" data-turbo-frame="_top">
+                                {% if event.image is defined and event.image %}
+                                    <div class="card-header">
+                                        <img src="{{ event.image }}" alt="{{ eventTitle ?? '' }}" onerror="this.style.display='none';">
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h2 class="card-title line-clamp-5">{{ eventTitle ?? ('Event ' ~ (eventSlug ?? '')) }}</h2>
+                                    {% if event.summary is defined and event.summary %}
+                                        <p class="lede line-clamp-5">{{ event.summary }}</p>
+                                    {% endif %}
+                                    <span class="badge bg-secondary">kind {{ eventKind }}</span>
+                                </div>
+                            </a>
+                            <div class="card-footer"></div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if totalItems == 0 %}
+            <p class="curation-page__empty">No items in this curation set.</p>
+        {% endif %}
+
+        {% if hasPendingMediaSync|default(false) %}
+            <div class="alert alert-info mt-3"
+                 data-controller="content--curation-mercure"
+                 data-content--curation-mercure-topic-value="{{ curationMediaSyncTopic }}"
+                 data-content--curation-mercure-reload-url-value="{{ app.request.uri }}"
+                 data-content--curation-mercure-initial-missing-count-value="{{ pendingMediaCount }}">
+                <p>{{ pendingMediaCount }} item{{ pendingMediaCount != 1 ? 's are' : ' is' }} being fetched from relays…</p>
+            </div>
         {% endif %}
     </div>
 {% endblock %}

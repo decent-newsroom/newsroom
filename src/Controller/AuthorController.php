@@ -528,41 +528,104 @@ class AuthorController extends AbstractController
             ));
         }
 
-        // For articles/notes (30004), fetch articles similar to reading lists
+        // For articles/notes (30004), resolve ALL referenced items (any kind)
         $articles = [];
+        $genericEvents = [];
+        $missingCurationCoordinates = [];
         if ($kind === KindsEnum::CURATION_SET->value) {
             $articleRepo = $em->getRepository(Article::class);
+            $articleKinds = [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value];
 
             foreach ($coordinates as $coord) {
                 $parts = explode(':', $coord, 3);
-                if (count($parts) === 3) {
-                    [$coordKind, $author, $articleSlug] = $parts;
+                if (count($parts) !== 3) {
+                    continue;
+                }
+                [$coordKind, $author, $identifier] = $parts;
+                $coordKindInt = (int) $coordKind;
 
-                    $events = $articleRepo->findBy([
-                        'slug' => $articleSlug,
-                        'pubkey' => $author
-                    ], ['createdAt' => 'DESC']);
-
-                    $found = false;
-                    foreach ($events as $event) {
-                        if ($event->getSlug() === $articleSlug) {
-                            $articles[] = $event;
-                            $found = true;
-                            break;
-                        }
-                    }
-
-                    if (!$found) {
-                        $placeholder = (object)[
-                            'pubkey' => $author,
-                            'slug' => $articleSlug,
-                            'coordinate' => $coord,
-                            'kind' => (int)$coordKind,
-                            'title' => null,
-                        ];
-                        $articles[] = $placeholder;
+                // Article-kind coordinates: try Article table first for richer display
+                if (in_array($coordKindInt, $articleKinds, true)) {
+                    $articleResult = $articleRepo->findOneBy(
+                        ['slug' => $identifier, 'pubkey' => $author],
+                        ['createdAt' => 'DESC']
+                    );
+                    if ($articleResult) {
+                        $articles[] = $articleResult;
+                        continue;
                     }
                 }
+
+                // All other kinds (or article not in Article table): try Event table
+                $eventResult = $repo->findByNaddr($coordKindInt, $author, $identifier);
+                if ($eventResult) {
+                    if (in_array($coordKindInt, $articleKinds, true)) {
+                        // Article-kind event not in Article table — still show as article-style
+                        $articles[] = $eventResult;
+                    } else {
+                        $genericEvents[] = $eventResult;
+                    }
+                    continue;
+                }
+
+                // Not found anywhere — placeholder + mark for async fetch
+                $missingCurationCoordinates[] = $coord;
+                if (in_array($coordKindInt, $articleKinds, true)) {
+                    $articles[] = (object)[
+                        'pubkey' => $author,
+                        'slug' => $identifier,
+                        'coordinate' => $coord,
+                        'kind' => $coordKindInt,
+                        'title' => null,
+                    ];
+                } else {
+                    $genericEvents[] = (object)[
+                        'pubkey' => $author,
+                        'slug' => $identifier,
+                        'coordinate' => $coord,
+                        'kind' => $coordKindInt,
+                        'title' => null,
+                        'notFound' => true,
+                    ];
+                }
+            }
+
+            // Also handle e-tag references
+            if (!empty($eventIds)) {
+                $foundEvents = $repo->findBy(['id' => $eventIds]);
+                $foundIds = array_map(fn(Event $e) => $e->getId(), $foundEvents);
+                foreach ($foundEvents as $evt) {
+                    if (in_array($evt->getKind(), $articleKinds, true)) {
+                        $articles[] = $evt;
+                    } else {
+                        $genericEvents[] = $evt;
+                    }
+                }
+                foreach ($eventIds as $eid) {
+                    if (!in_array($eid, $foundIds, true)) {
+                        $missingEventIds[] = $eid;
+                        $genericEvents[] = (object)[
+                            'id' => $eid,
+                            'pubkey' => null,
+                            'slug' => null,
+                            'kind' => null,
+                            'title' => null,
+                            'notFound' => true,
+                        ];
+                    }
+                }
+            }
+
+            // Dispatch async fetch for missing items
+            $missingCurationCoordinates = array_values(array_unique($missingCurationCoordinates));
+            if ($missingEventIds !== [] || $missingCurationCoordinates !== []) {
+                $messageBus->dispatch(new FetchMissingCurationMediaMessage(
+                    $curation->getId(),
+                    $missingEventIds,
+                    array_values(array_unique($relayHints)),
+                    $pubkeyHex,
+                    $missingCurationCoordinates,
+                ));
             }
         }
 
@@ -573,6 +636,7 @@ class AuthorController extends AbstractController
             'items_count' => count($items),
             'media_count' => count($mediaItems),
             'articles_count' => count($articles),
+            'generic_events_count' => count($genericEvents ?? []),
         ]);
 
         // Choose template based on kind
@@ -582,7 +646,7 @@ class AuthorController extends AbstractController
             default => 'pages/curation-articles.html.twig',
         };
 
-        $totalMissing = count($missingEventIds) + count($missingCoordinates ?? []);
+        $totalMissing = count($missingEventIds) + count($missingCoordinates ?? []) + count($missingCurationCoordinates ?? []);
 
         return $this->render($template, [
             'curation' => $curation,
@@ -591,6 +655,7 @@ class AuthorController extends AbstractController
             'mediaItems' => $mediaItems,
             'mediaEvents' => $mediaEvents,
             'articles' => $articles,
+            'genericEvents' => $genericEvents ?? [],
             'hasPendingMediaSync' => $totalMissing > 0,
             'curationMediaSyncTopic' => sprintf('/curation/%s/media-sync', $curation->getId()),
             'pendingMediaCount' => $totalMissing,
