@@ -97,6 +97,9 @@ class SettingsController extends AbstractController
         $activeIndexing = $this->activeIndexingService->getSubscription($npub);
         $publicationSubdomain = $this->publicationSubdomainService->getByNpub($npub);
 
+        // Build structured relay list from kind 10002 event for the Relays tab
+        $relays = $this->buildRelayListFromEvent($events[KindsEnum::RELAY_LIST->value] ?? null);
+
         return $this->render('settings/index.html.twig', [
             'npub' => $npub,
             'pubkeyHex' => $pubkeyHex,
@@ -105,6 +108,7 @@ class SettingsController extends AbstractController
             'existingContent' => $existingContent,
             'existingTags' => $existingTags,
             'events' => $events,
+            'relays' => $relays,
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
             'publicationSubdomain' => $publicationSubdomain,
@@ -249,6 +253,11 @@ class SettingsController extends AbstractController
             }
 
             $userProfileService->persistUserEvent((object) $signedEvent);
+
+            // Invalidate relay list cache when publishing a kind 10002 event
+            if ((int) $signedEvent['kind'] === KindsEnum::RELAY_LIST->value) {
+                $userRelayListService->invalidate($signedEvent['pubkey']);
+            }
 
             $pubkey = $signedEvent['pubkey'];
             $relays = $userRelayListService->getRelaysForPublishing($pubkey);
@@ -545,6 +554,38 @@ class SettingsController extends AbstractController
             'lud16'        => $user->getLud16() ?? '',
             'website'      => $user->getWebsite() ?? '',
         ];
+    }
+
+    /**
+     * Build a structured relay list from a kind 10002 event.
+     *
+     * Each entry has {url, read, write} for the template/JS.
+     *
+     * @return list<array{url: string, read: bool, write: bool}>
+     */
+    private function buildRelayListFromEvent(?EventEntity $relayEvent): array
+    {
+        if ($relayEvent === null) {
+            return [];
+        }
+
+        $relays = [];
+        foreach ($relayEvent->getTags() ?? [] as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? '') !== 'r' || empty($tag[1])) {
+                continue;
+            }
+
+            $url = $tag[1];
+            $marker = $tag[2] ?? null;
+
+            $relays[] = [
+                'url'   => $url,
+                'read'  => $marker === null || $marker === 'read',
+                'write' => $marker === null || $marker === 'write',
+            ];
+        }
+
+        return $relays;
     }
 }
 

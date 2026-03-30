@@ -26,6 +26,7 @@ The settings page (`/settings`) provides a centralized location for authenticate
 
 - `templates/settings/index.html.twig` — main tabbed layout
 - `templates/settings/tabs/_profile.html.twig` — profile editing form
+- `templates/settings/tabs/_relays.html.twig` — relay list editor (NIP-65)
 - `templates/settings/tabs/_events.html.twig` — events dashboard
 - `templates/settings/tabs/_subscriptions.html.twig` — subscriptions
 
@@ -33,6 +34,7 @@ The settings page (`/settings`) provides a centralized location for authenticate
 
 - `assets/controllers/ui/settings_tabs_controller.js` — tab switching with URL hash deep-linking
 - `assets/controllers/nostr/nostr_settings_profile_controller.js` — kind 0 profile editing, signing, and publishing
+- `assets/controllers/nostr/nostr_settings_relays_controller.js` — kind 10002 relay list editing, signing, and publishing
 
 ### CSS
 
@@ -48,7 +50,19 @@ Edits kind 0 metadata. The form collects:
 
 On submit, the controller builds a kind 0 event with **both** tags (new format) and JSON content (legacy format) for maximum compatibility with other Nostr clients. The event is signed via the user's Nostr signer (NIP-07/NIP-46) and published to their declared relays.
 
-### 2. Events
+### 2. Relays
+
+Edits the kind 10002 relay list per NIP-65. The editor:
+- Displays all relays from the user's current kind 10002 event
+- Each relay has read/write checkboxes (no marker = both read and write)
+- Users can add new relays (validated to start with `wss://`)
+- Users can remove relays
+- On publish, builds a kind 10002 event with `r` tags, signs via signer, POSTs to `api_settings_event_publish`
+- The relay list cache (`UserRelayListService`) is invalidated on publish so the new list takes effect immediately
+
+The Events tab relay card (kind 10002) includes an "Edit" link that switches to this tab.
+
+### 3. Events
 
 Read-only dashboard showing all Nostr event kinds that Decent Newsroom uses:
 
@@ -68,7 +82,7 @@ Read-only dashboard showing all Nostr event kinds that Decent Newsroom uses:
 
 Each card shows whether the event exists (✓/✗), last updated date, and relevant counts.
 
-### 3. Subscriptions
+### 4. Subscriptions
 
 Shows the status of:
 - **Vanity Name (NIP-05)** — links to `/subscription/vanity`

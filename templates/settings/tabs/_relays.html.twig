@@ -1,0 +1,79 @@
+{# Relay list editing tab — kind 10002 (NIP-65) #}
+<div class="settings-section"
+     data-controller="nostr--nostr-settings-relays"
+     data-nostr--nostr-settings-relays-publish-url-value="{{ path('api_settings_event_publish') }}"
+     data-nostr--nostr-settings-relays-relays-value="{{ relays|json_encode }}">
+
+    <h2 class="settings-section__title">{{ 'settings.relays.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.relays.description'|trans }}</p>
+
+    {# Current relay list #}
+    <div class="relay-list"
+         data-nostr--nostr-settings-relays-target="relayList">
+        {# Rendered dynamically by the Stimulus controller #}
+    </div>
+
+    <p class="relay-list__empty" data-nostr--nostr-settings-relays-target="emptyState"
+       {% if relays|length > 0 %}class="relay-list__empty hidden"{% endif %}>
+        {{ 'settings.relays.empty'|trans }}
+    </p>
+
+    {# New user helper — shown only when no relay list exists #}
+    {% if relays|length == 0 %}
+        <twig:Atoms:Alert type="info">
+            <strong>{{ 'settings.relays.newToNostr'|trans }}</strong>
+            {{ 'settings.relays.newToNostrHint'|trans }}
+            <button type="button" class="btn btn--small btn--outline"
+                    style="margin-left: var(--spacing-2);"
+                    data-action="click->nostr--nostr-settings-relays#addHomeRelay">
+                {{ 'settings.relays.addHomeRelay'|trans }}
+            </button>
+        </twig:Atoms:Alert>
+    {% endif %}
+
+    {# Add relay input #}
+    <div class="relay-add">
+        <div class="relay-add__input-group">
+            <input type="url"
+                   id="relay-url-input"
+                   data-nostr--nostr-settings-relays-target="urlInput"
+                   data-action="keydown->nostr--nostr-settings-relays#addRelayOnEnter"
+                   placeholder="wss://relay.example.com"
+                   aria-label="{{ 'settings.relays.add'|trans }}"
+                   class="relay-add__input">
+            <button type="button"
+                    class="btn btn--small btn--outline"
+                    data-action="click->nostr--nostr-settings-relays#addRelay">
+                {{ 'settings.relays.add'|trans }}
+            </button>
+        </div>
+    </div>
+
+    {# Publish actions #}
+    <div class="settings-form__actions">
+        <button type="button" class="btn btn--primary"
+                data-nostr--nostr-settings-relays-target="publishButton"
+                data-action="click->nostr--nostr-settings-relays#publish">
+            {{ 'settings.relays.signAndPublish'|trans }}
+        </button>
+    </div>
+
+    {# Raw kind 10002 event JSON #}
+    {% set relayEvent = events[10002] ?? null %}
+    {% if relayEvent %}
+        <details class="settings-raw-json">
+            <summary class="settings-raw-json__toggle">{{ 'settings.relays.rawJson'|trans }}</summary>
+            <pre class="settings-raw-json__content"><code>{{ {
+                id: relayEvent.id,
+                pubkey: relayEvent.pubkey,
+                kind: relayEvent.kind,
+                created_at: relayEvent.createdAt,
+                content: relayEvent.content,
+                tags: relayEvent.tags,
+                sig: relayEvent.sig
+            }|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</code></pre>
+        </details>
+    {% endif %}
+</div>
+
+

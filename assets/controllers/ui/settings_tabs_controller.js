@@ -30,6 +30,12 @@ export default class extends Controller {
     window.location.hash = 'profile';
   }
 
+  switchToRelays(event) {
+    event.preventDefault();
+    this.activateTab('relays');
+    window.location.hash = 'relays';
+  }
+
   activateTab(tabName) {
     this.tabTargets.forEach(t => {
       t.classList.toggle('active', t.dataset.tab === tabName);

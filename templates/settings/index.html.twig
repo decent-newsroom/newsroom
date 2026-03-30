@@ -18,6 +18,12 @@
                data-tab="profile">
                 {{ 'settings.tab.profile'|trans }}
             </a>
+            <a href="#relays" class="settings-tab"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="relays">
+                {{ 'settings.tab.relays'|trans }}
+            </a>
             <a href="#events" class="settings-tab"
                data-action="click->ui--settings-tabs#switchTab"
                data-ui--settings-tabs-target="tab"
@@ -36,6 +42,11 @@
             <div class="settings-panel active"
                  data-ui--settings-tabs-target="panel" data-panel="profile">
                 {% include 'settings/tabs/_profile.html.twig' %}
+            </div>
+
+            <div class="settings-panel"
+                 data-ui--settings-tabs-target="panel" data-panel="relays">
+                {% include 'settings/tabs/_relays.html.twig' %}
             </div>
 
             <div class="settings-panel"

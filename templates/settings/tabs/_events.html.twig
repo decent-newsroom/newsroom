@@ -99,8 +99,14 @@
                         {% endif %}
                     </ul>
                 </div>
+                <div class="event-card__actions">
+                    <a href="#relays" class="btn btn--small" data-action="click->ui--settings-tabs#switchToRelays">{{ 'settings.events.edit'|trans }}</a>
+                </div>
             {% else %}
                 <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+                <div class="event-card__actions">
+                    <a href="#relays" class="btn btn--small btn--primary" data-action="click->ui--settings-tabs#switchToRelays">{{ 'settings.events.create'|trans }}</a>
+                </div>
             {% endif %}
         </div>
 

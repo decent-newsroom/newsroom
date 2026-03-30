@@ -564,6 +564,7 @@ settings:
     tagline: 'Manage your profile, events, and subscriptions'
     tab:
         profile: 'Profile'
+        relays: 'Relays'
         events: 'Events'
         subscriptions: 'Subscriptions'
     profile:
@@ -581,6 +582,19 @@ settings:
         website: 'Website'
         signAndPublish: 'Sign & Publish Profile'
         rawJson: 'Raw Profile Event (kind 0)'
+    relays:
+        heading: 'Relay List'
+        description: 'Manage your NIP-65 relay list (kind 10002). Set which relays you read from and write to. Changes will be signed and published.'
+        add: 'Add Relay'
+        remove: 'Remove'
+        read: 'Read'
+        write: 'Write'
+        signAndPublish: 'Sign & Publish Relay List'
+        empty: 'No relays in your list yet. Add at least one relay to get started.'
+        newToNostr: 'New to Nostr?'
+        newToNostrHint: 'Set relay.decentnewsroom.com as your home relay.'
+        addHomeRelay: '+ Add Home Relay'
+        rawJson: 'Raw Relay List Event (kind 10002)'
     events:
         heading: 'Your Nostr Events'
         description: 'Overview of all Nostr events used by Decent Newsroom to personalize your experience.'

@@ -277,15 +277,9 @@
 .btn--small {
     padding: 4px 8px;
     font-size: 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 4px;
-    background: var(--surface-2);
     cursor: pointer;
-    color: var(--text-2);
-}
-
-.btn--small:hover {
-    background: var(--surface-3, var(--surface-2));
 }
 
 /* Empty state */

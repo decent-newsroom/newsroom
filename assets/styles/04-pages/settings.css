@@ -365,6 +365,119 @@
     word-break: break-word;
 }
 
+/* ===== Relay List Editor ===== */
+.relay-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
+}
+
+.relay-list__empty {
+    color: var(--color-text-mid);
+    font-style: italic;
+    margin-bottom: var(--spacing-3);
+}
+
+.relay-list__empty.hidden {
+    display: none;
+}
+
+.relay-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+}
+
+.relay-row__url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.relay-row__url code {
+    font-size: 0.85rem;
+}
+
+.relay-row__markers {
+    display: flex;
+    gap: var(--spacing-3);
+    flex-shrink: 0;
+}
+
+.relay-row__marker {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    font-size: 0.85rem;
+    color: var(--color-text-mid);
+    cursor: pointer;
+    user-select: none;
+}
+
+.relay-row__marker input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.relay-row__remove {
+    background: none;
+    border: none;
+    color: var(--color-text-mid);
+    cursor: pointer;
+    padding: var(--spacing-1);
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.relay-row__remove:hover {
+    color: var(--color-error, #dc2626);
+    background: none;
+    border: none;
+}
+
+.relay-add {
+    margin-bottom: var(--spacing-3);
+}
+
+.relay-add__input-group {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.relay-add__input {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 600px) {
+    .relay-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-2);
+    }
+
+    .relay-row__markers {
+        width: 100%;
+    }
+
+    .relay-row__remove {
+        align-self: flex-end;
+        margin-top: calc(-1 * var(--spacing-2));
+    }
+
+    .relay-add__input-group {
+        flex-direction: column;
+    }
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 600px) {
     .settings-tabs {

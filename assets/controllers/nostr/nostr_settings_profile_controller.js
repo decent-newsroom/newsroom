@@ -12,7 +12,7 @@ import { getSigner } from './signer_manager.js';
 export default class extends Controller {
   static targets = [
     'displayName', 'name', 'about', 'picture', 'banner',
-    'nip05', 'lud16', 'website', 'status', 'publishButton'
+    'nip05', 'lud16', 'website', 'publishButton'
   ];
 
   static values = {
@@ -137,23 +137,20 @@ export default class extends Controller {
   }
 
   showStatus(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.textContent = message;
-      this.statusTarget.className = 'settings-status settings-status--info';
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'info', 3000);
     }
   }
 
   showSuccess(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.textContent = message;
-      this.statusTarget.className = 'settings-status settings-status--success';
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'success', 4000);
     }
   }
 
   showError(message) {
-    if (this.hasStatusTarget) {
-      this.statusTarget.textContent = message;
-      this.statusTarget.className = 'settings-status settings-status--error';
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, 'danger', 8000);
     }
   }
 }
