@@ -17,6 +17,7 @@ class NostrExtension extends AbstractExtension
     {
         return [
             new TwigFilter('npub_to_hex', $this->npubToHex(...)),
+            new TwigFilter('hex_to_npub', $this->hexToNpub(...)),
         ];
     }
 
@@ -24,6 +25,15 @@ class NostrExtension extends AbstractExtension
     {
         try {
             return NostrKeyUtil::npubToHex($npub);
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    public function hexToNpub(string $hex): string
+    {
+        try {
+            return NostrKeyUtil::hexToNpub($hex);
         } catch (\Throwable) {
             return '';
         }

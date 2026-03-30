@@ -281,6 +281,7 @@
 
         {# Follow Packs #}
         {% set followPacks = events['follow_packs'] ?? [] %}
+        {% set user = app.user %}
         <div class="event-card">
             <div class="event-card__header">
                 <span class="event-card__kind">Kind 39089</span>
@@ -294,10 +295,46 @@
             {% if followPacks|length > 0 %}
                 <div class="event-card__meta">
                     {{ followPacks|length }} {{ 'settings.events.packs'|trans }}
+                    {% if user.followPackCoordinate %}
+                        · {{ 'settings.events.followPackSelected'|trans }}
+                    {% endif %}
+                </div>
+                <div class="event-card__detail">
+                    <ul class="event-card__list">
+                        {% for pack in followPacks|slice(0, 5) %}
+                            {% set packTitle = '' %}
+                            {% set packMembers = 0 %}
+                            {% set packDtag = '' %}
+                            {% for tag in pack.tags %}
+                                {% if tag[0] is defined and tag[0] == 'title' and tag[1] is defined %}
+                                    {% set packTitle = tag[1] %}
+                                {% endif %}
+                                {% if tag[0] is defined and tag[0] == 'p' %}
+                                    {% set packMembers = packMembers + 1 %}
+                                {% endif %}
+                                {% if tag[0] is defined and tag[0] == 'd' and tag[1] is defined %}
+                                    {% set packDtag = tag[1] %}
+                                {% endif %}
+                            {% endfor %}
+                            {% set packCoord = '39089:' ~ pack.pubkey ~ ':' ~ packDtag %}
+                            <li>
+                                <strong>{{ packTitle|default('Untitled') }}</strong>
+                                · {{ packMembers }} {{ 'settings.events.followPackMembers'|trans }}
+                                {% if user.followPackCoordinate == packCoord %}
+                                    <span class="event-card__badge event-card__badge--found" title="{{ 'settings.events.followPackIsSelected'|trans }}">★</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
                 </div>
             {% else %}
-                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+                <p class="event-card__empty">{{ 'settings.events.followPackEmpty'|trans }}</p>
             {% endif %}
+            <div class="event-card__actions">
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--primary">
+                    {{ followPacks|length > 0 ? 'settings.events.followPackManage'|trans : 'settings.events.followPackSetup'|trans }}
+                </a>
+            </div>
         </div>
 
     </div>

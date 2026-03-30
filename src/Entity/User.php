@@ -60,6 +60,9 @@ class User implements UserInterface, EquatableInterface
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
 
+    #[ORM\Column(type: Types::STRING, length: 500, nullable: true)]
+    private ?string $followPackCoordinate = null;
+
     private $metadata = null;
 
     public function getRoles(): array
@@ -280,6 +283,17 @@ class User implements UserInterface, EquatableInterface
     public function setLastLoginAt(?\DateTimeImmutable $lastLoginAt): self
     {
         $this->lastLoginAt = $lastLoginAt;
+        return $this;
+    }
+
+    public function getFollowPackCoordinate(): ?string
+    {
+        return $this->followPackCoordinate;
+    }
+
+    public function setFollowPackCoordinate(?string $followPackCoordinate): self
+    {
+        $this->followPackCoordinate = $followPackCoordinate;
         return $this;
     }
 

@@ -1,0 +1,90 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-3">
+            <h1>{{ 'follow_pack.page_title'|trans }}</h1>
+            <p class="eyebrow">{{ 'follow_pack.page_tagline'|trans }}</p>
+        </div>
+    </section>
+
+    <div class="container mt-4 mb-3">
+        <p class="measure">{{ 'follow_pack.description'|trans }}</p>
+        <p class="measure text-muted small">{{ 'follow_pack.description_dn'|trans }}</p>
+    </div>
+
+    <div class="container mt-4 mb-5"
+         data-controller="nostr--nostr-follow-pack"
+         data-nostr--nostr-follow-pack-publish-url-value="{{ path('api_settings_event_publish') }}"
+         data-nostr--nostr-follow-pack-set-coordinate-url-value="{{ path('api_settings_follow_pack_set') }}"
+         data-nostr--nostr-follow-pack-follows-pubkeys-value="{{ followsPubkeys|json_encode }}"
+         data-nostr--nostr-follow-pack-follows-profiles-value="{{ followsProfiles|json_encode }}"
+         data-nostr--nostr-follow-pack-existing-members-value="{{ existingPackMembers|json_encode }}"
+         data-nostr--nostr-follow-pack-existing-dtag-value="{{ existingPackDtag }}"
+         data-nostr--nostr-follow-pack-selected-coordinate-value="{{ selectedFollowPackCoordinate }}">
+
+        {# ── Existing packs: select one as your recommendation list ── #}
+        {% if existingFollowPacks|length > 0 %}
+            <div class="fp-existing-section mb-5">
+                <h2>{{ 'follow_pack.select_existing'|trans }}</h2>
+                {% for pack in existingFollowPacks %}
+                    {% set packCoord = '39089:' ~ pubkey ~ ':' ~ pack.dTag %}
+                    <div class="fp-pack-item {{ selectedFollowPackCoordinate == packCoord ? 'fp-pack-item--selected' : '' }}">
+                        <div class="fp-pack-info">
+                            <span class="fp-pack-title">{{ pack.title|default('Untitled') }}</span>
+                            <span class="fp-pack-meta">{{ pack.memberCount }} {{ 'follow_pack.members'|trans }}</span>
+                        </div>
+                        {% if selectedFollowPackCoordinate != packCoord %}
+                            <button class="btn btn--small btn--primary"
+                                    data-action="click->nostr--nostr-follow-pack#selectPack"
+                                    data-coordinate="{{ packCoord }}">
+                                {{ 'follow_pack.select_button'|trans }}
+                            </button>
+                        {% else %}
+                            <span class="event-card__badge event-card__badge--found">★ {{ 'follow_pack.selected'|trans }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <hr class="fp-divider">
+        {% endif %}
+
+        {# ── Create or edit a follow pack ── #}
+        <h2>{{ existingPackDtag ? 'follow_pack.edit_heading'|trans : 'follow_pack.create_heading'|trans }}</h2>
+
+        <div class="fp-form-group">
+            <label for="fp-title">{{ 'follow_pack.title_label'|trans }}</label>
+            <input type="text" id="fp-title"
+                   data-nostr--nostr-follow-pack-target="packTitle"
+                   value="{{ existingPackTitle }}"
+                   placeholder="{{ 'follow_pack.title_placeholder'|trans }}">
+        </div>
+
+        <div class="fp-form-group">
+            <label>{{ 'follow_pack.selected_writers'|trans }} (<span data-nostr--nostr-follow-pack-target="selectedCount">0</span>)</label>
+            <div class="fp-selected-list" data-nostr--nostr-follow-pack-target="selectedList"></div>
+        </div>
+
+        <div class="fp-form-group">
+            <label for="fp-search">{{ 'follow_pack.search_label'|trans }}</label>
+            <input type="text" id="fp-search"
+                   data-nostr--nostr-follow-pack-target="searchInput"
+                   data-action="input->nostr--nostr-follow-pack#onSearchInput"
+                   placeholder="{{ 'follow_pack.search_placeholder'|trans }}">
+        </div>
+
+        <div class="fp-search-area" data-nostr--nostr-follow-pack-target="searchResults"></div>
+
+        <div class="fp-publish-area">
+            <button class="btn btn--primary"
+                    data-nostr--nostr-follow-pack-target="publishButton"
+                    data-action="click->nostr--nostr-follow-pack#publish"
+                    disabled>
+                {{ 'follow_pack.publish_button'|trans }}
+            </button>
+            <div data-nostr--nostr-follow-pack-target="status"></div>
+        </div>
+    </div>
+{% endblock %}
+

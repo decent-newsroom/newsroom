@@ -1,0 +1,89 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ title }} — Newsroom{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if image %}
+        <meta property="og:image" content="{{ image }}">
+    {% endif %}
+    {% if description %}
+        <meta property="og:description" content="{{ description }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+{% endblock %}
+
+{% block body %}
+    {# Hero section — mirrors the magazine-hero pattern #}
+    <div class="magazine-hero">
+        {% if image %}
+            <div class="magazine-hero__cover">
+                <img src="{{ image }}" alt="{{ title }}" class="magazine-hero__cover-img">
+            </div>
+        {% endif %}
+
+        <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+            <div class="container mt-5">
+                <h1>{{ title }}</h1>
+                {% if description %}
+                    <p class="eyebrow">{{ description }}</p>
+                {% endif %}
+                <div>
+                    {{ 'followPackView.by'|trans }}
+                    <twig:Molecules:UserFromNpub :ident="authorNpub" />
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {# Articles from pack members #}
+    <section class="w-container mb-5">
+        {% if articles is empty %}
+            <div class="alert alert-info">
+                {{ 'followPackView.noArticles'|trans }}
+            </div>
+        {% else %}
+            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block aside %}
+    {# Pack members list — reuses FeaturedWriters styles #}
+    <div class="featured-writers">
+        <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+            <h2 class="mb-4">{{ 'followPackView.members'|trans }}</h2>
+        </div>
+        <ul class="featured-writers-list list-unstyled">
+            {% for member in members %}
+                <li class="featured-writer-item">
+                    <a href="{{ path('author-profile', { npub: member.npub }) }}" class="featured-writer-link">
+                        {% if member.picture %}
+                            <img src="{{ member.picture }}"
+                                 alt="{{ member.displayName|default(member.name)|default('Writer') }}"
+                                 class="featured-writer-avatar"
+                                 loading="lazy"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <span class="featured-writer-avatar-placeholder" style="display: none;">
+                                <twig:ux:icon name="iconoir:user" class="icon" />
+                            </span>
+                        {% else %}
+                            <span class="featured-writer-avatar-placeholder">
+                                <twig:ux:icon name="iconoir:user" class="icon" />
+                            </span>
+                        {% endif %}
+                        <span class="featured-writer-info">
+                            <span class="featured-writer-name">{{ member.displayName|default(member.name)|default('Anonymous') }}</span>
+                            {% if member.nip05 %}
+                                <span class="featured-writer-nip05">{{ member.nip05 }}</span>
+                            {% endif %}
+                        </span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}
+

@@ -1,6 +1,7 @@
 {% set peeps = [] %}
 {% set description = '' %}
 {% set cover = null %}
+{% set dtag = '' %}
 {% for tag in event.tags %}
     {% if tag[0] == 'description' %}
         {% set description = tag[1] %}
@@ -11,11 +12,22 @@
     {% if tag[0] == 'p' %}
         {% set peeps = peeps|merge([tag[1]]) %}
     {% endif %}
+    {% if tag[0] == 'd' %}
+        {% set dtag = tag[1] %}
+    {% endif %}
 {% endfor %}
 
 {% if not description is empty %}
     <div class="event-description">
         <p>{{ description }}</p>
+    </div>
+{% endif %}
+
+{% if dtag %}
+    <div class="mb-3">
+        <a href="{{ path('follow_pack_view', { npub: event.pubkey|hex_to_npub, dtag: dtag }) }}">
+            {{ 'followPackView.viewArticles'|trans }}
+        </a>
     </div>
 {% endif %}
 

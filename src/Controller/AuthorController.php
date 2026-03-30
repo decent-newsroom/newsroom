@@ -823,7 +823,8 @@ class AuthorController extends AbstractController
             }
 
             // For direct access, show full page with tabs
-            return $this->render('profile/author-tabs.html.twig', [
+            $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, false, $em, $redisCacheService);
+            return $this->render('profile/author-tabs.html.twig', array_merge([
                 'author' => $author,
                 'npub' => $npub,
                 'pubkey' => $pubkey,
@@ -833,8 +834,11 @@ class AuthorController extends AbstractController
                 'profileId' => $profileId,
                 'useVanity' => $useVanity,
                 'routePrefix' => $routePrefix,
-            ]);
+            ], $followPackData));
         }
+
+        // Load follow pack data for the author section sidebar
+        $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, $isOwner, $em, $redisCacheService);
 
         // STALE-WHILE-REVALIDATE: Try to get cached data first for instant loads
         $cacheableTabs = ['overview', 'articles', 'media', 'highlights', 'drafts'];
@@ -930,7 +934,7 @@ class AuthorController extends AbstractController
             'profileId' => $profileId,
             'useVanity' => $useVanity,
             'routePrefix' => $routePrefix,
-        ], $templateData));
+        ], $followPackData, $templateData));
     }
 
     /**
@@ -985,6 +989,191 @@ class AuthorController extends AbstractController
             'recentMedia' => $recentMedia,
             'recentHighlights' => $recentHighlights,
         ];
+    }
+
+    /**
+     * Load follow pack data for the profile author section.
+     *
+     * For owner: loads kind 3 follows (as resolved profiles), existing follow packs, and selected coordinate.
+     * For visitor: loads just the selected coordinate (if any) for display.
+     *
+     * @return array Template variables for _author-section.html.twig
+     */
+    private function getFollowPackDataForProfile(
+        string $pubkey,
+        string $npub,
+        bool $isOwner,
+        EntityManagerInterface $em,
+        RedisCacheService $redisCacheService,
+    ): array {
+        $data = [
+            'followsPubkeys' => [],
+            'followsProfiles' => [],
+            'existingPackMembers' => [],
+            'existingPackDtag' => '',
+            'existingPackTitle' => '',
+            'existingFollowPacks' => [],
+            'selectedFollowPackCoordinate' => '',
+            'followPackCoordinate' => '',
+            'followPackMembers' => [],
+        ];
+
+        // Get the user entity for the selected coordinate
+        $userRepo = $em->getRepository(\App\Entity\User::class);
+        $profileUser = $userRepo->findOneBy(['npub' => $npub]);
+
+        if ($profileUser) {
+            $data['followPackCoordinate'] = $profileUser->getFollowPackCoordinate() ?? '';
+            $data['selectedFollowPackCoordinate'] = $profileUser->getFollowPackCoordinate() ?? '';
+        }
+
+        // Resolve follow pack member profiles for the aside sidebar (both owner and visitor)
+        $selectedCoord = $data['followPackCoordinate'];
+        if ($selectedCoord) {
+            $coordParts = explode(':', $selectedCoord, 3);
+            if (count($coordParts) === 3) {
+                $packEvent = $em->getRepository(Event::class)->findByNaddr((int) $coordParts[0], $coordParts[1], $coordParts[2]);
+                if ($packEvent) {
+                    $memberPubkeys = [];
+                    foreach ($packEvent->getTags() as $tag) {
+                        if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                            $memberPubkeys[] = $tag[1];
+                        }
+                    }
+                    $followPackMembers = [];
+                    $nip19 = new Nip19Helper();
+                    foreach (array_slice($memberPubkeys, 0, 20) as $memberHex) {
+                        try {
+                            $memberMeta = $redisCacheService->getMetadata($memberHex);
+                            $memberStd = $memberMeta->toStdClass();
+                            $followPackMembers[] = [
+                                'npub' => $nip19->encodeNpub($memberHex),
+                                'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
+                                'name' => $memberStd->name ?? '',
+                                'picture' => $memberStd->picture ?? '',
+                                'nip05' => $memberStd->nip05 ?? '',
+                            ];
+                        } catch (\Throwable) {
+                            // Skip unresolvable
+                        }
+                    }
+                    $data['followPackMembers'] = $followPackMembers;
+                }
+            }
+        }
+
+        if (!$isOwner) {
+            return $data;
+        }
+
+        // Load kind 3 follows for the owner
+        $followsEvent = $em->getRepository(Event::class)->findLatestByPubkeyAndKind($pubkey, KindsEnum::FOLLOWS->value);
+        $followsPubkeys = [];
+        if ($followsEvent) {
+            foreach ($followsEvent->getTags() as $tag) {
+                if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $followsPubkeys[] = $tag[1];
+                }
+            }
+        }
+        $data['followsPubkeys'] = $followsPubkeys;
+
+        // Resolve follows to profile objects for the suggestions UI.
+        // Iterate over all follows but collect only those with locally cached
+        // metadata (names & avatars), so the list shows rich profiles.
+        $followsProfiles = [];
+        $nip19 = new Nip19Helper();
+        foreach ($followsPubkeys as $hexPubkey) {
+            if (count($followsProfiles) >= 50) {
+                break;
+            }
+            try {
+                $metadata = $redisCacheService->getMetadata($hexPubkey);
+                $std = $metadata->toStdClass();
+                // Only include profiles that have at least a name or display_name
+                if (empty($std->name) && empty($std->display_name)) {
+                    continue;
+                }
+                $followsProfiles[] = [
+                    'npub' => $nip19->encodeNpub($hexPubkey),
+                    'displayName' => $std->display_name ?? $std->name ?? '',
+                    'name' => $std->name ?? '',
+                    'picture' => $std->picture ?? '',
+                    'nip05' => $std->nip05 ?? '',
+                ];
+            } catch (\Throwable) {
+                // No local profile — skip, prioritize resolved ones
+            }
+        }
+        $data['followsProfiles'] = $followsProfiles;
+
+        // Load existing follow packs
+        $followPacks = $em->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+
+        $existingFollowPacks = [];
+        foreach ($followPacks as $pack) {
+            $dTag = $pack->getSlug() ?? '';
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+            $existingFollowPacks[] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+            ];
+        }
+        $data['existingFollowPacks'] = $existingFollowPacks;
+
+        // Pre-populate existing pack members if user has a selected coordinate
+        $selectedCoord = $data['selectedFollowPackCoordinate'];
+        if ($selectedCoord) {
+            foreach ($existingFollowPacks as $pack) {
+                $packCoord = KindsEnum::FOLLOW_PACK->value . ':' . $pubkey . ':' . $pack['dTag'];
+                if ($packCoord === $selectedCoord) {
+                    $data['existingPackDtag'] = $pack['dTag'];
+                    $data['existingPackTitle'] = $pack['title'];
+                    // Resolve member profiles
+                    $members = [];
+                    foreach (array_slice($pack['memberPubkeys'], 0, 100) as $memberHex) {
+                        try {
+                            $memberMeta = $redisCacheService->getMetadata($memberHex);
+                            $memberStd = $memberMeta->toStdClass();
+                            $nip19 = new Nip19Helper();
+                            $memberNpub = $nip19->encodeNpub($memberHex);
+                            $members[] = [
+                                'npub' => $memberNpub,
+                                'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
+                                'name' => $memberStd->name ?? '',
+                                'picture' => $memberStd->picture ?? '',
+                                'nip05' => $memberStd->nip05 ?? '',
+                            ];
+                        } catch (\Throwable) {
+                            // Skip unresolvable
+                        }
+                    }
+                    $data['existingPackMembers'] = $members;
+                    break;
+                }
+            }
+        }
+
+        return $data;
     }
 
     /**

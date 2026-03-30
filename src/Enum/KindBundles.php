@@ -34,6 +34,7 @@ final class KindBundles
         KindsEnum::MEDIA_FOLLOWS->value,       // 10020 — NIP-68
         KindsEnum::BLOSSOM_SERVER_LIST->value,  // 10063 — NIP-B7
         KindsEnum::INTEREST_SETS->value,       // 30015 — NIP-51
+        KindsEnum::FOLLOW_PACK->value,         // 39089 — NIP-51 follow pack
     ];
 
     /**

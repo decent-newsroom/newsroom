@@ -77,3 +77,100 @@
     </section>
 
 {% endblock %}
+
+{% block aside %}
+    {# Follow Pack sidebar — reuses FeaturedWriters styles #}
+    {% if isOwner and selectedFollowPackCoordinate|default('') %}
+        {% set coordParts = selectedFollowPackCoordinate|split(':', 3) %}
+        {% set packPubkey = coordParts[1]|default('') %}
+        {% set packDtag = coordParts[2]|default('') %}
+        {% set members = existingPackMembers|default([]) %}
+        {% if members|length > 0 %}
+            <div class="featured-writers">
+                <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+                    <h2 class="mb-4">
+                        <a href="{{ path('follow_pack_view', { npub: packPubkey|hex_to_npub, dtag: packDtag }) }}">{{ 'follow_pack.recommended_writers'|trans }}</a>
+                    </h2>
+                </div>
+                <ul class="featured-writers-list list-unstyled">
+                    {% for member in members|slice(0, 10) %}
+                        <li class="featured-writer-item">
+                            <a href="{{ path('author-profile', { npub: member.npub }) }}" class="featured-writer-link">
+                                {% if member.picture %}
+                                    <img src="{{ member.picture }}"
+                                         alt="{{ member.displayName|default(member.name)|default('Writer') }}"
+                                         class="featured-writer-avatar"
+                                         loading="lazy" />
+                                {% else %}
+                                    <span class="featured-writer-avatar-placeholder">
+                                        <twig:ux:icon name="iconoir:user" class="icon" />
+                                    </span>
+                                {% endif %}
+                                <span class="featured-writer-info">
+                                    <span class="featured-writer-name">{{ member.displayName|default(member.name)|default('Anonymous') }}</span>
+                                    {% if member.nip05 %}
+                                        <span class="featured-writer-nip05">{{ member.nip05 }}</span>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if members|length > 10 %}
+                    <p class="fp-aside__more">+{{ members|length - 10 }} {{ 'follow_pack.more_writers'|trans }}</p>
+                {% endif %}
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
+            </div>
+        {% endif %}
+    {% elseif isOwner %}
+        <div class="contribution-section mt-3 mb-3 p-3 ln-section--newsstand">
+            <div class="text-center mb-2">
+                <strong>{{ 'follow_pack.info_bubble'|trans }}</strong>
+            </div>
+            <div class="text-center">
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline">{{ 'follow_pack.setup_button'|trans }}</a>
+            </div>
+        </div>
+    {% elseif followPackCoordinate|default('') %}
+        {% set coordParts = followPackCoordinate|split(':', 3) %}
+        {% set packPubkey = coordParts[1]|default('') %}
+        {% set packDtag = coordParts[2]|default('') %}
+        {% set members = followPackMembers|default([]) %}
+        {% if members|length > 0 %}
+            <div class="featured-writers">
+                <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+                    <h2 class="mb-4">
+                        <a href="{{ path('follow_pack_view', { npub: packPubkey|hex_to_npub, dtag: packDtag }) }}">{{ 'follow_pack.recommended_writers'|trans }}</a>
+                    </h2>
+                </div>
+                <ul class="featured-writers-list list-unstyled">
+                    {% for member in members|slice(0, 10) %}
+                        <li class="featured-writer-item">
+                            <a href="{{ path('author-profile', { npub: member.npub }) }}" class="featured-writer-link">
+                                {% if member.picture %}
+                                    <img src="{{ member.picture }}"
+                                         alt="{{ member.displayName|default(member.name)|default('Writer') }}"
+                                         class="featured-writer-avatar"
+                                         loading="lazy" />
+                                {% else %}
+                                    <span class="featured-writer-avatar-placeholder">
+                                        <twig:ux:icon name="iconoir:user" class="icon" />
+                                    </span>
+                                {% endif %}
+                                <span class="featured-writer-info">
+                                    <span class="featured-writer-name">{{ member.displayName|default(member.name)|default('Anonymous') }}</span>
+                                    {% if member.nip05 %}
+                                        <span class="featured-writer-nip05">{{ member.nip05 }}</span>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% if members|length > 10 %}
+                    <p class="fp-aside__more">+{{ members|length - 10 }} {{ 'follow_pack.more_writers'|trans }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endif %}
+{% endblock %}

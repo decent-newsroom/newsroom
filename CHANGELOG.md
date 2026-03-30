@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.26
+
+- Added Featured Articles page (`/featured-articles`): shows the latest articles from users with the Featured Writer role. The "Writers" heading link in the global FeaturedWriters sidebar now leads to this page instead of the forum.
+- Added Follow Pack view page (`/follow-pack/{pubkey}/{dtag}`): a magazine-style page for any follow pack. Shows a cover image (if the event has an `image` tag), pack title, curator attribution, and the latest articles from the pack's members. The aside lists all members with the FeaturedWriters style. The "Recommended Writers" heading on profile pages now links to this view.
+- Added Follow Pack setup feature: users can create and manage a follow pack (kind 39089) from a dedicated `/settings/follow-pack` page. The profile sidebar (right aside) shows a compact list of recommended writers when a follow pack is set, with a link to the setup page. For owners without a pack, an info bubble invites them to set one up. The setup form includes user search (reusing `/api/users/search`) with kind 3 follows prioritized as suggestions, existing pack management, and pack selection. The settings Events tab also links to the dedicated page. Visitors see the recommended writers list in the profile aside when the author has a follow pack.
+
+
 ## v0.0.25
 
 - [Performance] Ensured article HTML is pre-generated at ingestion time across all ingestion paths, not just the relay subscription worker. Previously only `ArticleEventProjector` (strfry subscription worker) converted markdown to HTML before persisting; three other paths — `ArticleFetchService` (fetch-by-pubkey, fetch-latest, ingest-range, naddr), `FetchAuthorContentHandler` (async author content fetch), and `EditorController` (user publish) — left `processed_html` NULL, causing on-the-fly conversion on every article page load. All four paths now call `Converter::convertToHTML()` before `persist()`, with graceful fallback if conversion fails.

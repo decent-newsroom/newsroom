@@ -1,0 +1,20 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'featuredArticles.heading'|trans }}" tagline="{{ 'featuredArticles.tagline'|trans }}"/>
+
+    <section class="w-container mb-5">
+        {% if articles is empty %}
+            <div class="alert alert-info">
+                {{ 'featuredArticles.noArticles'|trans }}
+            </div>
+        {% else %}
+            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <twig:Atoms:FeaturedWriters />
+{% endblock %}
+

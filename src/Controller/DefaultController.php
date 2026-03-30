@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
 use App\Service\Search\ArticleSearchFactory;
@@ -24,6 +25,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -273,7 +275,7 @@ class DefaultController extends AbstractController
         // (cached views already have stdClass, so only convert UserMetadata)
         $authorsMetadataStd = [];
         foreach ($authorsMetadata as $pubkey => $metadata) {
-            if ($metadata instanceof \App\Dto\UserMetadata) {
+            if ($metadata instanceof UserMetadata) {
                 $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
             } else {
                 $authorsMetadataStd[$pubkey] = $metadata;
@@ -374,7 +376,7 @@ class DefaultController extends AbstractController
         // (cached views already have stdClass, so only convert UserMetadata)
         $authorsMetadataStd = [];
         foreach ($authorsMetadata as $pubkey => $metadata) {
-            if ($metadata instanceof \App\Dto\UserMetadata) {
+            if ($metadata instanceof UserMetadata) {
                 $authorsMetadataStd[$pubkey] = $metadata->toStdClass();
             } else {
                 $authorsMetadataStd[$pubkey] = $metadata;
@@ -389,6 +391,145 @@ class DefaultController extends AbstractController
     }
 
     /**
+     * Latest articles from featured writers (ROLE_FEATURED_WRITER).
+     */
+    #[Route('/featured-articles', name: 'featured_articles')]
+    public function featuredArticles(
+        \App\Repository\UserEntityRepository $userRepository,
+        ArticleRepository $articleRepository,
+        RedisCacheService $redisCacheService,
+    ): Response
+    {
+        $featuredUsers = $userRepository->findFeaturedWriters();
+
+        // Convert to hex pubkeys
+        $pubkeys = [];
+        foreach ($featuredUsers as $user) {
+            $npub = $user->getNpub();
+            if (NostrKeyUtil::isNpub($npub)) {
+                $pubkeys[] = NostrKeyUtil::npubToHex($npub);
+            }
+        }
+
+        $articles = $articleRepository->findLatestByPubkeys($pubkeys, 50);
+
+        // Collect unique author pubkeys for metadata
+        $authorPubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
+        $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
+        $authorsMetadataStd = [];
+        foreach ($metadataMap as $pk => $meta) {
+            $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
+                ? $meta->toStdClass()
+                : $meta;
+        }
+
+        return $this->render('pages/featured-articles.html.twig', [
+            'articles' => $articles,
+            'authorsMetadata' => $authorsMetadataStd,
+        ]);
+    }
+
+    /**
+     * Follow Pack view page — shows cover image, member list, and latest articles.
+     * @throws InvalidArgumentException
+     */
+    #[Route('/follow-pack/{npub}/{dtag}', name: 'follow_pack_view', requirements: ['npub' => 'npub1[a-z0-9]+'])]
+    public function followPackView(
+        string $npub,
+        string $dtag,
+        EntityManagerInterface $em,
+        RedisCacheService $redisCacheService,
+        ArticleRepository $articleRepository,
+    ): Response
+    {
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($npub);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException('Invalid npub.');
+        }
+
+        $eventRepo = $em->getRepository(Event::class);
+        $packEvent = $eventRepo->findByNaddr(KindsEnum::FOLLOW_PACK->value, $pubkey, $dtag);
+
+        if (!$packEvent) {
+            throw $this->createNotFoundException('Follow pack not found.');
+        }
+
+        // Extract tags
+        $title = '';
+        $image = null;
+        $description = null;
+        $memberPubkeys = [];
+
+        foreach ($packEvent->getTags() as $tag) {
+            $key = $tag[0] ?? '';
+            match ($key) {
+                'title' => $title = $tag[1] ?? '',
+                'image' => $image = $tag[1] ?? null,
+                'picture' => $image ??= $tag[1] ?? null,
+                'description' => $description = $tag[1] ?? null,
+                'about' => $description ??= $tag[1] ?? null,
+                'p' => $memberPubkeys[] = $tag[1] ?? '',
+                default => null,
+            };
+        }
+
+        $memberPubkeys = array_filter(array_unique($memberPubkeys));
+
+        // Resolve member profiles
+        $nip19 = new Nip19Helper();
+        $members = [];
+        $metadataMap = $redisCacheService->getMultipleMetadata($memberPubkeys);
+
+        foreach ($memberPubkeys as $hex) {
+            $meta = $metadataMap[$hex] ?? null;
+            $std = $meta ? ($meta instanceof UserMetadata ? $meta->toStdClass() : $meta) : null;
+            $members[] = [
+                'pubkey' => $hex,
+                'npub' => $nip19->encodeNpub($hex),
+                'displayName' => $std->display_name ?? $std->name ?? '',
+                'name' => $std->name ?? '',
+                'picture' => $std->picture ?? '',
+                'nip05' => $std->nip05 ?? '',
+            ];
+        }
+
+        // Fetch latest articles from pack members
+        $articles = $articleRepository->findLatestByPubkeys($memberPubkeys, 50);
+
+        // Author metadata for cards
+        $articlePubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
+        $articleMetaMap = $redisCacheService->getMultipleMetadata($articlePubkeys);
+        $authorsMetadataStd = [];
+        foreach ($articleMetaMap as $pk => $meta) {
+            $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
+                ? $meta->toStdClass() : $meta;
+        }
+
+        // Resolve pack author profile
+        $authorMeta = $redisCacheService->getMultipleMetadata([$pubkey]);
+        $authorProfile = null;
+        if (isset($authorMeta[$pubkey])) {
+            $authorProfile = $authorMeta[$pubkey] instanceof UserMetadata
+                ? $authorMeta[$pubkey]->toStdClass() : $authorMeta[$pubkey];
+        }
+
+        return $this->render('pages/follow-pack.html.twig', [
+            'packEvent' => $packEvent,
+            'title' => $title ?: 'Follow Pack',
+            'image' => $image,
+            'description' => $description,
+            'members' => $members,
+            'articles' => $articles,
+            'authorsMetadata' => $authorsMetadataStd,
+            'packDtag' => $dtag,
+            'authorNpub' => $nip19->encodeNpub($pubkey),
+            'authorProfile' => $authorProfile,
+        ]);
+    }
+
+    /**
      * @throws Exception
      */
     #[Route('/lists', name: 'lists')]
@@ -399,7 +540,7 @@ class DefaultController extends AbstractController
 
     /**
      * Magazine front page: title, summary, category links, featured list.
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentException|\Doctrine\DBAL\Exception
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
     public function magIndex(string $mag, EntityManagerInterface $entityManager) : Response

@@ -374,6 +374,12 @@ readingListDropdown:
 featuredWriters:
     heading: 'Writers'
 
+# ── Featured Articles page ─────────────────────────────────────────
+featuredArticles:
+    heading: 'Featured Articles'
+    tagline: 'Latest from our featured writers'
+    noArticles: 'No articles from featured writers yet.'
+
 # ── Editor page ───────────────────────────────────────────────────
 editor:
     nostrIdentityRequired: 'A Nostr identity is required to post articles.'
@@ -623,6 +629,12 @@ settings:
         noMediaFollows: 'No media follow list published yet'
         mediaFollowsHint: 'Without a media follow list, your regular follows will be used for multimedia content.'
         setupInterests: 'Set Up Interests'
+        followPackSelected: 'Recommendation list set'
+        followPackMembers: 'members'
+        followPackIsSelected: 'Selected as recommendation list'
+        followPackEmpty: 'No follow packs published yet. Create one on your profile page.'
+        followPackManage: 'Manage'
+        followPackSetup: 'Set Up'
         edit: 'Edit'
         view: 'View'
         create: 'Create'
@@ -689,4 +701,36 @@ journey:
         tagline: 'Log in to get started'
         loginHeading: 'Log In to Get Started'
         loginDescription: 'Sign in with your Nostr identity so we can find your articles and set up your magazine.'
+
+# ── Follow Pack (profile sidebar recommendation list) ──────────────
+follow_pack:
+    info_bubble: 'Set up a list of writers you recommend.'
+    setup_button: 'Set Up Follow Pack'
+    edit_button: 'Edit Follow Pack'
+    title_label: 'Pack Title'
+    title_placeholder: 'My Recommended Writers'
+    selected_writers: 'Selected Writers'
+    search_label: 'Search for writers'
+    search_placeholder: 'Search by name or NIP-05...'
+    publish_button: 'Publish Follow Pack'
+    existing_packs: 'Your Existing Follow Packs'
+    members: 'members'
+    select_button: 'Select'
+    selected: 'Selected'
+    recommended_writers: 'Recommended Writers'
+    more_writers: 'more'
+    page_title: 'Follow Pack'
+    page_tagline: 'Build a list of writers you recommend to your followers'
+    description: 'A follow pack is a public list of Nostr accounts you recommend. It is a kind 39089 event — anyone on any Nostr client can see it, and other users can follow the whole pack with one click.'
+    description_dn: 'On Decent Newsroom, your selected follow pack appears on your profile as a "Recommended Writers" list. Visitors can discover new voices through your recommendations.'
+    select_existing: 'Select a recommendation list'
+    create_heading: 'Create a new follow pack'
+    edit_heading: 'Edit your follow pack'
+
+# ── Follow Pack View page ──────────────────────────────────────────
+followPackView:
+    by: 'Curated by'
+    noArticles: 'No articles from this group yet.'
+    members: 'Writers'
+    viewArticles: 'View articles from this group →'
 

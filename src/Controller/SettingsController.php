@@ -11,6 +11,7 @@ use App\Enum\KindsEnum;
 use App\Message\UpdateRelayListMessage;
 use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
+use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
@@ -18,6 +19,7 @@ use App\Service\PublicationSubdomainService;
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
+use swentel\nostr\Nip19\Nip19Helper;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
@@ -48,6 +50,7 @@ class SettingsController extends AbstractController
         private readonly ActiveIndexingService $activeIndexingService,
         private readonly PublicationSubdomainService $publicationSubdomainService,
         private readonly UserProfileService $userProfileService,
+        private readonly RedisCacheService $redisCacheService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -554,6 +557,249 @@ class SettingsController extends AbstractController
             'lud16'        => $user->getLud16() ?? '',
             'website'      => $user->getWebsite() ?? '',
         ];
+    }
+
+    /**
+     * Dedicated follow pack setup page.
+     *
+     * Renders a full page where the user can search for writers, build a
+     * follow pack (kind 39089), sign it, publish, and store the coordinate.
+     */
+    #[Route('/settings/follow-pack', name: 'follow_pack_setup')]
+    #[IsGranted('ROLE_USER')]
+    public function followPackSetup(): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $npub = $user->getUserIdentifier();
+        $pubkey = NostrKeyUtil::npubToHex($npub);
+
+        // Load kind 3 follows for suggestions
+        $followsEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::FOLLOWS->value);
+        $followsPubkeys = [];
+        if ($followsEvent) {
+            foreach ($followsEvent->getTags() as $tag) {
+                if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $followsPubkeys[] = $tag[1];
+                }
+            }
+        }
+
+        // Resolve follows to profile objects — iterate over all follows but
+        // collect only those with locally cached metadata (names & avatars).
+        // This ensures the suggestion list shows rich profiles, not raw npubs.
+        $followsProfiles = [];
+        $nip19 = new Nip19Helper();
+        foreach ($followsPubkeys as $hexPubkey) {
+            if (count($followsProfiles) >= 50) {
+                break;
+            }
+            try {
+                $metadata = $this->redisCacheService->getMetadata($hexPubkey);
+                $std = $metadata->toStdClass();
+                // Only include profiles that have at least a name or display_name
+                if (empty($std->name) && empty($std->display_name)) {
+                    continue;
+                }
+                $followsProfiles[] = [
+                    'npub' => $nip19->encodeNpub($hexPubkey),
+                    'displayName' => $std->display_name ?? $std->name ?? '',
+                    'name' => $std->name ?? '',
+                    'picture' => $std->picture ?? '',
+                    'nip05' => $std->nip05 ?? '',
+                ];
+            } catch (\Throwable) {
+                // No local profile — skip, prioritize resolved ones
+            }
+        }
+
+        // Load existing follow packs from DB
+        $followPacks = $this->loadFollowPacksFromDb($pubkey);
+
+        // If none found locally, try fetching from relays (packs created on other clients)
+        if (empty($followPacks)) {
+            try {
+                $this->userProfileService->fetchUserContext($pubkey);
+                $followPacks = $this->loadFollowPacksFromDb($pubkey);
+            } catch (\Throwable $e) {
+                $this->logger->debug('Follow pack: relay fetch failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        $existingFollowPacks = [];
+        foreach ($followPacks as $pack) {
+            $dTag = $pack->getSlug() ?? '';
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+            $existingFollowPacks[] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+            ];
+        }
+
+        // Pre-populate existing pack members if the user has a selected coordinate
+        $selectedCoordinate = $user->getFollowPackCoordinate() ?? '';
+        $existingPackMembers = [];
+        $existingPackDtag = '';
+        $existingPackTitle = '';
+
+        if ($selectedCoordinate) {
+            foreach ($existingFollowPacks as $pack) {
+                $packCoord = KindsEnum::FOLLOW_PACK->value . ':' . $pubkey . ':' . $pack['dTag'];
+                if ($packCoord === $selectedCoordinate) {
+                    $existingPackDtag = $pack['dTag'];
+                    $existingPackTitle = $pack['title'];
+                    foreach (array_slice($pack['memberPubkeys'], 0, 100) as $memberHex) {
+                        try {
+                            $memberMeta = $this->redisCacheService->getMetadata($memberHex);
+                            $memberStd = $memberMeta->toStdClass();
+                            $existingPackMembers[] = [
+                                'npub' => $nip19->encodeNpub($memberHex),
+                                'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
+                                'name' => $memberStd->name ?? '',
+                                'picture' => $memberStd->picture ?? '',
+                                'nip05' => $memberStd->nip05 ?? '',
+                            ];
+                        } catch (\Throwable) {
+                            // Skip unresolvable
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        return $this->render('settings/follow-pack.html.twig', [
+            'npub' => $npub,
+            'pubkey' => $pubkey,
+            'followsPubkeys' => $followsPubkeys,
+            'followsProfiles' => $followsProfiles,
+            'existingPackMembers' => $existingPackMembers,
+            'existingPackDtag' => $existingPackDtag,
+            'existingPackTitle' => $existingPackTitle,
+            'existingFollowPacks' => $existingFollowPacks,
+            'selectedFollowPackCoordinate' => $selectedCoordinate,
+        ]);
+    }
+
+    /**
+     * API endpoint to set the user's follow pack coordinate.
+     *
+     * Called after the user publishes a follow pack (kind 39089) event.
+     * Stores the coordinate on the User entity so the profile sidebar can show it.
+     */
+    #[Route('/api/settings/follow-pack/set', name: 'api_settings_follow_pack_set', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function setFollowPack(Request $request): JsonResponse
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $coordinate = trim($data['coordinate'] ?? '');
+
+            if (empty($coordinate)) {
+                return new JsonResponse(['error' => 'Coordinate is required'], 400);
+            }
+
+            // Validate coordinate format: kind:pubkey:d-tag
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) < 3 || (int) $parts[0] !== KindsEnum::FOLLOW_PACK->value) {
+                return new JsonResponse(['error' => 'Invalid coordinate format. Expected: 39089:pubkey:d-tag'], 400);
+            }
+
+            // Ensure the pubkey matches the authenticated user
+            /** @var User $user */
+            $user = $this->getUser();
+            $userPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            if ($parts[1] !== $userPubkey) {
+                return new JsonResponse(['error' => 'Coordinate pubkey does not match authenticated user'], 403);
+            }
+
+            $user->setFollowPackCoordinate($coordinate);
+            $this->entityManager->flush();
+
+            return new JsonResponse(['success' => true, 'coordinate' => $coordinate]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to set follow pack coordinate', ['error' => $e->getMessage()]);
+            return new JsonResponse(['error' => 'Failed to set follow pack: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * API endpoint to get the user's follow pack coordinate and follow pack data.
+     */
+    #[Route('/api/settings/follow-pack', name: 'api_settings_follow_pack_get', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    public function getFollowPack(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $coordinate = $user->getFollowPackCoordinate();
+
+        // Also load the user's existing follow packs from DB
+        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $followPacks = $this->eventRepository->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+
+        $packs = array_map(function (EventEntity $e) {
+            $dTag = $e->getSlug() ?? '';
+            $title = '';
+            $pTags = [];
+            foreach ($e->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+            return [
+                'coordinate' => KindsEnum::FOLLOW_PACK->value . ':' . $e->getPubkey() . ':' . $dTag,
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'createdAt' => $e->getCreatedAt(),
+            ];
+        }, $followPacks);
+
+        return new JsonResponse([
+            'selectedCoordinate' => $coordinate,
+            'packs' => $packs,
+        ]);
+    }
+
+    /**
+     * Load all follow pack (kind 39089) events for the given pubkey from the DB.
+     *
+     * @return EventEntity[]
+     */
+    private function loadFollowPacksFromDb(string $pubkey): array
+    {
+        return $this->eventRepository->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
