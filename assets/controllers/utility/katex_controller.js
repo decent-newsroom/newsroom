@@ -74,12 +74,12 @@ export default class extends Controller {
         const delimiters = this.displayValue
             ? [
                 { left: '$$', right: '$$', display: true },
-                { left: '$',  right: '$',  display: false },
+                { left: '\\(', right: '\\)', display: false },
                 { left: '\\[', right: '\\]', display: true },
             ]
             : [
                 { left: '$$', right: '$$', display: false },
-                { left: '$',  right: '$',  display: false },
+                { left: '\\(', right: '\\)', display: false },
             ];
 
         renderMathInElement(this.element, {
@@ -88,6 +88,3 @@ export default class extends Controller {
         });
     }
 }
-
-
-

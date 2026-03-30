@@ -446,7 +446,7 @@ function deltaToMarkdown(delta) {
   const renderInline = (seg) => {
     if (seg.type === 'embed') {
       const e = seg.embed;
-      if (e.formula) return `$${escapeUnderscoresInTeXForPosting(e.formula)}$`;
+      if (e.formula) return `\\(${escapeUnderscoresInTeXForPosting(e.formula)}\\)`;
       if (e.nostrMention) return `nostr:${e.nostrMention.npub || ''}`;
       if (e.imageAlt) return `![${e.imageAlt.alt || 'image'}](${e.imageAlt.src || ''})`;
       if (e.image) return `![image](${e.image})`;
