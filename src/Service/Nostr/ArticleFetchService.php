@@ -8,6 +8,7 @@ use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Service\Graph\EventIngestionListener;
+use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -31,6 +32,7 @@ class ArticleFetchService
         private readonly ManagerRegistry       $managerRegistry,
         private readonly LoggerInterface       $logger,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly Converter             $converter,
         private readonly ?string               $nostrDefaultRelay = null,
     ) {}
 
@@ -348,6 +350,26 @@ class ArticleFetchService
             ->findOneBy(['eventId' => $article->getEventId()]);
 
         if (!$saved) {
+            // Pre-process markdown to HTML so it's ready in the DB
+            if ($article->getContent() && !$article->getProcessedHtml()) {
+                try {
+                    $tags = null;
+                    $raw = $article->getRaw();
+                    if (is_object($raw) && isset($raw->tags)) {
+                        $tags = $raw->tags;
+                    } elseif (is_array($raw) && isset($raw['tags'])) {
+                        $tags = $raw['tags'];
+                    }
+                    $processedHtml = $this->converter->convertToHTML($article->getContent(), null, $tags);
+                    $article->setProcessedHtml($processedHtml);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to process article HTML during save', [
+                        'event_id' => $article->getEventId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             try {
                 $this->logger->info('Saving article', ['article' => $article]);
                 $this->entityManager->persist($article);

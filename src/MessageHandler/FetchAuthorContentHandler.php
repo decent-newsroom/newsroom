@@ -12,6 +12,7 @@ use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\UserRelayListService;
+use App\Util\CommonMark\Converter;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -31,6 +32,7 @@ class FetchAuthorContentHandler
         private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly Converter $converter,
     ) {}
 
     public function __invoke(FetchAuthorContentMessage $message): void
@@ -300,6 +302,26 @@ class FetchAuthorContentHandler
     {
         $existing = $this->eventRepository->findOneBy(['eventId' => $article->getEventId()]);
         if (!$existing) {
+            // Pre-process markdown to HTML so it's ready in the DB
+            if ($article->getContent() && !$article->getProcessedHtml()) {
+                try {
+                    $tags = null;
+                    $raw = $article->getRaw();
+                    if (is_object($raw) && isset($raw->tags)) {
+                        $tags = $raw->tags;
+                    } elseif (is_array($raw) && isset($raw['tags'])) {
+                        $tags = $raw['tags'];
+                    }
+                    $processedHtml = $this->converter->convertToHTML($article->getContent(), null, $tags);
+                    $article->setProcessedHtml($processedHtml);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to process article HTML during author content fetch', [
+                        'event_id' => $article->getEventId(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
             $this->eventRepository->getEntityManager()->persist($article);
             $this->eventRepository->getEntityManager()->flush();
         }

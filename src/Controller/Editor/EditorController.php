@@ -16,6 +16,7 @@ use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\UserRolePromoter;
+use App\Util\CommonMark\Converter;
 use App\Util\NostrKeyUtil;
 use App\Enum\AuthorContentType;
 use App\Message\FetchAuthorContentMessage;
@@ -274,6 +275,7 @@ class EditorController extends AbstractController
         MessageBusInterface $messageBus,
         UserRolePromoter $userRolePromoter,
         EventIngestionListener $eventIngestionListener,
+        Converter $converter,
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -321,6 +323,19 @@ class EditorController extends AbstractController
                 'expirationTimestamp' => $advancedMetadata->expirationTimestamp,
                 'isProtected' => $advancedMetadata->isProtected,
             ]);
+
+            // Pre-process markdown to HTML so it's ready in the DB
+            if ($article->getContent()) {
+                try {
+                    $processedHtml = $converter->convertToHTML($article->getContent(), null, $signedEvent['tags'] ?? null);
+                    $article->setProcessedHtml($processedHtml);
+                } catch (\Throwable $e) {
+                    $logger->warning('Failed to process article HTML during publish', [
+                        'event_id' => $signedEvent['id'] ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             // Save to database
             $entityManager->persist($article);
