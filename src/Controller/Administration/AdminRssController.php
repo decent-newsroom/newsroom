@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Controller\Administration;
 
 use App\Enum\KindsEnum;
+use App\Message\RevalidateProfileCacheMessage;
 use App\Service\ArticleEventProjector;
+use App\Service\Cache\RedisViewStore;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
@@ -18,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\String\Slugger\AsciiSlugger;
@@ -145,6 +148,8 @@ class AdminRssController extends AbstractController
         GenericEventProjector $genericEventProjector,
         ArticleEventProjector $articleEventProjector,
         UserRelayListService $userRelayListService,
+        RedisViewStore $redisViewStore,
+        MessageBusInterface $messageBus,
         LoggerInterface $logger,
     ): JsonResponse {
         try {
@@ -162,6 +167,7 @@ class AdminRssController extends AbstractController
             }
 
             $eventStdClass = (object) $signedEvent;
+            $eventPubkey = $signedEvent['pubkey'] ?? null;
 
             // Persist to event table via GenericEventProjector
             $genericEventProjector->projectEventFromNostrEvent(
@@ -186,15 +192,29 @@ class AdminRssController extends AbstractController
                 }
             }
 
-            // Get user's write relays
-            $user = $this->getUser();
-            $relays = [];
-            if ($user) {
+            // Invalidate Redis caches so the profile tab shows the new article
+            if ($eventPubkey) {
+                $redisViewStore->invalidateUserArticles($eventPubkey);
+                $redisViewStore->invalidateProfileTabs($eventPubkey);
+
+                // Dispatch background cache revalidation
                 try {
-                    $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                    $relays = $userRelayListService->getRelaysForPublishing($pubkeyHex);
+                    $messageBus->dispatch(new RevalidateProfileCacheMessage($eventPubkey, 'articles', true));
+                    $messageBus->dispatch(new RevalidateProfileCacheMessage($eventPubkey, 'overview', true));
+                } catch (\Throwable $e) {
+                    $logger->warning('Failed to dispatch profile revalidation after RSS import', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Get relays for the event's author (not the admin session user)
+            $relays = [];
+            if ($eventPubkey) {
+                try {
+                    $relays = $userRelayListService->getRelaysForPublishing($eventPubkey);
                 } catch (\Exception $e) {
-                    $logger->warning('Failed to get user relays for RSS publish', [
+                    $logger->warning('Failed to get event author relays for RSS publish', [
                         'error' => $e->getMessage(),
                     ]);
                 }

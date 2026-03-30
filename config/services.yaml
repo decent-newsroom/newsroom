@@ -327,9 +327,10 @@ services:
 
     # ChatBundle service bindings
 
-    # Explicit registration: the security firewall references this via request_matcher,
-    # but the reference doesn't prevent RemoveUnusedDefinitionsPass from pruning it.
+    # Explicit registration: the security firewall references these by service id,
+    # but the reference doesn't prevent RemoveUnusedDefinitionsPass from pruning them.
     App\ChatBundle\Security\ChatRequestMatcher: ~
+    App\ChatBundle\Security\ChatUserProvider: ~
 
     App\ChatBundle\Service\ChatEncryptionService:
         arguments:
