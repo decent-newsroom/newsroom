@@ -419,6 +419,9 @@ class AuthorController extends AbstractController
 
             if ($tag[0] === 'a') {
                 $coordinates[] = $tag[1];
+                if (isset($tag[2]) && is_string($tag[2]) && $tag[2] !== '') {
+                    $relayHints[] = $tag[2];
+                }
                 $items[] = [
                     'type' => 'coordinate',
                     'value' => $tag[1],

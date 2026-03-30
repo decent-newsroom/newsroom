@@ -211,9 +211,10 @@ class NostrClient
      * Fetch multiple events by coordinate strings ("kind:pubkey:identifier") in batch.
      *
      * @param string[] $coordinates
+     * @param string[] $extraRelays  Additional relay URLs (e.g. relay hints from a-tags)
      * @return array<string, object>  keyed by coordinate string
      */
-    public function getEventsByCoordinates(array $coordinates): array
+    public function getEventsByCoordinates(array $coordinates, array $extraRelays = []): array
     {
         if (empty($coordinates)) {
             return [];
@@ -232,6 +233,9 @@ class NostrClient
             $groups[$groupKey]['identifiers'][] = $identifier;
         }
 
+        // Deduplicate extra relay hints
+        $extraRelays = array_values(array_unique(array_filter($extraRelays)));
+
         $results = [];
 
         foreach ($groups as $group) {
@@ -243,17 +247,24 @@ class NostrClient
                 'kind'   => $kind,
                 'pubkey' => substr($pubkey, 0, 8) . '...',
                 'count'  => count($identifiers),
+                'extra_relays' => count($extraRelays),
             ]);
 
             $relayUrls = $this->nostrDefaultRelay
-                ? [$this->nostrDefaultRelay]
-                : $this->userRelayListService->getTopRelaysForAuthor($pubkey);
+                ? array_values(array_unique(array_merge([$this->nostrDefaultRelay], $extraRelays)))
+                : array_values(array_unique(array_merge(
+                    $this->userRelayListService->getTopRelaysForAuthor($pubkey),
+                    $extraRelays
+                )));
 
             $filters = ['authors' => [$pubkey], 'tag' => ['#d', $identifiers]];
             $events  = $this->executor->fetch([$kind], $filters, $this->relaySetFactory->fromUrls($relayUrls));
 
             if (empty($events) && $this->nostrDefaultRelay) {
-                $fallbackRelays = $this->userRelayListService->getTopRelaysForAuthor($pubkey);
+                $fallbackRelays = array_values(array_unique(array_merge(
+                    $this->userRelayListService->getTopRelaysForAuthor($pubkey),
+                    $extraRelays
+                )));
                 if (!empty($fallbackRelays)) {
                     $events = $this->executor->fetch([$kind], $filters, $this->relaySetFactory->fromUrls($fallbackRelays));
                 }

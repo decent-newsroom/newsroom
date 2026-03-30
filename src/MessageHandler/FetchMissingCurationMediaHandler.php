@@ -111,7 +111,7 @@ final class FetchMissingCurationMediaHandler
                 ]);
 
                 try {
-                    $fetchedByCoord = $this->nostrClient->getEventsByCoordinates($missingCoords);
+                    $fetchedByCoord = $this->nostrClient->getEventsByCoordinates($missingCoords, $relays);
                     $this->logger->info('Curation media fetch by coordinate completed', [
                         'curation_id' => $message->curationId,
                         'fetched_count' => count($fetchedByCoord),
@@ -183,7 +183,7 @@ final class FetchMissingCurationMediaHandler
     /**
      * Build a comprehensive relay list for fetching missing media:
      *   1. Board author's write relays (kind 10002) — most likely source
-     *   2. Relay hints from e-tags in the curation event
+     *   2. Relay hints from e-tags and a-tags in the curation event
      *   3. Local relay as baseline
      */
     private function buildRelayList(FetchMissingCurationMediaMessage $message): array
