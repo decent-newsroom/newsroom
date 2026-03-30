@@ -726,6 +726,10 @@ follow_pack:
     select_existing: 'Select a recommendation list'
     create_heading: 'Create a new follow pack'
     edit_heading: 'Edit your follow pack'
+    image_label: 'Cover Image URL'
+    image_placeholder: 'https://example.com/image.jpg'
+    description_label: 'Description'
+    description_placeholder: 'A short description of this follow pack...'
 
 # ── Follow Pack View page ──────────────────────────────────────────
 followPackView:

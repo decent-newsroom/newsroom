@@ -630,18 +630,26 @@ class SettingsController extends AbstractController
         foreach ($followPacks as $pack) {
             $dTag = $pack->getSlug() ?? '';
             $title = '';
+            $packImage = null;
+            $packDescription = null;
             $pTags = [];
             foreach ($pack->getTags() as $tag) {
-                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
-                    $title = $tag[1];
-                }
-                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
-                    $pTags[] = $tag[1];
-                }
+                $key = $tag[0] ?? '';
+                match ($key) {
+                    'title' => $title = $tag[1] ?? '',
+                    'image' => $packImage = $tag[1] ?? null,
+                    'picture' => $packImage ??= $tag[1] ?? null,
+                    'description' => $packDescription = $tag[1] ?? null,
+                    'about' => $packDescription ??= $tag[1] ?? null,
+                    'p' => $pTags[] = $tag[1] ?? '',
+                    default => null,
+                };
             }
             $existingFollowPacks[] = [
                 'dTag' => $dTag,
                 'title' => $title,
+                'image' => $packImage,
+                'description' => $packDescription,
                 'memberCount' => count($pTags),
                 'memberPubkeys' => $pTags,
             ];
@@ -652,6 +660,8 @@ class SettingsController extends AbstractController
         $existingPackMembers = [];
         $existingPackDtag = '';
         $existingPackTitle = '';
+        $existingPackImage = '';
+        $existingPackDescription = '';
 
         if ($selectedCoordinate) {
             foreach ($existingFollowPacks as $pack) {
@@ -659,6 +669,8 @@ class SettingsController extends AbstractController
                 if ($packCoord === $selectedCoordinate) {
                     $existingPackDtag = $pack['dTag'];
                     $existingPackTitle = $pack['title'];
+                    $existingPackImage = $pack['image'] ?? '';
+                    $existingPackDescription = $pack['description'] ?? '';
                     foreach (array_slice($pack['memberPubkeys'], 0, 100) as $memberHex) {
                         try {
                             $memberMeta = $this->redisCacheService->getMetadata($memberHex);
@@ -687,6 +699,8 @@ class SettingsController extends AbstractController
             'existingPackMembers' => $existingPackMembers,
             'existingPackDtag' => $existingPackDtag,
             'existingPackTitle' => $existingPackTitle,
+            'existingPackImage' => $existingPackImage,
+            'existingPackDescription' => $existingPackDescription,
             'existingFollowPacks' => $existingFollowPacks,
             'selectedFollowPackCoordinate' => $selectedCoordinate,
         ]);

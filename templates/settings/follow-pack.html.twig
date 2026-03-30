@@ -21,6 +21,8 @@
          data-nostr--nostr-follow-pack-follows-profiles-value="{{ followsProfiles|json_encode }}"
          data-nostr--nostr-follow-pack-existing-members-value="{{ existingPackMembers|json_encode }}"
          data-nostr--nostr-follow-pack-existing-dtag-value="{{ existingPackDtag }}"
+         data-nostr--nostr-follow-pack-existing-image-value="{{ existingPackImage }}"
+         data-nostr--nostr-follow-pack-existing-description-value="{{ existingPackDescription }}"
          data-nostr--nostr-follow-pack-selected-coordinate-value="{{ selectedFollowPackCoordinate }}">
 
         {# ── Existing packs: select one as your recommendation list ── #}
@@ -59,6 +61,22 @@
                    data-nostr--nostr-follow-pack-target="packTitle"
                    value="{{ existingPackTitle }}"
                    placeholder="{{ 'follow_pack.title_placeholder'|trans }}">
+        </div>
+
+        <div class="fp-form-group">
+            <label for="fp-image">{{ 'follow_pack.image_label'|trans }}</label>
+            <input type="url" id="fp-image"
+                   data-nostr--nostr-follow-pack-target="packImage"
+                   value="{{ existingPackImage }}"
+                   placeholder="{{ 'follow_pack.image_placeholder'|trans }}">
+        </div>
+
+        <div class="fp-form-group">
+            <label for="fp-description">{{ 'follow_pack.description_label'|trans }}</label>
+            <textarea id="fp-description"
+                      data-nostr--nostr-follow-pack-target="packDescription"
+                      rows="3"
+                      placeholder="{{ 'follow_pack.description_placeholder'|trans }}">{{ existingPackDescription }}</textarea>
         </div>
 
         <div class="fp-form-group">

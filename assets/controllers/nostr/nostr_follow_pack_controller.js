@@ -15,7 +15,7 @@ export default class extends Controller {
   static targets = [
     'searchInput', 'searchResults', 'selectedList', 'selectedCount',
     'publishButton', 'status', 'form', 'infoBubble',
-    'packTitle', 'existingPacks',
+    'packTitle', 'packImage', 'packDescription', 'existingPacks',
   ];
 
   static values = {
@@ -26,6 +26,8 @@ export default class extends Controller {
     followsProfiles: Array,    // Resolved profile objects [{npub, displayName, picture, ...}]
     existingMembers: Array,    // Existing pack member npubs (for editing)
     existingDtag: String,      // d-tag of existing pack (for updates)
+    existingImage: String,     // image URL of existing pack
+    existingDescription: String, // description of existing pack
     selectedCoordinate: String, // Currently selected follow pack coordinate
   };
 
@@ -285,6 +287,22 @@ export default class extends Controller {
         ['title', title],
         ['alt', `Follow pack: ${title}`],
       ];
+
+      // Optional image
+      const image = this.hasPackImageTarget
+        ? this.packImageTarget.value.trim()
+        : '';
+      if (image) {
+        tags.push(['image', image]);
+      }
+
+      // Optional description
+      const description = this.hasPackDescriptionTarget
+        ? this.packDescriptionTarget.value.trim()
+        : '';
+      if (description) {
+        tags.push(['description', description]);
+      }
 
       // Add p tags for each selected user
       this.selectedUsers.forEach((user, npub) => {
