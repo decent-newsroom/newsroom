@@ -25,6 +25,7 @@
     </div>
 
     {% if author.nip05 is defined and author.nip05 is not empty %}
+        <div class="nip05-badge-list">
         {% if author.nip05 is iterable %}
             {% for nip05Value in author.nip05 %}
                 <twig:Atoms:Nip05Badge
@@ -38,6 +39,7 @@
                 :npub="npub"
             />
         {% endif %}
+        </div>
     {% endif %}
     <div class="mt-2">
         {% if author.about is defined and author.about %}
