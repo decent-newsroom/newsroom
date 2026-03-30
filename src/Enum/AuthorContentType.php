@@ -26,7 +26,7 @@ enum AuthorContentType: string
         return match($this) {
             self::ARTICLES => [KindsEnum::LONGFORM->value],
             self::DRAFTS => [KindsEnum::LONGFORM_DRAFT->value],
-            self::MEDIA => [KindsEnum::IMAGE->value, 21, 22], // 20=image, 21=video, 22=audio (NIP-68/94)
+            self::MEDIA => [KindsEnum::IMAGE->value, 21, 22, 34235, 34236], // 20=image, 21/34235=video, 22/34236=short video (NIP-68/71)
             self::HIGHLIGHTS => [KindsEnum::HIGHLIGHTS->value],
             self::BOOKMARKS => [
                 KindsEnum::BOOKMARKS->value,      // 10003 - standard bookmarks

@@ -7,7 +7,7 @@ class FetchMediaEventsMessage
     private array $hashtags;
     private array $kinds;
 
-    public function __construct(array $hashtags, array $kinds = [20, 21, 22])
+    public function __construct(array $hashtags, array $kinds = [20, 21, 22, 34235, 34236])
     {
         $this->hashtags = $hashtags;
         $this->kinds = $kinds;

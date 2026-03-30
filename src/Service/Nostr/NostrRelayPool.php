@@ -901,7 +901,7 @@ class NostrRelayPool implements RelayPoolInterface
     }
 
     /**
-     * Subscribe to local relay for media events (kinds 20, 21, 22).
+     * Subscribe to local relay for media events (kinds 20, 21, 22, 34235, 34236).
      * Thin wrapper around subscribeLocal().
      *
      * @param callable $onMediaEvent Callback: function(object $event, string $relayUrl): void
@@ -909,7 +909,7 @@ class NostrRelayPool implements RelayPoolInterface
      */
     public function subscribeLocalMedia(callable $onMediaEvent, ?int $since = null): void
     {
-        $this->subscribeLocal([20, 21, 22], $onMediaEvent, 'media', $since);
+        $this->subscribeLocal([20, 21, 22, 34235, 34236], $onMediaEvent, 'media', $since);
     }
 
     /**

@@ -46,7 +46,7 @@ class UserMediaController extends AbstractController
             ->where('p.pubkey = :pubkey')
             ->andWhere('p.kind IN (:kinds)')
             ->setParameter('pubkey', $hexPubkey)
-            ->setParameter('kinds', [20, 21, 22])
+            ->setParameter('kinds', [20, 21, 22, 34235, 34236])
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -57,7 +57,7 @@ class UserMediaController extends AbstractController
             ->where('p.pubkey = :pubkey')
             ->andWhere('p.kind IN (:kinds)')
             ->setParameter('pubkey', $hexPubkey)
-            ->setParameter('kinds', [20, 21, 22])
+            ->setParameter('kinds', [20, 21, 22, 34235, 34236])
             ->orderBy('p.createdAt', 'DESC')
             ->setMaxResults($limit)
             ->setFirstResult($offset)

@@ -75,7 +75,7 @@ class SubscribeLocalMediaCommand extends Command
 
         try {
             // Determine the "since" timestamp so the relay skips events we already have
-            $since = $this->eventRepository->findLatestCreatedAtByKinds([20, 21, 22]);
+            $since = $this->eventRepository->findLatestCreatedAtByKinds([20, 21, 22, 34235, 34236]);
             if ($since !== null) {
                 $io->info(sprintf('Resuming from last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
             } else {

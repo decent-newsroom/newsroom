@@ -46,5 +46,7 @@ enum KindsEnum: int
     case PUBLICATION_CONTENT = 30041; // NKBIP-01
     case APP_DATA = 30078; // NIP-78, Arbitrary custom app data
     case PLAYLIST = 34139; // Playlist (e.g. Nostria music playlists)
+    case ADDRESSABLE_VIDEO = 34235; // NIP-71, addressable video events
+    case ADDRESSABLE_SHORT_VIDEO = 34236; // NIP-71, addressable short-form video events
     case FOLLOW_PACK = 39089; // NIP-51, Follow pack / starter pack (list of npubs)
 }

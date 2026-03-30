@@ -5,13 +5,17 @@
             <p class="placeholder-description">
                 {{ 'card.placeholder.description'|trans }}
             </p>
-            {% if item.id is defined %}
+            {% if item.coordinate is defined and item.coordinate %}
                 <p class="placeholder-meta">
-                    <small>Article ID: {{ item.id }}</small>
+                    <small>{{ item.coordinate }}</small>
                 </p>
-            {% elseif item.pubkey is defined and item.slug is defined %}
+            {% elseif item.pubkey is defined and item.pubkey and item.slug is defined and item.slug %}
                 <p class="placeholder-meta">
                     <small>{{ item.kind.value ?? item.kind }}:{{ item.pubkey|slice(0, 8) }}...{{ item.pubkey|slice(-8) }}:{{ item.slug }}</small>
+                </p>
+            {% elseif item.id is defined and item.id %}
+                <p class="placeholder-meta">
+                    <small>Event ID: {{ item.id|slice(0, 12) }}...{{ item.id|slice(-8) }}</small>
                 </p>
             {% endif %}
             <button class="btn btn-sm btn-outline fetch-article-btn"

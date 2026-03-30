@@ -9,11 +9,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Projects Nostr media events (kinds 20, 21, 22) into the database
+ * Projects Nostr media events (kinds 20, 21, 22, 34235, 34236) into the database
  * Handles the conversion from event format to Event entity and persistence
  */
 class MediaEventProjector
 {
+    /** All supported media event kinds */
+    private const MEDIA_KINDS = [20, 21, 22, 34235, 34236];
     public function __construct(
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -33,11 +35,12 @@ class MediaEventProjector
      */
     public function projectMediaFromEvent(object $event, string $relayUrl): void
     {
-        // Validate that this is a media event (kinds 20, 21, 22)
-        if (!isset($event->kind) || !in_array($event->kind, [20, 21, 22])) {
+        // Validate that this is a media event (kinds 20, 21, 22, 34235, 34236)
+        if (!isset($event->kind) || !in_array($event->kind, self::MEDIA_KINDS)) {
             throw new \InvalidArgumentException(sprintf(
-                'Invalid media event kind: %s. Expected 20, 21, or 22.',
-                $event->kind ?? 'null'
+                'Invalid media event kind: %s. Expected one of: %s.',
+                $event->kind ?? 'null',
+                implode(', ', self::MEDIA_KINDS)
             ));
         }
 
@@ -125,7 +128,7 @@ class MediaEventProjector
         // Get total count
         $total = (int) $qb->select('COUNT(e.id)')
             ->from(Event::class, 'e')
-            ->where($qb->expr()->in('e.kind', [20, 21, 22]))
+            ->where($qb->expr()->in('e.kind', self::MEDIA_KINDS))
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -133,7 +136,7 @@ class MediaEventProjector
         $qb = $this->entityManager->createQueryBuilder();
         $results = $qb->select('e.kind', 'COUNT(e.id) as count')
             ->from(Event::class, 'e')
-            ->where($qb->expr()->in('e.kind', [20, 21, 22]))
+            ->where($qb->expr()->in('e.kind', self::MEDIA_KINDS))
             ->groupBy('e.kind')
             ->getQuery()
             ->getResult();

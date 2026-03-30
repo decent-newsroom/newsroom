@@ -11,7 +11,7 @@
 {% block ogtags %}
     {# Set og:type dynamically based on event kind #}
     {% set ogType = 'article' %}
-    {% if event.kind == 21 or event.kind == 22 %}
+    {% if event.kind in [21, 22, 34235, 34236] %}
         {% set ogType = 'video.other' %}
     {% elseif event.kind == 20 %}
         {% set ogType = 'article' %} {# Could use 'image' but 'article' is more widely supported #}
@@ -38,8 +38,8 @@
         {% endfor %}
     {% endif %}
 
-    {# For video events (kind 21/22), try to get thumbnail #}
-    {% if (event.kind == 21 or event.kind == 22) and ogImage is null %}
+    {# For video events (kind 21/22/34235/34236), try to get thumbnail #}
+    {% if event.kind in [21, 22, 34235, 34236] and ogImage is null %}
         {% for tag in event.tags %}
             {% if tag[0] == 'thumb' and ogImage is null %}
                 {% set ogImage = tag[1] %}
@@ -110,8 +110,8 @@
         {# NIP-68 Picture Event (kind 20) #}
         {% if event.kind == 20 %}
             {% include 'event/_kind20_picture.html.twig' %}
-        {# NIP-71 Video Events (kind 21 and 22) #}
-        {% elseif event.kind == 21 or event.kind == 22 %}
+        {# NIP-71 Video Events (kind 21, 22, 34235, 34236) #}
+        {% elseif event.kind in [21, 22, 34235, 34236] %}
             {% include 'event/_kind22_video.html.twig' %}
         {% elseif event.kind == 1450 %}
             {% include 'event/_kind1450_tabular.html.twig' %}

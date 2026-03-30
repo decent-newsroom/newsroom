@@ -13,6 +13,9 @@ use Psr\Log\LoggerInterface;
  * Extracted from NostrClient. Collapses three near-identical methods
  * (getPictureEventsForPubkey / getVideoShortsForPubkey / getNormalVideosForPubkey)
  * into one parametrised fetchForPubkey().
+ *
+ * Supported kinds: 20 (image), 21 (video), 22 (short video),
+ *                  34235 (addressable video), 34236 (addressable short video).
  */
 class MediaEventService
 {
@@ -33,13 +36,13 @@ class MediaEventService
      *
      * Replaces three separate NostrClient methods:
      *   getPictureEventsForPubkey()   → fetchForPubkey($p, [20])
-     *   getNormalVideosForPubkey()    → fetchForPubkey($p, [21])
-     *   getVideoShortsForPubkey()     → fetchForPubkey($p, [22])
-     *   getAllMediaEventsForPubkey()  → fetchForPubkey($p, [20,21,22])
+     *   getNormalVideosForPubkey()    → fetchForPubkey($p, [21, 34235])
+     *   getVideoShortsForPubkey()     → fetchForPubkey($p, [22, 34236])
+     *   getAllMediaEventsForPubkey()  → fetchForPubkey($p, [20,21,22,34235,34236])
      *
      * @param int[] $kinds NIP-68/71 kinds (default: all media kinds)
      */
-    public function fetchForPubkey(string $pubkey, array $kinds = [20, 21, 22], int $limit = 30): array
+    public function fetchForPubkey(string $pubkey, array $kinds = [20, 21, 22, 34235, 34236], int $limit = 30): array
     {
         $relaySet = $this->relaySetFactory->forAuthor($pubkey);
 
@@ -57,7 +60,7 @@ class MediaEventService
     public function fetchRecent(int $limit = 100): array
     {
         return $this->executor->fetch(
-            kinds: [20, 21, 22],
+            kinds: [20, 21, 22, 34235, 34236],
             filters: ['limit' => $limit],
             relaySet: $this->relaySetFactory->getDefault(),
         );
@@ -69,7 +72,7 @@ class MediaEventService
      * @param string[] $hashtags
      * @param int[]    $kinds
      */
-    public function fetchByHashtags(array $hashtags, array $kinds = [20, 21, 22]): array
+    public function fetchByHashtags(array $hashtags, array $kinds = [20, 21, 22, 34235, 34236]): array
     {
         return $this->executor->fetch(
             kinds: $kinds,
@@ -86,7 +89,7 @@ class MediaEventService
      * @param int[] $kinds
      */
     public function fetchByTimeRange(
-        array $kinds = [20, 21, 22],
+        array $kinds = [20, 21, 22, 34235, 34236],
         int   $from = 0,
         int   $to = 0,
         int   $limit = 1000,

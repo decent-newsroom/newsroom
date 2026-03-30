@@ -70,6 +70,8 @@ final class KindBundles
         KindsEnum::LONGFORM->value,           // 30023 — NIP-23
         KindsEnum::LONGFORM_DRAFT->value,     // 30024 — NIP-23
         KindsEnum::PLAYLIST->value,           // 34139
+        KindsEnum::ADDRESSABLE_VIDEO->value,       // 34235 — NIP-71
+        KindsEnum::ADDRESSABLE_SHORT_VIDEO->value, // 34236 — NIP-71
     ];
 
     /**

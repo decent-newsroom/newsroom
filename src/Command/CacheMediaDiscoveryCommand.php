@@ -78,7 +78,7 @@ class CacheMediaDiscoveryCommand extends Command
             $io->info(sprintf('Dispatching async media fetch for %d hashtags...', count($allHashtags)));
 
             // Dispatch async message to fetch and persist media events
-            $message = new FetchMediaEventsMessage($allHashtags, [20, 21, 22]);
+            $message = new FetchMediaEventsMessage($allHashtags, [20, 21, 22, 34235, 34236]);
             $this->messageBus->dispatch($message);
 
             $io->success('Dispatched media fetch message to async worker');
@@ -97,7 +97,7 @@ class CacheMediaDiscoveryCommand extends Command
 
                 // Query non-NSFW media events from database
                 $events = $this->eventRepository->findNonNSFWMediaEvents(
-                    [20, 21, 22],
+                    [20, 21, 22, 34235, 34236],
                     $excludedPubkeys,
                     500
                 );

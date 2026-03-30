@@ -22,7 +22,7 @@
         {# Reuse existing event kind partials #}
         {% if event.kind == 20 %}
             {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
-        {% elseif event.kind == 21 or event.kind == 22 %}
+        {% elseif event.kind in [21, 22, 34235, 34236] %}
             {% include 'event/_kind22_video.html.twig' with {event: event, embed: true} %}
         {% elseif event.kind == 1450 %}
             {% include 'event/_kind1450_tabular.html.twig' with {event: event} %}

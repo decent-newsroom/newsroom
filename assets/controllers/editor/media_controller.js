@@ -201,11 +201,11 @@ export default class extends Controller {
     loadMorePosts() { this.loadPosts(); }
 
     _renderPostItem(p) {
-        const kindLabels = { 20: 'Picture', 21: 'Video', 22: 'Short' };
+        const kindLabels = { 20: 'Picture', 21: 'Video', 22: 'Short', 34235: 'Video', 34236: 'Short' };
         const kindLabel = kindLabels[p.kind] || `kind ${p.kind}`;
         const title = p.title || p.content || 'Untitled';
         const thumb = p.preview_url || p.primary_url;
-        const isVideo = p.kind === 21 || p.kind === 22;
+        const isVideo = [21, 22, 34235, 34236].includes(p.kind);
         const date = p.created_at ? new Date(p.created_at * 1000).toLocaleDateString() : '';
 
         const preview = thumb

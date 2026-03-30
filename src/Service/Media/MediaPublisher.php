@@ -9,7 +9,7 @@ use App\Util\ImetaBuilder;
 use Psr\Log\LoggerInterface;
 
 /**
- * Builds event drafts for media posts (kinds 20, 21, 22).
+ * Builds event drafts for media posts (kinds 20, 21, 22, 34235, 34236).
  *
  * Generates unsigned event structures following NIP-68 (pictures)
  * and NIP-71 (videos) conventions, using imeta tags from ImetaBuilder.

@@ -68,7 +68,7 @@ class MediaDiscoveryController extends AbstractController
 
                 $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
                 $events = $eventRepository->findNonNSFWMediaEvents(
-                    [20, 21, 22],
+                    [20, 21, 22, 34235, 34236],
                     $excludedPubkeys,
                     500
                 );
@@ -176,7 +176,7 @@ class MediaDiscoveryController extends AbstractController
             $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
             $filteredPubkeys = array_values(array_diff($followedPubkeys, $excludedPubkeys));
 
-            $events = $eventRepository->findNonNSFWMediaEventsByPubkeys($filteredPubkeys, [20, 21, 22], self::MAX_DISPLAY_EVENTS);
+            $events = $eventRepository->findNonNSFWMediaEventsByPubkeys($filteredPubkeys, [20, 21, 22, 34235, 34236], self::MAX_DISPLAY_EVENTS);
 
             $nip19 = new Nip19Helper();
             foreach ($events as $event) {
@@ -227,7 +227,7 @@ class MediaDiscoveryController extends AbstractController
         $mediaEvents = [];
         if (!empty($interestTags)) {
             $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
-            $events = $eventRepository->findMediaEventsByHashtags($interestTags, [20, 21, 22], $excludedPubkeys, 500);
+            $events = $eventRepository->findMediaEventsByHashtags($interestTags, [20, 21, 22, 34235, 34236], $excludedPubkeys, 500);
 
             // Filter NSFW
             $events = array_filter($events, fn($e) => !$e->isNSFW());

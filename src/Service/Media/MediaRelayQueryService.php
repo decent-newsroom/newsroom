@@ -9,7 +9,7 @@ use App\Service\Nostr\MediaEventService;
 use Psr\Log\LoggerInterface;
 
 /**
- * Queries relays for published media events (kinds 20, 21, 22)
+ * Queries relays for published media events (kinds 20, 21, 22, 34235, 34236)
  * and normalizes them into NormalizedMedia objects.
  *
  * @see §5.3 of multimedia-manager spec
@@ -26,11 +26,11 @@ class MediaRelayQueryService
      * Fetch published media posts for an author from relays.
      *
      * @param string $pubkey Hex pubkey
-     * @param int[]  $kinds  Kinds to query (default: [20, 21, 22])
+     * @param int[]  $kinds  Kinds to query (default: [20, 21, 22, 34235, 34236])
      * @param int    $limit  Max results
      * @return NormalizedMedia[]
      */
-    public function fetchPostsForAuthor(string $pubkey, array $kinds = [20, 21, 22], int $limit = 50): array
+    public function fetchPostsForAuthor(string $pubkey, array $kinds = [20, 21, 22, 34235, 34236], int $limit = 50): array
     {
         try {
             $events = $this->mediaEventService->fetchForPubkey($pubkey, $kinds, $limit);
@@ -80,8 +80,8 @@ class MediaRelayQueryService
     {
         return match ($filter) {
             'pictures' => array_filter($media, fn(NormalizedMedia $m) => $m->kind === 20),
-            'videos' => array_filter($media, fn(NormalizedMedia $m) => $m->kind === 21),
-            'short-videos' => array_filter($media, fn(NormalizedMedia $m) => $m->kind === 22),
+            'videos' => array_filter($media, fn(NormalizedMedia $m) => in_array($m->kind, [21, 34235], true)),
+            'short-videos' => array_filter($media, fn(NormalizedMedia $m) => in_array($m->kind, [22, 34236], true)),
             default => $media,
         };
     }

@@ -82,7 +82,7 @@ final class NormalizedMedia
      */
     public function isVideo(): bool
     {
-        return in_array($this->kind, [21, 22], true) || ($this->mime !== null && str_starts_with($this->mime, 'video/'));
+        return in_array($this->kind, [21, 22, 34235, 34236], true) || ($this->mime !== null && str_starts_with($this->mime, 'video/'));
     }
 
     /**
@@ -90,7 +90,7 @@ final class NormalizedMedia
      */
     public function isShortVideo(): bool
     {
-        return $this->kind === 22;
+        return in_array($this->kind, [22, 34236], true);
     }
 
     /**
@@ -124,8 +124,8 @@ final class NormalizedMedia
     {
         return match ($this->kind) {
             20 => 'Picture',
-            21 => 'Video',
-            22 => 'Short Video',
+            21, 34235 => 'Video',
+            22, 34236 => 'Short Video',
             default => 'Unknown',
         };
     }

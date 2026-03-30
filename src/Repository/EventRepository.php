@@ -108,14 +108,14 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find media events by kinds (20, 21, 22) excluding muted pubkeys
+     * Find media events by kinds (20, 21, 22, 34235, 34236) excluding muted pubkeys
      *
      * @param array $kinds Array of event kinds to query
      * @param array $excludedPubkeys Array of hex pubkeys to exclude
      * @param int $limit Maximum number of events to return
      * @return Event[]
      */
-    public function findMediaEvents(array $kinds = [20, 21, 22], array $excludedPubkeys = [], int $limit = 100): array
+    public function findMediaEvents(array $kinds = [20, 21, 22, 34235, 34236], array $excludedPubkeys = [], int $limit = 100): array
     {
         $qb = $this->createQueryBuilder('e');
 
@@ -136,11 +136,11 @@ class EventRepository extends ServiceEntityRepository
      * Find media events for a specific pubkey
      *
      * @param string $pubkey Hex pubkey
-     * @param array $kinds Array of event kinds (default: 20, 21, 22)
+     * @param array $kinds Array of event kinds (default: 20, 21, 22, 34235, 34236)
      * @param int $limit Maximum number of events to return
      * @return Event[]
      */
-    public function findMediaEventsByPubkey(string $pubkey, array $kinds = [20, 21, 22], int $limit = 100): array
+    public function findMediaEventsByPubkey(string $pubkey, array $kinds = [20, 21, 22, 34235, 34236], int $limit = 100): array
     {
         $qb = $this->createQueryBuilder('e');
 
@@ -158,11 +158,11 @@ class EventRepository extends ServiceEntityRepository
      * Find media events for multiple pubkeys (for media follows tab).
      *
      * @param string[] $pubkeys  Hex pubkeys to include
-     * @param int[]    $kinds    Event kinds (default: 20, 21, 22)
+     * @param int[]    $kinds    Event kinds (default: 20, 21, 22, 34235, 34236)
      * @param int      $limit    Maximum results
      * @return Event[]
      */
-    public function findMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22], int $limit = 100): array
+    public function findMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22, 34235, 34236], int $limit = 100): array
     {
         if (empty($pubkeys)) {
             return [];
@@ -184,11 +184,11 @@ class EventRepository extends ServiceEntityRepository
      * Find non-NSFW media events for multiple pubkeys (for media follows tab).
      *
      * @param string[] $pubkeys  Hex pubkeys to include
-     * @param int[]    $kinds    Event kinds (default: 20, 21, 22)
+     * @param int[]    $kinds    Event kinds (default: 20, 21, 22, 34235, 34236)
      * @param int      $limit    Maximum results
      * @return Event[]
      */
-    public function findNonNSFWMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22], int $limit = 100): array
+    public function findNonNSFWMediaEventsByPubkeys(array $pubkeys, array $kinds = [20, 21, 22, 34235, 34236], int $limit = 100): array
     {
         $events = $this->findMediaEventsByPubkeys($pubkeys, $kinds, $limit * 2);
 
@@ -203,12 +203,12 @@ class EventRepository extends ServiceEntityRepository
      * Find media events by hashtags
      *
      * @param array $hashtags Array of hashtags to search for
-     * @param array $kinds Array of event kinds (default: 20, 21, 22)
+     * @param array $kinds Array of event kinds (default: 20, 21, 22, 34235, 34236)
      * @param array $excludedPubkeys Array of hex pubkeys to exclude
      * @param int $limit Maximum number of events to return
      * @return Event[]
      */
-    public function findMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22], array $excludedPubkeys = [], int $limit = 500): array
+    public function findMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22, 34235, 34236], array $excludedPubkeys = [], int $limit = 500): array
     {
         if (empty($hashtags)) {
             return $this->findMediaEvents($kinds, $excludedPubkeys, $limit);
@@ -262,7 +262,7 @@ class EventRepository extends ServiceEntityRepository
      * @param int $limit Maximum number of events to return
      * @return Event[]
      */
-    public function findNonNSFWMediaEvents(array $kinds = [20, 21, 22], array $excludedPubkeys = [], int $limit = 100): array
+    public function findNonNSFWMediaEvents(array $kinds = [20, 21, 22, 34235, 34236], array $excludedPubkeys = [], int $limit = 100): array
     {
         $events = $this->findMediaEvents($kinds, $excludedPubkeys, $limit * 2);
 

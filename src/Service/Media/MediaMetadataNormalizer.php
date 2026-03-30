@@ -10,7 +10,7 @@ use App\Util\ImetaParser;
 /**
  * Converts provider responses and relay event objects into NormalizedMedia DTOs.
  *
- * Handles all three media kinds (20, 21, 22) and normalizes imeta metadata.
+ * Handles all media kinds (20, 21, 22, 34235, 34236) and normalizes imeta metadata.
  *
  * @see §9 of multimedia-manager spec
  */
@@ -20,7 +20,7 @@ class MediaMetadataNormalizer
      * Normalize a raw Nostr event (stdClass or array) into NormalizedMedia objects.
      *
      * For kind 20: each imeta tag becomes a separate NormalizedMedia
-     * For kind 21/22: all imeta tags are variants of one media post
+     * For kind 21/22/34235/34236: all imeta tags are variants of one media post
      *
      * @return NormalizedMedia[]
      */
@@ -79,7 +79,7 @@ class MediaMetadataNormalizer
             return $results;
         }
 
-        // Kind 21/22 (Video): all imeta = variants of one video
+        // Kind 21/22/34235/34236 (Video): all imeta = variants of one video
         // Use the first imeta as primary, collect others as fallback/variants
         $primary = $imetaParsed[0];
         $fallbackUrls = [];

@@ -362,7 +362,7 @@ class RedisCacheService
                 try {
                     // Fetch from database instead of Nostr relays for better reliability
                     $eventRepo = $this->entityManager->getRepository(Event::class);
-                    $dbEvents = $eventRepo->findMediaEventsByPubkey($pubkey, [20, 21, 22], 200);
+                    $dbEvents = $eventRepo->findMediaEventsByPubkey($pubkey, [20, 21, 22, 34235, 34236], 200);
 
                     // Convert Event entities to stdClass objects (same format as Nostr events)
                     $mediaEvents = [];

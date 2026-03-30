@@ -392,19 +392,19 @@ class NostrClient
     /** @see MediaEventService::fetchForPubkey() */
     public function getNormalVideosForPubkey(string $ident, int $limit = 20): array
     {
-        return $this->mediaEventService->fetchForPubkey($ident, [21], $limit);
+        return $this->mediaEventService->fetchForPubkey($ident, [21, 34235], $limit);
     }
 
     /** @see MediaEventService::fetchForPubkey() */
     public function getVideoShortsForPubkey(string $ident, int $limit = 20): array
     {
-        return $this->mediaEventService->fetchForPubkey($ident, [22], $limit);
+        return $this->mediaEventService->fetchForPubkey($ident, [22, 34236], $limit);
     }
 
     /** @see MediaEventService::fetchForPubkey() */
     public function getAllMediaEventsForPubkey(string $ident, int $limit = 30): array
     {
-        return $this->mediaEventService->fetchForPubkey($ident, [20, 21, 22], $limit);
+        return $this->mediaEventService->fetchForPubkey($ident, [20, 21, 22, 34235, 34236], $limit);
     }
 
     /** @see MediaEventService::fetchRecent() */
@@ -414,13 +414,13 @@ class NostrClient
     }
 
     /** @see MediaEventService::fetchByHashtags() */
-    public function getMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22]): array
+    public function getMediaEventsByHashtags(array $hashtags, array $kinds = [20, 21, 22, 34235, 34236]): array
     {
         return $this->mediaEventService->fetchByHashtags($hashtags, $kinds);
     }
 
     /** @see MediaEventService::fetchByTimeRange() */
-    public function getMediaEventsByTimeRange(array $kinds = [20, 21, 22], int $from = 0, int $to = 0, int $limit = 1000): array
+    public function getMediaEventsByTimeRange(array $kinds = [20, 21, 22, 34235, 34236], int $from = 0, int $to = 0, int $limit = 1000): array
     {
         return $this->mediaEventService->fetchByTimeRange($kinds, $from, $to, $limit);
     }

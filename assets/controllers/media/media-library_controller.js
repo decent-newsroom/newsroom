@@ -247,7 +247,7 @@ export default class extends Controller {
         const preview = item.best_preview || item.primary_url;
         const kindLabel = item.kind_label || 'Unknown';
         const title = item.title || item.description?.substring(0, 50) || 'Untitled';
-        const isVideo = item.kind === 21 || item.kind === 22;
+        const isVideo = [21, 22, 34235, 34236].includes(item.kind);
         const date = item.created_at || item.uploaded_at;
         const dateStr = date ? new Date(date * 1000).toLocaleDateString() : '';
 
