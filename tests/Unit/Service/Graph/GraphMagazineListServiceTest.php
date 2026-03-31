@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Graph;
 
+use App\Repository\HiddenCoordinateRepository;
 use App\Service\Graph\GraphLookupService;
 use App\Service\Graph\GraphMagazineListService;
 use Doctrine\DBAL\Connection;
@@ -18,7 +19,8 @@ class GraphMagazineListServiceTest extends TestCase
     {
         $connection = $this->createMock(Connection::class);
         $graphLookup = $this->createMock(GraphLookupService::class);
-        $this->service = new GraphMagazineListService($connection, $graphLookup, new NullLogger());
+        $hiddenCoordinateRepository = $this->createMock(HiddenCoordinateRepository::class);
+        $this->service = new GraphMagazineListService($connection, $graphLookup, $hiddenCoordinateRepository, new NullLogger());
     }
 
     /**
@@ -38,14 +40,14 @@ class GraphMagazineListServiceTest extends TestCase
 
         yield 'event with type=magazine tag' => [
             ['tags' => json_encode([['type', 'magazine'], ['title', 'My Mag']])],
-            true,
-            'Event with type=magazine tag should be a magazine',
+            false,
+            'Event with type=magazine tag but no 30040 a-tags should NOT be a magazine',
         ];
 
-        yield 'event with only a-tag pointing to 30040 (category, not magazine)' => [
+        yield 'event with only a-tag pointing to 30040 (sub-index)' => [
             ['tags' => json_encode([['a', '30040:' . str_repeat('ab', 32) . ':some-cat'], ['title', 'A Category']])],
-            false,
-            'Event with 30040 a-tag but no type=magazine should NOT be a magazine',
+            true,
+            'Event with 30040 a-tag should be a top-level magazine',
         ];
 
         yield 'event with a-tag pointing to articles only' => [

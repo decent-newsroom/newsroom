@@ -13,7 +13,7 @@ class KindBundlesTest extends TestCase
 {
     public function testUserContextContainsExpectedKinds(): void
     {
-        $expected = [0, 3, 5, 10000, 10001, 10002, 10003, 10015, 10020, 10063, 30015];
+        $expected = [0, 3, 5, 10000, 10001, 10002, 10003, 10015, 10020, 10063, 30015, 39089];
         $this->assertSame($expected, KindBundles::USER_CONTEXT);
     }
 

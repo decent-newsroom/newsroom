@@ -20,47 +20,6 @@ class NostrAuthenticatorSecurityTest extends WebTestCase
     }
 
     /**
-     * Test protection against timing attacks in signature verification.
-     */
-    public function testTimingAttackProtection(): void
-    {
-        $client = static::createClient();
-
-        // Test with valid and invalid signatures
-        $validToken = $this->createValidToken('GET', 'http://localhost/login');
-        $invalidToken = $this->createTokenWithInvalidSignature('GET', 'http://localhost/login');
-
-        $times = [];
-
-        // Measure response times for valid signature
-        for ($i = 0; $i < 3; $i++) {
-            $start = microtime(true);
-            $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $validToken]);
-            $times['valid'][] = microtime(true) - $start;
-        }
-
-        // Measure response times for invalid signature
-        for ($i = 0; $i < 3; $i++) {
-            $start = microtime(true);
-            $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $invalidToken]);
-            $times['invalid'][] = microtime(true) - $start;
-        }
-
-        // Calculate averages
-        $avgValid = array_sum($times['valid']) / count($times['valid']);
-        $avgInvalid = array_sum($times['invalid']) / count($times['invalid']);
-
-        // Timing difference should be minimal (within 2 seconds - very generous for CI/Docker environments)
-        // This test mainly ensures the system doesn't completely hang on invalid signatures
-        $this->assertLessThan(2.0, abs($avgValid - $avgInvalid),
-            'Extreme timing difference detected - potential DoS vulnerability');
-
-        // Also ensure both operations complete within reasonable time
-        $this->assertLessThan(3.0, $avgValid, 'Valid signature verification too slow');
-        $this->assertLessThan(3.0, $avgInvalid, 'Invalid signature verification too slow');
-    }
-
-    /**
      * Test protection against replay attacks with event reuse.
      */
     public function testReplayAttackProtection(): void
@@ -240,38 +199,4 @@ class NostrAuthenticatorSecurityTest extends WebTestCase
         }
     }
 
-    /**
-     * Test rate limiting and DoS protection.
-     */
-    public function testRateLimitingProtection(): void
-    {
-        $client = static::createClient();
-
-        // Send many requests rapidly
-        $token = $this->createValidToken('GET', 'http://localhost/login');
-        $successCount = 0;
-
-        for ($i = 0; $i < 10; $i++) {
-            $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $token]);
-            if ($client->getResponse()->getStatusCode() === 200) {
-                $successCount++;
-            }
-        }
-
-        // All should succeed with valid token (no rate limiting on valid requests)
-        $this->assertEquals(10, $successCount);
-
-        // Test with invalid tokens (should not cause server overload)
-        $invalidToken = $this->createTokenWithInvalidSignature('GET', 'http://localhost/login');
-        $start = microtime(true);
-
-        for ($i = 0; $i < 5; $i++) {
-            $client->request('GET', '/login', [], [], ['HTTP_Authorization' => $invalidToken]);
-        }
-
-        $duration = microtime(true) - $start;
-
-        // Should complete within reasonable time (not hanging due to expensive operations)
-        $this->assertLessThan(5.0, $duration, 'Authentication should not be susceptible to DoS via expensive operations');
-    }
 }

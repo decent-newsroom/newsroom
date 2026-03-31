@@ -8,8 +8,10 @@ use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\Graph\RecordIdentityService;
 use App\Service\UserRolePromoter;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -23,15 +25,21 @@ class GenericEventProjectorTest extends TestCase
     protected function setUp(): void
     {
         $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->em->method('isOpen')->willReturn(true);
+
+        $managerRegistry = $this->createMock(ManagerRegistry::class);
+        $managerRegistry->method('getManagerForClass')->willReturn($this->em);
+
         $this->eventRepository = $this->createMock(EventRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
         $this->projector = new GenericEventProjector(
-            $this->em,
+            $managerRegistry,
             $this->eventRepository,
             $this->logger,
             $this->createMock(EventIngestionListener::class),
             $this->createMock(UserRolePromoter::class),
+            $this->createMock(RecordIdentityService::class),
         );
     }
 
