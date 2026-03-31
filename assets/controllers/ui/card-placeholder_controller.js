@@ -21,6 +21,7 @@ export default class extends Controller {
         const articleSlug = button.dataset.articleSlug;
         const articleKind = button.dataset.articleKind;
         const articleCoordinate = button.dataset.articleCoordinate;
+        const articleRelays = button.dataset.articleRelays;
 
         // Disable button and show loading state
         button.disabled = true;
@@ -52,7 +53,8 @@ export default class extends Controller {
                     kind: articleKind,
                     pubkey: articlePubkey,
                     slug: articleSlug,
-                    coordinate: coordinate
+                    coordinate: coordinate,
+                    relays: articleRelays ? articleRelays.split(',').map(r => r.trim()).filter(Boolean) : []
                 })
             });
 

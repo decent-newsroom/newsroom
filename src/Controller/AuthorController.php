@@ -413,6 +413,7 @@ class AuthorController extends AbstractController
         $coordinates = [];
         $eventIds = [];
         $relayHints = [];
+        $eventRelayMap = []; // event ID → relay hint URL
 
         foreach ($curation->getTags() as $tag) {
             if (!is_array($tag) || count($tag) < 2) continue;
@@ -429,13 +430,15 @@ class AuthorController extends AbstractController
                 ];
             } elseif ($tag[0] === 'e') {
                 $eventIds[] = $tag[1];
-                if (isset($tag[2]) && is_string($tag[2]) && $tag[2] !== '') {
-                    $relayHints[] = $tag[2];
+                $eTagRelay = (isset($tag[2]) && is_string($tag[2]) && $tag[2] !== '') ? $tag[2] : null;
+                if ($eTagRelay) {
+                    $relayHints[] = $eTagRelay;
+                    $eventRelayMap[$tag[1]] = $eTagRelay;
                 }
                 $items[] = [
                     'type' => 'event',
                     'value' => $tag[1],
-                    'relay' => $tag[2] ?? null,
+                    'relay' => $eTagRelay,
                 ];
             }
         }
@@ -611,6 +614,7 @@ class AuthorController extends AbstractController
                             'kind' => null,
                             'title' => null,
                             'notFound' => true,
+                            'relayHint' => $eventRelayMap[$eid] ?? null,
                         ];
                     }
                 }

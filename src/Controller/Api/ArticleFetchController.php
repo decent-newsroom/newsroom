@@ -44,6 +44,10 @@ class ArticleFetchController extends AbstractController
         $slug = $data['slug'] ?? null;
         $kind = $data['kind'] ?? null;
         $coordinate = $data['coordinate'] ?? null;
+        $relays = $data['relays'] ?? [];
+        if (!is_array($relays)) {
+            $relays = [];
+        }
 
         // Build coordinate from parts if not provided directly
         if (!$coordinate && $pubkey && $slug) {
@@ -59,7 +63,7 @@ class ArticleFetchController extends AbstractController
                 ], 400);
             }
 
-            return $this->fetchByEventId($id);
+            return $this->fetchByEventId($id, $relays);
         }
 
         return $this->fetchByCoordinate($coordinate);
@@ -111,26 +115,17 @@ class ArticleFetchController extends AbstractController
 
     /**
      * Fetch an event by its ID from Nostr relays.
+     * Uses getEventById which tries hint relays, then local, then content relays sequentially.
      */
-    private function fetchByEventId(string $id): JsonResponse
+    private function fetchByEventId(string $id, array $relays = []): JsonResponse
     {
         try {
-            $eventsMap = $this->nostrClient->getEventsByIds([$id]);
-
-            if (empty($eventsMap)) {
-                return new JsonResponse([
-                    'success' => false,
-                    'error' => 'Event not found on Nostr relays',
-                    'event_id' => $id
-                ], 404);
-            }
-
-            $event = $eventsMap[$id] ?? null;
+            $event = $this->nostrClient->getEventById($id, $relays);
 
             if (!$event) {
                 return new JsonResponse([
                     'success' => false,
-                    'error' => 'Event not found in response',
+                    'error' => 'Event not found on Nostr relays',
                     'event_id' => $id
                 ], 404);
             }
