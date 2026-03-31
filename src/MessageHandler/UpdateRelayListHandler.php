@@ -10,6 +10,7 @@ use App\Message\UpdateRelayListMessage;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -92,7 +93,7 @@ class UpdateRelayListHandler
             if ($localRelay !== null) {
                 $writeRelays = array_values(array_filter(
                     $writeRelays,
-                    fn(string $url) => rtrim(strtolower($url), '/') !== rtrim(strtolower($localRelay), '/'),
+                    fn(string $url) => !RelayUrlNormalizer::equals($url, $localRelay),
                 ));
             }
 

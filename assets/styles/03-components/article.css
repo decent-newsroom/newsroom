@@ -227,6 +227,7 @@ article .card {
 
 article p > img {
     display: block;
+    margin: var(--spacing-2) auto;
 }
 
 /* AsciiDoc-specific styles */

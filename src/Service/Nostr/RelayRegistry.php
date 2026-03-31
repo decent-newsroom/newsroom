@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Enum\RelayPurpose;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -188,7 +189,7 @@ class RelayRegistry
         if ($projectRelay === null) {
             return false;
         }
-        return rtrim(strtolower($url), '/') === rtrim(strtolower($projectRelay), '/');
+        return RelayUrlNormalizer::equals($url, $projectRelay);
     }
 
     /**
@@ -218,14 +219,14 @@ class RelayRegistry
      */
     public function isConfiguredRelay(string $url): bool
     {
-        $normalized = rtrim(strtolower($url), '/');
+        $normalized = RelayUrlNormalizer::normalize($url);
         foreach ($this->relays as $purpose => $urls) {
             // Skip USER purpose — those are runtime-added, not system-configured
             if ($purpose === RelayPurpose::USER->value) {
                 continue;
             }
             foreach ($urls as $configuredUrl) {
-                if (rtrim(strtolower($configuredUrl), '/') === $normalized) {
+                if (RelayUrlNormalizer::normalize($configuredUrl) === $normalized) {
                     return true;
                 }
             }
@@ -269,9 +270,9 @@ class RelayRegistry
             return $relayUrls;
         }
 
-        $normalizedLocal = rtrim(trim($local), '/');
+        $normalizedLocal = RelayUrlNormalizer::normalize($local);
         foreach ($relayUrls as $url) {
-            if (rtrim(trim($url), '/') === $normalizedLocal) {
+            if (RelayUrlNormalizer::normalize($url) === $normalizedLocal) {
                 return $relayUrls; // already present
             }
         }

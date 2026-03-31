@@ -8,6 +8,7 @@ use App\Service\Nostr\GatewayConnection;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -218,8 +219,7 @@ class RelayGatewayCommand extends Command
         if ($localRelay === null) {
             return $internalUrl;
         }
-        $normalize = static fn(string $u): string => rtrim(strtolower($u), '/');
-        if ($normalize($internalUrl) === $normalize($localRelay)) {
+        if (RelayUrlNormalizer::equals($internalUrl, $localRelay)) {
             return $this->relayRegistry->getPublicUrl() ?? $internalUrl;
         }
         return $internalUrl;

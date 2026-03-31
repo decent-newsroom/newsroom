@@ -7,6 +7,7 @@ namespace App\Service\Admin;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -569,6 +570,6 @@ class RelayAdminService
         if (!$this->nostrDefaultRelay) {
             return false;
         }
-        return rtrim(strtolower(trim($url)), '/') === rtrim(strtolower(trim($this->nostrDefaultRelay)), '/');
+        return RelayUrlNormalizer::equals($url, $this->nostrDefaultRelay);
     }
 }

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service\Nostr;
 
 use App\Util\NostrPhp\RelaySubscriptionHandler;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\EventMessage;
@@ -70,14 +73,14 @@ class NostrRelayPool implements RelayPoolInterface
     }
 
     /**
-     * Normalize relay URL to ensure consistency
+     * Normalize relay URL to ensure consistency.
+     *
+     * Delegates to the canonical RelayUrlNormalizer so all consumers
+     * (registry, health store, gateway, pool) agree on key format.
      */
     public function normalizeRelayUrl(string $url): string
     {
-        $url = trim($url);
-        // Remove trailing slash for consistency
-        $url = rtrim($url, '/');
-        return $url;
+        return RelayUrlNormalizer::normalize($url);
     }
 
     /**

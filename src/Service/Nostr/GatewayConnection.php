@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use App\Util\RelayUrlNormalizer;
 use swentel\nostr\Relay\Relay;
 use WebSocket\Client as WsClient;
 
@@ -65,10 +66,10 @@ class GatewayConnection
 
     public static function buildKey(string $relayUrl, ?string $pubkey = null): string
     {
-        // Normalize: strip trailing slash, lowercase — so that
+        // Normalize via canonical utility so that
         // "wss://relay.damus.io" and "wss://relay.damus.io/" resolve
         // to the same connection key.
-        $normalized = rtrim(strtolower($relayUrl), '/');
+        $normalized = RelayUrlNormalizer::normalize($relayUrl);
         return $pubkey !== null ? "{$normalized}::{$pubkey}" : $normalized;
     }
 

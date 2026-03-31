@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -207,9 +208,18 @@ class RelayHealthStore
     }
 
     /**
-     * Compute a simple health score (0.0 to 1.0).
-     * Higher is better. Considers failure rate and latency.
+     * Compute a health score (0.0 to 1.0).
+     * Higher is better. Considers failure rate, recency of last success, and latency.
      * Returns 0 for muted relays.
+     *
+     * Scoring components (weighted blend):
+     *   - Failure penalty:  consecutive failures / 10, capped at 1.0           (dominant)
+     *   - Recency bonus:    decays linearly over 24 h since last success       (20% weight)
+     *   - Latency factor:   0–500 ms is good, >2000 ms is bad                 (30% weight)
+     *
+     * The recency bonus ensures that relays which have recovered from a failure
+     * burst are not penalized indefinitely — as soon as a new success is
+     * recorded the score starts climbing back.
      */
     public function getHealthScore(string $relayUrl): float
     {
@@ -221,6 +231,13 @@ class RelayHealthStore
         // Base score: penalize consecutive failures
         $failurePenalty = min($health['consecutive_failures'] / 10.0, 1.0);
         $score = 1.0 - $failurePenalty;
+
+        // Recency bonus: relays that succeeded recently get a boost
+        if ($health['last_success'] !== null) {
+            $hoursSinceSuccess = (time() - $health['last_success']) / 3600.0;
+            $recencyFactor = max(0.0, 1.0 - ($hoursSinceSuccess / 24.0)); // decays over 24h
+            $score = ($score * 0.8) + ($recencyFactor * 0.2);
+        }
 
         // Latency bonus/penalty (normalize: 0-500ms is good, >2000ms is bad)
         if ($health['avg_latency_ms'] !== null) {
@@ -241,7 +258,7 @@ class RelayHealthStore
     public function muteRelay(string $relayUrl): void
     {
         try {
-            $this->redis->sAdd(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+            $this->redis->sAdd(self::MUTED_SET, RelayUrlNormalizer::normalize($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->warning('RelayHealthStore: failed to mute relay', ['url' => $relayUrl, 'error' => $e->getMessage()]);
         }
@@ -253,7 +270,7 @@ class RelayHealthStore
     public function unmuteRelay(string $relayUrl): void
     {
         try {
-            $this->redis->sRem(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+            $this->redis->sRem(self::MUTED_SET, RelayUrlNormalizer::normalize($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->warning('RelayHealthStore: failed to unmute relay', ['url' => $relayUrl, 'error' => $e->getMessage()]);
         }
@@ -265,7 +282,7 @@ class RelayHealthStore
     public function isMuted(string $relayUrl): bool
     {
         try {
-            return (bool) $this->redis->sIsMember(self::MUTED_SET, rtrim(trim($relayUrl), '/'));
+            return (bool) $this->redis->sIsMember(self::MUTED_SET, RelayUrlNormalizer::normalize($relayUrl));
         } catch (\RedisException $e) {
             return false;
         }
@@ -290,20 +307,31 @@ class RelayHealthStore
      * Get ALL relay URLs that have health data in Redis (relay_health:* keys).
      * This includes relays from user relay lists, not just configured ones.
      *
+     * Uses SCAN instead of KEYS to avoid blocking Redis when the key space is
+     * large (KEYS is O(N) and holds the Redis lock for the entire duration).
+     *
      * @return string[]
      */
     public function getAllKnownRelayUrls(): array
     {
         try {
-            $keys = $this->redis->keys(self::KEY_PREFIX . '*');
-            if (!$keys) {
-                return [];
-            }
+            $urls = [];
+            $iterator = null;
+            $pattern = self::KEY_PREFIX . '*';
+            $prefixLen = strlen(self::KEY_PREFIX);
 
-            return array_map(
-                fn(string $key) => str_replace(self::KEY_PREFIX, '', $key),
-                $keys,
-            );
+            // phpredis SCAN: $iterator is passed by reference, loop while it
+            // returns non-false. When the full scan is complete $iterator becomes 0.
+            do {
+                $keys = $this->redis->scan($iterator, $pattern, 100);
+                if ($keys !== false) {
+                    foreach ($keys as $key) {
+                        $urls[] = substr($key, $prefixLen);
+                    }
+                }
+            } while ($iterator > 0);
+
+            return $urls;
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: failed to scan relay_health keys', ['error' => $e->getMessage()]);
             return [];
@@ -314,9 +342,7 @@ class RelayHealthStore
 
     private function key(string $relayUrl): string
     {
-        // Normalize: trim, remove trailing slash
-        $url = rtrim(trim($relayUrl), '/');
-        return self::KEY_PREFIX . $url;
+        return self::KEY_PREFIX . RelayUrlNormalizer::normalize($relayUrl);
     }
 
     private function updateLatency(string $key, int $latencyMs): void
