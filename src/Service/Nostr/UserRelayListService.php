@@ -47,6 +47,7 @@ class UserRelayListService
         private readonly EntityManagerInterface $em,
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
+        private readonly ?FollowsRelayPoolService $followsRelayPoolService = null,
     ) {}
 
     // ------------------------------------------------------------------
@@ -117,7 +118,9 @@ class UserRelayListService
      * Priority order (no truncation — all available relays are returned):
      *   1. Local relay (ingests from multiple upstreams)
      *   2. User's own relays (from their NIP-65 relay list)
-     *   3. Registry defaults for the requested purpose
+     *   3. Follows relay pool — deduplicated write relays of all followed
+     *      authors (CONTENT purpose only, from FollowsRelayPoolService)
+     *   4. Registry defaults for the requested purpose
      *
      * @return string[]
      */
@@ -150,6 +153,30 @@ class UserRelayListService
             }
             if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
                 $relays[] = $relay;
+            }
+        }
+
+        // Add follows relay pool (CONTENT only) — these are the write relays
+        // declared by all authors the user follows. The pool is cached in Redis
+        // (30-day TTL, keyed to the kind 3 event ID) and only rebuilds when
+        // the follows list actually changes. For non-content purposes (PROFILE,
+        // publishing) or anonymous users this is a no-op.
+        if ($purpose === RelayPurpose::CONTENT && $this->followsRelayPoolService !== null) {
+            try {
+                $followsPool = $this->followsRelayPoolService->getPoolForUser($hex);
+                foreach ($followsPool as $relay) {
+                    if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                        continue;
+                    }
+                    if (!in_array($relay, $relays, true)) {
+                        $relays[] = $relay;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->debug('UserRelayListService: follows relay pool lookup failed', [
+                    'pubkey' => substr($hex, 0, 8),
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

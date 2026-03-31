@@ -564,3 +564,35 @@ Changes made:
 - Migration `Version20260331120000`: creates the table, seeds from existing synthetic events (parsing JSONB tags via PostgreSQL functions), and deletes synthetic events from the event table.
 
 **The Settings relay tab** (`SettingsController::buildRelayListFromEvent`) is unaffected — it reads *real* kind 10002 events from the event table (persisted by relay subscription workers), not synthetic ones.
+
+#### Follows Relay Pool Integration into `getRelaysForUser()` (Implemented ✅)
+
+**Changed:** `UserRelayListService`
+
+Injected `FollowsRelayPoolService` as an optional dependency into `UserRelayListService`. When `getRelaysForUser()` is called with `CONTENT` purpose, the follows relay pool is now merged into the returned relay set between user relays and registry defaults.
+
+New priority order:
+1. Local relay (always first — ingests from multiple upstreams)
+2. User's own NIP-65 relays (from kind 10002 relay list)
+3. **Follows relay pool** — deduplicated write relays of all followed authors (new)
+4. Registry defaults for the requested purpose
+
+The follows pool comes from `FollowsRelayPoolService::getPoolForUser()`, which is cached in Redis with a 30-day TTL keyed to the kind 3 (follows) event ID. The pool only rebuilds when the follows list changes, so the lookup is a cheap Redis read + one indexed DB query.
+
+Design decisions:
+- **CONTENT only:** The follows pool is only included for `RelayPurpose::CONTENT`. For PROFILE and publishing, follows' relays are irrelevant.
+- **Nullable dependency:** `FollowsRelayPoolService` is nullable to avoid breaking existing callers or services that don't need the follows pool.
+- **Error resilience:** The follows pool lookup is wrapped in a try/catch — if Redis or the DB is down, the method falls through gracefully to registry defaults.
+- **Project relay filtering:** Follows pool relays that match the project relay are skipped when a local relay is present (same LOCAL/PROJECT dedup as user relays).
+- **Deduplication:** All relays are deduplicated by exact URL match across all layers.
+
+Added 8 unit tests in `UserRelayListServiceTest`:
+- `testGetRelaysForUserContentIncludesFollowsPool` — basic integration
+- `testGetRelaysForUserContentDeduplicatesFollowsPool` — no duplicates across layers
+- `testGetRelaysForUserProfileDoesNotIncludeFollowsPool` — PROFILE purpose skips pool
+- `testGetRelaysForUserContentWorksWithoutFollowsService` — null service is safe
+- `testGetRelaysForUserContentFollowsPoolExceptionIsSwallowed` — error resilience
+- `testGetRelaysForUserContentFollowsPoolSkipsProjectRelay` — project relay filtered
+- `testGetRelaysForUserContentFollowsPoolEmptyReturnsNormally` — empty pool is a no-op
+- `testGetRelaysForUserContentPriorityOrder` — verifies local → user → follows → registry ordering
+

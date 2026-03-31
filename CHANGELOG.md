@@ -3,6 +3,7 @@
 ## v0.0.27
 
 - Extracted relay list cache from the Nostr `event` table into a dedicated `user_relay_list` table with its own `UserRelayList` entity and `UserRelayListRepository`. Previously, `UserRelayListService` stored server-cached NIP-65 relay lists as synthetic "events" with fake IDs (`relay_list_{hex}_{timestamp}`) and empty signatures — these are not Nostr events and should never have shared the table. The new entity has proper domain columns (`pubkey`, `read_relays`, `write_relays`, `created_at`, `updated_at`) instead of piggy-backing on Nostr event structure. Migration seeds data from existing synthetic events and deletes them from the event table. `FollowsRelayPoolService` also updated to read from the new repository.
+- Supplemented `getRelaysForUser()` with the follows relay pool: when resolving relays for CONTENT purpose, the deduplicated write relays of all followed authors (from `FollowsRelayPoolService`) are now merged into the relay set. Priority order is: local relay → user's own NIP-65 relays → follows relay pool → registry defaults. The pool is cached in Redis (30-day TTL, keyed to the kind 3 event ID) so lookups are cheap. Non-content purposes (PROFILE, publishing) and anonymous users are unaffected. Added 8 unit tests covering integration, deduplication, priority ordering, error resilience, and project relay filtering.
 
 ## v0.0.26
 Loading, loading, loading.
