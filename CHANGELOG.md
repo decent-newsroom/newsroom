@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## v0.0.26
+Loading, loading, loading.
 
 - [Bug] Restored inline math `$…$` rendering broken by the v0.0.25 currency fix. The `Converter` now normalizes `$…$` to `\(…\)` at HTML-generation time (protecting code blocks and `$$…$$`), using the TeX whitespace rule to distinguish math from currency. No client-side DOM walking needed — KaTeX in the browser keeps only the safe `\(…\)`, `$$…$$`, and `\[…\]` delimiters. Added `--math-only` flag to `articles:process-html` to reprocess only articles whose content contains `$`, avoiding a full reprocess of the entire database.
 - Removed hard relay limit (previously `$limit = 5`) from `getRelaysForUser()`, `getRelaysForFetching()`, and `getRelaysForPublishing()` in `UserRelayListService`. All available relays are now returned, prioritizing the local relay (which ingests from multiple upstreams) and the user's own NIP-65 relays, followed by registry defaults. Callers no longer risk silently losing user relays or registry fallbacks to truncation.
