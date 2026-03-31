@@ -21,11 +21,26 @@ class VisitTrackingListener
         '/_profiler',
         '/_wdt',
         '/service-worker.js',
+        '/chat-sw.js',
         '/manifest.webmanifest',
         '/robots.txt',
         '/up',
+        // Main-domain asset paths
         '/assets/',
         '/icons/',
+        '/fonts/',
+        '/themes/',
+        '/favicon.ico',
+        // Unfold bundle asset paths
+        '/unfold-themes/',
+    ];
+
+    /** Static file extensions that should never be tracked */
+    private const STATIC_FILE_EXTENSIONS = [
+        '.ico', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif',
+        '.css', '.js', '.map',
+        '.woff', '.woff2', '.ttf', '.eot',
+        '.xml', '.json', '.webmanifest',
     ];
 
     /** Cookie name for anonymous visitor continuity tracking */
@@ -123,6 +138,15 @@ class VisitTrackingListener
     {
         foreach (self::EXCLUDED_ROUTES as $excludedRoute) {
             if (str_starts_with($route, $excludedRoute)) {
+                return true;
+            }
+        }
+
+        // Reject requests for static file extensions (e.g. .css, .js, .png)
+        $dotPos = strrpos($route, '.');
+        if ($dotPos !== false) {
+            $ext = strtolower(substr($route, $dotPos));
+            if (\in_array($ext, self::STATIC_FILE_EXTENSIONS, true)) {
                 return true;
             }
         }

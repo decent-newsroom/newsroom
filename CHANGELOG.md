@@ -2,6 +2,7 @@
 
 ## v0.0.27
 
+- Excluded asset-serving routes from visitor analytics tracking. Added `/unfold-themes/`, `/themes/`, `/fonts/`, `/favicon.ico`, `/chat-sw.js` to the capture-time exclusion list, along with a static file extension check (`.css`, `.js`, `.png`, `.woff2`, etc.) to catch any remaining asset requests. The same asset prefixes are also excluded at query time in `VisitRepository` so previously captured asset visits no longer affect metrics.
 - Moved profile stats from a profile tab to a standalone `/stats` page accessible from the user menu. Currently restricted to admins (`ROLE_ADMIN`); other roles will be added later. Extracted inline stats CSS to `assets/styles/04-pages/profile-stats.css` and added i18n keys for all stats labels across all five locales.
 - Added "Add to Follow Pack" dropdown on user profiles: when a logged-in user views another person's profile, a dropdown button lets them add the profile's pubkey to any of their existing follow packs (kind 39089). The UI mirrors the reading list dropdown pattern — select a pack, sign the updated event, and publish to relays. Already-included members show a ✓ badge. A link to create a new pack is included at the bottom of the dropdown.
 - Follow pack setup search bar now accepts pasted npubs: paste one or more `npub1…` strings (comma, space, or newline separated) and they are auto-resolved to profiles via `/api/users/by-npubs`. A single pasted npub is auto-added to the selected list; unresolved npubs still appear as addable entries with a shortened identifier.

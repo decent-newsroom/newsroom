@@ -55,14 +55,27 @@ Subdomain metrics are separate from (and additive to) the main-domain analytics.
 
 ## Excluded routes
 
-Generic visitor analytics now exclude all requests under `/api/*`.
+### API routes
+
+Generic visitor analytics exclude all requests under `/api/*`.
 
 That exclusion is applied at query time:
 
 1. **At capture time** — `/api/*` requests are still persisted as `Visit` records for targeted endpoint analytics.
 2. **At query time** — generic visitor analytics ignore `/api/*` rows so they do not affect page-traffic metrics.
 
-This keeps visitor counts focused on navigational page traffic instead of internal or utility endpoints.
+### Asset routes
+
+All asset-serving routes are excluded at **capture time** — they are never persisted as `Visit` records. This covers:
+
+- **Main-domain prefixes:** `/assets/`, `/icons/`, `/fonts/`, `/themes/`, `/favicon.ico`
+- **Unfold bundle prefixes:** `/unfold-themes/`
+- **Static file extensions:** `.ico`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.avif`, `.css`, `.js`, `.map`, `.woff`, `.woff2`, `.ttf`, `.eot`, `.xml`, `.json`, `.webmanifest`
+- **Service workers and manifests:** `/service-worker.js`, `/chat-sw.js`, `/manifest.webmanifest`
+
+As a safety net, the same asset prefixes are also excluded at **query time** in `VisitRepository`, so any asset visits that were recorded before this change do not affect visitor metrics.
+
+This keeps visitor counts focused on navigational page traffic instead of internal, utility, or static asset endpoints.
 
 ## Affected files
 

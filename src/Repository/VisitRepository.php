@@ -16,6 +16,15 @@ class VisitRepository extends ServiceEntityRepository
     private const TRACKED_VISIT_API_ROOT = '/api';
     private const TRACKED_VISIT_API_PREFIX = '/api/%';
 
+    /** Asset route prefixes excluded from generic visitor analytics. */
+    private const ASSET_ROUTE_PREFIXES = [
+        '/assets/%',
+        '/icons/%',
+        '/fonts/%',
+        '/themes/%',
+        '/unfold-themes/%',
+    ];
+
     private ManagerRegistry $registry;
 
     public function __construct(ManagerRegistry $registry)
@@ -159,21 +168,28 @@ class VisitRepository extends ServiceEntityRepository
     {
         $from = (new \DateTimeImmutable())->modify("-{$days} days");
         $conn = $this->getEntityManager()->getConnection();
-        $sql = 'SELECT DATE(visited_at) as day, COUNT(id) as count
+
+        $assetClauses = '';
+        $params = [
+            'from' => $from->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'asset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
+                {$assetClauses}
                 GROUP BY day
-                ORDER BY day ASC';
-        $result = $conn->executeQuery(
-            $sql,
-            [
-                'from' => $from->format('Y-m-d H:i:s'),
-                'apiRoot' => self::TRACKED_VISIT_API_ROOT,
-                'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
-            ]
-        );
+                ORDER BY day ASC";
+        $result = $conn->executeQuery($sql, $params);
         return $result->fetchAllAssociative();
     }
 
@@ -651,22 +667,29 @@ class VisitRepository extends ServiceEntityRepository
     {
         $from = (new \DateTimeImmutable())->modify("-{$days} days");
         $conn = $this->getEntityManager()->getConnection();
-        $sql = 'SELECT DATE(visited_at) as day, COUNT(id) as count
+
+        $assetClauses = '';
+        $params = [
+            'from' => $from->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'asset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
                 AND subdomain IS NOT NULL
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
+                {$assetClauses}
                 GROUP BY day
-                ORDER BY day ASC';
-        $result = $conn->executeQuery(
-            $sql,
-            [
-                'from' => $from->format('Y-m-d H:i:s'),
-                'apiRoot' => self::TRACKED_VISIT_API_ROOT,
-                'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
-            ]
-        );
+                ORDER BY day ASC";
+        $result = $conn->executeQuery($sql, $params);
         return $result->fetchAllAssociative();
     }
 
@@ -715,6 +738,13 @@ class VisitRepository extends ServiceEntityRepository
 
         $qb->setParameter('trackedVisitApiRoot', self::TRACKED_VISIT_API_ROOT);
         $qb->setParameter('trackedVisitApiPrefix', self::TRACKED_VISIT_API_PREFIX);
+
+        // Exclude asset routes
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $param = 'trackedVisitAssetPrefix' . $i;
+            $this->addCondition($qb, sprintf('%s.route NOT LIKE :%s', $alias, $param));
+            $qb->setParameter($param, $prefix);
+        }
     }
 
     private function applyRefererPresenceFilter(QueryBuilder $qb, string $alias = 'v'): void
