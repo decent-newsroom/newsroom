@@ -2,7 +2,8 @@
 <div class="settings-section"
      data-controller="nostr--nostr-settings-relays"
      data-nostr--nostr-settings-relays-publish-url-value="{{ path('api_settings_event_publish') }}"
-     data-nostr--nostr-settings-relays-relays-value="{{ relays|json_encode }}">
+     data-nostr--nostr-settings-relays-relays-value="{{ relays|json_encode }}"
+     data-nostr--nostr-settings-relays-home-relay-value="{{ projectRelayUrl|default('') }}">
 
     <h2 class="settings-section__title">{{ 'settings.relays.heading'|trans }}</h2>
     <p class="settings-section__desc">{{ 'settings.relays.description'|trans }}</p>

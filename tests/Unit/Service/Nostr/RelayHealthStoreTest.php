@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Nostr;
 
 use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayRegistry;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -24,7 +25,9 @@ class RelayHealthStoreTest extends TestCase
     protected function setUp(): void
     {
         $this->redis = $this->createMock(\Redis::class);
-        $this->store = new RelayHealthStore($this->redis, new NullLogger());
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+        $this->store = new RelayHealthStore($this->redis, new NullLogger(), $registry);
     }
 
     // --- Health defaults ---
@@ -123,9 +126,12 @@ class RelayHealthStoreTest extends TestCase
         $scoreWithRecent = $this->store->getHealthScore('wss://example.com');
 
         // Without recency (same failures but no last_success)
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
         $storeNoRecency = new RelayHealthStore(
             $this->createRedisWithData(['consecutive_failures' => '3']),
             new NullLogger(),
+            $registry,
         );
         $scoreWithoutRecent = $storeNoRecency->getHealthScore('wss://example.com');
 

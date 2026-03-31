@@ -476,19 +476,40 @@ This was the only file in the relay subsystem missing the declaration. No behavi
 
 All tests run inside Docker via `bin/phpunit`. Full existing unit suite verified: 12 pre-existing errors + 1 pre-existing failure unrelated to these changes.
 
+#### #6 — Remove Redundant Constructor Parameter (Implemented ✅)
+
+**Changed:** `RelayAdminService`
+
+Removed `?string $nostrDefaultRelay = null` from the constructor. Added a private `getLocalRelayUrl()` helper that delegates to `$this->relayRegistry->getLocalRelay()` with a `DEFAULT_LOCAL_RELAY` constant (`ws://strfry:7777`) as fallback. All five previous `$this->nostrDefaultRelay ?? 'ws://strfry:7777'` call sites now use the helper. `isLocalRelay()` updated to call `$this->relayRegistry->getLocalRelay()` directly.
+
+The global `$nostrDefaultRelay` bind in `services.yaml` is kept because many other services still use it.
+
+#### #11 — Hardcoded Relay URL in Stimulus Controller (Implemented ✅)
+
+**Changed:** `nostr_settings_relays_controller.js` + `_relays.html.twig` + `SettingsController`
+
+Replaced the hardcoded `'wss://relay.decentnewsroom.com'` in `addHomeRelay()` with `this.homeRelayValue`, a new Stimulus value. The backend injects it via `$this->relayRegistry->getPublicUrl()` and the Twig template passes it as `data-nostr--nostr-settings-relays-home-relay-value`. The URL now stays in sync with `relay_registry.project_relays` in `services.yaml`.
+
+#### #14 — Health TTL Extended for Configured Relays (Implemented ✅)
+
+**Changed:** `RelayHealthStore`
+
+Added `CONFIGURED_TTL = 604800` (7 days) alongside the existing `TTL = 86400` (24 hours). A new `ttlFor(string $relayUrl)` method checks `$this->relayRegistry->isConfiguredRelay($url)` to pick the correct TTL. All six `expire()` calls in the writer methods now use `$this->ttlFor($relayUrl)` instead of the flat `self::TTL`.
+
+**Why:** Configured relays (project, profile, local) are always refreshed by workers and cron jobs, so a 7-day TTL prevents silent data loss during low-activity weekends. Ad-hoc user relays keep 24-hour expiry to avoid unbounded growth.
+
+`RelayHealthStore` constructor now requires a `RelayRegistry` parameter. Updated `RelayHealthStoreTest` setUp and inline instantiations to pass a mock.
+
 ### Remaining Items (Not Yet Addressed)
 
 | # | Issue | Status |
 |---|-------|--------|
 | 2 | Pool duplicates registry | Open — requires callers audit |
 | 3 | `isValidRelay()` edge cases | Open |
-| 6 | Redundant constructor param | Open |
 | 7 | Synthetic event IDs | Open |
 | 8 | No circuit breaker | Open |
 | 10 | Gateway monolith | Open — high effort |
-| 11 | Hardcoded relay in JS | Open |
 | 12 | Admin bypasses pool | Open |
-| 14 | Health TTL data loss | Open |
 | 15 | Relay limit truncation | Open |
 
 

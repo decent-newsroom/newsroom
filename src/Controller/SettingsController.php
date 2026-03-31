@@ -14,6 +14,7 @@ use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\PublicationSubdomainService;
@@ -52,6 +53,7 @@ class SettingsController extends AbstractController
         private readonly PublicationSubdomainService $publicationSubdomainService,
         private readonly UserProfileService $userProfileService,
         private readonly RedisCacheService $redisCacheService,
+        private readonly RelayRegistry $relayRegistry,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -113,6 +115,7 @@ class SettingsController extends AbstractController
             'existingTags' => $existingTags,
             'events' => $events,
             'relays' => $relays,
+            'projectRelayUrl' => $this->relayRegistry->getPublicUrl(),
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
             'publicationSubdomain' => $publicationSubdomain,

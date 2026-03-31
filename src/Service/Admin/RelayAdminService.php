@@ -23,14 +23,25 @@ class RelayAdminService
     private const REQUEST_STREAM = 'relay:requests';
     private const CONTROL_STREAM = 'relay:control';
 
+    /** Fallback when the local relay env var is not configured */
+    private const DEFAULT_LOCAL_RELAY = 'ws://strfry:7777';
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly NostrRelayPool $relayPool,
         private readonly \Redis $redis,
-        private readonly ?string $nostrDefaultRelay = null
     ) {
+    }
+
+    /**
+     * Resolve the local relay URL from the registry, falling back to the
+     * default strfry Docker address when not configured.
+     */
+    private function getLocalRelayUrl(): string
+    {
+        return $this->relayRegistry->getLocalRelay() ?? self::DEFAULT_LOCAL_RELAY;
     }
 
     /**
@@ -39,7 +50,7 @@ class RelayAdminService
     public function getStats(): array
     {
         try {
-            $relayUrl = $this->nostrDefaultRelay ?? 'ws://strfry:7777';
+            $relayUrl = $this->getLocalRelayUrl();
 
             // Test if relay is accessible
             if (!$this->testRelayConnection($relayUrl)) {
@@ -80,7 +91,7 @@ class RelayAdminService
     public function getRecentEvents(int $limit = 10): array
     {
         try {
-            $relayUrl = $this->nostrDefaultRelay ?? 'ws://strfry:7777';
+            $relayUrl = $this->getLocalRelayUrl();
 
             // Create relay connection
             $relay = new Relay($relayUrl);
@@ -176,7 +187,7 @@ class RelayAdminService
     public function getConfiguration(): array
     {
         return [
-            'relay_url' => $this->nostrDefaultRelay ?? 'Not configured',
+            'relay_url' => $this->getLocalRelayUrl(),
             'relay_internal' => 'ws://strfry:7777',
             'relay_external' => 'ws://localhost:7777',
             'upstreams' => $_ENV['RELAY_UPSTREAMS'] ?? 'Not configured',
@@ -190,7 +201,7 @@ class RelayAdminService
      */
     public function testConnectivity(): array
     {
-        $relayUrl = $this->nostrDefaultRelay ?? 'ws://strfry:7777';
+        $relayUrl = $this->getLocalRelayUrl();
         $isAccessible = $this->testRelayConnection($relayUrl);
 
         return [
@@ -567,9 +578,10 @@ class RelayAdminService
      */
     public function isLocalRelay(string $url): bool
     {
-        if (!$this->nostrDefaultRelay) {
+        $local = $this->relayRegistry->getLocalRelay();
+        if ($local === null) {
             return false;
         }
-        return RelayUrlNormalizer::equals($url, $this->nostrDefaultRelay);
+        return RelayUrlNormalizer::equals($url, $local);
     }
 }

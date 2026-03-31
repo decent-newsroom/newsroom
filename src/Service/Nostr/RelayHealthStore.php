@@ -26,12 +26,26 @@ use Psr\Log\LoggerInterface;
 class RelayHealthStore
 {
     private const KEY_PREFIX = 'relay_health:';
-    private const TTL = 86400; // 24 hours
+    private const TTL = 86400; // 24 hours — ad-hoc user relays
+    private const CONFIGURED_TTL = 604800; // 7 days — relays in the registry
 
     public function __construct(
         private readonly \Redis $redis,
         private readonly LoggerInterface $logger,
+        private readonly RelayRegistry $relayRegistry,
     ) {}
+
+    /**
+     * Configured (project/profile/local) relays get a 7-day TTL so their
+     * health history is not silently lost between worker interactions.
+     * Ad-hoc user relays keep the standard 24-hour window.
+     */
+    private function ttlFor(string $relayUrl): int
+    {
+        return $this->relayRegistry->isConfiguredRelay($relayUrl)
+            ? self::CONFIGURED_TTL
+            : self::TTL;
+    }
 
     // ----- writers -----
 
@@ -46,7 +60,7 @@ class RelayHealthStore
                 $this->updateLatency($key, $latencyMs);
             }
 
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (success)', ['error' => $e->getMessage()]);
         }
@@ -58,7 +72,7 @@ class RelayHealthStore
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'last_failure', (string) time());
             $this->redis->hIncrBy($key, 'consecutive_failures', 1);
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (failure)', ['error' => $e->getMessage()]);
         }
@@ -69,7 +83,7 @@ class RelayHealthStore
         try {
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'last_event_received', (string) time());
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (event received)', ['error' => $e->getMessage()]);
         }
@@ -80,7 +94,7 @@ class RelayHealthStore
         try {
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'heartbeat_' . $workerName, (string) time());
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (heartbeat)', ['error' => $e->getMessage()]);
         }
@@ -91,7 +105,7 @@ class RelayHealthStore
         try {
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'auth_required', $required ? '1' : '0');
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (auth_required)', ['error' => $e->getMessage()]);
         }
@@ -114,7 +128,7 @@ class RelayHealthStore
         try {
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'auth_status', $status);
-            $this->redis->expire($key, self::TTL);
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (auth_status)', ['error' => $e->getMessage()]);
         }

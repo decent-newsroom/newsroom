@@ -13,6 +13,7 @@ export default class extends Controller {
   static values = {
     publishUrl: String,
     relays: Array, // [{url, read, write}]
+    homeRelay: String, // project relay URL from backend config
   };
 
   connect() {
@@ -62,13 +63,20 @@ export default class extends Controller {
   }
 
   /**
-   * Add the project home relay (wss://relay.decentnewsroom.com) with one click.
+   * Add the project home relay with one click.
+   * The URL comes from the backend via the homeRelay Stimulus value,
+   * so it stays in sync with relay_registry.project_relays in services.yaml.
    */
   addHomeRelay(event) {
     if (event) event.preventDefault();
 
-    const url = 'wss://relay.decentnewsroom.com';
-    if (this.relayEntries.some(r => r.url.replace(/\/+$/, '') === url)) {
+    const url = this.homeRelayValue;
+    if (!url) {
+      this.showError('Home relay URL not configured.');
+      return;
+    }
+
+    if (this.relayEntries.some(r => r.url.replace(/\/+$/, '') === url.replace(/\/+$/, ''))) {
       this.showError('This relay is already in your list.');
       return;
     }
