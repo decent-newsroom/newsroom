@@ -30,7 +30,7 @@ class NostrRelayPoolStatsCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $stats = $this->relayPool->getStats();
-        $localRelay = $this->relayPool->getLocalRelay();
+        $localRelay = $this->relayRegistry->getLocalRelay();
         $defaultRelays = $this->relayPool->getDefaultRelays();
 
         $io->title('Nostr Relay Pool Statistics');

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
-use App\Enum\RelayPurpose;
 use swentel\nostr\Relay\Relay;
 
 /**
@@ -75,10 +74,6 @@ interface RelayPoolInterface
      */
     public function getStats(): array;
 
-    /**
-     * Return the configured local relay URL, or null if not set.
-     */
-    public function getLocalRelay(): ?string;
 
     /**
      * Whether the relay gateway is enabled.

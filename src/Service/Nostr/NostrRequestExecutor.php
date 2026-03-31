@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nostr;
 
 use App\Util\NostrPhp\TweakedRequest;
+use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
@@ -26,6 +27,7 @@ class NostrRequestExecutor
     public function __construct(
         private readonly NostrRelayPool  $relayPool,
         private readonly RelaySetFactory $relaySetFactory,
+        private readonly RelayRegistry   $relayRegistry,
         private readonly LoggerInterface $logger,
         private readonly ?string         $nostrDefaultRelay = null,
     ) {}
@@ -99,15 +101,15 @@ class NostrRequestExecutor
         $localRelay   = $this->nostrDefaultRelay ?: null;
         // PROJECT is the public wss:// alias for the same physical relay as LOCAL.
         // Treat it as local so it is never routed through the gateway.
-        $projectRelay = $this->relayPool->getRelayRegistry()->getProjectRelay();
+        $projectRelay = $this->relayRegistry->getProjectRelay();
 
         $localUrls    = [];
         $externalUrls = [];
 
         foreach ($relayUrls as $url) {
-            $normalized = $this->relayPool->normalizeRelayUrl($url);
-            $isLocal = ($localRelay   && $normalized === $this->relayPool->normalizeRelayUrl($localRelay))
-                    || ($projectRelay && $normalized === $this->relayPool->normalizeRelayUrl($projectRelay));
+            $normalized = RelayUrlNormalizer::normalize($url);
+            $isLocal = ($localRelay   && $normalized === RelayUrlNormalizer::normalize($localRelay))
+                    || ($projectRelay && $normalized === RelayUrlNormalizer::normalize($projectRelay));
             if ($isLocal) {
                 $localUrls[] = $url;
             } else {

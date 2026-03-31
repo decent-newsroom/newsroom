@@ -9,6 +9,7 @@ use App\Message\SyncUserEventsMessage;
 use App\Message\WarmFollowsRelayPoolMessage;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayGatewayClient;
+use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -95,6 +96,7 @@ class SyncUserEventsHandler
     public function __construct(
         private readonly RelayGatewayClient   $gatewayClient,
         private readonly NostrRelayPool       $relayPool,
+        private readonly RelayRegistry        $relayRegistry,
         private readonly UserRelayListService $userRelayListService,
         private readonly MessageBusInterface  $messageBus,
         private readonly LoggerInterface      $logger,
@@ -310,7 +312,7 @@ class SyncUserEventsHandler
      */
     private function forwardToLocalRelay(array $rawEvents, string $pubkey): int
     {
-        $localRelayUrl = $this->relayPool->getLocalRelay();
+        $localRelayUrl = $this->relayRegistry->getLocalRelay();
         if ($localRelayUrl === null) {
             $this->logger->warning('SyncUserEventsHandler: no local relay configured, cannot forward events', [
                 'pubkey'      => substr($pubkey, 0, 8) . '...',

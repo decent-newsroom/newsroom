@@ -7,6 +7,7 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
@@ -27,6 +28,7 @@ class BackfillProfilesCommand extends Command
 {
     public function __construct(
         private readonly NostrRelayPool $relayPool,
+        private readonly RelayRegistry $relayRegistry,
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly RedisCacheService $redisCacheService,
@@ -73,7 +75,7 @@ class BackfillProfilesCommand extends Command
         $io->title('Profile Metadata Backfill from Local Relay');
 
         // Check if local relay is configured
-        $localRelay = $this->relayPool->getLocalRelay();
+        $localRelay = $this->relayRegistry->getLocalRelay();
         if (!$localRelay) {
             $io->error('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
             return Command::FAILURE;

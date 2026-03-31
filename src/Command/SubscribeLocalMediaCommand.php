@@ -5,6 +5,7 @@ namespace App\Command;
 use App\Repository\EventRepository;
 use App\Service\MediaEventProjector;
 use App\Service\Nostr\NostrRelayPool;
+use App\Service\Nostr\RelayRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,6 +21,7 @@ class SubscribeLocalMediaCommand extends Command
 {
     public function __construct(
         private readonly NostrRelayPool $relayPool,
+        private readonly RelayRegistry $relayRegistry,
         private readonly MediaEventProjector $projector,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger
@@ -43,7 +45,7 @@ class SubscribeLocalMediaCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $localRelay = $this->relayPool->getLocalRelay();
+        $localRelay = $this->relayRegistry->getLocalRelay();
         if (!$localRelay) {
             $io->error('Local relay not configured. Please set NOSTR_DEFAULT_RELAY environment variable.');
             return Command::FAILURE;

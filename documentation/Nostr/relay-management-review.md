@@ -504,7 +504,6 @@ Added `CONFIGURED_TTL = 604800` (7 days) alongside the existing `TTL = 86400` (2
 
 | # | Issue | Status |
 |---|-------|--------|
-| 2 | Pool duplicates registry | Open — requires callers audit |
 | 8 | No circuit breaker | Open |
 | 10 | Gateway monolith | Open — high effort |
 | 12 | Admin bypasses pool | Open |
@@ -595,4 +594,42 @@ Added 8 unit tests in `UserRelayListServiceTest`:
 - `testGetRelaysForUserContentFollowsPoolSkipsProjectRelay` — project relay filtered
 - `testGetRelaysForUserContentFollowsPoolEmptyReturnsNormally` — empty pool is a no-op
 - `testGetRelaysForUserContentPriorityOrder` — verifies local → user → follows → registry ordering
+
+#### #2 — Pool Duplicates Registry (Resolved ✅)
+
+**Changed:** `NostrRelayPool`, `RelayPoolInterface`, and 8 callers across 7 files
+
+`NostrRelayPool` had four public methods that directly duplicated `RelayRegistry` functionality:
+- `getLocalRelay()` — same as `RelayRegistry::getLocalRelay()`
+- `ensureLocalRelayInList()` — same as `RelayRegistry::ensureLocalRelayInList()`
+- `getRelayRegistry()` — leaky abstraction exposing the inner registry
+- `getHealthStore()` — leaky abstraction exposing the inner health store
+
+Additionally, `normalizeRelayUrl()` was public but just delegated to `RelayUrlNormalizer::normalize()`.
+
+**Removed from `NostrRelayPool`:**
+- `getLocalRelay()` (was public, removed)
+- `ensureLocalRelayInList()` (was public, removed)
+- `getRelayRegistry()` (was public, removed)
+- `getHealthStore()` (was public, removed)
+- `normalizeRelayUrl()` (changed from public to private — still used internally)
+
+**Removed from `RelayPoolInterface`:**
+- `getLocalRelay()` — relay URL resolution is not a pool concern
+
+**Migrated callers (8 call sites across 7 files):**
+
+| File | Change |
+|------|--------|
+| `NostrRelayPoolStatsCommand` | Already had `RelayRegistry` — switched `relayPool->getLocalRelay()` |
+| `SubscribeLocalMagazinesCommand` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `SubscribeLocalRelayCommand` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `SubscribeLocalUserContextCommand` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `SubscribeLocalMediaCommand` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `BackfillProfilesCommand` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `SyncUserEventsHandler` | Injected `RelayRegistry`, switched `getLocalRelay()` |
+| `RelayAdminService` | Already had `RelayRegistry` — switched `relayPool->getLocalRelay()` |
+| `NostrRequestExecutor` | Injected `RelayRegistry`, switched `getRelayRegistry()` and `normalizeRelayUrl()` → `RelayUrlNormalizer::normalize()` |
+
+**Design outcome:** `NostrRelayPool` is now a pure connection manager — it opens, closes, reuses WebSocket connections and records health metrics. All relay URL selection, purpose-based resolution, and URL normalization lives in `RelayRegistry` and `RelayUrlNormalizer`. The pool's internal use of `$nostrDefaultRelay` for connection management (local relay prioritization, partitioning) is unchanged.
 

@@ -341,7 +341,7 @@ class RelayAdminService
             return [
                 'by_purpose' => $byPurpose,
                 'active_connections' => $poolStats['active_connections'] ?? 0,
-                'local_relay' => $this->relayPool->getLocalRelay(),
+                'local_relay' => $this->relayRegistry->getLocalRelay(),
                 'public_url' => $this->relayRegistry->getPublicUrl(),
                 'gateway_enabled' => $this->relayPool->isGatewayEnabled(),
                 'error' => null,

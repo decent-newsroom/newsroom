@@ -78,7 +78,7 @@ class NostrRelayPool implements RelayPoolInterface
      * Delegates to the canonical RelayUrlNormalizer so all consumers
      * (registry, health store, gateway, pool) agree on key format.
      */
-    public function normalizeRelayUrl(string $url): string
+    private function normalizeRelayUrl(string $url): string
     {
         return RelayUrlNormalizer::normalize($url);
     }
@@ -587,54 +587,6 @@ class NostrRelayPool implements RelayPoolInterface
         return $this->defaultRelays;
     }
 
-    /**
-     * Get local relay URL if configured
-     */
-    public function getLocalRelay(): ?string
-    {
-        return $this->nostrDefaultRelay ?: null;
-    }
-
-    /**
-     * Ensure local relay is included in a list of relay URLs
-     * Adds local relay at the beginning if configured and not already in the list
-     */
-    public function ensureLocalRelayInList(array $relayUrls): array
-    {
-        if (!$this->nostrDefaultRelay) {
-            return $relayUrls;
-        }
-
-        $normalizedLocal = $this->normalizeRelayUrl($this->nostrDefaultRelay);
-        $normalizedUrls = array_map([$this, 'normalizeRelayUrl'], $relayUrls);
-
-        // If local relay not in list, add it at the beginning
-        if (!in_array($normalizedLocal, $normalizedUrls, true)) {
-            array_unshift($relayUrls, $this->nostrDefaultRelay);
-            $this->logger->debug('Added local relay to relay list', [
-                'local_relay' => $this->nostrDefaultRelay,
-                'total_relays' => count($relayUrls)
-            ]);
-        }
-
-        return $relayUrls;
-    }
-
-    /**
-     * Get the RelayRegistry instance (for callers that need purpose-based relay resolution).
-     */
-    public function getRelayRegistry(): RelayRegistry
-    {
-        return $this->relayRegistry;
-    }
-
-    /**
-     * Get the RelayHealthStore instance (for callers that need health data).
-     */
-    public function getHealthStore(): RelayHealthStore
-    {
-        return $this->healthStore;
-    }
 
     /**
      * Sort relay URLs by health score (highest first).
