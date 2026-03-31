@@ -720,6 +720,7 @@ follow_pack:
     selected_writers: 'Selected Writers'
     search_label: 'Search for writers'
     search_placeholder: 'Search by name or NIP-05...'
+    search_placeholder_npub: 'Search by name, NIP-05, or paste npub...'
     publish_button: 'Publish Follow Pack'
     existing_packs: 'Your Existing Follow Packs'
     members: 'members'

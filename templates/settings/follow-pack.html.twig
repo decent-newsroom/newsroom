@@ -88,8 +88,8 @@
             <label for="fp-search">{{ 'follow_pack.search_label'|trans }}</label>
             <input type="text" id="fp-search"
                    data-nostr--nostr-follow-pack-target="searchInput"
-                   data-action="input->nostr--nostr-follow-pack#onSearchInput"
-                   placeholder="{{ 'follow_pack.search_placeholder'|trans }}">
+                   data-action="input->nostr--nostr-follow-pack#onSearchInput paste->nostr--nostr-follow-pack#onPaste"
+                   placeholder="{{ 'follow_pack.search_placeholder_npub'|trans }}">
         </div>
 
         <div class="fp-search-area" data-nostr--nostr-follow-pack-target="searchResults"></div>

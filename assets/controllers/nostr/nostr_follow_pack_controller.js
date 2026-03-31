@@ -75,7 +75,23 @@ export default class extends Controller {
   }
 
   /**
-   * Search for users via API
+   * Handle paste events — detect and auto-add npubs from pasted text
+   */
+  onPaste(event) {
+    // Let the paste complete, then process
+    setTimeout(() => this.search(), 50);
+  }
+
+  /**
+   * Extract all npub1... strings from text (handles comma, space, newline separators)
+   */
+  extractNpubs(text) {
+    const matches = text.match(/npub1[a-z0-9]{58}/g);
+    return matches ? [...new Set(matches)] : [];
+  }
+
+  /**
+   * Search for users via API, or resolve pasted npubs directly
    */
   async search() {
     const query = this.searchInputTarget.value.trim();
@@ -88,6 +104,13 @@ export default class extends Controller {
       return;
     }
 
+    // Check if the input contains npub(s)
+    const npubs = this.extractNpubs(query);
+    if (npubs.length > 0) {
+      await this.resolveNpubs(npubs);
+      return;
+    }
+
     try {
       const url = `${this.searchUrlValue}?q=${encodeURIComponent(query)}&limit=10`;
       const response = await fetch(url);
@@ -96,6 +119,72 @@ export default class extends Controller {
       this.renderSearchResults(data.users || []);
     } catch (e) {
       console.error('[follow-pack] Search error:', e);
+    }
+  }
+
+  /**
+   * Resolve npubs to profiles via the by-npubs API, then render results.
+   * Unresolved npubs are shown as bare entries so they can still be added.
+   */
+  async resolveNpubs(npubs) {
+    // Filter out already-selected npubs
+    const toResolve = npubs.filter(n => !this.selectedUsers.has(n));
+
+    if (toResolve.length === 0) {
+      this.searchResultsTarget.innerHTML = '<p class="fp-empty">All pasted npubs already added.</p>';
+      return;
+    }
+
+    this.searchResultsTarget.innerHTML = '<p class="fp-empty">Resolving npubs…</p>';
+
+    let resolvedMap = {};
+    try {
+      const response = await fetch('/api/users/by-npubs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ npubs: toResolve }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        for (const user of (data.users || [])) {
+          resolvedMap[user.npub] = user;
+        }
+      }
+    } catch (e) {
+      console.warn('[follow-pack] npub resolution error:', e);
+    }
+
+    // Build user objects for all npubs (resolved or not)
+    const users = toResolve.map(npub => {
+      if (resolvedMap[npub]) {
+        return resolvedMap[npub];
+      }
+      // Unresolved — create a minimal entry so it can still be added
+      return {
+        npub: npub,
+        displayName: npub.slice(0, 12) + '…' + npub.slice(-6),
+        name: '',
+        picture: '',
+        nip05: '',
+      };
+    });
+
+    this.renderSearchResults(users);
+
+    // If only one npub was pasted and it's resolved, auto-add it and clear
+    if (npubs.length === 1 && resolvedMap[npubs[0]]) {
+      const user = resolvedMap[npubs[0]];
+      if (!this.selectedUsers.has(user.npub)) {
+        this.selectedUsers.set(user.npub, {
+          npub: user.npub,
+          displayName: user.displayName || user.name || npubs[0].slice(0, 12) + '…',
+          picture: user.picture || '',
+          nip05: user.nip05 || '',
+        });
+        this.renderSelectedList();
+        this.searchInputTarget.value = '';
+        this.renderFollowsSuggestions();
+      }
     }
   }
 
@@ -491,8 +580,4 @@ export default class extends Controller {
     }
   }
 }
-
-
-
-
 
