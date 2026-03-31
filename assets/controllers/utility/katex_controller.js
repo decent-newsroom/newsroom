@@ -50,12 +50,13 @@ function hasRealMath(text) {
     if (checkDelim(/\\\[(?<body>(?:[^\\]|\\.)+)\\]/g)) return true;
     if (hasNonCurrencyDollar) return true;
 
-    // Loose inline dollar check
-    const inlineDollarLoose = /\$(?<body>[^$]+)\$/g;
+    // Inline $…$ with whitespace rule: opening $ not followed by space,
+    // closing $ not preceded by space — the TeX convention that separates
+    // math from currency.
+    const inlineDollarWs = /(?<![\\$\d])\$([^\s$](?:[^$]*[^\s$])?)\$(?![\d$])/g;
     let m;
-    while ((m = inlineDollarLoose.exec(t)) !== null) {
-        const inner = m.groups?.body ?? '';
-        if (!/^\s*[\d.,]+\s*$/.test(inner) && /[A-Za-z]/.test(inner) && /[\^_{}]|\\[a-zA-Z]+/.test(inner)) return true;
+    while ((m = inlineDollarWs.exec(t)) !== null) {
+        if (!/^\s*[\d.,]+\s*$/.test(m[1])) return true;
     }
 
     return false;

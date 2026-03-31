@@ -41,13 +41,12 @@
         var bracketDelim = /\\\[(?:[^\\]|\\.)+\\]/g;
         if (bracketDelim.test(text)) return true;
 
-        // Loose inline dollar — require mathy characters
-        var inlineDollarLoose = /\$([^$]+)\$/g;
-        while ((m = inlineDollarLoose.exec(text)) !== null) {
-            var inner2 = m[1];
-            if (!/^\s*[\d.,]+\s*$/.test(inner2) && /[A-Za-z]/.test(inner2) && /[\^_{}]|\\[a-zA-Z]+/.test(inner2)) {
-                return true;
-            }
+        // Inline $…$ with whitespace rule: opening $ not followed by space,
+        // closing $ not preceded by space — the TeX convention that separates
+        // math from currency.
+        var inlineDollarWs = /(?<![\\$\d])\$([^\s$](?:[^$]*[^\s$])?)\$(?![\d$])/g;
+        while ((m = inlineDollarWs.exec(text)) !== null) {
+            if (!/^\s*[\d.,]+\s*$/.test(m[1] || '')) return true;
         }
 
         return false;

@@ -2,6 +2,8 @@
 
 ## v0.0.26
 
+- [Bug] Restored inline math `$…$` rendering broken by the v0.0.25 currency fix. The `Converter` now normalizes `$…$` to `\(…\)` at HTML-generation time (protecting code blocks and `$$…$$`), using the TeX whitespace rule to distinguish math from currency. No client-side DOM walking needed — KaTeX in the browser keeps only the safe `\(…\)`, `$$…$$`, and `\[…\]` delimiters. Existing articles require `articles:process-html --force` to pick up the change.
+
 - Removed hard relay limit (previously `$limit = 5`) from `getRelaysForUser()`, `getRelaysForFetching()`, and `getRelaysForPublishing()` in `UserRelayListService`. All available relays are now returned, prioritizing the local relay (which ingests from multiple upstreams) and the user's own NIP-65 relays, followed by registry defaults. Callers no longer risk silently losing user relays or registry fallbacks to truncation.
 - Fixed `isValidRelay()` edge cases in `UserRelayListService`: replaced naive `str_contains('localhost')` check with proper hostname parsing via `parse_url()`, added `filter_var(FILTER_VALIDATE_URL)` structural validation, and normalized URLs via `RelayUrlNormalizer` before checking. A URL like `wss://relay.localhost.com` is no longer incorrectly rejected.
 - Introduced `RelayUrlNormalizer` utility (`src/Util/RelayUrlNormalizer.php`) — a single canonical normalize/equals for relay URLs, replacing 7+ ad-hoc normalization implementations scattered across `RelayRegistry`, `RelayHealthStore`, `NostrRelayPool`, `GatewayConnection`, `RelayAdminService`, `UpdateRelayListHandler`, and `RelayGatewayCommand`. All consumers now agree on lowercase + trim + strip-trailing-slash.

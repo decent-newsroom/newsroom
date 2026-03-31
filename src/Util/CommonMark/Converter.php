@@ -69,6 +69,10 @@ class Converter implements MarkdownConverterInterface
      */
     public function convertToHTML(string $content, ?string $format = null, ?array $tags = null): string
     {
+        // Normalize $…$ inline math to \(…\) before any parsing, so KaTeX
+        // in the browser doesn't need the ambiguous single-$ delimiter.
+        $content = $this->normalizeInlineMathDelimiters($content);
+
         // Bulk prefetch all referenced nostr entities before any conversion
         $this->prefetchedData = $this->prefetchNostrData($content, $tags);
 
@@ -104,6 +108,71 @@ class Converter implements MarkdownConverterInterface
     public function convertAsciiDocToHTML(string $content): string
     {
         return $this->convertToHTML($content, 'asciidoc');
+    }
+
+    /**
+     * Normalize inline math delimiters: convert $…$ (following the TeX
+     * whitespace rule) to \(…\) in raw content so that KaTeX in the
+     * browser doesn't need the ambiguous single-$ delimiter (which
+     * conflicts with currency values like $50,000).
+     *
+     * TeX whitespace rule (same convention as Pandoc / CommonMark math):
+     *  - Opening $ must NOT be followed by whitespace
+     *  - Closing $ must NOT be preceded by whitespace
+     *  - Opening $ must NOT be preceded by a digit, $ or \
+     *  - Closing $ must NOT be followed by a digit or $
+     *  - Content must not be pure numeric/currency (e.g. 50,000)
+     *
+     * Fenced code blocks, inline code, and $$…$$ are protected.
+     */
+    private function normalizeInlineMathDelimiters(string $content): string
+    {
+        if (!str_contains($content, '$')) {
+            return $content;
+        }
+
+        // Fast pre-check: only proceed if the content has at least one
+        // plausible $…$ pair (two $ signs with a non-space char after the
+        // first). This avoids the protect-and-replace pipeline for the
+        // vast majority of articles that only use $ for currency.
+        if (!preg_match('/(?<![\\\\$\d])\$[^\s$]/', $content)) {
+            return $content;
+        }
+
+        // Protect regions that must not be touched, replacing them with
+        // null-byte placeholders so the $ regex cannot match inside them.
+        $blocks = [];
+        $protect = function (string $match) use (&$blocks): string {
+            $blocks[] = $match;
+            return "\x00MATH_BLOCK" . (count($blocks) - 1) . "\x00";
+        };
+
+        // 1. Fenced code blocks (``` or ~~~)
+        $content = preg_replace_callback('/^(`{3,}|~{3,}).*?^\1/ms', $protect, $content);
+        // 2. Inline code (backtick runs)
+        $content = preg_replace_callback('/`[^`]+`/', $protect, $content);
+        // 3. Display math $$…$$
+        $content = preg_replace_callback('/\$\$[\s\S]*?\$\$/', $protect, $content);
+
+        // 4. Convert $…$ with whitespace rule to \(…\)
+        $content = preg_replace_callback(
+            '/(?<![\\\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/',
+            function (array $m): string {
+                // Skip pure numeric / currency values
+                if (preg_match('/^\s*[\d.,]+\s*$/', $m[1])) {
+                    return $m[0];
+                }
+                return '\\(' . $m[1] . '\\)';
+            },
+            $content,
+        );
+
+        // 5. Restore protected blocks
+        return preg_replace_callback(
+            '/\x00MATH_BLOCK(\d+)\x00/',
+            static fn(array $m) => $blocks[(int) $m[1]],
+            $content,
+        );
     }
 
     /**
