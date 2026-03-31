@@ -8,6 +8,7 @@ use App\Entity\Event as EventEntity;
 use App\Entity\User;
 use App\Enum\KindBundles;
 use App\Enum\KindsEnum;
+use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\UpdateRelayListMessage;
 use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
@@ -714,7 +715,7 @@ class SettingsController extends AbstractController
      */
     #[Route('/api/settings/follow-pack/set', name: 'api_settings_follow_pack_set', methods: ['POST'])]
     #[IsGranted('ROLE_USER')]
-    public function setFollowPack(Request $request): JsonResponse
+    public function setFollowPack(Request $request, MessageBusInterface $messageBus): JsonResponse
     {
         try {
             $data = json_decode($request->getContent(), true);
@@ -740,6 +741,9 @@ class SettingsController extends AbstractController
 
             $user->setFollowPackCoordinate($coordinate);
             $this->entityManager->flush();
+
+            // Dispatch background profile sync for follow pack members
+            $this->dispatchFollowPackProfileSync($parts[1], $parts[2], $messageBus);
 
             return new JsonResponse(['success' => true, 'coordinate' => $coordinate]);
         } catch (\Throwable $e) {
@@ -796,6 +800,61 @@ class SettingsController extends AbstractController
             'selectedCoordinate' => $coordinate,
             'packs' => $packs,
         ]);
+    }
+
+    /**
+     * Dispatch background profile sync for all members in a follow pack.
+     *
+     * Looks up the follow pack event by pubkey and d-tag, extracts the p tags,
+     * and dispatches a BatchUpdateProfileProjectionMessage so member profiles
+     * are available in cache/DB for the sidebar display.
+     */
+    private function dispatchFollowPackProfileSync(string $pubkey, string $dTag, MessageBusInterface $messageBus): void
+    {
+        try {
+            $event = $this->eventRepository->createQueryBuilder('e')
+                ->where('e.pubkey = :pubkey')
+                ->andWhere('e.kind = :kind')
+                ->andWhere('e.slug = :slug')
+                ->setParameter('pubkey', $pubkey)
+                ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+                ->setParameter('slug', $dTag)
+                ->orderBy('e.created_at', 'DESC')
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            if ($event === null) {
+                $this->logger->debug('Follow pack event not found in DB for profile sync', [
+                    'pubkey' => substr($pubkey, 0, 8),
+                    'dTag' => $dTag,
+                ]);
+                return;
+            }
+
+            $memberPubkeys = [];
+            foreach ($event->getTags() ?? [] as $tag) {
+                if (is_array($tag) && ($tag[0] ?? '') === 'p' && !empty($tag[1])) {
+                    $memberPubkeys[] = $tag[1];
+                }
+            }
+
+            if (empty($memberPubkeys)) {
+                return;
+            }
+
+            $messageBus->dispatch(new BatchUpdateProfileProjectionMessage($memberPubkeys));
+
+            $this->logger->info('Dispatched profile sync for follow pack members', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'dTag' => $dTag,
+                'memberCount' => count($memberPubkeys),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to dispatch follow pack profile sync', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

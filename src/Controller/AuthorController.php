@@ -1027,7 +1027,9 @@ class AuthorController extends AbstractController
             $data['selectedFollowPackCoordinate'] = $profileUser->getFollowPackCoordinate() ?? '';
         }
 
-        // Resolve follow pack member profiles for the aside sidebar (both owner and visitor)
+        // Resolve follow pack member profiles for the aside sidebar (both owner and visitor).
+        // Batch-resolve all members, prioritize those with locally available profiles,
+        // and randomize so the sidebar shows a varied selection on each page load.
         $selectedCoord = $data['followPackCoordinate'];
         if ($selectedCoord) {
             $coordParts = explode(':', $selectedCoord, 3);
@@ -1040,24 +1042,30 @@ class AuthorController extends AbstractController
                             $memberPubkeys[] = $tag[1];
                         }
                     }
-                    $followPackMembers = [];
+
+                    // Batch-resolve all member profiles at once
+                    $metadataMap = $redisCacheService->getMultipleMetadata($memberPubkeys);
+
                     $nip19 = new Nip19Helper();
-                    foreach (array_slice($memberPubkeys, 0, 20) as $memberHex) {
-                        try {
-                            $memberMeta = $redisCacheService->getMetadata($memberHex);
-                            $memberStd = $memberMeta->toStdClass();
-                            $followPackMembers[] = [
+                    $resolved = [];
+
+                    foreach ($memberPubkeys as $memberHex) {
+                        if (isset($metadataMap[$memberHex])) {
+                            $memberStd = $metadataMap[$memberHex]->toStdClass();
+                            $resolved[] = [
                                 'npub' => $nip19->encodeNpub($memberHex),
                                 'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
                                 'name' => $memberStd->name ?? '',
                                 'picture' => $memberStd->picture ?? '',
                                 'nip05' => $memberStd->nip05 ?? '',
                             ];
-                        } catch (\Throwable) {
-                            // Skip unresolvable
                         }
                     }
-                    $data['followPackMembers'] = $followPackMembers;
+
+                    // Shuffle so the sidebar shows a varied selection on each load
+                    shuffle($resolved);
+
+                    $data['followPackMembers'] = $resolved;
                 }
             }
         }

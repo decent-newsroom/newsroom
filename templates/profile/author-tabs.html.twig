@@ -121,6 +121,18 @@
                 {% endif %}
                 <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
             </div>
+        {% else %}
+            <div class="contribution-section mt-3 mb-3 p-3 ln-section--newsstand">
+                <div class="text-center mb-2">
+                    <strong>{{ 'follow_pack.recommended_writers'|trans }}</strong>
+                </div>
+                <p class="text-center text-muted" style="font-size: var(--font-size-sm);">
+                    {{ 'follow_pack.sync_pending'|trans }}
+                </p>
+                <div class="text-center">
+                    <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline mt-2">{{ 'follow_pack.edit_button'|trans }}</a>
+                </div>
+            </div>
         {% endif %}
     {% elseif isOwner %}
         <div class="contribution-section mt-3 mb-3 p-3 ln-section--newsstand">

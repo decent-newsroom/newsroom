@@ -719,6 +719,7 @@ follow_pack:
     selected: 'Selected'
     recommended_writers: 'Recommended Writers'
     more_writers: 'more'
+    sync_pending: 'Your recommended writers list is set up. Profiles will appear here once sync catches up.'
     page_title: 'Follow Pack'
     page_tagline: 'Build a list of writers you recommend to your followers'
     description: 'A follow pack is a public list of Nostr accounts you recommend. It is a kind 39089 event — anyone on any Nostr client can see it, and other users can follow the whole pack with one click.'
