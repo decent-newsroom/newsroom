@@ -33,10 +33,12 @@ class ProcessArticleHtmlCommand extends Command
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of articles to process', null)
             ->addOption('delete-failed', null, InputOption::VALUE_NONE, 'Delete articles that fail HTML processing instead of skipping them')
             ->addOption('timeout', 't', InputOption::VALUE_REQUIRED, 'Maximum seconds per article before skipping (default: 60)', 60)
+            ->addOption('math-only', null, InputOption::VALUE_NONE, 'Only reprocess articles whose content contains a $ sign (useful after math-delimiter changes)')
             ->setHelp(
                 'This command processes content to HTML for articles and caches the result in the database. ' .
                 'By default, it only processes articles that are missing processed HTML. ' .
                 'Use --force to reprocess all articles. ' .
+                'Use --math-only to reprocess only articles that may contain math (implies --force for those articles). ' .
                 'Use --delete-failed to remove articles that cannot be processed (e.g. invalid npub data). ' .
                 'Use --timeout to set the maximum seconds per article (default 60). Articles that exceed this are skipped.'
             );
@@ -49,6 +51,7 @@ class ProcessArticleHtmlCommand extends Command
         $limit = $input->getOption('limit');
         $deleteFailed = (bool) $input->getOption('delete-failed');
         $timeout = max(5, (int) $input->getOption('timeout'));
+        $mathOnly = (bool) $input->getOption('math-only');
 
         $io->title('Article HTML Processing');
 
@@ -71,7 +74,10 @@ class ProcessArticleHtmlCommand extends Command
 
         // Fetch IDs only to avoid hydrating full entities (raw JSON fields can be huge).
         $sql = 'SELECT id FROM article WHERE content IS NOT NULL';
-        if (!$force) {
+        if ($mathOnly) {
+            // Only articles whose raw content contains $ — let the DB do the filtering.
+            $sql .= " AND content LIKE '%$%'";
+        } elseif (!$force) {
             $sql .= ' AND processed_html IS NULL';
         }
         $sql .= ' ORDER BY id ASC';

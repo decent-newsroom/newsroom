@@ -142,8 +142,8 @@ class Converter implements MarkdownConverterInterface
         // Protect regions that must not be touched, replacing them with
         // null-byte placeholders so the $ regex cannot match inside them.
         $blocks = [];
-        $protect = function (string $match) use (&$blocks): string {
-            $blocks[] = $match;
+        $protect = function (array $m) use (&$blocks): string {
+            $blocks[] = $m[0];
             return "\x00MATH_BLOCK" . (count($blocks) - 1) . "\x00";
         };
 
