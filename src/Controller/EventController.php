@@ -121,7 +121,7 @@ class EventController extends AbstractController
                         // the author's personal relays, not on content/article relays.
                         if ($authorPubkey) {
                             try {
-                                $authorRelays = $userRelayListService->getRelaysForFetching($authorPubkey, 4);
+                                $authorRelays = $userRelayListService->getRelaysForFetching($authorPubkey);
                                 $logger->info('Resolved author relay list for nevent lookup', [
                                     'authorPubkey' => $authorPubkey,
                                     'authorRelays' => $authorRelays,

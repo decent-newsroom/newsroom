@@ -505,11 +505,44 @@ Added `CONFIGURED_TTL = 604800` (7 days) alongside the existing `TTL = 86400` (2
 | # | Issue | Status |
 |---|-------|--------|
 | 2 | Pool duplicates registry | Open — requires callers audit |
-| 3 | `isValidRelay()` edge cases | Open |
 | 7 | Synthetic event IDs | Open |
 | 8 | No circuit breaker | Open |
 | 10 | Gateway monolith | Open — high effort |
 | 12 | Admin bypasses pool | Open |
-| 15 | Relay limit truncation | Open |
+
+### Actions Taken (2026-03-31, second pass)
+
+#### #15 — Relay Limit Truncation (Resolved ✅)
+
+**Changed:** `UserRelayListService::getRelaysForUser()`, `getRelaysForFetching()`, `getRelaysForPublishing()`
+
+Removed the `$limit` parameter and `array_slice()` truncation from all three methods. Previously a hard `$limit = 5` silently dropped user relays and registry defaults when the combined list exceeded 5 entries — if a user had 10 relays and the local relay plus 4 user relays filled the cap, no registry defaults were included.
+
+Now all available relays are returned, with priority preserved:
+1. Local relay (always first — it ingests from multiple upstreams)
+2. User's own relays (from NIP-65 kind 10002 relay list)
+3. Registry defaults for the requested purpose
+
+Callers that previously passed explicit limits (`EventController` with `4`, `FetchEventFromRelaysHandler` with `5`) have been updated to use the no-limit signature.
+
+**Rationale:** The local relay already aggregates content from multiple upstream relays, so it naturally covers a wide range. Including all user relays ensures content published to less common relays is not missed. The pool/connection layer handles parallelism — the relay list service should not second-guess how many relays to query.
+
+#### #3 — `isValidRelay()` Edge Cases (Resolved ✅)
+
+**Changed:** `UserRelayListService::isValidRelay()`
+
+Replaced the naive validation:
+```php
+return str_starts_with($url, 'wss://') && !str_contains($url, 'localhost');
+```
+
+With a proper implementation that:
+- Normalizes the URL via `RelayUrlNormalizer::normalize()` before checking
+- Uses `filter_var(FILTER_VALIDATE_URL)` for structural validation
+- Parses the hostname with `parse_url()` and rejects only `localhost` and `127.0.0.1` as the actual host — not as a substring anywhere in the URL
+
+This fixes two edge cases:
+1. A URL like `wss://relay.localhost.com` was incorrectly rejected (unlikely but technically valid)
+2. URLs with whitespace or inconsistent casing were not normalized before validation
 
 

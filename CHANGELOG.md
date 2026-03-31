@@ -2,6 +2,8 @@
 
 ## v0.0.26
 
+- Removed hard relay limit (previously `$limit = 5`) from `getRelaysForUser()`, `getRelaysForFetching()`, and `getRelaysForPublishing()` in `UserRelayListService`. All available relays are now returned, prioritizing the local relay (which ingests from multiple upstreams) and the user's own NIP-65 relays, followed by registry defaults. Callers no longer risk silently losing user relays or registry fallbacks to truncation.
+- Fixed `isValidRelay()` edge cases in `UserRelayListService`: replaced naive `str_contains('localhost')` check with proper hostname parsing via `parse_url()`, added `filter_var(FILTER_VALIDATE_URL)` structural validation, and normalized URLs via `RelayUrlNormalizer` before checking. A URL like `wss://relay.localhost.com` is no longer incorrectly rejected.
 - Introduced `RelayUrlNormalizer` utility (`src/Util/RelayUrlNormalizer.php`) — a single canonical normalize/equals for relay URLs, replacing 7+ ad-hoc normalization implementations scattered across `RelayRegistry`, `RelayHealthStore`, `NostrRelayPool`, `GatewayConnection`, `RelayAdminService`, `UpdateRelayListHandler`, and `RelayGatewayCommand`. All consumers now agree on lowercase + trim + strip-trailing-slash.
 - [Performance] Replaced `KEYS relay_health:*` with `SCAN` iterator in `RelayHealthStore::getAllKnownRelayUrls()` to avoid blocking Redis when the key space is large (used by admin gateway dashboard).
 - Improved relay health score algorithm with a recency bonus: relays that succeeded recently now get a score boost that decays over 24 hours, so relays that have recovered from a failure burst are no longer penalized indefinitely.

@@ -62,7 +62,7 @@ final class FetchEventFromRelaysHandler
         $relays = $message->relays;
         if ($message->type !== 'naddr' && $message->pubkey) {
             try {
-                $authorRelays = $this->userRelayListService->getRelaysForFetching($message->pubkey, 5);
+                $authorRelays = $this->userRelayListService->getRelaysForFetching($message->pubkey);
                 foreach ($authorRelays as $ar) {
                     if (!in_array($ar, $relays, true)) {
                         $relays[] = $ar;

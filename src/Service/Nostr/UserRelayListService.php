@@ -9,6 +9,7 @@ use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
 use App\Repository\EventRepository;
 use App\Util\NostrKeyUtil;
+use App\Util\RelayUrlNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -113,9 +114,14 @@ class UserRelayListService
     /**
      * Get relays for a specific purpose, merging user relays with registry defaults.
      *
+     * Priority order (no truncation — all available relays are returned):
+     *   1. Local relay (ingests from multiple upstreams)
+     *   2. User's own relays (from their NIP-65 relay list)
+     *   3. Registry defaults for the requested purpose
+     *
      * @return string[]
      */
-    public function getRelaysForUser(string $pubkeyOrNpub, RelayPurpose $purpose, int $limit = 5): array
+    public function getRelaysForUser(string $pubkeyOrNpub, RelayPurpose $purpose): array
     {
         $hex = $this->toHex($pubkeyOrNpub);
         $userList = $this->getRelayList($hex);
@@ -154,7 +160,7 @@ class UserRelayListService
             }
         }
 
-        return array_slice($relays, 0, $limit);
+        return $relays;
     }
 
     /**
@@ -163,18 +169,23 @@ class UserRelayListService
      *
      * @return string[]
      */
-    public function getRelaysForFetching(string $pubkeyOrNpub, int $limit = 5): array
+    public function getRelaysForFetching(string $pubkeyOrNpub): array
     {
-        return $this->getRelaysForUser($pubkeyOrNpub, RelayPurpose::CONTENT, $limit);
+        return $this->getRelaysForUser($pubkeyOrNpub, RelayPurpose::CONTENT);
     }
 
     /**
      * Get relays suitable for publishing on behalf of this author.
      * Non-blocking: returns fallbacks immediately on cache miss.
      *
+     * Priority order (no truncation — all available relays are returned):
+     *   1. Local relay (ingests from multiple upstreams)
+     *   2. User's write relays (from cached NIP-65 relay list)
+     *   3. Fallback relays (local or project)
+     *
      * @return string[]
      */
-    public function getRelaysForPublishing(string $pubkeyOrNpub, int $limit = 5): array
+    public function getRelaysForPublishing(string $pubkeyOrNpub): array
     {
         $hex = $this->toHex($pubkeyOrNpub);
 
@@ -208,7 +219,7 @@ class UserRelayListService
             }
         }
 
-        return array_slice($relays, 0, $limit);
+        return $relays;
     }
 
     /**
@@ -576,9 +587,32 @@ class UserRelayListService
             : $pubkeyOrNpub;
     }
 
+    /**
+     * Validate that a URL is a valid external (user-facing) relay.
+     *
+     * Accepts only wss:// URLs (user relays must be public/TLS). The local
+     * relay (ws://strfry:7777) is handled separately — it is always prepended
+     * by the calling method and never comes from user relay lists.
+     *
+     * Uses filter_var for structural validation and checks the parsed hostname
+     * to reject localhost (not just a naive str_contains, which would
+     * incorrectly reject e.g. wss://relay.localhost.com).
+     */
     private function isValidRelay(string $url): bool
     {
-        return str_starts_with($url, 'wss://') && !str_contains($url, 'localhost');
+        $normalized = RelayUrlNormalizer::normalize($url);
+
+        if (!str_starts_with($normalized, 'wss://')) {
+            return false;
+        }
+
+        if (filter_var($normalized, FILTER_VALIDATE_URL) === false) {
+            return false;
+        }
+
+        $host = parse_url($normalized, PHP_URL_HOST);
+
+        return $host !== null && $host !== 'localhost' && $host !== '127.0.0.1';
     }
 
     /**
