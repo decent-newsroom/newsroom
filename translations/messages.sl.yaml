@@ -314,6 +314,14 @@ readingListDropdown:
     noLists: 'Še ni bralnih seznamov'
     selectList: 'Izberite seznam:'
 
+# ── Spustni seznam follow packov ─────────────────────────────────
+followPackDropdown:
+    addToPack: 'Dodaj v follow pack'
+    noPacks: 'Še ni follow packov'
+    selectPack: 'Izberite pack:'
+    members: 'članov'
+    createNew: 'Ustvari nov pack'
+
 # ── Izpostavljeni pisci ───────────────────────────────────────────
 featuredWriters:
     heading: 'Pisci'

@@ -314,6 +314,14 @@ readingListDropdown:
     noLists: 'Noch keine Leselisten'
     selectList: 'Liste auswählen:'
 
+# ── Follow-Pack-Dropdown ────────────────────────────────────────────────
+followPackDropdown:
+    addToPack: 'Zum Follow-Pack hinzufügen'
+    noPacks: 'Noch keine Follow-Packs'
+    selectPack: 'Pack auswählen:'
+    members: 'Mitglieder'
+    createNew: 'Neues Pack erstellen'
+
 # ── Empfohlene Autoren ──────────────────────────────────────────────────
 featuredWriters:
     heading: 'Autoren'

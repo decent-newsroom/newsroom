@@ -370,6 +370,14 @@ readingListDropdown:
     noLists: 'No reading lists yet'
     selectList: 'Select a list:'
 
+# ── Follow pack dropdown ─────────────────────────────────────────
+followPackDropdown:
+    addToPack: 'Add to Follow Pack'
+    noPacks: 'No follow packs yet'
+    selectPack: 'Select a pack:'
+    members: 'members'
+    createNew: 'Create New Pack'
+
 # ── Featured writers ──────────────────────────────────────────────
 featuredWriters:
     heading: 'Writers'

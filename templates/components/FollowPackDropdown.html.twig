@@ -1,0 +1,65 @@
+{% set packs = this.getPacksWithMembers() %}
+{% set publishUrl = path('api_settings_event_publish') %}
+{% set csrfToken = csrf_token('nostr_publish') %}
+
+<div {{ attributes }}
+     data-controller="content--follow-pack-dropdown"
+     data-content--follow-pack-dropdown-pubkey-value="{{ pubkey }}"
+     data-content--follow-pack-dropdown-packs-value="{{ packs|json_encode|e('html_attr') }}"
+     data-content--follow-pack-dropdown-publish-url-value="{{ publishUrl }}"
+     data-content--follow-pack-dropdown-csrf-token-value="{{ csrfToken }}">
+
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle"
+                type="button"
+                id="followPackDropdown"
+                data-content--follow-pack-dropdown-target="dropdown"
+                data-action="click->content--follow-pack-dropdown#toggleDropdown"
+                aria-expanded="false">
+            {{ 'followPackDropdown.addToPack'|trans }}
+        </button>
+        <ul class="dropdown-menu"
+            aria-labelledby="followPackDropdown"
+            data-content--follow-pack-dropdown-target="menu">
+            {% if packs is empty %}
+                <li>
+                    <span class="dropdown-item disabled">
+                        <em>{{ 'followPackDropdown.noPacks'|trans }}</em>
+                    </span>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+            {% else %}
+                <li class="dropdown-header">{{ 'followPackDropdown.selectPack'|trans }}</li>
+                {% for pack in packs %}
+                    <li>
+                        <a class="dropdown-item"
+                           href="#"
+                           data-action="click->content--follow-pack-dropdown#addToPack"
+                           data-dtag="{{ pack.dTag }}"
+                           data-title="{{ pack.title }}">
+                            <div class="d-flex flex-row justify-content-between">
+                                <div>
+                                    <strong>{{ pack.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ pack.memberCount }} {{ 'followPackDropdown.members'|trans }}
+                                    </small>
+                                </div>
+                                {% if pubkey in pack.members %}
+                                    <span class="badge bg-success ms-2">✓</span>
+                                {% endif %}
+                            </div>
+                        </a>
+                    </li>
+                {% endfor %}
+                <li><hr class="dropdown-divider"></li>
+            {% endif %}
+            <li>
+                <a class="dropdown-item" href="{{ path('follow_pack_setup') }}">
+                    <strong>➕ {{ 'followPackDropdown.createNew'|trans }}</strong>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+

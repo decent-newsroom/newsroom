@@ -1,3 +1,8 @@
+<div class="article-actions">
+    {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
+        <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
+    {% endif %}
+</div>
 <section>
     <h1>
         <twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub>
