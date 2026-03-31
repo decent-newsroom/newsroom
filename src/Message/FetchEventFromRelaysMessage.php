@@ -16,7 +16,7 @@ final class FetchEventFromRelaysMessage
      * @param string      $lookupKey  Unique key for this fetch (e.g. "naddr:30023:<pubkey>:<slug>")
      * @param string      $type       Lookup type: "naddr" | "nevent" | "note"
      * @param int|null    $kind       Event kind (naddr only)
-     * @param string|null $pubkey     Author hex pubkey (naddr only)
+     * @param string|null $pubkey     Author hex pubkey (naddr: required; nevent/note: used for author relay list resolution)
      * @param string|null $identifier d-tag / slug (naddr only)
      * @param string|null $eventId    Event ID (nevent/note only)
      * @param string[]    $relays     Relay hint URLs

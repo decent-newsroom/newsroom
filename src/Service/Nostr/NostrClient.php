@@ -92,9 +92,21 @@ class NostrClient
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
-        $relays    = $this->relayRegistry->ensureLocalRelayInList($relays);
-        $allRelays = array_values(array_unique(array_merge($relays, $this->relayRegistry->getContentRelays())));
-        $allRelays = array_slice($allRelays, 0, 3);
+        // Prioritise hint relays (most likely to have the event), then local, then content.
+        // Previous order (local first, 3 relay cap) caused kind-1 notes to be missed
+        // because the local relay never stores them and displaced the actual hints.
+        $hintRelays = array_values(array_filter($relays, fn($r) => !empty(trim($r))));
+        $localRelays = $this->relayRegistry->getLocalRelay() ? [$this->relayRegistry->getLocalRelay()] : [];
+        $contentRelays = $this->relayRegistry->getContentRelays();
+
+        $allRelays = [];
+        foreach (array_merge($hintRelays, $localRelays, $contentRelays) as $r) {
+            $r = trim($r);
+            if ($r !== '' && !in_array($r, $allRelays, true)) {
+                $allRelays[] = $r;
+            }
+        }
+        $allRelays = array_slice($allRelays, 0, 5);
 
         foreach ($allRelays as $relay) {
             $this->logger->debug('Trying relay for event', ['relay' => $relay, 'event_id' => $eventId]);

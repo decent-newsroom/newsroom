@@ -10,6 +10,7 @@ use App\Repository\EventRepository;
 use App\Service\ArticleEventProjector;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -23,6 +24,7 @@ final class FetchEventFromRelaysHandler
         private readonly EventRepository $eventRepository,
         private readonly GenericEventProjector $genericEventProjector,
         private readonly ArticleEventProjector $articleEventProjector,
+        private readonly UserRelayListService $userRelayListService,
         private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
     ) {}
@@ -55,6 +57,30 @@ final class FetchEventFromRelaysHandler
         }
 
         // Fetch from relays (this is the slow part — OK in a worker)
+        // For nevent/note: enrich relay list with author's relay list when available.
+        // Kind 1 notes are typically only on the author's personal relays.
+        $relays = $message->relays;
+        if ($message->type !== 'naddr' && $message->pubkey) {
+            try {
+                $authorRelays = $this->userRelayListService->getRelaysForFetching($message->pubkey, 5);
+                foreach ($authorRelays as $ar) {
+                    if (!in_array($ar, $relays, true)) {
+                        $relays[] = $ar;
+                    }
+                }
+                $this->logger->info('Enriched relay list with author relays', [
+                    'lookup_key' => $message->lookupKey,
+                    'author_relays' => $authorRelays,
+                    'total_relays' => count($relays),
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to resolve author relays for async fetch', [
+                    'lookup_key' => $message->lookupKey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $rawEvent = null;
         try {
             $rawEvent = match ($message->type) {
@@ -66,7 +92,7 @@ final class FetchEventFromRelaysHandler
                 ]),
                 default => $this->nostrClient->getEventById(
                     $message->eventId,
-                    $message->relays,
+                    $relays,
                 ),
             };
         } catch (\Throwable $e) {

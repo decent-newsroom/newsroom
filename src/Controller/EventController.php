@@ -52,7 +52,8 @@ class EventController extends AbstractController
                           RedisCacheService $redisCacheService, NostrLinkParser $nostrLinkParser,
                           LoggerInterface $logger, EventRepository $eventRepository,
                           MessageBusInterface $messageBus, NostrClient $nostrClient,
-                          GenericEventProjector $genericEventProjector): Response
+                          GenericEventProjector $genericEventProjector,
+                          \App\Service\Nostr\UserRelayListService $userRelayListService): Response
     {
         $logger->info('Accessing event page', ['nevent' => $nevent]);
 
@@ -103,16 +104,45 @@ class EventController extends AbstractController
                     // Handle nevent identifier (event with additional metadata) - check DB first
                     $eventId = $data->id;
                     $relays = $data->relays ?? [];
-                    $logger->info('Looking up nevent in database', ['eventId' => $eventId]);
+                    $authorPubkey = $data->author ?? null;
+                    $logger->info('Looking up nevent in database', [
+                        'eventId' => $eventId,
+                        'authorPubkey' => $authorPubkey,
+                        'hintRelays' => $relays,
+                    ]);
 
                     $dbEvent = $eventRepository->findById($eventId);
                     if ($dbEvent) {
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // If relay hints exist, try them synchronously first
+                        // Enrich relay list with author's relay list when we know the author.
+                        // This is critical for kind 1 (notes) which are typically only on
+                        // the author's personal relays, not on content/article relays.
+                        if ($authorPubkey) {
+                            try {
+                                $authorRelays = $userRelayListService->getRelaysForFetching($authorPubkey, 4);
+                                $logger->info('Resolved author relay list for nevent lookup', [
+                                    'authorPubkey' => $authorPubkey,
+                                    'authorRelays' => $authorRelays,
+                                ]);
+                                // Merge: hint relays first, then author relays (dedup)
+                                foreach ($authorRelays as $ar) {
+                                    if (!in_array($ar, $relays, true)) {
+                                        $relays[] = $ar;
+                                    }
+                                }
+                            } catch (\Throwable $e) {
+                                $logger->warning('Failed to resolve author relay list', [
+                                    'authorPubkey' => $authorPubkey,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+
+                        // Try synchronous fetch (hint relays + author relays)
                         if (!empty($relays)) {
-                            $logger->info('nevent not in database, querying hint relays synchronously', [
+                            $logger->info('nevent not in database, querying relays synchronously', [
                                 'eventId' => $eventId,
                                 'relays' => $relays,
                             ]);
@@ -123,31 +153,32 @@ class EventController extends AbstractController
                                         $rawEvent,
                                         $relays[0] ?? 'sync-hint-fetch',
                                     );
-                                    $logger->info('Event found on hint relays and persisted', ['eventId' => $persisted->getId()]);
+                                    $logger->info('Event found on relays and persisted', ['eventId' => $persisted->getId()]);
                                     $event = $this->entityToObject($persisted);
                                     break;
                                 }
                             } catch (\Throwable $e) {
-                                $logger->warning('Hint relay fetch failed for nevent, falling back to async', [
+                                $logger->warning('Relay fetch failed for nevent, falling back to async', [
                                     'eventId' => $eventId,
                                     'error' => $e->getMessage(),
                                 ]);
                             }
                         }
 
-                        // Hint relays didn't have it (or none provided) — dispatch async broader search
+                        // Relays didn't have it (or none available) — dispatch async broader search
                         $lookupKey = 'nevent:' . $eventId;
                         $logger->info('Dispatching async relay search for nevent', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'nevent',
                             eventId: $eventId,
+                            pubkey: $authorPubkey,
                             relays: $relays,
                         ));
                         return $this->render('event/loading.html.twig', [
                             'nevent' => $nevent,
                             'lookupKey' => $lookupKey,
-                            'hasRelayHints' => !empty($relays),
+                            'hasRelayHints' => !empty($data->relays),
                         ]);
                     }
                     break;
