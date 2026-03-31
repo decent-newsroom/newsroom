@@ -50,6 +50,7 @@ nav:
     myReadingLists: 'Mes listes de lecture'
     myInterests: 'Mes intérêts'
     settings: 'Paramètres'
+    myStats: 'Mes statistiques'
     create: 'Créer'
     magazine: 'Magazine'
     readingList: 'Liste de lecture'
@@ -349,6 +350,22 @@ profile:
     highlights: 'Points forts'
     drafts: 'Brouillons'
     stats: 'Statistiques'
+
+# ── Statistiques de profil ───────────────────────────────────────
+stats:
+    thisWeek: 'Cette semaine'
+    last30Days: '30 derniers jours'
+    viewsThisWeek: 'Vues cette semaine'
+    uniqueReaders: 'Lecteurs uniques'
+    articleReads: "Lectures d'articles"
+    profileViews: 'Vues du profil'
+    monthlyViews: 'Vues mensuelles'
+    monthlyUniqueReaders: 'Lecteurs uniques mensuels'
+    views: 'vues'
+    noArticleViewsWeek: "Pas encore de vues d'articles cette semaine 🌱"
+    noArticleViewsMonth: "Pas encore de vues d'articles ce mois-ci 🌱"
+    trafficLast30Days: 'Votre trafic (30 derniers jours)'
+    noTrafficYet: 'Pas encore de données de trafic. Partagez votre contenu pour voir les statistiques !'
 
 # ── Commentaires (feedback) ──────────────────────────────────────────
 feedback:

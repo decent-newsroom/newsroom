@@ -50,6 +50,7 @@ nav:
     myReadingLists: 'Moji bralni seznami'
     myInterests: 'Moji interesi'
     settings: 'Nastavitve'
+    myStats: 'Moja statistika'
     create: 'Ustvari'
     magazine: 'Revija'
     readingList: 'Bralni seznam'
@@ -349,6 +350,22 @@ profile:
     highlights: 'Poudarki'
     drafts: 'Osnutki'
     stats: 'Statistika'
+
+# ── Statistika profila ───────────────────────────────────────────
+stats:
+    thisWeek: 'Ta teden'
+    last30Days: 'Zadnjih 30 dni'
+    viewsThisWeek: 'Ogledi ta teden'
+    uniqueReaders: 'Edinstveni bralci'
+    articleReads: 'Branja člankov'
+    profileViews: 'Ogledi profila'
+    monthlyViews: 'Mesečni ogledi'
+    monthlyUniqueReaders: 'Mesečni edinstveni bralci'
+    views: 'ogledov'
+    noArticleViewsWeek: 'Še ni ogledov člankov ta teden 🌱'
+    noArticleViewsMonth: 'Še ni ogledov člankov ta mesec 🌱'
+    trafficLast30Days: 'Vaš promet (Zadnjih 30 dni)'
+    noTrafficYet: 'Še ni podatkov o prometu. Delite svojo vsebino in začnite spremljati statistiko!'
 
 # ── Povratna informacija ──────────────────────────────────────────
 feedback:

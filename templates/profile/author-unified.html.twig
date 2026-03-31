@@ -94,16 +94,6 @@
                     {{ 'profile.drafts'|trans }}
                 </a>
 
-                {% if is_granted('ROLE_ADMIN') %}
-                <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'stats'} : {'npub': profileId, 'tab': 'stats'}) }}"
-                   class="tab-link {{ activeTab == 'stats' ? 'active' : '' }}"
-                   data-content--author-profile-tabs-target="tab"
-                   data-tab="stats"
-                   data-turbo-frame="profile-tab-content"
-                   data-action="click->content--author-profile-tabs#switchTab">
-                    {{ 'profile.stats'|trans }}
-                </a>
-                {% endif %}
 
 {#              Need to fix loading issues #}
 {#              <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'bookmarks'} : {'npub': profileId, 'tab': 'bookmarks'}) }}"#}

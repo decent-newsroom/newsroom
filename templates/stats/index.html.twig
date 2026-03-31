@@ -1,0 +1,121 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+    <div class="author-stats">
+        <h1>{{ 'nav.myStats'|trans }}</h1>
+
+        <h2>{{ 'stats.thisWeek'|trans }}</h2>
+        <div class="stats-hero">
+            <div class="stat-card stat-card--visits">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitsLast7Days|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.viewsThisWeek'|trans }}</span>
+                </div>
+                <div class="stat-card__trend">
+                    <span class="stat-card__period">24h: {{ visitsLast24Hours|default(0)|number_format }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--visitors">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ uniqueVisitorsLast7Days|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.uniqueReaders'|trans }}</span>
+                </div>
+                <div class="stat-card__trend">
+                    <span class="stat-card__period">24h: {{ uniqueVisitorsLast24Hours|default(0)|number_format }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--articles">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitBreakdownLast7Days.articles|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.articleReads'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--articles">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitBreakdownLast7Days.profile|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.profileViews'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stats-articles-card span-2">
+                {% if topArticlesLast7Days|default([])|length > 0 %}
+                    <ul class="top-articles-list">
+                        {% for stat in topArticlesLast7Days %}
+                            <li class="top-article-item">
+                                <span class="top-article-rank">{{ loop.index }}</span>
+                                <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                    {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                </a>
+                                <span class="top-article-views">{{ stat.count|number_format }} {{ 'stats.views'|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="stats-empty-state stats-empty-state--small">
+                        <span>{{ 'stats.noArticleViewsWeek'|trans }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <h2>{{ 'stats.last30Days'|trans }}</h2>
+        <div class="stats-hero">
+            <div class="stat-card stat-card--monthly">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ visitsLast30Days|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.monthlyViews'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stat-card stat-card--monthly">
+                <div class="stat-card__content">
+                    <span class="stat-card__value">{{ uniqueVisitorsLast30Days|default(0)|number_format }}</span>
+                    <span class="stat-card__label">{{ 'stats.monthlyUniqueReaders'|trans }}</span>
+                </div>
+            </div>
+
+            <div class="stats-articles-card span-2">
+                {% if topArticlesLast30Days|default([])|length > 0 %}
+                    <ul class="top-articles-list">
+                        {% for stat in topArticlesLast30Days %}
+                            <li class="top-article-item">
+                                <span class="top-article-rank">{{ loop.index }}</span>
+                                <a href="{{ stat.route }}" target="_blank" class="top-article-link">
+                                    {{ stat.route|split('/d/')|last|default(stat.route)|replace({'-': ' '})|title|slice(0, 40) }}{% if stat.route|split('/d/')|last|length > 40 %}...{% endif %}
+                                </a>
+                                <span class="top-article-views">{{ stat.count|number_format }} {{ 'stats.views'|trans }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="stats-empty-state stats-empty-state--small">
+                        <span>{{ 'stats.noArticleViewsMonth'|trans }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="stats-chart-container">
+            <h3 class="stats-section-title hidden">{{ 'stats.trafficLast30Days'|trans }}</h3>
+            {% if chartData|default([])|length > 0 %}
+                <div class="chart-wrapper">
+                    <canvas id="authorCombinedChart"
+                            data-controller="analytics--author-stats-chart"
+                            data-analytics--author-stats-chart-labels-value='{{ chartData|map(stat => stat.day)|json_encode()|e('html_attr') }}'
+                            data-analytics--author-stats-chart-visits-value='{{ chartData|map(stat => stat.visits)|json_encode()|e('html_attr') }}'
+                            data-analytics--author-stats-chart-unique-visitors-value='{{ chartData|map(stat => stat.uniqueVisitors)|json_encode()|e('html_attr') }}'
+                    ></canvas>
+                </div>
+            {% else %}
+                <div class="stats-empty-state">
+                    <span class="stats-empty-state__icon">📭</span>
+                    <p>{{ 'stats.noTrafficYet'|trans }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+placeholder

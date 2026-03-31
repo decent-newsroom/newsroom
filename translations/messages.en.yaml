@@ -51,6 +51,7 @@ nav:
     myReadingLists: 'My Reading Lists'
     myInterests: 'My Interests'
     settings: 'Settings'
+    myStats: 'My Stats'
     create: 'Create'
     magazine: 'Magazine'
     startBlog: 'Start a Magazine'
@@ -411,6 +412,22 @@ profile:
     highlights: 'Highlights'
     drafts: 'Drafts'
     stats: 'Stats'
+
+# ── Profile Stats page ───────────────────────────────────────────
+stats:
+    thisWeek: 'This week'
+    last30Days: 'Last 30 days'
+    viewsThisWeek: 'Views this week'
+    uniqueReaders: 'Unique readers'
+    articleReads: 'Article reads'
+    profileViews: 'Profile views'
+    monthlyViews: 'Monthly views'
+    monthlyUniqueReaders: 'Monthly unique readers'
+    views: 'views'
+    noArticleViewsWeek: 'No article views this week yet 🌱'
+    noArticleViewsMonth: 'No article views this month yet 🌱'
+    trafficLast30Days: 'Your Traffic (Last 30 Days)'
+    noTrafficYet: 'No traffic data yet. Share your content to start seeing stats!'
 
 # ── Feedback ──────────────────────────────────────────────────────
 feedback:

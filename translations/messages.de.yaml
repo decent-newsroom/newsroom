@@ -50,6 +50,7 @@ nav:
     myReadingLists: 'Meine Leselisten'
     myInterests: 'Meine Interessen'
     settings: 'Einstellungen'
+    myStats: 'Meine Statistiken'
     create: 'Erstellen'
     magazine: 'Magazin'
     readingList: 'Leseliste'
@@ -349,6 +350,22 @@ profile:
     highlights: 'Highlights'
     drafts: 'Entwürfe'
     stats: 'Statistiken'
+
+# ── Profilstatistiken ────────────────────────────────────────────
+stats:
+    thisWeek: 'Diese Woche'
+    last30Days: 'Letzte 30 Tage'
+    viewsThisWeek: 'Aufrufe diese Woche'
+    uniqueReaders: 'Einzigartige Leser'
+    articleReads: 'Artikelaufrufe'
+    profileViews: 'Profilaufrufe'
+    monthlyViews: 'Monatliche Aufrufe'
+    monthlyUniqueReaders: 'Monatlich einzigartige Leser'
+    views: 'Aufrufe'
+    noArticleViewsWeek: 'Noch keine Artikelaufrufe diese Woche 🌱'
+    noArticleViewsMonth: 'Noch keine Artikelaufrufe diesen Monat 🌱'
+    trafficLast30Days: 'Ihr Traffic (Letzte 30 Tage)'
+    noTrafficYet: 'Noch keine Verkehrsdaten. Teilen Sie Ihre Inhalte, um Statistiken zu sehen!'
 
 # ── Feedback ─────────────────────────────────────────────────────────────
 feedback:
