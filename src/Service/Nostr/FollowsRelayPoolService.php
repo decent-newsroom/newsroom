@@ -6,6 +6,7 @@ namespace App\Service\Nostr;
 
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
+use App\Repository\UserRelayListRepository;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -29,10 +30,11 @@ class FollowsRelayPoolService
     private const MAX_POOL_SIZE = 25; // cap to keep the pool manageable
 
     public function __construct(
-        private readonly \Redis               $redis,
-        private readonly EventRepository      $eventRepository,
-        private readonly RelayHealthStore     $healthStore,
-        private readonly LoggerInterface      $logger,
+        private readonly \Redis                    $redis,
+        private readonly EventRepository           $eventRepository,
+        private readonly UserRelayListRepository   $relayListRepository,
+        private readonly RelayHealthStore          $healthStore,
+        private readonly LoggerInterface           $logger,
     ) {}
 
     // ------------------------------------------------------------------
@@ -167,23 +169,14 @@ class FollowsRelayPoolService
         ]);
 
         // 2. Batch-resolve relay lists from DB
-        $relayListEvents = $this->eventRepository->findLatestRelayListsByPubkeys($followedPubkeys);
-        $coverage = count($relayListEvents);
+        $relayLists = $this->relayListRepository->findByPubkeys($followedPubkeys);
+        $coverage = count($relayLists);
 
         // 3. Extract write relay URLs from all resolved relay lists
         $relayUrls = [];
-        foreach ($relayListEvents as $pubkey => $event) {
-            foreach ($event->getTags() as $tag) {
-                if (!is_array($tag) || ($tag[0] ?? '') !== 'r' || empty($tag[1])) {
-                    continue;
-                }
-                $url = $tag[1];
-                $marker = $tag[2] ?? null;
-
-                // Include write relays and unmarked relays (unmarked = both read+write)
-                if ($marker === null || $marker === 'write') {
-                    $relayUrls[] = $url;
-                }
+        foreach ($relayLists as $pubkey => $relayList) {
+            foreach ($relayList->getWriteRelays() as $url) {
+                $relayUrls[] = $url;
             }
         }
 

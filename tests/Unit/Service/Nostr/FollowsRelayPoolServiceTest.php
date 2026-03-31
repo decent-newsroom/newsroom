@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Nostr;
 
 use App\Entity\Event;
+use App\Entity\UserRelayList;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
+use App\Repository\UserRelayListRepository;
 use App\Service\Nostr\FollowsRelayPoolService;
 use App\Service\Nostr\RelayHealthStore;
 use PHPUnit\Framework\TestCase;
@@ -16,6 +18,7 @@ class FollowsRelayPoolServiceTest extends TestCase
 {
     private \Redis $redis;
     private EventRepository $eventRepository;
+    private UserRelayListRepository $relayListRepository;
     private RelayHealthStore $healthStore;
     private FollowsRelayPoolService $service;
 
@@ -23,11 +26,13 @@ class FollowsRelayPoolServiceTest extends TestCase
     {
         $this->redis = $this->createMock(\Redis::class);
         $this->eventRepository = $this->createMock(EventRepository::class);
+        $this->relayListRepository = $this->createMock(UserRelayListRepository::class);
         $this->healthStore = $this->createMock(RelayHealthStore::class);
 
         $this->service = new FollowsRelayPoolService(
             $this->redis,
             $this->eventRepository,
+            $this->relayListRepository,
             $this->healthStore,
             new NullLogger(),
         );
@@ -72,9 +77,9 @@ class FollowsRelayPoolServiceTest extends TestCase
             ->with('follows_relay_pool:aabbcc')
             ->willReturn($cachedPayload);
 
-        // Should not call findLatestRelayListsByPubkeys since cache is valid
-        $this->eventRepository->expects($this->never())
-            ->method('findLatestRelayListsByPubkeys');
+        // Should not call findByPubkeys since cache is valid
+        $this->relayListRepository->expects($this->never())
+            ->method('findByPubkeys');
 
         $result = $this->service->getPoolForUser('aabbcc');
         $this->assertSame(['wss://relay.example.com'], $result);
@@ -111,23 +116,16 @@ class FollowsRelayPoolServiceTest extends TestCase
             ->method('get')
             ->willReturn($stalePayload);
 
-        // Batch relay list resolution
-        $relayListEvent = new Event();
-        $relayListEvent->setId('relay_list_1');
-        $relayListEvent->setKind(10002);
-        $relayListEvent->setPubkey(str_repeat('a', 64));
-        $relayListEvent->setTags([
-            ['r', 'wss://nos.lol'],
-            ['r', 'wss://relay.damus.io', 'write'],
-            ['r', 'wss://read-only.relay', 'read'],
-        ]);
-        $relayListEvent->setCreatedAt(time());
-        $relayListEvent->setSig('');
-        $relayListEvent->setContent('');
+        // Batch relay list resolution via UserRelayListRepository
+        $relayList = new UserRelayList();
+        $relayList->setPubkey(str_repeat('a', 64));
+        $relayList->setReadRelays(['wss://nos.lol', 'wss://read-only.relay']);
+        $relayList->setWriteRelays(['wss://nos.lol', 'wss://relay.damus.io']);
+        $relayList->setCreatedAt(time());
 
-        $this->eventRepository->expects($this->once())
-            ->method('findLatestRelayListsByPubkeys')
-            ->willReturn([str_repeat('a', 64) => $relayListEvent]);
+        $this->relayListRepository->expects($this->once())
+            ->method('findByPubkeys')
+            ->willReturn([str_repeat('a', 64) => $relayList]);
 
         // Health scores
         $this->healthStore->method('getHealthScore')
@@ -142,8 +140,8 @@ class FollowsRelayPoolServiceTest extends TestCase
                 $this->callback(function ($payload) {
                     $data = json_decode($payload, true);
                     $this->assertSame('new_event_456', $data['follows_event_id']);
-                    // Should include wss://nos.lol (unmarked=both) and wss://relay.damus.io (write)
-                    // but NOT wss://read-only.relay (read-only)
+                    // Should include wss://nos.lol and wss://relay.damus.io (write relays)
+                    // but NOT wss://read-only.relay (not in write relays)
                     $this->assertContains('wss://nos.lol', $data['relays']);
                     $this->assertContains('wss://relay.damus.io', $data['relays']);
                     $this->assertNotContains('wss://read-only.relay', $data['relays']);
@@ -179,8 +177,8 @@ class FollowsRelayPoolServiceTest extends TestCase
             ->willReturn(false);
 
         // No relay lists found in DB
-        $this->eventRepository->expects($this->once())
-            ->method('findLatestRelayListsByPubkeys')
+        $this->relayListRepository->expects($this->once())
+            ->method('findByPubkeys')
             ->willReturn([]);
 
         // Should still write the cache (empty pool)
@@ -226,8 +224,8 @@ class FollowsRelayPoolServiceTest extends TestCase
             ]));
 
         // Should NOT rebuild (no batch query, no cache write)
-        $this->eventRepository->expects($this->never())
-            ->method('findLatestRelayListsByPubkeys');
+        $this->relayListRepository->expects($this->never())
+            ->method('findByPubkeys');
         $this->redis->expects($this->never())
             ->method('setex');
 
@@ -249,22 +247,15 @@ class FollowsRelayPoolServiceTest extends TestCase
             ->willReturn($followsEvent);
         $this->redis->method('get')->willReturn(false);
 
-        $relayListEvent = new Event();
-        $relayListEvent->setId('rl_filter');
-        $relayListEvent->setKind(10002);
-        $relayListEvent->setPubkey(str_repeat('d', 64));
-        $relayListEvent->setTags([
-            ['r', 'wss://good.relay.com'],
-            ['r', 'ws://localhost:7777'],
-            ['r', 'wss://localhost:8080'],
-            ['r', 'http://invalid.url'],
-        ]);
-        $relayListEvent->setCreatedAt(time());
-        $relayListEvent->setSig('');
-        $relayListEvent->setContent('');
+        // UserRelayList with mixed valid/invalid relay URLs
+        $relayList = new UserRelayList();
+        $relayList->setPubkey(str_repeat('d', 64));
+        $relayList->setReadRelays(['wss://good.relay.com', 'ws://localhost:7777', 'wss://localhost:8080']);
+        $relayList->setWriteRelays(['wss://good.relay.com', 'ws://localhost:7777', 'wss://localhost:8080', 'http://invalid.url']);
+        $relayList->setCreatedAt(time());
 
-        $this->eventRepository->method('findLatestRelayListsByPubkeys')
-            ->willReturn([str_repeat('d', 64) => $relayListEvent]);
+        $this->relayListRepository->method('findByPubkeys')
+            ->willReturn([str_repeat('d', 64) => $relayList]);
         $this->healthStore->method('getHealthScore')->willReturn(0.5);
 
         $this->redis->method('setex')->willReturn(true);

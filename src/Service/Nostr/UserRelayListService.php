@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Service\Nostr;
 
-use App\Entity\Event;
+use App\Entity\UserRelayList;
 use App\Enum\KindsEnum;
 use App\Enum\RelayPurpose;
-use App\Repository\EventRepository;
+use App\Repository\UserRelayListRepository;
 use App\Util\NostrKeyUtil;
 use App\Util\RelayUrlNormalizer;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,7 +43,7 @@ class UserRelayListService
     public function __construct(
         private readonly NostrRelayPool $relayPool,
         private readonly RelayRegistry $relayRegistry,
-        private readonly EventRepository $eventRepository,
+        private readonly UserRelayListRepository $relayListRepository,
         private readonly EntityManagerInterface $em,
         private readonly CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
@@ -325,20 +325,30 @@ class UserRelayListService
     private function fromDatabase(string $hex): ?array
     {
         try {
-            $event = $this->eventRepository->findLatestRelayListByPubkey($hex);
-            if (!$event) {
+            $relayList = $this->relayListRepository->findByPubkey($hex);
+            if (!$relayList) {
                 return null;
             }
 
-            $result = $this->parseRelayListEvent($event);
-            if (empty($result['all'])) {
+            $read = $relayList->getReadRelays();
+            $write = $relayList->getWriteRelays();
+            $all = $relayList->getAllRelays();
+
+            if (empty($all)) {
                 return null;
             }
+
+            $result = [
+                'read' => $read,
+                'write' => $write,
+                'all' => $all,
+                'created_at' => $relayList->getCreatedAt(),
+            ];
 
             $this->logger->debug('UserRelayListService: DB hit', [
                 'pubkey' => substr($hex, 0, 8),
-                'relay_count' => count($result['all']),
-                'age_hours' => round((time() - ($result['created_at'] ?? 0)) / 3600, 1),
+                'relay_count' => count($all),
+                'age_hours' => round((time() - $relayList->getCreatedAt()) / 3600, 1),
             ]);
 
             return $result;
@@ -454,13 +464,13 @@ class UserRelayListService
     // ------------------------------------------------------------------
 
     /**
-     * Persist relay list to the Event table as a synthetic kind 10002 event.
+     * Persist relay list to the user_relay_list table.
      * Only updates if the new data is newer than what's already stored.
      */
     private function persistToDatabase(string $hex, array $relayList): void
     {
         try {
-            $existing = $this->eventRepository->findLatestRelayListByPubkey($hex);
+            $existing = $this->relayListRepository->findByPubkey($hex);
             $newCreatedAt = $relayList['created_at'] ?? time();
 
             // Only update if newer
@@ -473,54 +483,30 @@ class UserRelayListService
                 return;
             }
 
-            // Build tags in NIP-65 format
-            $tags = [];
-            $readSet = array_flip($relayList['read'] ?? []);
-            $writeSet = array_flip($relayList['write'] ?? []);
-
-            foreach ($relayList['all'] as $relayUrl) {
-                $isRead = isset($readSet[$relayUrl]);
-                $isWrite = isset($writeSet[$relayUrl]);
-
-                if ($isRead && $isWrite) {
-                    $tags[] = ['r', $relayUrl]; // no marker = both
-                } elseif ($isRead) {
-                    $tags[] = ['r', $relayUrl, 'read'];
-                } elseif ($isWrite) {
-                    $tags[] = ['r', $relayUrl, 'write'];
-                } else {
-                    $tags[] = ['r', $relayUrl]; // default: both
-                }
-            }
-
             if ($existing) {
-                // Update existing event in place
-                $existing->setTags($tags);
+                $existing->setReadRelays($relayList['read'] ?? []);
+                $existing->setWriteRelays($relayList['write'] ?? []);
                 $existing->setCreatedAt($newCreatedAt);
+                $existing->touch();
                 $this->em->flush();
 
                 $this->logger->debug('UserRelayListService: updated relay list in DB', [
                     'pubkey' => substr($hex, 0, 8),
-                    'relay_count' => count($tags),
+                    'relay_count' => count($relayList['all'] ?? []),
                 ]);
             } else {
-                // Create new synthetic event
-                $event = new Event();
-                $event->setId('relay_list_' . $hex . '_' . $newCreatedAt);
-                $event->setKind(KindsEnum::RELAY_LIST->value);
-                $event->setPubkey($hex);
-                $event->setContent('');
-                $event->setCreatedAt($newCreatedAt);
-                $event->setTags($tags);
-                $event->setSig('');
-                $event->extractAndSetDTag();
+                $entity = new UserRelayList();
+                $entity->setPubkey($hex);
+                $entity->setReadRelays($relayList['read'] ?? []);
+                $entity->setWriteRelays($relayList['write'] ?? []);
+                $entity->setCreatedAt($newCreatedAt);
 
-                $this->em->persist($event);
+                $this->em->persist($entity);
                 $this->em->flush();
 
                 $this->logger->info('UserRelayListService: persisted new relay list to DB', [
                     'pubkey' => substr($hex, 0, 8),
-                    'relay_count' => count($tags),
+                    'relay_count' => count($relayList['all'] ?? []),
                 ]);
             }
         } catch (\Exception $e) {
@@ -547,38 +533,6 @@ class UserRelayListService
     // Helpers
     // ------------------------------------------------------------------
 
-    private function parseRelayListEvent(Event $event): array
-    {
-        $result = ['read' => [], 'write' => [], 'all' => [], 'created_at' => $event->getCreatedAt()];
-
-        foreach ($event->getTags() ?? [] as $tag) {
-            if (!is_array($tag) || ($tag[0] ?? '') !== 'r' || empty($tag[1])) {
-                continue;
-            }
-
-            $url = $tag[1];
-            if (!$this->isValidRelay($url)) {
-                continue;
-            }
-
-            $marker = $tag[2] ?? null;
-            if ($marker === 'read') {
-                $result['read'][] = $url;
-            } elseif ($marker === 'write') {
-                $result['write'][] = $url;
-            } else {
-                $result['read'][] = $url;
-                $result['write'][] = $url;
-            }
-            $result['all'][] = $url;
-        }
-
-        $result['read'] = array_values(array_unique($result['read']));
-        $result['write'] = array_values(array_unique($result['write']));
-        $result['all'] = array_values(array_unique($result['all']));
-
-        return $result;
-    }
 
     private function toHex(string $pubkeyOrNpub): string
     {

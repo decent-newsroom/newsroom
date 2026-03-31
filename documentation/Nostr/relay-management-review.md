@@ -505,7 +505,6 @@ Added `CONFIGURED_TTL = 604800` (7 days) alongside the existing `TTL = 86400` (2
 | # | Issue | Status |
 |---|-------|--------|
 | 2 | Pool duplicates registry | Open — requires callers audit |
-| 7 | Synthetic event IDs | Open |
 | 8 | No circuit breaker | Open |
 | 10 | Gateway monolith | Open — high effort |
 | 12 | Admin bypasses pool | Open |
@@ -545,4 +544,23 @@ This fixes two edge cases:
 1. A URL like `wss://relay.localhost.com` was incorrectly rejected (unlikely but technically valid)
 2. URLs with whitespace or inconsistent casing were not normalized before validation
 
+#### #7 — Synthetic Event IDs (Resolved ✅)
 
+**Changed:** `UserRelayListService`, `FollowsRelayPoolService`, `EventRepository`, new `UserRelayList` entity + `UserRelayListRepository`
+
+The core problem: `UserRelayListService::persistToDatabase()` created fake "events" in the `event` table with IDs like `relay_list_{hex}_{timestamp}`, kind 10002, and empty signatures. These are not Nostr events — they're server-cached relay list data that was shoehorned into the event schema.
+
+**Solution:** Created a dedicated `UserRelayList` entity (`src/Entity/UserRelayList.php`) with proper domain columns:
+- `pubkey` (unique, indexed) — hex pubkey
+- `read_relays` (JSONB) — array of read relay URLs
+- `write_relays` (JSONB) — array of write relay URLs
+- `created_at` (BIGINT) — Nostr timestamp from the original kind 10002 event
+- `updated_at` (DATETIME) — server timestamp of last upsert
+
+Changes made:
+- `UserRelayListService`: replaced `EventRepository` dependency with `UserRelayListRepository`. `fromDatabase()` reads directly from entity getters. `persistToDatabase()` upserts a `UserRelayList` row instead of creating a synthetic Event. Removed `parseRelayListEvent()` helper.
+- `FollowsRelayPoolService`: added `UserRelayListRepository` dependency. `buildPool()` reads `getWriteRelays()` directly instead of parsing NIP-65 `r`-tags from Event tags.
+- `EventRepository`: removed `findLatestRelayListByPubkey()` and `findLatestRelayListsByPubkeys()` — both replaced by repository methods on `UserRelayListRepository`.
+- Migration `Version20260331120000`: creates the table, seeds from existing synthetic events (parsing JSONB tags via PostgreSQL functions), and deletes synthetic events from the event table.
+
+**The Settings relay tab** (`SettingsController::buildRelayListFromEvent`) is unaffected — it reads *real* kind 10002 events from the event table (persisted by relay subscription workers), not synthetic ones.
