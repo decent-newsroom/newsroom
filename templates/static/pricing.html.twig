@@ -1,43 +1,135 @@
 {% extends 'layout.html.twig' %}
 
-{% block nav %}
-{% endblock %}
+{% block title %}{{ 'pricing.heading'|trans }} | {{ brand_name }}{% endblock %}
 
 {% block body %}
-    <h1>{{ 'pricing.heading'|trans }}</h1>
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'pricing.heading'|trans }}" tagline="{{ 'pricing.tagline'|trans }}" />
 
-    <p>{{ 'pricing.choosePlan'|trans }}</p>
-
-    <div class="price-list">
-        <div class="card">
-            <h3>{{ 'pricing.scoopSeeker'|trans }}</h3>
-            <p class="price">{{ 'pricing.free'|trans }}</p>
-            <ul class="features">
-                <li>{{ 'pricing.scoopFeature1'|trans }}</li>
+    <div class="pricing-overview">
+        {# Free tier #}
+        <div class="pricing-overview-card">
+            <div class="pricing-overview-header">
+                <h3>{{ 'pricing.free.name'|trans }}</h3>
+                <div class="pricing-overview-price">
+                    <span class="pricing-overview-amount">0</span>
+                    <span class="pricing-overview-unit">sats</span>
+                </div>
+                <p class="pricing-overview-period">{{ 'pricing.free.period'|trans }}</p>
+            </div>
+            <ul class="pricing-overview-features">
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.free.feature1'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.free.feature2'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.free.feature3'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.free.feature4'|trans }}
+                </li>
             </ul>
-            <button disabled="disabled">{{ 'pricing.getStarted'|trans }}</button>
+            <div class="pricing-overview-action">
+                <a href="{{ path('home') }}" class="btn">{{ 'pricing.free.cta'|trans }}</a>
+            </div>
         </div>
 
-        <div class="card">
-            <h3>{{ 'pricing.publisher'|trans }}</h3>
-            <p class="price">{{ 'pricing.publisherPrice'|trans }}</p>
-            <ul class="features">
-                <li>{{ 'pricing.publisherFeature1'|trans }}</li>
-                <li>{{ 'pricing.publisherFeature2'|trans }}</li>
-                <li>{{ 'pricing.publisherFeature3'|trans }}</li>
+        {# Vanity Name #}
+        <div class="pricing-overview-card">
+            <div class="pricing-overview-header">
+                <h3>{{ 'pricing.vanity.name'|trans }}</h3>
+                <div class="pricing-overview-price">
+                    <span class="pricing-overview-amount">5,000</span>
+                    <span class="pricing-overview-unit">sats</span>
+                </div>
+                <p class="pricing-overview-period">{{ 'pricing.vanity.period'|trans }}</p>
+            </div>
+            <ul class="pricing-overview-features">
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.vanity.feature1'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.vanity.feature2'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.vanity.feature3'|trans }}
+                </li>
             </ul>
-            <button disabled="disabled">{{ 'pricing.subscribe'|trans }}</button>
+            <div class="pricing-overview-action">
+                <a href="{{ path('vanity_index') }}" class="btn btn--primary">{{ 'pricing.vanity.cta'|trans }}</a>
+            </div>
         </div>
 
-        <div class="card">
-            <h3>{{ 'pricing.curator'|trans }}</h3>
-            <p class="price">{{ 'pricing.curatorPrice'|trans }}</p>
-            <ul class="features">
-                <li>{{ 'pricing.curatorFeature1'|trans }}</li>
-                <li>{{ 'pricing.curatorFeature2'|trans }}</li>
-                <li>{{ 'pricing.curatorFeature3'|trans }}</li>
+        {# Active Indexing #}
+        <div class="pricing-overview-card">
+            <div class="pricing-overview-header">
+                <h3>{{ 'pricing.indexing.name'|trans }}</h3>
+                <div class="pricing-overview-price">
+                    <span class="pricing-overview-amount">1,000</span>
+                    <span class="pricing-overview-unit">sats</span>
+                </div>
+                <p class="pricing-overview-period">{{ 'pricing.indexing.period'|trans }}</p>
+            </div>
+            <ul class="pricing-overview-features">
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.indexing.feature1'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.indexing.feature2'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.indexing.feature3'|trans }}
+                </li>
             </ul>
-            <button disabled="disabled">{{ 'pricing.subscribe'|trans }}</button>
+            <div class="pricing-overview-action">
+                <a href="{{ path('active_indexing_index') }}" class="btn btn--primary">{{ 'pricing.indexing.cta'|trans }}</a>
+            </div>
+        </div>
+
+        {# Publication Subdomain (Unfold) #}
+        <div class="pricing-overview-card">
+            <div class="pricing-overview-header">
+                <h3>{{ 'pricing.unfold.name'|trans }}</h3>
+                <div class="pricing-overview-price">
+                    <span class="pricing-overview-amount">120,000</span>
+                    <span class="pricing-overview-unit">sats</span>
+                </div>
+                <p class="pricing-overview-period">{{ 'pricing.unfold.period'|trans }}</p>
+            </div>
+            <ul class="pricing-overview-features">
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.unfold.feature1'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.unfold.feature2'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.unfold.feature3'|trans }}
+                </li>
+                <li>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ 'pricing.unfold.feature4'|trans }}
+                </li>
+            </ul>
+            <div class="pricing-overview-action">
+                <a href="{{ path('publication_subdomain_index') }}" class="btn btn--primary">{{ 'pricing.unfold.cta'|trans }}</a>
+            </div>
         </div>
     </div>
+</div>
 {% endblock %}

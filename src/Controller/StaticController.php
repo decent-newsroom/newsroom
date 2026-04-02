@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\MarkdownConverter;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,28 +24,60 @@ class StaticController extends AbstractController
         return new Response('OK', 200, ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
     }
 
-    #[Route('/about')]
+    #[Route('/about', name: 'app_static_about')]
     public function about(): Response
     {
         return $this->render('static/about.html.twig');
     }
 
-    #[Route('/roadmap')]
+    #[Route('/roadmap', name: 'app_static_roadmap')]
     public function roadmap(): Response
     {
-        return $this->render('static/roadmap.html.twig');
+        $path = $this->getParameter('kernel.project_dir') . '/ROADMAP.md';
+        $markdown = file_exists($path) ? file_get_contents($path) : '';
+
+        // Strip the top-level heading — the template provides its own
+        $markdown = preg_replace('/^#\s+.+\n*/m', '', $markdown, 1);
+
+        $environment = new Environment([]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $converter = new MarkdownConverter($environment);
+        $html = $converter->convert($markdown)->getContent();
+
+        return $this->render('static/roadmap.html.twig', [
+            'roadmapHtml' => $html,
+        ]);
     }
 
-    #[Route('/pricing')]
+    #[Route('/pricing', name: 'app_static_pricing')]
     public function pricing(): Response
     {
         return $this->render('static/pricing.html.twig');
     }
 
-    #[Route('/tos')]
+    #[Route('/tos', name: 'app_static_tos')]
     public function tos(): Response
     {
         return $this->render('static/tos.html.twig');
+    }
+
+    #[Route('/changelog', name: 'app_static_changelog')]
+    public function changelog(): Response
+    {
+        $path = $this->getParameter('kernel.project_dir') . '/CHANGELOG.md';
+        $markdown = file_exists($path) ? file_get_contents($path) : '';
+
+        // Strip the top-level heading — the template provides its own
+        $markdown = preg_replace('/^#\s+CHANGELOG\s*\n*/i', '', $markdown, 1);
+
+        $environment = new Environment([]);
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $converter = new MarkdownConverter($environment);
+        $html = $converter->convert($markdown)->getContent();
+
+        return $this->render('static/changelog.html.twig', [
+            'changelogHtml' => $html,
+        ]);
     }
 
     #[Route('/manifest.webmanifest', name: 'pwa_manifest')]
@@ -74,6 +109,8 @@ class StaticController extends AbstractController
     {
         $staticRoutes = [
             '/about',
+            '/changelog',
+            '/pricing',
             '/roadmap',
             '/tos',
             '/landing',

@@ -64,19 +64,36 @@ nav:
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
+    product: 'Product'
     subscriptions: 'Subscriptions'
     vanityName: 'Vanity Name'
     activeIndexing: 'Active Indexing'
     publicationSubdomain: 'Publication Subdomain'
     support: 'Support'
     about: 'About'
-    termsOfService: 'Terms of service'
+    pricing: 'Pricing'
+    termsOfService: 'Terms of Service'
     contact: 'Contact'
+    changelog: 'Changelog'
+    roadmap: 'Roadmap'
+    community: 'Community'
+    project: 'Project'
+    developer: 'Developer'
 
 # ── Contribution sidebar ──────────────────────────────────────────
 contribution:
     title: 'Support this Project'
     description: 'Help us build the future of decentralized journalism'
+
+# ── Changelog ─────────────────────────────────────────────────────
+changelog:
+    heading: 'Changelog'
+    tagline: 'What''s new in each release'
+
+# ── Roadmap ──────────────────────────────────────────────────────
+roadmap:
+    heading: 'Roadmap'
+    tagline: 'Where Decent Newsroom is headed'
 
 # ── Install prompt ────────────────────────────────────────────────
 install:
@@ -541,9 +558,40 @@ about:
 # ── Static: Pricing ───────────────────────────────────────────────
 pricing:
     heading: 'Pricing'
+    tagline: 'Simple, transparent pricing. Pay with Lightning.'
     choosePlan: 'Choose a plan that fits your publishing needs.'
+    free:
+        name: 'Reader'
+        period: 'Free forever'
+        feature1: 'Read all articles and magazines'
+        feature2: 'Publish articles with the built-in editor'
+        feature3: 'Create and manage magazines'
+        feature4: 'Bookmark and highlight articles'
+        cta: 'Get Started'
+    vanity:
+        name: 'Vanity Name'
+        period: 'per quarter · or 100,000 sats lifetime'
+        feature1: 'NIP-05 verified identity'
+        feature2: 'Custom profile URL'
+        feature3: 'Verified badge in Nostr clients'
+        cta: 'Get Vanity Name'
+    indexing:
+        name: 'Active Indexing'
+        period: 'per month · or 10,000 sats/year'
+        feature1: 'Content fetched from your preferred relays'
+        feature2: 'Bypass quality gates, reliable indexing'
+        feature3: 'Dashboard to monitor indexing status'
+        cta: 'Subscribe'
+    unfold:
+        name: 'Unfold Hosting'
+        period: 'per year'
+        feature1: 'Dedicated subdomain for your magazine'
+        feature2: 'Production-ready Unfold rendering'
+        feature3: 'DNS, TLS, and proxy routing managed for you'
+        feature4: 'Renew anytime before expiry'
+        cta: 'Launch Magazine'
     scoopSeeker: 'Scoop Seeker'
-    free: 'Free'
+    free_label: 'Free'
     scoopFeature1: 'Read all the articles featured in the Newsroom magazine'
     getStarted: 'Get Started'
     publisher: 'Publisher'

@@ -62,19 +62,36 @@ nav:
 
 # ── Fußzeile ───────────────────────────────────────────────────────
 footer:
+    product: 'Produkt'
     subscriptions: 'Abonnements'
     vanityName: 'Vanity-Name'
     activeIndexing: 'Aktive Indexierung'
     publicationSubdomain: 'Publikations-Subdomain'
     support: 'Support'
     about: 'Über uns'
+    pricing: 'Preise'
     termsOfService: 'Nutzungsbedingungen'
     contact: 'Kontakt'
+    changelog: 'Änderungsprotokoll'
+    roadmap: 'Roadmap'
+    community: 'Community'
+    project: 'Projekt'
+    developer: 'Entwickler'
 
 # ── Beitrag ────────────────────────────────────────────────────────
 contribution:
     title: 'Dieses Projekt unterstützen'
     description: 'Helfen Sie uns, die Zukunft des dezentralisierten Journalismus aufzubauen'
+
+# ── Änderungsprotokoll ────────────────────────────────────────────
+changelog:
+    heading: 'Änderungsprotokoll'
+    tagline: 'Neuerungen in jeder Version'
+
+# ── Roadmap ──────────────────────────────────────────────────────
+roadmap:
+    heading: 'Roadmap'
+    tagline: 'Wohin sich Decent Newsroom entwickelt'
 
 # ── Installationshinweis ───────────────────────────────────────────
 install:
@@ -425,9 +442,40 @@ about:
 # ── Statisch: Preise ──────────────────────────────────────────────────────
 pricing:
     heading: 'Preise'
+    tagline: 'Einfache, transparente Preise. Zahlung per Lightning.'
     choosePlan: 'Wählen Sie einen Plan, der Ihren Veröffentlichungsbedürfnissen entspricht.'
+    free:
+        name: 'Leser'
+        period: 'Für immer kostenlos'
+        feature1: 'Alle Artikel und Magazine lesen'
+        feature2: 'Artikel mit dem integrierten Editor veröffentlichen'
+        feature3: 'Magazine erstellen und verwalten'
+        feature4: 'Artikel speichern und hervorheben'
+        cta: 'Loslegen'
+    vanity:
+        name: 'Vanity-Name'
+        period: 'pro Quartal · oder 100.000 Sats einmalig'
+        feature1: 'NIP-05 verifizierte Identität'
+        feature2: 'Benutzerdefinierte Profil-URL'
+        feature3: 'Verifizierungsabzeichen in Nostr-Clients'
+        cta: 'Vanity-Name erhalten'
+    indexing:
+        name: 'Aktive Indexierung'
+        period: 'pro Monat · oder 10.000 Sats/Jahr'
+        feature1: 'Inhalte von Ihren bevorzugten Relays abgerufen'
+        feature2: 'Qualitätsfilter umgehen, zuverlässige Indexierung'
+        feature3: 'Dashboard zur Überwachung des Indexierungsstatus'
+        cta: 'Abonnieren'
+    unfold:
+        name: 'Unfold-Hosting'
+        period: 'pro Jahr'
+        feature1: 'Eigene Subdomain für Ihr Magazin'
+        feature2: 'Produktionsreifes Unfold-Rendering'
+        feature3: 'DNS, TLS und Proxy-Routing für Sie verwaltet'
+        feature4: 'Jederzeit vor Ablauf verlängern'
+        cta: 'Magazin starten'
     scoopSeeker: 'Nachrichten-Sucher'
-    free: 'Kostenlos'
+    free_label: 'Kostenlos'
     scoopFeature1: 'Lesen Sie alle Artikel im Newsroom-Magazin'
     getStarted: 'Loslegen'
     publisher: 'Verleger'

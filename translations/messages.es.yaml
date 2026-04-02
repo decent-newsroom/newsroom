@@ -62,19 +62,36 @@ nav:
 
 # ── Pie de página ──────────────────────────────────────────────────
 footer:
+    product: 'Producto'
     subscriptions: 'Suscripciones'
     vanityName: 'Nombre personalizado'
     activeIndexing: 'Indexación activa'
     publicationSubdomain: 'Subdominio de publicación'
     support: 'Soporte'
     about: 'Acerca de'
+    pricing: 'Precios'
     termsOfService: 'Términos de servicio'
     contact: 'Contacto'
+    changelog: 'Registro de cambios'
+    roadmap: 'Hoja de ruta'
+    community: 'Comunidad'
+    project: 'Proyecto'
+    developer: 'Desarrollador'
 
 # ── Contribución ───────────────────────────────────────────────────
 contribution:
     title: 'Apoya este proyecto'
     description: 'Ayúdanos a construir el futuro del periodismo descentralizado'
+
+# ── Registro de cambios ───────────────────────────────────────────
+changelog:
+    heading: 'Registro de cambios'
+    tagline: 'Novedades en cada versión'
+
+# ── Hoja de ruta ─────────────────────────────────────────────────
+roadmap:
+    heading: 'Hoja de ruta'
+    tagline: 'Hacia dónde se dirige Decent Newsroom'
 
 # ── Instalación ────────────────────────────────────────────────────
 install:
@@ -425,9 +442,40 @@ about:
 # ── Estático: Precios ──────────────────────────────────────────────────────────
 pricing:
     heading: 'Precios'
+    tagline: 'Precios simples y transparentes. Paga con Lightning.'
     choosePlan: 'Elige un plan que se ajuste a tus necesidades de publicación.'
+    free:
+        name: 'Lector'
+        period: 'Gratis para siempre'
+        feature1: 'Lee todos los artículos y revistas'
+        feature2: 'Publica artículos con el editor integrado'
+        feature3: 'Crea y gestiona revistas'
+        feature4: 'Guarda y resalta artículos'
+        cta: 'Comenzar'
+    vanity:
+        name: 'Nombre personalizado'
+        period: 'por trimestre · o 100.000 sats de por vida'
+        feature1: 'Identidad verificada NIP-05'
+        feature2: 'URL de perfil personalizada'
+        feature3: 'Insignia de verificación en clientes Nostr'
+        cta: 'Obtener nombre'
+    indexing:
+        name: 'Indexación activa'
+        period: 'por mes · o 10.000 sats/año'
+        feature1: 'Contenido obtenido de tus relays preferidos'
+        feature2: 'Omitir filtros de calidad, indexación confiable'
+        feature3: 'Panel para monitorear el estado de indexación'
+        cta: 'Suscribirse'
+    unfold:
+        name: 'Hosting Unfold'
+        period: 'por año'
+        feature1: 'Subdominio dedicado para tu revista'
+        feature2: 'Renderizado Unfold listo para producción'
+        feature3: 'DNS, TLS y enrutamiento proxy gestionados por ti'
+        feature4: 'Renueva en cualquier momento antes del vencimiento'
+        cta: 'Lanzar revista'
     scoopSeeker: 'Buscador de primicias'
-    free: 'Gratis'
+    free_label: 'Gratis'
     scoopFeature1: 'Lee todos los artículos de la revista Newsroom'
     getStarted: 'Comenzar'
     publisher: 'Editor'

@@ -274,24 +274,101 @@ aside header {
 footer {
     background-color: var(--color-bg-muted);
     color: var(--color-text);
-    text-align: center;
-    padding: var(--spacing-3) 0;
+    padding: var(--spacing-5) var(--spacing-4);
     position: relative;
     width: 100%;
+    border-top: 1px solid var(--color-border);
 }
 
-footer .footer-links {
-    margin: var(--spacing-4) 0;
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+@media screen and (min-width: 768px) {
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-5);
+    }
+}
+
+.footer-col {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.footer-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-mid);
+    margin: 0 0 var(--spacing-3);
+}
+
+.footer-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.footer-list li a {
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.footer-list li a:hover {
+    text-decoration: underline;
+}
+
+.footer-icon {
+    flex-shrink: 0;
+}
+
+.footer-nostr-link {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.footer-label {
+    color: var(--color-text-mid);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.footer-bottom {
+    max-width: 900px;
+    margin: var(--spacing-4) auto 0;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.footer-bottom p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-text-mid);
 }
 
 footer a:hover {
     text-decoration: underline;
 }
 
-footer p {
-    margin: var(--spacing-2) 0;
-    color: var(--color-text-mid);
-}
 
 nav > header, aside > header { /* prevent global header fixed rules applying to nested headers */
     position: static;

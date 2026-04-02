@@ -62,19 +62,36 @@ nav:
 
 # ── Noga ──────────────────────────────────────────────────────────
 footer:
+    product: 'Produkt'
     subscriptions: 'Naročnine'
     vanityName: 'Osebno ime'
     activeIndexing: 'Aktivno indeksiranje'
     publicationSubdomain: 'Poddomena publikacije'
     support: 'Podpora'
     about: 'O nas'
+    pricing: 'Cenik'
     termsOfService: 'Pogoji uporabe'
     contact: 'Kontakt'
+    changelog: 'Dnevnik sprememb'
+    roadmap: 'Načrt razvoja'
+    community: 'Skupnost'
+    project: 'Projekt'
+    developer: 'Razvijalec'
 
 # ── Prispevek ─────────────────────────────────────────────────────
 contribution:
     title: 'Podprite ta projekt'
     description: 'Pomagajte nam graditi prihodnost decentraliziranega novinarstva'
+
+# ── Dnevnik sprememb ──────────────────────────────────────────────
+changelog:
+    heading: 'Dnevnik sprememb'
+    tagline: 'Novosti v vsaki izdaji'
+
+# ── Načrt razvoja ────────────────────────────────────────────────
+roadmap:
+    heading: 'Načrt razvoja'
+    tagline: 'Kam se razvija Decent Newsroom'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:
@@ -425,9 +442,40 @@ about:
 # ── Statično: Cenik ────────────────────────────────────────────────
 pricing:
     heading: 'Cenik'
+    tagline: 'Enostavne, pregledne cene. Plačaj z Lightning.'
     choosePlan: 'Izberite načrt, ki ustreza vašim založniškim potrebam.'
+    free:
+        name: 'Bralec'
+        period: 'Za vedno brezplačno'
+        feature1: 'Berite vse članke in revije'
+        feature2: 'Objavljajte članke z vgrajenim urejevalnikom'
+        feature3: 'Ustvarjajte in upravljajte revije'
+        feature4: 'Shranjujte in označujte članke'
+        cta: 'Začni'
+    vanity:
+        name: 'Osebno ime'
+        period: 'na četrtletje · ali 100.000 satov doživljenjsko'
+        feature1: 'NIP-05 preverjena identiteta'
+        feature2: 'URL profila po meri'
+        feature3: 'Značka preverjanja v Nostr odjemalcih'
+        cta: 'Pridobi ime'
+    indexing:
+        name: 'Aktivno indeksiranje'
+        period: 'na mesec · ali 10.000 satov/leto'
+        feature1: 'Vsebina pridobljena iz vaših priljubljenih relayjev'
+        feature2: 'Obidite filtre kakovosti, zanesljivo indeksiranje'
+        feature3: 'Nadzorna plošča za spremljanje stanja indeksiranja'
+        cta: 'Naroči se'
+    unfold:
+        name: 'Gostovanje Unfold'
+        period: 'na leto'
+        feature1: 'Namenski poddomena za vašo revijo'
+        feature2: 'Produkcijsko pripravljeno Unfold upodabljanje'
+        feature3: 'DNS, TLS in proxy usmerjanje upravljano za vas'
+        feature4: 'Obnovite kadarkoli pred iztekom'
+        cta: 'Zaženi revijo'
     scoopSeeker: 'Iskalec novic'
-    free: 'Brezplačno'
+    free_label: 'Brezplačno'
     scoopFeature1: 'Berite vse članke, predstavljene v reviji Newsroom'
     getStarted: 'Začni'
     publisher: 'Založnik'

@@ -1,0 +1,64 @@
+/**
+ * Changelog Page Styles
+ */
+
+.changelog-content {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.changelog-content h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: var(--spacing-5) 0 var(--spacing-2);
+    padding-bottom: var(--spacing-2);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.changelog-content h2:first-child {
+    margin-top: 0;
+}
+
+.changelog-content p {
+    color: var(--color-text-mid);
+    font-size: 0.95rem;
+    margin: 0 0 var(--spacing-3);
+}
+
+.changelog-content ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-4);
+}
+
+.changelog-content ul li {
+    position: relative;
+    padding: var(--spacing-2) 0 var(--spacing-2) var(--spacing-4);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-bg-light);
+}
+
+.changelog-content ul li:last-child {
+    border-bottom: none;
+}
+
+.changelog-content ul li::before {
+    content: '–';
+    position: absolute;
+    left: 0;
+    color: var(--color-text-mid);
+    font-weight: 600;
+}
+
+.changelog-content code {
+    font-size: 0.8em;
+    background: var(--color-bg-light);
+    padding: 1px 4px;
+}
+
+.changelog-content strong {
+    font-weight: 600;
+}
+

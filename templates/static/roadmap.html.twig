@@ -1,62 +1,13 @@
 {% extends 'layout.html.twig' %}
 
-{% block nav %}
-{% endblock %}
+{% block title %}{{ 'roadmap.heading'|trans }} | {{ brand_name }}{% endblock %}
 
 {% block body %}
-    <h1>Roadmap: The Future of Decent Newsroom</h1>
-    <p>We are building a decentralized, high-value journalism platform step by step. Each phase unlocks new features,
-        empowering writers, publishers, and readers to engage with quality, independent reporting in a whole new way.</p>
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'roadmap.heading'|trans }}" tagline="{{ 'roadmap.tagline'|trans }}" />
 
-    <div class="roadmap-section">
-        <h2>v0.1.0 – <strong>Preprint</strong> <span class="badge badge__secondary"><small>Current</small></span></h2>
-        <div class="milestone">
-            <h3>A first glimpse into the future of journalism</h3>
-            <p>This early version of Decent Newsroom is all about discovery. We’re launching a sample magazine
-                to showcase what’s possible.</p>
-            <ul>
-                <li>Hand-curated, high-quality articles in magazine format</li>
-                <li>Full-text search to find the stories that matter to you</li>
-                <li>No content editor or user submissions yet</li>
-            </ul>
-            <p>Preprint is just the beginning.</p>
-        </div>
+    <div class="roadmap-content">
+        {{ roadmapHtml|raw }}
     </div>
-
-    <div class="roadmap-section">
-        <h2>v0.2.0 – <strong>First Edition</strong> <span class="badge badge__secondary"><small>Soon</small></span></h2>
-        <div class="milestone">
-            <h3>The real newsroom takes shape. Writers publish. Readers support. Journalism thrives.</h3>
-            <p>This milestone version introduces key features that bring Decent Newsroom to life:</p>
-            <ul>
-                <li>Zaps</li>
-                <li>Content submissions</li>
-                <li>Subscriptions for premium access</li>
-                <li>Built-in content editor so publishers can create directly on the platform</li>
-            </ul>
-            <p>With First Edition, journalism becomes more than just content, it becomes an ecosystem.</p>
-            <p></p>
-        </div>
-    </div>
-
-    <div class="roadmap-section">
-        <h2>v0.3.0 – <strong>Newsstand</strong></h2>
-        <div class="milestone">
-            <h3>Curate. Publish. Own your newsroom.</h3>
-            <p>At this stage, Decent Newsroom evolves into a true platform for independent journalism. Not only can creators publish, but they can also curate their own magazines.</p>
-            <ul>
-                <li>Users can create and manage their own curated publications</li>
-                <li>Collaborative publishing tools – editors, writers, and photographers can work together</li>
-                <li>Expanded discovery and personalized reading experiences</li>
-            </ul>
-            <p>Your news, your way. Newsstand transforms First Edition into a powerful hub for decentralized journalism, driven by the community.</p>
-        </div>
-    </div>
-
-    <h2>The Journey Ahead</h2>
-    <p>Every step we take brings us closer to a new era of independent, decentralized journalism. Decent Newsroom isn’t just another publishing platform — it’s a movement to rebuild trust, quality, and collaboration in media.</p>
-    <p>First Edition is coming soon. Be part of it.</p>
-    <br>
-    <p>To support us and get early access to the future of publishing, visit our crowdfunding page <a href="https://geyser.fund/project/newsroom" target="_blank">Geyser fund - Newsroom</a>.</p>
-
+</div>
 {% endblock %}

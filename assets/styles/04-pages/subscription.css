@@ -220,4 +220,102 @@
     color: #dc3545; /* Bootstrap danger red */
 }
 
+/* ===== Pricing Overview Page ===== */
+.pricing-overview {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+    max-width: 1000px;
+    margin: 0 auto var(--spacing-5);
+}
+
+@media screen and (min-width: 768px) {
+    .pricing-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media screen and (min-width: 1100px) {
+    .pricing-overview {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.pricing-overview-card {
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-4);
+    display: flex;
+    flex-direction: column;
+}
+
+.pricing-overview-header {
+    text-align: center;
+    margin-bottom: var(--spacing-3);
+    padding-bottom: var(--spacing-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.pricing-overview-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-2);
+}
+
+.pricing-overview-price {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--spacing-1);
+}
+
+.pricing-overview-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.pricing-overview-unit {
+    font-size: 1rem;
+    color: var(--color-text-mid);
+}
+
+.pricing-overview-period {
+    font-size: 0.85rem;
+    color: var(--color-text-mid);
+    margin: var(--spacing-1) 0 0;
+}
+
+.pricing-overview-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-4);
+    flex: 1;
+}
+
+.pricing-overview-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+    padding: var(--spacing-1) 0;
+    font-size: 0.875rem;
+    color: var(--color-text);
+}
+
+.pricing-overview-features li svg {
+    flex-shrink: 0;
+    color: var(--color-accent);
+    margin-top: 2px;
+}
+
+.pricing-overview-action {
+    text-align: center;
+    margin-top: auto;
+}
+
+.pricing-overview-action .btn {
+    width: 100%;
+}
+
+
 

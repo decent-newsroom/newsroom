@@ -36,18 +36,13 @@ function hasRealMath(text) {
         return false;
     })();
 
-    const checkDelim = (regex) => {
-        let m;
-        while ((m = regex.exec(t)) !== null) {
-            const inner = m.groups?.body ?? '';
-            if (looksMathy(inner)) return true;
-        }
-        return false;
-    };
+    // Unambiguous delimiters — their presence alone is a strong math signal.
+    // No looksMathy gate: nobody writes \(…\), \[…\], or $$…$$ for currency.
+    if (/\$\$(?:[^$\\]|\\.)+\$\$/g.test(t)) return true;
+    if (/\\\((?:[^\\]|\\.)+\\\)/g.test(t)) return true;
+    if (/\\\[(?:[^\\]|\\.)+\\]/g.test(t)) return true;
 
-    if (checkDelim(/\$\$(?<body>(?:[^$\\]|\\.)+)\$\$/g)) return true;
-    if (checkDelim(/\\\((?<body>(?:[^\\]|\\.)+)\\\)/g)) return true;
-    if (checkDelim(/\\\[(?<body>(?:[^\\]|\\.)+)\\]/g)) return true;
+    // Ambiguous single-$ — only trust it if the content looks like real LaTeX.
     if (hasNonCurrencyDollar) return true;
 
     // Inline $…$ with whitespace rule: opening $ not followed by space,

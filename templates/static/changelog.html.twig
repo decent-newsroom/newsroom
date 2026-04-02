@@ -1,0 +1,14 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'changelog.heading'|trans }} | {{ brand_name }}{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'changelog.heading'|trans }}" tagline="{{ 'changelog.tagline'|trans }}" />
+
+    <div class="changelog-content">
+        {{ changelogHtml|raw }}
+    </div>
+</div>
+{% endblock %}
+

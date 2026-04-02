@@ -1,7 +1,14 @@
 # CHANGELOG
 
 ## v0.0.27
+Moving furniture around.
 
+- Redesigned the site footer with a professional two-column layout (single column on mobile). Added GitHub repository link, project npub, and developer npub to a new "Community" column. Consolidated product links (About, Pricing, Terms of Service, Support, Contact) into a "Product" column. Replaced centered link-bar style with structured sections and headings.
+- Redesigned the pricing page (`/pricing`) to show all subscription tiers — Reader (free), Vanity Name, Active Indexing, and Unfold Hosting — as side-by-side cards with feature lists and direct links to each subscription's detail page. Replaced the outdated placeholder pricing cards.
+- Added explicit route names (`app_static_about`, `app_static_pricing`, `app_static_tos`, `app_static_roadmap`) to StaticController for reliable `path()` usage in templates.
+- Added a public Changelog page (`/changelog`) that renders CHANGELOG.md as styled HTML. Linked from the footer under the Product column. Translations added for all five locales.
+- Replaced the hardcoded Roadmap page (`/roadmap`) with a markdown-rendered version sourced from `ROADMAP.md`. Added Roadmap link to the footer next to Changelog. Translations added for all five locales.
+- [Bug] Fixed inline math (`\(…\)`) not rendering after the v0.0.25 currency fix. The `hasRealMath` heuristic in the Stimulus KaTeX controller required `looksMathy` content checks for all delimiter types, including the unambiguous `\(…\)`, `\[…\]`, and `$$…$$`. Since the Converter normalizes `$…$` to `\(…\)` at HTML-generation time, simple expressions like `\(x + 1\)` were rejected because they lack LaTeX commands (`\frac`, `^`, etc.). The `looksMathy` gate is now only applied to ambiguous single-`$` delimiters, matching the already-correct UnfoldBundle `katex-init.js` behavior.
 - Excluded asset-serving routes from visitor analytics tracking. Added `/unfold-themes/`, `/themes/`, `/fonts/`, `/favicon.ico`, `/chat-sw.js` to the capture-time exclusion list, along with a static file extension check (`.css`, `.js`, `.png`, `.woff2`, etc.) to catch any remaining asset requests. The same asset prefixes are also excluded at query time in `VisitRepository` so previously captured asset visits no longer affect metrics.
 - Moved profile stats from a profile tab to a standalone `/stats` page accessible from the user menu. Currently restricted to admins (`ROLE_ADMIN`); other roles will be added later. Extracted inline stats CSS to `assets/styles/04-pages/profile-stats.css` and added i18n keys for all stats labels across all five locales.
 - Added "Add to Follow Pack" dropdown on user profiles: when a logged-in user views another person's profile, a dropdown button lets them add the profile's pubkey to any of their existing follow packs (kind 39089). The UI mirrors the reading list dropdown pattern — select a pack, sign the updated event, and publish to relays. Already-included members show a ✓ badge. A link to create a new pack is included at the bottom of the dropdown.
@@ -36,6 +43,7 @@ Loading, loading, loading.
 
 
 ## v0.0.25
+Bugs, so many bugs.
 
 - [Performance] Ensured article HTML is pre-generated at ingestion time across all ingestion paths, not just the relay subscription worker. Previously only `ArticleEventProjector` (strfry subscription worker) converted markdown to HTML before persisting; three other paths — `ArticleFetchService` (fetch-by-pubkey, fetch-latest, ingest-range, naddr), `FetchAuthorContentHandler` (async author content fetch), and `EditorController` (user publish) — left `processed_html` NULL, causing on-the-fly conversion on every article page load. All four paths now call `Converter::convertToHTML()` before `persist()`, with graceful fallback if conversion fails.
 - [Bug] Fixed KaTeX rendering dollar-sign currency values (e.g. `$50,000`) as math expressions in UnfoldBundle pages and the main app. The UnfoldBundle templates had no heuristic check before calling `renderMathInElement`, so any `$` in article text was treated as a math delimiter — entire paragraphs between two prices were swallowed into garbled KaTeX output. Added a shared `katex-init.js` with a `hasRealMath` heuristic that skips rendering unless genuine LaTeX syntax is detected. Also removed the ambiguous single-`$` delimiter from all render calls (both UnfoldBundle and the Stimulus controller), keeping only `$$…$$`, `\(…\)`, and `\[…\]` which don't conflict with currency.
