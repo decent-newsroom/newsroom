@@ -23,7 +23,10 @@
          data-nostr--nostr-follow-pack-existing-dtag-value="{{ existingPackDtag }}"
          data-nostr--nostr-follow-pack-existing-image-value="{{ existingPackImage }}"
          data-nostr--nostr-follow-pack-existing-description-value="{{ existingPackDescription }}"
-         data-nostr--nostr-follow-pack-selected-coordinate-value="{{ selectedFollowPackCoordinate }}">
+         data-nostr--nostr-follow-pack-selected-coordinate-value="{{ selectedFollowPackCoordinate }}"
+         data-nostr--nostr-follow-pack-create-heading-value="{{ 'follow_pack.create_heading'|trans }}"
+         data-nostr--nostr-follow-pack-edit-heading-value="{{ 'follow_pack.edit_heading'|trans }}"
+         data-nostr--nostr-follow-pack-all-packs-value="{{ existingFollowPacks|json_encode }}">
 
         {# ── Existing packs: select one as your recommendation list ── #}
         {% if existingFollowPacks|length > 0 %}
@@ -36,24 +39,38 @@
                             <span class="fp-pack-title">{{ pack.title|default('Untitled') }}</span>
                             <span class="fp-pack-meta">{{ pack.memberCount }} {{ 'follow_pack.members'|trans }}</span>
                         </div>
-                        {% if selectedFollowPackCoordinate != packCoord %}
-                            <button class="btn btn--small btn--primary"
-                                    data-action="click->nostr--nostr-follow-pack#selectPack"
-                                    data-coordinate="{{ packCoord }}">
-                                {{ 'follow_pack.select_button'|trans }}
+                        <div class="fp-pack-actions">
+                            <button class="btn btn--small btn--outline"
+                                    data-action="click->nostr--nostr-follow-pack#editPack"
+                                    data-dtag="{{ pack.dTag }}">
+                                {{ 'follow_pack.edit_button'|trans }}
                             </button>
-                        {% else %}
-                            <span class="event-card__badge event-card__badge--found">★ {{ 'follow_pack.selected'|trans }}</span>
-                        {% endif %}
+                            {% if selectedFollowPackCoordinate != packCoord %}
+                                <button class="btn btn--small btn--primary"
+                                        data-action="click->nostr--nostr-follow-pack#selectPack"
+                                        data-coordinate="{{ packCoord }}">
+                                    {{ 'follow_pack.select_button'|trans }}
+                                </button>
+                            {% else %}
+                                <span class="event-card__badge event-card__badge--found">★ {{ 'follow_pack.selected'|trans }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
+
+                <div class="mt-3">
+                    <button class="btn btn--small btn--outline"
+                            data-action="click->nostr--nostr-follow-pack#createNew">
+                        ➕ {{ 'follow_pack.create_new_button'|trans }}
+                    </button>
+                </div>
             </div>
 
             <hr class="fp-divider">
         {% endif %}
 
         {# ── Create or edit a follow pack ── #}
-        <h2>{{ existingPackDtag ? 'follow_pack.edit_heading'|trans : 'follow_pack.create_heading'|trans }}</h2>
+        <h2 data-nostr--nostr-follow-pack-target="formHeading">{{ existingPackDtag ? 'follow_pack.edit_heading'|trans : 'follow_pack.create_heading'|trans }}</h2>
 
         <div class="fp-form-group">
             <label for="fp-title">{{ 'follow_pack.title_label'|trans }}</label>

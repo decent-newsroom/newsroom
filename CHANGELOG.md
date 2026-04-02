@@ -3,6 +3,7 @@
 ## v0.0.27
 Moving furniture around.
 
+- Follow pack setup page now allows creating a new pack even when an existing pack is already selected. Added a "Create New Pack" button to the existing packs section that clears the form and generates a fresh d-tag on publish. Each existing pack also has an "Edit" button to load its data (title, image, description, members) into the form. The form heading dynamically switches between "Create" and "Edit" modes.
 - Redesigned the site footer with a professional two-column layout (single column on mobile). Added GitHub repository link, project npub, and developer npub to a new "Community" column. Consolidated product links (About, Pricing, Terms of Service, Support, Contact) into a "Product" column. Replaced centered link-bar style with structured sections and headings.
 - Redesigned the pricing page (`/pricing`) to show all subscription tiers — Reader (free), Vanity Name, Active Indexing, and Unfold Hosting — as side-by-side cards with feature lists and direct links to each subscription's detail page. Replaced the outdated placeholder pricing cards.
 - Added explicit route names (`app_static_about`, `app_static_pricing`, `app_static_tos`, `app_static_roadmap`) to StaticController for reliable `path()` usage in templates.

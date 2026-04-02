@@ -196,6 +196,11 @@
     color: var(--color-text-mid);
     font-size: var(--font-size-xs);
 }
+.fp-pack-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
 
 
 /* ── Aside sidebar (layout right column) ──────────────── */

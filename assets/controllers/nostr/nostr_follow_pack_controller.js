@@ -15,7 +15,7 @@ export default class extends Controller {
   static targets = [
     'searchInput', 'searchResults', 'selectedList', 'selectedCount',
     'publishButton', 'status', 'form', 'infoBubble',
-    'packTitle', 'packImage', 'packDescription', 'existingPacks',
+    'packTitle', 'packImage', 'packDescription', 'existingPacks', 'formHeading',
   ];
 
   static values = {
@@ -29,6 +29,9 @@ export default class extends Controller {
     existingImage: String,     // image URL of existing pack
     existingDescription: String, // description of existing pack
     selectedCoordinate: String, // Currently selected follow pack coordinate
+    createHeading: { type: String, default: 'Create a new follow pack' },
+    editHeading: { type: String, default: 'Edit your follow pack' },
+    allPacks: Array,  // All existing packs for edit switching
   };
 
   connect() {
@@ -447,6 +450,207 @@ export default class extends Controller {
     } catch (error) {
       this.showError(`Failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Reset the form to create a brand-new follow pack (clear d-tag, title, members, etc.)
+   */
+  createNew(event) {
+    if (event) event.preventDefault();
+
+    // Clear the existing d-tag so publish() generates a fresh one
+    this.existingDtagValue = '';
+
+    // Clear form fields
+    if (this.hasPackTitleTarget) this.packTitleTarget.value = '';
+    if (this.hasPackImageTarget) this.packImageTarget.value = '';
+    if (this.hasPackDescriptionTarget) this.packDescriptionTarget.value = '';
+
+    // Clear selected users
+    this.selectedUsers.clear();
+    this.renderSelectedList();
+    this.renderFollowsSuggestions();
+
+    // Update heading
+    if (this.hasFormHeadingTarget) {
+      this.formHeadingTarget.textContent = this.createHeadingValue;
+    }
+
+    // Scroll the form into view
+    if (this.hasPackTitleTarget) {
+      this.packTitleTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.packTitleTarget.focus();
+    }
+  }
+
+  /**
+   * Load an existing pack into the form for editing
+   */
+  async editPack(event) {
+    if (event) event.preventDefault();
+    const dTag = event.currentTarget.dataset.dtag;
+    if (!dTag) return;
+
+    const packs = this.allPacksValue || [];
+    const pack = packs.find(p => p.dTag === dTag);
+    if (!pack) {
+      this.showError('Pack not found.');
+      return;
+    }
+
+    // Set d-tag so publish() updates this pack instead of creating a new one
+    this.existingDtagValue = dTag;
+
+    // Populate form fields
+    if (this.hasPackTitleTarget) this.packTitleTarget.value = pack.title || '';
+    if (this.hasPackImageTarget) this.packImageTarget.value = pack.image || '';
+    if (this.hasPackDescriptionTarget) this.packDescriptionTarget.value = pack.description || '';
+
+    // Update heading
+    if (this.hasFormHeadingTarget) {
+      this.formHeadingTarget.textContent = this.editHeadingValue;
+    }
+
+    // Resolve member hex pubkeys to profile objects
+    this.selectedUsers.clear();
+    const hexPubkeys = pack.memberPubkeys || [];
+
+    if (hexPubkeys.length > 0) {
+      // Convert hex to npub for display, then try resolving profiles
+      const npubs = hexPubkeys.map(hex => this.hexToNpub(hex)).filter(Boolean);
+
+      if (npubs.length > 0) {
+        this.showStatus('Loading pack members…');
+        try {
+          const response = await fetch('/api/users/by-npubs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ npubs }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            for (const user of (data.users || [])) {
+              this.selectedUsers.set(user.npub, {
+                npub: user.npub,
+                displayName: user.displayName || user.name || '',
+                picture: user.picture || '',
+                nip05: user.nip05 || '',
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[follow-pack] Failed to resolve pack members:', e);
+        }
+
+        // Add any unresolved npubs as bare entries
+        for (const npub of npubs) {
+          if (!this.selectedUsers.has(npub)) {
+            this.selectedUsers.set(npub, {
+              npub,
+              displayName: npub.slice(0, 12) + '…' + npub.slice(-6),
+              picture: '',
+              nip05: '',
+            });
+          }
+        }
+      }
+    }
+
+    this.renderSelectedList();
+    this.renderFollowsSuggestions();
+
+    // Scroll the form into view
+    if (this.hasFormHeadingTarget) {
+      this.formHeadingTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Clear any status message
+    if (this.hasStatusTarget) {
+      this.statusTarget.innerHTML = '';
+    }
+  }
+
+  /**
+   * Convert hex pubkey to npub (bech32 encode)
+   */
+  hexToNpub(hex) {
+    if (!hex || hex.length !== 64) return null;
+    try {
+      if (window.NostrTools && window.NostrTools.nip19) {
+        return window.NostrTools.nip19.npubEncode(hex);
+      }
+      return this.hexToBech32('npub', hex);
+    } catch (e) {
+      console.warn('[follow-pack] Could not encode hex to npub:', hex, e);
+      return null;
+    }
+  }
+
+  /**
+   * Basic hex to bech32 conversion
+   */
+  hexToBech32(hrp, hex) {
+    // Convert hex to bytes
+    const bytes = [];
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes.push(parseInt(hex.substr(i, 2), 16));
+    }
+    // Convert 8-bit to 5-bit groups
+    const data = [];
+    let acc = 0, bits = 0;
+    for (const b of bytes) {
+      acc = (acc << 8) | b;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        data.push((acc >> bits) & 0x1f);
+      }
+    }
+    if (bits > 0) {
+      data.push((acc << (5 - bits)) & 0x1f);
+    }
+    // Bech32 encode
+    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    const checksum = this.bech32Checksum(hrp, data);
+    let result = hrp + '1';
+    for (const v of [...data, ...checksum]) {
+      result += CHARSET[v];
+    }
+    return result;
+  }
+
+  /**
+   * Compute bech32 checksum
+   */
+  bech32Checksum(hrp, data) {
+    const values = this.bech32HrpExpand(hrp).concat(data).concat([0, 0, 0, 0, 0, 0]);
+    const polymod = this.bech32Polymod(values) ^ 1;
+    const checksum = [];
+    for (let i = 0; i < 6; i++) {
+      checksum.push((polymod >> (5 * (5 - i))) & 31);
+    }
+    return checksum;
+  }
+
+  bech32HrpExpand(hrp) {
+    const ret = [];
+    for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) >> 5);
+    ret.push(0);
+    for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) & 31);
+    return ret;
+  }
+
+  bech32Polymod(values) {
+    const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+    let chk = 1;
+    for (const v of values) {
+      const b = chk >> 25;
+      chk = ((chk & 0x1ffffff) << 5) ^ v;
+      for (let i = 0; i < 5; i++) {
+        if ((b >> i) & 1) chk ^= GEN[i];
+      }
+    }
+    return chk;
   }
 
   /**
