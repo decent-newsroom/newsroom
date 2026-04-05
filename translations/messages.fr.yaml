@@ -151,6 +151,21 @@ search:
     heading: 'Recherche'
     tagline: 'pour des trésors cachés'
     addToList: 'Ajouter à la liste'
+    filters:
+        toggle: 'Filtres avancés'
+        dateFrom: 'À partir du'
+        dateTo: "Jusqu'au"
+        author: 'Auteur'
+        authorPlaceholder: 'npub ou clé publique hex'
+        tags: 'Tags'
+        tagsPlaceholder: 'Séparés par des virgules, ex. bitcoin, nostr'
+        sortBy: 'Trier par'
+        sortRelevance: 'Pertinence'
+        sortNewest: 'Plus récents'
+        sortOldest: 'Plus anciens'
+        apply: 'Appliquer'
+        clear: 'Réinitialiser'
+        userSearchHint: 'Vous cherchez des personnes ? <a href="%url%">Rechercher des utilisateurs</a>'
 
 # ── Points forts ───────────────────────────────────────────────────
 highlights:

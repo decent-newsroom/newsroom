@@ -170,6 +170,21 @@ search:
     nostrLookupSlow: 'Still searching… This is taking longer than usual.'
     nostrInvalidAddress: 'Invalid Nostr address — could not decode.'
     nostrIncompleteAddress: 'Incomplete Nostr address — missing required fields.'
+    filters:
+        toggle: 'Advanced filters'
+        dateFrom: 'From date'
+        dateTo: 'To date'
+        author: 'Author'
+        authorPlaceholder: 'npub or hex pubkey'
+        tags: 'Tags'
+        tagsPlaceholder: 'Comma-separated, e.g. bitcoin, nostr'
+        sortBy: 'Sort by'
+        sortRelevance: 'Relevance'
+        sortNewest: 'Newest first'
+        sortOldest: 'Oldest first'
+        apply: 'Apply'
+        clear: 'Clear filters'
+        userSearchHint: 'Looking for people? <a href="%url%">Search users</a>'
 
 # ── Highlights ────────────────────────────────────────────────────
 highlights:
@@ -399,6 +414,21 @@ followPackDropdown:
 # ── Featured writers ──────────────────────────────────────────────
 featuredWriters:
     heading: 'Writers'
+    tagline: 'Curated contributors'
+    filterPlaceholder: 'Filter featured writers...'
+    noWriters: 'No featured writers yet.'
+    backToSearch: 'Back to user search'
+
+# ── User Search ────────────────────────────────────────────────────
+userSearch:
+    heading: 'Search Users'
+    tagline: 'find writers and Nostr users'
+    searchPlaceholder: 'Search by name, NIP-05, or paste npub...'
+    found: '%count% user(s) found'
+    noResults: 'No users found matching "%query%".'
+    noResultsHint: 'Try different keywords or check your spelling.'
+    quickLinks: 'Quick links'
+    featuredDescription: 'Browse our curated list of contributors'
 
 # ── Featured Articles page ─────────────────────────────────────────
 featuredArticles:

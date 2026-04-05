@@ -2,6 +2,7 @@
 
 namespace App\Service\Search;
 
+use App\Dto\SearchFilters;
 use App\Entity\Article;
 
 interface ArticleSearchInterface
@@ -15,6 +16,17 @@ interface ArticleSearchInterface
      * @return Article[]
      */
     public function search(string $query, int $limit = 12, int $offset = 0): array;
+
+    /**
+     * Advanced search with filters (date range, author, tags, kind, sort).
+     *
+     * @param string $query The search query (may be empty when only filters are used)
+     * @param SearchFilters $filters Active filter criteria
+     * @param int $limit Maximum number of results
+     * @param int $offset Offset for pagination
+     * @return Article[]
+     */
+    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0): array;
 
     /**
      * Find articles by slugs

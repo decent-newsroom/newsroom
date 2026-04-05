@@ -35,7 +35,10 @@ fos_elastica:
             indexable_callback: [ 'App\Util\IndexableArticleChecker', 'isIndexable' ]
             properties:
                 createdAt:
-                    type: keyword
+                    type: date
+                    format: strict_date_optional_time||epoch_millis
+                kind:
+                    type: integer
                 title:
                     type: text
                     analyzer: custom_analyzer

@@ -2,6 +2,7 @@
 
 namespace App\Service\Search;
 
+use App\Dto\SearchFilters;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use Elastica\Aggregation\Filters as FiltersAgg;
@@ -9,6 +10,7 @@ use Elastica\Index;
 use Elastica\Query;
 use Elastica\Query\BoolQuery;
 use Elastica\Query\MultiMatch;
+use Elastica\Query\Range;
 use Elastica\Query\Term;
 use Elastica\Query\Terms;
 use FOS\ElasticaBundle\Finder\FinderInterface;
@@ -78,6 +80,106 @@ class ElasticsearchArticleSearch implements ArticleSearchInterface
             return $results;
         } catch (\Exception $e) {
             $this->logger->error('Elasticsearch search error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0): array
+    {
+        if (!$this->enabled) {
+            return [];
+        }
+
+        try {
+            $mainQuery = new Query();
+            $boolQuery = new BoolQuery();
+
+            // Text query — if provided, use the same multi-match approach as search()
+            if (!empty($query)) {
+                $phraseMatch = new Query\MatchPhrase();
+                $phraseMatch->setField('search_combined', [
+                    'query' => $query,
+                    'boost' => 10,
+                ]);
+                $boolQuery->addShould($phraseMatch);
+
+                $multiMatch = new MultiMatch();
+                $multiMatch->setQuery($query);
+                $multiMatch->setFields(['search_combined']);
+                $multiMatch->setFuzziness('AUTO');
+                $boolQuery->addMust($multiMatch);
+            }
+
+            // Exclude slug patterns containing '/'
+            $boolQuery->addMustNot(new Query\Wildcard('slug', '*/*'));
+
+            // ── Filters ──────────────────────────────────────────
+
+            // Date range
+            $rangeParams = [];
+            if ($filters->dateFrom) {
+                $rangeParams['gte'] = $filters->dateFrom;
+            }
+            if ($filters->dateTo) {
+                $rangeParams['lte'] = $filters->dateTo;
+            }
+            if (!empty($rangeParams)) {
+                $boolQuery->addFilter(new Range('createdAt', $rangeParams));
+            }
+
+            // Author (hex pubkey)
+            if (!empty($filters->author)) {
+                $boolQuery->addFilter(new Term(['pubkey' => $filters->author]));
+            }
+
+            // Tags
+            $tagsArray = $filters->getTagsArray();
+            if (!empty($tagsArray)) {
+                // All supplied tags must be present (AND)
+                foreach ($tagsArray as $tag) {
+                    $boolQuery->addFilter(new Term(['topics' => $tag]));
+                }
+            }
+
+            // Kind filter
+            if ($filters->kind !== null) {
+                $boolQuery->addFilter(new Term(['kind' => $filters->kind]));
+            }
+
+            // If no text query was given, match all (filters only)
+            if (empty($query)) {
+                $boolQuery->addMust(new Query\MatchAll());
+            }
+
+            $mainQuery->setQuery($boolQuery);
+
+            // Collapse on slug
+            $mainQuery->setParam('collapse', ['field' => 'slug']);
+
+            // Only set minimum score when there is a text query
+            if (!empty($query)) {
+                $mainQuery->setMinScore(0.25);
+            }
+
+            // Sort
+            $sort = match ($filters->sortBy) {
+                'newest' => [['createdAt' => ['order' => 'desc']]],
+                'oldest' => [['createdAt' => ['order' => 'asc']]],
+                default  => !empty($query)
+                    ? [['_score' => ['order' => 'desc']], ['createdAt' => ['order' => 'desc']]]
+                    : [['createdAt' => ['order' => 'desc']]],
+            };
+            $mainQuery->setSort($sort);
+
+            $mainQuery->setFrom($offset);
+            $mainQuery->setSize($limit);
+
+            $results = $this->finder->find($mainQuery);
+            $this->logger->info('Elasticsearch advancedSearch results count: ' . count($results));
+
+            return $results;
+        } catch (\Exception $e) {
+            $this->logger->error('Elasticsearch advancedSearch error: ' . $e->getMessage());
             return [];
         }
     }

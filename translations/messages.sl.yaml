@@ -151,6 +151,21 @@ search:
     heading: 'Iskanje'
     tagline: 'za skrite bisere'
     addToList: 'Dodaj na seznam'
+    filters:
+        toggle: 'Napredni filtri'
+        dateFrom: 'Od datuma'
+        dateTo: 'Do datuma'
+        author: 'Avtor'
+        authorPlaceholder: 'npub ali hex javni ključ'
+        tags: 'Oznake'
+        tagsPlaceholder: 'Ločene z vejico, npr. bitcoin, nostr'
+        sortBy: 'Razvrsti po'
+        sortRelevance: 'Ustreznost'
+        sortNewest: 'Najnovejše'
+        sortOldest: 'Najstarejše'
+        apply: 'Uporabi'
+        clear: 'Počisti filtre'
+        userSearchHint: 'Iščete ljudi? <a href="%url%">Išči uporabnike</a>'
 
 # ── Poudarki ──────────────────────────────────────────────────────
 highlights:

@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Dto\SearchFilters;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -280,6 +281,163 @@ class ArticleRepository extends ServiceEntityRepository
         }
 
         return $counts;
+    }
+
+    /**
+     * Advanced search with filters: date range, author, tags, kind, sort.
+     *
+     * @param string $query   Free-text query (may be empty)
+     * @param SearchFilters $filters
+     * @param int $limit
+     * @param int $offset
+     * @return Article[]
+     */
+    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0): array
+    {
+        $qb = $this->createQueryBuilder('a');
+
+        // Exclude slashes in slug
+        $qb->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
+            ->setParameter('slugPattern', '%/%');
+
+        // Text query (LIKE fallback)
+        if (!empty($query)) {
+            $searchTerm = '%' . $query . '%';
+            $qb->andWhere(
+                $qb->expr()->orX(
+                    $qb->expr()->like('a.title', ':search'),
+                    $qb->expr()->like('a.content', ':search'),
+                    $qb->expr()->like('a.summary', ':search')
+                )
+            )
+            ->setParameter('search', $searchTerm);
+        }
+
+        // Date from
+        if ($filters->dateFrom) {
+            $qb->andWhere('a.createdAt >= :dateFrom')
+                ->setParameter('dateFrom', new \DateTimeImmutable($filters->dateFrom));
+        }
+
+        // Date to (end of day)
+        if ($filters->dateTo) {
+            $qb->andWhere('a.createdAt <= :dateTo')
+                ->setParameter('dateTo', new \DateTimeImmutable($filters->dateTo . ' 23:59:59'));
+        }
+
+        // Author (hex pubkey)
+        if (!empty($filters->author)) {
+            $qb->andWhere('a.pubkey = :pubkey')
+                ->setParameter('pubkey', $filters->author);
+        }
+
+        // Kind
+        if ($filters->kind !== null) {
+            $kind = KindsEnum::tryFrom($filters->kind);
+            if ($kind !== null) {
+                $qb->andWhere('a.kind = :kind')
+                    ->setParameter('kind', $kind);
+            }
+        }
+
+        // Tags — PostgreSQL jsonb containment (requires native SQL)
+        $tagsArray = $filters->getTagsArray();
+        if (!empty($tagsArray)) {
+            return $this->advancedSearchWithTags($query, $filters, $tagsArray, $limit, $offset);
+        }
+
+        // Sort
+        $sort = match ($filters->sortBy) {
+            'oldest' => ['a.createdAt', 'ASC'],
+            'newest' => ['a.createdAt', 'DESC'],
+            default  => ['a.createdAt', 'DESC'],
+        };
+        $qb->orderBy($sort[0], $sort[1]);
+
+        $qb->setFirstResult($offset)->setMaxResults($limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Advanced search using native SQL for jsonb tag filtering (PostgreSQL).
+     */
+    private function advancedSearchWithTags(string $query, SearchFilters $filters, array $tags, int $limit, int $offset): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $wheres = ["slug NOT LIKE '%/%'"];
+        $params = [];
+        $types = [];
+
+        // Text query
+        if (!empty($query)) {
+            $wheres[] = "(title ILIKE :search OR content ILIKE :search OR summary ILIKE :search)";
+            $params['search'] = '%' . $query . '%';
+            $types['search'] = ParameterType::STRING;
+        }
+
+        // Date range
+        if ($filters->dateFrom) {
+            $wheres[] = "created_at >= :dateFrom";
+            $params['dateFrom'] = $filters->dateFrom;
+            $types['dateFrom'] = ParameterType::STRING;
+        }
+        if ($filters->dateTo) {
+            $wheres[] = "created_at <= :dateTo";
+            $params['dateTo'] = $filters->dateTo . ' 23:59:59';
+            $types['dateTo'] = ParameterType::STRING;
+        }
+
+        // Author
+        if (!empty($filters->author)) {
+            $wheres[] = "pubkey = :pubkey";
+            $params['pubkey'] = $filters->author;
+            $types['pubkey'] = ParameterType::STRING;
+        }
+
+        // Kind
+        if ($filters->kind !== null) {
+            $wheres[] = "kind = :kind";
+            $params['kind'] = $filters->kind;
+            $types['kind'] = ParameterType::INTEGER;
+        }
+
+        // Tags (jsonb containment)
+        foreach ($tags as $i => $tag) {
+            $key = "tag_$i";
+            $wheres[] = "topics::jsonb @> :$key::jsonb";
+            $params[$key] = json_encode([$tag], JSON_THROW_ON_ERROR);
+            $types[$key] = ParameterType::STRING;
+        }
+
+        // Sort
+        $orderBy = match ($filters->sortBy) {
+            'oldest' => 'created_at ASC',
+            default  => 'created_at DESC',
+        };
+
+        $sql = 'SELECT id FROM article WHERE ' . implode(' AND ', $wheres) . ' ORDER BY ' . $orderBy;
+
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
+        if ($offset > 0) {
+            $sql .= ' OFFSET ' . (int)$offset;
+        }
+
+        $ids = array_column($conn->fetchAllAssociative($sql, $params, $types), 'id');
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('a');
+        $qb->where($qb->expr()->in('a.id', ':ids'))
+            ->setParameter('ids', $ids)
+            ->orderBy('a.createdAt', $filters->sortBy === 'oldest' ? 'ASC' : 'DESC');
+
+        return $qb->getQuery()->getResult();
     }
 
     /**

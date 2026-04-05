@@ -2,6 +2,7 @@
 
 namespace App\Service\Search;
 
+use App\Dto\SearchFilters;
 use App\Entity\Article;
 use App\Repository\ArticleRepository;
 use Psr\Log\LoggerInterface;
@@ -22,6 +23,18 @@ class DatabaseArticleSearch implements ArticleSearchInterface
             return $results;
         } catch (\Exception $e) {
             $this->logger->error('Database search error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0): array
+    {
+        try {
+            $results = $this->articleRepository->advancedSearch($query, $filters, $limit, $offset);
+            $this->logger->info('Database advancedSearch results count: ' . count($results));
+            return $results;
+        } catch (\Exception $e) {
+            $this->logger->error('Database advancedSearch error: ' . $e->getMessage());
             return [];
         }
     }

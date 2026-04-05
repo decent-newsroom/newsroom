@@ -75,6 +75,7 @@ import './styles/04-pages/blog-journey.css';
 import './styles/04-pages/profile-stats.css';
 import './styles/04-pages/changelog.css';
 import './styles/04-pages/roadmap.css';
+import './styles/04-pages/user-search.css';
 
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';

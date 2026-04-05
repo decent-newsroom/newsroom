@@ -18,6 +18,94 @@
             </label>
         </form>
 
+        {# ── Advanced Filters Toggle ────────────────────────────── #}
+        <div class="advanced-filters"
+             data-controller="search--advanced-filters">
+
+            <button type="button"
+                    class="advanced-filters__toggle"
+                    data-action="live#action"
+                    data-live-action-param="toggleFilters">
+                <twig:ux:icon name="iconoir:filter" class="icon" />
+                {{ 'search.filters.toggle'|trans }}
+                {% if this.hasActiveFilters %}
+                    <span class="advanced-filters__badge">●</span>
+                {% endif %}
+            </button>
+
+            {% if this.showFilters %}
+            <div class="advanced-filters__panel">
+                <div class="advanced-filters__grid">
+                    {# Date range #}
+                    <div class="advanced-filters__field">
+                        <label for="filter-date-from">{{ 'search.filters.dateFrom'|trans }}</label>
+                        <input type="date"
+                               id="filter-date-from"
+                               data-model="filterDateFrom"
+                               value="{{ this.filterDateFrom }}" />
+                    </div>
+                    <div class="advanced-filters__field">
+                        <label for="filter-date-to">{{ 'search.filters.dateTo'|trans }}</label>
+                        <input type="date"
+                               id="filter-date-to"
+                               data-model="filterDateTo"
+                               value="{{ this.filterDateTo }}" />
+                    </div>
+
+                    {# Author #}
+                    <div class="advanced-filters__field advanced-filters__field--wide">
+                        <label for="filter-author">{{ 'search.filters.author'|trans }}</label>
+                        <input type="text"
+                               id="filter-author"
+                               data-model="filterAuthor"
+                               value="{{ this.filterAuthor }}"
+                               placeholder="{{ 'search.filters.authorPlaceholder'|trans }}" />
+                    </div>
+
+                    {# Tags #}
+                    <div class="advanced-filters__field advanced-filters__field--wide">
+                        <label for="filter-tags">{{ 'search.filters.tags'|trans }}</label>
+                        <input type="text"
+                               id="filter-tags"
+                               data-model="filterTags"
+                               value="{{ this.filterTags }}"
+                               placeholder="{{ 'search.filters.tagsPlaceholder'|trans }}" />
+                    </div>
+
+                    {# Sort #}
+                    <div class="advanced-filters__field">
+                        <label for="filter-sort">{{ 'search.filters.sortBy'|trans }}</label>
+                        <select id="filter-sort"
+                                data-model="filterSort">
+                            <option value="relevance" {{ this.filterSort == 'relevance' ? 'selected' : '' }}>{{ 'search.filters.sortRelevance'|trans }}</option>
+                            <option value="newest" {{ this.filterSort == 'newest' ? 'selected' : '' }}>{{ 'search.filters.sortNewest'|trans }}</option>
+                            <option value="oldest" {{ this.filterSort == 'oldest' ? 'selected' : '' }}>{{ 'search.filters.sortOldest'|trans }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="advanced-filters__actions">
+                    <button type="button"
+                            class="btn btn-sm btn-primary"
+                            data-action="live#action"
+                            data-live-action-param="search">
+                        {{ 'search.filters.apply'|trans }}
+                    </button>
+                    <button type="button"
+                            class="btn btn-sm"
+                            data-action="live#action"
+                            data-live-action-param="clearFilters">
+                        {{ 'search.filters.clear'|trans }}
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <p class="advanced-filters__user-hint">
+            <small>{{ 'search.filters.userSearchHint'|trans({'%url%': path('users_search_page', {q: this.query})})|raw }}</small>
+        </p>
+
         <!-- Loading Indicator -->
             <div class="search-loading">
                 <div class="spinner" data-loading>
@@ -63,7 +151,7 @@
             {% else %}
                 <twig:Organisms:CardList :list="this.results" class="article-list" />
             {% endif %}
-        {% elseif this.query is not empty %}
+        {% elseif this.query is not empty or this.hasActiveFilters %}
             <p><small>{{ 'text.noResults'|trans }}</small></p>
         {% endif %}
 </div>

@@ -151,6 +151,21 @@ search:
     heading: 'Suche'
     tagline: 'für verborgene Schätze'
     addToList: 'Zur Liste hinzufügen'
+    filters:
+        toggle: 'Erweiterte Filter'
+        dateFrom: 'Von Datum'
+        dateTo: 'Bis Datum'
+        author: 'Autor'
+        authorPlaceholder: 'npub oder Hex-Pubkey'
+        tags: 'Tags'
+        tagsPlaceholder: 'Kommagetrennt, z. B. bitcoin, nostr'
+        sortBy: 'Sortieren nach'
+        sortRelevance: 'Relevanz'
+        sortNewest: 'Neueste zuerst'
+        sortOldest: 'Älteste zuerst'
+        apply: 'Anwenden'
+        clear: 'Filter zurücksetzen'
+        userSearchHint: 'Suchen Sie nach Personen? <a href="%url%">Benutzer suchen</a>'
 
 # ── Highlights ─────────────────────────────────────────────────────
 highlights:
@@ -343,6 +358,20 @@ followPackDropdown:
 # ── Empfohlene Autoren ──────────────────────────────────────────────────
 featuredWriters:
     heading: 'Autoren'
+    tagline: 'Kuratierte Mitwirkende'
+    filterPlaceholder: 'Autoren filtern...'
+    noWriters: 'Noch keine Autoren.'
+    backToSearch: 'Zurück zur Benutzersuche'
+
+userSearch:
+    heading: 'Benutzer suchen'
+    tagline: 'Autoren und Nostr-Benutzer finden'
+    searchPlaceholder: 'Nach Name, NIP-05 suchen oder npub einfügen...'
+    found: '%count% Benutzer gefunden'
+    noResults: 'Keine Benutzer gefunden für "%query%".'
+    noResultsHint: 'Versuchen Sie andere Suchbegriffe.'
+    quickLinks: 'Schnelllinks'
+    featuredDescription: 'Kuratierte Liste unserer Mitwirkenden durchsuchen'
 
 # ── Editor-Seite ────────────────────────────────────────────────────────
 editor:

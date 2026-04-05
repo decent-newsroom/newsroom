@@ -12,6 +12,112 @@
     margin-bottom: 1rem;
 }
 
+/* ── Advanced Search Filters ──────────────────────────────────── */
+
+.advanced-filters {
+    margin-bottom: 1.5rem;
+}
+
+.advanced-filters__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.advanced-filters__toggle:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.advanced-filters__toggle .icon {
+    width: 1em;
+    height: 1em;
+}
+
+.advanced-filters__badge {
+    color: var(--color-secondary);
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.advanced-filters__panel {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-light);
+}
+
+.advanced-filters__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+}
+
+.advanced-filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.advanced-filters__field--wide {
+    grid-column: 1 / -1;
+}
+
+.advanced-filters__field label {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-muted);
+}
+
+.advanced-filters__field input,
+.advanced-filters__field select {
+    padding: 0.4rem 0.5rem;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    font-family: inherit;
+}
+
+.advanced-filters__field input:focus,
+.advanced-filters__field select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.advanced-filters__actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 600px) {
+    .advanced-filters__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .advanced-filters__field--wide {
+        grid-column: 1;
+    }
+}
+
+.advanced-filters__user-hint {
+    margin-top: 0.5rem;
+    color: var(--color-text-muted);
+}
+
+.advanced-filters__user-hint a {
+    color: var(--color-secondary);
+}
+
 /* Inline status message shown below search input for Nostr lookups */
 .search-status {
     margin-top: 0.5rem;

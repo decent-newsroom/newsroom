@@ -2,6 +2,8 @@
 
 namespace App\Twig\Components;
 
+use App\Dto\SearchFilters;
+use App\Enum\KindsEnum;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Search\ArticleSearchInterface;
 use App\Util\NostrKeyUtil;
@@ -29,7 +31,6 @@ final class SearchComponent extends AbstractController
     public bool $interactive = true;
     public string $currentRoute;
 
-
     #[LiveProp]
     public int $vol = 0;
 
@@ -42,6 +43,28 @@ final class SearchComponent extends AbstractController
     // New: render results with add-to-list buttons when true
     #[LiveProp(writable: true)]
     public bool $selectMode = false;
+
+    // ── Advanced Search Filters ──────────────────────────────────
+    #[LiveProp(writable: true)]
+    public bool $showFilters = false;
+
+    #[LiveProp(writable: true)]
+    public string $filterDateFrom = '';
+
+    #[LiveProp(writable: true)]
+    public string $filterDateTo = '';
+
+    #[LiveProp(writable: true)]
+    public string $filterAuthor = '';
+
+    #[LiveProp(writable: true)]
+    public string $filterTags = '';
+
+    #[LiveProp(writable: true)]
+    public string $filterKind = '';
+
+    #[LiveProp(writable: true)]
+    public string $filterSort = 'relevance';
 
     private const SESSION_KEY = 'last_search_results';
     private const SESSION_QUERY_KEY = 'last_search_query';
@@ -193,11 +216,87 @@ final class SearchComponent extends AbstractController
         $effectiveResultsPerPage = $maxResults ?? $this->resultsPerPage;
         $offset = ($this->page - 1) * $effectiveResultsPerPage;
 
-        // Execute the search using the configured search service
-        $results = $this->articleSearch->search($query, $effectiveResultsPerPage, $offset);
+        $filters = $this->buildFilters();
+
+        if ($filters->hasActiveFilters()) {
+            $results = $this->articleSearch->advancedSearch($query, $filters, $effectiveResultsPerPage, $offset);
+        } else {
+            $results = $this->articleSearch->search($query, $effectiveResultsPerPage, $offset);
+        }
+
         $this->logger->info('Search results count: ' . count($results));
 
         return $results;
+    }
+
+    /**
+     * Build a SearchFilters DTO from the current LiveProp values.
+     */
+    private function buildFilters(): SearchFilters
+    {
+        // Resolve author to hex pubkey if it looks like an npub
+        $authorHex = null;
+        if (!empty($this->filterAuthor)) {
+            $author = trim($this->filterAuthor);
+            if (NostrKeyUtil::isNpub($author)) {
+                try {
+                    $authorHex = NostrKeyUtil::npubToHex($author);
+                } catch (\InvalidArgumentException) {
+                    // keep null — invalid npub is ignored
+                }
+            } elseif (NostrKeyUtil::isHexPubkey($author)) {
+                $authorHex = $author;
+            }
+            // If it's a plain name, we leave authorHex null (name search not supported yet)
+        }
+
+        return new SearchFilters(
+            dateFrom: $this->filterDateFrom !== '' ? $this->filterDateFrom : null,
+            dateTo: $this->filterDateTo !== '' ? $this->filterDateTo : null,
+            author: $authorHex,
+            tags: $this->filterTags !== '' ? $this->filterTags : null,
+            kind: $this->filterKind !== '' ? (int) $this->filterKind : null,
+            sortBy: $this->filterSort,
+        );
+    }
+
+    #[LiveAction]
+    public function toggleFilters(): void
+    {
+        $this->showFilters = !$this->showFilters;
+    }
+
+    #[LiveAction]
+    public function clearFilters(): void
+    {
+        $this->filterDateFrom = '';
+        $this->filterDateTo = '';
+        $this->filterAuthor = '';
+        $this->filterTags = '';
+        $this->filterKind = '';
+        $this->filterSort = 'relevance';
+        $this->page = 1;
+        $this->clearSearchCache();
+    }
+
+    /**
+     * Returns the available content kind options for the filter dropdown.
+     * Only published (indexable) kinds are listed — drafts are excluded from the index.
+     * @return array<array{value: int, label: string}>
+     */
+    public function getKindOptions(): array
+    {
+        return [
+            ['value' => KindsEnum::LONGFORM->value, 'label' => 'Article'],
+        ];
+    }
+
+    /**
+     * Checks whether any advanced filter is currently active.
+     */
+    public function hasActiveFilters(): bool
+    {
+        return $this->buildFilters()->hasActiveFilters();
     }
 
 

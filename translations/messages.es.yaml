@@ -151,6 +151,21 @@ search:
     heading: 'Buscar'
     tagline: 'para joyas ocultas'
     addToList: 'Agregar a lista'
+    filters:
+        toggle: 'Filtros avanzados'
+        dateFrom: 'Desde fecha'
+        dateTo: 'Hasta fecha'
+        author: 'Autor'
+        authorPlaceholder: 'npub o clave pública hex'
+        tags: 'Etiquetas'
+        tagsPlaceholder: 'Separadas por comas, p. ej. bitcoin, nostr'
+        sortBy: 'Ordenar por'
+        sortRelevance: 'Relevancia'
+        sortNewest: 'Más recientes'
+        sortOldest: 'Más antiguos'
+        apply: 'Aplicar'
+        clear: 'Limpiar filtros'
+        userSearchHint: '¿Buscas personas? <a href="%url%">Buscar usuarios</a>'
 
 # ── Destacados ──────────────────────────────────────────────────────
 highlights:
