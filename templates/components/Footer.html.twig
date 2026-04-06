@@ -19,7 +19,7 @@
                 <li><a href="{{ path('app_static_changelog') }}">{{ 'footer.changelog'|trans }}</a></li>
                 <li><a href="{{ path('app_static_roadmap') }}">{{ 'footer.roadmap'|trans }}</a></li>
                 <li class="footer-nostr-link">
-                    <span class="footer-label">{{ 'footer.project'|trans }}:</span>
+                    <img class="footer-icon" src="{{ asset('icons/nostr-icon-purple-transparent-256x256.png') }}" width="16" height="16" alt="Nostr">
                     <twig:Molecules:UserFromNpub ident="{{ project_npub }}" />
                 </li>
                 <li>

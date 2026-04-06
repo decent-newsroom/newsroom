@@ -335,6 +335,9 @@ footer {
 
 .footer-icon {
     flex-shrink: 0;
+    margin: 0 -4px 0 -4px;
+    height: 24px;
+    width: 24px;
 }
 
 .footer-nostr-link {
