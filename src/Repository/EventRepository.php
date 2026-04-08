@@ -522,6 +522,46 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find all events of a given kind authored by a pubkey.
+     *
+     * For parameterized replaceable events (kinds 30000–39999), only the latest
+     * event per d_tag is returned (deduplication by d_tag, newest wins).
+     *
+     * @param string $pubkeyHex Hex pubkey
+     * @param int    $kind      Event kind
+     * @param int    $limit     Maximum number of results
+     * @return Event[]
+     */
+    public function findAllByPubkeyAndKind(string $pubkeyHex, int $kind, int $limit = 100): array
+    {
+        $events = $this->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkeyHex)
+            ->setParameter('kind', $kind)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        // For parameterized replaceable events, deduplicate by d_tag (latest wins)
+        if ($kind >= 30000 && $kind <= 39999) {
+            $seen = [];
+            $unique = [];
+            foreach ($events as $event) {
+                $dTag = $event->getDTag() ?? '';
+                if (!isset($seen[$dTag])) {
+                    $seen[$dTag] = true;
+                    $unique[] = $event;
+                }
+            }
+            return $unique;
+        }
+
+        return $events;
+    }
+
+    /**
      * Find all profile events for a pubkey (metadata and relay list).
      *
      * Returns both kind:0 and kind:10002 events for comprehensive profile data.

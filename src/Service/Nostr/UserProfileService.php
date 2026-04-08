@@ -279,6 +279,127 @@ class UserProfileService
 
 
     /**
+     * Return interest sets (kind 30015) relevant to a user.
+     *
+     * Sources (merged, deduplicated by coordinate):
+     *   1. Sets referenced via "a" tags in the user's kind-10015 interests event
+     *      (these can be authored by anyone).
+     *   2. Free-floating sets authored by the user themselves (own pubkey,
+     *      kind 30015) — even if not referenced in the interests list.
+     *
+     * @return array<int, array{title: string, tags: string[], pubkey: string, dTag: string}>
+     */
+    public function getInterestSets(string $pubkey): array
+    {
+        $sets = [];
+        $seen = []; // coordinate => true, for deduplication
+
+        // ── 1. Referenced sets from kind 10015 "a" tags ──
+        $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
+
+        if ($dbEvent !== null) {
+            $coordinates = $this->extractInterestSetCoordinates($dbEvent->getTags());
+
+            foreach ($coordinates as $coord) {
+                $coordKey = $coord['pubkey'] . ':' . $coord['dTag'];
+                if (isset($seen[$coordKey])) {
+                    continue;
+                }
+
+                $setEvent = $this->eventRepository->findByNaddr(
+                    KindsEnum::INTEREST_SETS->value,
+                    $coord['pubkey'],
+                    $coord['dTag'],
+                );
+
+                if ($setEvent === null) {
+                    continue;
+                }
+
+                $title = $setEvent->getTitle() ?? $coord['dTag'];
+                $tags = $this->extractTTags($setEvent->getTags());
+
+                if (empty($tags)) {
+                    continue;
+                }
+
+                $seen[$coordKey] = true;
+                $sets[] = [
+                    'title'  => $title,
+                    'tags'   => $tags,
+                    'pubkey' => $coord['pubkey'],
+                    'dTag'   => $coord['dTag'],
+                ];
+            }
+        }
+
+        // ── 2. User's own free-floating kind 30015 sets ──
+        $ownSets = $this->eventRepository->findAllByPubkeyAndKind($pubkey, KindsEnum::INTEREST_SETS->value);
+
+        foreach ($ownSets as $setEvent) {
+            $dTag = $setEvent->getDTag() ?? '';
+            $coordKey = $pubkey . ':' . $dTag;
+            if (isset($seen[$coordKey])) {
+                continue;
+            }
+
+            $title = $setEvent->getTitle() ?? $dTag;
+            $tags = $this->extractTTags($setEvent->getTags());
+
+            if (empty($tags)) {
+                continue;
+            }
+
+            $seen[$coordKey] = true;
+            $sets[] = [
+                'title'  => $title,
+                'tags'   => $tags,
+                'pubkey' => $pubkey,
+                'dTag'   => $dTag,
+            ];
+        }
+
+        $this->logger->debug('UserProfileService: resolved interest sets', [
+            'pubkey'   => substr($pubkey, 0, 8) . '...',
+            'total'    => count($sets),
+        ]);
+
+        return $sets;
+    }
+
+    /**
+     * Extract kind:30015 coordinate references from a tags array.
+     *
+     * @return array<int, array{pubkey: string, dTag: string}>
+     */
+    private function extractInterestSetCoordinates(array $tags): array
+    {
+        $coords = [];
+        foreach ($tags as $tag) {
+            if ($tag instanceof \stdClass) {
+                $tag = (array) $tag;
+            }
+            if (!is_array($tag) || ($tag[0] ?? '') !== 'a' || !isset($tag[1])) {
+                continue;
+            }
+            $parts = explode(':', (string) $tag[1], 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            // Only match kind 30015 interest sets
+            if ((int) $parts[0] !== KindsEnum::INTEREST_SETS->value) {
+                continue;
+            }
+            $coords[] = [
+                'pubkey' => $parts[1],
+                'dTag'   => $parts[2],
+            ];
+        }
+
+        return $coords;
+    }
+
+    /**
      * Persist a kind-10015 event to the local DB.
      * Public alias kept for ForumController compatibility.
      */

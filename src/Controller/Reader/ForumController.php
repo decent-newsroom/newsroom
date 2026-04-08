@@ -8,6 +8,7 @@ use App\Entity\Article;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
@@ -224,11 +225,17 @@ class ForumController extends AbstractController
         ArticleSearchInterface $articleSearch,
         NostrClient $nostrClient,
         ArticleRepository $articleRepository,
+        EventRepository $eventRepository,
         Request $request
     ): Response {
         // key format: "{category}-{subcategory}"
-        $key = strtolower(trim($key));
+        $key = trim($key);
         [$cat, $sub] = array_pad(explode('-', $key, 2), 2, null);
+        $cat = strtolower($cat);
+        // Only lowercase sub for standard forum topics (interest set d-tags are case-sensitive)
+        if ($cat !== 'isets') {
+            $sub = $sub !== null ? strtolower($sub) : null;
+        }
 
         if ($cat === 'interests' && $sub === 'all') {
             // Special case for "All Interests" pseudo-topic
@@ -249,6 +256,27 @@ class ForumController extends AbstractController
             $topic = [
                 'name' => 'All Interests',
                 'tags' => $allTags,
+            ];
+        } else if ($cat === 'isets' && $sub !== null) {
+            // Interest set: sub is "pubkey:d-tag" coordinate
+            $coordParts = explode(':', $sub, 2);
+            if (count($coordParts) !== 2) {
+                throw $this->createNotFoundException('Invalid interest set coordinate');
+            }
+            [$setPubkey, $setDTag] = $coordParts;
+            $setEvent = $eventRepository->findByNaddr(KindsEnum::INTEREST_SETS->value, $setPubkey, $setDTag);
+            if (!$setEvent) {
+                throw $this->createNotFoundException('Interest set not found');
+            }
+            $setTags = [];
+            foreach ($setEvent->getTags() as $tag) {
+                if (is_array($tag) && ($tag[0] ?? '') === 't' && isset($tag[1])) {
+                    $setTags[] = strtolower(trim((string) $tag[1]));
+                }
+            }
+            $topic = [
+                'name' => $setEvent->getTitle() ?? $setDTag,
+                'tags' => $setTags,
             ];
         } else if (!$cat || !$sub || !isset(ForumTopics::TOPICS[$cat]['subcategories'][$sub])) {
             throw $this->createNotFoundException('Topic not found');
@@ -568,37 +596,71 @@ class ForumController extends AbstractController
     /**
      * Build the user interests array for the given user.
      * Extracted as a reusable helper for the index and myInterests actions.
+     *
+     * Returns interest set boxes (kind 30015 — referenced in kind 10015 "a" tags
+     * and/or free-floating sets authored by the user) plus an "All Interests"
+     * box that aggregates all loose "t" tags from the kind 10015 event.
      */
     private function buildUserInterests(User $user, NostrClient $nostrClient, ArticleSearchInterface $articleSearch, ?array $prefetchedInterests = null)
     {
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
             $interests = $prefetchedInterests ?? $nostrClient->getUserInterests($pubkey);
+
+            $counts = [];
             if (!empty($interests)) {
                 try {
-                    $counts = $articleSearch->getTagCounts(array_values($interests)); // ['tag' => count]
+                    $counts = $articleSearch->getTagCounts(array_values($interests));
                 } catch (\Throwable $e) {
-                    // Search error - skip user interests
                     $counts = [];
-                    $interests = [];
                 }
-                $userInterests = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
-                // Filter to only include subcategories that have tags in interests
-                foreach ($userInterests as $catKey => $cat) {
-                    $subs = [];
-                    foreach ($cat['subcategories'] as $subKey => $sub) {
-                        $subTags = array_map('strtolower', $sub['tags']);
-                        if (array_intersect($subTags, $interests)) {
-                            $subs[$subKey] = $sub;
-                        }
-                    }
-                    if (!empty($subs)) {
-                        $userInterests[$catKey]['subcategories'] = $subs;
-                    } else {
-                        unset($userInterests[$catKey]);
+            }
+
+            $userInterests = [];
+
+            // ── Interest set boxes (kind 30015: referenced + user-authored) ──
+            try {
+                $interestSets = $nostrClient->getUserInterestSets($pubkey);
+            } catch (\Throwable $e) {
+                $interestSets = [];
+            }
+
+            if (!empty($interestSets)) {
+                // Fetch counts for all interest set tags at once
+                $allSetTags = [];
+                foreach ($interestSets as $set) {
+                    foreach ($set['tags'] as $tag) {
+                        $allSetTags[strtolower($tag)] = true;
                     }
                 }
-                // All user interest combined
+                try {
+                    $setCounts = $articleSearch->getTagCounts(array_keys($allSetTags));
+                } catch (\Throwable $e) {
+                    $setCounts = [];
+                }
+                $counts = array_merge($counts, $setCounts);
+
+                $userInterests['isets'] = [
+                    'name' => 'Interest Sets',
+                    'subcategories' => [],
+                ];
+
+                foreach ($interestSets as $set) {
+                    $subKey = $set['pubkey'] . ':' . $set['dTag'];
+                    $sum = 0;
+                    foreach ($set['tags'] as $tag) {
+                        $sum += $setCounts[strtolower($tag)] ?? 0;
+                    }
+                    $userInterests['isets']['subcategories'][$subKey] = [
+                        'name'  => $set['title'],
+                        'tags'  => $set['tags'],
+                        'count' => $sum,
+                    ];
+                }
+            }
+
+            // ── "All Interests" box (aggregates loose "t" tags from kind 10015) ──
+            if (!empty($interests)) {
                 $userInterests['interests'] = [
                     'name' => 'Interests',
                     'subcategories' => [],
@@ -612,9 +674,9 @@ class ForumController extends AbstractController
                     $userInterests['interests']['subcategories']['all']['tags'][] = $tag;
                     $userInterests['interests']['subcategories']['all']['count'] += $counts[strtolower($tag)] ?? 0;
                 }
-
-                return $userInterests;
             }
+
+            return !empty($userInterests) ? $userInterests : null;
         } catch (\Exception $e) {
             // Ignore errors, just don't show user interests
         }
