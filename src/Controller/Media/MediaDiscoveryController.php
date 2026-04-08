@@ -265,7 +265,8 @@ class MediaDiscoveryController extends AbstractController
         try {
             $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
             $events = $eventRepository->findLatestCurationCollections(
-                [KindsEnum::CURATION_VIDEOS->value, KindsEnum::CURATION_PICTURES->value],
+                [KindsEnum::CURATION_PICTURES->value],
+                // Note: CURATION_VIDEOS (30005) temporarily excluded — loading issues
                 $excludedPubkeys,
                 self::MAX_DISPLAY_EVENTS,
             );

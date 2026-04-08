@@ -29,7 +29,7 @@ final class ReadingListList
             ->setParameter('kinds', [
                 KindsEnum::PUBLICATION_INDEX->value,  // 30040
                 KindsEnum::CURATION_SET->value,       // 30004
-                KindsEnum::CURATION_VIDEOS->value,    // 30005
+                // KindsEnum::CURATION_VIDEOS->value,    // 30005
                 KindsEnum::CURATION_PICTURES->value   // 30006
             ])
             ->orderBy('e.created_at', 'DESC')

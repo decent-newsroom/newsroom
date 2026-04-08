@@ -50,7 +50,7 @@ class ReadingListManager
         $events = $repo->createQueryBuilder('e')
             ->where('e.kind IN (:kinds)')
             ->andWhere('e.pubkey = :pubkey')
-            ->setParameter('kinds', [30040, 30004, 30005, 30006])
+            ->setParameter('kinds', [30040, 30004, 30006])
             ->setParameter('pubkey', $pubkeyHex)
             ->orderBy('e.created_at', 'DESC')
             ->getQuery()
