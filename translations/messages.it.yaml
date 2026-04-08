@@ -1,0 +1,847 @@
+# ── General / shared ───────────────────────────────────────────────
+text:
+    byline: 'Di'
+    search: 'Cerca articoli o incolla identificatori Nostr...'
+    searching: 'Ricerca in corso...'
+    noResults: 'Nessun risultato.'
+    by: 'di'
+    published: 'Pubblicato'
+    all: 'Tutti'
+    signIn: 'Accedi'
+    createNew: 'Crea nuovo'
+    loading: 'Caricamento...'
+    viewOriginalArticle: 'Visualizza articolo originale'
+    articleReference: 'Riferimento articolo'
+    reference: 'Riferimento'
+    showMore: 'Mostra di più'
+    anonymous: 'Anonimo'
+    unknown: 'Sconosciuto'
+    source: 'Fonte'
+    or: 'o'
+    to: 'A'
+    and: 'e'
+
+heading:
+    roles: 'Ruoli'
+    logout: 'Esci'
+    logIn: 'Opzioni di accesso'
+    search: 'Cerca'
+    index: 'Indice'
+
+
+# ── Brand ─────────────────────────────────────────────────────────
+brand:
+    tagline: 'Pubblicazione collaborativa su Nostr'
+    description: 'Una piattaforma decentralizzata per la pubblicazione collaborativa'
+
+# ── Navigation / Layout ──────────────────────────────────────────
+nav:
+    discover: 'Scopri'
+    articles: 'Articoli'
+    topics: 'Argomenti'
+    multimedia: 'Multimedia'
+    highlights: 'In evidenza'
+    newsroom: 'Redazione'
+    newsstand: 'Edicola'
+    bookshelf: 'Libreria'
+    collections: 'Collezioni'
+    myContent: 'I miei contenuti'
+    bookmarks: 'Segnalibri'
+    myMagazines: 'Le mie riviste'
+    myReadingLists: 'Le mie liste di lettura'
+    myInterests: 'I miei interessi'
+    settings: 'Impostazioni'
+    myStats: 'Le mie statistiche'
+    create: 'Crea'
+    magazine: 'Rivista'
+    startBlog: 'Avvia una rivista'
+    readingList: 'Lista di lettura'
+    article: 'Articolo'
+    sendFeedback: 'Invia feedback'
+    backToTop: 'Torna in cima'
+    closeLeftSidebar: 'Chiudi barra laterale sinistra'
+    closeRightSidebar: 'Chiudi barra laterale destra'
+
+# ── Footer ────────────────────────────────────────────────────────
+footer:
+    product: 'Prodotto'
+    subscriptions: 'Abbonamenti'
+    vanityName: 'Nome personalizzato'
+    activeIndexing: 'Indicizzazione attiva'
+    publicationSubdomain: 'Sottodominio pubblicazione'
+    support: 'Supporto'
+    about: 'Chi siamo'
+    pricing: 'Prezzi'
+    termsOfService: 'Termini di servizio'
+    contact: 'Contatti'
+    changelog: 'Registro modifiche'
+    roadmap: 'Roadmap'
+    community: 'Comunità'
+    project: 'Progetto'
+    developer: 'Sviluppatore'
+
+# ── Contribution sidebar ──────────────────────────────────────────
+contribution:
+    title: 'Supporta questo progetto'
+    description: 'Aiutaci a costruire il futuro del giornalismo decentralizzato'
+
+# ── Changelog ─────────────────────────────────────────────────────
+changelog:
+    heading: 'Registro modifiche'
+    tagline: 'Novità di ogni rilascio'
+
+# ── Roadmap ──────────────────────────────────────────────────────
+roadmap:
+    heading: 'Roadmap'
+    tagline: 'Dove sta andando Decent Newsroom'
+
+# ── Install prompt ────────────────────────────────────────────────
+install:
+    prompt: 'Installare questa app sul tuo dispositivo per un accesso rapido?'
+    yes: 'Sì, installa'
+    no: 'No grazie'
+
+# ── Home page ─────────────────────────────────────────────────────
+home:
+    title: 'Decent Newsroom — Una piattaforma decentralizzata per la pubblicazione collaborativa'
+    hero:
+        lede: 'Esplora, pubblica articoli e crea riviste.'
+    newsstand:
+        heading: 'Edicola'
+        eyebrow: 'per l''era digitale'
+        description: 'Sfoglia un mondo di riviste in un unico posto. Componi la tua selezione, scopri nuove uscite, ovunque.'
+        cta: 'Sfoglia lo scaffale'
+    explore:
+        heading: 'Esplora'
+        eyebrow: 'gemme nascoste'
+        description: 'La nostra ricerca è specializzata per contenuti Nostr di lunga durata.'
+        cta: 'Cerca'
+    editor:
+        heading: 'Editor di articoli'
+        eyebrow: 'per tutti'
+        description: 'Scrivi, rivedi e visualizza in anteprima con facilità. Salva bozze, prendi appunti e pubblica.'
+        cta: 'Scrivi un articolo'
+    newsroom:
+        heading: 'Redazione'
+        eyebrow: 'come nessun altra'
+        description: 'Crea la tua rivista, definisci le categorie, gestisci le proposte e collabora con redattori e contributori.'
+        cta: 'Crea una rivista'
+    blog:
+        cta: 'Avvia una rivista'
+    unfold:
+        heading: 'Unfold'
+        eyebrow: 'la tua rivista'
+        description: 'Unfold è un''app web complementare. Qualsiasi rivista creata su Decent Newsroom può essere collegata, personalizzata e pubblicata su un dominio personalizzato.'
+        cta: 'Scopri di più'
+    marketplace:
+        heading: 'Media Marketplace'
+        eyebrow: 'Prossimamente'
+        description: 'Commissiona contenuti visivi personalizzati, scopri materiale stock utilizzabile e mantieni media e testo in un unico flusso creativo.'
+
+# ── Newsstand page ────────────────────────────────────────────────
+newsstand:
+    moreSoon: 'Altre riviste in arrivo'
+    onlyBeginning: 'questo è solo l''inizio'
+    gotIdea: 'Hai un''idea?'
+    createMagazine: 'Crea rivista'
+
+# ── Bookshelf page ────────────────────────────────────────────────
+bookshelf:
+    heading: 'Libreria'
+    eyebrow: 'collezioni di contenuti lunghi'
+    description: 'Sfoglia libri e pubblicazioni di lunga durata costruite da sezioni di contenuto strutturate.'
+    noBooks: 'Nessun libro ancora.'
+    moreSoon: 'Altri libri in arrivo'
+    onlyBeginning: 'questo è solo l''inizio'
+    gotIdea: 'Hai qualcosa da condividere?'
+
+# ── Discover / Search page ────────────────────────────────────────
+discover:
+    searchPlaceholder: 'Cerca articoli o incolla identificatori Nostr...'
+    noArticles: 'Nessun articolo trovato.'
+    tagline: 'per gemme nascoste'
+
+search:
+    heading: 'Cerca'
+    tagline: 'per gemme nascoste'
+    addToList: 'Aggiungi alla lista'
+    nostrLookup: 'Ricerca evento in corso…'
+    nostrLookupRelays: 'Trovati %count% relay nell''indirizzo — ricerca evento in corso…'
+    nostrLookupSlow: 'Ancora in ricerca… Sta richiedendo più tempo del solito.'
+    nostrInvalidAddress: 'Indirizzo Nostr non valido — impossibile decodificare.'
+    nostrIncompleteAddress: 'Indirizzo Nostr incompleto — campi obbligatori mancanti.'
+    filters:
+        toggle: 'Filtri avanzati'
+        dateFrom: 'Dalla data'
+        dateTo: 'Alla data'
+        author: 'Autore'
+        authorPlaceholder: 'npub o chiave pubblica hex'
+        tags: 'Tag'
+        tagsPlaceholder: 'Separati da virgola, es. bitcoin, nostr'
+        sortBy: 'Ordina per'
+        sortRelevance: 'Rilevanza'
+        sortNewest: 'Più recenti'
+        sortOldest: 'Più vecchi'
+        apply: 'Applica'
+        clear: 'Cancella filtri'
+        userSearchHint: 'Cerchi persone? <a href="%url%">Cerca utenti</a>'
+
+# ── Highlights ────────────────────────────────────────────────────
+highlights:
+    heading: 'In evidenza'
+    tagline: 'Passaggi degni di nota evidenziati dalla comunità'
+    found: '%total% evidenziature trovate'
+    fromLastDays: 'Degli ultimi 7 giorni'
+    noHighlights: 'Nessuna evidenziatura trovata. Ricontrolla più tardi!'
+
+# ── Media Discovery ───────────────────────────────────────────────
+media:
+    heading: 'Multimedia'
+    tagline: 'Scoperta attraverso la serendipità'
+    endOfLine: 'Fine della lista. Aggiorna per caricare un nuovo lotto.'
+    noMedia: 'Nessun media trovato. Ricarica per riprovare.'
+    tab:
+        latest: 'Ultimi'
+        follows: 'Seguiti'
+        interests: 'Interessi'
+        collections: 'Collezioni'
+    follows:
+        signInRequired: 'Accedi per vedere i media delle persone che segui.'
+        noFollows: 'Non stai ancora seguendo nessuno'
+        noFollowsHint: 'Inizia a seguire persone su Nostr per vedere i loro media qui.'
+        noMedia: 'Nessun media trovato dai tuoi seguiti'
+        noMediaHint: 'Le persone che segui non hanno ancora pubblicato media, oppure non sono stati sincronizzati.'
+        usingRegularFollows: 'Mostrando media dalla tua lista di seguiti regolare. Crea una lista di seguiti media (kind 10020) per curare questo feed separatamente.'
+    interests:
+        signInRequired: 'Accedi per vedere i media corrispondenti ai tuoi interessi.'
+        noInterests: 'Nessun interesse configurato ancora'
+        noInterestsHint: 'Configura i tuoi interessi per vedere media pertinenti qui.'
+        configure: 'Configura interessi'
+        noMedia: 'Nessun media trovato per i tuoi interessi.'
+    collections:
+        heading: 'Collezioni'
+        videos: 'Video'
+        pictures: 'Immagini'
+        empty: 'Nessuna collezione di immagini o video è stata ancora sincronizzata nel database.'
+        itemCount: '{0} 0 elementi|{1} 1 elemento|]1,Inf] %count% elementi'
+
+# ── Latest Articles ───────────────────────────────────────────────
+latest:
+    heading: 'Ultimi articoli'
+    tagline: 'Freschi di stampa'
+    noArticles: 'Nessun articolo pubblicato trovato.'
+    newsBots: 'Bot di notizie'
+    newsBotsEyebrow: 'Curatori di notizie automatizzati'
+
+# ── Topics / Forum ────────────────────────────────────────────────
+topics:
+    heading: 'Esplora argomenti'
+    selectTopic: 'Seleziona un argomento per visualizzare i 10 articoli più recenti correlati.'
+    recentIn: 'Articoli recenti in %topic%'
+    noArticles: 'Nessun articolo trovato per questo argomento.'
+
+# ── Collections / Lists ───────────────────────────────────────────
+lists:
+    heading: 'Liste di lettura'
+    eyebrow: 'per collezioni, curazioni, corsi e altro'
+
+# ── My Reading Lists ──────────────────────────────────────────────
+myReadingLists:
+    heading: 'Le mie liste di lettura'
+    openComposer: 'Apri compositore'
+    view: 'Visualizza'
+    copyLink: 'Copia link'
+    copyCoordinate: 'Copia coordinata'
+    noListsLoggedIn: 'Nessuna lista di lettura trovata.'
+    noListsAnon: 'Accedi per sfogliare e modificare le tue liste.'
+    empty: 'Vuota'
+
+# ── My Magazines ──────────────────────────────────────────────────
+myMagazines:
+    heading: 'Le mie riviste'
+
+# ── Bookmarks ─────────────────────────────────────────────────────
+bookmarks:
+    heading: 'Segnalibri'
+    tagline: 'i tuoi contenuti salvati'
+    untitledList: 'Lista senza titolo'
+    noItems: 'Nessun elemento in questa lista'
+    noBookmarks: 'Nessun segnalibro trovato.'
+    noBookmarksHint: 'Aggiungi segnalibri agli articoli dal tuo client Nostr e appariranno qui.'
+bookmark:
+    add: 'Segnalibro'
+    remove: 'Salvato'
+
+# ── Follows ───────────────────────────────────────────────────────
+follows:
+    heading: 'Seguiti'
+    eyebrow: 'articoli dalle persone che segui'
+    signInRequired: 'Accedi per vedere gli articoli delle persone che segui'
+    signInDescription: 'Devi essere connesso per visualizzare gli articoli dalla tua lista di seguiti.'
+    error: 'Errore'
+    noFollows: 'Non stai ancora seguendo nessuno'
+    noFollowsHint: 'Inizia a seguire persone su Nostr per vedere i loro articoli qui. La tua lista di seguiti verrà sincronizzata automaticamente.'
+    noArticles: 'Nessun articolo trovato'
+    noArticlesHint: 'Le persone che segui non hanno ancora pubblicato articoli, oppure non sono stati sincronizzati con questa redazione.'
+
+# ── Home Feed (logged-in) ────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Ultimi'
+        follows: 'Seguiti'
+        interests: 'Interessi'
+        podcasts: 'Podcast'
+        newsbots: 'Bot di notizie'
+    loading: 'Caricamento articoli…'
+    latest:
+        empty: 'Nessun articolo trovato ancora. Ricontrolla più tardi!'
+    interests:
+        signInRequired: 'Accedi per vedere articoli basati sui tuoi interessi.'
+        noInterests: 'Nessun interesse configurato ancora'
+        noInterestsHint: 'Configura i tuoi interessi per vedere articoli pertinenti qui.'
+        configure: 'Configura interessi'
+        noArticles: 'Nessun articolo trovato per i tuoi interessi.'
+    podcasts:
+        empty: 'Nessun articolo podcast disponibile'
+        emptyHint: 'Le fonti podcast non sono ancora state configurate.'
+    newsbots:
+        empty: 'Nessun articolo da bot di notizie disponibile'
+        emptyHint: 'Le fonti dei bot di notizie non sono ancora state configurate.'
+
+# ── Article page ──────────────────────────────────────────────────
+article:
+    draftPreview: 'Anteprima bozza'
+    draftPreviewHint: 'Questa è una versione bozza ed è visibile solo a te.'
+    editDraft: 'Modifica bozza'
+    editArticle: 'Modifica articolo'
+    share: 'Condividi'
+    newsroomLink: 'Link redazione'
+    broadcast: 'Trasmetti'
+    broadcastTitle: 'Trasmetti questo articolo ai tuoi relay'
+    moreFrom: 'Altro da'
+    nextArticle: 'Successivo →'
+    prevArticle: '← Precedente'
+    notFound: 'Articolo non trovato'
+    notFoundTitle: 'Articolo non trovato - Decent Newsroom'
+    trySearching: 'Prova a cercare o incolla un indirizzo Nostr (naddr)'
+    trySearchingHint: 'Se hai l''indirizzo Nostr dell''articolo (naddr), incollalo nella casella di ricerca qui sotto. Proveremo a recuperarlo dai relay e ad aggiungerlo al nostro indice.'
+    returnHome: 'Torna alla homepage'
+
+# ── Article Actions Dropdown ─────────────────────────────────────
+articleActions:
+    more: 'Altre azioni'
+    share: 'Condividi'
+    copyLink: 'Copia link'
+    copyNaddr: 'Copia indirizzo Nostr'
+    broadcast: 'Trasmetti ai relay'
+    highlights: 'In evidenza'
+
+# ── Article disambiguation ────────────────────────────────────────
+disambiguation:
+    heading: 'Disambiguazione: Articoli multipli per "%slug%"'
+    description: 'Ci sono più articoli con lo slug <strong>%slug%</strong>. Seleziona l''autore:'
+    whatIsThis: 'Cos''è questo?'
+    explanation: 'Questa pagina elenca tutti gli articoli con lo stesso slug. Clicca su un autore per visualizzare la sua versione.'
+
+# ── Article card / placeholder ────────────────────────────────────
+card:
+    coverImageAlt: 'Immagine di copertina per %title%'
+    placeholder:
+        heading: 'Articolo non ancora disponibile'
+        description: 'Questo articolo fa parte della lista ma non è ancora stato completamente caricato.'
+        articleId: 'ID articolo'
+        fetchArticle: 'Recupera articolo'
+
+# ── Comments ──────────────────────────────────────────────────────
+comments:
+    loading: 'Caricamento commenti…'
+    noComments: 'Nessun commento ancora.'
+    writeComment: 'Scrivi il tuo commento'
+    publishComment: 'Pubblica commento'
+    label: 'Commento'
+    zap: 'Zap'
+
+# ── User Menu / Auth ──────────────────────────────────────────────
+auth:
+    admin: 'Admin'
+    adminDashboard: 'Pannello admin'
+    magazines: 'Riviste'
+    visitAnalytics: 'Analisi visite'
+    rssImport: 'Importazione RSS'
+    extension: 'Estensione'
+    signer: 'Firmatario'
+    login: 'Accedi'
+    loginWithExtension: 'Accedi con estensione'
+    loginWithSigner: 'Accedi con un firmatario remoto'
+    alreadyAuthenticated: 'Sei già autenticato.'
+    nostrCredentials: 'Usa le tue credenziali Nostr per autenticarti.'
+    loginTitle: 'Accesso | Decent Newsroom'
+
+# ── Signer Modal ──────────────────────────────────────────────────
+signerModal:
+    title: 'Accesso firmatario remoto'
+    bunkerLabel: 'Hai una sessione firmatario esistente?'
+    bunkerHint: 'Incolla la tua stringa di connessione per riconnetterti.'
+    connect: 'Connetti'
+    orNewPairing: 'Oppure avvia un nuovo abbinamento — scansiona il QR con un firmatario bunker compatibile NIP-46.'
+    copyString: 'Oppure copia la stringa di connessione:'
+    copy: 'Copia'
+    pasteHint: 'Incolla questo nella tua app firmatario se è sullo stesso dispositivo.'
+    status: 'Stato'
+    initializing: 'Inizializzazione…'
+    afterPairing: 'Dopo l''abbinamento, qualsiasi pagina che usa window.nostr utilizzerà automaticamente questa sessione di firmatario remoto.'
+    stallHint: 'Se l''abbinamento si blocca, chiudi e riapri questa finestra per generare una nuova chiave effimera.'
+
+# ── Zap ───────────────────────────────────────────────────────────
+zap:
+    button: 'Zap'
+    send: 'Invia Zap'
+
+# ── Reading list dropdown ─────────────────────────────────────────
+readingListDropdown:
+    addToList: 'Aggiungi alla lista di lettura'
+    noLists: 'Nessuna lista di lettura ancora'
+    selectList: 'Seleziona una lista:'
+
+# ── Follow pack dropdown ─────────────────────────────────────────
+followPackDropdown:
+    addToPack: 'Aggiungi al follow pack'
+    noPacks: 'Nessun follow pack ancora'
+    selectPack: 'Seleziona un pack:'
+    members: 'membri'
+    createNew: 'Crea nuovo pack'
+
+# ── Featured writers ──────────────────────────────────────────────
+featuredWriters:
+    heading: 'Scrittori'
+    tagline: 'Contributori selezionati'
+    filterPlaceholder: 'Filtra scrittori in evidenza...'
+    noWriters: 'Nessun scrittore in evidenza ancora.'
+    backToSearch: 'Torna alla ricerca utenti'
+
+# ── User Search ────────────────────────────────────────────────────
+userSearch:
+    heading: 'Cerca utenti'
+    tagline: 'trova scrittori e utenti Nostr'
+    searchPlaceholder: 'Cerca per nome, NIP-05, o incolla npub...'
+    found: '%count% utente/i trovato/i'
+    noResults: 'Nessun utente trovato per "%query%".'
+    noResultsHint: 'Prova con parole chiave diverse o controlla l''ortografia.'
+    quickLinks: 'Link rapidi'
+    featuredDescription: 'Sfoglia la nostra lista curata di contributori'
+
+# ── Featured Articles page ─────────────────────────────────────────
+featuredArticles:
+    heading: 'Articoli in evidenza'
+    tagline: 'Ultimi dai nostri scrittori in evidenza'
+    noArticles: 'Nessun articolo dagli scrittori in evidenza ancora.'
+
+# ── Editor page ───────────────────────────────────────────────────
+editor:
+    nostrIdentityRequired: 'Un''identità Nostr è necessaria per pubblicare articoli.'
+    uploadImage: 'Carica immagine'
+    uploadTo: 'Carica su'
+    dragDrop: 'Trascina e rilascia o clicca per selezionare un''immagine'
+    showRawEvent: 'Mostra JSON evento grezzo'
+    rebuildFromForm: 'Ricostruisci dal modulo'
+    modified: 'modificato'
+    rawJsonHint: 'Le modifiche qui sovrascrivono il modulo durante la pubblicazione. Mantieni i campi obbligatori: kind, created_at, tags, content, pubkey.'
+    publish: 'Pubblica'
+    recent: 'Recenti'
+    noRecentArticles: 'Nessun articolo recente trovato.'
+    drafts: 'Bozze'
+    noDrafts: 'Nessuna bozza trovata.'
+
+# ── Profile / Author page ────────────────────────────────────────
+profile:
+    articles: 'Articoli'
+    media: 'Media'
+    highlights: 'In evidenza'
+    drafts: 'Bozze'
+    stats: 'Statistiche'
+
+# ── Profile Stats page ───────────────────────────────────────────
+stats:
+    thisWeek: 'Questa settimana'
+    last30Days: 'Ultimi 30 giorni'
+    viewsThisWeek: 'Visualizzazioni questa settimana'
+    uniqueReaders: 'Lettori unici'
+    articleReads: 'Letture articoli'
+    profileViews: 'Visualizzazioni profilo'
+    monthlyViews: 'Visualizzazioni mensili'
+    monthlyUniqueReaders: 'Lettori unici mensili'
+    views: 'visualizzazioni'
+    noArticleViewsWeek: 'Nessuna visualizzazione articolo questa settimana 🌱'
+    noArticleViewsMonth: 'Nessuna visualizzazione articolo questo mese 🌱'
+    trafficLast30Days: 'Il tuo traffico (ultimi 30 giorni)'
+    noTrafficYet: 'Nessun dato di traffico ancora. Condividi i tuoi contenuti per iniziare a vedere le statistiche!'
+
+# ── Feedback ──────────────────────────────────────────────────────
+feedback:
+    title: 'Invia feedback'
+    heading: 'Feedback'
+    tagline: 'Segnalazione bug e richieste di funzionalità'
+    yourMessage: 'Il tuo messaggio'
+    sendFeedback: 'Invia feedback'
+    preview: 'Anteprima'
+
+# ── My Content (file server view) ────────────────────────────────
+myContent:
+    heading: 'i-miei-contenuti'
+    newArticle: '+ Articolo'
+    newList: '+ Lista'
+    name: 'Nome'
+    dateModified: 'Data modifica'
+    items: 'Elementi'
+    kind: 'Tipo'
+    readingLists: 'liste-di-lettura'
+    articlesDirName: 'articoli'
+    draftsDirName: 'bozze'
+
+# ── Featured Unfold Sites ─────────────────────────────────────────
+featured_unfold:
+    label: 'Premium'
+    heading: 'Pubblicazioni in evidenza'
+
+# ── Magazine ──────────────────────────────────────────────────────
+magazine:
+    allChapters: 'Tutti i capitoli'
+    preview:
+        previous: 'Precedente'
+        next: 'Successivo'
+        noArticles: 'Nessun articolo ancora'
+        visitSite: 'Visita il sito'
+
+# ── Magazine wizard ───────────────────────────────────────────────
+wizard:
+    magazine: 'Rivista'
+    categories: 'Categorie'
+    articles: 'Articoli'
+    review: 'Revisione'
+    subdomain: 'Sottodominio'
+    done: 'Fatto'
+    subdomainStep:
+        title: 'Scegli un sottodominio'
+        heading: 'Scegli un sottodominio'
+        tagline: 'Scegli un indirizzo web per la tua rivista'
+        alreadyHave: 'Hai già un sottodominio!'
+        yourSubdomain: 'Il tuo sottodominio'
+        status: 'Stato'
+        continue: 'Continua →'
+        chooseHeading: 'Scegli il tuo indirizzo web'
+        chooseDescription: 'Scegli un sottodominio per la tua rivista. Questo sarà l''indirizzo che le persone visiteranno per leggere i tuoi articoli.'
+        pricing: 'Licenza annuale di hosting gestito: %price% sat all''anno tramite Lightning'
+        placeholder: 'latuarivista'
+        skipForNow: 'Salta per ora'
+        continueToPay: 'Continua al pagamento →'
+        hint: 'Puoi anche configurare un sottodominio più tardi dalle tue impostazioni o dalla pagina del sottodominio di pubblicazione.'
+    launched:
+        title: 'Rivista lanciata!'
+        heading: 'Sei online!'
+        tagline: 'La tua rivista è pronta'
+        congratulations: 'Congratulazioni!'
+        description: 'La tua rivista è configurata e pubblicata su Nostr. Ecco cosa succede dopo.'
+        viewMagazine: 'Visualizza la mia rivista'
+        browseNewsstand: 'Sfoglia l''edicola'
+        subdomainStatus: 'Il tuo sottodominio'
+        statusActive: 'Online'
+        statusPending: 'In attesa'
+        pendingExplanation: 'Il tuo sottodominio è in fase di configurazione. Ti avviseremo quando sarà online — di solito ci vuole poco tempo per configurare DNS e SSL. Abbi pazienza!'
+        tipsHeading: 'Suggerimenti rapidi'
+        tip1: 'Puoi modificare la tua rivista in qualsiasi momento da "Le mie riviste" nella navigazione.'
+        tip2: 'Aggiungi o riordina articoli e categorie quando vuoi — le modifiche hanno effetto immediato.'
+        tip3: 'Condividi il link della tua rivista con il tuo pubblico. Funziona su qualsiasi browser, nessuna app necessaria.'
+        whatsNext: 'Cosa c''è dopo?'
+        next1: 'Condividi il link della tua rivista con amici e follower.'
+        next2: 'Aggiungi nuovi articoli alle tue categorie in qualsiasi momento — basta modificare la rivista.'
+        next3: 'Presenta articoli ospiti aggiungendo le coordinate degli articoli di altri autori.'
+        next4: 'Continua a pubblicare articoli su qualsiasi client Nostr — saranno disponibili da aggiungere alla tua rivista.'
+        editMagazine: 'Modifica rivista'
+        goHome: 'Vai alla homepage'
+
+# ── Error pages ───────────────────────────────────────────────────
+error:
+    serverError: 'Errore interno del server'
+    serverErrorSubheading: 'La stampa si è inceppata.'
+    serverErrorDescription: 'Qualcosa è andato storto nel nostro motore di pubblicazione. L''inchiostro si è versato, i caratteri si sono dispersi e il contenuto non può essere consegnato in questo momento.'
+    returnHome: 'Torna alla homepage'
+    accessDenied: 'Accesso negato'
+    accessDeniedTitle: 'Accesso negato (403)'
+    accessDeniedDescription: 'Non hai il permesso di accedere a questa pagina.'
+    notFound: 'Pagina non trovata'
+    notFoundSubheading: 'Ahimè, la pagina che cerchi è persa negli archivi.'
+    notFoundDescription: 'Come un manoscritto smarrito o un capitolo strappato dal tempo, la pagina che stai cercando non può essere trovata. Potrebbe essere stata spostata, rinominata o mai pubblicata.'
+
+# ── Static: About ─────────────────────────────────────────────────
+about:
+    heading: 'Chi siamo - Decent Newsroom'
+    rebuildingTrust: 'Ricostruire la fiducia nel giornalismo'
+    intro: 'Internet, e soprattutto i social media, hanno reso le notizie istantanee e abbondanti, ma anche economiche e inaffidabili. Il valore di riportare semplicemente cosa è successo e dove è sceso a zero, sepolto sotto ondate di disinformazione, clickbait e rumore generato dall''IA. Peggio ancora, distinguere la verità dalla falsità costa ora più che diffondere bugie.'
+    answer: 'Decent Newsroom è la nostra risposta a questa crisi. Stiamo costruendo una rivista curata e decentralizzata con giornalismo di alta qualità e di lunga durata pubblicato su Nostr.'
+    whyItMatters: 'Perché è importante'
+    whyText: 'L''era della redazione non è finita — si sta solo evolvendo. Crediamo nel riportare standard editoriali, collaborazione e reportage di alto valore in modo decentralizzato. Decent Newsroom è qui per tagliare il rumore e ricostruire la fiducia nel giornalismo digitale.'
+    supportUs: 'Per supportarci e ottenere l''accesso anticipato al futuro dell''editoria, visita la nostra pagina di crowdfunding'
+    geyserLink: 'Geyser fund - Newsroom'
+    moreInfo: 'Per maggiori informazioni contatta'
+    exploreRack: 'Esplora lo scaffale'
+
+# ── Static: Pricing ───────────────────────────────────────────────
+pricing:
+    heading: 'Prezzi'
+    tagline: 'Prezzi semplici e trasparenti. Paga con Lightning.'
+    choosePlan: 'Scegli un piano adatto alle tue esigenze editoriali.'
+    free:
+        name: 'Lettore'
+        period: 'Gratuito per sempre'
+        feature1: 'Leggi tutti gli articoli e le riviste'
+        feature2: 'Pubblica articoli con l''editor integrato'
+        feature3: 'Crea e gestisci riviste'
+        feature4: 'Aggiungi segnalibri ed evidenzia articoli'
+        cta: 'Inizia'
+    vanity:
+        name: 'Nome personalizzato'
+        period: 'per trimestre · o 100.000 sat a vita'
+        feature1: 'Identità verificata NIP-05'
+        feature2: 'URL profilo personalizzato'
+        feature3: 'Badge verificato nei client Nostr'
+        cta: 'Ottieni nome personalizzato'
+    indexing:
+        name: 'Indicizzazione attiva'
+        period: 'al mese · o 10.000 sat/anno'
+        feature1: 'Contenuto recuperato dai tuoi relay preferiti'
+        feature2: 'Bypass controlli di qualità, indicizzazione affidabile'
+        feature3: 'Pannello per monitorare lo stato dell''indicizzazione'
+        cta: 'Abbonati'
+    unfold:
+        name: 'Hosting Unfold'
+        period: 'all''anno'
+        feature1: 'Sottodominio dedicato per la tua rivista'
+        feature2: 'Rendering Unfold pronto per la produzione'
+        feature3: 'DNS, TLS e routing proxy gestiti per te'
+        feature4: 'Rinnova in qualsiasi momento prima della scadenza'
+        cta: 'Lancia rivista'
+    scoopSeeker: 'Cercatore di scoop'
+    free_label: 'Gratuito'
+    scoopFeature1: 'Leggi tutti gli articoli presenti nella rivista Newsroom'
+    getStarted: 'Inizia'
+    publisher: 'Editore'
+    publisherPrice: '5.000 sat/mese'
+    publisherFeature1: 'Invia richieste di indicizzazione per indicizzazione prioritaria'
+    publisherFeature2: 'Accesso all''editor di contenuti integrato'
+    publisherFeature3: 'Ricerca contenuti'
+    subscribe: 'Abbonati'
+    curator: 'Curatore'
+    curatorPrice: '15.000 sat/mese'
+    curatorFeature1: 'Crea e gestisci le tue riviste'
+    curatorFeature2: 'Strumenti di scoperta avanzati'
+    curatorFeature3: 'Posizionamento rivista in evidenza'
+
+# ── Static: Unfold ────────────────────────────────────────────────
+unfold:
+    title: 'Unfold — Gestisci la tua rivista su Decent Newsroom'
+    hero: 'Unfold'
+    heroEyebrow: 'di Decent Newsroom'
+    heroLede: 'Costruisci una rivista web strutturata da eventi Nostr.'
+    unfoldMagazine: 'Spiega la tua rivista'
+    unfoldDesc1: 'Unfold trasforma la definizione della tua rivista in una rivista web pulita e strutturata — con navigazione, categorie e pagine individuali degli articoli.'
+    unfoldDesc2: 'Quando i tuoi eventi Nostr sottostanti cambiano, la tua rivista si aggiorna automaticamente. Nessun rideploy. Nessun rituale di cache.'
+    unfoldHosting: 'Lancia la tua rivista su un sottodominio dedicato. L''hosting pronto per la produzione e il rendering Unfold sono gestiti per te.'
+    unfoldPrice: '120.000 sat / anno'
+    unfoldPriceDesc: 'Hosting annuale gestito per una rivista.'
+    launchMagazine: 'Lancia la tua rivista'
+    seeInAction: 'Guardalo in azione'
+    liveDescription: 'Queste sono riviste live alimentate da Unfold:'
+    supportMag: 'Support Magazine su'
+    newsroomMag: 'Newsroom Magazine su'
+    advancedUse: 'Uso avanzato'
+    advancedDesc: 'Unfold è fondamentalmente un renderer di riviste standalone. Se stai esplorando il deployment indipendente o una personalizzazione più profonda, contatta'
+    browseMagazines: 'Sfoglia riviste'
+
+# ── Language switcher ─────────────────────────────────────────────
+language:
+    switcher: 'Lingua'
+    en: 'English'
+    sl: 'Slovenščina'
+    de: 'Deutsch'
+    es: 'Español'
+    fr: 'Français'
+    it: 'Italiano'
+
+# ── Settings ──────────────────────────────────────────────────────
+settings:
+    title: 'Impostazioni'
+    heading: 'Impostazioni'
+    tagline: 'Gestisci il tuo profilo, eventi e abbonamenti'
+    tab:
+        profile: 'Profilo'
+        relays: 'Relay'
+        events: 'Eventi'
+        subscriptions: 'Abbonamenti'
+    profile:
+        heading: 'Profilo'
+        description: 'Aggiorna i metadati del tuo profilo Nostr (kind 0). Le modifiche saranno firmate con la tua chiave e pubblicate sui tuoi relay.'
+        displayName: 'Nome visualizzato'
+        displayNamePlaceholder: 'Il tuo nome visualizzato'
+        username: 'Nome utente'
+        usernamePlaceholder: 'il_tuo_username'
+        about: 'Informazioni'
+        aboutPlaceholder: 'Racconta al mondo di te...'
+        pictureUrl: 'URL immagine profilo'
+        bannerUrl: 'URL immagine banner'
+        lightningAddress: 'Indirizzo Lightning'
+        website: 'Sito web'
+        signAndPublish: 'Firma e pubblica profilo'
+        rawJson: 'Evento profilo grezzo (kind 0)'
+    relays:
+        heading: 'Lista relay'
+        description: 'Gestisci la tua lista relay NIP-65 (kind 10002). Imposta da quali relay leggi e su quali scrivi. Le modifiche saranno firmate e pubblicate.'
+        add: 'Aggiungi relay'
+        remove: 'Rimuovi'
+        read: 'Lettura'
+        write: 'Scrittura'
+        signAndPublish: 'Firma e pubblica lista relay'
+        empty: 'Nessun relay nella tua lista ancora. Aggiungi almeno un relay per iniziare.'
+        newToNostr: 'Nuovo su Nostr?'
+        newToNostrHint: 'Imposta relay.decentnewsroom.com come tuo relay principale.'
+        addHomeRelay: '+ Aggiungi relay principale'
+        rawJson: 'Evento lista relay grezzo (kind 10002)'
+    events:
+        heading: 'I tuoi eventi Nostr'
+        description: 'Panoramica di tutti gli eventi Nostr utilizzati da Decent Newsroom per personalizzare la tua esperienza.'
+        metadata: 'Metadati profilo'
+        follows: 'Seguiti'
+        relayList: 'Lista relay'
+        bookmarks: 'Segnalibri'
+        interests: 'Interessi'
+        mediaFollows: 'Seguiti media'
+        muteList: 'Lista silenziati'
+        pinList: 'Lista fissati'
+        blossomServers: 'Server Blossom'
+        interestSets: 'Set di interessi'
+        followPacks: 'Follow pack'
+        lastUpdated: 'Aggiornato'
+        followedAccounts: 'account seguiti'
+        relays: 'relay'
+        items: 'elementi'
+        tags: 'tag'
+        mutedAccounts: 'account silenziati'
+        pinnedItems: 'elementi fissati'
+        servers: 'server'
+        packs: 'pack'
+        notFound: 'Non trovato nel database locale'
+        noInterests: 'Nessun interesse pubblicato ancora'
+        noMediaFollows: 'Nessuna lista di seguiti media pubblicata ancora'
+        mediaFollowsHint: 'Senza una lista di seguiti media, i tuoi seguiti regolari saranno usati per i contenuti multimediali.'
+        setupInterests: 'Configura interessi'
+        followPackSelected: 'Lista di raccomandazione impostata'
+        followPackMembers: 'membri'
+        followPackIsSelected: 'Selezionato come lista di raccomandazione'
+        followPackEmpty: 'Nessun follow pack pubblicato ancora.'
+        followPackManage: 'Gestisci'
+        followPackSetup: 'Configura'
+        edit: 'Modifica'
+        view: 'Visualizza'
+        create: 'Crea'
+        andMore: 'e altri %count%'
+        syncButton: 'Sincronizza dai relay'
+        syncHint: 'Recupera i tuoi ultimi eventi dai tuoi relay Nostr'
+    subscriptions:
+        heading: 'Abbonamenti'
+        description: 'I tuoi abbonamenti e servizi attivi.'
+        vanityName: 'Nome personalizzato (NIP-05)'
+        activeIndexing: 'Indicizzazione attiva'
+        publicationSubdomain: 'Sottodominio pubblicazione'
+        active: 'Attivo'
+        expires: 'Scade'
+        tier: 'Livello'
+        daysLeft: 'giorni rimanenti'
+        articlesIndexed: 'articoli indicizzati'
+        manage: 'Gestisci'
+        subscribe: 'Abbonati'
+        noVanityName: 'Nessun nome personalizzato registrato'
+        getVanityName: 'Ottieni un nome personalizzato'
+        noActiveIndexing: 'Nessun abbonamento di indicizzazione attivo'
+        noSubdomain: 'Nessun sottodominio di pubblicazione'
+        getSubdomain: 'Ottieni un sottodominio'
+
+# ── Blog Journey (landing page & login prompt) ────────────────────
+journey:
+    landing:
+        title: 'Avvia la tua rivista su Nostr'
+        hero: 'Trasforma i tuoi articoli Nostr in una vera rivista'
+        eyebrow: 'Una pubblicazione strutturata e leggibile con il proprio indirizzo web'
+        lede: 'Decent Newsroom ti permette di prendere gli articoli che hai pubblicato su Nostr e organizzarli in una rivista: con categorie, articoli ospiti, link statici agli articoli e sottodomini ospitati opzionali. Nessuna configurazione personalizzata, nessun lock-in della piattaforma.'
+        cta: 'Inizia →'
+        quickSetup:
+            heading: 'Come funziona'
+            eyebrow: 'Accedi, importa i tuoi articoli, organizza la tua pubblicazione'
+            description: 'Accedi con la tua identità Nostr e Decent Newsroom recupererà i tuoi articoli longform pubblicati dai relay. Da lì, puoi organizzarli in categorie, scegliere un layout e pubblicare un sito in stile rivista pulito in pochi minuti.'
+        organized:
+            heading: 'Non una timeline — una pubblicazione'
+            eyebrow: 'Organizzata per sezione, non sepolta in un feed'
+            description: 'Invece di presentare la tua scrittura come un flusso scorrevole di post, la tua rivista è organizzata in sezioni come Notizie, Saggi, Tutorial o Opinioni. Questo offre ai lettori una casa stabile e leggibile per il tuo lavoro.'
+        nostrNative:
+            heading: 'La rivista stessa vive su Nostr'
+            eyebrow: 'Non solo gli articoli — anche la struttura'
+            description: 'Su Decent Newsroom, una rivista è più di una visualizzazione web della tua scrittura. Le categorie, gli articoli inclusi e la struttura editoriale sono anch''essi definiti da eventi Nostr. Ciò significa che la tua pubblicazione è portabile, remixabile e non bloccata dentro un CMS privato.'
+        guestPosts:
+            heading: 'Costruita per la pubblicazione collaborativa'
+            eyebrow: 'Articoli ospiti, curazione e syndication fanno parte del modello'
+            description: 'Una rivista su Decent Newsroom non deve essere limitata a un solo autore. Puoi includere articoli di altri scrittori Nostr nelle tue categorie, presentare contributi ospiti o curare numeri tematici e collezioni.'
+        anyRelay:
+            heading: 'Funziona in tutto l''ecosistema Nostr'
+            eyebrow: 'La tua scrittura resta su Nostr, la tua pubblicazione le dà forma'
+            description: 'Non importa quale app o relay hai usato per pubblicare i tuoi articoli. Decent Newsroom può assemblarli in un''unica pubblicazione coerente, così la tua rivista non è legata a un singolo client o silo.'
+        subdomain:
+            heading: 'Dagli il proprio indirizzo'
+            eyebrow: 'tuonome.decentnewsroom.com'
+            description: 'Puoi pubblicare la tua rivista su un sottodominio dedicato, dandole una casa web stabile e link agli articoli puliti da condividere ovunque. I sottodomini ospitati sono disponibili per 120.000 sat all''anno tramite Lightning.'
+        ready:
+            heading: 'Inizia con gli articoli che hai già'
+            description: 'Se pubblichi longform su Nostr, puoi trasformarlo in una rivista organizzata con la propria presenza web in pochi minuti.'
+    setup:
+        title: 'Crea la tua rivista'
+        heading: 'Crea la tua rivista'
+        tagline: 'Accedi per iniziare'
+        loginHeading: 'Accedi per iniziare'
+        loginDescription: 'Accedi con la tua identità Nostr così possiamo trovare i tuoi articoli e configurare la tua rivista.'
+
+# ── Follow Pack (profile sidebar recommendation list) ──────────────
+follow_pack:
+    info_bubble: 'Configura una lista di scrittori che raccomandi.'
+    setup_button: 'Configura follow pack'
+    edit_button: 'Modifica follow pack'
+    title_label: 'Titolo pack'
+    title_placeholder: 'I miei scrittori raccomandati'
+    selected_writers: 'Scrittori selezionati'
+    search_label: 'Cerca scrittori'
+    search_placeholder: 'Cerca per nome o NIP-05...'
+    search_placeholder_npub: 'Cerca per nome, NIP-05, o incolla npub...'
+    publish_button: 'Pubblica follow pack'
+    existing_packs: 'I tuoi follow pack esistenti'
+    members: 'membri'
+    select_button: 'Seleziona'
+    selected: 'Selezionato'
+    recommended_writers: 'Scrittori raccomandati'
+    more_writers: 'altri'
+    sync_pending: 'La tua lista di scrittori raccomandati è configurata. I profili appariranno qui una volta completata la sincronizzazione.'
+    page_title: 'Follow Pack'
+    page_tagline: 'Costruisci una lista di scrittori che raccomandi ai tuoi follower'
+    description: 'Un follow pack è una lista pubblica di account Nostr che raccomandi. È un evento kind 39089 — chiunque su qualsiasi client Nostr può vederlo, e altri utenti possono seguire l''intero pack con un clic.'
+    description_dn: 'Su Decent Newsroom, il tuo follow pack selezionato appare sul tuo profilo come lista "Scrittori raccomandati". I visitatori possono scoprire nuove voci attraverso le tue raccomandazioni.'
+    select_existing: 'Seleziona una lista di raccomandazione'
+    create_new_button: 'Crea nuovo pack'
+    create_heading: 'Crea un nuovo follow pack'
+    edit_heading: 'Modifica il tuo follow pack'
+    image_label: 'URL immagine di copertina'
+    image_placeholder: 'https://example.com/image.jpg'
+    description_label: 'Descrizione'
+    description_placeholder: 'Una breve descrizione di questo follow pack...'
+
+# ── Follow Pack View page ──────────────────────────────────────────
+followPackView:
+    by: 'Curato da'
+    noArticles: 'Nessun articolo da questo gruppo ancora.'
+    members: 'Scrittori'
+    viewArticles: 'Visualizza articoli di questo gruppo →'
+

@@ -3,6 +3,7 @@
 ## v0.0.28
 Searching, searching... 
 
+- Added Italian (it) language support with full translation of all UI strings.
 - Added advanced search filters to the search page. A collapsible "Advanced filters" panel below the search input lets users narrow results by date range, author (npub or hex pubkey), tags (comma-separated), content type (Article / Draft), and sort order (Relevance / Newest / Oldest). Filters are applied server-side through a new `advancedSearch()` method on `ArticleSearchInterface`, implemented in both Elasticsearch (bool query with range, term, and terms clauses) and the database fallback (Doctrine QueryBuilder + native PostgreSQL jsonb containment for tags). The Elasticsearch index mapping was updated: `createdAt` changed from `keyword` to `date` and a new `kind` (integer) property was added — a reindex (`fos:elastica:populate`) is required after deploy.
 
 
