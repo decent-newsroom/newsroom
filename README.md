@@ -13,23 +13,23 @@ but there is synergy in collaboration that has been lost in the transition.
 
 Let's bring back high-value professional journalism and collaborative publishing.
 
-## 📚 Documentation
+## Documentation
 
-> **📖 [Complete Documentation Index](DOCS-INDEX.md)** - All documentation organized by topic and role
+> **[Documentation Index](docs-public/INDEX.md)** — All documentation organized by topic and role
 
 ### Quick Start
 
-- 🚀 **[Getting Started Guide](GETTING-STARTED.md)** - For readers, writers, and publishers
-- ⭐ **[Features Overview](FEATURES.md)** - Complete feature documentation
-- ❓ **[FAQ](FAQ.md)** - Frequently asked questions
-- 🔖 **[Quick Reference](QUICK-REFERENCE.md)** - Commands and common tasks
+- **[Getting Started Guide](docs-public/GETTING-STARTED.md)** — For readers, writers, and publishers
+- **[Features Overview](docs-public/FEATURES.md)** — Feature reference
+- **[FAQ](docs-public/FAQ.md)** — Frequently asked questions
+- **[Quick Reference](docs-public/QUICK-REFERENCE.md)** — Commands and common tasks
 
 ### Technical Docs
 
-- 🏗️ **[Architecture Overview](ARCHITECTURE.md)** - System design and data flow
-- 💻 **[Developer Guide](DEVELOPER-GUIDE.md)** - Contributing and extending
-- ⚙️ **[Setup Guide](docs/SETUP.md)** - Installation and deployment
-- 📂 **[Internal Documentation](documentation/INDEX.md)** - Detailed technical docs 
+- **[Architecture Overview](docs-public/ARCHITECTURE.md)** — System design and data flow
+- **[Developer Guide](docs-public/DEVELOPER-GUIDE.md)** — Contributing and extending
+- **[Setup Guide](docs/SETUP.md)** — Installation and deployment
+- **[Internal Documentation](documentation/INDEX.md)** — Detailed technical docs
 
 
 ## Constituent parts

@@ -1,5 +1,7 @@
 **/*.log
 **/*.md
+!CHANGELOG.md
+!ROADMAP.md
 **/*.php~
 **/*.dist.php
 **/*.dist
