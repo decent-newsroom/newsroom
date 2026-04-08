@@ -12,7 +12,7 @@ export default class extends Controller {
     static targets = ['tab', 'content'];
 
     static values = {
-        activeTab: { type: String, default: 'foryou' },
+        activeTab: { type: String, default: 'articles' },
         timeout:   { type: Number, default: 20000 }
     };
 

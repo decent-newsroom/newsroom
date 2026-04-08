@@ -8,13 +8,14 @@ When a user is logged in, the homepage (`/`) shows a tabbed article feed instead
 
 | Tab | Source | Description |
 |-----|--------|-------------|
-| **For You** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
+| **Articles** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
+| **Media** | Follows + Interests media events (kinds 20, 21, 22) | Non-NSFW media from followed authors and interest hashtags, merged and deduplicated, displayed in a masonry grid. |
 | **Podcasts** | Follow pack (kind 39089) | Articles from npubs in the admin-configured podcast follow pack. |
 | **News Bots** | Follow pack (kind 39089) | Articles from npubs in the admin-configured news bot follow pack. |
 
-### For You Feed Details
+### Articles Feed Details
 
-The "For You" tab merges three article sources into one deduplicated, time-sorted list:
+The "Articles" tab merges three article sources into one deduplicated, time-sorted list:
 
 1. **Discussed** — articles that have comments (kind 1111), fetched via `findArticlesWithComments()`. Comment counts are preserved and displayed on cards.
 2. **Follows** — articles from pubkeys the user follows (kind 3 follow list), fetched via `findLatestByPubkeys()`.
@@ -22,15 +23,28 @@ The "For You" tab merges three article sources into one deduplicated, time-sorte
 
 Articles are deduplicated by coordinate (`pubkey:slug`). If an article appears in multiple sources, it receives multiple source badges. The merged list is sorted by `createdAt` descending and limited to 60 items.
 
-Source badges are displayed in the card footer as uppercase labels: **Discussed**, **Follows**, **Interests**.
+Source badges are displayed between the cover image and the title as uppercase labels: **Discussed**, **Follows**, **Interests**.
+
+### Media Feed Details
+
+The "Media" tab merges media events from two personalized sources:
+
+1. **Follows** — media events from pubkeys the user follows (kind 3 follow list), fetched via `findNonNSFWMediaEventsByPubkeys()`.
+2. **Interests** — media events matching the user's interest hashtags (kind 10015), fetched via `findMediaEventsByHashtags()` with NSFW filtering.
+
+Supported media kinds:
+- **NIP-68** picture events (kind 20)
+- **NIP-71** video events (kinds 21, 22, 34235, 34236)
+
+Events are deduplicated by event ID, sorted by `created_at` descending, and limited to 42 items. Both admin-muted and user-muted pubkeys are excluded. Rendered using the shared `partial/_masonry.html.twig` template.
 
 ### Previous Tabs (archived)
 
-The following tabs were previously shown individually but are now combined into "For You":
+The following tabs were previously shown individually but are now combined into "Articles":
 - **Latest** — removed from the logged-in home page
-- **Discussed** — merged into For You
-- **Follows** — merged into For You
-- **Interests** — merged into For You
+- **Discussed** — merged into Articles
+- **Follows** — merged into Articles
+- **Interests** — merged into Articles
 
 The individual tab routes (`/home/tab/latest`, `/home/tab/discussed`, `/home/tab/follows`, `/home/tab/interests`) still work for backward compatibility.
 
@@ -39,7 +53,7 @@ The individual tab routes (`/home/tab/latest`, `/home/tab/discussed`, `/home/tab
 ### Routing
 
 - `GET /` — renders `home.html.twig` (anonymous) or `home_authenticated.html.twig` (logged in)
-- `GET /home/tab/{tab}` — returns a `<turbo-frame>` partial for the given tab (`latest`, `follows`, `interests`, `podcasts`, `newsbots`)
+- `GET /home/tab/{tab}` — returns a `<turbo-frame>` partial for the given tab (`articles`, `media`, `podcasts`, `newsbots`, plus legacy: `latest`, `follows`, `interests`, `discussed`, `foryou`)
 
 ### Controllers
 
@@ -71,7 +85,7 @@ The tabbed interface uses a **Stimulus controller** (`content--home-tabs`) that:
 3. Fetches the tab content via `fetch()` with Turbo Frame headers
 4. Injects the response HTML into the `<turbo-frame id="home-tab-content">` element
 
-The initial tab (For You) is loaded via Turbo Frame's `lazy` loading attribute.
+The initial tab (Articles) is loaded via Turbo Frame's `lazy` loading attribute.
 
 ### CSS
 

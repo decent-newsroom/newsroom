@@ -6,15 +6,22 @@
     <twig:Organisms:FeaturedUnfoldSites />
 
     <section class="w-container">
-        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="foryou">
+        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="articles">
 
             <nav class="profile-tabs home-feed__tabs">
-                <a href="{{ path('home_feed_tab', {tab: 'foryou'}) }}"
+                <a href="{{ path('home_feed_tab', {tab: 'articles'}) }}"
                    class="tab-link active"
                    data-content--home-tabs-target="tab"
-                   data-tab="foryou"
+                   data-tab="articles"
                    data-action="click->content--home-tabs#switchTab">
-                    {{ 'home_feed.tab.foryou'|trans }}
+                    {{ 'home_feed.tab.articles'|trans }}
+                </a>
+                <a href="{{ path('home_feed_tab', {tab: 'media'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="media"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.media'|trans }}
                 </a>
                 <a href="{{ path('home_feed_tab', {tab: 'podcasts'}) }}"
                    class="tab-link hidden"
@@ -33,7 +40,7 @@
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">
-                <turbo-frame id="home-tab-content" src="{{ path('home_feed_tab', {tab: 'foryou'}) }}" loading="lazy">
+                <turbo-frame id="home-tab-content" src="{{ path('home_feed_tab', {tab: 'articles'}) }}" loading="lazy">
                     <div class="home-feed__loading">
                         <div class="spinner"></div>
                         <p>{{ 'home_feed.loading'|trans }}</p>

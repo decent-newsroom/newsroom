@@ -17,18 +17,20 @@ use App\Service\FollowPackService;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
+use App\Service\MutedPubkeysService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
 use App\Service\UserMuteListService;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed|foryou'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed|foryou|articles|media'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -41,6 +43,7 @@ class HomeFeedController extends AbstractController
         UserProfileService $userProfileService,
         FollowPackService $followPackService,
         UserMuteListService $userMuteListService,
+        MutedPubkeysService $mutedPubkeysService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
@@ -50,7 +53,8 @@ class HomeFeedController extends AbstractController
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
             'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
-            'foryou' => $this->forYouTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
+            'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
+            'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
         };
     }
 
@@ -324,10 +328,10 @@ class HomeFeedController extends AbstractController
     }
 
     /**
-     * Combined "For You" feed: merges discussed, follows, and interests articles
+     * Combined "Articles" feed: merges discussed, follows, and interests articles
      * into one deduplicated, time-sorted list with source labels.
      */
-    private function forYouTab(
+    private function articlesTab(
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
         UserProfileService $userProfileService,
@@ -341,7 +345,7 @@ class HomeFeedController extends AbstractController
         /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
-            return $this->render('home/tabs/_foryou.html.twig', [
+            return $this->render('home/tabs/_articles.html.twig', [
                 'articles' => [],
                 'authorsMetadata' => [],
                 'sourceLabels' => [],
@@ -486,12 +490,117 @@ class HomeFeedController extends AbstractController
             }
         }
 
-        return $this->render('home/tabs/_foryou.html.twig', [
+        return $this->render('home/tabs/_articles.html.twig', [
             'articles' => $articlesArray,
             'authorsMetadata' => $authorsMetadata,
             'sourceLabels' => $sourceLabels,
             'commentCounts' => $commentCounts,
             'isLoggedIn' => true,
+        ]);
+    }
+
+    /**
+     * Media feed: non-NSFW media events (kinds 20, 21, 22, 34235, 34236) filtered
+     * to followed pubkeys and interest hashtags, merged and deduplicated.
+     */
+    private function mediaTab(
+        EventRepository $eventRepository,
+        NostrClient $nostrClient,
+        UserProfileService $userProfileService,
+        MutedPubkeysService $mutedPubkeysService,
+        UserMuteListService $userMuteListService,
+        LoggerInterface $logger,
+    ): Response {
+        $mediaKinds = [20, 21, 22, 34235, 34236];
+        $maxItems = 42;
+
+        // ── Resolve excluded pubkeys (admin-level + user-level) ──
+        $excludedPubkeys = $mutedPubkeysService->getMutedPubkeys();
+        $pubkeyHex = null;
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+                $excludedPubkeys = array_values(array_unique(array_merge($excludedPubkeys, $userMutedPubkeys)));
+            } catch (\Throwable) {
+                // Non-critical
+            }
+        }
+
+        // Deduplicate by event ID
+        $mergedEvents = []; // id → Event entity
+
+        // ── 1. Follows media ──
+        if ($pubkeyHex) {
+            try {
+                $followedPubkeys = [];
+                $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
+                if ($followsEvent === null) {
+                    $followedPubkeys = $userProfileService->getFollows($pubkeyHex);
+                } else {
+                    foreach ($followsEvent->getTags() as $tag) {
+                        if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                            $followedPubkeys[] = $tag[1];
+                        }
+                    }
+                }
+
+                if (!empty($followedPubkeys)) {
+                    $filteredPubkeys = array_values(array_diff($followedPubkeys, $excludedPubkeys));
+                    $followEvents = $eventRepository->findNonNSFWMediaEventsByPubkeys($filteredPubkeys, $mediaKinds, $maxItems);
+                    foreach ($followEvents as $event) {
+                        $mergedEvents[$event->getId()] = $event;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $logger->error('Home media tab: failed to load follows media', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ── 2. Interests media ──
+        if ($pubkeyHex) {
+            try {
+                $interestTags = $nostrClient->getUserInterests($pubkeyHex);
+                if (!empty($interestTags)) {
+                    $interestEvents = $eventRepository->findMediaEventsByHashtags($interestTags, $mediaKinds, $excludedPubkeys, $maxItems * 2);
+                    // Filter NSFW
+                    $interestEvents = array_filter($interestEvents, fn($e) => !$e->isNSFW());
+                    foreach ($interestEvents as $event) {
+                        if (!isset($mergedEvents[$event->getId()])) {
+                            $mergedEvents[$event->getId()] = $event;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $logger->error('Home media tab: failed to load interests media', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ── 3. Sort by created_at descending and limit ──
+        $eventsArray = array_values($mergedEvents);
+        usort($eventsArray, fn($a, $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
+        $eventsArray = array_slice($eventsArray, 0, $maxItems);
+
+        // ── 4. Convert to stdClass for masonry template ──
+        $mediaEvents = [];
+        $nip19 = new Nip19Helper();
+        foreach ($eventsArray as $event) {
+            $obj = new \stdClass();
+            $obj->id = $event->getId();
+            $obj->pubkey = $event->getPubkey();
+            $obj->created_at = $event->getCreatedAt();
+            $obj->kind = $event->getKind();
+            $obj->tags = $event->getTags();
+            $obj->content = $event->getContent();
+            $obj->sig = $event->getSig();
+            $obj->noteId = $nip19->encodeNote($event->getId());
+            $mediaEvents[] = $obj;
+        }
+
+        return $this->render('home/tabs/_media.html.twig', [
+            'mediaEvents' => $mediaEvents,
         ]);
     }
 }

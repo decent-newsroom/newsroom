@@ -606,15 +606,19 @@ home_feed:
         podcasts: 'Podcasts'
         newsbots: 'Nachrichten-Bots'
         discussed: 'Diskutiert'
-        foryou: 'Für dich'
+        foryou: 'Artikel'
+        articles: 'Artikel'
+        media: 'Medien'
     loading: 'Artikel werden geladen…'
     source:
         discussed: 'Diskutiert'
         follows: 'Folge ich'
         interests: 'Interessen'
-    foryou:
+    articles:
         signInRequired: 'Melde dich an, um deinen personalisierten Feed zu sehen.'
         empty: 'Noch keine Artikel gefunden. Folge Autoren oder richte deine Interessen ein, um hier Inhalte zu sehen.'
+    media:
+        empty: 'Noch keine Medien gefunden. Schau später nochmal vorbei!'
     latest:
         empty: 'Noch keine Artikel gefunden. Schau später nochmal vorbei!'
     discussed:

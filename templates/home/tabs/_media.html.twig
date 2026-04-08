@@ -1,0 +1,10 @@
+<turbo-frame id="home-tab-content">
+    {% if mediaEvents|default([])|length > 0 %}
+        {% include 'partial/_masonry.html.twig' %}
+    {% else %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.media.empty'|trans }}</p>
+        </div>
+    {% endif %}
+</turbo-frame>
+
