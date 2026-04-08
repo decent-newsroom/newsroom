@@ -25,6 +25,13 @@
                     <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none';" >
                 {% endif %}
             </div>
+            {% if source_labels|default([])|length > 0 %}
+                <div class="card-sources">
+                    {% for label in source_labels %}
+                        <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
             <div class="card-body">
                     <h2 class="card-title line-clamp-5">{{ article.title }}</h2>
                     {% if article.summary %}

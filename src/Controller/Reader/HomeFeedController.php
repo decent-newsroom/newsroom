@@ -28,7 +28,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed|foryou'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -50,6 +50,7 @@ class HomeFeedController extends AbstractController
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
             'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
+            'foryou' => $this->forYouTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
         };
     }
 
@@ -319,6 +320,178 @@ class HomeFeedController extends AbstractController
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadata,
             'commentCounts' => $commentCounts,
+        ]);
+    }
+
+    /**
+     * Combined "For You" feed: merges discussed, follows, and interests articles
+     * into one deduplicated, time-sorted list with source labels.
+     */
+    private function forYouTab(
+        ArticleRepository $articleRepository,
+        EventRepository $eventRepository,
+        UserProfileService $userProfileService,
+        RedisCacheService $redisCacheService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
+        ArticleSearchFactory $articleSearchFactory,
+        NostrClient $nostrClient,
+        UserMuteListService $userMuteListService,
+        LoggerInterface $logger,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->render('home/tabs/_foryou.html.twig', [
+                'articles' => [],
+                'authorsMetadata' => [],
+                'sourceLabels' => [],
+                'commentCounts' => [],
+                'isLoggedIn' => false,
+            ]);
+        }
+
+        // ── Resolve user mute list ──
+        $userMutedPubkeys = [];
+        $pubkeyHex = null;
+        try {
+            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+        } catch (\Throwable) {
+            // Non-critical
+        }
+
+        $excludedPubkeys = array_values(array_unique(array_merge(
+            $exclusionPolicy->getAllExcludedPubkeys(),
+            $userMutedPubkeys,
+        )));
+
+        // Keyed by coordinate (pubkey:slug) → article object
+        $mergedArticles = [];
+        // coordinate → array of source labels
+        $sourceLabels = [];
+        // coordinate → comment count (from discussed)
+        $commentCounts = [];
+        // All author metadata
+        $authorsMetadata = [];
+
+        // ── 1. Discussed articles ──
+        try {
+            $result = $articleRepository->findArticlesWithComments(50, $excludedPubkeys);
+            foreach ($result['articles'] as $article) {
+                $pk = $article->getPubkey();
+                $slug = $article->getSlug();
+                if (empty($pk) || empty($slug)) continue;
+                $coord = $pk . ':' . $slug;
+                if (!isset($mergedArticles[$coord])) {
+                    $mergedArticles[$coord] = $article;
+                    $sourceLabels[$coord] = [];
+                }
+                $sourceLabels[$coord][] = 'discussed';
+                $commentCounts[$coord] = $result['commentCounts']['30023:' . $coord] ?? 0;
+            }
+        } catch (\Throwable $e) {
+            $logger->error('For-you: failed to load discussed articles', ['error' => $e->getMessage()]);
+        }
+
+        // ── 2. Follows articles ──
+        if ($pubkeyHex) {
+            try {
+                $followedPubkeys = [];
+                $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
+                if ($followsEvent === null) {
+                    $followedPubkeys = $userProfileService->getFollows($pubkeyHex);
+                } else {
+                    foreach ($followsEvent->getTags() as $tag) {
+                        if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                            $followedPubkeys[] = $tag[1];
+                        }
+                    }
+                }
+
+                if (!empty($followedPubkeys)) {
+                    $followArticles = $articleRepository->findLatestByPubkeys($followedPubkeys, 50);
+                    foreach ($followArticles as $article) {
+                        $pk = $article->getPubkey();
+                        $slug = $article->getSlug();
+                        if (empty($pk) || empty($slug)) continue;
+                        $coord = $pk . ':' . $slug;
+                        if (!isset($mergedArticles[$coord])) {
+                            $mergedArticles[$coord] = $article;
+                            $sourceLabels[$coord] = [];
+                        }
+                        if (!in_array('follows', $sourceLabels[$coord], true)) {
+                            $sourceLabels[$coord][] = 'follows';
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $logger->error('For-you: failed to load follows articles', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ── 3. Interests articles ──
+        if ($pubkeyHex) {
+            try {
+                $interestTags = $nostrClient->getUserInterests($pubkeyHex);
+                if (!empty($interestTags)) {
+                    $articleSearch = $articleSearchFactory->create();
+                    if ($articleSearch->isAvailable()) {
+                        $interestArticles = $articleSearch->findByTopics($interestTags, 50, 0);
+                        foreach ($interestArticles as $article) {
+                            $pk = $article instanceof Article ? $article->getPubkey() : (method_exists($article, 'getPubkey') ? $article->getPubkey() : '');
+                            $slug = $article instanceof Article ? $article->getSlug() : (method_exists($article, 'getSlug') ? $article->getSlug() : '');
+                            if (empty($pk) || empty($slug)) continue;
+                            // Filter out muted pubkeys
+                            if (in_array($pk, $excludedPubkeys, true)) continue;
+                            $coord = $pk . ':' . $slug;
+                            if (!isset($mergedArticles[$coord])) {
+                                $mergedArticles[$coord] = $article;
+                                $sourceLabels[$coord] = [];
+                            }
+                            if (!in_array('interests', $sourceLabels[$coord], true)) {
+                                $sourceLabels[$coord][] = 'interests';
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $logger->error('For-you: failed to load interest articles', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // ── 4. Sort merged articles by createdAt descending ──
+        $articlesArray = array_values($mergedArticles);
+        usort($articlesArray, function ($a, $b) {
+            $aTime = $a instanceof Article ? $a->getCreatedAt() : ($a->createdAt ?? 0);
+            $bTime = $b instanceof Article ? $b->getCreatedAt() : ($b->createdAt ?? 0);
+            return $bTime <=> $aTime;
+        });
+
+        // Limit to 60 items
+        $articlesArray = array_slice($articlesArray, 0, 60);
+
+        // ── 5. Batch-resolve author metadata ──
+        $authorPubkeys = [];
+        foreach ($articlesArray as $article) {
+            $pk = $article instanceof Article ? $article->getPubkey() : ($article->pubkey ?? '');
+            if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                $authorPubkeys[] = $pk;
+            }
+        }
+        $authorPubkeys = array_unique($authorPubkeys);
+        if (!empty($authorPubkeys)) {
+            $metaRaw = $redisCacheService->getMultipleMetadata($authorPubkeys);
+            foreach ($metaRaw as $pk => $m) {
+                $authorsMetadata[$pk] = $m instanceof UserMetadata ? $m->toStdClass() : $m;
+            }
+        }
+
+        return $this->render('home/tabs/_foryou.html.twig', [
+            'articles' => $articlesArray,
+            'authorsMetadata' => $authorsMetadata,
+            'sourceLabels' => $sourceLabels,
+            'commentCounts' => $commentCounts,
+            'isLoggedIn' => true,
         ]);
     }
 }

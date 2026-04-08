@@ -1,0 +1,38 @@
+/**
+ * Source badges for "For You" combined feed.
+ * Displayed between cover image and title to indicate article source.
+ */
+
+.card-sources {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) 0 0;
+}
+
+.source-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.15em 0.5em;
+    border: 1px solid var(--color-text-muted, #666);
+    color: var(--color-text-muted, #666);
+    background: transparent;
+}
+
+.source-badge--discussed {
+    border-color: var(--color-primary, #333);
+    color: var(--color-primary, #333);
+}
+
+.source-badge--follows {
+    border-color: var(--color-secondary, #555);
+    color: var(--color-secondary, #555);
+}
+
+.source-badge--interests {
+    border-color: var(--color-accent, #777);
+    color: var(--color-accent, #777);
+}

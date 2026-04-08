@@ -592,7 +592,15 @@ home_feed:
         podcasts: 'Podcasts'
         newsbots: 'Bots d''actualités'
         discussed: 'Discutés'
+        foryou: 'Pour vous'
     loading: 'Chargement des articles…'
+    source:
+        discussed: 'Discutés'
+        follows: 'Abonnements'
+        interests: 'Intérêts'
+    foryou:
+        signInRequired: 'Connectez-vous pour voir votre flux personnalisé.'
+        empty: 'Aucun article trouvé pour le moment. Suivez des auteurs ou configurez vos intérêts pour voir du contenu ici.'
     latest:
         empty: 'Aucun article trouvé pour le moment. Revenez plus tard !'
     discussed:

@@ -293,7 +293,15 @@ home_feed:
         podcasts: 'Podcast'
         newsbots: 'Bot di notizie'
         discussed: 'Discussi'
+        foryou: 'Per te'
     loading: 'Caricamento articoli…'
+    source:
+        discussed: 'Discussi'
+        follows: 'Seguiti'
+        interests: 'Interessi'
+    foryou:
+        signInRequired: 'Accedi per vedere il tuo feed personalizzato.'
+        empty: 'Nessun articolo trovato ancora. Segui autori o configura i tuoi interessi per vedere contenuti qui.'
     latest:
         empty: 'Nessun articolo trovato ancora. Ricontrolla più tardi!'
     discussed:

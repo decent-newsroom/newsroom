@@ -592,7 +592,15 @@ home_feed:
         podcasts: 'Podcasts'
         newsbots: 'Bots de noticias'
         discussed: 'Comentados'
+        foryou: 'Para ti'
     loading: 'Cargando artículos…'
+    source:
+        discussed: 'Comentados'
+        follows: 'Seguidos'
+        interests: 'Intereses'
+    foryou:
+        signInRequired: 'Inicia sesión para ver tu feed personalizado.'
+        empty: 'Aún no se encontraron artículos. Sigue autores o configura tus intereses para ver contenido aquí.'
     latest:
         empty: '¡Aún no se encontraron artículos. Vuelve más tarde!'
     discussed:

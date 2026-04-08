@@ -592,7 +592,15 @@ home_feed:
         podcasts: 'Podkasti'
         newsbots: 'Novičarski boti'
         discussed: 'Komentirano'
+        foryou: 'Za vas'
     loading: 'Nalagam članke…'
+    source:
+        discussed: 'Komentirano'
+        follows: 'Sledim'
+        interests: 'Interesi'
+    foryou:
+        signInRequired: 'Prijavite se za ogled prilagojenega vira.'
+        empty: 'Zaenkrat ni najdenih člankov. Sledite avtorjem ali nastavite interese, da boste tukaj videli vsebino.'
     latest:
         empty: 'Zaenkrat ni najdenih člankov. Preverite pozneje!'
     discussed:

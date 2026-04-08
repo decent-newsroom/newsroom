@@ -8,11 +8,31 @@ When a user is logged in, the homepage (`/`) shows a tabbed article feed instead
 
 | Tab | Source | Description |
 |-----|--------|-------------|
-| **Latest** | Redis view store / search fallback | Latest articles on the relay, excluding bots and one article per author. |
-| **Follows** | User's kind 3 follow list | Articles from npubs the user follows. |
-| **Interests** | User's kind 10015 interests | Articles matching hashtags the user follows. |
+| **For You** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
 | **Podcasts** | Follow pack (kind 39089) | Articles from npubs in the admin-configured podcast follow pack. |
 | **News Bots** | Follow pack (kind 39089) | Articles from npubs in the admin-configured news bot follow pack. |
+
+### For You Feed Details
+
+The "For You" tab merges three article sources into one deduplicated, time-sorted list:
+
+1. **Discussed** — articles that have comments (kind 1111), fetched via `findArticlesWithComments()`. Comment counts are preserved and displayed on cards.
+2. **Follows** — articles from pubkeys the user follows (kind 3 follow list), fetched via `findLatestByPubkeys()`.
+3. **Interests** — articles matching the user's interest tags (kind 10015), fetched via `findByTopics()`.
+
+Articles are deduplicated by coordinate (`pubkey:slug`). If an article appears in multiple sources, it receives multiple source badges. The merged list is sorted by `createdAt` descending and limited to 60 items.
+
+Source badges are displayed in the card footer as uppercase labels: **Discussed**, **Follows**, **Interests**.
+
+### Previous Tabs (archived)
+
+The following tabs were previously shown individually but are now combined into "For You":
+- **Latest** — removed from the logged-in home page
+- **Discussed** — merged into For You
+- **Follows** — merged into For You
+- **Interests** — merged into For You
+
+The individual tab routes (`/home/tab/latest`, `/home/tab/discussed`, `/home/tab/follows`, `/home/tab/interests`) still work for backward compatibility.
 
 ## Architecture
 
@@ -51,11 +71,11 @@ The tabbed interface uses a **Stimulus controller** (`content--home-tabs`) that:
 3. Fetches the tab content via `fetch()` with Turbo Frame headers
 4. Injects the response HTML into the `<turbo-frame id="home-tab-content">` element
 
-The initial tab (Latest) is loaded via Turbo Frame's `lazy` loading attribute.
+The initial tab (For You) is loaded via Turbo Frame's `lazy` loading attribute.
 
 ### CSS
 
-Styles are in `assets/styles/04-pages/home-feed.css`. The tabs reuse the existing `.profile-tabs` and `.tab-link` CSS classes from the author profile.
+Styles are in `assets/styles/04-pages/home-feed.css`. The tabs reuse the existing `.profile-tabs` and `.tab-link` CSS classes from the author profile. Source badges are styled in `assets/styles/03-components/source-badge.css`.
 
 ## Database
 

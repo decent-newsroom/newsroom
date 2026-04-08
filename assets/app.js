@@ -45,6 +45,7 @@ import './styles/03-components/magazine-preview.css';
 import './styles/03-components/featured-unfold.css';
 import './styles/03-components/follow-pack.css';
 import './styles/03-components/discussed.css';
+import './styles/03-components/source-badge.css';
 
 // Toast notifications
 import './styles/toast.css';
