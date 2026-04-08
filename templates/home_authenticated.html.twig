@@ -16,6 +16,13 @@
                    data-action="click->content--home-tabs#switchTab">
                     {{ 'home_feed.tab.latest'|trans }}
                 </a>
+                <a href="{{ path('home_feed_tab', {tab: 'discussed'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="discussed"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.discussed'|trans }}
+                </a>
                 <a href="{{ path('home_feed_tab', {tab: 'follows'}) }}"
                    class="tab-link"
                    data-content--home-tabs-target="tab"

@@ -441,6 +441,146 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find articles that have comments (kind 1111), ordered by most recent comment.
+     *
+     * Joins the event table (comment events) against the article table via
+     * the 'A' tag coordinate (kind:pubkey:slug). Deduplicates by article
+     * coordinate and returns comment counts per article.
+     *
+     * @param int $limit Maximum articles to return
+     * @param string[] $excludedPubkeys Hex pubkeys to exclude (article authors)
+     * @return array{articles: Article[], commentCounts: array<string, int>}
+     */
+    public function findArticlesWithComments(int $limit = 50, array $excludedPubkeys = []): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        // Extract the coordinate from the 'A' tag of kind 1111 events,
+        // join against the article table by pubkey + slug parsed from the coordinate,
+        // group by article and order by most recent comment.
+        $excludeClause = '';
+        $params = [];
+
+        if (!empty($excludedPubkeys)) {
+            $excludePlaceholders = [];
+            foreach ($excludedPubkeys as $i => $pk) {
+                $excludePlaceholders[] = ':excl_' . $i;
+                $params['excl_' . $i] = $pk;
+            }
+            $excludeClause = 'AND a.pubkey NOT IN (' . implode(', ', $excludePlaceholders) . ')';
+        }
+
+        // Step 1: Get article coordinates with comment counts + latest comment time
+        $sql = <<<SQL
+            SELECT
+                atag.coordinate,
+                COUNT(DISTINCT e.id) AS comment_count,
+                MAX(e.created_at)    AS latest_comment_at
+            FROM event e
+            CROSS JOIN LATERAL (
+                SELECT tag->>1 AS coordinate
+                FROM jsonb_array_elements(e.tags) AS tag
+                WHERE tag->>0 = 'A'
+                LIMIT 1
+            ) AS atag
+            WHERE e.kind = 1111
+              AND atag.coordinate IS NOT NULL
+              AND atag.coordinate LIKE '30023:%'
+            GROUP BY atag.coordinate
+            ORDER BY latest_comment_at DESC
+            LIMIT :coord_limit
+        SQL;
+
+        $params['coord_limit'] = $limit * 3; // overfetch for dedup + exclusion
+        $coordRows = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+
+        if (empty($coordRows)) {
+            return ['articles' => [], 'commentCounts' => []];
+        }
+
+        // Step 2: Parse coordinates and look up articles
+        $commentCounts = [];
+        $articleLookups = []; // pubkey => [slugs]
+        $coordOrder = [];     // coordinate => latest_comment_at (for sorting)
+
+        foreach ($coordRows as $row) {
+            $coord = $row['coordinate'];
+            $parts = explode(':', $coord, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [, $pubkey, $slug] = $parts;
+
+            // Apply exclusion
+            if (!empty($excludedPubkeys) && in_array($pubkey, $excludedPubkeys, true)) {
+                continue;
+            }
+
+            $commentCounts[$coord] = (int) $row['comment_count'];
+            $coordOrder[$coord] = (int) $row['latest_comment_at'];
+            $articleLookups[$pubkey][] = $slug;
+        }
+
+        if (empty($articleLookups)) {
+            return ['articles' => [], 'commentCounts' => []];
+        }
+
+        // Step 3: Batch-fetch articles by (pubkey, slug) pairs
+        $qb = $this->createQueryBuilder('a');
+        $orConditions = [];
+        $paramIdx = 0;
+        foreach ($articleLookups as $pubkey => $slugs) {
+            foreach ($slugs as $slug) {
+                $pkParam = 'pk_' . $paramIdx;
+                $slParam = 'sl_' . $paramIdx;
+                $orConditions[] = $qb->expr()->andX(
+                    $qb->expr()->eq('a.pubkey', ':' . $pkParam),
+                    $qb->expr()->eq('a.slug', ':' . $slParam)
+                );
+                $qb->setParameter($pkParam, $pubkey);
+                $qb->setParameter($slParam, $slug);
+                $paramIdx++;
+            }
+        }
+
+        $qb->where($qb->expr()->orX(...$orConditions))
+            ->andWhere('a.title IS NOT NULL')
+            ->andWhere('a.slug IS NOT NULL')
+            ->andWhere('a.kind != :draftKind')
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT);
+
+        /** @var Article[] $allArticles */
+        $allArticles = $qb->getQuery()->getResult();
+
+        // Step 4: Deduplicate by coordinate (pubkey:slug) — keep newest revision
+        $articleMap = []; // coordinate => Article
+        foreach ($allArticles as $article) {
+            $coord = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            if (!isset($coordOrder[$coord])) {
+                continue; // not in our result set
+            }
+            if (!isset($articleMap[$coord])
+                || $article->getCreatedAt() > $articleMap[$coord]->getCreatedAt()) {
+                $articleMap[$coord] = $article;
+            }
+        }
+
+        // Step 5: Sort by latest comment time DESC
+        uksort($articleMap, fn(string $a, string $b) => ($coordOrder[$b] ?? 0) <=> ($coordOrder[$a] ?? 0));
+
+        $articles = array_values(array_slice($articleMap, 0, $limit));
+
+        // Filter commentCounts to only the returned articles
+        $finalCounts = [];
+        foreach ($articles as $article) {
+            $coord = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+            $finalCounts[$coord] = $commentCounts[$coord] ?? 0;
+        }
+
+        return ['articles' => $articles, 'commentCounts' => $finalCounts];
+    }
+
+    /**
      * Search articles with PostgreSQL full-text search (ts_vector)
      * This is an optimized version for PostgreSQL if you have full-text indexes set up
      *

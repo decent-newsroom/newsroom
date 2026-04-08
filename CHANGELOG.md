@@ -5,6 +5,7 @@ Searching, searching...
 
 - Added Italian (it) language support with full translation of all UI strings.
 - Added advanced search filters to the search page. A collapsible "Advanced filters" panel below the search input lets users narrow results by date range, author (npub or hex pubkey), tags (comma-separated), content type (Article / Draft), and sort order (Relevance / Newest / Oldest). Filters are applied server-side through a new `advancedSearch()` method on `ArticleSearchInterface`, implemented in both Elasticsearch (bool query with range, term, and terms clauses) and the database fallback (Doctrine QueryBuilder + native PostgreSQL jsonb containment for tags). The Elasticsearch index mapping was updated: `createdAt` changed from `keyword` to `date` and a new `kind` (integer) property was added — a reindex (`fos:elastica:populate`) is required after deploy.
+- Added "Discussed" tab to the home feed showing articles that have comments (kind 1111), ordered by most recent comment. Articles are deduplicated by coordinate (pubkey + slug), comment counts are displayed on each card, and the feed respects both system-level and user-level mute lists. Uses a two-step query: first extracts article coordinates from comment event 'A' tags with counts, then batch-fetches matching articles from the article table. Translations added for all six locales.
 
 
 ## v0.0.27

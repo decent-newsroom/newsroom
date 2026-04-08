@@ -582,3 +582,20 @@ language:
 featured_unfold:
     label: 'Premium'
     heading: 'Publicaciones destacadas'
+
+# ── Feed de inicio ───────────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Recientes'
+        follows: 'Seguidos'
+        interests: 'Intereses'
+        podcasts: 'Podcasts'
+        newsbots: 'Bots de noticias'
+        discussed: 'Comentados'
+    loading: 'Cargando artículos…'
+    latest:
+        empty: '¡Aún no se encontraron artículos. Vuelve más tarde!'
+    discussed:
+        empty: 'Aún no se encontraron artículos con comentarios.'
+        commentCount: '{1} %count% comentario|]1,Inf] %count% comentarios'
+

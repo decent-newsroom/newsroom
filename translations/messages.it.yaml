@@ -292,9 +292,13 @@ home_feed:
         interests: 'Interessi'
         podcasts: 'Podcast'
         newsbots: 'Bot di notizie'
+        discussed: 'Discussi'
     loading: 'Caricamento articoli…'
     latest:
         empty: 'Nessun articolo trovato ancora. Ricontrolla più tardi!'
+    discussed:
+        empty: 'Nessun articolo con commenti trovato ancora.'
+        commentCount: '{1} %count% commento|]1,Inf] %count% commenti'
     interests:
         signInRequired: 'Accedi per vedere articoli basati sui tuoi interessi.'
         noInterests: 'Nessun interesse configurato ancora'

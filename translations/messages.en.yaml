@@ -292,9 +292,13 @@ home_feed:
         interests: 'Interests'
         podcasts: 'Podcasts'
         newsbots: 'News Bots'
+        discussed: 'Discussed'
     loading: 'Loading articles…'
     latest:
         empty: 'No articles found yet. Check back later!'
+    discussed:
+        empty: 'No articles with comments found yet.'
+        commentCount: '{1} %count% comment|]1,Inf] %count% comments'
     interests:
         signInRequired: 'Sign in to see articles based on your interests.'
         noInterests: 'No interests configured yet'

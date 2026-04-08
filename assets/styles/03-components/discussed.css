@@ -1,0 +1,13 @@
+/**
+ * Card footer: comment count
+ * Displayed inside .card-footer when an article has comments.
+ */
+
+.card-footer__comments {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}

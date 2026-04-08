@@ -14,6 +14,7 @@ final class Card
     public object $article;
     public bool $is_author_profile = false;
     public array $authors_metadata = [];
+    public int $comment_count = 0;
 
     public function mount($category = null)
     {

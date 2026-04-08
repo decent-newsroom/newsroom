@@ -28,7 +28,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -49,6 +49,7 @@ class HomeFeedController extends AbstractController
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
             'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
             'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
+            'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
         };
     }
 
@@ -268,6 +269,56 @@ class HomeFeedController extends AbstractController
             'articles' => $result['articles'],
             'authorsMetadata' => $result['authorsMetadata'],
             'purpose' => $purpose,
+        ]);
+    }
+
+    private function discussedTab(
+        ArticleRepository $articleRepository,
+        RedisCacheService $redisCacheService,
+        LatestArticlesExclusionPolicy $exclusionPolicy,
+        UserMuteListService $userMuteListService,
+    ): Response {
+        // Resolve user-level mute list
+        $userMutedPubkeys = [];
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if ($user) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $userMutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical
+            }
+        }
+
+        $excludedPubkeys = array_values(array_unique(array_merge(
+            $exclusionPolicy->getAllExcludedPubkeys(),
+            $userMutedPubkeys,
+        )));
+
+        $result = $articleRepository->findArticlesWithComments(50, $excludedPubkeys);
+        $articles = $result['articles'];
+        $commentCounts = $result['commentCounts'];
+
+        // Batch-resolve author metadata
+        $authorPubkeys = [];
+        foreach ($articles as $article) {
+            $pk = $article->getPubkey();
+            if ($pk && NostrKeyUtil::isHexPubkey($pk)) {
+                $authorPubkeys[] = $pk;
+            }
+        }
+        $authorPubkeys = array_unique($authorPubkeys);
+        $metaRaw = $redisCacheService->getMultipleMetadata($authorPubkeys);
+        $authorsMetadata = [];
+        foreach ($metaRaw as $pk => $m) {
+            $authorsMetadata[$pk] = $m instanceof UserMetadata ? $m->toStdClass() : $m;
+        }
+
+        return $this->render('home/tabs/_discussed.html.twig', [
+            'articles' => $articles,
+            'authorsMetadata' => $authorsMetadata,
+            'commentCounts' => $commentCounts,
         ]);
     }
 }

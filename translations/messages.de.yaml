@@ -596,3 +596,19 @@ language:
 featured_unfold:
     label: 'Premium'
     heading: 'Ausgewählte Publikationen'
+
+# ── Startseite-Feed ──────────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Neueste'
+        follows: 'Folge ich'
+        interests: 'Interessen'
+        podcasts: 'Podcasts'
+        newsbots: 'Nachrichten-Bots'
+        discussed: 'Diskutiert'
+    loading: 'Artikel werden geladen…'
+    latest:
+        empty: 'Noch keine Artikel gefunden. Schau später nochmal vorbei!'
+    discussed:
+        empty: 'Noch keine Artikel mit Kommentaren gefunden.'
+        commentCount: '{1} %count% Kommentar|]1,Inf] %count% Kommentare'

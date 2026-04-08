@@ -582,3 +582,20 @@ language:
 featured_unfold:
     label: 'Premium'
     heading: 'Izpostavljene publikacije'
+
+# ── Domači vir ───────────────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Najnovejše'
+        follows: 'Sledim'
+        interests: 'Interesi'
+        podcasts: 'Podkasti'
+        newsbots: 'Novičarski boti'
+        discussed: 'Komentirano'
+    loading: 'Nalagam članke…'
+    latest:
+        empty: 'Zaenkrat ni najdenih člankov. Preverite pozneje!'
+    discussed:
+        empty: 'Zaenkrat ni najdenih člankov s komentarji.'
+        commentCount: '{1} %count% komentar|{2} %count% komentarja|[3,4] %count% komentarji|]4,Inf] %count% komentarjev'
+

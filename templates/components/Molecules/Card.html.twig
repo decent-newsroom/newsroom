@@ -34,6 +34,12 @@
                     {% endif %}
             </div>
         </a>
-        <div class="card-footer"></div>
+        <div class="card-footer">
+            {% if comment_count|default(0) > 0 %}
+                <div class="card-footer__comments">
+                    <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
+                </div>
+            {% endif %}
+        </div>
     </div>
 {% endif %}

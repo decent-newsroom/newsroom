@@ -1,0 +1,19 @@
+<turbo-frame id="home-tab-content">
+    {% if articles is empty %}
+        <div class="alert alert-info">
+            {{ 'home_feed.discussed.empty'|trans }}
+        </div>
+    {% else %}
+        <div class="article-list">
+            {% for article in articles %}
+                {% if article.slug is not empty and article.title is not empty %}
+                    {% set coord = '30023:' ~ article.pubkey ~ ':' ~ article.slug %}
+                    {% set count = commentCounts[coord]|default(0) %}
+                    <twig:Molecules:Card :article="article" :authors_metadata="authorsMetadata" :comment_count="count" />
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</turbo-frame>
+
+

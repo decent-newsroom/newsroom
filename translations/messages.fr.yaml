@@ -582,3 +582,20 @@ language:
 featured_unfold:
     label: 'Premium'
     heading: 'Publications en vedette'
+
+# ── Fil d'accueil ────────────────────────────────────────────────
+home_feed:
+    tab:
+        latest: 'Récents'
+        follows: 'Abonnements'
+        interests: 'Intérêts'
+        podcasts: 'Podcasts'
+        newsbots: 'Bots d''actualités'
+        discussed: 'Discutés'
+    loading: 'Chargement des articles…'
+    latest:
+        empty: 'Aucun article trouvé pour le moment. Revenez plus tard !'
+    discussed:
+        empty: 'Aucun article avec des commentaires trouvé pour le moment.'
+        commentCount: '{1} %count% commentaire|]1,Inf] %count% commentaires'
+
