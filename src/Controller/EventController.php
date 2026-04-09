@@ -236,6 +236,36 @@ class EventController extends AbstractController
                             'kind' => $data->kind,
                         ]);
                         $event = $this->entityToObject($dbEvent);
+
+                        // For article kinds, ensure the Article projection exists.
+                        // The Event may have been ingested via GenericEventProjector
+                        // without a corresponding Article entity — recover here.
+                        if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
+                            try {
+                                $this->articleEventProjector->projectArticleFromEvent(
+                                    $event,
+                                    'db-naddr-recovery',
+                                );
+                            } catch (\Throwable $e) {
+                                $logger->warning('Article projection recovery failed for naddr DB hit', [
+                                    'kind' => $data->kind,
+                                    'pubkey' => $data->pubkey,
+                                    'identifier' => $data->identifier,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                            // Re-check the Article table — redirect if projection succeeded
+                            $articleEntity = $eventRepository->getEntityManager()
+                                ->getRepository(\App\Entity\Article::class)
+                                ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                            if ($articleEntity) {
+                                $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                                return $this->redirectToRoute('author-article-slug', [
+                                    'npub' => $npub,
+                                    'slug' => $data->identifier,
+                                ]);
+                            }
+                        }
                     } else {
                         // Synchronous fetch — targeted limit-1 lookup, the user
                         // is explicitly looking for this event so a brief wait is fine.
@@ -311,7 +341,7 @@ class EventController extends AbstractController
                         ]);
                     }
 
-                    if ($data->kind === KindsEnum::LONGFORM->value) {
+                    if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
                         // Only redirect to the article page if the Article entity
                         // was actually projected.  The sync fetch persists the Event
                         // but article projection can fail silently — in that case
