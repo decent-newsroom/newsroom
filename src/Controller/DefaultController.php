@@ -529,6 +529,12 @@ class DefaultController extends AbstractController
         ]);
     }
 
+    #[Route('/follow-packs', name: 'follow_packs')]
+    public function followPacks(): Response
+    {
+        return $this->render('pages/follow-packs.html.twig');
+    }
+
     /**
      * @throws Exception
      */

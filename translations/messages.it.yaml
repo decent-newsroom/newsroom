@@ -45,6 +45,7 @@ nav:
     newsstand: 'Edicola'
     bookshelf: 'Libreria'
     collections: 'Collezioni'
+    followPacks: 'Pacchetti di follow'
     myContent: 'I miei contenuti'
     bookmarks: 'Segnalibri'
     myMagazines: 'Le mie riviste'
@@ -873,4 +874,13 @@ followPackView:
     noArticles: 'Nessun articolo da questo gruppo ancora.'
     members: 'Scrittori'
     viewArticles: 'Visualizza articoli di questo gruppo →'
+
+# ── Pagina Follow Packs ───────────────────────────────────────────
+followPacks:
+    heading: 'Pacchetti di follow'
+    eyebrow: 'collezioni curate di autori'
+    noPacks: 'Nessun pacchetto di follow con articoli ancora.'
+    writers: 'autori'
+    articles: 'articoli'
+    curatedBy: 'Curato da'
 

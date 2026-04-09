@@ -44,6 +44,7 @@ nav:
     newsroom: 'Newsroom'
     newsstand: 'Kiosk'
     collections: 'Sammlungen'
+    followPacks: 'Follow-Pakete'
     myContent: 'Meine Inhalte'
     bookmarks: 'Lesezeichen'
     myMagazines: 'Meine Magazine'
@@ -648,4 +649,13 @@ settings:
         themeLight: 'Hell'
         themeSpace: 'Space'
         language: 'Sprache'
+
+# ── Follow Packs Seite ────────────────────────────────────────────
+followPacks:
+    heading: 'Follow-Pakete'
+    eyebrow: 'kuratierte Autorensammlungen'
+    noPacks: 'Noch keine Follow-Pakete mit Artikeln.'
+    writers: 'Autoren'
+    articles: 'Artikel'
+    curatedBy: 'Kuratiert von'
 

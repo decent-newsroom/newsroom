@@ -44,6 +44,7 @@ nav:
     newsroom: 'Uredništvo'
     newsstand: 'Kiosk'
     collections: 'Zbirke'
+    followPacks: 'Paketi za sledenje'
     myContent: 'Moje vsebine'
     bookmarks: 'Zaznamki'
     myMagazines: 'Moje revije'
@@ -634,3 +635,13 @@ settings:
         themeLight: 'Svetla'
         themeSpace: 'Vesolje'
         language: 'Jezik'
+
+# ── Stran Follow Packs ────────────────────────────────────────────
+followPacks:
+    heading: 'Paketi za sledenje'
+    eyebrow: 'izbrane zbirke avtorjev'
+    noPacks: 'Še ni paketov za sledenje s članki.'
+    writers: 'avtorjev'
+    articles: 'člankov'
+    curatedBy: 'Izbral/a'
+

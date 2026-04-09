@@ -45,6 +45,7 @@ nav:
     newsstand: 'Newsstand'
     bookshelf: 'Bookshelf'
     collections: 'Collections'
+    followPacks: 'Follow Packs'
     myContent: 'My Content'
     bookmarks: 'Bookmarks'
     myMagazines: 'My Magazines'
@@ -873,4 +874,13 @@ followPackView:
     noArticles: 'No articles from this group yet.'
     members: 'Writers'
     viewArticles: 'View articles from this group →'
+
+# ── Follow Packs listing page ─────────────────────────────────────
+followPacks:
+    heading: 'Follow Packs'
+    eyebrow: 'curated writer collections'
+    noPacks: 'No follow packs with articles yet.'
+    writers: 'writers'
+    articles: 'articles'
+    curatedBy: 'Curated by'
 

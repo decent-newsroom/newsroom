@@ -50,6 +50,7 @@ h2.card-title {
 
 .article-list .card {
     margin-bottom: 1rem;
+    background: none;
 }
 
 .card-header img {

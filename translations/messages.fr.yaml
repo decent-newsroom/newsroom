@@ -44,6 +44,7 @@ nav:
     newsroom: 'Rédaction'
     newsstand: 'Kiosque'
     collections: 'Collections'
+    followPacks: 'Packs de suivi'
     myContent: 'Mon contenu'
     bookmarks: 'Signets'
     myMagazines: 'Mes magazines'
@@ -634,3 +635,13 @@ settings:
         themeLight: 'Clair'
         themeSpace: 'Espace'
         language: 'Langue'
+
+# ── Page Follow Packs ─────────────────────────────────────────────
+followPacks:
+    heading: 'Packs de suivi'
+    eyebrow: 'collections d''auteurs sélectionnés'
+    noPacks: 'Pas encore de packs de suivi avec des articles.'
+    writers: 'auteurs'
+    articles: 'articles'
+    curatedBy: 'Sélectionné par'
+

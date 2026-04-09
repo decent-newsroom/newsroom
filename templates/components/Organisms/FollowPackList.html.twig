@@ -1,0 +1,33 @@
+<div {{ attributes }}>
+    {% set packs = this.packs %}
+    {% if packs is not empty %}
+        {% for pack in packs %}
+            <div class="card p-3 ln-section--reader">
+                {% if pack.image %}
+                    <div class="card-header m-0">
+                        <a href="{{ path('follow_pack_view', { npub: pack.npub, dtag: pack.dtag }) }}">
+                            <img src="{{ pack.image }}" alt="{{ pack.title }}" loading="lazy">
+                        </a>
+                    </div>
+                {% endif %}
+                <div class="card-body text-center">
+                    <h2 class="card-title">
+                        <a href="{{ path('follow_pack_view', { npub: pack.npub, dtag: pack.dtag }) }}">
+                            {{ pack.title }}
+                        </a>
+                    </h2>
+                    {% if pack.description %}
+                        <p class="eyebrow">{{ pack.description }}</p>
+                    {% endif %}
+                    <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-2">
+                        <span class="badge bg-secondary">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
+                        <span class="badge bg-info text-dark">{{ pack.articleCount }} {{ 'followPacks.articles'|trans }}</span>
+                    </div>
+                    <p>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></p>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p><small>{{ 'followPacks.noPacks'|trans }}</small></p>
+    {% endif %}
+</div>

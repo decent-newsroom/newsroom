@@ -230,6 +230,43 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Count distinct articles (by slug) per pubkey, in a single query.
+     *
+     * @param string[] $pubkeys Hex pubkeys to count articles for
+     * @return array<string, int> Map of pubkey => article count
+     */
+    public function countArticlesByPubkeys(array $pubkeys): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $sql = 'SELECT pubkey, COUNT(DISTINCT slug) AS cnt
+                FROM article
+                WHERE pubkey IN (:pubkeys)
+                  AND slug IS NOT NULL
+                  AND title IS NOT NULL
+                  AND kind != :draftKind
+                GROUP BY pubkey';
+
+        $result = $conn->executeQuery($sql, [
+            'pubkeys' => $pubkeys,
+            'draftKind' => KindsEnum::LONGFORM_DRAFT->value,
+        ], [
+            'pubkeys' => \Doctrine\DBAL\ArrayParameterType::STRING,
+            'draftKind' => ParameterType::INTEGER,
+        ]);
+
+        $counts = [];
+        foreach ($result->fetchAllAssociative() as $row) {
+            $counts[$row['pubkey']] = (int) $row['cnt'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Find articles by pubkey (author)
      *
      * @param string $pubkey
