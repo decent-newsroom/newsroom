@@ -20,8 +20,7 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 
 ## Display
 
-- **Article page sidebar**: Highlights shown in a collapsible sidebar section with the highlighter's profile
-- **Article page mobile**: Highlights shown after comments on narrow screens
+- **Article page bottom**: Highlights shown after comments, styled similarly to the comment section
 - **Inline highlighting**: Existing highlights are marked inline in the article text (toggled via button)
 - **Highlights feed**: `/highlights` page shows latest highlights from Redis view store
 

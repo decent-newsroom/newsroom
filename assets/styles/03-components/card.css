@@ -54,7 +54,7 @@ h2.card-title {
     background: none;
 }
 
-article .card {
+article .card:not(.zap-modal-content) {
     background: none;
 }
 

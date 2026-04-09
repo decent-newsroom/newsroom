@@ -294,11 +294,11 @@
         <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
         {% endif %}
 
-        {# Mobile highlights - shown after comments on narrow screens #}
+        {# Highlights - shown after comments #}
         {% if highlights is defined and highlights|length > 0 %}
-            <div class="highlights-mobile-section">
-                <h3 class="highlights-mobile-heading">Highlights ({{ highlights|length }})</h3>
-                <div class="highlights-mobile-grid">
+            <div class="highlights-bottom-section">
+                <h3 class="highlights-bottom-heading hidden">Highlights ({{ highlights|length }})</h3>
+                <div class="highlights-bottom-grid">
                     {% for highlight in highlights %}
                         <div class="highlight-card-compact">
                             <div class="highlight-header-compact">
@@ -344,61 +344,6 @@
 {% endblock %}
 
 {% block aside %}
-    {% if highlights is defined and highlights|length > 0 %}
-        <div class="sidebar-section">
-            <h3 class="sidebar-heading">Highlights ({{ highlights|length }})</h3>
-            <div class="highlights-sidebar">
-                {% for highlight in highlights %}
-                    <div class="highlight-card-compact">
-                        <div class="highlight-header-compact">
-                            {% if highlight.pubkey %}
-                                <twig:Molecules:UserFromNpub
-                                    ident="{{ highlight.pubkey }}"
-                                    :compact="true"
-                                />
-                            {% else %}
-                                <span class="text-muted">Anonymous</span>
-                            {% endif %}
-                            <small class="text-muted ms-auto">
-                                {{ highlight.created_at|date('M j') }}
-                            </small>
-                        </div>
-
-                        {% if highlight.context %}
-                            {% set htmlContext = highlight.context|markdown_to_html %}
-                            {% if highlight.content in highlight.context %}
-                                {% set wrapper = '<mark class="highlight-mark-compact">' ~ highlight.content ~ '</mark>' %}
-                                {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
-                                {{ rendered|raw }}
-                            {% else %}
-                                <div class="context-text-compact">{{ htmlContext|raw }}</div>
-                                <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
-                            {% endif %}
-                        {% else %}
-                            {% set charLimit = 450 %}
-                            {% set content = highlight.content %}
-                            {% if content|length > charLimit %}
-                                <div data-utility--show-more-target="preview">
-                                    {{ content|slice(0, charLimit) ~ '…' }}
-                                </div>
-                                <div data-utility--show-more-target="full" style="display:none;">
-                                    {{ content }}
-                                </div>
-                                <button type="button"
-                                        class="btn btn-link btn-sm p-0 mt-1"
-                                        data-utility--show-more-target="button"
-                                        data-action="utility--show-more#toggle">
-                                    Show more
-                                </button>
-                            {% else %}
-                                <mark class="highlight-mark-compact">{{ content }}</mark>
-                            {% endif %}
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-    {% endif %}
 
 {#    <h1>Suggestions</h1>#}
 {#    <twig:Organisms:CardList :list="suggestions" />#}
