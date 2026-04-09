@@ -81,7 +81,7 @@
                         <span class="featured-writer-info">
                             <span class="featured-writer-name">{{ member.displayName|default(member.name)|default('Anonymous') }}</span>
                             {% if member.nip05 %}
-                                <span class="featured-writer-nip05">{{ member.nip05 }}</span>
+                                <span class="featured-writer-nip05">{{ member.nip05 is iterable ? member.nip05|first : member.nip05 }}</span>
                             {% endif %}
                         </span>
                     </a>

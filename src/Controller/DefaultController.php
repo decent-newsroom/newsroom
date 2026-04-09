@@ -495,7 +495,7 @@ class DefaultController extends AbstractController
                 'displayName' => $std->display_name ?? $std->name ?? '',
                 'name' => $std->name ?? '',
                 'picture' => $std->picture ?? '',
-                'nip05' => $std->nip05 ?? '',
+                'nip05' => is_array($std->nip05 ?? '') ? ($std->nip05[0] ?? '') : ($std->nip05 ?? ''),
             ];
         }
 
