@@ -8,6 +8,7 @@ use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
@@ -31,6 +32,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\UserMuteListService;
@@ -445,6 +447,7 @@ class DefaultController extends AbstractController
         EntityManagerInterface $em,
         RedisCacheService $redisCacheService,
         ArticleRepository $articleRepository,
+        MessageBusInterface $messageBus,
     ): Response
     {
         try {
@@ -485,10 +488,16 @@ class DefaultController extends AbstractController
         $nip19 = new Nip19Helper();
         $members = [];
         $metadataMap = $redisCacheService->getMultipleMetadata($memberPubkeys);
+        $missingProfilePubkeys = [];
 
         foreach ($memberPubkeys as $hex) {
             $meta = $metadataMap[$hex] ?? null;
             $std = $meta ? ($meta instanceof UserMetadata ? $meta->toStdClass() : $meta) : null;
+
+            if (!$std || (empty($std->name ?? '') && empty($std->display_name ?? ''))) {
+                $missingProfilePubkeys[] = $hex;
+            }
+
             $members[] = [
                 'pubkey' => $hex,
                 'npub' => $nip19->encodeNpub($hex),
@@ -497,6 +506,15 @@ class DefaultController extends AbstractController
                 'picture' => $std->picture ?? '',
                 'nip05' => is_array($std->nip05 ?? '') ? ($std->nip05[0] ?? '') : ($std->nip05 ?? ''),
             ];
+        }
+
+        // Dispatch async batch profile fetch for members with missing metadata
+        if (!empty($missingProfilePubkeys)) {
+            try {
+                $messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missingProfilePubkeys));
+            } catch (\Throwable) {
+                // Non-critical — profiles will be fetched on next refresh cycle
+            }
         }
 
         // Fetch all deduplicated articles from pack members (revisions collapsed)

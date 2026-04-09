@@ -8,6 +8,7 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
+use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\Message\FetchMissingCurationMediaMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
@@ -825,7 +826,7 @@ class AuthorController extends AbstractController
             }
 
             // For direct access, show full page with tabs
-            $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, false, $em, $redisCacheService);
+            $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, false, $em, $redisCacheService, $messageBus);
             return $this->render('profile/author-tabs.html.twig', array_merge([
                 'author' => $author,
                 'npub' => $npub,
@@ -840,7 +841,7 @@ class AuthorController extends AbstractController
         }
 
         // Load follow pack data for the author section sidebar
-        $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, $isOwner, $em, $redisCacheService);
+        $followPackData = $this->getFollowPackDataForProfile($pubkey, $npub, $isOwner, $em, $redisCacheService, $messageBus);
 
         // STALE-WHILE-REVALIDATE: Try to get cached data first for instant loads
         $cacheableTabs = ['overview', 'articles', 'media', 'highlights', 'drafts'];
@@ -1004,6 +1005,7 @@ class AuthorController extends AbstractController
         bool $isOwner,
         EntityManagerInterface $em,
         RedisCacheService $redisCacheService,
+        MessageBusInterface $messageBus,
     ): array {
         $data = [
             'followsPubkeys' => [],
@@ -1047,6 +1049,7 @@ class AuthorController extends AbstractController
 
                     $nip19 = new Nip19Helper();
                     $resolved = [];
+                    $missingProfilePubkeys = [];
 
                     foreach ($memberPubkeys as $memberHex) {
                         if (isset($metadataMap[$memberHex])) {
@@ -1058,6 +1061,17 @@ class AuthorController extends AbstractController
                                 'picture' => $memberStd->picture ?? '',
                                 'nip05' => is_array($memberStd->nip05) ? ($memberStd->nip05[0] ?? '') : ($memberStd->nip05 ?? ''),
                             ];
+                        } else {
+                            $missingProfilePubkeys[] = $memberHex;
+                        }
+                    }
+
+                    // Dispatch async batch profile fetch for members with missing metadata
+                    if (!empty($missingProfilePubkeys)) {
+                        try {
+                            $messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missingProfilePubkeys));
+                        } catch (\Throwable) {
+                            // Non-critical — profiles will be fetched on next refresh cycle
                         }
                     }
 
