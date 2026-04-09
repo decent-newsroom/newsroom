@@ -3,6 +3,12 @@
         {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
             <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
         {% endif %}
+        {% if author.lud16 is defined and author.lud16 %}
+            <twig:Molecules:ZapButton
+                recipientPubkey="{{ pubkey }}"
+                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+            />
+        {% endif %}
     </div>
     <section class="p-0">
         <h1>
@@ -19,15 +25,6 @@
                 <button class="btn btn-sm btn-secondary"
                         data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy npub</button>
             </div>
-
-            {% if author.lud16 is defined and author.lud16 %}
-                <twig:Molecules:ZapButton
-                    class="mt-2 mb-2"
-                    btnClass="btn-sm"
-                    recipientPubkey="{{ pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-                />
-            {% endif %}
         </div>
 
         {% if author.nip05 is defined and author.nip05 is not empty %}
