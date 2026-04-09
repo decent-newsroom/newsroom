@@ -344,6 +344,8 @@ article:
     trySearching: 'Try searching or paste a Nostr address (naddr)'
     trySearchingHint: "If you have the article's Nostr address (naddr), paste it in the search box below. We'll attempt to fetch it from the relays and add it to our index."
     returnHome: 'Return to Homepage'
+    relatedArticles: 'Related articles'
+    relatedFromInterests: 'More from your interests'
 
 # ── Article Actions Dropdown ─────────────────────────────────────
 articleActions:

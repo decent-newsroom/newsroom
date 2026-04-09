@@ -344,6 +344,8 @@ article:
     trySearching: 'Prova a cercare o incolla un indirizzo Nostr (naddr)'
     trySearchingHint: 'Se hai l''indirizzo Nostr dell''articolo (naddr), incollalo nella casella di ricerca qui sotto. Proveremo a recuperarlo dai relay e ad aggiungerlo al nostro indice.'
     returnHome: 'Torna alla homepage'
+    relatedArticles: 'Articoli correlati'
+    relatedFromInterests: 'Altro dai tuoi interessi'
 
 # ── Article Actions Dropdown ─────────────────────────────────────
 articleActions:

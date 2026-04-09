@@ -272,6 +272,8 @@ article:
     trySearching: 'Essayez de chercher ou collez une adresse Nostr (naddr)'
     trySearchingHint: "Si vous avez l'adresse Nostr de l'article (naddr), collez-la dans le champ de recherche ci-dessous. Nous tenterons de le récupérer depuis les relais et de l'ajouter à notre index."
     returnHome: "Retour à la page d'accueil"
+    relatedArticles: 'Articles similaires'
+    relatedFromInterests: 'Plus de vos centres d''intérêt'
 
 # ── Menu déroulant des actions d'article ─────────────────────────────
 articleActions:

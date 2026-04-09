@@ -272,6 +272,8 @@ article:
     trySearching: 'Poskusite iskati ali prilepite Nostr naslov (naddr)'
     trySearchingHint: 'Če imate Nostr naslov članka (naddr), ga prilepite v iskalno polje spodaj. Poskusili ga bomo pridobiti z relejev in dodati v naš indeks.'
     returnHome: 'Nazaj na domačo stran'
+    relatedArticles: 'Sorodni članki'
+    relatedFromInterests: 'Več iz vaših interesov'
 
 # ── Spustni meni z dejanji članka ─────────────────────────────────
 articleActions:

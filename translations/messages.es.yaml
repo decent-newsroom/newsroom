@@ -272,6 +272,8 @@ article:
     trySearching: 'Intenta buscar o pega una dirección Nostr (naddr)'
     trySearchingHint: 'Si tienes la dirección Nostr del artículo (naddr), pégala en el cuadro de búsqueda. Intentaremos obtenerlo de los relays y agregarlo a nuestro índice.'
     returnHome: 'Volver a la página principal'
+    relatedArticles: 'Artículos relacionados'
+    relatedFromInterests: 'Más de tus intereses'
 
 # ── Desplegable de acciones del artículo ──────────────────────────────
 articleActions:

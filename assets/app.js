@@ -40,6 +40,7 @@ import './styles/03-components/image-upload.css';
 import './styles/03-components/zaps.css';
 import './styles/03-components/back-to-top.css';
 import './styles/03-components/article-nav.css';
+import './styles/03-components/related-articles.css';
 import './styles/03-components/article-actions-dropdown.css';
 import './styles/03-components/magazine-preview.css';
 import './styles/03-components/featured-unfold.css';

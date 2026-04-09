@@ -335,6 +335,12 @@
             </div>
         {% endif %}
     </article>
+    {% if article.topics|length > 0 and not (isDraft is defined and isDraft) %}
+        <twig:Organisms:RelatedArticles
+            coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+            :topics="article.topics"
+            pubkey="{{ article.pubkey }}" />
+    {% endif %}
 {% endblock %}
 
 {% block aside %}

@@ -1,0 +1,41 @@
+/**
+ * Related Articles
+ * Suggestion cards at the bottom of an article based on user interests or tags
+ */
+
+.related-articles {
+    margin-top: var(--spacing-5);
+    margin-bottom: var(--spacing-5);
+}
+
+.related-articles__heading {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-3);
+}
+
+.related-articles__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-4);
+}
+
+.related-articles__item {
+    display: flex;
+    flex-direction: column;
+}
+
+.related-articles__item .card {
+    flex: 1;
+}
+
+.related-articles__item .card .card-header img {
+    max-height: 140px;
+    object-fit: cover;
+}
+
+.related-articles__item .card-footer {
+    border: none;
+}
