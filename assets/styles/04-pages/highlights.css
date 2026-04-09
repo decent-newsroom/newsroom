@@ -5,8 +5,7 @@
 }
 
 .highlights-grid {
-    column-count: 3;
-    column-gap: 2rem;
+    column-count: 1;
     margin-top: 2rem;
 }
 
@@ -238,20 +237,11 @@
 }
 
 @media (max-width: 768px) {
-    .highlights-grid {
-        column-count: 1;
-    }
-
     .highlight-card {
         margin-bottom: 1.5rem;
     }
 }
 
-@media (min-width: 769px) and (max-width: 1400px) {
-    .highlights-grid {
-        column-count: 2;
-    }
-}
 
 /* ------------------------------------------------------------------ */
 /*  Highlight popover – appears on text selection in article body      */

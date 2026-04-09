@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.29
+- [Bug] Changed highlights grid to single-column layout at all screen sizes. Previously used a multi-column masonry layout (3 columns on large screens, 2 on medium) that made highlight cards too narrow to read comfortably.
+
+
 ## v0.0.28
 Searching, searching... 
 

@@ -96,11 +96,6 @@
     grid-template-columns: 1fr;
 }
 
-@media (min-width: 768px) {
-    #highlights-preview .highlights-grid {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    }
-}
 
 /* Featured Writers Section */
 .featured-writers {
