@@ -4,7 +4,7 @@
 
     {% include 'partial/_author-section.html.twig' with {author: author, npub: npub, pubkey: pubkey} %}
 
-    <section>
+    <section class="p-0">
         <div class="profile-tabs" data-controller="content--author-profile-tabs"
              data-content--author-profile-tabs-pubkey-value="{{ pubkey }}"
              data-content--author-profile-tabs-hub-url-value="{{ mercure_public_hub_url }}"

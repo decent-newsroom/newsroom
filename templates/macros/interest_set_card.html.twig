@@ -1,0 +1,101 @@
+{#
+    Renders an interest set sub-card with Follow / Clone action buttons.
+
+    Parameters:
+      catKey   – category key (e.g. "isets")
+      subKey   – subcategory key (e.g. "pubkey:dTag")
+      sub      – subcategory data { name, tags, count, followed?, owned? }
+#}
+{% macro interest_set_card(catKey, subKey, sub) %}
+    {% set parts = subKey|split(':', 2) %}
+    {% set setPubkey = parts[0]|default('') %}
+    {% set setDTag   = parts[1]|default('') %}
+
+    <div class="sub-card"
+         {% if app.user and catKey == 'isets' %}
+         data-controller="nostr--nostr-interest-set-actions"
+         data-nostr--nostr-interest-set-actions-publish-url-value="{{ path('api_settings_event_publish') }}"
+         data-nostr--nostr-interest-set-actions-tags-url-value="{{ path('api_interests_current_tags') }}"
+         data-nostr--nostr-interest-set-actions-set-pubkey-value="{{ setPubkey }}"
+         data-nostr--nostr-interest-set-actions-set-dtag-value="{{ setDTag }}"
+         data-nostr--nostr-interest-set-actions-set-title-value="{{ sub.name }}"
+         data-nostr--nostr-interest-set-actions-set-tags-value="{{ sub.tags|json_encode }}"
+         data-nostr--nostr-interest-set-actions-followed-value="{{ sub.followed|default(false) ? 'true' : 'false' }}"
+         data-nostr--nostr-interest-set-actions-owned-value="{{ sub.owned|default(false) ? 'true' : 'false' }}"
+         {% endif %}>
+
+        <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
+
+        <div class="d-flex flex-row">
+            <div class="tags m-0">
+                {% for tag in sub.tags %}
+                    <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
+                {% endfor %}
+            </div>
+            <div class="count">{{ sub.count|default(0) }}</div>
+        </div>
+
+        {% if app.user and catKey == 'isets' %}
+        <div class="sub-card__actions">
+            {% if sub.followed|default(false) %}
+                <button class="btn btn--sm btn--muted"
+                        data-action="click->nostr--nostr-interest-set-actions#follow"
+                        disabled>✓ Followed</button>
+            {% else %}
+                <button class="btn btn--sm btn--secondary"
+                        data-action="click->nostr--nostr-interest-set-actions#follow">Follow</button>
+            {% endif %}
+            {% if not sub.owned|default(false) %}
+                <button class="btn btn--sm btn--secondary"
+                        data-action="click->nostr--nostr-interest-set-actions#clone">Clone as my set</button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{#
+    Renders a default (hardcoded) topic sub-card with a "Clone as my set" button.
+    Allows logged-in users to turn any preconfigured topic into their own
+    kind 30015 interest set that they can later edit.
+
+    Parameters:
+      catKey   – main category key (e.g. "tech")
+      subKey   – subcategory key (e.g. "bitcoin")
+      sub      – subcategory data { name, tags, count }
+#}
+{% macro default_topic_card(catKey, subKey, sub) %}
+    <div class="sub-card"
+         {% if app.user %}
+         data-controller="nostr--nostr-interest-set-actions"
+         data-nostr--nostr-interest-set-actions-publish-url-value="{{ path('api_settings_event_publish') }}"
+         data-nostr--nostr-interest-set-actions-tags-url-value="{{ path('api_interests_current_tags') }}"
+         data-nostr--nostr-interest-set-actions-set-pubkey-value=""
+         data-nostr--nostr-interest-set-actions-set-dtag-value="{{ catKey }}-{{ subKey }}"
+         data-nostr--nostr-interest-set-actions-set-title-value="{{ sub.name }}"
+         data-nostr--nostr-interest-set-actions-set-tags-value="{{ sub.tags|json_encode }}"
+         data-nostr--nostr-interest-set-actions-followed-value="false"
+         data-nostr--nostr-interest-set-actions-owned-value="false"
+         {% endif %}>
+
+        <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
+
+        <div class="d-flex flex-row">
+            <div class="tags m-0">
+                {% for tag in sub.tags %}
+                    <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
+                {% endfor %}
+            </div>
+            <div class="count">{{ sub.count|default(0) }}</div>
+        </div>
+
+        {% if app.user %}
+        <div class="sub-card__actions">
+            <button class="btn btn--sm btn--secondary"
+                    data-action="click->nostr--nostr-interest-set-actions#clone">Clone as my set</button>
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+

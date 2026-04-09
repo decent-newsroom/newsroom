@@ -21,7 +21,7 @@ button, .btn, a.btn {
 
 button:hover, .btn:hover, a.btn:hover {
     background: var(--color-accent);
-    color: var(--color-text);
+    color: var(--color-text-contrast);
     border: 1px solid var(--color-accent);
 }
 

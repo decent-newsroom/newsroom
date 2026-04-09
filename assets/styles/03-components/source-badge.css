@@ -33,6 +33,6 @@
 }
 
 .source-badge--interests {
-    border-color: var(--color-accent, #777);
-    color: var(--color-accent, #777);
+    border-color: var(--color-accent-600, #777);
+    color: var(--color-accent-600, #777);
 }

@@ -1,4 +1,5 @@
 {% extends 'layout.html.twig' %}
+{% import 'macros/interest_set_card.html.twig' as iset %}
 
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ category.name }}"/>
@@ -7,19 +8,7 @@
         {% set cat = topics[categoryKey] ?? null %}
         {% if cat %}
             {% for subKey, sub in cat.subcategories %}
-                <div class="sub-card">
-                    <h3>
-                        <a href="{{ path('forum_topic', {'key': categoryKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a>
-                    </h3>
-                    <div class="d-flex flex-row">
-                        <div class="tags m-0">
-                            {% for tag in sub.tags %}
-                                <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
-                            {% endfor %}
-                        </div>
-                        <div class="count">{{ sub.count|default(0) }}</div>
-                    </div>
-                </div>
+                {{ iset.default_topic_card(categoryKey, subKey, sub) }}
             {% endfor %}
         {% else %}
             <div class="alert alert-info">No subcategories available for this topic.</div>

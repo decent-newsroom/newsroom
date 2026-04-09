@@ -382,6 +382,32 @@ class ForumController extends AbstractController
     // ---------- Helpers ----------
 
     /**
+     * Return the raw tags array from the user's current kind 10015 interests event.
+     * Used by the interest-set Follow action to merge a new "a" tag before re-signing.
+     */
+    #[Route('/api/interests/current-tags', name: 'api_interests_current_tags', methods: ['GET'])]
+    public function currentInterestTags(
+        EventRepository $eventRepository,
+    ): JsonResponse {
+        /** @var User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return new JsonResponse(['error' => 'Not authenticated'], 401);
+        }
+
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $event = $eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
+
+            return new JsonResponse([
+                'tags' => $event?->getTags() ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return new JsonResponse(['tags' => []]);
+        }
+    }
+
+    /**
      * Publish a kind 10015 interests event.
      * Receives a signed event from the frontend, validates it, and broadcasts to relays.
      */
@@ -652,9 +678,11 @@ class ForumController extends AbstractController
                         $sum += $setCounts[strtolower($tag)] ?? 0;
                     }
                     $userInterests['isets']['subcategories'][$subKey] = [
-                        'name'  => $set['title'],
-                        'tags'  => $set['tags'],
-                        'count' => $sum,
+                        'name'     => $set['title'],
+                        'tags'     => $set['tags'],
+                        'count'    => $sum,
+                        'followed' => $set['followed'] ?? false,
+                        'owned'    => $set['owned'] ?? false,
                     ];
                 }
             }

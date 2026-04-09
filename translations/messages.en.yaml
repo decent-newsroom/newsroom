@@ -843,7 +843,7 @@ follow_pack:
     sync_pending: 'Your recommended writers list is set up. Profiles will appear here once sync catches up.'
     page_title: 'Follow Pack'
     page_tagline: 'Build a list of writers you recommend to your followers'
-    description: 'A follow pack is a public list of Nostr accounts you recommend. It is a kind 39089 event — anyone on any Nostr client can see it, and other users can follow the whole pack with one click.'
+    description: 'A follow pack is a public list of Nostr accounts you recommend.'
     description_dn: 'On Decent Newsroom, your selected follow pack appears on your profile as a "Recommended Writers" list. Visitors can discover new voices through your recommendations.'
     select_existing: 'Select a recommendation list'
     create_new_button: 'Create New Pack'

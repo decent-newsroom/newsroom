@@ -843,7 +843,7 @@ follow_pack:
     sync_pending: 'La tua lista di scrittori raccomandati è configurata. I profili appariranno qui una volta completata la sincronizzazione.'
     page_title: 'Follow Pack'
     page_tagline: 'Costruisci una lista di scrittori che raccomandi ai tuoi follower'
-    description: 'Un follow pack è una lista pubblica di account Nostr che raccomandi. È un evento kind 39089 — chiunque su qualsiasi client Nostr può vederlo, e altri utenti possono seguire l''intero pack con un clic.'
+    description: 'Un follow pack è una lista pubblica di account Nostr che raccomandi.'
     description_dn: 'Su Decent Newsroom, il tuo follow pack selezionato appare sul tuo profilo come lista "Scrittori raccomandati". I visitatori possono scoprire nuove voci attraverso le tue raccomandazioni.'
     select_existing: 'Seleziona una lista di raccomandazione'
     create_new_button: 'Crea nuovo pack'

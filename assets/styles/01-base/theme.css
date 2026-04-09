@@ -108,6 +108,17 @@
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
     --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.2);
+
+    --color-accent-strong: #A07230;  /* darkened goldenrod for light bg */
+    --color-accent: #4E8C3E;           /* darkened moss for light bg */
+    --color-accent-600: #427A34;
+    --color-accent-500: #4E8C3E;
+    --color-accent-400: #5C9A4C;
+    --color-accent-300: #6AA85A;
+    --color-teal-500: #3A8E82;
+    --color-teal-400: #489E93;
+    --color-lilac-500: #7E52B3;
+    --color-lilac-400: #8E62C0;
 }
 
 [data-theme="space"] {

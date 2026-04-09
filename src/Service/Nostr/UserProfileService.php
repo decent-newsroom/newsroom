@@ -287,7 +287,11 @@ class UserProfileService
      *   2. Free-floating sets authored by the user themselves (own pubkey,
      *      kind 30015) — even if not referenced in the interests list.
      *
-     * @return array<int, array{title: string, tags: string[], pubkey: string, dTag: string}>
+     * Each returned set includes:
+     *   - 'followed' (bool): true if the set is referenced in the kind 10015 "a" tags
+     *   - 'owned'    (bool): true if the set was authored by this user
+     *
+     * @return array<int, array{title: string, tags: string[], pubkey: string, dTag: string, followed: bool, owned: bool}>
      */
     public function getInterestSets(string $pubkey): array
     {
@@ -296,12 +300,15 @@ class UserProfileService
 
         // ── 1. Referenced sets from kind 10015 "a" tags ──
         $dbEvent = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, KindsEnum::INTERESTS->value);
+        $referencedCoords = [];
 
         if ($dbEvent !== null) {
             $coordinates = $this->extractInterestSetCoordinates($dbEvent->getTags());
 
             foreach ($coordinates as $coord) {
                 $coordKey = $coord['pubkey'] . ':' . $coord['dTag'];
+                $referencedCoords[$coordKey] = true;
+
                 if (isset($seen[$coordKey])) {
                     continue;
                 }
@@ -325,10 +332,12 @@ class UserProfileService
 
                 $seen[$coordKey] = true;
                 $sets[] = [
-                    'title'  => $title,
-                    'tags'   => $tags,
-                    'pubkey' => $coord['pubkey'],
-                    'dTag'   => $coord['dTag'],
+                    'title'    => $title,
+                    'tags'     => $tags,
+                    'pubkey'   => $coord['pubkey'],
+                    'dTag'     => $coord['dTag'],
+                    'followed' => true,
+                    'owned'    => $coord['pubkey'] === $pubkey,
                 ];
             }
         }
@@ -352,10 +361,12 @@ class UserProfileService
 
             $seen[$coordKey] = true;
             $sets[] = [
-                'title'  => $title,
-                'tags'   => $tags,
-                'pubkey' => $pubkey,
-                'dTag'   => $dTag,
+                'title'    => $title,
+                'tags'     => $tags,
+                'pubkey'   => $pubkey,
+                'dTag'     => $dTag,
+                'followed' => isset($referencedCoords[$coordKey]),
+                'owned'    => true,
             ];
         }
 

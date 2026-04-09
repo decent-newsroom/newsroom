@@ -8,12 +8,12 @@
         </div>
     </section>
 
-    <div class="container mt-4 mb-3">
+    <div class="w-container mt-4 mb-3">
         <p class="measure">{{ 'follow_pack.description'|trans }}</p>
         <p class="measure text-muted small">{{ 'follow_pack.description_dn'|trans }}</p>
     </div>
 
-    <div class="container mt-4 mb-5"
+    <div class="w-container mt-4 mb-5"
          data-controller="nostr--nostr-follow-pack"
          data-nostr--nostr-follow-pack-publish-url-value="{{ path('api_settings_event_publish') }}"
          data-nostr--nostr-follow-pack-set-coordinate-url-value="{{ path('api_settings_follow_pack_set') }}"
