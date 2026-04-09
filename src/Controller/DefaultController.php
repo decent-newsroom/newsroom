@@ -28,11 +28,14 @@ use swentel\nostr\Key\Key;
 use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\UserMuteListService;
+use Pagerfanta\Adapter\ArrayAdapter;
+use Pagerfanta\Pagerfanta;
 
 class DefaultController extends AbstractController
 {
@@ -438,6 +441,7 @@ class DefaultController extends AbstractController
     public function followPackView(
         string $npub,
         string $dtag,
+        Request $request,
         EntityManagerInterface $em,
         RedisCacheService $redisCacheService,
         ArticleRepository $articleRepository,
@@ -495,8 +499,17 @@ class DefaultController extends AbstractController
             ];
         }
 
-        // Fetch latest articles from pack members
-        $articles = $articleRepository->findLatestByPubkeys($memberPubkeys, 50);
+        // Fetch all deduplicated articles from pack members (revisions collapsed)
+        $allArticles = $articleRepository->findAllByPubkeysDeduplicated($memberPubkeys);
+
+        // Paginate
+        $page = max(1, (int) $request->query->get('page', 1));
+        $perPage = 20;
+        $pager = new Pagerfanta(new ArrayAdapter($allArticles));
+        $pager->setMaxPerPage($perPage);
+        $pager->setCurrentPage(min($page, max(1, $pager->getNbPages())));
+
+        $articles = array_slice($allArticles, ($pager->getCurrentPage() - 1) * $perPage, $perPage);
 
         // Author metadata for cards
         $articlePubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
@@ -526,6 +539,7 @@ class DefaultController extends AbstractController
             'packDtag' => $dtag,
             'authorNpub' => $nip19->encodeNpub($pubkey),
             'authorProfile' => $authorProfile,
+            'pager' => $pager,
         ]);
     }
 

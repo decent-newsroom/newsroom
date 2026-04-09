@@ -46,6 +46,10 @@
             </div>
         {% else %}
             <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+
+            {% if pager is defined and pager.getNbPages() > 1 %}
+                <twig:Atoms:Pagination :pager="pager" route="follow_pack_view" :routeParams="{npub: authorNpub, dtag: packDtag}" />
+            {% endif %}
         {% endif %}
     </section>
 {% endblock %}

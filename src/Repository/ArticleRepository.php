@@ -267,6 +267,90 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Count the total number of distinct articles (by pubkey+slug coordinate)
+     * across a set of pubkeys.
+     *
+     * @param string[] $pubkeys Hex pubkeys
+     * @return int Total unique article count
+     */
+    public function countTotalArticlesForPubkeys(array $pubkeys): int
+    {
+        if (empty($pubkeys)) {
+            return 0;
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        $sql = 'SELECT COUNT(*) AS cnt FROM (
+                    SELECT DISTINCT pubkey, slug
+                    FROM article
+                    WHERE pubkey IN (:pubkeys)
+                      AND slug IS NOT NULL
+                      AND title IS NOT NULL
+                      AND kind != :draftKind
+                ) AS unique_articles';
+
+        $result = $conn->executeQuery($sql, [
+            'pubkeys' => $pubkeys,
+            'draftKind' => KindsEnum::LONGFORM_DRAFT->value,
+        ], [
+            'pubkeys' => \Doctrine\DBAL\ArrayParameterType::STRING,
+            'draftKind' => ParameterType::INTEGER,
+        ]);
+
+        return (int) $result->fetchOne();
+    }
+
+    /**
+     * Find all deduplicated articles for a set of pubkeys, sorted by newest.
+     * Uses PostgreSQL DISTINCT ON to keep only the latest revision per coordinate.
+     *
+     * @param string[] $pubkeys Hex pubkeys
+     * @return Article[]
+     */
+    public function findAllByPubkeysDeduplicated(array $pubkeys): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+
+        // Use DISTINCT ON (pubkey, slug) to get only the latest revision per article
+        $sql = 'SELECT id FROM (
+                    SELECT DISTINCT ON (pubkey, slug) id, created_at
+                    FROM article
+                    WHERE pubkey IN (:pubkeys)
+                      AND slug IS NOT NULL
+                      AND title IS NOT NULL
+                      AND kind != :draftKind
+                    ORDER BY pubkey, slug, created_at DESC
+                ) AS deduped
+                ORDER BY created_at DESC';
+
+        $result = $conn->executeQuery($sql, [
+            'pubkeys' => $pubkeys,
+            'draftKind' => KindsEnum::LONGFORM_DRAFT->value,
+        ], [
+            'pubkeys' => \Doctrine\DBAL\ArrayParameterType::STRING,
+            'draftKind' => ParameterType::INTEGER,
+        ]);
+
+        $ids = array_column($result->fetchAllAssociative(), 'id');
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        // Fetch Article entities by IDs, preserving the order
+        $qb = $this->createQueryBuilder('a');
+        $qb->where($qb->expr()->in('a.id', ':ids'))
+            ->setParameter('ids', $ids)
+            ->orderBy('a.createdAt', 'DESC');
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Find articles by pubkey (author)
      *
      * @param string $pubkey

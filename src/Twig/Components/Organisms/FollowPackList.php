@@ -108,18 +108,12 @@ final class FollowPackList
             ];
         }
 
-        // 4. Batch-count articles per pubkey
-        $articleCounts = $this->articleRepository->countArticlesByPubkeys(
-            array_keys($allMemberPubkeys)
-        );
-
-        // 5. Filter packs by total article count > threshold
+        // 4. Get accurate deduplicated article count per pack
         $qualifiedPacks = [];
         foreach ($parsedPacks as $pack) {
-            $totalArticles = 0;
-            foreach ($pack['memberPubkeys'] as $pk) {
-                $totalArticles += $articleCounts[$pk] ?? 0;
-            }
+            $totalArticles = $this->articleRepository->countTotalArticlesForPubkeys(
+                $pack['memberPubkeys']
+            );
             if ($totalArticles > self::MIN_ARTICLE_COUNT) {
                 $pack['articleCount'] = $totalArticles;
                 $qualifiedPacks[] = $pack;
