@@ -41,7 +41,7 @@
  */
 
 .card {
-    background-color: var(--color-bg);
+    background-color: var(--color-bg-light);
     color: var(--color-text);
     padding: 0;
     margin: 0 0 var(--spacing-5) 0;
