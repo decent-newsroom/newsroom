@@ -79,9 +79,30 @@ class EventController extends AbstractController
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // No relay hints for notes — dispatch async fetch
+                        // Synchronous fetch — notes are targeted limit-1 lookups,
+                        // no need to push the user to an async loading page.
+                        $logger->info('Note not in database, trying synchronous relay fetch', ['eventId' => $eventId]);
+                        try {
+                            $rawEvent = $nostrClient->getEventById($eventId);
+                            if ($rawEvent !== null) {
+                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                    $rawEvent,
+                                    'sync-note-fetch',
+                                );
+                                $logger->info('Note found on relays and persisted', ['eventId' => $persisted->getId()]);
+                                $event = $this->entityToObject($persisted);
+                                break;
+                            }
+                        } catch (\Throwable $e) {
+                            $logger->warning('Synchronous relay fetch failed for note', [
+                                'eventId' => $eventId,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+
+                        // Sync fetch didn't find it — fall back to async broader search
                         $lookupKey = 'note:' . $eventId;
-                        $logger->info('Note not in database, dispatching async relay search', ['eventId' => $eventId]);
+                        $logger->info('Note not found synchronously, dispatching async relay search', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'note',
@@ -140,34 +161,33 @@ class EventController extends AbstractController
                             }
                         }
 
-                        // Try synchronous fetch (hint relays + author relays)
-                        if (!empty($relays)) {
-                            $logger->info('nevent not in database, querying relays synchronously', [
-                                'eventId' => $eventId,
-                                'relays' => $relays,
-                            ]);
-                            try {
-                                $rawEvent = $nostrClient->getEventById($eventId, $relays);
-                                if ($rawEvent !== null) {
-                                    $persisted = $genericEventProjector->projectEventFromNostrEvent(
-                                        $rawEvent,
-                                        $relays[0] ?? 'sync-hint-fetch',
-                                    );
-                                    $logger->info('Event found on relays and persisted', ['eventId' => $persisted->getId()]);
-                                    $event = $this->entityToObject($persisted);
-                                    break;
-                                }
-                            } catch (\Throwable $e) {
-                                $logger->warning('Relay fetch failed for nevent, falling back to async', [
-                                    'eventId' => $eventId,
-                                    'error' => $e->getMessage(),
-                                ]);
+                        // Synchronous fetch — targeted limit-1 lookup, the user
+                        // is explicitly looking for this event so a brief wait is fine.
+                        $logger->info('nevent not in database, querying relays synchronously', [
+                            'eventId' => $eventId,
+                            'relays' => $relays,
+                        ]);
+                        try {
+                            $rawEvent = $nostrClient->getEventById($eventId, $relays);
+                            if ($rawEvent !== null) {
+                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                    $rawEvent,
+                                    $relays[0] ?? 'sync-nevent-fetch',
+                                );
+                                $logger->info('Event found on relays and persisted', ['eventId' => $persisted->getId()]);
+                                $event = $this->entityToObject($persisted);
+                                break;
                             }
+                        } catch (\Throwable $e) {
+                            $logger->warning('Synchronous relay fetch failed for nevent', [
+                                'eventId' => $eventId,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
 
-                        // Relays didn't have it (or none available) — dispatch async broader search
+                        // Sync fetch didn't find it — fall back to async broader search
                         $lookupKey = 'nevent:' . $eventId;
-                        $logger->info('Dispatching async relay search for nevent', ['eventId' => $eventId]);
+                        $logger->info('nevent not found synchronously, dispatching async relay search', ['eventId' => $eventId]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'nevent',
@@ -217,65 +237,64 @@ class EventController extends AbstractController
                         ]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // If relay hints exist, query them synchronously (high hit rate expected)
-                        if (!empty($relays)) {
-                            $logger->info('naddr not in database, querying hint relays synchronously', [
+                        // Synchronous fetch — targeted limit-1 lookup, the user
+                        // is explicitly looking for this event so a brief wait is fine.
+                        // getEventByNaddr already prioritises hint relays, then falls
+                        // back to author relays + default relays.
+                        $logger->info('naddr not in database, querying relays synchronously', [
+                            'kind' => $data->kind,
+                            'pubkey' => $data->pubkey,
+                            'identifier' => $data->identifier,
+                            'relays' => $relays,
+                        ]);
+                        try {
+                            $rawEvent = $nostrClient->getEventByNaddr([
                                 'kind' => $data->kind,
                                 'pubkey' => $data->pubkey,
                                 'identifier' => $data->identifier,
                                 'relays' => $relays,
                             ]);
-                            try {
-                                $rawEvent = $nostrClient->getEventByNaddr([
-                                    'kind' => $data->kind,
-                                    'pubkey' => $data->pubkey,
-                                    'identifier' => $data->identifier,
-                                    'relays' => $relays,
-                                ], hintOnly: true);
-                                if ($rawEvent !== null) {
-                                    $persisted = $genericEventProjector->projectEventFromNostrEvent(
-                                        $rawEvent,
-                                        $relays[0] ?? 'sync-hint-fetch',
-                                    );
-                                    // Also project Article entity for long-form content
-                                    // so article routes work after redirect
-                                    $rawKind = (int) ($rawEvent->kind ?? 0);
-                                    if ($rawKind === KindsEnum::LONGFORM->value || $rawKind === KindsEnum::LONGFORM_DRAFT->value) {
-                                        try {
-                                            $this->articleEventProjector->projectArticleFromEvent(
-                                                $rawEvent,
-                                                $relays[0] ?? 'sync-hint-fetch',
-                                            );
-                                        } catch (\Throwable $e) {
-                                            $logger->warning('Article projection failed during naddr sync fetch', [
-                                                'error' => $e->getMessage(),
-                                            ]);
-                                        }
+                            if ($rawEvent !== null) {
+                                $relaySource = $relays[0] ?? 'sync-naddr-fetch';
+                                $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                                    $rawEvent,
+                                    $relaySource,
+                                );
+                                $rawKind = (int) ($rawEvent->kind ?? 0);
+                                if ($rawKind === KindsEnum::LONGFORM->value || $rawKind === KindsEnum::LONGFORM_DRAFT->value) {
+                                    try {
+                                        $this->articleEventProjector->projectArticleFromEvent(
+                                            $rawEvent,
+                                            $relaySource,
+                                        );
+                                    } catch (\Throwable $e) {
+                                        $logger->warning('Article projection failed during naddr sync fetch', [
+                                            'error' => $e->getMessage(),
+                                        ]);
                                     }
-                                    $logger->info('Event found on hint relays and persisted', [
-                                        'eventId' => $persisted->getId(),
-                                        'kind' => $data->kind,
-                                    ]);
-                                    $event = $this->entityToObject($persisted);
-                                    break;
                                 }
-                            } catch (\Throwable $e) {
-                                $logger->warning('Hint relay fetch failed for naddr, falling back to async', [
+                                $logger->info('Event found on relays and persisted', [
+                                    'eventId' => $persisted->getId(),
                                     'kind' => $data->kind,
-                                    'pubkey' => $data->pubkey,
-                                    'identifier' => $data->identifier,
-                                    'error' => $e->getMessage(),
                                 ]);
+                                $event = $this->entityToObject($persisted);
+                                break;
                             }
+                        } catch (\Throwable $e) {
+                            $logger->warning('Synchronous relay fetch failed for naddr', [
+                                'kind' => $data->kind,
+                                'pubkey' => $data->pubkey,
+                                'identifier' => $data->identifier,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
 
-                        // No relay hints, or hint relays didn't have it — dispatch async broader search
+                        // Sync fetch didn't find it — fall back to async as last resort
                         $lookupKey = sprintf('naddr:%d:%s:%s', $data->kind, $data->pubkey, $data->identifier);
-                        $logger->info('Dispatching async relay search for naddr', [
+                        $logger->info('naddr not found synchronously, dispatching async relay search', [
                             'kind' => $data->kind,
                             'pubkey' => $data->pubkey,
                             'identifier' => $data->identifier,
-                            'hasRelayHints' => !empty($relays),
                         ]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
@@ -293,12 +312,25 @@ class EventController extends AbstractController
                     }
 
                     if ($data->kind === KindsEnum::LONGFORM->value) {
-                        // Redirect to the article page with the author's npub for a direct match
-                        $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
-                        $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
-                        return $this->redirectToRoute('author-article-slug', [
-                            'npub' => $npub,
-                            'slug' => $data->identifier,
+                        // Only redirect to the article page if the Article entity
+                        // was actually projected.  The sync fetch persists the Event
+                        // but article projection can fail silently — in that case
+                        // fall through to the generic event renderer.
+                        $articleEntity = $eventRepository->getEntityManager()
+                            ->getRepository(\App\Entity\Article::class)
+                            ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                        if ($articleEntity) {
+                            $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
+                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                            return $this->redirectToRoute('author-article-slug', [
+                                'npub' => $npub,
+                                'slug' => $data->identifier,
+                            ]);
+                        }
+                        $logger->warning('Event fetched but Article entity not found, rendering generic event page', [
+                            'kind' => $data->kind,
+                            'pubkey' => $data->pubkey,
+                            'identifier' => $data->identifier,
                         ]);
                     }
 

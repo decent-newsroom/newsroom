@@ -4,8 +4,11 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Service\ArticleEventProjector;
 use App\Service\Cache\RedisCacheService;
+use App\Service\GenericEventProjector;
 use App\Service\HighlightService;
+use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
@@ -297,6 +300,9 @@ class ArticleController  extends AbstractController
         HighlightService $highlightService,
         NostrEventParser $eventParser,
         ReadingListNavigationService $readingListNavigation,
+        NostrClient $nostrClient,
+        GenericEventProjector $genericEventProjector,
+        ArticleEventProjector $articleEventProjector,
         $npub = null,
         $vanity = null
     ): Response
@@ -313,6 +319,43 @@ class ArticleController  extends AbstractController
         $pubkey = $key->convertToHex($npub);
         $repository = $entityManager->getRepository(Article::class);
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
+
+        if (!$article) {
+            // Article not in local DB — try fetching from relays synchronously.
+            // This is a targeted limit-1 lookup (known pubkey + d-tag), so a
+            // brief wait is fine — the user is requesting this specific article.
+            $logger->info('Article not in DB, attempting synchronous relay fetch', [
+                'npub' => $npub,
+                'slug' => $slug,
+            ]);
+            try {
+                $rawEvent = $nostrClient->getEventByNaddr([
+                    'kind' => KindsEnum::LONGFORM->value,
+                    'pubkey' => $pubkey,
+                    'identifier' => $slug,
+                    'relays' => [],
+                ]);
+                if ($rawEvent !== null) {
+                    $genericEventProjector->projectEventFromNostrEvent($rawEvent, 'sync-article-fetch');
+                    try {
+                        $articleEventProjector->projectArticleFromEvent($rawEvent, 'sync-article-fetch');
+                    } catch (\Throwable $e) {
+                        $logger->warning('Article projection failed during inline fetch', [
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                    // Re-query after projection
+                    $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
+                }
+            } catch (\Throwable $e) {
+                $logger->warning('Synchronous relay fetch failed for article', [
+                    'slug' => $slug,
+                    'pubkey' => $pubkey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         if (!$article) {
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The article could not be found.',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-When a user pastes a Nostr address (`naddr1…`, `nevent1…`, `note1…`, `nprofile1…`, or `npub1…`) into any search bar, the application recognizes the entity, decodes it client-side, validates it, and redirects to the appropriate page. For events not yet in the local database, an async relay lookup is triggered with phased progress feedback.
+When a user pastes a Nostr address (`naddr1…`, `nevent1…`, `note1…`, `nprofile1…`, or `npub1…`) into any search bar, the application recognizes the entity, decodes it client-side, validates it, and redirects to the appropriate page. For events not yet in the local database, a synchronous relay fetch is attempted first (the user is explicitly looking for this event, so a brief wait is acceptable). The async loading page is only shown as a last resort when all synchronous attempts fail.
 
 ## How It Works
 
@@ -21,12 +21,20 @@ The `EventController` (`src/Controller/EventController.php`) handles `/e/{naddr1
 
 1. Decodes the NIP-19 entity using the PHP `nostriphant/NIP19` library.
 2. Checks the local database first (fast path).
-3. **If relay hints exist in the address:** queries those relays **synchronously** in the controller. This is expected to have a high hit rate — the naddr was crafted with those relays for a reason. If found, the event is persisted and the page renders immediately with no loading screen.
-4. **If no relay hints, or hint relays didn't have it:** dispatches a `FetchEventFromRelaysMessage` via Symfony Messenger for a broader async relay search, and renders the loading page.
+3. **Synchronous relay fetch** — always attempted before falling back to async:
+   - **note:** queries local + content relays synchronously via `getEventById()`.
+   - **nevent:** enriches relay list with author's NIP-65 relay list (when author pubkey is available), then queries all relays synchronously.
+   - **naddr:** single sync call via `getEventByNaddr()` which prioritises hint relays, then author relays, then default relays as fallback.
+4. If found, the event is persisted and the page renders immediately — no loading screen.
+5. **Only if all sync attempts fail:** dispatches a `FetchEventFromRelaysMessage` via Symfony Messenger for a broader async relay search, and renders the loading page.
+
+### Article URL Fallback
+
+When a user visits an article URL (`/p/{npub}/d/{slug}`) and the Article entity isn't in the local database, `ArticleController` performs an inline synchronous relay fetch — the same `getEventByNaddr()` call — projects the article, and renders it directly. No redirects or intermediate pages.
 
 ### Loading Page (Async Fallback)
 
-The loading page (`templates/event/loading.html.twig`) is only shown when synchronous lookup didn't find the event. It uses the `content--event-fetch` Stimulus controller and shows contextual messages:
+The loading page (`templates/event/loading.html.twig`) is only shown when all synchronous lookup attempts have failed. It uses the `content--event-fetch` Stimulus controller and shows contextual messages:
 
 - **When hint relays were already tried:** "The event wasn't found in the database or on the suggested relays. Expanding the search to additional relays."
 - **When no relay hints existed:** "The event is not in our database. Querying the Nostr network — this may take a few seconds."
