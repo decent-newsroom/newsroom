@@ -343,6 +343,7 @@ main.editor-layout {
 
 .editor-sidebar-tab:hover {
     background: var(--hover, #e5e7eb);
+    color: var(--color-text-mid) !important;
 }
 
 .editor-sidebar-tab.is-active {
