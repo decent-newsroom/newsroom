@@ -1,0 +1,46 @@
+{# Preferences tab — theme and language settings #}
+<div class="settings-section">
+    <h2 class="settings-section__title">{{ 'settings.preferences.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.preferences.description'|trans }}</p>
+
+    {# ── Theme ─────────────────────────────────────────────── #}
+    <h3 class="settings-section__subtitle">{{ 'settings.preferences.theme'|trans }}</h3>
+
+    <div data-controller="ui--theme"
+         data-ui--theme-sync-url-value="{{ path('app_theme_switch', {theme: '__THEME__'}) }}">
+        <div class="preferences-theme-options">
+            <button class="preferences-theme-option"
+                    data-action="click->ui--theme#pick"
+                    data-ui--theme-theme-param="dark"
+                    data-ui--theme-target="option">
+                {{ 'settings.preferences.themeDark'|trans }}
+            </button>
+            <button class="preferences-theme-option"
+                    data-action="click->ui--theme#pick"
+                    data-ui--theme-theme-param="light"
+                    data-ui--theme-target="option">
+                {{ 'settings.preferences.themeLight'|trans }}
+            </button>
+            <button class="preferences-theme-option"
+                    data-action="click->ui--theme#pick"
+                    data-ui--theme-theme-param="space"
+                    data-ui--theme-target="option">
+                {{ 'settings.preferences.themeSpace'|trans }}
+            </button>
+        </div>
+    </div>
+
+    {# ── Language ──────────────────────────────────────────── #}
+    <h3 class="settings-section__subtitle">{{ 'settings.preferences.language'|trans }}</h3>
+
+    <div class="preferences-language-options">
+        {% set current_locale = app.request.locale %}
+        {% for locale_code in enabled_locales %}
+            <a href="{{ path('app_locale_switch', {locale: locale_code}) }}"
+               class="preferences-language-option {{ current_locale == locale_code ? 'active' : '' }}">
+                {{ ('language.' ~ locale_code)|trans }}
+            </a>
+        {% endfor %}
+    </div>
+</div>
+

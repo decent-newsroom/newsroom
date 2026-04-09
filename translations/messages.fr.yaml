@@ -59,6 +59,8 @@ nav:
     backToTop: 'Retour en haut'
     closeLeftSidebar: 'Fermer la barre latérale gauche'
     closeRightSidebar: 'Fermer la barre latérale droite'
+    theme: 'Thème'
+    cycleTheme: 'Changer de thème'
 
 # ── Pied de page ───────────────────────────────────────────────────
 footer:
@@ -611,3 +613,22 @@ home_feed:
         empty: 'Aucun article avec des commentaires trouvé pour le moment.'
         commentCount: '{1} %count% commentaire|]1,Inf] %count% commentaires'
 
+# ── Paramètres ──────────────────────────────────────────────────────
+settings:
+    title: 'Paramètres'
+    heading: 'Paramètres'
+    tagline: 'Gérez votre profil, événements et abonnements'
+    tab:
+        profile: 'Profil'
+        relays: 'Relais'
+        events: 'Événements'
+        subscriptions: 'Abonnements'
+        preferences: 'Préférences'
+    preferences:
+        heading: 'Préférences'
+        description: "Personnalisez l'apparence et la langue de l'application."
+        theme: 'Thème'
+        themeDark: 'Sombre'
+        themeLight: 'Clair'
+        themeSpace: 'Espace'
+        language: 'Langue'

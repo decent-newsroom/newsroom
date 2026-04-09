@@ -119,6 +119,7 @@ class SettingsController extends AbstractController
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
             'publicationSubdomain' => $publicationSubdomain,
+            'enabled_locales' => $this->getParameter('kernel.enabled_locales'),
         ]);
     }
 

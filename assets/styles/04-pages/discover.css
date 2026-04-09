@@ -171,7 +171,7 @@
 .featured-writer-name {
     font-weight: 600;
     font-size: 0.9rem;
-    color: var(--text-primary, #1a1a1a);
+    color: var(--color-text, #1a1a1a);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

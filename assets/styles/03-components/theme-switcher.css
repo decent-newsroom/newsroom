@@ -1,0 +1,29 @@
+/**
+ * Theme Switcher Component
+ * Simple cycle button for dark / light / space themes.
+ */
+
+.theme-switcher {
+    display: flex;
+    gap: var(--spacing-1);
+}
+
+.theme-switcher__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-mid);
+    padding: var(--spacing-1) var(--spacing-2);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.theme-switcher__btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-primary);
+}
+

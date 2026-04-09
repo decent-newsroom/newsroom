@@ -59,6 +59,8 @@ nav:
     backToTop: 'Na vrh'
     closeLeftSidebar: 'Zapri levo stransko vrstico'
     closeRightSidebar: 'Zapri desno stransko vrstico'
+    theme: 'Tema'
+    cycleTheme: 'Zamenjaj temo'
 
 # ── Noga ──────────────────────────────────────────────────────────
 footer:
@@ -545,11 +547,11 @@ journey:
         nostrNative:
             heading: 'Revija sama živi na Nostru'
             eyebrow: 'Ne samo članki — tudi struktura'
-            description: 'Na Decent Newsroom je revija več kot spletni pogled na vaše pisanje. Kategorije, vključeni članki in uredniška struktura so prav tako definirani z Nostr dogodki. To pomeni, da je vaša publikacija prenosljiva, remikabilna in ni zaklenjena v zasebnem CMS-ju.'
+            description: 'Na Decent Newsroom je revija več kot spletni pogled na vaše pisanje. Kategorije, vključeni članki in uredniška struktura so prav tako definirani z Nostr dogodki. To pomeni, da je vaša publikacija prenosljiva in ni zaklenjena v zaprtem CMS-ju.'
         guestPosts:
             heading: 'Zasnovano za sodelovalno publiciranje'
             eyebrow: 'Gostujoče objave, kuracija in sindikacija so del modela'
-            description: 'Revija na Decent Newsroom se ne mora omejiti na enega avtorja. V svoje kategorije lahko vključite članke drugih Nostr piscev, izpostavite gostujoče prispevke ali kurirate tematske izdaje in zbirke.'
+            description: 'Revije na Decent Newsroom niso omejene na enega avtorja. V svoje kategorije lahko vključite članke drugih Nostr piscev, izpostavite gostujoče prispevke ali kurirate tematske izdaje in zbirke.'
         anyRelay:
             heading: 'Deluje v celotnem Nostr ekosistemu'
             eyebrow: 'Vaše pisanje ostane na Nostru, vaša publikacija mu da obliko'
@@ -557,10 +559,10 @@ journey:
         subdomain:
             heading: 'Dajte ji lasten naslov'
             eyebrow: 'vašeime.decentnewsroom.com'
-            description: 'Svojo revijo lahko objavite na namenski poddomeni, s čimer ji zagotovite stabilen spletni dom in čiste povezave do člankov, ki jih lahko delite kjerkoli. Gostujoče poddomene so na voljo za 120.000 satov na leto prek Lightninga.'
+            description: 'Svojo revijo lahko objavite na namenski poddomeni, s čimer ji zagotovite stabilen spletni dom in povezave do člankov, ki jih lahko delite kjerkoli. Gostujoče poddomene so na voljo za 120.000 satov na leto prek Lightninga.'
         ready:
             heading: 'Začnite s članki, ki jih že imate'
-            description: 'Če objavljate dolgopisne vsebine na Nostru, jih lahko v le nekaj minutah spremenite v organizirano revijo z lastno spletno prisotnostjo.'
+            description: 'Če objavljate eseje na Nostru, jih lahko v le nekaj minutah spremenite v organizirano revijo z lastno spletno prisotnostjo.'
     setup:
         title: 'Ustvarite svojo revijo'
         heading: 'Ustvarite svojo revijo'
@@ -611,3 +613,22 @@ home_feed:
         empty: 'Zaenkrat ni najdenih člankov s komentarji.'
         commentCount: '{1} %count% komentar|{2} %count% komentarja|[3,4] %count% komentarji|]4,Inf] %count% komentarjev'
 
+# ── Nastavitve ──────────────────────────────────────────────────────
+settings:
+    title: 'Nastavitve'
+    heading: 'Nastavitve'
+    tagline: 'Upravljajte profil, dogodke in naročnine'
+    tab:
+        profile: 'Profil'
+        relays: 'Releji'
+        events: 'Dogodki'
+        subscriptions: 'Naročnine'
+        preferences: 'Nastavitve'
+    preferences:
+        heading: 'Nastavitve'
+        description: 'Prilagodite videz in jezik aplikacije.'
+        theme: 'Tema'
+        themeDark: 'Temna'
+        themeLight: 'Svetla'
+        themeSpace: 'Vesolje'
+        language: 'Jezik'

@@ -61,6 +61,8 @@ nav:
     backToTop: 'Torna in cima'
     closeLeftSidebar: 'Chiudi barra laterale sinistra'
     closeRightSidebar: 'Chiudi barra laterale destra'
+    theme: 'Tema'
+    cycleTheme: 'Cambia tema'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -693,6 +695,15 @@ settings:
         relays: 'Relay'
         events: 'Eventi'
         subscriptions: 'Abbonamenti'
+        preferences: 'Preferenze'
+    preferences:
+        heading: 'Preferenze'
+        description: "Personalizza l'aspetto e la lingua dell'applicazione."
+        theme: 'Tema'
+        themeDark: 'Scuro'
+        themeLight: 'Chiaro'
+        themeSpace: 'Spazio'
+        language: 'Lingua'
     profile:
         heading: 'Profilo'
         description: 'Aggiorna i metadati del tuo profilo Nostr (kind 0). Le modifiche saranno firmate con la tua chiave e pubblicate sui tuoi relay.'

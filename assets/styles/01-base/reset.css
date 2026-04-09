@@ -11,3 +11,34 @@ body {
     margin: 0;
     padding: 0;
 }
+
+/* ── Consistent scrollbars ─────────────────────────────────────────
+ * Thin, theme-aware scrollbars across all scrollable containers.
+ * Uses scrollbar-width (Firefox) + ::-webkit-scrollbar (Chrome/Edge/Safari).
+ */
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+/* Chromium & WebKit */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border: none;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-muted);
+}
+

@@ -1056,7 +1056,7 @@ class AuthorController extends AbstractController
                                 'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
                                 'name' => $memberStd->name ?? '',
                                 'picture' => $memberStd->picture ?? '',
-                                'nip05' => $memberStd->nip05 ?? '',
+                                'nip05' => is_array($memberStd->nip05) ? ($memberStd->nip05[0] ?? '') : ($memberStd->nip05 ?? ''),
                             ];
                         }
                     }
@@ -1106,7 +1106,7 @@ class AuthorController extends AbstractController
                     'displayName' => $std->display_name ?? $std->name ?? '',
                     'name' => $std->name ?? '',
                     'picture' => $std->picture ?? '',
-                    'nip05' => $std->nip05 ?? '',
+                    'nip05' => is_array($std->nip05) ? ($std->nip05[0] ?? '') : ($std->nip05 ?? ''),
                 ];
             } catch (\Throwable) {
                 // No local profile — skip, prioritize resolved ones
@@ -1168,7 +1168,7 @@ class AuthorController extends AbstractController
                                 'displayName' => $memberStd->display_name ?? $memberStd->name ?? '',
                                 'name' => $memberStd->name ?? '',
                                 'picture' => $memberStd->picture ?? '',
-                                'nip05' => $memberStd->nip05 ?? '',
+                                'nip05' => is_array($memberStd->nip05) ? ($memberStd->nip05[0] ?? '') : ($memberStd->nip05 ?? ''),
                             ];
                         } catch (\Throwable) {
                             // Skip unresolvable

@@ -98,6 +98,7 @@
 
 .highlight-mark {
     background: var(--color-accent-300);
+    color: var(--color-text-contrast);
     padding: 0.1em 0.2em;
     font-weight: 500;
 }

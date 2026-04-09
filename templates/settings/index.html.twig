@@ -36,6 +36,12 @@
                data-tab="subscriptions">
                 {{ 'settings.tab.subscriptions'|trans }}
             </a>
+            <a href="#preferences" class="settings-tab"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="preferences">
+                {{ 'settings.tab.preferences'|trans }}
+            </a>
         </nav>
 
         <div class="settings-panels">
@@ -57,6 +63,11 @@
             <div class="settings-panel"
                  data-ui--settings-tabs-target="panel" data-panel="subscriptions">
                 {% include 'settings/tabs/_subscriptions.html.twig' %}
+            </div>
+
+            <div class="settings-panel"
+                 data-ui--settings-tabs-target="panel" data-panel="preferences">
+                {% include 'settings/tabs/_preferences.html.twig' %}
             </div>
         </div>
     </div>

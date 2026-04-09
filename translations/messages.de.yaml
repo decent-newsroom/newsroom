@@ -59,6 +59,8 @@ nav:
     backToTop: 'Nach oben'
     closeLeftSidebar: 'Linke Seitenleiste schließen'
     closeRightSidebar: 'Rechte Seitenleiste schließen'
+    theme: 'Design'
+    cycleTheme: 'Design wechseln'
 
 # ── Fußzeile ───────────────────────────────────────────────────────
 footer:
@@ -624,3 +626,24 @@ home_feed:
     discussed:
         empty: 'Noch keine Artikel mit Kommentaren gefunden.'
         commentCount: '{1} %count% Kommentar|]1,Inf] %count% Kommentare'
+
+# ── Einstellungen ──────────────────────────────────────────────────────
+settings:
+    title: 'Einstellungen'
+    heading: 'Einstellungen'
+    tagline: 'Profil, Ereignisse und Abonnements verwalten'
+    tab:
+        profile: 'Profil'
+        relays: 'Relays'
+        events: 'Ereignisse'
+        subscriptions: 'Abonnements'
+        preferences: 'Voreinstellungen'
+    preferences:
+        heading: 'Voreinstellungen'
+        description: 'Aussehen und Sprache der Anwendung anpassen.'
+        theme: 'Design'
+        themeDark: 'Dunkel'
+        themeLight: 'Hell'
+        themeSpace: 'Space'
+        language: 'Sprache'
+

@@ -59,6 +59,8 @@ nav:
     backToTop: 'Ir arriba'
     closeLeftSidebar: 'Cerrar barra lateral izquierda'
     closeRightSidebar: 'Cerrar barra lateral derecha'
+    theme: 'Tema'
+    cycleTheme: 'Cambiar tema'
 
 # ── Pie de página ──────────────────────────────────────────────────
 footer:
@@ -611,3 +613,22 @@ home_feed:
         empty: 'Aún no se encontraron artículos con comentarios.'
         commentCount: '{1} %count% comentario|]1,Inf] %count% comentarios'
 
+# ── Configuración ──────────────────────────────────────────────────────
+settings:
+    title: 'Configuración'
+    heading: 'Configuración'
+    tagline: 'Administre su perfil, eventos y suscripciones'
+    tab:
+        profile: 'Perfil'
+        relays: 'Relays'
+        events: 'Eventos'
+        subscriptions: 'Suscripciones'
+        preferences: 'Preferencias'
+    preferences:
+        heading: 'Preferencias'
+        description: 'Personalice la apariencia y el idioma de la aplicación.'
+        theme: 'Tema'
+        themeDark: 'Oscuro'
+        themeLight: 'Claro'
+        themeSpace: 'Espacio'
+        language: 'Idioma'

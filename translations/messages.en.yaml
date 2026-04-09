@@ -61,6 +61,8 @@ nav:
     backToTop: 'Back to top'
     closeLeftSidebar: 'Close left sidebar'
     closeRightSidebar: 'Close right sidebar'
+    theme: 'Theme'
+    cycleTheme: 'Switch theme'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -693,6 +695,15 @@ settings:
         relays: 'Relays'
         events: 'Events'
         subscriptions: 'Subscriptions'
+        preferences: 'Preferences'
+    preferences:
+        heading: 'Preferences'
+        description: 'Customize the look and language of the application.'
+        theme: 'Theme'
+        themeDark: 'Dark'
+        themeLight: 'Light'
+        themeSpace: 'Space'
+        language: 'Language'
     profile:
         heading: 'Profile'
         description: 'Update your Nostr profile metadata (kind 0). Changes will be signed with your key and published to your relays.'
