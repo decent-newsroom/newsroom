@@ -69,6 +69,10 @@ class Converter implements MarkdownConverterInterface
      */
     public function convertToHTML(string $content, ?string $format = null, ?array $tags = null): string
     {
+        // Normalize bare bech32 entities (nevent1..., naddr1..., etc.) to nostr: URI
+        // form so that all downstream parsers recognise them.
+        $content = $this->normalizeBareNostrEntities($content);
+
         // Normalize $…$ inline math to \(…\) before any parsing, so KaTeX
         // in the browser doesn't need the ambiguous single-$ delimiter.
         $content = $this->normalizeInlineMathDelimiters($content);
@@ -173,6 +177,58 @@ class Converter implements MarkdownConverterInterface
             static fn(array $m) => $blocks[(int) $m[1]],
             $content,
         );
+    }
+
+    /**
+     * Normalize bare bech32 Nostr entities (nevent1…, naddr1…, note1…,
+     * nprofile1…, npub1…) that appear without a `nostr:` URI prefix.
+     *
+     * Many Nostr clients publish content with bare bech32 identifiers on
+     * their own line.  The downstream CommonMark inline parsers and the
+     * post-HTML processNostrLinks() phase both expect the `nostr:` prefix,
+     * so we add it here early in the pipeline.
+     *
+     * Code blocks (fenced and inline) are protected so that identifiers
+     * inside them are left untouched.
+     */
+    private function normalizeBareNostrEntities(string $content): string
+    {
+        // Quick bail-out when there is clearly nothing to normalise.
+        if (!preg_match('/(?:nevent|naddr|note|nprofile|npub)1/', $content)) {
+            return $content;
+        }
+
+        // --- Protect regions that must not be touched ---
+        $blocks = [];
+        $protect = function (array $m) use (&$blocks): string {
+            $blocks[] = $m[0];
+            return "\x00NOSTR_NORM" . (count($blocks) - 1) . "\x00";
+        };
+
+        // 1. Fenced code blocks (``` or ~~~)
+        $content = preg_replace_callback('/^(`{3,}|~{3,}).*?^\1/ms', $protect, $content);
+        // 2. Inline code (backtick runs)
+        $content = preg_replace_callback('/`[^`]+`/', $protect, $content);
+
+        // --- Add nostr: prefix to bare bech32 entities ---
+        // Negative look-behind prevents double-prefixing (nostr:nevent1…) and
+        // avoids matching inside URLs (…/nevent1…).
+        $content = preg_replace(
+            '~(?<!nostr:)(?<![a-zA-Z0-9/])(?=(?:nevent|naddr|note|nprofile|npub)1)((?:nevent|naddr|note|nprofile|npub)1[^\s<>()\[\]{}"\'`.,;:!?]+)~',
+            'nostr:$1',
+            $content
+        ) ?? $content;
+
+        // --- Restore protected blocks ---
+        if (!empty($blocks)) {
+            $content = preg_replace_callback(
+                '/\x00NOSTR_NORM(\d+)\x00/',
+                static fn(array $m) => $blocks[(int) $m[1]],
+                $content,
+            );
+        }
+
+        return $content;
     }
 
     /**
