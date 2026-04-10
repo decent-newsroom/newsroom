@@ -1,0 +1,23 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.foryou.signInRequired'|trans }}</p>
+        </div>
+    {% elseif articles is empty %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.foryou.empty'|trans }}</p>
+        </div>
+    {% else %}
+        <div class="article-list">
+            {% for article in articles %}
+                {% if article.slug is not empty and article.title is not empty %}
+                    {% set coord = article.pubkey ~ ':' ~ article.slug %}
+                    {% set labels = sourceLabels[coord]|default([]) %}
+                    {% set count = commentCounts[coord]|default(0) %}
+                    <twig:Molecules:Card :article="article" :authors_metadata="authorsMetadata" :comment_count="count" :source_labels="labels" />
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</turbo-frame>
+
