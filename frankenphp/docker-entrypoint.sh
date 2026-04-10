@@ -28,6 +28,10 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		# This avoids transient I/O errors on bind mounts (Windows/Mac)
 		# when cache:clear runs while composer is still writing files.
 		sync 2>/dev/null || true
+		# Re-dump the autoloader WITH plugin events so symfony/runtime
+		# generates vendor/autoload_runtime.php (--no-scripts above
+		# suppresses the POST_AUTOLOAD_DUMP event that creates it).
+		composer dump-autoload --no-interaction
 		composer run-script auto-scripts --no-interaction || true
 	fi
 
@@ -60,15 +64,14 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	if grep -q ^DATABASE_URL= .env; then
 		echo 'Waiting for database to be ready...'
 		ATTEMPTS_LEFT_TO_REACH_DATABASE=60
-		until [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ] || DATABASE_ERROR=$(php bin/console dbal:run-sql -q "SELECT 1" 2>&1); do
-			if [ $? -eq 255 ]; then
-				# If the Doctrine command exits with 255, an unrecoverable error occurred
-				ATTEMPTS_LEFT_TO_REACH_DATABASE=0
-				break
-			fi
+		# Use a lightweight raw PDO check instead of booting the full
+		# Symfony kernel via bin/console on every attempt.  On Windows/Mac
+		# bind mounts a single kernel boot can take 10+ seconds; the raw
+		# PHP script finishes in < 1 s.
+		until [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ] || DATABASE_ERROR=$(php docker/wait-for-db.php 2>&1); do
 			sleep 1
 			ATTEMPTS_LEFT_TO_REACH_DATABASE=$((ATTEMPTS_LEFT_TO_REACH_DATABASE - 1))
-			echo "Still waiting for database to be ready... Or maybe the database is not reachable. $ATTEMPTS_LEFT_TO_REACH_DATABASE attempts left."
+			echo "Still waiting for database to be ready... $ATTEMPTS_LEFT_TO_REACH_DATABASE attempts left."
 		done
 
 		if [ $ATTEMPTS_LEFT_TO_REACH_DATABASE -eq 0 ]; then
@@ -80,12 +83,25 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		fi
 
 		if [ "$( find ./migrations -iname '*.php' -print -quit )" ]; then
-			php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
+			# Quick raw-SQL count check (< 1 s) to avoid a full Symfony
+			# kernel boot when all migrations are already applied.
+			if php docker/check-migrations.php 2>/dev/null; then
+				echo 'Migrations up to date.'
+			else
+				echo 'Running database migrations...'
+				php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
+			fi
 		fi
 	fi
 
-	setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var
-	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var
+	# Ensure var/ directories exist with correct ACL defaults.
+	# Only set ACLs on the directory entries themselves — default ACLs
+	# (-d) make new files/dirs inherit the permissions automatically.
+	# The previous recursive walk (setfacl -R) traversed every file in
+	# var/cache/ on each startup, which is extremely slow on bind mounts.
+	mkdir -p var/cache var/log
+	setfacl -m u:www-data:rwX -m u:"$(whoami)":rwX var var/cache var/log
+	setfacl -d -m u:www-data:rwX -m u:"$(whoami)":rwX var var/cache var/log
 fi
 
 exec docker-php-entrypoint "$@"
