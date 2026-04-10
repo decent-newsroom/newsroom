@@ -116,7 +116,7 @@
                         <div class="chapter-content"
                              data-controller="utility--katex"
                              data-utility--katex-display-value="true">
-                            {{ chapter.content|raw }}
+                            {{ chapter.content|resolve_nostr_embeds|raw }}
                         </div>
                     </article>
 

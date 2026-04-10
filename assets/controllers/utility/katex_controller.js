@@ -81,6 +81,10 @@ export default class extends Controller {
         renderMathInElement(this.element, {
             delimiters,
             throwOnError: false,
+            // Override default ignoredTags to allow math inside inline <code>
+            // elements (common Nostr convention: `$...$`).  Keep <pre> ignored
+            // so fenced code blocks are not processed.
+            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'annotation'],
         });
     }
 }

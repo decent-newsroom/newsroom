@@ -2,10 +2,8 @@
 
 namespace App\Command;
 
-use App\Entity\Article;
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
-use League\CommonMark\Exception\CommonMarkException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,11 +34,13 @@ class ProcessArticleHtmlCommand extends Command
             ->addOption('math-only', null, InputOption::VALUE_NONE, 'Only reprocess articles whose content contains a $ sign (useful after math-delimiter changes)')
             ->setHelp(
                 'This command processes content to HTML for articles and caches the result in the database. ' .
-                'By default, it only processes articles that are missing processed HTML. ' .
+                'By default, it only processes articles that are missing processed HTML, newest first. ' .
                 'Use --force to reprocess all articles. ' .
                 'Use --math-only to reprocess only articles that may contain math (implies --force for those articles). ' .
                 'Use --delete-failed to remove articles that cannot be processed (e.g. invalid npub data). ' .
-                'Use --timeout to set the maximum seconds per article (default 60). Articles that exceed this are skipped.'
+                'Use --timeout to set the maximum seconds per article (default 60). Articles that exceed this are skipped.' . "\n\n" .
+                'The converter never makes relay calls. Nostr references not found in the local DB ' .
+                'are stored as deferred embeds and resolved at template render time.'
             );
     }
 
@@ -75,12 +75,11 @@ class ProcessArticleHtmlCommand extends Command
         // Fetch IDs only to avoid hydrating full entities (raw JSON fields can be huge).
         $sql = 'SELECT id FROM article WHERE content IS NOT NULL';
         if ($mathOnly) {
-            // Only articles whose raw content contains $ — let the DB do the filtering.
-            $sql .= " AND content LIKE '%$%'";
+            $sql .= " AND content LIKE '%\$%'";
         } elseif (!$force) {
             $sql .= ' AND processed_html IS NULL';
         }
-        $sql .= ' ORDER BY id ASC';
+        $sql .= ' ORDER BY id DESC';
         if ($limit) {
             $sql .= ' LIMIT ' . (int) $limit;
         }
@@ -109,14 +108,12 @@ class ProcessArticleHtmlCommand extends Command
         $inBatch = 0;
 
         foreach ($articleIds as $articleId) {
-            // Arm the alarm before each article.
             if ($hasPcntl) {
                 pcntl_alarm($timeout);
             }
             $deadline = microtime(true) + $timeout;
 
             try {
-                // Fetch content and raw JSON for tag-based prefetching.
                 $row = $conn->fetchAssociative('SELECT content, raw FROM article WHERE id = ?', [$articleId]);
                 if (!$row || !is_string($row['content']) || $row['content'] === '') {
                     $progressBar->advance();
@@ -125,7 +122,6 @@ class ProcessArticleHtmlCommand extends Command
 
                 $content = $row['content'];
 
-                // Extract tags from raw event JSON (p, e, a tags seed the bulk prefetch)
                 $tags = null;
                 if (!empty($row['raw'])) {
                     $rawData = is_string($row['raw']) ? json_decode($row['raw'], true) : $row['raw'];
@@ -136,7 +132,6 @@ class ProcessArticleHtmlCommand extends Command
 
                 $html = $this->converter->convertToHTML($content, null, $tags);
 
-                // Wall-clock guard for environments without pcntl
                 if (!$hasPcntl && microtime(true) > $deadline) {
                     throw new \RuntimeException('Article processing timed out');
                 }
@@ -149,7 +144,6 @@ class ProcessArticleHtmlCommand extends Command
                 $processed++;
                 $inBatch++;
 
-                // Keep memory stable over long runs.
                 if ($inBatch >= $batchSize) {
                     $this->entityManager->clear();
                     $inBatch = 0;
@@ -180,7 +174,6 @@ class ProcessArticleHtmlCommand extends Command
                 }
             }
 
-            // Disarm the alarm.
             if ($hasPcntl) {
                 pcntl_alarm(0);
             }

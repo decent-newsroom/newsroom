@@ -62,7 +62,10 @@
                 { left: '\\[', right: '\\]', display: true },
                 { left: '\\(', right: '\\)', display: false }
             ],
-            throwOnError: false
+            throwOnError: false,
+            // Allow math inside inline <code> (Nostr convention: `$...$`).
+            // Keep <pre> ignored so fenced code blocks are not processed.
+            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'annotation']
         });
     });
 })();

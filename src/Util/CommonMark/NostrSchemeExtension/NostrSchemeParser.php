@@ -2,12 +2,7 @@
 
 namespace App\Util\CommonMark\NostrSchemeExtension;
 
-use App\Enum\KindsEnum;
-use App\Factory\ArticleFactory;
-use App\Repository\ArticleRepository;
-use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Service\Nostr\NostrClient;
 use App\Util\NostrKeyUtil;
 use League\CommonMark\Parser\Inline\InlineParserInterface;
 use League\CommonMark\Parser\Inline\InlineParserMatch;
@@ -18,21 +13,23 @@ use nostriphant\NIP19\Data\NEvent;
 use nostriphant\NIP19\Data\Note;
 use nostriphant\NIP19\Data\NProfile;
 use nostriphant\NIP19\Data\NPub;
-use Twig\Environment;
 
 
-class NostrSchemeParser  implements InlineParserInterface
+/**
+ * CommonMark inline parser for `nostr:` URI scheme references.
+ *
+ * This parser only uses pre-fetched data and local DB — it never makes
+ * relay calls.  When event data is not available, it emits a
+ * NostrSchemeData node which the renderer turns into `nostr:bech…` text
+ * for processNostrLinks() to handle as a deferred embed.
+ */
+class NostrSchemeParser implements InlineParserInterface
 {
 
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
-        private readonly NostrClient       $nostrClient,
-        private readonly Environment       $twig,
         private readonly NostrKeyUtil      $keyUtil,
-        private readonly ArticleFactory    $articleFactory,
-        private readonly ArticleRepository $articleRepository,
         private readonly ?NostrPrefetchedData $prefetchedData = null,
-        private readonly ?EventRepository  $eventRepository = null,
     )
     {
     }
@@ -47,11 +44,8 @@ class NostrSchemeParser  implements InlineParserInterface
     public function parse(InlineParserContext $inlineContext): bool
     {
         $cursor = $inlineContext->getCursor();
-        // Get the match and extract relevant parts
         $fullMatch = $inlineContext->getFullMatch();
-        // The match is a Bech32 encoded string
-        // decode it to get the parts
-        $bechEncoded = substr($fullMatch, 6);  // Extract the part after "nostr:", i.e., "XXXX"
+        $bechEncoded = substr($fullMatch, 6);
 
         try {
             $decoded = new Bech32($bechEncoded);
@@ -78,159 +72,20 @@ class NostrSchemeParser  implements InlineParserInterface
                     $inlineContext->getContainer()->appendChild(new NostrMentionLink(null, $decodedProfile->pubkey));
                     break;
                 case 'note':
-                    /** @var Note $decodedEvent */
-                    $decodedEvent = $decoded->data;
-                    // Use prefetched event data if available, then DB, then relay
-                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->data)) {
-                        $event = $this->prefetchedData->getEvent($decodedEvent->data);
-                    } else {
-                        $event = $this->findEventInDb($decodedEvent->data);
-                        if (!$event) {
-                            $event = $this->nostrClient->getEventById($decodedEvent->data);
-                        }
-                    }
-                    // If note is kind 20
-                    // Render the embedded picture card
-                    if (!$event || $event->kind !== 20) {
-                        // Fallback to simple link if event not found or not kind 20
-                        $inlineContext->getContainer()->appendChild(new NostrSchemeData('note', $bechEncoded, [], null, null));
-                        break;
-                    }
-                    $pictureCardHtml = $this->twig->render('/event/_kind20_picture.html.twig', [
-                        'event' => $event,
-                        'embed' => true
-                    ]);
-                    // Create a new node type for embedded HTML content
-                    $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($pictureCardHtml));
+                    // Fall through to NostrSchemeData — processNostrLinks() will
+                    // either render a card (if data is locally available) or a
+                    // deferred embed placeholder.
+                    $inlineContext->getContainer()->appendChild(new NostrSchemeData('note', $bechEncoded, [], null, null));
                     break;
                 case 'nevent':
                     /** @var NEvent $decodedEvent */
                     $decodedEvent = $decoded->data;
-
-                    // Use prefetched event data if available, then DB, then relay
-                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEvent($decodedEvent->id)) {
-                        $event = $this->prefetchedData->getEvent($decodedEvent->id);
-                    } else {
-                        $event = $this->findEventInDb($decodedEvent->id);
-                        if (!$event) {
-                            $event = $this->nostrClient->getEventById($decodedEvent->id, $decodedEvent->relays);
-                        }
-                    }
-
-                    if ($event) {
-                        if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($event->pubkey)) {
-                            $authorMetadata = $this->prefetchedData->getMetadata($event->pubkey);
-                        } else {
-                            $authorMetadata = $this->redisCacheService->getMetadata($event->pubkey);
-                        }
-
-                        // Render the embedded event card
-                        $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
-                            'event' => $event,
-                            'author' => $authorMetadata->toStdClass(), // Convert to stdClass for template
-                            'nevent' => $bechEncoded
-                        ]);
-
-                        // Create a new node type for embedded HTML content
-                        $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($eventCardHtml));
-                    } else {
-                        // Fallback to simple link if event not found
-                        $inlineContext->getContainer()->appendChild(new NostrSchemeData('nevent', $bechEncoded, $decodedEvent->relays, $decodedEvent->author, $decodedEvent->kind));
-                    }
+                    $inlineContext->getContainer()->appendChild(new NostrSchemeData('nevent', $bechEncoded, $decodedEvent->relays, $decodedEvent->author, $decodedEvent->kind));
                     break;
                 case 'naddr':
                     /** @var NAddr $decodedEvent */
                     $decodedEvent = $decoded->data;
-                    $identifier = $decodedEvent->identifier;
-                    $pubkey = $decodedEvent->pubkey;
-                    $kind = $decodedEvent->kind;
-                    $relays = $decodedEvent->relays;
-
-                    // For longform articles (kind 30023), check database first
-                    if ((int) $kind === 30023) {
-                        try {
-                            // Look up article in database by slug (identifier) and pubkey
-                            $article = $this->articleRepository->findOneBy([
-                                'slug' => $identifier,
-                                'pubkey' => $pubkey,
-                                'kind' => KindsEnum::LONGFORM
-                            ]);
-
-                            if ($article) {
-                                // Article found in database - render directly without relay fetch
-                                $authorMetadata = $this->resolveMetadata($pubkey);
-                                $authorsMetadata = [$pubkey => $authorMetadata->toStdClass()];
-
-                                $articleCardHtml = $this->twig->render('components/Molecules/Card.html.twig', [
-                                    'article' => $article,
-                                    'authors_metadata' => $authorsMetadata,
-                                    'is_author_profile' => false,
-                                    'isEmbed' => true,
-                                    'cat' => null,
-                                    'mag' => null,
-                                ]);
-
-                                $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($articleCardHtml));
-                                break; // Done - skip relay fetch
-                            }
-                        } catch (\Throwable $e) {
-                            // If database lookup fails, continue to relay fetch
-                        }
-                    }
-
-                    // Check prefetched naddr events first, then fall back to relay
-                    $coordKey = $kind . ':' . $pubkey . ':' . $identifier;
-                    if ($this->prefetchedData !== null && $this->prefetchedData->hasEventByNaddr($coordKey)) {
-                        $event = $this->prefetchedData->getEventByNaddr($coordKey);
-                    } else {
-                        $event = $this->nostrClient->getEventByNaddr([
-                            'kind' => $kind,
-                            'pubkey' => $pubkey,
-                            'identifier' => $identifier,
-                            'relays' => $relays
-                        ]);
-                    }
-
-                    if ($event && (int) $event->kind === 30023) {
-                        // For longform articles (kind 30023), render article card
-                        try {
-                            $authorMetadata = $this->resolveMetadata($event->pubkey);
-
-                            // Convert event to Article entity using ArticleFactory
-                            $article = $this->articleFactory->createFromLongFormContentEvent($event);
-
-                            // Prepare authors metadata in the format expected by Card component
-                            $authorsMetadata = [$event->pubkey => $authorMetadata->toStdClass()];
-
-                            // Render using Molecules:Card component for proper article display
-                            $articleCardHtml = $this->twig->render('components/Molecules/Card.html.twig', [
-                                'article' => $article,
-                                'authors_metadata' => $authorsMetadata,
-                                'is_author_profile' => false,
-                                'isEmbed' => true,
-                                'cat' => null,
-                                'mag' => null,
-                            ]);
-                            $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($articleCardHtml));
-                        } catch (\Throwable $e) {
-                            // Fallback to simple link if rendering fails
-                            $inlineContext->getContainer()->appendChild(new NostrSchemeData('naddr', $bechEncoded, $relays, $pubkey, $kind));
-                        }
-                    } else if ($event) {
-                        // For other addressable events, render generic event card
-                        $authorMetadata = $this->resolveMetadata($event->pubkey);
-
-                        $eventCardHtml = $this->twig->render('components/event_card.html.twig', [
-                            'event' => $event,
-                            'author' => $authorMetadata->toStdClass(),
-                            'naddr' => $bechEncoded
-                        ]);
-
-                        $inlineContext->getContainer()->appendChild(new NostrEmbeddedCard($eventCardHtml));
-                    } else {
-                        // Fallback to simple link if event not found
-                        $inlineContext->getContainer()->appendChild(new NostrSchemeData('naddr', $bechEncoded, $relays, $pubkey, $kind));
-                    }
+                    $inlineContext->getContainer()->appendChild(new NostrSchemeData('naddr', $bechEncoded, $decodedEvent->relays, $decodedEvent->pubkey, $decodedEvent->kind));
                     break;
                 case 'nrelay':
                     // deprecated
@@ -242,51 +97,8 @@ class NostrSchemeParser  implements InlineParserInterface
             return false;
         }
 
-        // Advance the cursor to consume the matched part (important!)
         $cursor->advanceBy(strlen($fullMatch));
 
         return true;
-    }
-
-    /**
-     * Resolve metadata from prefetched data or fall back to Redis.
-     */
-    private function resolveMetadata(string $hex): object
-    {
-        if ($this->prefetchedData !== null && $this->prefetchedData->hasMetadata($hex)) {
-            return $this->prefetchedData->getMetadata($hex);
-        }
-
-        return $this->redisCacheService->getMetadata($hex);
-    }
-
-    /**
-     * Try to find an event in the local database before hitting relays.
-     * Returns a stdClass object compatible with NostrClient responses, or null.
-     */
-    private function findEventInDb(string $eventId): ?object
-    {
-        if ($this->eventRepository === null) {
-            return null;
-        }
-
-        try {
-            $entity = $this->eventRepository->findById($eventId);
-            if (!$entity) {
-                return null;
-            }
-
-            $obj = new \stdClass();
-            $obj->id = $entity->getId();
-            $obj->kind = $entity->getKind();
-            $obj->pubkey = $entity->getPubkey();
-            $obj->content = $entity->getContent();
-            $obj->created_at = $entity->getCreatedAt();
-            $obj->tags = $entity->getTags();
-            $obj->sig = $entity->getSig();
-            return $obj;
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

@@ -7,7 +7,6 @@ use App\Factory\ArticleFactory;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
-use App\Service\Nostr\NostrClient;
 use App\Util\AsciiDoc\AsciiDocConverter;
 use App\Util\CommonMark\ImagesExtension\RawImageLinkExtension;
 use App\Util\CommonMark\NostrSchemeExtension\NostrPrefetchedData;
@@ -50,9 +49,11 @@ class Converter implements MarkdownConverterInterface
     /** Holds the pre-fetched data for the current conversion run. */
     private ?NostrPrefetchedData $prefetchedData = null;
 
+    /** Math placeholders surviving CommonMark: token → final HTML math expression. */
+    private array $mathPlaceholders = [];
+
     public function __construct(
         private readonly RedisCacheService $redisCacheService,
-        private readonly NostrClient $nostrClient,
         private readonly TwigEnvironment $twig,
         private readonly NostrKeyUtil $nostrKeyUtil,
         private readonly ArticleFactory $articleFactory,
@@ -60,6 +61,7 @@ class Converter implements MarkdownConverterInterface
         private readonly AsciiDocConverter $asciidocConverter,
         private readonly EventRepository $eventRepository,
     ) {}
+
 
     /**
      * @param string      $content The raw content to convert
@@ -73,9 +75,16 @@ class Converter implements MarkdownConverterInterface
         // form so that all downstream parsers recognise them.
         $content = $this->normalizeBareNostrEntities($content);
 
-        // Normalize $…$ inline math to \(…\) before any parsing, so KaTeX
-        // in the browser doesn't need the ambiguous single-$ delimiter.
-        $content = $this->normalizeInlineMathDelimiters($content);
+        // Normalize Nostr math markup conventions: unwrap backtick-protected
+        // math (`$…$`, `$$…$$`) and convert ```latex/math/tex code blocks
+        // to display math before any further processing.
+        $content = $this->normalizeNostrMathMarkup($content);
+
+        // Extract all math expressions ($$…$$, $…$, \(…\), \[…\]) from the
+        // raw content and replace with inert alphanumeric placeholders that
+        // survive CommonMark unchanged. The actual math is stored in
+        // $this->mathPlaceholders and restored after markdown conversion.
+        $content = $this->extractMathPlaceholders($content);
 
         // Bulk prefetch all referenced nostr entities before any conversion
         $this->prefetchedData = $this->prefetchNostrData($content, $tags);
@@ -84,6 +93,7 @@ class Converter implements MarkdownConverterInterface
             // If format is explicitly specified, use it
             if ($format === 'asciidoc') {
                 $html = $this->asciidocConverter->convert($content);
+                $html = $this->restoreMathPlaceholders($html);
                 return $this->processNostrLinks($html);
             }
 
@@ -94,6 +104,7 @@ class Converter implements MarkdownConverterInterface
             // Otherwise, auto-detect if content is AsciiDoc or Markdown
             if ($this->isAsciiDoc($content)) {
                 $html = $this->asciidocConverter->convert($content);
+                $html = $this->restoreMathPlaceholders($html);
                 return $this->processNostrLinks($html);
             }
 
@@ -102,6 +113,7 @@ class Converter implements MarkdownConverterInterface
         } finally {
             // Clear per-run state so no stale data leaks between calls.
             $this->prefetchedData = null;
+            $this->mathPlaceholders = [];
         }
     }
 
@@ -115,67 +127,187 @@ class Converter implements MarkdownConverterInterface
     }
 
     /**
-     * Normalize inline math delimiters: convert $…$ (following the TeX
-     * whitespace rule) to \(…\) in raw content so that KaTeX in the
-     * browser doesn't need the ambiguous single-$ delimiter (which
-     * conflicts with currency values like $50,000).
+     * Normalize Nostr math markup conventions in raw content.
      *
-     * TeX whitespace rule (same convention as Pandoc / CommonMark math):
-     *  - Opening $ must NOT be followed by whitespace
-     *  - Closing $ must NOT be preceded by whitespace
-     *  - Opening $ must NOT be preceded by a digit, $ or \
-     *  - Closing $ must NOT be followed by a digit or $
-     *  - Content must not be pure numeric/currency (e.g. 50,000)
+     * Many Nostr clients wrap math in backticks to protect it from markdown
+     * parsers that don't understand math, and use ```latex/math/tex fenced
+     * code blocks for display math.  This method:
      *
-     * Fenced code blocks, inline code, and $$…$$ are protected.
+     *  1. Converts ```latex / ```math / ```tex fenced code blocks (including
+     *     unclosed ones) into $$…$$ display math.
+     *  2. Unwraps backtick-protected display math: `$$…$$` → $$…$$
+     *  3. Unwraps backtick-protected inline math:  `$…$`  → $…$
+     *
+     * Runs before extractMathPlaceholders() and CommonMark.
      */
-    private function normalizeInlineMathDelimiters(string $content): string
+    private function normalizeNostrMathMarkup(string $content): string
     {
-        if (!str_contains($content, '$')) {
+        // 1. Convert ```latex / ```math / ```tex fenced code blocks to display math.
+        //    Handles both properly closed and unclosed blocks (unclosed = to EOF).
+        $content = preg_replace_callback(
+            '/^(`{3,})\s*(?:latex|math|tex)\s*$\n(.*?)(?:^\1\s*$|\z)/ms',
+            static function (array $m): string {
+                $inner = trim($m[2]);
+                if ($inner === '') {
+                    return '';
+                }
+                // If already wrapped in $$…$$, just output the block as-is
+                if (str_starts_with($inner, '$$') && str_ends_with($inner, '$$')) {
+                    return "\n" . $inner . "\n";
+                }
+                return "\n$$\n" . $inner . "\n$$\n";
+            },
+            $content,
+        ) ?? $content;
+
+        // 2. Unwrap backtick-protected display math: `$$…$$` → $$…$$
+        $content = preg_replace(
+            '/`(\$\$.+?\$\$)`/s',
+            '$1',
+            $content,
+        ) ?? $content;
+
+        // 3. Unwrap backtick-protected inline math: `$…$` → $…$
+        //    Only unwrap when the content between $ signs looks like math
+        //    (contains LaTeX commands, ^, _, {, }) to avoid unwrapping shell
+        //    variables like `$HOME` or CSS like `$primary-color`.
+        $content = preg_replace_callback(
+            '/`(\$[^$`]+\$)`/',
+            static function (array $m): string {
+                $inner = substr($m[1], 1, -1); // content between the $ signs
+                // Only unwrap if it looks like math
+                if (preg_match('/\\\\[a-zA-Z]|[\^_{}]/', $inner)) {
+                    return $m[1];
+                }
+                // Also unwrap simple expressions like E=mc^2 — anything with = and a letter
+                if (preg_match('/[a-zA-Z].*=|=.*[a-zA-Z]/', $inner)) {
+                    return $m[1];
+                }
+                return $m[0]; // not math, keep the backticks
+            },
+            $content,
+        ) ?? $content;
+
+        return $content;
+    }
+
+    /**
+     * Extract all math expressions from raw content, replacing them with
+     * inert alphanumeric placeholders that CommonMark will pass through
+     * unchanged (no backslash escaping, no special char processing).
+     *
+     * The math content is stored in $this->mathPlaceholders keyed by the
+     * placeholder token.  Call restoreMathPlaceholders() on the HTML output
+     * after CommonMark conversion to re-inject the actual math.
+     *
+     * Replaces the old normalizeInlineMathDelimiters() which converted
+     * $…$ → \(…\) in raw markdown.  That approach was broken because
+     * CommonMark treats \( as an escaped ( and strips the backslash.
+     */
+    private function extractMathPlaceholders(string $content): string
+    {
+        $hasDollar     = str_contains($content, '$');
+        $hasBackslash  = str_contains($content, '\\');
+        if (!$hasDollar && !$hasBackslash) {
             return $content;
         }
 
-        // Fast pre-check: only proceed if the content has at least one
-        // plausible $…$ pair (two $ signs with a non-space char after the
-        // first). This avoids the protect-and-replace pipeline for the
-        // vast majority of articles that only use $ for currency.
-        if (!preg_match('/(?<![\\\\$\d])\$[^\s$]/', $content)) {
-            return $content;
-        }
+        $this->mathPlaceholders = [];
+        $counter = 0;
 
-        // Protect regions that must not be touched, replacing them with
-        // null-byte placeholders so the $ regex cannot match inside them.
-        $blocks = [];
-        $protect = function (array $m) use (&$blocks): string {
-            $blocks[] = $m[0];
-            return "\x00MATH_BLOCK" . (count($blocks) - 1) . "\x00";
+        // Helper: store math and return an inert placeholder token.
+        $placeholder = function (string $mathHtml) use (&$counter): string {
+            $token = 'MATHPH' . $counter . 'XEND';
+            $this->mathPlaceholders[$token] = $mathHtml;
+            $counter++;
+            return $token;
+        };
+
+        // --- Protect non-math regions that contain $ or \ ---
+        $codeBlocks = [];
+        $protectCode = function (array $m) use (&$codeBlocks): string {
+            $codeBlocks[] = $m[0];
+            return "\x00CODEBLOCK" . (count($codeBlocks) - 1) . "\x00";
         };
 
         // 1. Fenced code blocks (``` or ~~~)
-        $content = preg_replace_callback('/^(`{3,}|~{3,}).*?^\1/ms', $protect, $content);
+        $content = preg_replace_callback('/^(`{3,}|~{3,}).*?^\1/ms', $protectCode, $content) ?? $content;
         // 2. Inline code (backtick runs)
-        $content = preg_replace_callback('/`[^`]+`/', $protect, $content);
-        // 3. Display math $$…$$
-        $content = preg_replace_callback('/\$\$[\s\S]*?\$\$/', $protect, $content);
+        $content = preg_replace_callback('/`[^`]+`/', $protectCode, $content) ?? $content;
 
-        // 4. Convert $…$ with whitespace rule to \(…\)
+        // --- Extract math regions in order of specificity ---
+
+        // 3. Display math $$…$$ → placeholder (preserve as $$…$$)
         $content = preg_replace_callback(
-            '/(?<![\\\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/',
-            function (array $m): string {
-                // Skip pure numeric / currency values
-                if (preg_match('/^\s*[\d.,]+\s*$/', $m[1])) {
-                    return $m[0];
-                }
-                return '\\(' . $m[1] . '\\)';
+            '/\$\$([\s\S]*?)\$\$/',
+            function (array $m) use ($placeholder): string {
+                return $placeholder('$$' . $m[1] . '$$');
             },
             $content,
-        );
+        ) ?? $content;
 
-        // 5. Restore protected blocks
-        return preg_replace_callback(
-            '/\x00MATH_BLOCK(\d+)\x00/',
-            static fn(array $m) => $blocks[(int) $m[1]],
-            $content,
+        // 4. LaTeX display \[…\] → placeholder (preserve as \[…\])
+        if ($hasBackslash) {
+            $content = preg_replace_callback(
+                '/\\\\\[([\s\S]*?)\\\\]/',
+                function (array $m) use ($placeholder): string {
+                    return $placeholder('\\[' . $m[1] . '\\]');
+                },
+                $content,
+            ) ?? $content;
+
+            // 5. LaTeX inline \(…\) → placeholder (preserve as \(…\))
+            $content = preg_replace_callback(
+                '/\\\\\((.+?)\\\\\\)/',
+                function (array $m) use ($placeholder): string {
+                    return $placeholder('\\(' . $m[1] . '\\)');
+                },
+                $content,
+            ) ?? $content;
+        }
+
+        // 6. Inline $…$ with TeX whitespace rule → placeholder as \(…\)
+        if ($hasDollar) {
+            $content = preg_replace_callback(
+                '/(?<![\\\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/',
+                function (array $m) use ($placeholder): string {
+                    // Skip pure numeric / currency values
+                    if (preg_match('/^\s*[\d.,]+\s*$/', $m[1])) {
+                        return $m[0];
+                    }
+                    return $placeholder('\\(' . $m[1] . '\\)');
+                },
+                $content,
+            ) ?? $content;
+        }
+
+        // --- Restore protected code blocks ---
+        if (!empty($codeBlocks)) {
+            $content = preg_replace_callback(
+                '/\x00CODEBLOCK(\d+)\x00/',
+                static fn(array $m) => $codeBlocks[(int) $m[1]],
+                $content,
+            ) ?? $content;
+        }
+
+        return $content;
+    }
+
+    /**
+     * Restore math placeholders in HTML output after CommonMark/AsciiDoc
+     * conversion.  Each MATHPHnXEND token is replaced with the original
+     * math expression (delimiters intact) so KaTeX can render them.
+     */
+    private function restoreMathPlaceholders(string $html): string
+    {
+        if (empty($this->mathPlaceholders)) {
+            return $html;
+        }
+
+        return str_replace(
+            array_keys($this->mathPlaceholders),
+            array_values($this->mathPlaceholders),
+            $html,
         );
     }
 
@@ -285,7 +417,7 @@ class Converter implements MarkdownConverterInterface
         $env->addExtension(new SmartPunctExtension());
         $env->addExtension(new EmbedExtension());
         $env->addRenderer(Embed::class, new HtmlDecorator(new EmbedRenderer(), 'div', ['class' => 'embedded-content']));
-        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrClient, $this->twig, $this->nostrKeyUtil, $this->articleFactory, $this->articleRepository, $this->prefetchedData, $this->eventRepository));
+        $env->addExtension(new NostrSchemeExtension($this->redisCacheService, $this->nostrKeyUtil, $this->prefetchedData));
         $env->addExtension(new RawImageLinkExtension());
         $env->addExtension(new AutolinkExtension());
 
@@ -296,6 +428,13 @@ class Converter implements MarkdownConverterInterface
 
         $converter = new MarkdownConverter($env);
         $html = (string) $converter->convert(html_entity_decode($markdown));
+
+        // Restore math expressions that were extracted before CommonMark
+        // processing.  The placeholders are pure alphanumeric tokens that
+        // CommonMark passed through unchanged; now we inject the real math
+        // (with \(, $$, \\, etc.) directly into the HTML where backslash
+        // escaping is no longer a concern.
+        $html = $this->restoreMathPlaceholders($html);
 
         return $this->processNostrLinks($html);
     }
@@ -411,7 +550,9 @@ class Converter implements MarkdownConverterInterface
             return $eventsById;
         }
 
-        // Fast path: check the local database first
+        // Resolve from local database only — unresolved references become
+        // deferred embed placeholders that are resolved at template render
+        // time by the resolve_nostr_embeds Twig filter.
         try {
             $dbEvents = $this->eventRepository->findByIds(array_keys($eventIds));
             foreach ($dbEvents as $id => $entity) {
@@ -429,27 +570,7 @@ class Converter implements MarkdownConverterInterface
                 }
             }
         } catch (\Throwable) {
-            // DB lookup failed, continue to relay fetch
-        }
-
-        // Only fetch from relays what's not already in the DB
-        $missingIds = array_diff_key($eventIds, $eventsById);
-        if (empty($missingIds)) {
-            return $eventsById;
-        }
-
-        try {
-            $list = $this->nostrClient->getEventsByIds(array_keys($missingIds));
-            foreach ($list as $event) {
-                if (!empty($event->id)) {
-                    $eventsById[$event->id] = $event;
-                }
-                if (!empty($event->pubkey)) {
-                    $pubkeyHexes[$event->pubkey] = 1;
-                }
-            }
-        } catch (\Throwable) {
-            // swallow; fall back to simple links
+            // DB lookup failed; deferred embeds will handle resolution at render time
         }
 
         return $eventsById;
@@ -599,9 +720,9 @@ class Converter implements MarkdownConverterInterface
                     ]);
                 }
 
-                // Placeholder if event data is missing and we're not forced inline
+                // Deferred embed if event data is missing and we're not forced inline
                 if (!$event && !$preferInline) {
-                    return $this->renderPlaceholder($bechEncoded, 'note', 'note', '/e/' . $this->e($bechEncoded));
+                    return $this->renderDeferredEmbed($bechEncoded, 'note');
                 }
 
                 $text = $displayText !== null && $displayText !== '' ? $displayText : $bechEncoded;
@@ -619,9 +740,9 @@ class Converter implements MarkdownConverterInterface
                     return '<a href="/e/' . $this->e($bechEncoded) . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
 
-                // Placeholder if event data is missing
+                // Deferred embed if event data is missing
                 if (!$event) {
-                    return $this->renderPlaceholder($bechEncoded, 'nevent', 'event', '/e/' . $this->e($bechEncoded));
+                    return $this->renderDeferredEmbed($bechEncoded, 'nevent');
                 }
 
                 // Otherwise render a rich card
@@ -650,10 +771,9 @@ class Converter implements MarkdownConverterInterface
                     return '<a href="' . $href . '" class="nostr-link">' . $this->e($text) . '</a>';
                 }
 
-                // Placeholder if event data is missing
+                // Deferred embed if event data is missing
                 if (!$event) {
-                    $label = $isLongform ? 'article' : 'event';
-                    return $this->renderPlaceholder($bechEncoded, 'naddr', $label, $href);
+                    return $this->renderDeferredEmbed($bechEncoded, 'naddr');
                 }
 
                 // Otherwise render a rich card
@@ -811,7 +931,8 @@ class Converter implements MarkdownConverterInterface
 
         $eventsByNaddr = [];
 
-        // Fast path: check the local database first
+        // Resolve from local database only — unresolved references become
+        // deferred embed placeholders resolved at template render time.
         foreach ($coordinates as $coordKey) {
             $parts = explode(':', $coordKey, 3);
             if (count($parts) !== 3) {
@@ -835,41 +956,23 @@ class Converter implements MarkdownConverterInterface
                     }
                 }
             } catch (\Throwable) {
-                // DB lookup failed for this coordinate, will try relay
+                // DB lookup failed; deferred embeds will handle at render time
             }
         }
 
-        // Only fetch from relays what's not already in the DB
-        $missingCoords = array_diff_key(array_flip($coordinates), $eventsByNaddr);
-        if (empty($missingCoords)) {
-            return $eventsByNaddr;
-        }
-
-        try {
-            $results = $this->nostrClient->getEventsByCoordinates(array_keys($missingCoords));
-            foreach ($results as $event) {
-                if (!empty($event->pubkey)) {
-                    $pubkeyHexes[$event->pubkey] = 1;
-                }
-            }
-            $eventsByNaddr = array_merge($eventsByNaddr, $results);
-            return $eventsByNaddr;
-        } catch (\Throwable) {
-            return $eventsByNaddr;
-        }
+        return $eventsByNaddr;
     }
 
     /**
-     * Render a nice placeholder card for a nostr reference whose event data couldn't be fetched.
+     * Render a lightweight deferred embed placeholder for a nostr reference
+     * that couldn't be resolved from local data.  The placeholder is resolved
+     * at template render time by the `resolve_nostr_embeds` Twig filter.
      */
-    private function renderPlaceholder(string $bech, string $type, string $label, string $href): string
+    private function renderDeferredEmbed(string $bech, string $type): string
     {
-        return $this->twig->render('components/nostr_placeholder.html.twig', [
-            'bech'  => $bech,
-            'type'  => $type,
-            'label' => $label,
-            'href'  => $href,
-        ]);
+        $escapedBech = $this->e($bech);
+        $escapedType = $this->e($type);
+        return '<div class="nostr-deferred-embed" data-nostr-bech="' . $escapedBech . '" data-nostr-type="' . $escapedType . '"></div>';
     }
 
     private function labelFromKey(string $npub): string
