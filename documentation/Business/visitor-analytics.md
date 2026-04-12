@@ -77,6 +77,13 @@ As a safety net, the same asset prefixes are also excluded at **query time** in 
 
 This keeps visitor counts focused on navigational page traffic instead of internal, utility, or static asset endpoints.
 
+### Preview/partial routes
+
+Editor preview routes serve HTML fragments (partials), not full pages. They are excluded at **capture time** — never persisted — and also at **query time** as a safety net for any previously recorded rows:
+
+- `/editor/markdown/preview` — Markdown preview panel in the editor
+- `/article-editor/preview/` — article editor live preview
+
 ## Affected files
 
 - `src/Entity/Visit.php`

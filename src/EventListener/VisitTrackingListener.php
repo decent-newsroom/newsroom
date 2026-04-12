@@ -33,6 +33,9 @@ class VisitTrackingListener
         '/favicon.ico',
         // Unfold bundle asset paths
         '/unfold-themes/',
+        // Partial/preview routes (not full page views)
+        '/editor/markdown/preview',
+        '/article-editor/preview/',
     ];
 
     /** Static file extensions that should never be tracked */

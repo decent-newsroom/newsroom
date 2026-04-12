@@ -55,7 +55,7 @@ h2.card-title {
     background: none;
 }
 
-article .card:not(.zap-modal-content) {
+article .card:not(.zap-modal-content,.comment) {
     background: none;
 }
 

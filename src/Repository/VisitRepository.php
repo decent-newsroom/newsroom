@@ -25,6 +25,13 @@ class VisitRepository extends ServiceEntityRepository
         '/unfold-themes/%',
     ];
 
+    /** Partial/preview route prefixes excluded from page-view analytics. */
+    private const PARTIAL_ROUTE_PREFIXES = [
+        '/editor/markdown/preview%',
+        '/article-editor/preview/%',
+        '/preview/%', // deprecated, but want to exclude old items
+    ];
+
     private ManagerRegistry $registry;
 
     public function __construct(ManagerRegistry $registry)
@@ -181,12 +188,20 @@ class VisitRepository extends ServiceEntityRepository
             $params[$key] = $prefix;
         }
 
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'partial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
         $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
                 {$assetClauses}
+                {$partialClauses}
                 GROUP BY day
                 ORDER BY day ASC";
         $result = $conn->executeQuery($sql, $params);
@@ -680,6 +695,13 @@ class VisitRepository extends ServiceEntityRepository
             $params[$key] = $prefix;
         }
 
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'partial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
         $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
@@ -687,6 +709,7 @@ class VisitRepository extends ServiceEntityRepository
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
                 {$assetClauses}
+                {$partialClauses}
                 GROUP BY day
                 ORDER BY day ASC";
         $result = $conn->executeQuery($sql, $params);
@@ -742,6 +765,13 @@ class VisitRepository extends ServiceEntityRepository
         // Exclude asset routes
         foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
             $param = 'trackedVisitAssetPrefix' . $i;
+            $this->addCondition($qb, sprintf('%s.route NOT LIKE :%s', $alias, $param));
+            $qb->setParameter($param, $prefix);
+        }
+
+        // Exclude partial/preview routes
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $param = 'trackedVisitPartialPrefix' . $i;
             $this->addCondition($qb, sprintf('%s.route NOT LIKE :%s', $alias, $param));
             $qb->setParameter($param, $prefix);
         }
