@@ -19,16 +19,18 @@ Many Nostr clients wrap math in backticks to protect it from Markdown parsers th
 
 - **Backtick-wrapped inline math**: `` `$E=mc^2$` `` → unwrapped to `$E=mc^2$` then processed as inline math.
 - **Backtick-wrapped display math**: `` `$$\frac{1}{2}$$` `` → unwrapped to `$$\frac{1}{2}$$` then processed as display math.
-- **Fenced code blocks** with `latex`, `math`, or `tex` language tags (including unclosed blocks) are converted to `$$...$$` display math instead of being rendered as code.
+- **Closed fenced code blocks** with `latex`, `math`, or `tex` language tags: if the content already contains `$$…$$` delimiters, the fence is stripped and content output as-is (each `$$…$$` is handled individually, preserving prose between them). Otherwise the content is wrapped in `$$…$$`.
+- **Unclosed fenced code blocks** with `latex`, `math`, or `tex` language tags: the opening fence line is removed. Any `$$…$$` sections are processed individually, and prose remains as prose. This prevents an unclosed block from consuming all content to end-of-file.
 
 ## Pipeline Architecture
 
 ### Phase 1: Nostr Markup Normalization (`normalizeNostrMathMarkup`)
 
 Runs first on raw content. Handles Nostr-specific conventions:
-1. Converts ` ```latex ` / ` ```math ` / ` ```tex ` fenced code blocks to `$$...$$`
-2. Unwraps `` `$$...$$` `` → `$$...$$`
-3. Unwraps `` `$...$` `` → `$...$` (only when content looks like math, not shell variables or currency)
+1. Converts closed ` ```latex ` / ` ```math ` / ` ```tex ` fenced code blocks: strips fence if content has `$$`, otherwise wraps in `$$…$$`
+2. Removes unclosed ` ```latex ` / ` ```math ` / ` ```tex ` opening fences (content flows naturally)
+3. Unwraps `` `$$...$$` `` → `$$...$$`
+4. Unwraps `` `$...$` `` → `$...$` (only when content looks like math, not shell variables or currency)
 
 ### Phase 2: Math Extraction (`extractMathPlaceholders`)
 
@@ -36,13 +38,18 @@ Replaces all math expressions with inert alphanumeric placeholder tokens (`MATHP
 
 The original math expressions with their correct delimiters are stored in a map for later restoration.
 
-Order of extraction (most specific first):
-1. Display math `$$...$$` → stored as `$$...$$`
-2. Display math `\[...\]` → stored as `\[...\]`
-3. Inline math `\(...\)` → stored as `\(...\)`
-4. Inline math `$...$` → stored as `\(...\)` (normalized to unambiguous delimiter)
+**Code block protection** (runs before math extraction):
+- Closed fenced code blocks (` ``` ` or `~~~` with matching closing fence)
+- Unclosed fenced code blocks (opening fence to end-of-file)
+- Multi-backtick inline code spans (` `` `, ` ``` `, etc.)
+- Single-backtick inline code spans
 
-Code blocks (fenced and inline) are protected so math detection doesn't match inside them.
+**Math extraction order** (most specific first):
+1. Display math `$$...$$` within a single paragraph (no blank-line crossings) → stored as `$$...$$`
+2. Multi-paragraph display math `$$...$$` (only if content contains LaTeX markup like `\begin`, `\frac`, `^`, `_`, `\\`) → stored as `$$...$$`
+3. Display math `\[...\]` → stored as `\[...\]`
+4. Inline math `\(...\)` → stored as `\(...\)`
+5. Inline math `$...$` → stored as `\(...\)` (normalized to unambiguous delimiter)
 
 ### Phase 3: Markdown Conversion
 

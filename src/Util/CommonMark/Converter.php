@@ -142,21 +142,34 @@ class Converter implements MarkdownConverterInterface
      */
     private function normalizeNostrMathMarkup(string $content): string
     {
-        // 1. Convert ```latex / ```math / ```tex fenced code blocks to display math.
-        //    Handles both properly closed and unclosed blocks (unclosed = to EOF).
+        // 1a. Convert properly closed ```latex / ```math / ```tex fenced code
+        //     blocks to display math.
         $content = preg_replace_callback(
-            '/^(`{3,})\s*(?:latex|math|tex)\s*$\n(.*?)(?:^\1\s*$|\z)/ms',
+            '/^(`{3,})\s*(?:latex|math|tex)\s*$\n(.*?)^\1\s*$/ms',
             static function (array $m): string {
                 $inner = trim($m[2]);
                 if ($inner === '') {
                     return '';
                 }
-                // If already wrapped in $$…$$, just output the block as-is
-                if (str_starts_with($inner, '$$') && str_ends_with($inner, '$$')) {
+                // If the block already contains $$…$$ delimiters, strip the
+                // fence and output as-is so that extractMathPlaceholders()
+                // can handle each $$…$$ section individually (with prose
+                // between them remaining as prose).
+                if (str_contains($inner, '$$')) {
                     return "\n" . $inner . "\n";
                 }
                 return "\n$$\n" . $inner . "\n$$\n";
             },
+            $content,
+        ) ?? $content;
+
+        // 1b. Handle remaining (unclosed) ```latex / ```math / ```tex opening
+        //     fences: just remove the fence line.  The content after it will be
+        //     processed naturally — any $$…$$ blocks are extracted as math and
+        //     prose stays as prose.  This avoids eating everything to EOF.
+        $content = preg_replace(
+            '/^`{3,}\s*(?:latex|math|tex)\s*$/m',
+            '',
             $content,
         ) ?? $content;
 
@@ -230,18 +243,50 @@ class Converter implements MarkdownConverterInterface
             return "\x00CODEBLOCK" . (count($codeBlocks) - 1) . "\x00";
         };
 
-        // 1. Fenced code blocks (``` or ~~~)
-        $content = preg_replace_callback('/^(`{3,}|~{3,}).*?^\1/ms', $protectCode, $content) ?? $content;
-        // 2. Inline code (backtick runs)
-        $content = preg_replace_callback('/`[^`]+`/', $protectCode, $content) ?? $content;
+        // 1. Fenced code blocks (``` or ~~~) — both closed and unclosed.
+        //    Closed blocks: opening fence + content + matching closing fence.
+        $content = preg_replace_callback('/^(`{3,}|~{3,})[^\n]*\n.*?^\1\s*$/ms', $protectCode, $content) ?? $content;
+        //    Unclosed blocks: opening fence + everything to EOF.
+        $content = preg_replace_callback('/^(`{3,}|~{3,})[^\n]*\n.*\z/ms', $protectCode, $content) ?? $content;
+
+        // 2. Multi-backtick inline code spans (`` `…` ``, ``` ``…`` ```, etc.)
+        //    Must come before single-backtick to avoid partial matches.
+        $content = preg_replace_callback('/(`{2,})(?!`)(.+?)(?<!`)\1(?!`)/s', $protectCode, $content) ?? $content;
+        // 3. Single-backtick inline code
+        $content = preg_replace_callback('/`[^`\n]+`/', $protectCode, $content) ?? $content;
 
         // --- Extract math regions in order of specificity ---
 
-        // 3. Display math $$…$$ → placeholder (preserve as $$…$$)
+        // 3a. Display math $$…$$ within a single paragraph (no blank lines).
+        //     This safely handles the vast majority of display math and avoids
+        //     a lone unpaired $$ matching a distant $$ across prose paragraphs.
+        $content = preg_replace_callback(
+            '/\$\$([^\n]*(?:\n(?!\s*\n)[^\n]*)*)\$\$/',
+            function (array $m) use ($placeholder): string {
+                if (trim($m[1]) === '') {
+                    return $m[0]; // empty display math — leave as literal $$
+                }
+                return $placeholder('$$' . $m[1] . '$$');
+            },
+            $content,
+        ) ?? $content;
+
+        // 3b. Multi-paragraph display math $$…$$ — only extract when the
+        //     content between $$ delimiters contains LaTeX markup (commands,
+        //     environments, etc.).  This handles blocks like \begin{cases}…
+        //     \end{cases} that legitimately span blank lines.
         $content = preg_replace_callback(
             '/\$\$([\s\S]*?)\$\$/',
             function (array $m) use ($placeholder): string {
-                return $placeholder('$$' . $m[1] . '$$');
+                $inner = $m[1];
+                if (trim($inner) === '') {
+                    return $m[0]; // empty — leave as-is
+                }
+                // Require LaTeX markup to accept a paragraph-spanning match
+                if (preg_match('/\\\\[a-zA-Z]|[\^_]|\\\\\\\\/', $inner)) {
+                    return $placeholder('$$' . $inner . '$$');
+                }
+                return $m[0]; // prose, not math — leave as-is
             },
             $content,
         ) ?? $content;
