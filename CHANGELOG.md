@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## v0.0.29
+
+
 - [Bug] Fixed "Symfony Runtime is missing" fatal error on gateway (and other worker) services in dev. The docker entrypoint ran `composer install --no-scripts`, which suppresses the `POST_AUTOLOAD_DUMP` event that the `symfony/runtime` Composer plugin needs to generate `vendor/autoload_runtime.php`. Added an explicit `composer dump-autoload` step after sync so the runtime autoloader is always generated before any `bin/console` call.
 - Faster dev container startup. Replaced the database readiness check (`php bin/console dbal:run-sql` — full Symfony kernel boot per attempt) with a lightweight raw PDO connection test (`docker/wait-for-db.php`, <1 s per attempt). Added a raw-SQL migration freshness check (`docker/check-migrations.php`) that compares file count vs applied count and skips the `doctrine:migrations:migrate` kernel boot entirely when migrations are already up-to-date. Replaced the recursive `setfacl -R` on the entire `var/` tree (thousands of cached files on bind mounts) with targeted ACLs on just the `var/`, `var/cache/`, and `var/log/` directories plus default ACL inheritance for new files.
 - [Bug] Changed highlights grid to single-column layout at all screen sizes. Previously used a multi-column masonry layout (3 columns on large screens, 2 on medium) that made highlight cards too narrow to read comfortably.
