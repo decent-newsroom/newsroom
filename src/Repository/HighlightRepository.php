@@ -14,15 +14,37 @@ class HighlightRepository extends ServiceEntityRepository
     }
 
     /**
-     * Find highlights for a specific article coordinate
+     * Extract the "pubkey:slug" suffix from a coordinate like "30023:pubkey:slug".
+     * Returns null if the coordinate is not in the expected format.
+     */
+    private function extractCoordinateSuffix(string $coordinate): ?string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) === 3 && $parts[1] !== '' && $parts[2] !== '') {
+            return $parts[1] . ':' . $parts[2];
+        }
+        return null;
+    }
+
+    /**
+     * Find highlights for a specific article coordinate.
+     * Uses suffix matching (pubkey:slug) to be resilient against kind prefix
+     * differences (e.g. 30023 vs 30024 for the same article).
      */
     public function findByArticleCoordinate(string $articleCoordinate): array
     {
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
+
         $qb = $this->createQueryBuilder('h')
-            ->where('h.articleCoordinate = :coordinate')
-            ->setParameter('coordinate', $articleCoordinate)
             ->orderBy('h.createdAt', 'DESC');
 
+        if ($suffix) {
+            $qb->where('h.articleCoordinate LIKE :suffix')
+                ->setParameter('suffix', '%:' . $suffix);
+        } else {
+            $qb->where('h.articleCoordinate = :coordinate')
+                ->setParameter('coordinate', $articleCoordinate);
+        }
 
         return $qb->getQuery()->getResult();
     }
@@ -30,22 +52,35 @@ class HighlightRepository extends ServiceEntityRepository
     /**
      * Find highlights for an article, deduplicated by content+pubkey at DB level.
      * Keeps the most recent highlight per unique content+pubkey pair.
+     * Uses suffix matching (pubkey:slug) to be resilient against kind prefix
+     * differences (e.g. 30023 vs 30024 for the same article).
      */
     public function findByArticleCoordinateDeduplicated(string $articleCoordinate): array
     {
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
+
         // Pick the MAX(id) per content+pubkey group via raw SQL,
         // then fetch only those rows as Doctrine entities.
         // This avoids loading duplicates into PHP.
         $conn = $this->getEntityManager()->getConnection();
 
-        $sql = <<<SQL
-            SELECT MAX(h.id) AS id
-            FROM highlight h
-            WHERE h.article_coordinate = :coordinate
-            GROUP BY MD5(CONCAT(h.content, '|', h.pubkey))
-        SQL;
-
-        $ids = $conn->fetchFirstColumn($sql, ['coordinate' => $articleCoordinate]);
+        if ($suffix) {
+            $sql = <<<SQL
+                SELECT MAX(h.id) AS id
+                FROM highlight h
+                WHERE h.article_coordinate LIKE :suffix
+                GROUP BY MD5(CONCAT(h.content, '|', h.pubkey))
+            SQL;
+            $ids = $conn->fetchFirstColumn($sql, ['suffix' => '%:' . $suffix]);
+        } else {
+            $sql = <<<SQL
+                SELECT MAX(h.id) AS id
+                FROM highlight h
+                WHERE h.article_coordinate = :coordinate
+                GROUP BY MD5(CONCAT(h.content, '|', h.pubkey))
+            SQL;
+            $ids = $conn->fetchFirstColumn($sql, ['coordinate' => $articleCoordinate]);
+        }
 
         if (empty($ids)) {
             return [];
@@ -67,13 +102,20 @@ class HighlightRepository extends ServiceEntityRepository
      */
     public function getCacheStatus(string $articleCoordinate, int $fullRefreshHours = 24, int $topOffHours = 1): array
     {
-        $result = $this->createQueryBuilder('h')
-            ->select('MAX(h.cachedAt) AS lastCached')
-            ->where('h.articleCoordinate = :coordinate')
-            ->setParameter('coordinate', $articleCoordinate)
-            ->getQuery()
-            ->getOneOrNullResult();
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
 
+        $qb = $this->createQueryBuilder('h')
+            ->select('MAX(h.cachedAt) AS lastCached');
+
+        if ($suffix) {
+            $qb->where('h.articleCoordinate LIKE :suffix')
+                ->setParameter('suffix', '%:' . $suffix);
+        } else {
+            $qb->where('h.articleCoordinate = :coordinate')
+                ->setParameter('coordinate', $articleCoordinate);
+        }
+
+        $result = $qb->getQuery()->getOneOrNullResult();
         $lastCachedStr = $result['lastCached'] ?? null;
 
         if ($lastCachedStr === null) {
@@ -117,15 +159,23 @@ class HighlightRepository extends ServiceEntityRepository
     public function needsRefresh(string $articleCoordinate, int $hoursOld = 24): bool
     {
         $cutoff = new \DateTimeImmutable("-{$hoursOld} hours");
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
 
-        $count = $this->createQueryBuilder('h')
-            ->select('COUNT(h.id)')
-            ->where('h.articleCoordinate = :coordinate')
-            ->andWhere('h.cachedAt > :cutoff')
-            ->setParameter('coordinate', $articleCoordinate)
-            ->setParameter('cutoff', $cutoff)
-            ->getQuery()
-            ->getSingleScalarResult();
+        $qb = $this->createQueryBuilder('h')
+            ->select('COUNT(h.id)');
+
+        if ($suffix) {
+            $qb->where('h.articleCoordinate LIKE :suffix')
+                ->setParameter('suffix', '%:' . $suffix);
+        } else {
+            $qb->where('h.articleCoordinate = :coordinate')
+                ->setParameter('coordinate', $articleCoordinate);
+        }
+
+        $qb->andWhere('h.cachedAt > :cutoff')
+            ->setParameter('cutoff', $cutoff);
+
+        $count = $qb->getQuery()->getSingleScalarResult();
 
         return $count === 0;
     }
@@ -135,14 +185,22 @@ class HighlightRepository extends ServiceEntityRepository
      */
     public function getLastCacheTime(string $articleCoordinate): ?\DateTimeImmutable
     {
-        $result = $this->createQueryBuilder('h')
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
+
+        $qb = $this->createQueryBuilder('h')
             ->select('h.cachedAt')
-            ->where('h.articleCoordinate = :coordinate')
-            ->setParameter('coordinate', $articleCoordinate)
             ->orderBy('h.cachedAt', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->setMaxResults(1);
+
+        if ($suffix) {
+            $qb->where('h.articleCoordinate LIKE :suffix')
+                ->setParameter('suffix', '%:' . $suffix);
+        } else {
+            $qb->where('h.articleCoordinate = :coordinate')
+                ->setParameter('coordinate', $articleCoordinate);
+        }
+
+        $result = $qb->getQuery()->getOneOrNullResult();
 
         return $result ? $result['cachedAt'] : null;
     }
@@ -152,14 +210,23 @@ class HighlightRepository extends ServiceEntityRepository
      */
     public function deleteOldHighlights(string $articleCoordinate, \DateTimeImmutable $before): int
     {
-        return $this->createQueryBuilder('h')
-            ->delete()
-            ->where('h.articleCoordinate = :coordinate')
-            ->andWhere('h.cachedAt < :before')
-            ->setParameter('coordinate', $articleCoordinate)
-            ->setParameter('before', $before)
-            ->getQuery()
-            ->execute();
+        $suffix = $this->extractCoordinateSuffix($articleCoordinate);
+
+        $qb = $this->createQueryBuilder('h')
+            ->delete();
+
+        if ($suffix) {
+            $qb->where('h.articleCoordinate LIKE :suffix')
+                ->setParameter('suffix', '%:' . $suffix);
+        } else {
+            $qb->where('h.articleCoordinate = :coordinate')
+                ->setParameter('coordinate', $articleCoordinate);
+        }
+
+        $qb->andWhere('h.cachedAt < :before')
+            ->setParameter('before', $before);
+
+        return $qb->getQuery()->execute();
     }
 
     /**

@@ -173,9 +173,58 @@ class Converter implements MarkdownConverterInterface
             $content,
         ) ?? $content;
 
+        // 1c. Normalize escaped backticks in inline code spans.
+        //     Some Nostr clients use \` to escape backticks inside inline code:
+        //       `const price = \`$${amount}\``
+        //     CommonMark doesn't support \` in code spans — the \` terminates the
+        //     span, leaving $${amount} exposed as regular text (and potential math).
+        //     Convert to double-backtick syntax with literal inner backticks:
+        //       `` const price = `$${amount}` ``
+        //     (CommonMark strips one leading+trailing space from code span content.)
+        //     Fenced code blocks are protected from this conversion.
+        $fenced = [];
+        $tmp = preg_replace_callback(
+            '/^(`{3,}|~{3,})[^\n]*\n.*?^\1\s*$/ms',
+            static function (array $m) use (&$fenced): string {
+                $fenced[] = $m[0];
+                return "\x00ESCBK" . (count($fenced) - 1) . "\x00";
+            },
+            $content,
+        ) ?? $content;
+        $tmp = preg_replace_callback(
+            '/^(`{3,}|~{3,})[^\n]*\n.*\z/ms',
+            static function (array $m) use (&$fenced): string {
+                $fenced[] = $m[0];
+                return "\x00ESCBK" . (count($fenced) - 1) . "\x00";
+            },
+            $tmp,
+        ) ?? $tmp;
+        $tmp = preg_replace_callback(
+            '/(?<!\\\\)`((?:[^`\\\\\n]|\\\\[^\n])+)`/',
+            static function (array $m): string {
+                if (!str_contains($m[1], '\\`')) {
+                    return $m[0]; // no escaped backticks — leave as-is
+                }
+                $inner = str_replace('\\`', '`', $m[1]);
+                return '`` ' . $inner . ' ``';
+            },
+            $tmp,
+        ) ?? $tmp;
+        if (!empty($fenced)) {
+            $tmp = preg_replace_callback(
+                '/\x00ESCBK(\d+)\x00/',
+                static fn(array $m) => $fenced[(int) $m[1]],
+                $tmp,
+            ) ?? $tmp;
+        }
+        $content = $tmp;
+
         // 2. Unwrap backtick-protected display math: `$$…$$` → $$…$$
+        //    No /s flag — backtick inline code is single-line only; allowing
+        //    `.` to cross newlines would let a `$$` on one line pair with a
+        //    distant `$$` and swallow all content between them.
         $content = preg_replace(
-            '/`(\$\$.+?\$\$)`/s',
+            '/`(\$\$.+?\$\$)`/',
             '$1',
             $content,
         ) ?? $content;
@@ -257,11 +306,13 @@ class Converter implements MarkdownConverterInterface
 
         // --- Extract math regions in order of specificity ---
 
-        // 3a. Display math $$…$$ within a single paragraph (no blank lines).
-        //     This safely handles the vast majority of display math and avoids
-        //     a lone unpaired $$ matching a distant $$ across prose paragraphs.
+        // 3a. Display math $$…$$ on a single line.  This safely handles the
+        //     vast majority of display math (e.g. $$E=mc^2$$, $$\frac{a}{b}$$)
+        //     and avoids a lone $$ (like "Empty math: $$" or JS template
+        //     `$${amount}`) pairing with a distant $$ across lines.  Multi-line
+        //     display math is handled by step 3b which requires LaTeX markup.
         $content = preg_replace_callback(
-            '/\$\$([^\n]*(?:\n(?!\s*\n)[^\n]*)*)\$\$/',
+            '/\$\$([^\n]+?)\$\$/',
             function (array $m) use ($placeholder): string {
                 if (trim($m[1]) === '') {
                     return $m[0]; // empty display math — leave as literal $$

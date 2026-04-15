@@ -89,9 +89,68 @@ class MathRenderingTest extends TestCase
         $this->assertSame('`$primary-color`', $this->nostrNormalize('`$primary-color`'));
     }
 
+    public function testEscapedBackticksConvertedToDoubleBacktick(): void
+    {
+        // `const price = \`$${amount}\`` should become `` const price = `$${amount}` ``
+        // so CommonMark renders it as one code span instead of splitting at \`
+        $input = '`const price = \\`$${amount}\\``';
+        $result = $this->nostrNormalize($input);
+        // Should use double backticks with space padding
+        $this->assertStringStartsWith('`` ', $result);
+        $this->assertStringEndsWith(' ``', $result);
+        // Inner backticks should be literal (backslash removed)
+        $this->assertStringContainsString('`$${amount}`', $result);
+        // No \` should remain
+        $this->assertStringNotContainsString('\\`', $result);
+    }
+
+    public function testNoEscapedBackticksLeftAlone(): void
+    {
+        // Regular code spans without \` should not be modified
+        $input = '`hello world`';
+        $this->assertSame('`hello world`', $this->nostrNormalize($input));
+    }
+
+    public function testEscapedBackticksInsideFencedCodeNotConverted(): void
+    {
+        // Content inside fenced code blocks should not be affected
+        $input = "```javascript\nconst s = `hello \\`world\\``;\n```";
+        $result = $this->nostrNormalize($input);
+        // The fenced block should survive intact (escaped backticks preserved)
+        $this->assertStringContainsString('\\`world\\`', $result);
+    }
+
     public function testUnwrapBacktickDisplayMath(): void
     {
         $this->assertSame('$$E=mc^2$$', $this->nostrNormalize('`$$E=mc^2$$`'));
+    }
+
+    public function testBacktickDisplayMathDoesNotCrossLines(): void
+    {
+        // Two separate backtick-wrapped display math expressions on different lines
+        // must NOT be merged into one giant match that eats all content between them.
+        $input = "Display: `\$\$E=mc^2\$\$`\n\nSome prose here.\n\nAnother: `\$\$x^2\$\$`";
+        $result = $this->nostrNormalize($input);
+
+        // Both should be individually unwrapped
+        $this->assertStringContainsString('$$E=mc^2$$', $result);
+        $this->assertStringContainsString('$$x^2$$', $result);
+        // Prose between them must survive
+        $this->assertStringContainsString('Some prose here.', $result);
+    }
+
+    public function testBacktickDisplayMathDescriptionTextPreserved(): void
+    {
+        // When `$$...$$` appears as description text (not math), content between
+        // unrelated occurrences must not be swallowed.
+        $input = "- Display math: `\$\$...\$\$` (on its own line)\n## Examples\nFormula: `\$\$E=mc^2\$\$`";
+        $result = $this->nostrNormalize($input);
+
+        // The description text backtick `$$...$$` has `...` which is not math,
+        // and the actual formula should be unwrapped. But the key assertion:
+        // the section header and structure must survive.
+        $this->assertStringContainsString('## Examples', $result);
+        $this->assertStringContainsString('$$E=mc^2$$', $result);
     }
 
     public function testLatexFencedCodeBlockClosed(): void
@@ -393,6 +452,37 @@ class MathRenderingTest extends TestCase
         $this->assertSame('$$x^2$$', $mathExpr);
     }
 
+    public function testDisplayMathDoesNotSpanLinesWithinParagraph(): void
+    {
+        // Even within a single paragraph (no blank lines), a lone $$ must NOT
+        // pair with a $$ on a different line.  This prevents "Empty math: $$"
+        // from pairing with $${amount} from a JS template on another line.
+        $input = "Empty math: \$\$\nJust delimiters: \$ \$\nJS: \$\${amount}\n\$\$x^2\$\$";
+        $result = $this->extract($input);
+        $placeholders = $this->getPlaceholders();
+
+        // Only the single-line $$x^2$$ should be extracted
+        $this->assertCount(1, $placeholders);
+        $mathExpr = array_values($placeholders)[0];
+        $this->assertSame('$$x^2$$', $mathExpr);
+    }
+
+    public function testJavaScriptTemplateNotExtractedAsMath(): void
+    {
+        // JavaScript template literal `$${amount}` should not be treated as
+        // display math.  The $$ is a JS template expression, not a math delimiter.
+        // Test both double-backtick and escaped-backtick versions.
+        $input1 = "JavaScript template: `` const price = `\$\${amount}` ``";
+        $result1 = $this->extract($input1);
+        $placeholders1 = $this->getPlaceholders();
+        $this->assertEmpty($placeholders1, 'JS template $${amount} should not be extracted as math');
+
+        $input2 = "JavaScript template: `const price = \\\`\$\${amount}\\\``";
+        $result2 = $this->extract($input2);
+        $placeholders2 = $this->getPlaceholders();
+        $this->assertEmpty($placeholders2, 'JS template with escaped backticks should not be extracted as math');
+    }
+
     public function testDisplayMathMultilineWithLatex(): void
     {
         // A genuine multi-line display math block with LaTeX commands
@@ -461,6 +551,8 @@ Just delimiters: $ $
 Dollar signs in text: The price is $10.50
 Currency: $19.99
 Shell command: echo "Price: $100"
+JavaScript template: `` const price = `$${amount}` ``
+JavaScript escaped: `const price = \`$${amount}\``
 CSS with dollar signs: color: $primary-color
 This document demonstrates that LaTeX is processed correctly with standard math delimiters.
 CONTENT;
@@ -484,6 +576,12 @@ CONTENT;
         $this->assertStringContainsString('The price is $10.50', $step1);
         $this->assertStringContainsString('$19.99', $step1);
         $this->assertStringContainsString('echo "Price: $100"', $step1);
+
+        // Escaped backticks should be converted to double-backtick syntax
+        $this->assertStringContainsString('`` const price = `$${amount}` ``', $step1,
+            'Escaped backticks \\` should be converted to double-backtick code span syntax');
+        $this->assertStringNotContainsString('\\`$${amount}\\`', $step1,
+            'No escaped backticks should remain after normalization');
 
         // Phase 2: Extract math placeholders
         $step2 = $this->extract($step1);
@@ -510,5 +608,26 @@ CONTENT;
         $this->assertStringContainsString('Greek letters are a snap:', $step2);
         $this->assertStringContainsString('The price is', $step2);
         $this->assertStringContainsString('This document demonstrates', $step2);
+
+        // Phase 3: CommonMark rendering — verify escaped backtick line
+        // renders as a single code span, not broken at \`
+        $env = new \League\CommonMark\Environment\Environment([]);
+        $env->addExtension(new \League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension());
+        $md = new \League\CommonMark\MarkdownConverter($env);
+        $html = (string) $md->convert(html_entity_decode($step2));
+        $html = $this->restore($html);
+
+        // The JS escaped backtick line should render as a proper code span
+        $this->assertStringContainsString(
+            '<code>const price = `$${amount}`</code>',
+            $html,
+            'Escaped backtick JS template should render as a single code span with literal backticks',
+        );
+        // It should NOT be split at the escaped backtick position
+        $this->assertStringNotContainsString(
+            '<code>const price = \\</code>',
+            $html,
+            'Code span should not be broken at the escaped backtick position',
+        );
     }
 }

@@ -23,6 +23,22 @@ class HighlightService
     ) {}
 
     /**
+     * Normalize a coordinate to its "pubkey:slug" suffix for Redis key computation.
+     * This ensures that 30023:pubkey:slug and 30024:pubkey:slug share the same cache,
+     * making highlight-to-article mapping resilient against kind prefix differences.
+     */
+    private function normalizeRedisKey(string $articleCoordinate): string
+    {
+        $parts = explode(':', $articleCoordinate, 3);
+        if (count($parts) === 3 && $parts[1] !== '' && $parts[2] !== '') {
+            $normalized = $parts[1] . ':' . $parts[2];
+        } else {
+            $normalized = $articleCoordinate;
+        }
+        return self::REDIS_PREFIX . md5($normalized);
+    }
+
+    /**
      * Get highlights for an article, using Redis → DB cache layers.
      * Redis serves the hot path; DB queries only run on Redis miss.
      *
@@ -33,7 +49,7 @@ class HighlightService
     public function getHighlightsForArticle(string $articleCoordinate): array
     {
         // Fast path: check Redis first
-        $redisKey = self::REDIS_PREFIX . md5($articleCoordinate);
+        $redisKey = $this->normalizeRedisKey($articleCoordinate);
         try {
             $cached = $this->redis->get($redisKey);
             if ($cached !== false) {
@@ -85,7 +101,7 @@ class HighlightService
      */
     public function invalidateRedisCache(string $articleCoordinate): void
     {
-        $redisKey = self::REDIS_PREFIX . md5($articleCoordinate);
+        $redisKey = $this->normalizeRedisKey($articleCoordinate);
         try {
             $this->redis->del($redisKey);
             $this->redis->del($redisKey . ':meta');

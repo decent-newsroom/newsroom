@@ -52,9 +52,46 @@
         return false;
     }
 
+    /** Tags whose text nodes should not be touched by dollar normalization. */
+    var SKIP_TAGS = /^(pre|code|script|style|textarea|annotation|svg|math)$/i;
+
+    /**
+     * Walk text nodes inside `root` and convert $…$ to \(…\) when the
+     * content looks like math.  Mirrors the server-side pipeline and
+     * handles cached HTML from before the placeholder system.
+     */
+    function normalizeDollarMathInTextNodes(root) {
+        var re = /(?<![\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/g;
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        var replacements = [];
+        var node;
+
+        while ((node = walker.nextNode())) {
+            if (node.parentNode && SKIP_TAGS.test(node.parentNode.tagName)) continue;
+            var text = node.nodeValue;
+            if (!text || text.indexOf('$') === -1) continue;
+
+            var newText = text.replace(re, function (_match, inner) {
+                if (/^\s*[\d.,]+\s*$/.test(inner)) return _match;
+                return '\\(' + inner + '\\)';
+            });
+
+            if (newText !== text) {
+                replacements.push({ node: node, newText: newText });
+            }
+        }
+
+        for (var i = 0; i < replacements.length; i++) {
+            replacements[i].node.nodeValue = replacements[i].newText;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof renderMathInElement !== 'function') return;
         if (!hasRealMath(document.body.textContent || '')) return;
+
+        // Normalize any surviving $…$ inline math to \(…\) before KaTeX runs
+        normalizeDollarMathInTextNodes(document.body);
 
         renderMathInElement(document.body, {
             delimiters: [

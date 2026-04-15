@@ -41,7 +41,7 @@ When a logged-in user selects text in an article:
 
 ## Coordinate Consistency
 
-Highlights are stored with an `articleCoordinate` matching the format `30023:<pubkey>:<slug>`. All ingestion paths (cron fetch, async refresh, publish endpoint) extract the coordinate from the event's own `a` tag when available, ensuring consistency regardless of the entry point.
+Highlights are stored with an `articleCoordinate` matching the format `kind:pubkey:slug` (e.g. `30023:<hex-pubkey>:<d-tag>`). All ingestion paths (cron fetch, async refresh, publish endpoint) extract the coordinate from the event's own `a` tag when available. Different clients may use different kind prefixes for the same article (e.g. `30024` for a draft coordinate vs `30023` for the published version), so **all repository queries match on the `pubkey:slug` suffix** rather than requiring an exact full-coordinate string match. The Redis cache key is likewise normalised to `pubkey:slug` so that all kind variants share one cache entry and invalidation works regardless of which kind prefix was used when saving.
 
 ## Caching Strategy
 
@@ -68,3 +68,4 @@ Highlights use a two-tier read-only cache to minimise article page load latency.
 - **Redis cache layer**: Added a Redis → DB two-tier cache. On Redis hit (10 min TTL), article pages load with zero DB queries for highlights. On miss, a single DB query loads and re-warms Redis.
 - **Query consolidation**: Replaced multiple DB queries per page load with a single `findByArticleCoordinateDeduplicated()` call using DB-level deduplication via `GROUP BY MD5(content||pubkey)`.
 - **Multi-relay queries**: Highlights are now fetched from both the local strfry relay and default relays for broader coverage.
+- **Suffix-based coordinate matching**: Exact `article_coordinate = :coord` queries missed highlights stored with a different kind prefix (e.g. `30024:` vs `30023:`). Switched all repository queries to LIKE `%:pubkey:slug` suffix matching and normalised the Redis cache key to `pubkey:slug`, making highlight-to-article mapping resilient against kind prefix differences.

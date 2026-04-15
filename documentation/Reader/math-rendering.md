@@ -29,8 +29,9 @@ Many Nostr clients wrap math in backticks to protect it from Markdown parsers th
 Runs first on raw content. Handles Nostr-specific conventions:
 1. Converts closed ` ```latex ` / ` ```math ` / ` ```tex ` fenced code blocks: strips fence if content has `$$`, otherwise wraps in `$$…$$`
 2. Removes unclosed ` ```latex ` / ` ```math ` / ` ```tex ` opening fences (content flows naturally)
-3. Unwraps `` `$$...$$` `` → `$$...$$`
-4. Unwraps `` `$...$` `` → `$...$` (only when content looks like math, not shell variables or currency)
+3. Normalizes escaped backticks in inline code spans: `` `foo \`bar\` baz` `` → `` `` foo `bar` baz `` ``. CommonMark doesn't support `\`` escaping inside code spans; the `\`` terminates the span, exposing content like `$$` to math extraction. Converts to double-backtick syntax with literal inner backticks. Fenced code blocks are protected from this conversion.
+4. Unwraps `` `$$...$$` `` → `$$...$$` (single-line only — no `/s` flag, so backtick-wrapped display math on different lines cannot pair across newlines and swallow content between them)
+5. Unwraps `` `$...$` `` → `$...$` (only when content looks like math, not shell variables or currency)
 
 ### Phase 2: Math Extraction (`extractMathPlaceholders`)
 
@@ -45,8 +46,8 @@ The original math expressions with their correct delimiters are stored in a map 
 - Single-backtick inline code spans
 
 **Math extraction order** (most specific first):
-1. Display math `$$...$$` within a single paragraph (no blank-line crossings) → stored as `$$...$$`
-2. Multi-paragraph display math `$$...$$` (only if content contains LaTeX markup like `\begin`, `\frac`, `^`, `_`, `\\`) → stored as `$$...$$`
+1. Display math `$$...$$` on a single line → stored as `$$...$$` (prevents lone `$$` or JS template `$${…}` from pairing across lines)
+2. Multi-line display math `$$...$$` (only if content contains LaTeX markup like `\begin`, `\frac`, `^`, `_`, `\\`) → stored as `$$...$$`
 3. Display math `\[...\]` → stored as `\[...\]`
 4. Inline math `\(...\)` → stored as `\(...\)`
 5. Inline math `$...$` → stored as `\(...\)` (normalized to unambiguous delimiter)
@@ -62,6 +63,15 @@ After CommonMark produces HTML, placeholder tokens are replaced with the origina
 ### Phase 5: Client-Side Rendering (KaTeX)
 
 The `utility--katex` Stimulus controller (or `katex-init.js` for UnfoldBundle pages) calls KaTeX's `renderMathInElement` to find and render math delimiters in the DOM.
+
+**Pre-processing: `$…$` normalization**
+
+Before KaTeX runs, a `normalizeDollarMathInTextNodes()` step walks all text nodes in the element and converts `$…$` inline math to `\(…\)` — the delimiter KaTeX recognizes for inline math. This mirrors the server-side extraction (Phase 2, step 5) and acts as a safety net for:
+- Cached `processed_html` from before the server-side placeholder pipeline was introduced
+- Edge cases the server-side extraction may have missed
+- Content arriving from sources that bypass the server converter entirely
+
+The same currency safeguards apply: `$10.50`, `$19.99`, and other purely numeric `$…$` pairs are left untouched. Text inside `<pre>`, `<code>`, `<script>`, `<style>`, `<textarea>`, `<annotation>`, `<svg>`, and `<math>` elements is skipped.
 
 **Delimiters** registered with KaTeX:
 - `$$...$$` (display mode)

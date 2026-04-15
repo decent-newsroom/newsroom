@@ -57,6 +57,51 @@ function hasRealMath(text) {
     return false;
 }
 
+// Tags whose text nodes should never be touched by inline-math normalization.
+const SKIP_TAGS = /^(pre|code|script|style|textarea|annotation|svg|math)$/i;
+
+/**
+ * Walk text nodes inside `root` and convert $…$ to \(…\) when the content
+ * looks like math.  This mirrors the server-side extractMathPlaceholders()
+ * logic and acts as a safety net for:
+ *  - cached processed_html from before the placeholder pipeline
+ *  - edge cases the server-side extraction missed
+ *  - content that bypasses the server converter entirely
+ *
+ * Currency ($10.50, $19.99) and non-math $ pairs are left untouched.
+ */
+function normalizeDollarMathInTextNodes(root) {
+    // TeX whitespace rule: opening $ not followed by whitespace, closing $
+    // not preceded by whitespace.  Same regex as the server-side step 6.
+    const re = /(?<![\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/g;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const replacements = []; // collect first, mutate after (TreeWalker is live)
+
+    let node;
+    while ((node = walker.nextNode())) {
+        // Skip text inside protected elements
+        if (node.parentNode && SKIP_TAGS.test(node.parentNode.tagName)) continue;
+
+        const text = node.nodeValue;
+        if (!text || !text.includes('$')) continue;
+
+        const newText = text.replace(re, (_match, inner) => {
+            // Skip pure currency / numeric values
+            if (/^\s*[\d.,]+\s*$/.test(inner)) return _match;
+            return '\\(' + inner + '\\)';
+        });
+
+        if (newText !== text) {
+            replacements.push({ node, newText });
+        }
+    }
+
+    for (const { node, newText } of replacements) {
+        node.nodeValue = newText;
+    }
+}
+
 export default class extends Controller {
     static values = {
         display: { type: Boolean, default: true },   // $$…$$ → display mode?
@@ -64,6 +109,11 @@ export default class extends Controller {
 
     connect() {
         if (!hasRealMath(this.element.textContent || '')) return;
+
+        // Normalize any surviving $…$ inline math to \(…\) in text nodes
+        // before KaTeX processes the element.  KaTeX only knows \(…\)
+        // for inline math; raw $…$ would be missed.
+        normalizeDollarMathInTextNodes(this.element);
 
         this.element.classList.add('math');
 
