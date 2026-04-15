@@ -35,7 +35,7 @@ final class FeedCacheService
             implode(',', $ctx->contacts) . '|' . implode(',', $ctx->interests)
         );
 
-        return 'feed:' . md5("{$coordinate}:{$ctx->mePubkey}:{$ctxHash}");
+        return 'feed_' . md5("{$coordinate}:{$ctx->mePubkey}:{$ctxHash}");
     }
 
     /**
@@ -49,12 +49,18 @@ final class FeedCacheService
             if ($item->isHit()) {
                 $cached = $item->get();
                 if (is_array($cached)) {
+                    $this->logger->debug('Feed cache hit', [
+                        'cacheKey' => $cacheKey,
+                        'items' => count($cached),
+                    ]);
                     return $cached;
                 }
             }
         } catch (\Throwable $e) {
-            $this->logger->warning('Feed cache read failed', ['error' => $e->getMessage()]);
+            $this->logger->warning('Feed cache read failed', ['cacheKey' => $cacheKey, 'error' => $e->getMessage()]);
         }
+
+        $this->logger->debug('Feed cache miss', ['cacheKey' => $cacheKey]);
 
         $result = $factory();
 
@@ -63,11 +69,15 @@ final class FeedCacheService
             $item->set($result);
             $item->expiresAfter($this->expressionCacheTtl);
             $this->cache->save($item);
+            $this->logger->debug('Feed cache written', [
+                'cacheKey' => $cacheKey,
+                'items' => count($result),
+                'ttl' => $this->expressionCacheTtl,
+            ]);
         } catch (\Throwable $e) {
-            $this->logger->warning('Feed cache write failed', ['error' => $e->getMessage()]);
+            $this->logger->warning('Feed cache write failed', ['cacheKey' => $cacheKey, 'error' => $e->getMessage()]);
         }
 
         return $result;
     }
 }
-

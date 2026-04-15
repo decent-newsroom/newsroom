@@ -9,6 +9,7 @@ use App\ExpressionBundle\Exception\UnresolvedRefException;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
 use App\Repository\EventRepository;
+use Psr\Log\LoggerInterface;
 
 /**
  * Resolves NIP-51 list references into their contained events.
@@ -17,6 +18,7 @@ final class ListSourceResolver
 {
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /** @return NormalizedItem[] */
@@ -24,6 +26,8 @@ final class ListSourceResolver
     {
         [$kind, $pubkey, $d] = explode(':', $address, 3);
         $kind = (int) $kind;
+
+        $this->logger->debug('Resolving NIP-51 list', ['address' => $address, 'kind' => $kind]);
 
         // Find the list event
         $listEvent = $this->eventRepository->findByNaddr($kind, $pubkey, $d);
@@ -46,6 +50,12 @@ final class ListSourceResolver
             }
         }
 
+        $this->logger->debug('List references extracted', [
+            'address' => $address,
+            'eventIds' => count($eventIds),
+            'addresses' => count($addresses),
+        ]);
+
         $items = [];
 
         // Resolve event IDs
@@ -67,7 +77,12 @@ final class ListSourceResolver
             }
         }
 
+        $this->logger->info('List resolved', [
+            'address' => $address,
+            'resolvedItems' => count($items),
+            'totalRefs' => count($eventIds) + count($addresses),
+        ]);
+
         return $items;
     }
 }
-

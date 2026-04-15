@@ -12,6 +12,7 @@ use App\ExpressionBundle\Parser\SpellParser;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrRequestExecutor;
 use App\Service\Nostr\RelaySetFactory;
+use Psr\Log\LoggerInterface;
 
 /**
  * Executes kind:777 spells: parse → build filter → query DB/relays → NormalizedItem[].
@@ -23,24 +24,52 @@ final class SpellSourceResolver
         private readonly SpellParser $spellParser,
         private readonly NostrRequestExecutor $requestExecutor,
         private readonly RelaySetFactory $relaySetFactory,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /** @return NormalizedItem[] */
     public function resolve(string $spellAddress, RuntimeContext $ctx): array
     {
+        $start = microtime(true);
+        $this->logger->debug('Resolving spell', ['address' => $spellAddress]);
+
         $spellEvent = $this->findEvent($spellAddress);
         $filter = $this->spellParser->parse($spellEvent, $ctx);
 
+        $this->logger->debug('Spell filter built', [
+            'address' => $spellAddress,
+            'kinds' => $filter['kinds'] ?? [],
+            'limit' => $filter['limit'] ?? null,
+        ]);
+
         // DB-first
         $events = $this->eventRepository->findByFilter($filter);
+        $source = 'db';
 
         // Relay fallback if needed
         if (empty($events) && isset($filter['relays'])) {
+            $this->logger->debug('Spell DB empty, falling back to specified relays', [
+                'address' => $spellAddress,
+                'relays' => $filter['relays'],
+            ]);
             $events = $this->fetchFromRelays($filter);
+            $source = 'relays';
         } elseif (empty($events)) {
+            $this->logger->debug('Spell DB empty, falling back to content relays', [
+                'address' => $spellAddress,
+            ]);
             // Fallback to content relays
             $events = $this->fetchFromRelays($filter);
+            $source = 'relays-fallback';
         }
+
+        $ms = round((microtime(true) - $start) * 1000);
+        $this->logger->info('Spell resolved', [
+            'address' => $spellAddress,
+            'source' => $source,
+            'events' => count($events),
+            'ms' => $ms,
+        ]);
 
         return array_map(fn(Event $e) => new NormalizedItem($e), $events);
     }
@@ -111,6 +140,4 @@ final class SpellSourceResolver
         return $event;
     }
 }
-
-
 

@@ -13,6 +13,7 @@ use App\ExpressionBundle\Model\RuntimeContext;
 use App\ExpressionBundle\Model\Stage;
 use App\ExpressionBundle\Runner\Operation\OperationInterface;
 use App\ExpressionBundle\Source\SourceResolverInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Pipeline orchestrator: resolves inputs → applies operations → produces NormalizedItem[].
@@ -27,7 +28,8 @@ final class ExpressionRunner
     /** @param iterable<OperationInterface> $operationIterable */
     public function __construct(
         iterable $operationIterable,
-        private readonly int $expressionMaxExecutionTime = 10,
+        private readonly LoggerInterface $logger,
+        private readonly int $expressionMaxExecutionTime = 30,
     ) {
         foreach ($operationIterable as $operation) {
             // Derive name from class: AllFilterOperation → "all", SortOperation → "sort"
@@ -44,27 +46,77 @@ final class ExpressionRunner
         RuntimeContext $ctx,
         SourceResolverInterface $resolver,
     ): array {
-        $startTime = time();
+        $startTime = microtime(true);
         $previousResult = null;
+        $stageCount = count($pipeline->stages);
 
-        foreach ($pipeline->stages as $stage) {
-            // Check timeout
-            if ((time() - $startTime) >= $this->expressionMaxExecutionTime) {
+        $this->logger->info('Expression pipeline started', [
+            'dTag' => $pipeline->dTag,
+            'stages' => $stageCount,
+            'user' => substr($ctx->mePubkey, 0, 12) . '…',
+        ]);
+
+        foreach ($pipeline->stages as $i => $stage) {
+            $stageStart = microtime(true);
+
+            // 1. Resolve inputs (may involve relay I/O — not counted against timeout)
+            $inputs = $this->resolveInputs($stage, $previousResult, $resolver, $ctx);
+
+            $resolveMs = round((microtime(true) - $stageStart) * 1000);
+            $inputCount = array_sum(array_map('count', $inputs));
+
+            $this->logger->debug('Stage inputs resolved', [
+                'stage' => $i + 1,
+                'op' => $stage->op,
+                'inputSets' => count($inputs),
+                'totalItems' => $inputCount,
+                'resolveMs' => $resolveMs,
+            ]);
+
+            // Check timeout after source resolution
+            $elapsed = microtime(true) - $startTime;
+            if ($elapsed >= $this->expressionMaxExecutionTime) {
+                $this->logger->warning('Expression timeout', [
+                    'dTag' => $pipeline->dTag,
+                    'stage' => $i + 1,
+                    'op' => $stage->op,
+                    'elapsedS' => round($elapsed, 2),
+                    'limitS' => $this->expressionMaxExecutionTime,
+                ]);
                 throw new TimeoutException('Expression evaluation exceeded max execution time');
             }
-
-            // 1. Resolve inputs
-            $inputs = $this->resolveInputs($stage, $previousResult, $resolver, $ctx);
 
             // 2. Get the operation
             $operation = $this->operations[$stage->op] ?? null;
             if ($operation === null) {
+                $this->logger->error('Unknown operation', [
+                    'op' => $stage->op,
+                    'dTag' => $pipeline->dTag,
+                ]);
                 throw new UnknownOpException("Unknown operation: {$stage->op}");
             }
 
             // 3. Execute
             $previousResult = $operation->execute($inputs, $stage, $ctx);
+
+            $stageMs = round((microtime(true) - $stageStart) * 1000);
+            $this->logger->debug('Stage completed', [
+                'stage' => $i + 1,
+                'op' => $stage->op,
+                'outputItems' => count($previousResult),
+                'stageMs' => $stageMs,
+            ]);
         }
+
+        $totalMs = round((microtime(true) - $startTime) * 1000);
+        $resultCount = count($previousResult ?? []);
+
+        $this->logger->info('Expression pipeline finished', [
+            'dTag' => $pipeline->dTag,
+            'stages' => $stageCount,
+            'resultItems' => $resultCount,
+            'totalMs' => $totalMs,
+        ]);
 
         return $previousResult ?? [];
     }

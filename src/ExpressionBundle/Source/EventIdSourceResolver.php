@@ -11,6 +11,7 @@ use App\ExpressionBundle\Model\RuntimeContext;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrRequestExecutor;
 use App\Service\Nostr\RelayRegistry;
+use Psr\Log\LoggerInterface;
 
 /**
  * Resolves event ID references: DB-first, relay fallback.
@@ -21,6 +22,7 @@ final class EventIdSourceResolver
         private readonly EventRepository $eventRepository,
         private readonly NostrRequestExecutor $requestExecutor,
         private readonly RelayRegistry $relayRegistry,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /** @return NormalizedItem[] */
@@ -29,10 +31,12 @@ final class EventIdSourceResolver
         // DB-first
         $event = $this->eventRepository->findById($eventId);
         if ($event !== null) {
+            $this->logger->debug('Event resolved from DB', ['eventId' => $eventId]);
             return [new NormalizedItem($event)];
         }
 
         // Relay fallback
+        $this->logger->debug('Event not in DB, fetching from relays', ['eventId' => $eventId]);
         try {
             $relaySet = null; // use default
             $rawEvents = $this->requestExecutor->fetch(
@@ -43,11 +47,15 @@ final class EventIdSourceResolver
             foreach ($rawEvents as $raw) {
                 $event = $this->convertToEntity($raw);
                 if ($event !== null) {
+                    $this->logger->debug('Event resolved from relays', ['eventId' => $eventId]);
                     return [new NormalizedItem($event)];
                 }
             }
-        } catch (\Throwable) {
-            // Relay fetch failed, fall through
+        } catch (\Throwable $e) {
+            $this->logger->warning('Event relay fetch failed', [
+                'eventId' => $eventId,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         throw new UnresolvedRefException("Event not found: {$eventId}");
@@ -69,4 +77,3 @@ final class EventIdSourceResolver
         return $event;
     }
 }
-

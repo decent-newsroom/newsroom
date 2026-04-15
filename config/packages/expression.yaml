@@ -2,5 +2,5 @@
 parameters:
     expression.cache_ttl: 300
     expression.max_depth: 5
-    expression.max_execution_time: 10
+    expression.max_execution_time: 30
 

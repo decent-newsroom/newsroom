@@ -22,7 +22,7 @@ class Configuration implements ConfigurationInterface
                     ->info('Maximum recursion depth for nested expression references')
                 ->end()
                 ->integerNode('max_execution_time')
-                    ->defaultValue(10)
+                    ->defaultValue(30)
                     ->info('Maximum execution time in seconds before timeout')
                 ->end()
             ->end()

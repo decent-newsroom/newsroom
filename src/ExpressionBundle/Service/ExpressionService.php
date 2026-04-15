@@ -9,6 +9,7 @@ use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Parser\ExpressionParser;
 use App\ExpressionBundle\Runner\ExpressionRunner;
 use App\ExpressionBundle\Source\SourceResolverInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * Public API for the expression engine.
@@ -22,6 +23,7 @@ final class ExpressionService
         private readonly SourceResolverInterface $sourceResolver,
         private readonly RuntimeContextFactory $contextFactory,
         private readonly FeedCacheService $cache,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -32,9 +34,35 @@ final class ExpressionService
      */
     public function evaluate(Event $expression, string $userPubkey): array
     {
-        $ctx = $this->contextFactory->create($userPubkey);
-        $pipeline = $this->parser->parse($expression);
-        return $this->runner->run($pipeline, $ctx, $this->sourceResolver);
+        $start = microtime(true);
+        $coordinate = $this->buildCoordinate($expression);
+
+        $this->logger->info('Evaluating expression', [
+            'coordinate' => $coordinate,
+            'user' => substr($userPubkey, 0, 12) . '…',
+        ]);
+
+        try {
+            $ctx = $this->contextFactory->create($userPubkey);
+            $pipeline = $this->parser->parse($expression);
+            $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver);
+
+            $this->logger->info('Expression evaluated', [
+                'coordinate' => $coordinate,
+                'resultItems' => count($result),
+                'totalMs' => round((microtime(true) - $start) * 1000),
+            ]);
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->logger->error('Expression evaluation failed', [
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'totalMs' => round((microtime(true) - $start) * 1000),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -48,5 +76,16 @@ final class ExpressionService
 
         return $this->cache->getOrSet($cacheKey, fn() => $this->evaluate($expression, $userPubkey));
     }
-}
 
+    private function buildCoordinate(Event $expression): string
+    {
+        $dTag = '';
+        foreach ($expression->getTags() as $tag) {
+            if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                $dTag = $tag[1];
+                break;
+            }
+        }
+        return "{$expression->getKind()}:{$expression->getPubkey()}:{$dTag}";
+    }
+}
