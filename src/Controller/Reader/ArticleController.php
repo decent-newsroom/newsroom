@@ -379,11 +379,6 @@ class ArticleController  extends AbstractController
             'has_cached_html' => $htmlContent !== null
         ]);
 
-        // Temporary, so I can see the Converter in action
-        $htmlContent = $converter->convertToHTML($article->getContent(), null, $article->getRaw()['tags'] ?? null);
-        $article->setProcessedHtml($htmlContent);
-
-
         if (!$htmlContent) {
             try {
                 // Fall back to converting on-the-fly.
