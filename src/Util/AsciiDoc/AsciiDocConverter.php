@@ -493,12 +493,27 @@ class AsciiDocConverter
         $text = htmlspecialchars($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         // Bold (*text* or **text**)
-        $text = preg_replace('/\*\*([^\*]+)\*\*/', '<strong>$1</strong>', $text);
-        $text = preg_replace('/(?<!\*)\*([^\*\s][^\*]*[^\*\s]|\S)\*(?!\*)/', '<strong>$1</strong>', $text);
+        // Interior whitespace is relocated outside the <strong> tag so that
+        // adjacent words don't run together (e.g. "word** bold **word" →
+        // "word <strong>bold</strong> word", not "word<strong>bold</strong>word").
+        $text = preg_replace_callback('/\*\*([^\*]+)\*\*/', static function (array $m): string {
+            if (!preg_match('/^([ \t]*)(.*?)([ \t]*)$/s', $m[1], $p)) return $m[0];
+            return $p[1] . '<strong>' . $p[2] . '</strong>' . $p[3];
+        }, $text) ?? $text;
+        $text = preg_replace_callback('/(?<!\*)\*([^\*]+?)\*(?!\*)/', static function (array $m): string {
+            if (!preg_match('/^([ \t]*)(.*?)([ \t]*)$/s', $m[1], $p)) return $m[0];
+            return $p[1] . '<strong>' . $p[2] . '</strong>' . $p[3];
+        }, $text) ?? $text;
 
         // Italic (_text_ or __text__)
-        $text = preg_replace('/__([^_]+)__/', '<em>$1</em>', $text);
-        $text = preg_replace('/(?<!_)_([^_\s][^_]*[^_\s]|\S)_(?!_)/', '<em>$1</em>', $text);
+        $text = preg_replace_callback('/__([^_]+)__/', static function (array $m): string {
+            if (!preg_match('/^([ \t]*)(.*?)([ \t]*)$/s', $m[1], $p)) return $m[0];
+            return $p[1] . '<em>' . $p[2] . '</em>' . $p[3];
+        }, $text) ?? $text;
+        $text = preg_replace_callback('/(?<!_)_([^_]+?)_(?!_)/', static function (array $m): string {
+            if (!preg_match('/^([ \t]*)(.*?)([ \t]*)$/s', $m[1], $p)) return $m[0];
+            return $p[1] . '<em>' . $p[2] . '</em>' . $p[3];
+        }, $text) ?? $text;
 
         // Monospace (`text`)
         $text = preg_replace('/`([^`]+)`/', '<code>$1</code>', $text);

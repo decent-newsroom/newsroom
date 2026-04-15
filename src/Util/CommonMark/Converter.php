@@ -487,11 +487,126 @@ class Converter implements MarkdownConverterInterface
     }
 
     /**
+     * Normalize emphasis markers that contain interior whitespace.
+     *
+     * Many Nostr clients and authors leave spaces inside bold/italic markers
+     * (e.g. "*text *" or "** text **").  The CommonMark spec requires emphasis
+     * delimiters to be "flanking" — the opening delimiter must not be followed
+     * by whitespace and the closing delimiter must not be preceded by whitespace.
+     * This method trims those interior spaces so CommonMark can recognise them.
+     *
+     * Code blocks (fenced and inline) are protected from modification.
+     * Bullet list markers (* item) are detected and only the content after the
+     * marker is processed, so list structure is preserved.
+     */
+    private function normalizeEmphasisWhitespace(string $content): string
+    {
+        // Quick bail-out: no emphasis markers at all.
+        if (!str_contains($content, '*') && !str_contains($content, '_')) {
+            return $content;
+        }
+
+        // --- Protect code regions ---
+        $codeBlocks = [];
+        $protectCode = function (array $m) use (&$codeBlocks): string {
+            $codeBlocks[] = $m[0];
+            return "\x00EMPHWS" . (count($codeBlocks) - 1) . "\x00";
+        };
+        // Fenced code blocks (closed)
+        $content = preg_replace_callback('/^(`{3,}|~{3,})[^\n]*\n.*?^\1\s*$/ms', $protectCode, $content) ?? $content;
+        // Fenced code blocks (unclosed — to EOF)
+        $content = preg_replace_callback('/^(`{3,}|~{3,})[^\n]*\n.*\z/ms', $protectCode, $content) ?? $content;
+        // Multi-backtick inline code
+        $content = preg_replace_callback('/(`{2,})(?!`)(.+?)(?<!`)\1(?!`)/s', $protectCode, $content) ?? $content;
+        // Single-backtick inline code
+        $content = preg_replace_callback('/`[^`\n]+`/', $protectCode, $content) ?? $content;
+
+        // Relocate callback: moves interior leading/trailing whitespace to
+        // the outside of the delimiter so that words never run together.
+        // e.g. "** bold **" → " **bold** ", "*text *" → "*text* "
+        $relocateEmphasis = static function (array $m, string $delim): string {
+            $inner = $m[1];
+            if (!preg_match('/^([ \t]*)(.*?)([ \t]*)$/s', $inner, $parts)) {
+                return $m[0];
+            }
+            $leading  = $parts[1];
+            $core     = $parts[2];
+            $trailing = $parts[3];
+            if ($core === '' || ($leading === '' && $trailing === '')) {
+                return $m[0]; // nothing to relocate, or content is empty
+            }
+            return $leading . $delim . $core . $delim . $trailing;
+        };
+
+        // Process line-by-line to respect block structure (lists)
+        $lines = explode("\n", $content);
+        foreach ($lines as &$line) {
+            // ** bold **: relocate interior whitespace (** is never a list marker)
+            $line = preg_replace_callback(
+                '/\*\*(.+?)\*\*/',
+                static fn(array $m) => $relocateEmphasis($m, '**'),
+                $line,
+            ) ?? $line;
+
+            // __ bold __: relocate interior whitespace
+            $line = preg_replace_callback(
+                '/__(.+?)__/',
+                static fn(array $m) => $relocateEmphasis($m, '__'),
+                $line,
+            ) ?? $line;
+
+            // _italic_: relocate interior whitespace (_ is never a list marker)
+            $line = preg_replace_callback(
+                '/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/',
+                static fn(array $m) => $relocateEmphasis($m, '_'),
+                $line,
+            ) ?? $line;
+
+            // *italic*: relocate interior whitespace, but protect list markers.
+            // If the line starts with * as a bullet list marker, only process
+            // emphasis in the content after the marker prefix.
+            if (preg_match('/^\s*\*\s/', $line)) {
+                if (preg_match('/^(\s*\*\s+)(.*)$/', $line, $parts)) {
+                    $rest = preg_replace_callback(
+                        '/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/',
+                        static fn(array $m) => $relocateEmphasis($m, '*'),
+                        $parts[2],
+                    ) ?? $parts[2];
+                    $line = $parts[1] . $rest;
+                }
+            } else {
+                $line = preg_replace_callback(
+                    '/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/',
+                    static fn(array $m) => $relocateEmphasis($m, '*'),
+                    $line,
+                ) ?? $line;
+            }
+        }
+        unset($line);
+        $content = implode("\n", $lines);
+
+        // --- Restore protected code blocks ---
+        if (!empty($codeBlocks)) {
+            $content = preg_replace_callback(
+                '/\x00EMPHWS(\d+)\x00/',
+                static fn(array $m) => $codeBlocks[(int) $m[1]],
+                $content,
+            ) ?? $content;
+        }
+
+        return $content;
+    }
+
+    /**
      * Convert Markdown to HTML (original method)
      * @throws CommonMarkException
      */
     private function convertMarkdownToHTML(string $markdown): string
     {
+        // Normalize emphasis markers with interior whitespace so that
+        // CommonMark recognises them as flanking delimiters.
+        $markdown = $this->normalizeEmphasisWhitespace($markdown);
+
         $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
         $config = [
