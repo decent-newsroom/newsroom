@@ -96,50 +96,41 @@
 }
 
 .card-footer {
-    border-top: 1px solid var(--color-border);
     margin: var(--spacing-4) 0;
 }
 
 /* Featured cards layout */
 .featured-cat {
-    border-bottom: 2px solid var(--color-border);
-    padding-left: var(--spacing-2);
-}
-
-.featured-list {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-}
-
-.featured-list > * {
-    box-sizing: border-box;
+    border-bottom: 1px solid var(--color-border);
     margin-bottom: var(--spacing-2);
     padding: var(--spacing-2);
+    font-size: 1.25rem;
+    font-weight: 700;
+    position: sticky;
+    top: 80px;
+    z-index: 1005;
+    background-color: var(--color-bg-light);
 }
 
-div:nth-child(odd) .featured-list {
-    flex-direction: row-reverse;
+.featured-cat a {
+    text-decoration: none;
+    color: inherit;
 }
 
-.featured-list div:first-child {
-    flex: 0 0 66%;
+.featured-cat a:hover {
+    text-decoration: underline;
 }
 
-.featured-list div:last-child {
-    flex: 0 0 34%;
+.featured-cat__summary {
+    font-weight: 400;
+    font-size: 1rem;
+    color: var(--color-text-muted, #666);
 }
 
-.featured-list h2.card-title {
-    font-size: 1.5rem;
-}
-
-.featured-list p.lede {
-    font-size: 1.4rem;
-}
 
 .featured-list .card {
     margin-bottom: var(--spacing-4);
+    background: none;
 }
 
 .featured-list .card:not(:last-child) {
@@ -147,6 +138,7 @@ div:nth-child(odd) .featured-list {
 }
 
 /* Article list cards */
+.featured-list .metadata,
 .article-list .metadata {
     display: flex;
     flex-direction: row;
@@ -160,21 +152,11 @@ div:nth-child(odd) .featured-list {
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
-    .featured-list {
-        flex-direction: column !important;
+    .featured-cat {
+        top: 60px;
     }
 
     .featured-list .card-header {
         margin-top: var(--spacing-4);
-    }
-
-    .featured-list .card {
-        border-bottom: 1px solid var(--color-border) !important;
-        background: none;
-    }
-
-    .featured-list > * {
-        margin-bottom: var(--spacing-2);
-        padding: 0;
     }
 }

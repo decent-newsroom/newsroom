@@ -16,6 +16,7 @@ final class Card
     public array $authors_metadata = [];
     public int $comment_count = 0;
     public array $source_labels = [];
+    public ?string $category_label = null;
 
     public function mount($category = null)
     {

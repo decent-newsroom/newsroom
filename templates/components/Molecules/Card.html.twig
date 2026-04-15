@@ -25,9 +25,12 @@
                     <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none';" >
                 {% endif %}
             </div>
-            {% if source_labels|default([])|length > 0 %}
+            {% if source_labels|default([])|length > 0 or category_label|default(null) %}
                 <div class="card-sources">
-                    {% for label in source_labels %}
+                    {% if category_label|default(null) %}
+                        <span class="source-badge source-badge--category">{{ category_label }}</span>
+                    {% endif %}
+                    {% for label in source_labels|default([]) %}
                         <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
                     {% endfor %}
                 </div>

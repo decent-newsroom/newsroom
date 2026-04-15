@@ -36,3 +36,9 @@
     border-color: var(--color-accent-600, #777);
     color: var(--color-accent-600, #777);
 }
+
+.source-badge--category {
+    border-color: var(--color-text, #333);
+    color: var(--color-text, #333);
+}
+
