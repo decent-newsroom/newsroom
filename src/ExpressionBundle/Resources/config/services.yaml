@@ -1,0 +1,15 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            $expressionCacheTtl: '%expression.cache_ttl%'
+            $expressionMaxDepth: '%expression.max_depth%'
+            $expressionMaxExecutionTime: '%expression.max_execution_time%'
+
+    App\ExpressionBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../ExpressionBundle.php'
+

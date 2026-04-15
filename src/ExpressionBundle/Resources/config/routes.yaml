@@ -1,0 +1,4 @@
+expression_api:
+    resource: '../../Controller/'
+    type: attribute
+

@@ -656,4 +656,94 @@ class EventRepository extends ServiceEntityRepository
         return (int)$conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchOne();
     }
 
+    /**
+     * Query events using a NIP-A7 spell filter structure.
+     *
+     * @param array $filter ['kinds' => int[], 'authors' => string[], '#t' => string[], 'since' => int, 'until' => int, 'limit' => int]
+     * @return Event[]
+     */
+    public function findByFilter(array $filter): array
+    {
+        $qb = $this->createQueryBuilder('e');
+
+        if (isset($filter['kinds'])) {
+            $qb->andWhere('e.kind IN (:kinds)')
+               ->setParameter('kinds', $filter['kinds']);
+        }
+        if (isset($filter['authors'])) {
+            $qb->andWhere('e.pubkey IN (:authors)')
+               ->setParameter('authors', $filter['authors']);
+        }
+        if (isset($filter['ids'])) {
+            $qb->andWhere('e.id IN (:ids)')
+               ->setParameter('ids', $filter['ids']);
+        }
+        if (isset($filter['since'])) {
+            $qb->andWhere('e.created_at >= :since')
+               ->setParameter('since', $filter['since']);
+        }
+        if (isset($filter['until'])) {
+            $qb->andWhere('e.created_at <= :until')
+               ->setParameter('until', $filter['until']);
+        }
+
+        // Tag filters (#t, #p, #e, etc.)
+        $tagIdx = 0;
+        foreach ($filter as $key => $values) {
+            if (str_starts_with($key, '#') && is_array($values)) {
+                $tagName = substr($key, 1);
+                foreach ($values as $val) {
+                    $paramTag = "tagName_{$tagIdx}";
+                    $paramVal = "tagVal_{$tagIdx}";
+                    $qb->andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements(e.tags) AS tag WHERE tag->>0 = :{$paramTag} AND tag->>1 = :{$paramVal})")
+                       ->setParameter($paramTag, $tagName)
+                       ->setParameter($paramVal, $val);
+                    $tagIdx++;
+                }
+            }
+        }
+
+        $qb->orderBy('e.created_at', 'DESC');
+
+        if (isset($filter['limit'])) {
+            $qb->setMaxResults((int) $filter['limit']);
+        } else {
+            $qb->setMaxResults(500);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Count events of specified kinds that reference a given event.
+     * Used by the CountNormalizer for engagement scoring.
+     *
+     * Checks both e-tag (by event ID) and a-tag (by coordinate for replaceable events).
+     */
+    public function countReferencingEvents(string $eventId, ?string $coordinate, array $kinds): int
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = "SELECT COUNT(e.id) FROM event e WHERE e.kind IN (";
+        $params = [];
+        $kindPlaceholders = [];
+        foreach ($kinds as $i => $kind) {
+            $kindPlaceholders[] = ':kind_' . $i;
+            $params['kind_' . $i] = $kind;
+        }
+        $sql .= implode(', ', $kindPlaceholders) . ')';
+
+        $refConditions = "EXISTS (SELECT 1 FROM jsonb_array_elements(e.tags) AS tag WHERE tag->>0 = 'e' AND tag->>1 = :eventId)";
+        $params['eventId'] = $eventId;
+
+        if ($coordinate !== null) {
+            $refConditions .= " OR EXISTS (SELECT 1 FROM jsonb_array_elements(e.tags) AS tag WHERE tag->>0 = 'a' AND tag->>1 = :coordinate)";
+            $params['coordinate'] = $coordinate;
+        }
+
+        $sql .= " AND ({$refConditions})";
+
+        return (int) $conn->executeQuery($sql, $params)->fetchOne();
+    }
+
 }

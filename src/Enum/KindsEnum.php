@@ -19,6 +19,7 @@ enum KindsEnum: int
     case CHANNEL_MESSAGE = 42; // NIP-28, channel message (used for chat text messages)
     case CHANNEL_HIDE_MESSAGE = 43; // NIP-28, hide message
     case CHANNEL_MUTE_USER = 44; // NIP-28, mute user
+    case SPELL = 777; // NIP-A7, spells (portable query filters)
     case FILE_METADATA = 1063; // NIP-94
     case COMMENTS = 1111;
     case TABULAR_DATA = 1450; // NIP-XX, Tabular Data (CSV)
@@ -45,6 +46,7 @@ enum KindsEnum: int
     case PUBLICATION_INDEX = 30040; // NKBIP-01
     case PUBLICATION_CONTENT = 30041; // NKBIP-01
     case APP_DATA = 30078; // NIP-78, Arbitrary custom app data
+    case FEED_EXPRESSION = 30880; // NIP-EX, publishable feed expressions
     case PLAYLIST = 34139; // Playlist (e.g. Nostria music playlists)
     case ADDRESSABLE_VIDEO = 34235; // NIP-71, addressable video events
     case ADDRESSABLE_SHORT_VIDEO = 34236; // NIP-71, addressable short-form video events

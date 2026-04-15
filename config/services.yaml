@@ -77,6 +77,8 @@ services:
             - '../src/ChatBundle/DependencyInjection/'
             - '../src/ChatBundle/ChatBundle.php'
             - '../src/ChatBundle/Entity/'
+            - '../src/ExpressionBundle/DependencyInjection/'
+            - '../src/ExpressionBundle/ExpressionBundle.php'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -386,3 +388,58 @@ services:
         arguments:
             $excludedPubkeys: '%newsroom.latest_articles.excluded_pubkeys%'
             $excludeBotProfiles: '%newsroom.latest_articles.exclude_bot_profiles%'
+
+    # ExpressionBundle service bindings
+    App\ExpressionBundle\Controller\FeedApiController:
+        tags: ['controller.service_arguments']
+
+    App\ExpressionBundle\Runner\ExpressionRunner:
+        arguments:
+            $operationIterable: !tagged_iterator 'expression.operation'
+            $expressionMaxExecutionTime: '%expression.max_execution_time%'
+
+    App\ExpressionBundle\Runner\Operation\ScoreOperation:
+        arguments:
+            $normalizerIterable: !tagged_iterator 'expression.normalizer'
+        tags: ['expression.operation']
+
+    App\ExpressionBundle\Runner\Operation\AllFilterOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\AnyFilterOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\NoneFilterOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\SortOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\SliceOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\DistinctOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\UnionOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\IntersectOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\DifferenceOperation:
+        tags: ['expression.operation']
+
+    App\ExpressionBundle\Runner\Normalizer\IdentityNormalizer:
+        tags: ['expression.normalizer']
+    App\ExpressionBundle\Runner\Normalizer\RecencyNormalizer:
+        tags: ['expression.normalizer']
+    App\ExpressionBundle\Runner\Normalizer\LogNormalizer:
+        tags: ['expression.normalizer']
+    App\ExpressionBundle\Runner\Normalizer\InNormalizer:
+        tags: ['expression.normalizer']
+    App\ExpressionBundle\Runner\Normalizer\ContainsCiNormalizer:
+        tags: ['expression.normalizer']
+    App\ExpressionBundle\Runner\Normalizer\CountNormalizer:
+        tags: ['expression.normalizer']
+
+    App\ExpressionBundle\Service\FeedCacheService:
+        arguments:
+            $cache: '@npub.cache'
+            $expressionCacheTtl: '%expression.cache_ttl%'
+
+    App\ExpressionBundle\Source\SourceResolverInterface:
+        alias: App\ExpressionBundle\Source\SourceResolver
+

@@ -1,0 +1,4 @@
+# ExpressionBundle Routes — Feed expression API
+expression_bundle:
+    resource: '../../src/ExpressionBundle/Resources/config/routes.yaml'
+

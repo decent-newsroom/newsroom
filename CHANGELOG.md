@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.30
+Expressions.
+
+- 
+- Added ExpressionBundle (NIP-EX + NIP-FX) — a self-contained expression runner that parses kind:30880 feed expression events into a pipeline, evaluates filter/sort/set/score operations against normalized Nostr events, resolves inputs from spells (kind:777), other expressions, NIP-51 lists, and event IDs via DB with relay fallback, and exposes an authenticated `GET /api/feed/{naddr}` endpoint for personalized feed serving. Includes full clause evaluation (match, not, cmp, text) with absence semantics, NIP-FX scoring with six normalizers (identity, recency, log, in, contains-ci, count), set operations (union, intersect, difference, distinct), per-user Redis caching, cycle detection for nested expressions, and configurable execution timeout. Added `SPELL = 777` and `FEED_EXPRESSION = 30880` to KindsEnum. Added `findByFilter()` and `countReferencingEvents()` to EventRepository for spell execution and engagement scoring.
+
 ## v0.0.29
 Math mode. Emphasis. Build.
 
