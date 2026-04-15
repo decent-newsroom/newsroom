@@ -1,0 +1,232 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Enum\KindsEnum;
+use App\Service\GenericEventProjector;
+use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
+use Psr\Log\LoggerInterface;
+use swentel\nostr\Event\Event;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
+
+/**
+ * Expression creator — lets users build kind:30880 feed expression events
+ * from predefined templates, customize them, sign, and publish.
+ */
+class ExpressionController extends AbstractController
+{
+    /**
+     * Returns the predefined expression templates derived from NIP-EX examples.
+     * Each template has a name, description, and pre-filled tags array.
+     */
+    private function getTemplates(): array
+    {
+        return [
+            [
+                'id' => 'recent-articles',
+                'name' => 'Recent articles, newest first',
+                'description' => 'Filter articles published in the last 7 days, sort newest first, take top 20.',
+                'content' => 'Recent articles from the last 7 days, newest first, top 20.',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['cmp', 'tag', 'published_at', 'gte', '7d'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                    ['op', 'slice', '0', '20'],
+                ],
+            ],
+            [
+                'id' => 'contacts-longform',
+                'name' => 'Articles from my contacts',
+                'description' => 'Keep only articles by people I follow, exclude my own, newest first.',
+                'content' => 'Longform items by my contacts, excluding my own.',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['match', 'prop', 'pubkey', '$contacts'],
+                    ['not', 'prop', 'pubkey', '$me'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                ],
+            ],
+            [
+                'id' => 'my-interests',
+                'name' => 'Articles matching my interests',
+                'description' => 'Keep articles tagged with any of my interest topics, newest first, top 50.',
+                'content' => 'Longform items tagged with any of my interests, newest first.',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['match', 'tag', 't', '$interests'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                    ['op', 'slice', '0', '50'],
+                ],
+            ],
+            [
+                'id' => 'combine-sources',
+                'name' => 'Combine two sources',
+                'description' => 'Union two input sources, sort newest first, take top 20.',
+                'content' => 'Combine two sources and take the top 20 newest items.',
+                'tags' => [
+                    ['op', 'union'],
+                    ['input', 'e', ''],
+                    ['input', 'e', ''],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                    ['op', 'slice', '0', '20'],
+                ],
+            ],
+            [
+                'id' => 'exclude-spam',
+                'name' => 'Exclude spam tags',
+                'description' => 'Start from an expression or source and remove items tagged with spam, promo, or ads.',
+                'content' => 'Start from another expression, then exclude spam-like tags.',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['not', 'tag', 't', 'spam', 'promo', 'ads'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                ],
+            ],
+            [
+                'id' => 'title-search',
+                'name' => 'Title contains keyword',
+                'description' => 'Keep items whose title contains a keyword (case-insensitive).',
+                'content' => 'Keep items whose title contains a specific keyword.',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['text', 'tag', 'title', 'contains-ci', 'nostr'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                ],
+            ],
+            [
+                'id' => 'curated-longform',
+                'name' => 'Curated longform + filter',
+                'description' => 'Union a NIP-51 curated list and a spell, keep only kind:30023, newest first, top 30.',
+                'content' => 'Union of curated long-form list and latest from follows, keep only long-form, newest first, top 30.',
+                'tags' => [
+                    ['op', 'union'],
+                    ['input', 'e', ''],
+                    ['input', 'e', ''],
+                    ['op', 'all'],
+                    ['match', 'prop', 'kind', '30023'],
+                    ['op', 'sort', 'tag', 'published_at', 'desc'],
+                    ['op', 'slice', '0', '30'],
+                ],
+            ],
+        ];
+    }
+
+    #[Route('/expressions/create', name: 'expression_create')]
+    #[IsGranted('ROLE_USER')]
+    public function create(): Response
+    {
+        return $this->render('expressions/create.html.twig', [
+            'templates' => $this->getTemplates(),
+        ]);
+    }
+
+    /**
+     * Receives a signed kind:30880 event, validates, persists, publishes to relays,
+     * and returns the naddr for the feed API link.
+     */
+    #[Route('/api/expressions/publish', name: 'api_expression_publish', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function publish(
+        Request $request,
+        NostrClient $nostrClient,
+        GenericEventProjector $genericEventProjector,
+        UserRelayListService $userRelayListService,
+        LoggerInterface $logger,
+    ): JsonResponse {
+        try {
+            $data = json_decode($request->getContent(), true);
+            if (!$data || !isset($data['event'])) {
+                return new JsonResponse(['error' => 'Invalid request data'], 400);
+            }
+
+            $signedEvent = $data['event'];
+
+            // Validate required fields
+            if (!isset(
+                $signedEvent['id'],
+                $signedEvent['pubkey'],
+                $signedEvent['created_at'],
+                $signedEvent['kind'],
+                $signedEvent['sig'],
+            )) {
+                return new JsonResponse(['error' => 'Missing required event fields'], 400);
+            }
+
+            // Only allow kind 30880 (feed expression)
+            if ((int) $signedEvent['kind'] !== KindsEnum::FEED_EXPRESSION->value) {
+                return new JsonResponse(['error' => 'Only kind 30880 (feed expression) events are accepted'], 400);
+            }
+
+            // Build a verifiable event object
+            $eventObj = new Event();
+            $eventObj->setId($signedEvent['id']);
+            $eventObj->setPublicKey($signedEvent['pubkey']);
+            $eventObj->setCreatedAt($signedEvent['created_at']);
+            $eventObj->setKind($signedEvent['kind']);
+            $eventObj->setTags($signedEvent['tags'] ?? []);
+            $eventObj->setContent($signedEvent['content'] ?? '');
+            $eventObj->setSignature($signedEvent['sig']);
+
+            // Verify the event signature
+            if (!$eventObj->verify()) {
+                return new JsonResponse(['error' => 'Event signature verification failed'], 400);
+            }
+
+            $logger->info('Received expression event (kind 30880)', [
+                'event_id' => $signedEvent['id'],
+                'pubkey' => $signedEvent['pubkey'],
+            ]);
+
+            // Extract d-tag for naddr construction
+            $dTag = '';
+            foreach ($signedEvent['tags'] ?? [] as $tag) {
+                if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                    $dTag = $tag[1];
+                    break;
+                }
+            }
+
+            // Persist locally via GenericEventProjector
+            $genericEventProjector->projectEventFromNostrEvent(
+                (object) $signedEvent,
+                'expression-creator',
+            );
+
+            // Publish to user's relays
+            $pubkey = $signedEvent['pubkey'];
+            $relays = $userRelayListService->getRelaysForPublishing($pubkey);
+            $relayResults = $nostrClient->publishEvent($eventObj, $relays);
+
+            $successCount = 0;
+            foreach ($relayResults as $result) {
+                if ($result === true || (is_object($result) && isset($result->type) && $result->type === 'OK')) {
+                    $successCount++;
+                }
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'relays_success' => $successCount,
+                'pubkey' => $pubkey,
+                'd_tag' => $dTag,
+            ]);
+        } catch (\Throwable $e) {
+            $logger->error('Expression publish error', ['error' => $e->getMessage()]);
+            return new JsonResponse(['error' => 'Publishing failed: ' . $e->getMessage()], 500);
+        }
+    }
+}
+

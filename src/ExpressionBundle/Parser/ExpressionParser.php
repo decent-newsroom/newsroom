@@ -61,6 +61,14 @@ final class ExpressionParser
                     throw new InvalidArgumentException('op tag must have an operation name');
                 }
                 $currentTags = [];
+
+                // NIP-EX: sort/slice parameters are inline in the op tag.
+                // e.g. ["op","sort","tag","published_at","desc"] or ["op","slice","0","20"]
+                // Synthesize a stage-local tag from the extra elements so StageParser
+                // can handle them uniformly.
+                if (count($tag) > 2) {
+                    $currentTags[] = array_merge([$currentOp], array_slice($tag, 2));
+                }
             } else {
                 $currentTags[] = $tag;
             }

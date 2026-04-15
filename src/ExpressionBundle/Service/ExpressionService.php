@@ -8,7 +8,7 @@ use App\Entity\Event;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Parser\ExpressionParser;
 use App\ExpressionBundle\Runner\ExpressionRunner;
-use App\ExpressionBundle\Source\SourceResolver;
+use App\ExpressionBundle\Source\SourceResolverInterface;
 
 /**
  * Public API for the expression engine.
@@ -19,7 +19,7 @@ final class ExpressionService
     public function __construct(
         private readonly ExpressionParser $parser,
         private readonly ExpressionRunner $runner,
-        private readonly SourceResolver $sourceResolver,
+        private readonly SourceResolverInterface $sourceResolver,
         private readonly RuntimeContextFactory $contextFactory,
         private readonly FeedCacheService $cache,
     ) {}

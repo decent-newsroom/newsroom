@@ -1,0 +1,223 @@
+/* Expression Creator Page */
+
+.expression-creator {
+  max-width: 900px;
+}
+
+/* ── Template gallery ── */
+
+.expression-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.expression-template-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-light);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.expression-template-card:hover {
+  border-color: var(--color-text);
+}
+
+.expression-template-card strong {
+  font-size: 1rem;
+}
+
+.expression-template-card span {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Builder ── */
+
+.expression-field {
+  margin-bottom: var(--spacing-2);
+}
+
+.expression-field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-1);
+  font-size: 0.85rem;
+}
+
+/* ── Stages ── */
+
+.expression-stage {
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-2);
+}
+
+.expression-stage__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  background: var(--color-bg-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.expression-stage__number {
+  font-weight: 700;
+  font-size: 0.85rem;
+  min-width: 1.5em;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.expression-stage__header select {
+  flex: 1;
+}
+
+.expression-stage__body {
+  padding: var(--spacing-2);
+}
+
+/* ── Sort / Slice fields ── */
+
+.expression-sort-fields,
+.expression-slice-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.expression-slice-fields label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.expression-slice-fields input {
+  max-width: 100px;
+}
+
+/* ── Clauses ── */
+
+.expression-clause {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-1);
+  flex-wrap: wrap;
+}
+
+.expression-clause select {
+  min-width: 80px;
+  max-width: 140px;
+}
+
+.expression-clause input {
+  min-width: 80px;
+}
+
+.expression-clause__value {
+  flex: 1;
+  min-width: 150px;
+}
+
+.expression-clause-actions {
+  display: flex;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-1);
+}
+
+/* ── JSON Preview ── */
+
+.expression-preview {
+  border: 1px solid var(--color-border);
+}
+
+.expression-preview summary {
+  padding: var(--spacing-2);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: var(--color-bg-light);
+}
+
+.expression-preview__code {
+  margin: 0;
+  padding: var(--spacing-2);
+  overflow-x: auto;
+  font-size: 0.8rem;
+  max-height: 400px;
+  background: var(--color-bg);
+}
+
+/* ── Publish row ── */
+
+.expression-publish {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+/* ── Result panel ── */
+
+.expression-result {
+  border: 1px solid var(--color-border);
+  padding: var(--spacing-3);
+  background: var(--color-bg-light);
+}
+
+.expression-result h3 {
+  margin-top: 0;
+}
+
+.expression-result__link {
+  margin-top: var(--spacing-2);
+}
+
+.expression-result__link label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-1);
+  font-size: 0.85rem;
+}
+
+.expression-result__link input {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.expression-result__actions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+  .expression-templates {
+    grid-template-columns: 1fr;
+  }
+
+  .expression-clause {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expression-clause select,
+  .expression-clause input {
+    max-width: none;
+    width: 100%;
+  }
+
+  .expression-sort-fields,
+  .expression-slice-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+

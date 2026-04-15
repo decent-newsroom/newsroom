@@ -7,10 +7,15 @@ namespace App\ExpressionBundle\Source;
 use App\ExpressionBundle\Exception\InvalidArgumentException;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 
 /**
  * Main dispatcher: routes input references to specialized resolvers.
+ *
+ * Lazy because ExpressionSourceResolver depends on SourceResolverInterface,
+ * creating a construction-time cycle that the proxy breaks.
  */
+#[Autoconfigure(lazy: SourceResolverInterface::class)]
 final class SourceResolver implements SourceResolverInterface
 {
     public function __construct(

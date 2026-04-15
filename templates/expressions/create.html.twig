@@ -1,0 +1,99 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'expressions.title'|trans }} | {{ brand_name }}{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'expressions.heading'|trans }}" tagline="{{ 'expressions.tagline'|trans }}" />
+
+    <div class="expression-creator"
+         data-controller="nostr--nostr-expression"
+         data-nostr--nostr-expression-publish-url-value="{{ path('api_expression_publish') }}"
+         data-nostr--nostr-expression-templates-value="{{ templates|json_encode|e('html_attr') }}"
+         data-nostr--nostr-expression-feed-base-url-value="{{ url('api_feed_evaluate', {naddr: '__NADDR__'}) }}">
+
+        {# ── Result panel (shown after publish) ── #}
+        <div class="expression-result" data-nostr--nostr-expression-target="result" style="display:none;">
+            <h3>{{ 'expressions.published'|trans }}</h3>
+            <p>{{ 'expressions.publishedDescription'|trans }}</p>
+            <div class="expression-result__link">
+                <label>{{ 'expressions.feedUrl'|trans }}</label>
+                <input type="text" readonly data-nostr--nostr-expression-target="feedUrl" class="form-control" />
+            </div>
+            <div class="expression-result__actions mt-2">
+                <button class="btn" data-action="click->nostr--nostr-expression#copyFeedUrl">{{ 'expressions.copyUrl'|trans }}</button>
+                <button class="btn btn-secondary" data-action="click->nostr--nostr-expression#reset">{{ 'expressions.createAnother'|trans }}</button>
+            </div>
+        </div>
+
+        {# ── Template gallery ── #}
+        <div data-nostr--nostr-expression-target="gallery">
+            <h2 class="mt-3 mb-2">{{ 'expressions.templates'|trans }}</h2>
+            <p class="text-muted mb-3">{{ 'expressions.templatesDescription'|trans }}</p>
+            <div class="expression-templates">
+                {% for template in templates %}
+                    <button class="expression-template-card"
+                            data-action="click->nostr--nostr-expression#selectTemplate"
+                            data-template-id="{{ template.id }}">
+                        <strong>{{ template.name }}</strong>
+                        <span>{{ template.description }}</span>
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Builder panel ── #}
+        <div class="expression-builder" data-nostr--nostr-expression-target="builder" style="display:none;">
+            <h2 class="mt-3 mb-2">{{ 'expressions.builder'|trans }}</h2>
+
+            {# ── Metadata ── #}
+            <div class="expression-field">
+                <label for="expr-name">{{ 'expressions.name'|trans }}</label>
+                <input type="text" id="expr-name" class="form-control"
+                       data-nostr--nostr-expression-target="nameInput"
+                       data-action="input->nostr--nostr-expression#updatePreview"
+                       placeholder="{{ 'expressions.namePlaceholder'|trans }}" />
+            </div>
+
+            <div class="expression-field">
+                <label for="expr-description">{{ 'expressions.description'|trans }}</label>
+                <input type="text" id="expr-description" class="form-control"
+                       data-nostr--nostr-expression-target="descriptionInput"
+                       data-action="input->nostr--nostr-expression#updatePreview"
+                       placeholder="{{ 'expressions.descriptionPlaceholder'|trans }}" />
+            </div>
+
+            {# ── Stages ── #}
+            <div class="expression-stages" data-nostr--nostr-expression-target="stagesContainer">
+                {# Stages are rendered dynamically by JS #}
+            </div>
+
+            <div class="expression-actions mt-2">
+                <button class="btn btn-secondary btn-sm" data-action="click->nostr--nostr-expression#addStage">
+                    + {{ 'expressions.addStage'|trans }}
+                </button>
+            </div>
+
+            {# ── JSON Preview ── #}
+            <details class="expression-preview mt-3">
+                <summary>{{ 'expressions.jsonPreview'|trans }}</summary>
+                <pre data-nostr--nostr-expression-target="preview" class="expression-preview__code"></pre>
+            </details>
+
+            {# ── Publish ── #}
+            <div class="expression-publish mt-3">
+                <button class="btn"
+                        data-nostr--nostr-expression-target="publishButton"
+                        data-action="click->nostr--nostr-expression#publish">
+                    {{ 'expressions.signAndPublish'|trans }}
+                </button>
+                <button class="btn btn-secondary"
+                        data-action="click->nostr--nostr-expression#backToTemplates">
+                    {{ 'expressions.back'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

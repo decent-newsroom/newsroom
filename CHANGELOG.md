@@ -3,7 +3,7 @@
 ## v0.0.30
 Expressions.
 
-- 
+- [Bug] Fixed ExpressionBundle parser not extracting inline sort/slice parameters from `op` tags. NIP-EX defines sort and slice parameters as part of the op tag itself (e.g. `["op","sort","tag","published_at","desc"]`, `["op","slice","0","20"]`), but `ExpressionParser` only read the operation name from `tag[1]` and discarded the rest. `StageParser` then failed with "sort operation requires a sort tag". The parser now synthesizes stage-local tags from inline op parameters so both inline and separate tag forms work.
 - Added ExpressionBundle (NIP-EX + NIP-FX) — a self-contained expression runner that parses kind:30880 feed expression events into a pipeline, evaluates filter/sort/set/score operations against normalized Nostr events, resolves inputs from spells (kind:777), other expressions, NIP-51 lists, and event IDs via DB with relay fallback, and exposes an authenticated `GET /api/feed/{naddr}` endpoint for personalized feed serving. Includes full clause evaluation (match, not, cmp, text) with absence semantics, NIP-FX scoring with six normalizers (identity, recency, log, in, contains-ci, count), set operations (union, intersect, difference, distinct), per-user Redis caching, cycle detection for nested expressions, and configurable execution timeout. Added `SPELL = 777` and `FEED_EXPRESSION = 30880` to KindsEnum. Added `findByFilter()` and `countReferencingEvents()` to EventRepository for spell execution and engagement scoring.
 
 ## v0.0.29
