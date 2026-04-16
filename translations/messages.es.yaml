@@ -649,7 +649,6 @@ followPacks:
 
 # ── Expresiones ───────────────────────────────────────────────────
 expressions:
-    title: 'Crear Expresión'
     heading: 'Expresiones'
     tagline: 'Crea feeds personalizados con NIP-EX'
     templates: 'Plantillas'

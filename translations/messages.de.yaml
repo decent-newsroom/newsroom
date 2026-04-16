@@ -663,7 +663,6 @@ followPacks:
 
 # ── Ausdrücke ─────────────────────────────────────────────────────
 expressions:
-    title: 'Ausdruck erstellen'
     heading: 'Ausdrücke'
     tagline: 'Eigene Feeds mit NIP-EX erstellen'
     templates: 'Vorlagen'

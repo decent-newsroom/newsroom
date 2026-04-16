@@ -649,7 +649,6 @@ followPacks:
 
 # ── Expressions ───────────────────────────────────────────────────
 expressions:
-    title: 'Créer une Expression'
     heading: 'Expressions'
     tagline: 'Créez des flux personnalisés avec NIP-EX'
     templates: 'Modèles'
