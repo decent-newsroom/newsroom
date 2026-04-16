@@ -71,7 +71,7 @@ final class ExpressionList
                 $k = $tag[0] ?? '';
                 match ($k) {
                     'title' => $title = $tag[1] ?? '',
-                    'description' => $description = $tag[1] ?? null,
+                    'summary' => $description = $tag[1] ?? null,
                     'd' => $dtag = $tag[1] ?? '',
                     'op', 'match', 'not', 'cmp', 'text', 'input' => $stageCount++,
                     default => null,

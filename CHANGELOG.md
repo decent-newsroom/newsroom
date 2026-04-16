@@ -3,7 +3,12 @@
 ## v0.0.30
 Expressions.
 
-- Expression events now include `title` and `description` tags when published, so the expression list displays proper titles instead of d-tag slugs.
+- Expression events now include `title` and `summary` tags (instead of `name`/`description`) when published. The `content` property holds the expression description. Form labels updated accordingly.
+- Added `docs/INDEX.md` as the canonical setup/operations entry point and aligned top-level docs navigation around `docs/`, `docs-public/`, and `documentation/` indexes.
+- [Bug] Fixed stale relay Makefile targets referencing removed `ingest` service and missing `bin/relay/*` scripts; targets now map to current Compose services (`strfry`, `worker-relay`, `strfry-chat`, optional `relay-gateway`).
+- [Bug] Updated `docker/cron/README.md` to the current cron container model (Compose service + `docker/cron/crontab` + `docker/cron/*.sh` scripts), removing obsolete `run_commands.sh` guidance.
+- [Bug] Synced `tests/NIPs/README.md` with the actual feature inventory (including `NIP-05`, `NIP-71`, `LOCAL-RSS-TO-NZINE`) and removed references to non-existent spec files.
+- [Bug] Fixed stale documentation links in `tests/NIPs/README.md` by pointing resources to existing docs (`documentation/INDEX.md`, `documentation/NIP/README.md`, `documentation/RSS/rss-feeds.md`).
 - Added expression editing: users can edit their own expressions via `/expressions/edit/{npub}/{dtag}`. The existing expression is loaded into the builder form with name, description, and all stages pre-populated. Saving re-publishes with the same d-tag, replacing the previous version per Nostr replaceable event semantics.
 - Added `--naddr` option to `articles:process-html` command, allowing reprocessing of a single article identified by its naddr1… bech32 string.
 - [Bug] Fixed expressions referencing spells (kind:777) by event ID (`["input","e","<id>"]`) not expanding spell results. When a spell was referenced by event ID instead of by address (`a` tag), `SourceResolver` dispatched to `EventIdSourceResolver` which returned the raw spell event as a single item instead of executing it. The `all` filter then rejected this non-article item, producing zero results. `SourceResolver` now detects when an event ID resolves to a "container" kind (spell, expression, or list) and passes the already-fetched Event directly to `AddressSourceResolver::resolveEvent()`, which dispatches to the specialized resolver's `executeEvent()` method — bypassing the DB lookup that would fail for relay-only events.

@@ -40,8 +40,7 @@ class ExpressionController extends AbstractController
         return [
             [
                 'id' => 'recent-articles',
-                'name' => 'Recent articles, newest first',
-                'description' => 'Filter articles published in the last 7 days, sort newest first, take top 20.',
+                'title' => 'Recent articles, newest first',
                 'content' => 'Recent articles from the last 7 days, newest first, top 20.',
                 'tags' => [
                     ['op', 'all'],
@@ -53,8 +52,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'contacts-longform',
-                'name' => 'Articles from my contacts',
-                'description' => 'Keep only articles by people I follow, exclude my own, newest first.',
+                'title' => 'Articles from my contacts',
                 'content' => 'Longform items by my contacts, excluding my own.',
                 'tags' => [
                     ['op', 'all'],
@@ -66,8 +64,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'my-interests',
-                'name' => 'Articles matching my interests',
-                'description' => 'Keep articles tagged with any of my interest topics, newest first, top 50.',
+                'title' => 'Articles matching my interests',
                 'content' => 'Longform items tagged with any of my interests, newest first.',
                 'tags' => [
                     ['op', 'all'],
@@ -79,8 +76,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'combine-sources',
-                'name' => 'Combine two sources',
-                'description' => 'Union two input sources, sort newest first, take top 20.',
+                'title' => 'Combine two sources',
                 'content' => 'Combine two sources and take the top 20 newest items.',
                 'tags' => [
                     ['op', 'union'],
@@ -92,8 +88,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'exclude-spam',
-                'name' => 'Exclude spam tags',
-                'description' => 'Start from an expression or source and remove items tagged with spam, promo, or ads.',
+                'title' => 'Exclude spam tags',
                 'content' => 'Start from another expression, then exclude spam-like tags.',
                 'tags' => [
                     ['op', 'all'],
@@ -104,8 +99,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'title-search',
-                'name' => 'Title contains keyword',
-                'description' => 'Keep items whose title contains a keyword (case-insensitive).',
+                'title' => 'Title contains keyword',
                 'content' => 'Keep items whose title contains a specific keyword.',
                 'tags' => [
                     ['op', 'all'],
@@ -116,8 +110,7 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'curated-longform',
-                'name' => 'Curated longform + filter',
-                'description' => 'Union a NIP-51 curated list and a spell, keep only kind:30023, newest first, top 30.',
+                'title' => 'Curated longform + filter',
                 'content' => 'Union of curated long-form list and latest from follows, keep only long-form, newest first, top 30.',
                 'tags' => [
                     ['op', 'union'],
@@ -237,7 +230,7 @@ class ExpressionController extends AbstractController
             $k = $tag[0] ?? '';
             match ($k) {
                 'title' => $title = $tag[1] ?? '',
-                'description' => $description = $tag[1] ?? null,
+                'summary' => $description = $tag[1] ?? null,
                 default => null,
             };
         }

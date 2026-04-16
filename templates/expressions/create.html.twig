@@ -36,8 +36,8 @@
                     <button class="expression-template-card"
                             data-action="click->nostr--nostr-expression#selectTemplate"
                             data-template-id="{{ template.id }}">
-                        <strong>{{ template.name }}</strong>
-                        <span>{{ template.description }}</span>
+                        <strong>{{ template.title }}</strong>
+                        <span>{{ template.content }}</span>
                     </button>
                 {% endfor %}
             </div>
@@ -49,19 +49,19 @@
 
             {# ── Metadata ── #}
             <div class="expression-field">
-                <label for="expr-name">{{ 'expressions.name'|trans }}</label>
-                <input type="text" id="expr-name" class="form-control"
-                       data-nostr--nostr-expression-target="nameInput"
+                <label for="expr-title">{{ 'expressions.title'|trans }}</label>
+                <input type="text" id="expr-title" class="form-control"
+                       data-nostr--nostr-expression-target="titleInput"
                        data-action="input->nostr--nostr-expression#updatePreview"
-                       placeholder="{{ 'expressions.namePlaceholder'|trans }}" />
+                       placeholder="{{ 'expressions.titlePlaceholder'|trans }}" />
             </div>
 
             <div class="expression-field">
-                <label for="expr-description">{{ 'expressions.description'|trans }}</label>
-                <input type="text" id="expr-description" class="form-control"
-                       data-nostr--nostr-expression-target="descriptionInput"
+                <label for="expr-content">{{ 'expressions.content'|trans }}</label>
+                <input type="text" id="expr-content" class="form-control"
+                       data-nostr--nostr-expression-target="contentInput"
                        data-action="input->nostr--nostr-expression#updatePreview"
-                       placeholder="{{ 'expressions.descriptionPlaceholder'|trans }}" />
+                       placeholder="{{ 'expressions.contentPlaceholder'|trans }}" />
             </div>
 
             {# ── Stages ── #}

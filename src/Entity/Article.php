@@ -350,6 +350,10 @@ class Article
 
     public function getRaw(): ?array
     {
+        if ($this->raw instanceof \stdClass) {
+            return (array) json_decode(json_encode($this->raw), true);
+        }
+
         return $this->raw;
     }
 

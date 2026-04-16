@@ -11,7 +11,7 @@ import { encodeNaddr } from '../../typescript/nostr-utils.ts';
 export default class extends Controller {
   static targets = [
     'gallery', 'builder', 'result',
-    'nameInput', 'descriptionInput',
+    'titleInput', 'contentInput',
     'stagesContainer', 'preview',
     'publishButton', 'feedUrl',
   ];
@@ -45,25 +45,25 @@ export default class extends Controller {
     const tags = event.tags || [];
 
     // Extract metadata
-    let name = '';
-    let description = event.content || '';
+    let title = '';
+    let summary = '';
     let dtag = '';
 
     for (const tag of tags) {
-      if (tag[0] === 'title' && tag[1]) name = tag[1];
-      if (tag[0] === 'description' && tag[1]) description = tag[1];
+      if (tag[0] === 'title' && tag[1]) title = tag[1];
+      if (tag[0] === 'summary' && tag[1]) summary = tag[1];
       if (tag[0] === 'd' && tag[1]) dtag = tag[1];
     }
 
-    // Fallback: use d-tag as name if no title
-    if (!name && dtag) name = dtag;
+    // Fallback: use d-tag as title if no title tag
+    if (!title && dtag) title = dtag;
 
     this._existingDTag = dtag;
-    this.nameInputTarget.value = name;
-    this.descriptionInputTarget.value = description;
+    this.titleInputTarget.value = title;
+    this.contentInputTarget.value = event.content || summary;
 
-    // Parse tags into stages (skip d, title, description, alt)
-    const stageTags = tags.filter(t => !['d', 'title', 'description', 'alt'].includes(t[0]));
+    // Parse tags into stages (skip d, title, summary, alt)
+    const stageTags = tags.filter(t => !['d', 'title', 'summary', 'alt'].includes(t[0]));
     this.stages = this._parseTags(stageTags);
 
     this._renderStages();
@@ -82,8 +82,8 @@ export default class extends Controller {
     const tpl = this.templatesValue.find(t => t.id === id);
     if (!tpl) return;
 
-    this.nameInputTarget.value = tpl.name;
-    this.descriptionInputTarget.value = tpl.content || tpl.description;
+    this.titleInputTarget.value = tpl.title || tpl.name;
+    this.contentInputTarget.value = tpl.content || '';
 
     // Parse tags into stages
     this.stages = this._parseTags(tpl.tags);
@@ -102,8 +102,8 @@ export default class extends Controller {
 
   reset() {
     this.stages = [];
-    this.nameInputTarget.value = '';
-    this.descriptionInputTarget.value = '';
+    this.titleInputTarget.value = '';
+    this.contentInputTarget.value = '';
     this.galleryTarget.style.display = '';
     this.builderTarget.style.display = 'none';
     this.resultTarget.style.display = 'none';
@@ -261,7 +261,7 @@ export default class extends Controller {
     const tags = this._buildTags();
     const event = {
       kind: 30880,
-      content: this.descriptionInputTarget.value,
+      content: this.contentInputTarget.value,
       tags: tags,
     };
     this.previewTarget.textContent = JSON.stringify(event, null, 2);
@@ -274,9 +274,9 @@ export default class extends Controller {
   async publish(event) {
     event.preventDefault();
 
-    const name = this.nameInputTarget.value.trim();
-    if (!name) {
-      this._toast('Please enter a name for the expression.', 'danger');
+    const title = this.titleInputTarget.value.trim();
+    if (!title) {
+      this._toast('Please enter a title for the expression.', 'danger');
       return;
     }
 
@@ -301,7 +301,7 @@ export default class extends Controller {
         kind: 30880,
         created_at: Math.floor(Date.now() / 1000),
         tags: tags,
-        content: this.descriptionInputTarget.value,
+        content: this.contentInputTarget.value,
         pubkey: pubkey,
       };
 
@@ -349,9 +349,9 @@ export default class extends Controller {
   /* ------------------------------------------------------------------ */
 
   _buildTags() {
-    const name = this.nameInputTarget.value.trim();
-    const dTag = this._existingDTag || (this._slugify(name) + '-' + Date.now());
-    const tags = [['d', dTag], ['title', name]];
+    const title = this.titleInputTarget.value.trim();
+    const dTag = this._existingDTag || (this._slugify(title) + '-' + Date.now());
+    const tags = [['d', dTag], ['title', title]];
 
     for (const stage of this.stages) {
       const opType = this._opType(stage.op);
@@ -389,11 +389,11 @@ export default class extends Controller {
       }
     }
 
-    tags.push(['alt', `Expression: ${name}`]);
+    tags.push(['alt', `Expression: ${title}`]);
 
-    const desc = this.descriptionInputTarget.value.trim();
-    if (desc) {
-      tags.push(['description', desc]);
+    const summary = this.contentInputTarget.value.trim();
+    if (summary) {
+      tags.push(['summary', summary]);
     }
 
     return tags;
