@@ -3,6 +3,7 @@
 ## v0.0.30
 Expressions.
 
+- [Bug] Separated d-tag and title into distinct fields in the expression builder. Previously, the d-tag was auto-generated from the title, causing collisions when editing. The builder now has a dedicated identifier (d-tag) input field.
 - [Bug] Fixed article format auto-detection misclassifying Markdown posts as AsciiDoc when they contained `----` separators. Markdown-shaped articles with `#` headings, ordered lists, and `[text](url)` links now stay in the CommonMark pipeline, while paired AsciiDoc block delimiters still detect as AsciiDoc.
 - [Bug] Forced deterministic parser mapping for NIP-23 longform kinds: kind `30023` (longform) and kind `30024` (draft) now always render through the Markdown converter in all article HTML processing paths (ingestion, backfill command, publish flow, and on-the-fly fallback rendering), preventing accidental AsciiDoc parsing.
 - [Bug] Fixed duplicate related-article suggestions on article pages by deduplicating candidates by article coordinate (`pubkey + slug`) before rendering. The currently viewed article is still excluded, and same-slug articles from different authors remain eligible.

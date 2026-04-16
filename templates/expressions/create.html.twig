@@ -57,6 +57,15 @@
             </div>
 
             <div class="expression-field">
+                <label for="expr-dtag">{{ 'expressions.dtag'|trans }}</label>
+                <input type="text" id="expr-dtag" class="form-control"
+                       data-nostr--nostr-expression-target="dtagInput"
+                       data-action="input->nostr--nostr-expression#updatePreview"
+                       placeholder="{{ 'expressions.dtagPlaceholder'|trans }}" />
+                <small class="text-muted">{{ 'expressions.dtagHelp'|trans }}</small>
+            </div>
+
+            <div class="expression-field">
                 <label for="expr-content">{{ 'expressions.content'|trans }}</label>
                 <input type="text" id="expr-content" class="form-control"
                        data-nostr--nostr-expression-target="contentInput"

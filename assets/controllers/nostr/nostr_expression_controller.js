@@ -11,7 +11,7 @@ import { encodeNaddr } from '../../typescript/nostr-utils.ts';
 export default class extends Controller {
   static targets = [
     'gallery', 'builder', 'result',
-    'titleInput', 'contentInput',
+    'titleInput', 'dtagInput', 'contentInput',
     'stagesContainer', 'preview',
     'publishButton', 'feedUrl',
   ];
@@ -55,11 +55,10 @@ export default class extends Controller {
       if (tag[0] === 'd' && tag[1]) dtag = tag[1];
     }
 
-    // Fallback: use d-tag as title if no title tag
-    if (!title && dtag) title = dtag;
-
+    // Fallback: use d-tag as title display hint only
     this._existingDTag = dtag;
     this.titleInputTarget.value = title;
+    this.dtagInputTarget.value = dtag;
     this.contentInputTarget.value = event.content || summary;
 
     // Parse tags into stages (skip d, title, summary, alt)
@@ -350,7 +349,8 @@ export default class extends Controller {
 
   _buildTags() {
     const title = this.titleInputTarget.value.trim();
-    const dTag = this._existingDTag || (this._slugify(title) + '-' + Date.now());
+    const dtagValue = this.dtagInputTarget.value.trim();
+    const dTag = this._existingDTag || dtagValue || (this._slugify(title) + '-' + Date.now());
     const tags = [['d', dTag], ['title', title]];
 
     for (const stage of this.stages) {
