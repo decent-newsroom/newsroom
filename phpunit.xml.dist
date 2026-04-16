@@ -22,6 +22,21 @@
         <testsuite name="Project Test Suite">
             <directory>tests</directory>
         </testsuite>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Service">
+            <directory>tests/Service</directory>
+        </testsuite>
+        <testsuite name="Security">
+            <directory>tests/Security</directory>
+        </testsuite>
+        <testsuite name="UnfoldBundle">
+            <directory>tests/UnfoldBundle</directory>
+        </testsuite>
+        <testsuite name="Util">
+            <directory>tests/Util</directory>
+        </testsuite>
     </testsuites>
 
     <coverage processUncoveredFiles="true">

@@ -100,6 +100,12 @@ docker compose exec php bin/console asset-map:compile
 
 # Make yourself an admin
 docker compose exec php bin/console user:elevate <your-npub> ROLE_ADMIN
+
+# Show available PHPUnit suites
+docker compose exec php bin/phpunit --list-suites
+
+# Run only unit tests
+docker compose exec php bin/phpunit --testsuite Unit
 ```
 
 ### JavaScript Assets
