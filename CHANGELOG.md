@@ -5,6 +5,7 @@ Expressions.
 
 - Expression events now include `title` and `summary` tags (instead of `name`/`description`) when published. The `content` property holds the expression description. Form labels updated accordingly.
 - Added `docs/INDEX.md` as the canonical setup/operations entry point and aligned top-level docs navigation around `docs/`, `docs-public/`, and `documentation/` indexes.
+- [Bug] Standardized documentation taxonomy wording across `docs/INDEX.md`, `docs-public/INDEX.md`, `documentation/INDEX.md`, and `README.md` (Public Guides / Setup and Ops / Project-Feature Docs) and added reciprocal cross-links between indexes.
 - [Bug] Fixed stale relay Makefile targets referencing removed `ingest` service and missing `bin/relay/*` scripts; targets now map to current Compose services (`strfry`, `worker-relay`, `strfry-chat`, optional `relay-gateway`).
 - [Bug] Updated `docker/cron/README.md` to the current cron container model (Compose service + `docker/cron/crontab` + `docker/cron/*.sh` scripts), removing obsolete `run_commands.sh` guidance.
 - [Bug] Synced `tests/NIPs/README.md` with the actual feature inventory (including `NIP-05`, `NIP-71`, `LOCAL-RSS-TO-NZINE`) and removed references to non-existent spec files.

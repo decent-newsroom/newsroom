@@ -1,37 +1,42 @@
-.PHONY: help relay-build relay-up relay-down relay-prime relay-ingest-now relay-shell relay-test relay-logs
+.PHONY: help relay-build relay-up relay-down relay-chat-up relay-chat-down relay-gateway-up relay-gateway-down relay-shell relay-logs relay-stats relay-export relay-import
 
 help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 relay-build: ## Build relay containers (first time only, ~10 min)
-	docker compose build strfry ingest
+	docker compose build strfry strfry-chat
 	@echo "Relay containers built successfully."
 
-relay-up: ## Start the relay and ingest services
-	docker compose up -d strfry ingest
-	@echo "Relay services started. Check status with: docker compose ps"
+relay-up: ## Start local relay stack (strfry + worker-relay)
+	docker compose up -d strfry worker-relay
+	@echo "Relay stack started. Check status with: docker compose ps"
 
-relay-down: ## Stop the relay and ingest services
-	docker compose stop strfry ingest
-	@echo "Relay services stopped."
+relay-down: ## Stop local relay stack (strfry + worker-relay)
+	docker compose stop worker-relay strfry
+	@echo "Relay stack stopped."
 
-relay-prime: ## Run initial backfill (one-time, broader time window)
-	bash bin/relay/prime.sh
-	@echo "Relay prime/backfill completed."
+relay-chat-up: ## Start private chat relay service
+	docker compose up -d strfry-chat
+	@echo "Chat relay started."
 
-relay-ingest-now: ## Run ingest manually (useful for testing)
-	bash bin/relay/ingest.sh
-	@echo "Manual ingest completed."
+relay-chat-down: ## Stop private chat relay service
+	docker compose stop strfry-chat
+	@echo "Chat relay stopped."
+
+relay-gateway-up: ## Start relay gateway service (gateway profile)
+	docker compose --profile gateway up -d relay-gateway
+	@echo "Relay gateway started."
+
+relay-gateway-down: ## Stop relay gateway service (gateway profile)
+	docker compose --profile gateway stop relay-gateway
+	@echo "Relay gateway stopped."
 
 relay-shell: ## Open shell in strfry container
 	docker compose exec strfry sh
 
-relay-test: ## Run PHP smoke test against the relay
-	php bin/relay/test-smoke.php
-
 relay-logs: ## Show relay logs
-	docker compose logs -f strfry ingest
+	docker compose logs -f strfry worker-relay
 
 relay-stats: ## Show relay statistics
 	docker compose exec strfry strfry db-stats

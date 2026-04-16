@@ -2,7 +2,13 @@
 
 This folder contains **project / product / feature documentation**.
 
-For **environment setup & operations** (Dockerized Symfony stack, deployment, troubleshooting), see `docs/`.
+
+## Related Indexes
+
+- [Public Guides](../docs-public/INDEX.md) - Reader/writer/publisher-facing documentation
+- [Setup and Ops Docs](../docs/INDEX.md) - Environment setup, deployment, and troubleshooting
+
+For public-facing onboarding content, use `docs-public/`. For environment setup and operations, use `docs/`.
 
 ## Areas
 

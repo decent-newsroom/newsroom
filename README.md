@@ -15,21 +15,9 @@ Let's bring back high-value professional journalism and collaborative publishing
 
 ## Documentation
 
-> **[Documentation Index](docs-public/INDEX.md)** — All documentation organized by topic and role
-
-### Quick Start
-
-- **[Getting Started Guide](docs-public/GETTING-STARTED.md)** — For readers, writers, and publishers
-- **[Features Overview](docs-public/FEATURES.md)** — Feature reference
-- **[FAQ](docs-public/FAQ.md)** — Frequently asked questions
-- **[Quick Reference](docs-public/QUICK-REFERENCE.md)** — Commands and common tasks
-
-### Technical Docs
-
-- **[Architecture Overview](docs-public/ARCHITECTURE.md)** — System design and data flow
-- **[Developer Guide](docs-public/DEVELOPER-GUIDE.md)** — Contributing and extending
-- **[Setup Guide](docs/SETUP.md)** — Installation and deployment
-- **[Internal Documentation](documentation/INDEX.md)** — Detailed technical docs
+- **[Public Docs Index](docs-public/INDEX.md)** - Reader/writer-facing guides and architecture overviews
+- **[Setup and Ops Docs Index](docs/INDEX.md)** - Dockerized setup, deployment, and troubleshooting
+- **[Project / Feature Docs Index](documentation/INDEX.md)** - Internal feature and implementation docs
 
 
 ## Constituent parts
@@ -143,13 +131,6 @@ The project includes a private read-only Nostr relay (powered by strfry) that ac
 - Caches long-form articles (NIP-23), reactions, zaps, highlights, and more
 - WebSocket endpoint exposed via Caddy
 
-## Documentation
+## Documentation Notes
 
-- [Setup & Ops Docs Index](docs/INDEX.md) - Dockerized Symfony setup, deployment, troubleshooting
-- [Project / Feature Docs Index](documentation/INDEX.md) - Product & feature documentation
-- [Complete Setup Guide](docs/SETUP.md) - Local and production setup
-- [Production Deployment](docs/production.md) - Server preparation and deployment
-- [Relay Production Setup](docs/relay-production.md) - Nostr relay configuration
-- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
-
-> Note: documentation is being consolidated: setup/ops stays in `docs/`, while feature docs live in `documentation/` (one-file-per-feature). Old docs will be kept temporarily with pointers.
+Use `docs-public/` for public guides, `docs/` for setup and operations, and `documentation/` for project/feature implementation docs.
