@@ -18,7 +18,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'app:cache_latest_articles',
+    name: 'app:cache-latest-articles',
     description: 'Cache the latest articles list to Redis views'
 )]
 class CacheLatestArticlesCommand extends Command

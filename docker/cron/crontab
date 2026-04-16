@@ -16,7 +16,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 
 # Cache latest articles for Redis views
 # Runs every 15 minutes to keep cache fresh
-*/15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache_latest_articles >> /var/log/cron-cache-articles.log 2>&1
+*/15 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache-latest-articles >> /var/log/cron-cache-articles.log 2>&1
 
 # Fetch highlights from Nostr relays to database
 # Runs every 30 minutes (reduced from 15 — network-intensive external relay calls)

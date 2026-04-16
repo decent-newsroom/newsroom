@@ -9,7 +9,7 @@ Background jobs run via the `cron` Docker service. Shell scripts in `docker/cron
 | Schedule | Script | Command | Purpose |
 |----------|--------|---------|---------|
 | `*/5 min` | `post_process_articles.sh` | `articles:post-process` | QA, indexing, mark as indexed |
-| `*/15 min` | — | `app:cache_latest_articles` | Rebuild Redis article cache |
+| `*/15 min` | — | `app:cache-latest-articles` | Rebuild Redis article cache |
 | `*/15 min` | — | `app:fetch-highlights --limit=100` | Fetch highlights from relays |
 | `*/30 min` | — | `app:cache-latest-highlights` | Rebuild Redis highlights cache |
 | `*/10 min` | `project_magazines.sh` | `app:project-magazines` | Project magazine indices to entities |

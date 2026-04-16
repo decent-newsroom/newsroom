@@ -29,8 +29,8 @@ class NostrEventFromYamlDefinitionCommand extends Command
     public function __construct(private readonly NostrClient              $client,
                                 private readonly ArticleFactory           $factory,
                                 ParameterBagInterface                     $bag,
-                                private readonly ObjectPersisterInterface $itemPersister,
-                                private readonly EntityManagerInterface   $entityManager)
+                                private readonly EntityManagerInterface   $entityManager,
+                                private readonly ?ObjectPersisterInterface $itemPersister = null)
     {
         $this->nsec = $bag->get('nsec');
         parent::__construct();
@@ -113,16 +113,17 @@ class NostrEventFromYamlDefinitionCommand extends Command
         }
         $this->entityManager->flush();
 
-        // to elastic
-        if (count($articles) > 0 ) {
-            $this->itemPersister->insertMany($articles); // Insert or skip existing
-            // Set all articles as indexed
+        // to elastic (only if Elasticsearch is available)
+        if (count($articles) > 0 && $this->itemPersister !== null) {
+            $this->itemPersister->insertMany($articles);
             foreach ($articles as $article) {
                 $article->setIndexStatus(IndexStatusEnum::INDEXED);
                 $this->entityManager->persist($article);
             }
             $this->entityManager->flush();
             $output->writeln('<info>Added to index.</info>');
+        } elseif (count($articles) > 0) {
+            $output->writeln('<comment>Elasticsearch not available — skipping indexing.</comment>');
         }
 
         $output->writeln('<info>Conversion complete.</info>');

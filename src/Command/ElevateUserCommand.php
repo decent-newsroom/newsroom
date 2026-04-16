@@ -26,28 +26,30 @@ class ElevateUserCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('arg1', InputArgument::REQUIRED, 'User pubkey')
-            ->addArgument('arg2', InputArgument::REQUIRED, 'Role to set');
+            ->addArgument('npub', InputArgument::REQUIRED, 'User npub (public key)')
+            ->addArgument('role', InputArgument::REQUIRED, 'Role to assign (e.g. ROLE_ADMIN)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $npub = $input->getArgument('arg1');
-        $role = $input->getArgument('arg2');
+        $npub = $input->getArgument('npub');
+        $role = $input->getArgument('role');
         if (!str_starts_with($role, 'ROLE_')) {
+            $output->writeln(sprintf('<error>Invalid role "%s": must start with ROLE_</error>', $role));
             return Command::INVALID;
         }
 
         /** @var User|null $user */
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['npub' => $npub]);
         if (!$user) {
+            $output->writeln(sprintf('<error>User not found with npub: %s</error>', $npub));
             return Command::FAILURE;
         }
 
         $user->addRole($role);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
-        $output->writeln(sprintf('User %s elevated to role %s', $npub, $role));
+        $output->writeln(sprintf('<info>User %s elevated to role %s</info>', $npub, $role));
 
         return Command::SUCCESS;
     }

@@ -55,7 +55,7 @@ Additionally, `lastLoginAt` is tracked on the user entity for future use (e.g., 
 | `app:fetch-highlights` | */15 min | */30 min | Makes network calls to external relays |
 | `app:project-magazines` | */10 min | */30 min | Magazine events (kind 30040) are infrequent |
 
-Unchanged: `cache_latest_articles` (*/15), `cache-latest-highlights` (*/30), `media-discovery` (6h), `unfold:cache:warm` (*/30).
+Unchanged: `cache-latest-articles` (*/15), `cache-latest-highlights` (*/30), `media-discovery` (6h), `unfold:cache:warm` (*/30).
 
 ### 6. Profile Refresh Interval
 

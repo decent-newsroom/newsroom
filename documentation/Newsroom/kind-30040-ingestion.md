@@ -237,7 +237,7 @@ php bin/console doctrine:query:dql "SELECT COUNT(e) FROM App\Entity\Event e WHER
 
 - `php bin/console app:project-magazines` - Project magazines from events to Magazine entities
 - `php bin/console app:project-magazines <slug>` - Project a specific magazine
-- `php bin/console app:cache_latest_articles` - Cache article data
+- `php bin/console app:cache-latest-articles` - Cache article data
 
 ## Notes
 

@@ -254,7 +254,7 @@ class DefaultController extends AbstractController
             }
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
-            // The cron job (app:cache_latest_articles, every 15 min) will
+            // The cron job (app:cache-latest-articles, every 15 min) will
             // repopulate Redis.
             $excludedPubkeys = array_values(array_unique(array_merge(
                 $exclusionPolicy->getAllExcludedPubkeys(),
@@ -360,7 +360,7 @@ class DefaultController extends AbstractController
             }
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
-            // The cron job (app:cache_latest_articles, every 15 min) will
+            // The cron job (app:cache-latest-articles, every 15 min) will
             // repopulate Redis.
             $articleSearch = $articleSearchFactory->create();
             $articles = $articleSearch->findLatest(50, $excludedPubkeys);

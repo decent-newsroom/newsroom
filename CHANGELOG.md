@@ -4,6 +4,10 @@
 
 - Added progress feedback to `db:cleanup` command, showing batch-by-batch deletion progress and a summary on completion.
 - [Bug] Fixed `articles:process-html --naddr` not selecting the latest article revision — the query lacked `ORDER BY created_at DESC`, so an older revision could be updated while the article page served the latest one. The command now processes all revisions and invalidates Redis article caches (`view:articles:latest`, per-author views) so the fix is visible immediately.
+- Renamed `app:cache_latest_articles` to `app:cache-latest-articles` for consistency with Symfony's hyphenated command naming convention. Updated cron scripts, documentation, and controller comments.
+- Improved `user:elevate` command: renamed generic `arg1`/`arg2` arguments to `npub`/`role` and added error messages for invalid role format and missing user.
+- Fixed `app:yaml_to_nostr` command crashing when Elasticsearch is disabled by making the `ObjectPersisterInterface` dependency optional.
+- Improved `articles:get` command: added date validation, error messages for invalid input, and progress/completion output.
 
 
 ## v0.0.30
