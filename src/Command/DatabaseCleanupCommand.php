@@ -11,12 +11,10 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(name: 'db:cleanup', description: 'Remove articles with do_not_index rating')]
-class
-
-
- DatabaseCleanupCommand extends Command
+class DatabaseCleanupCommand extends Command
 {
     public function __construct(private readonly EntityManagerInterface $entityManager)
     {
@@ -25,8 +23,12 @@ class
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $io = new SymfonyStyle($input, $output);
         $batchSize = 100;
         $totalDeleted = 0;
+
+        $io->title('Database Cleanup');
+        $io->text('Removing articles with <comment>do_not_index</comment> status...');
 
         // Delete in batches to avoid memory exhaustion and long-running transactions
         do {
@@ -45,12 +47,14 @@ class
             $this->entityManager->flush();
             $this->entityManager->clear();
             $totalDeleted += $batchCount;
+
+            $io->text(sprintf('  Deleted batch of %d articles (total so far: %d)', $batchCount, $totalDeleted));
         } while ($batchCount === $batchSize);
 
         if ($totalDeleted === 0) {
-            $output->writeln('<info>No items found.</info>');
+            $io->success('No articles with do_not_index status found. Nothing to clean up.');
         } else {
-            $output->writeln('<comment>Deleted ' . $totalDeleted . ' items.</comment>');
+            $io->success(sprintf('Cleanup complete. Deleted %d article(s).', $totalDeleted));
         }
 
         return Command::SUCCESS;

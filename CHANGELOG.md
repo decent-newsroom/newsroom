@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.0.31
+Unfold comments.
+
+- Added progress feedback to `db:cleanup` command, showing batch-by-batch deletion progress and a summary on completion.
+
+
 ## v0.0.30
 Expressions.
 

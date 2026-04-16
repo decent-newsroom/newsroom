@@ -659,7 +659,6 @@ expressions:
     namePlaceholder: 'Moj prilagojeni vir'
     description: 'Vsebina'
     descriptionPlaceholder: 'Kaj počne ta vir?'
-    title: 'Ustvari izraz'
     titlePlaceholder: 'Moj prilagojeni vir'
     content: 'Vsebina'
     contentPlaceholder: 'Kaj počne ta vir?'
