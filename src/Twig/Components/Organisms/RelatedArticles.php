@@ -101,11 +101,26 @@ final class RelatedArticles
         $currentPubkey = $parts[1] ?? null;
 
         $results = [];
+        $seenCoordinates = [];
         foreach ($candidates as $article) {
-            // Skip the article we're currently viewing
-            if ($article->getSlug() === $currentSlug && $article->getPubkey() === $currentPubkey) {
+            $articleSlug = $article->getSlug();
+            $articlePubkey = $article->getPubkey();
+
+            if ($articleSlug === null || $articlePubkey === null) {
                 continue;
             }
+
+            // Skip the article we're currently viewing
+            if ($articleSlug === $currentSlug && $articlePubkey === $currentPubkey) {
+                continue;
+            }
+
+            // Keep only the newest candidate per article coordinate.
+            $coordinateKey = $articlePubkey . ':' . $articleSlug;
+            if (isset($seenCoordinates[$coordinateKey])) {
+                continue;
+            }
+            $seenCoordinates[$coordinateKey] = true;
 
             $results[] = $article;
             if (count($results) >= self::MAX_RESULTS) {

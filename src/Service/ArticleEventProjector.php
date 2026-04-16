@@ -81,7 +81,12 @@ class ArticleEventProjector
             // Process markdown content to HTML for performance optimization
             if ($article->getContent()) {
                 try {
-                    $processedHtml = $this->converter->convertToHTML($article->getContent(), null, $event->tags ?? null);
+                    $processedHtml = $this->converter->convertToHTML(
+                        $article->getContent(),
+                        null,
+                        isset($event->kind) ? (int) $event->kind : null,
+                        $event->tags ?? null,
+                    );
                     $article->setProcessedHtml($processedHtml);
 
                     $this->logger->debug('Processed article HTML', [

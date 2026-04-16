@@ -122,7 +122,7 @@ class ProcessArticleHtmlCommand extends Command
             $deadline = microtime(true) + $timeout;
 
             try {
-                $row = $conn->fetchAssociative('SELECT content, raw FROM article WHERE id = ?', [$articleId]);
+                $row = $conn->fetchAssociative('SELECT content, raw, kind FROM article WHERE id = ?', [$articleId]);
                 if (!$row || !is_string($row['content']) || $row['content'] === '') {
                     $progressBar->advance();
                     continue;
@@ -138,7 +138,8 @@ class ProcessArticleHtmlCommand extends Command
                     }
                 }
 
-                $html = $this->converter->convertToHTML($content, null, $tags);
+                $kind = isset($row['kind']) ? (int) $row['kind'] : null;
+                $html = $this->converter->convertToHTML($content, null, $kind, $tags);
 
                 if (!$hasPcntl && microtime(true) > $deadline) {
                     throw new \RuntimeException('Article processing timed out');
@@ -235,7 +236,7 @@ class ProcessArticleHtmlCommand extends Command
 
         $conn = $this->entityManager->getConnection();
         $row = $conn->fetchAssociative(
-            'SELECT id, content, raw FROM article WHERE pubkey = :pubkey AND slug = :slug',
+            'SELECT id, content, raw, kind FROM article WHERE pubkey = :pubkey AND slug = :slug',
             ['pubkey' => $pubkey, 'slug' => $identifier]
         );
 
@@ -260,7 +261,8 @@ class ProcessArticleHtmlCommand extends Command
                 }
             }
 
-            $html = $this->converter->convertToHTML($row['content'], null, $tags);
+            $kind = isset($row['kind']) ? (int) $row['kind'] : null;
+            $html = $this->converter->convertToHTML($row['content'], null, $kind, $tags);
 
             $conn->executeStatement(
                 'UPDATE article SET processed_html = :html WHERE id = :id',

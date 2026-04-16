@@ -1399,11 +1399,49 @@ class DefaultController extends AbstractController
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
         $article = null;
-        // check if an item with same eventId already exists in the db
         $repository = $entityManager->getRepository(Article::class);
-        // slug might be url encoded, decode it
         $slug = urldecode($slug);
-        $articles = $repository->findBy(['slug' => $slug]);
+
+        // Resolve the exact coordinate from the magazine category to avoid cross-pubkey collisions
+        $pubkeyFromCoordinate = null;
+        if ($magazine && method_exists($magazine, 'getTags')) {
+            // Find the category coordinate matching $cat in the magazine index
+            foreach ($magazine->getTags() as $tag) {
+                if ($tag[0] === 'a' && isset($tag[1])) {
+                    $parts = explode(':', $tag[1], 3);
+                    if (count($parts) === 3 && $parts[2] === $cat) {
+                        // Found the category coordinate, now fetch the category event
+                        $catSlug = $parts[2];
+                        $conn = $entityManager->getConnection();
+                        $result = $conn->executeQuery(
+                            "SELECT e.* FROM event e WHERE e.tags @> ?::jsonb ORDER BY e.created_at DESC LIMIT 1",
+                            [json_encode([['d', $catSlug]])]
+                        );
+                        $eventData = $result->fetchAssociative();
+                        if ($eventData) {
+                            $catTags = json_decode($eventData['tags'], true) ?? [];
+                            foreach ($catTags as $catTag) {
+                                if ($catTag[0] === 'a' && isset($catTag[1])) {
+                                    $coordParts = explode(':', $catTag[1], 3);
+                                    if (count($coordParts) === 3 && $coordParts[2] === $slug) {
+                                        $pubkeyFromCoordinate = $coordParts[1];
+                                        break 2;
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Use exact coordinate (pubkey + slug) when available, fall back to slug-only lookup
+        if ($pubkeyFromCoordinate) {
+            $articles = $repository->findBy(['pubkey' => $pubkeyFromCoordinate, 'slug' => $slug]);
+        } else {
+            $articles = $repository->findBy(['slug' => $slug]);
+        }
 
         $revisions = count($articles);
 
@@ -1415,7 +1453,6 @@ class DefaultController extends AbstractController
         }
 
         if ($revisions > 1) {
-            // sort articles by created at date
             usort($articles, function ($a, $b) {
                 return $b->getCreatedAt() <=> $a->getCreatedAt();
             });
@@ -1432,7 +1469,12 @@ class DefaultController extends AbstractController
                 $htmlContent = $cacheItem->get();
             } else {
                 try {
-                    $htmlContent = $converter->convertToHTML($article->getContent(), null, $article->getRaw()['tags'] ?? null);
+                    $htmlContent = $converter->convertToHTML(
+                        $article->getContent(),
+                        null,
+                        $article->getKind()?->value,
+                        $article->getRaw()['tags'] ?? null,
+                    );
                     $cacheItem->set($htmlContent);
                     $articlesCache->save($cacheItem);
                 } catch (\Throwable $e) {

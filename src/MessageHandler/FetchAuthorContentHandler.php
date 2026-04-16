@@ -312,7 +312,12 @@ class FetchAuthorContentHandler
                     } elseif (is_array($raw) && isset($raw['tags'])) {
                         $tags = $raw['tags'];
                     }
-                    $processedHtml = $this->converter->convertToHTML($article->getContent(), null, $tags);
+                    $processedHtml = $this->converter->convertToHTML(
+                        $article->getContent(),
+                        null,
+                        $article->getKind()?->value,
+                        $tags,
+                    );
                     $article->setProcessedHtml($processedHtml);
                 } catch (\Throwable $e) {
                     $this->logger->warning('Failed to process article HTML during author content fetch', [

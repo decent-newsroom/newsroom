@@ -66,10 +66,11 @@ class Converter implements MarkdownConverterInterface
     /**
      * @param string      $content The raw content to convert
      * @param string|null $format  Optional format specification ('markdown', 'asciidoc', or null for auto-detect)
+     * @param int|null    $kind    Optional Nostr event kind used for deterministic format mapping
      * @param array|null  $tags    Optional Nostr event tags (e.g. from raw JSON) to seed the prefetch
      * @throws CommonMarkException
      */
-    public function convertToHTML(string $content, ?string $format = null, ?array $tags = null): string
+    public function convertToHTML(string $content, ?string $format = null, ?int $kind = null, ?array $tags = null): string
     {
         // Normalize bare bech32 entities (nevent1..., naddr1..., etc.) to nostr: URI
         // form so that all downstream parsers recognise them.
@@ -89,15 +90,17 @@ class Converter implements MarkdownConverterInterface
         // Bulk prefetch all referenced nostr entities before any conversion
         $this->prefetchedData = $this->prefetchNostrData($content, $tags);
 
+        $resolvedFormat = $format ?? $this->resolveFormatByKind($kind);
+
         try {
-            // If format is explicitly specified, use it
-            if ($format === 'asciidoc') {
+            // Explicit format (or kind mapping) always wins over heuristic detection.
+            if ($resolvedFormat === 'asciidoc') {
                 $html = $this->asciidocConverter->convert($content);
                 $html = $this->restoreMathPlaceholders($html);
                 return $this->processNostrLinks($html);
             }
 
-            if ($format === 'markdown') {
+            if ($resolvedFormat === 'markdown') {
                 return $this->convertMarkdownToHTML($content);
             }
 
@@ -124,6 +127,18 @@ class Converter implements MarkdownConverterInterface
     public function convertAsciiDocToHTML(string $content): string
     {
         return $this->convertToHTML($content, 'asciidoc');
+    }
+
+    /**
+     * Resolve parser format from event kind when callers don't pass an explicit format.
+     */
+    private function resolveFormatByKind(?int $kind): ?string
+    {
+        return match ($kind) {
+            KindsEnum::LONGFORM->value,
+            KindsEnum::LONGFORM_DRAFT->value => 'markdown',
+            default => null,
+        };
     }
 
     /**
@@ -464,17 +479,22 @@ class Converter implements MarkdownConverterInterface
      */
     private function isAsciiDoc(string $content): bool
     {
-        // Check for common AsciiDoc patterns that are not valid Markdown
+        // Prefer Markdown when the document clearly uses Markdown constructs.
+        // This prevents thematic breaks like ---- from forcing AsciiDoc mode,
+        // which would render Markdown headings/link syntax as literal text.
+        if ($this->looksLikeMarkdown($content)) {
+            return false;
+        }
+
+        // Strong AsciiDoc-only signals.
         $asciidocPatterns = [
-            '/^\[\.[\w\-]+\]/m',           // Attribute lists like [.text-center]
-            '/^\[quote\]/m',                // Quote blocks
-            '/^={2,}\s+/m',                 // Section titles (== Title)
-            '/^====+$/m',                   // Block delimiters
-            '/^____+$/m',                   // Quote block delimiters
-            '/^----+$/m',                   // Literal block delimiters
-            '/^\*\*\*\*+$/m',               // Sidebar delimiters
-            '/^\.{2,}\s+/m',                // Ordered list with dots
-            '/^image::/m',                  // Image macro
+            '/^\[\.[\w\-]+\]$/m',                        // Attribute lists like [.text-center]
+            '/^\[(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]$/mi', // Admonition block header
+            '/^\[quote(?:,\s*[^,\]]+)?(?:,\s*[^\]]+)?\]$/mi', // Quote blocks
+            '/^=\s+.+$/m',                                   // Document title (= Title)
+            '/^={2,6}\s+.+$/m',                              // Section titles (== Title)
+            '/^\.{2,}\s+/m',                                // Ordered list with dots
+            '/^(?:image|audio)::/m',                          // Media macros
         ];
 
         foreach ($asciidocPatterns as $pattern) {
@@ -483,7 +503,41 @@ class Converter implements MarkdownConverterInterface
             }
         }
 
+        // Ambiguous AsciiDoc block delimiters should only count when they
+        // appear as a real paired block, not as a single Markdown separator.
+        foreach (['----', '....', '____', '****'] as $delimiter) {
+            if ($this->hasPairedAsciiDocDelimiter($content, $delimiter)) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    private function looksLikeMarkdown(string $content): bool
+    {
+        $markdownPatterns = [
+            '/^\s{0,3}#{1,6}\s+.+$/m',                      // ATX headings
+            '/\[[^\]]+\]\([^\)]+\)/',                   // Inline links [text](url)
+            '/^\s{0,3}\d+\.\s+.+$/m',                     // Ordered lists
+            '/^\s{0,3}>\s+.+$/m',                           // Blockquotes
+            '/^(`{3,}|~{3,})[^\n]*$/m',                      // Fenced code blocks
+        ];
+
+        foreach ($markdownPatterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasPairedAsciiDocDelimiter(string $content, string $delimiter): bool
+    {
+        $pattern = '/^' . preg_quote($delimiter, '/') . '$/m';
+
+        return preg_match_all($pattern, $content) >= 2;
     }
 
     /**

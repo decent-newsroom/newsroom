@@ -327,7 +327,12 @@ class EditorController extends AbstractController
             // Pre-process markdown to HTML so it's ready in the DB
             if ($article->getContent()) {
                 try {
-                    $processedHtml = $converter->convertToHTML($article->getContent(), null, $signedEvent['tags'] ?? null);
+                    $processedHtml = $converter->convertToHTML(
+                        $article->getContent(),
+                        null,
+                        isset($signedEvent['kind']) ? (int) $signedEvent['kind'] : null,
+                        $signedEvent['tags'] ?? null,
+                    );
                     $article->setProcessedHtml($processedHtml);
                 } catch (\Throwable $e) {
                     $logger->warning('Failed to process article HTML during publish', [

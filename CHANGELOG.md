@@ -3,6 +3,9 @@
 ## v0.0.30
 Expressions.
 
+- [Bug] Fixed article format auto-detection misclassifying Markdown posts as AsciiDoc when they contained `----` separators. Markdown-shaped articles with `#` headings, ordered lists, and `[text](url)` links now stay in the CommonMark pipeline, while paired AsciiDoc block delimiters still detect as AsciiDoc.
+- [Bug] Forced deterministic parser mapping for NIP-23 longform kinds: kind `30023` (longform) and kind `30024` (draft) now always render through the Markdown converter in all article HTML processing paths (ingestion, backfill command, publish flow, and on-the-fly fallback rendering), preventing accidental AsciiDoc parsing.
+- [Bug] Fixed duplicate related-article suggestions on article pages by deduplicating candidates by article coordinate (`pubkey + slug`) before rendering. The currently viewed article is still excluded, and same-slug articles from different authors remain eligible.
 - Expression events now include `title` and `summary` tags (instead of `name`/`description`) when published. The `content` property holds the expression description. Form labels updated accordingly.
 - Added `docs/INDEX.md` as the canonical setup/operations entry point and aligned top-level docs navigation around `docs/`, `docs-public/`, and `documentation/` indexes.
 - [Bug] Standardized documentation taxonomy wording across `docs/INDEX.md`, `docs-public/INDEX.md`, `documentation/INDEX.md`, and `README.md` (Public Guides / Setup and Ops / Project-Feature Docs) and added reciprocal cross-links between indexes.
