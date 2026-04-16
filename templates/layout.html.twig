@@ -23,8 +23,8 @@
                         <li><a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a></li>
                         <li class="hidden"><a href="{{ path('bookshelf') }}">{{ 'nav.bookshelf'|trans }}</a></li>
                         <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
-                        <li class="hidden"><a href="{{ path('follow_packs') }}">{{ 'nav.followPacks'|trans }}</a></li>
-                        <li><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
+                        <li><a href="{{ path('follow_packs') }}">{{ 'nav.followPacks'|trans }}</a></li>
+                        <li class="hidden"><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
                         {% if app.user %}
                             <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
                             <li><a href="{{ path('my_bookmarks') }}">{{ 'nav.bookmarks'|trans }}</a></li>
@@ -43,7 +43,7 @@
                         <li><a href="{{ path('reading_list_index') }}">{{ 'nav.readingList'|trans }}</a></li>
                         <li><a href="{{ path('editor-create') }}">{{ 'nav.article'|trans }}</a></li>
                         {% if app.user %}
-                            <li><a href="{{ path('expression_create') }}">{{ 'nav.expression'|trans }}</a></li>
+                            <li class="hidden"><a href="{{ path('expression_create') }}">{{ 'nav.expression'|trans }}</a></li>
                         {% endif %}
                     </ul>
                 </div>
