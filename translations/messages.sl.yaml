@@ -677,6 +677,7 @@ expressionsList:
     stages: 'korakov'
     createdBy: 'Ustvaril/a'
     viewResults: 'Poglej rezultate'
+    edit: 'Uredi'
 
 # ── Pogled izraza ─────────────────────────────────────────────────
 expressionView:

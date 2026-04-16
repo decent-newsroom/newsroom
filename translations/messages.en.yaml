@@ -916,6 +916,7 @@ expressionsList:
     stages: 'stages'
     createdBy: 'Created by'
     viewResults: 'View results'
+    edit: 'Edit'
 
 # ── Expression View page ──────────────────────────────────────────
 expressionView:

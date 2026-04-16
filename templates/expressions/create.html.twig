@@ -10,7 +10,8 @@
          data-controller="nostr--nostr-expression"
          data-nostr--nostr-expression-publish-url-value="{{ path('api_expression_publish') }}"
          data-nostr--nostr-expression-templates-value="{{ templates|json_encode|e('html_attr') }}"
-         data-nostr--nostr-expression-feed-base-url-value="{{ url('api_feed_evaluate', {naddr: '__NADDR__'}) }}">
+         data-nostr--nostr-expression-feed-base-url-value="{{ url('api_feed_evaluate', {naddr: '__NADDR__'}) }}"
+         {% if existingEvent %}data-nostr--nostr-expression-existing-event-value="{{ existingEvent|json_encode|e('html_attr') }}"{% endif %}>
 
         {# ── Result panel (shown after publish) ── #}
         <div class="expression-result" data-nostr--nostr-expression-target="result" style="display:none;">

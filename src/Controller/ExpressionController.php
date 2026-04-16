@@ -144,6 +144,60 @@ class ExpressionController extends AbstractController
     {
         return $this->render('expressions/create.html.twig', [
             'templates' => $this->getTemplates(),
+            'existingEvent' => null,
+        ]);
+    }
+
+    #[Route('/expressions/edit/{npub}/{dtag}', name: 'expression_edit', requirements: ['npub' => 'npub1[a-z0-9]+'])]
+    #[IsGranted('ROLE_USER')]
+    public function edit(
+        string $npub,
+        string $dtag,
+        EventRepository $eventRepository,
+    ): Response {
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($npub);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException('Invalid npub.');
+        }
+
+        $expression = $eventRepository->findByNaddr(
+            KindsEnum::FEED_EXPRESSION->value,
+            $pubkey,
+            $dtag,
+        );
+
+        if (!$expression) {
+            throw $this->createNotFoundException('Expression not found.');
+        }
+
+        // Only the author can edit their expression
+        $user = $this->getUser();
+        $userPubkey = null;
+        if ($user) {
+            $userIdentifier = $user->getUserIdentifier();
+            try {
+                $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
+                    ? NostrKeyUtil::npubToHex($userIdentifier)
+                    : $userIdentifier;
+            } catch (\Throwable) {}
+        }
+
+        if ($userPubkey !== $pubkey) {
+            throw $this->createAccessDeniedException('You can only edit your own expressions.');
+        }
+
+        $existingEvent = [
+            'kind' => $expression->getKind(),
+            'content' => $expression->getContent(),
+            'tags' => $expression->getTags(),
+            'pubkey' => $expression->getPubkey(),
+            'created_at' => $expression->getCreatedAt(),
+        ];
+
+        return $this->render('expressions/create.html.twig', [
+            'templates' => $this->getTemplates(),
+            'existingEvent' => $existingEvent,
         ]);
     }
 

@@ -20,6 +20,7 @@ export default class extends Controller {
     publishUrl: String,
     templates: Array,
     feedBaseUrl: String,
+    existingEvent: Object,
   };
 
   /* ------------------------------------------------------------------ */
@@ -28,6 +29,48 @@ export default class extends Controller {
 
   connect() {
     this.stages = [];
+    this._existingDTag = null;
+
+    // If editing an existing expression, load it into the builder
+    if (this.hasExistingEventValue && this.existingEventValue && Object.keys(this.existingEventValue).length > 0) {
+      this._loadExistingEvent(this.existingEventValue);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Load existing expression for editing                               */
+  /* ------------------------------------------------------------------ */
+
+  _loadExistingEvent(event) {
+    const tags = event.tags || [];
+
+    // Extract metadata
+    let name = '';
+    let description = event.content || '';
+    let dtag = '';
+
+    for (const tag of tags) {
+      if (tag[0] === 'title' && tag[1]) name = tag[1];
+      if (tag[0] === 'description' && tag[1]) description = tag[1];
+      if (tag[0] === 'd' && tag[1]) dtag = tag[1];
+    }
+
+    // Fallback: use d-tag as name if no title
+    if (!name && dtag) name = dtag;
+
+    this._existingDTag = dtag;
+    this.nameInputTarget.value = name;
+    this.descriptionInputTarget.value = description;
+
+    // Parse tags into stages (skip d, title, description, alt)
+    const stageTags = tags.filter(t => !['d', 'title', 'description', 'alt'].includes(t[0]));
+    this.stages = this._parseTags(stageTags);
+
+    this._renderStages();
+    this.updatePreview();
+    this.galleryTarget.style.display = 'none';
+    this.builderTarget.style.display = '';
+    this.resultTarget.style.display = 'none';
   }
 
   /* ------------------------------------------------------------------ */
@@ -307,8 +350,8 @@ export default class extends Controller {
 
   _buildTags() {
     const name = this.nameInputTarget.value.trim();
-    const dTag = this._slugify(name) + '-' + Date.now();
-    const tags = [['d', dTag]];
+    const dTag = this._existingDTag || (this._slugify(name) + '-' + Date.now());
+    const tags = [['d', dTag], ['title', name]];
 
     for (const stage of this.stages) {
       const opType = this._opType(stage.op);
@@ -347,6 +390,11 @@ export default class extends Controller {
     }
 
     tags.push(['alt', `Expression: ${name}`]);
+
+    const desc = this.descriptionInputTarget.value.trim();
+    if (desc) {
+      tags.push(['description', desc]);
+    }
 
     return tags;
   }

@@ -19,6 +19,11 @@
                     <a href="{{ path('expression_view', { npub: expr.npub, dtag: expr.dtag }) }}" class="btn btn-sm">
                         {{ 'expressionsList.viewResults'|trans }} →
                     </a>
+                    {% if app.user and expr.npub == app.user.userIdentifier|default('') %}
+                        <a href="{{ path('expression_edit', { npub: expr.npub, dtag: expr.dtag }) }}" class="btn btn-sm btn-secondary">
+                            {{ 'expressionsList.edit'|trans }}
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}

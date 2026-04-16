@@ -691,6 +691,7 @@ expressionsList:
     stages: 'Stufen'
     createdBy: 'Erstellt von'
     viewResults: 'Ergebnisse anzeigen'
+    edit: 'Bearbeiten'
 
 # ── Ausdruck-Ansicht ─────────────────────────────────────────────
 expressionView:

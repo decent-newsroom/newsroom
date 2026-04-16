@@ -677,6 +677,7 @@ expressionsList:
     stages: 'étapes'
     createdBy: 'Créé par'
     viewResults: 'Voir les résultats'
+    edit: 'Modifier'
 
 # ── Vue d''Expression ─────────────────────────────────────────────
 expressionView:
