@@ -8,6 +8,7 @@ use App\Entity\Event;
 use App\Message\PersistGatewayEventsMessage;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\ReplaceableEventCleanupService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -18,6 +19,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * Uses batch deduplication (single SELECT for all incoming IDs) and flushes
  * in batches of 50 to keep memory bounded. Also updates the graph layer
  * (parsed_reference + current_record) for every newly persisted event.
+ * After each flush, cleans up older versions of replaceable events (NIP-01).
  */
 #[AsMessageHandler]
 final class PersistGatewayEventsHandler
@@ -28,6 +30,7 @@ final class PersistGatewayEventsHandler
         private readonly EventRepository $eventRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly ReplaceableEventCleanupService $cleanupService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -50,6 +53,8 @@ final class PersistGatewayEventsHandler
         $persisted = 0;
         $skipped = 0;
         $batch = 0;
+        /** @var Event[] $batchEntities */
+        $batchEntities = [];
 
         foreach ($rawEvents as $rawEvent) {
             if (!is_array($rawEvent)) {
@@ -71,11 +76,14 @@ final class PersistGatewayEventsHandler
                     $this->eventIngestionListener->processEvent($entity);
                 } catch (\Throwable) {}
 
+                $batchEntities[] = $entity;
                 $persisted++;
                 $batch++;
 
                 if ($batch >= self::BATCH_SIZE) {
                     $this->entityManager->flush();
+                    $this->cleanupReplaceableEvents($batchEntities);
+                    $batchEntities = [];
                     $batch = 0;
                 }
             } catch (\Throwable $e) {
@@ -90,6 +98,7 @@ final class PersistGatewayEventsHandler
         // Final flush
         if ($batch > 0) {
             $this->entityManager->flush();
+            $this->cleanupReplaceableEvents($batchEntities);
         }
 
         if ($persisted > 0) {
@@ -114,6 +123,18 @@ final class PersistGatewayEventsHandler
         $entity->extractAndSetDTag();
 
         return $entity;
+    }
+
+    /**
+     * Clean up older versions of replaceable events after a batch flush.
+     *
+     * @param Event[] $entities
+     */
+    private function cleanupReplaceableEvents(array $entities): void
+    {
+        foreach ($entities as $entity) {
+            $this->cleanupService->removeOlderEventVersions($entity, $this->entityManager);
+        }
     }
 }
 

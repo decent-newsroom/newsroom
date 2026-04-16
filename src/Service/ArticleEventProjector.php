@@ -29,6 +29,7 @@ class ArticleEventProjector
         private readonly MessageBusInterface $messageBus,
         private readonly UserRolePromoter $userRolePromoter,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly ReplaceableEventCleanupService $cleanupService,
     ) {
     }
 
@@ -120,6 +121,9 @@ class ArticleEventProjector
                 'event_id' => $article->getEventId(),
                 'db_id' => $article->getId()
             ]);
+
+            // Clean up older revisions of the same article (same pubkey + slug/d-tag)
+            $this->cleanupService->removeOlderArticleRevisions($article, $em instanceof \Doctrine\ORM\EntityManagerInterface ? $em : $this->managerRegistry->getManager());
 
             // Update graph layer tables (parsed_reference + current_record)
             // so the graph stays in sync without needing backfill/audit repair.

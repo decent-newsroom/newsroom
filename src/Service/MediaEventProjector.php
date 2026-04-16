@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
+use App\Service\ReplaceableEventCleanupService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,6 +22,7 @@ class MediaEventProjector
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
+        private readonly ReplaceableEventCleanupService $cleanupService,
     ) {
     }
 
@@ -90,6 +92,9 @@ class MediaEventProjector
                 'event_id' => $event->id,
                 'kind' => $event->kind
             ]);
+
+            // Clean up older versions of parameterized replaceable media events (34235, 34236)
+            $this->cleanupService->removeOlderEventVersions($mediaEvent, $this->entityManager);
 
             // Update graph layer tables (parsed_reference + current_record)
             try {
