@@ -20,7 +20,8 @@ class ProcessArticleHtmlCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly Converter $converter
+        private readonly Converter $converter,
+        private readonly \Redis $redis,
     ) {
         parent::__construct();
     }
@@ -235,47 +236,94 @@ class ProcessArticleHtmlCommand extends Command
         $io->info(sprintf('Looking up article: pubkey=%s, slug=%s', $pubkey, $identifier));
 
         $conn = $this->entityManager->getConnection();
-        $row = $conn->fetchAssociative(
-            'SELECT id, content, raw, kind FROM article WHERE pubkey = :pubkey AND slug = :slug',
+
+        // Fetch ALL revisions for this coordinate, newest first.
+        // Nostr articles (kind 30023) are replaceable events — there may be
+        // multiple rows with the same (pubkey, slug).  We process every
+        // revision so the latest one (which the article page reads) is
+        // guaranteed to have up-to-date processed_html.
+        $rows = $conn->fetchAllAssociative(
+            'SELECT id, content, raw, kind FROM article WHERE pubkey = :pubkey AND slug = :slug ORDER BY created_at DESC',
             ['pubkey' => $pubkey, 'slug' => $identifier]
         );
 
-        if (!$row) {
+        if (empty($rows)) {
             $io->error('No article found for this naddr.');
             return Command::FAILURE;
         }
 
-        if (!is_string($row['content']) || $row['content'] === '') {
-            $io->warning('Article has no content to process.');
+        $io->info(sprintf('Found %d revision(s) for this coordinate', count($rows)));
+
+        // The first row is the latest (ORDER BY created_at DESC).
+        $latest = $rows[0];
+
+        // Delete older revisions
+        if (count($rows) > 1) {
+            $oldIds = array_map(fn($r) => $r['id'], array_slice($rows, 1));
+            $conn->executeStatement(
+                sprintf('DELETE FROM article WHERE id IN (%s)', implode(',', array_fill(0, count($oldIds), '?'))),
+                array_values($oldIds)
+            );
+            $io->info(sprintf('Deleted %d older revision(s): IDs %s', count($oldIds), implode(', ', $oldIds)));
+        }
+
+        // Process the latest revision
+        if (!is_string($latest['content']) || $latest['content'] === '') {
+            $io->warning('Latest revision has no content to process.');
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Processing article ID %s', $row['id']));
+        $io->info(sprintf('Processing latest revision ID %s', $latest['id']));
 
         try {
             $tags = null;
-            if (!empty($row['raw'])) {
-                $rawData = is_string($row['raw']) ? json_decode($row['raw'], true) : $row['raw'];
+            if (!empty($latest['raw'])) {
+                $rawData = is_string($latest['raw']) ? json_decode($latest['raw'], true) : $latest['raw'];
                 if (is_array($rawData) && isset($rawData['tags']) && is_array($rawData['tags'])) {
                     $tags = $rawData['tags'];
                 }
             }
 
-            $kind = isset($row['kind']) ? (int) $row['kind'] : null;
-            $html = $this->converter->convertToHTML($row['content'], null, $kind, $tags);
+            $kind = isset($latest['kind']) ? (int) $latest['kind'] : null;
+            $html = $this->converter->convertToHTML($latest['content'], null, $kind, $tags);
 
             $conn->executeStatement(
                 'UPDATE article SET processed_html = :html WHERE id = :id',
-                ['html' => $html, 'id' => $row['id']]
+                ['html' => $html, 'id' => $latest['id']]
             );
-
-            $io->success(sprintf('Article ID %s processed successfully.', $row['id']));
         } catch (\Throwable $e) {
-            $io->error(sprintf('Failed to process article ID %s: %s', $row['id'], $e->getMessage()));
+            $io->error(sprintf('Failed to process article ID %s: %s', $latest['id'], $e->getMessage()));
             return Command::FAILURE;
         }
 
+        // Invalidate Redis caches that may contain stale HTML for this article.
+        try {
+            $this->invalidateArticleCaches($pubkey);
+            $io->info('Redis article caches invalidated.');
+        } catch (\Throwable $e) {
+            $io->warning(sprintf('Failed to invalidate Redis caches: %s', $e->getMessage()));
+        }
+
+        $io->success(sprintf('Article ID %s processed successfully.', $latest['id']));
+
         return Command::SUCCESS;
+    }
+
+    /**
+     * Invalidate Redis caches that may contain stale article HTML.
+     */
+    private function invalidateArticleCaches(string $pubkey): void
+    {
+        // Clear the global latest-articles view (rebuilt by cron every 15 min)
+        $this->redis->del('view:articles:latest');
+
+        // Clear the per-author articles view
+        $this->redis->del(sprintf('view:user:articles:%s', $pubkey));
+
+        // Clear profile tab caches for this author
+        foreach (['articles', 'highlights', 'media'] as $tab) {
+            $this->redis->del(sprintf('view:profile:tab:%s:%s', $pubkey, $tab));
+        }
     }
 }
 
