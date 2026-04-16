@@ -30,42 +30,74 @@ final class SpellSourceResolver
     /** @return NormalizedItem[] */
     public function resolve(string $spellAddress, RuntimeContext $ctx): array
     {
-        $start = microtime(true);
-        $this->logger->debug('Resolving spell', ['address' => $spellAddress]);
+        $this->logger->debug('Resolving spell by address', ['address' => $spellAddress]);
 
         $spellEvent = $this->findEvent($spellAddress);
+
+        return $this->executeSpell($spellEvent, $spellAddress, $ctx);
+    }
+
+    /**
+     * Execute a spell from an already-resolved Event (skips DB lookup).
+     *
+     * @return NormalizedItem[]
+     */
+    public function executeEvent(Event $spellEvent, RuntimeContext $ctx): array
+    {
+        $label = $spellEvent->getId() ?: 'unknown';
+        $this->logger->debug('Executing spell from pre-resolved event', ['eventId' => $label]);
+
+        return $this->executeSpell($spellEvent, $label, $ctx);
+    }
+
+    /** @return NormalizedItem[] */
+    private function executeSpell(Event $spellEvent, string $label, RuntimeContext $ctx): array
+    {
+        $start = microtime(true);
         $filter = $this->spellParser->parse($spellEvent, $ctx);
+        $hasExplicitRelays = !empty($filter['relays']);
 
         $this->logger->debug('Spell filter built', [
-            'address' => $spellAddress,
+            'label' => $label,
             'kinds' => $filter['kinds'] ?? [],
             'limit' => $filter['limit'] ?? null,
+            'relays' => $filter['relays'] ?? [],
         ]);
 
-        // DB-first
-        $events = $this->eventRepository->findByFilter($filter);
-        $source = 'db';
-
-        // Relay fallback if needed
-        if (empty($events) && isset($filter['relays'])) {
-            $this->logger->debug('Spell DB empty, falling back to specified relays', [
-                'address' => $spellAddress,
+        if ($hasExplicitRelays) {
+            // Explicit relays: query them directly — they are the authoritative source.
+            $this->logger->debug('Spell has explicit relays, querying them directly', [
+                'label' => $label,
                 'relays' => $filter['relays'],
             ]);
             $events = $this->fetchFromRelays($filter);
             $source = 'relays';
-        } elseif (empty($events)) {
-            $this->logger->debug('Spell DB empty, falling back to content relays', [
-                'address' => $spellAddress,
-            ]);
-            // Fallback to content relays
-            $events = $this->fetchFromRelays($filter);
-            $source = 'relays-fallback';
+
+            // DB fallback if relays returned nothing
+            if (empty($events)) {
+                $this->logger->debug('Spell relays returned empty, falling back to DB', [
+                    'label' => $label,
+                ]);
+                $events = $this->eventRepository->findByFilter($filter);
+                $source = 'db-fallback';
+            }
+        } else {
+            // No explicit relays: DB-first, then content relay fallback.
+            $events = $this->eventRepository->findByFilter($filter);
+            $source = 'db';
+
+            if (empty($events)) {
+                $this->logger->debug('Spell DB empty, falling back to content relays', [
+                    'label' => $label,
+                ]);
+                $events = $this->fetchFromRelays($filter);
+                $source = 'relays-fallback';
+            }
         }
 
         $ms = round((microtime(true) - $start) * 1000);
         $this->logger->info('Spell resolved', [
-            'address' => $spellAddress,
+            'label' => $label,
             'source' => $source,
             'events' => count($events),
             'ms' => $ms,

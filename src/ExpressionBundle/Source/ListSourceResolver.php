@@ -27,7 +27,7 @@ final class ListSourceResolver
         [$kind, $pubkey, $d] = explode(':', $address, 3);
         $kind = (int) $kind;
 
-        $this->logger->debug('Resolving NIP-51 list', ['address' => $address, 'kind' => $kind]);
+        $this->logger->debug('Resolving NIP-51 list by address', ['address' => $address, 'kind' => $kind]);
 
         // Find the list event
         $listEvent = $this->eventRepository->findByNaddr($kind, $pubkey, $d);
@@ -39,7 +39,25 @@ final class ListSourceResolver
             throw new UnresolvedRefException("List not found: {$address}");
         }
 
-        // Extract referenced event IDs and addresses
+        return $this->expandList($listEvent, $address);
+    }
+
+    /**
+     * Expand a list from an already-resolved Event (skips DB lookup).
+     *
+     * @return NormalizedItem[]
+     */
+    public function executeEvent(Event $listEvent, RuntimeContext $ctx): array
+    {
+        $label = $listEvent->getId() ?: 'unknown';
+        $this->logger->debug('Expanding list from pre-resolved event', ['eventId' => $label]);
+
+        return $this->expandList($listEvent, $label);
+    }
+
+    /** @return NormalizedItem[] */
+    private function expandList(Event $listEvent, string $label): array
+    {
         $eventIds = [];
         $addresses = [];
         foreach ($listEvent->getTags() as $tag) {
@@ -51,7 +69,7 @@ final class ListSourceResolver
         }
 
         $this->logger->debug('List references extracted', [
-            'address' => $address,
+            'label' => $label,
             'eventIds' => count($eventIds),
             'addresses' => count($addresses),
         ]);
@@ -78,7 +96,7 @@ final class ListSourceResolver
         }
 
         $this->logger->info('List resolved', [
-            'address' => $address,
+            'label' => $label,
             'resolvedItems' => count($items),
             'totalRefs' => count($eventIds) + count($addresses),
         ]);

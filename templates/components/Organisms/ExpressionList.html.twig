@@ -1,0 +1,29 @@
+<div {{ attributes }}>
+    {% set expressions = this.expressions %}
+    {% if expressions is not empty %}
+        {% for expr in expressions %}
+            <div class="card p-3 ln-section--reader">
+                <div class="card-body">
+                    <h2 class="card-title">
+                        <a href="{{ path('expression_view', { npub: expr.npub, dtag: expr.dtag }) }}">
+                            {{ expr.title }}
+                        </a>
+                    </h2>
+                    {% if expr.description %}
+                        <p class="eyebrow">{{ expr.description|length > 120 ? expr.description|slice(0, 120) ~ '…' : expr.description }}</p>
+                    {% endif %}
+                    <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-2">
+                        <span class="badge bg-secondary">{{ expr.stageCount }} {{ 'expressionsList.stages'|trans }}</span>
+                    </div>
+                    <p>{{ 'expressionsList.createdBy'|trans }} <twig:Molecules:UserFromNpub :ident="expr.pubkey" /></p>
+                    <a href="{{ path('expression_view', { npub: expr.npub, dtag: expr.dtag }) }}" class="btn btn-sm">
+                        {{ 'expressionsList.viewResults'|trans }} →
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p><small>{{ 'expressionsList.noExpressions'|trans }}</small></p>
+    {% endif %}
+</div>
+

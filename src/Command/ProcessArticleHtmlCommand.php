@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Util\CommonMark\Converter;
 use Doctrine\ORM\EntityManagerInterface;
+use nostriphant\NIP19\Bech32;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -32,6 +33,7 @@ class ProcessArticleHtmlCommand extends Command
             ->addOption('delete-failed', null, InputOption::VALUE_NONE, 'Delete articles that fail HTML processing instead of skipping them')
             ->addOption('timeout', 't', InputOption::VALUE_REQUIRED, 'Maximum seconds per article before skipping (default: 60)', 60)
             ->addOption('math-only', null, InputOption::VALUE_NONE, 'Only reprocess articles whose content contains a $ sign (useful after math-delimiter changes)')
+            ->addOption('naddr', null, InputOption::VALUE_REQUIRED, 'Process only the article identified by the given naddr1… bech32 string')
             ->setHelp(
                 'This command processes content to HTML for articles and caches the result in the database. ' .
                 'By default, it only processes articles that are missing processed HTML, newest first. ' .
@@ -52,8 +54,14 @@ class ProcessArticleHtmlCommand extends Command
         $deleteFailed = (bool) $input->getOption('delete-failed');
         $timeout = max(5, (int) $input->getOption('timeout'));
         $mathOnly = (bool) $input->getOption('math-only');
+        $naddr = $input->getOption('naddr');
 
         $io->title('Article HTML Processing');
+
+        // If --naddr is provided, resolve it to a single article and process only that one.
+        if ($naddr !== null) {
+            return $this->processNaddr($io, $naddr, $deleteFailed, $timeout);
+        }
 
         if ($deleteFailed) {
             $io->caution('--delete-failed is active: articles that fail processing will be permanently deleted.');
@@ -200,6 +208,69 @@ class ProcessArticleHtmlCommand extends Command
 
         if ($skipped > 0) {
             $io->note(sprintf('Some articles were skipped due to timeout. Try increasing --timeout (current: %ds) or check those articles for excessive nostr references.', $timeout));
+        }
+
+        return Command::SUCCESS;
+    }
+
+    private function processNaddr(SymfonyStyle $io, string $naddr, bool $deleteFailed, int $timeout): int
+    {
+        try {
+            $decoded = new Bech32($naddr);
+        } catch (\Throwable $e) {
+            $io->error('Failed to decode naddr: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+
+        if ($decoded->type !== 'naddr') {
+            $io->error(sprintf('Expected an naddr identifier, got "%s".', $decoded->type));
+            return Command::FAILURE;
+        }
+
+        $data = $decoded->data;
+        $pubkey = $data->pubkey;
+        $identifier = $data->identifier;
+
+        $io->info(sprintf('Looking up article: pubkey=%s, slug=%s', $pubkey, $identifier));
+
+        $conn = $this->entityManager->getConnection();
+        $row = $conn->fetchAssociative(
+            'SELECT id, content, raw FROM article WHERE pubkey = :pubkey AND slug = :slug',
+            ['pubkey' => $pubkey, 'slug' => $identifier]
+        );
+
+        if (!$row) {
+            $io->error('No article found for this naddr.');
+            return Command::FAILURE;
+        }
+
+        if (!is_string($row['content']) || $row['content'] === '') {
+            $io->warning('Article has no content to process.');
+            return Command::SUCCESS;
+        }
+
+        $io->info(sprintf('Processing article ID %s', $row['id']));
+
+        try {
+            $tags = null;
+            if (!empty($row['raw'])) {
+                $rawData = is_string($row['raw']) ? json_decode($row['raw'], true) : $row['raw'];
+                if (is_array($rawData) && isset($rawData['tags']) && is_array($rawData['tags'])) {
+                    $tags = $rawData['tags'];
+                }
+            }
+
+            $html = $this->converter->convertToHTML($row['content'], null, $tags);
+
+            $conn->executeStatement(
+                'UPDATE article SET processed_html = :html WHERE id = :id',
+                ['html' => $html, 'id' => $row['id']]
+            );
+
+            $io->success(sprintf('Article ID %s processed successfully.', $row['id']));
+        } catch (\Throwable $e) {
+            $io->error(sprintf('Failed to process article ID %s: %s', $row['id'], $e->getMessage()));
+            return Command::FAILURE;
         }
 
         return Command::SUCCESS;

@@ -59,6 +59,7 @@ nav:
     readingList: 'Reading List'
     article: 'Article'
     expression: 'Expression'
+    expressions: 'Expressions'
     sendFeedback: 'Send Feedback'
     backToTop: 'Back to top'
     closeLeftSidebar: 'Close left sidebar'
@@ -906,3 +907,20 @@ expressions:
     feedUrl: 'Feed API URL'
     copyUrl: 'Copy URL'
     createAnother: 'Create Another'
+
+# ── Expressions List page ─────────────────────────────────────────
+expressionsList:
+    heading: 'Expressions'
+    eyebrow: 'custom feed expressions'
+    noExpressions: 'No expressions published yet.'
+    stages: 'stages'
+    createdBy: 'Created by'
+    viewResults: 'View results'
+
+# ── Expression View page ──────────────────────────────────────────
+expressionView:
+    by: 'Created by'
+    noResults: 'No results from this expression.'
+    loginRequired: 'Log in to view expression results. Expressions are evaluated with your personal context (contacts, interests).'
+    backToList: 'All Expressions'
+

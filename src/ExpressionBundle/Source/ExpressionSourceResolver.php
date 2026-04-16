@@ -38,21 +38,62 @@ final class ExpressionSourceResolver
         }
 
         $ctx->visitedExpressions[] = $address;
-        $depth = count($ctx->visitedExpressions);
 
-        $this->logger->debug('Resolving nested expression', [
+        $this->logger->debug('Resolving nested expression by address', [
             'address' => $address,
-            'depth' => $depth,
+            'depth' => count($ctx->visitedExpressions),
         ]);
 
-        $start = microtime(true);
         $event = $this->findExpression($address);
+
+        return $this->executeExpression($event, $address, $ctx);
+    }
+
+    /**
+     * Execute an expression from an already-resolved Event (skips DB lookup).
+     *
+     * @return NormalizedItem[]
+     */
+    public function executeEvent(\App\Entity\Event $event, RuntimeContext $ctx): array
+    {
+        $dTag = null;
+        foreach ($event->getTags() as $tag) {
+            if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                $dTag = $tag[1];
+                break;
+            }
+        }
+        $address = "{$event->getKind()}:{$event->getPubkey()}:{$dTag}";
+
+        if (in_array($address, $ctx->visitedExpressions, true)) {
+            $this->logger->warning('Circular expression reference detected', [
+                'address' => $address,
+                'visited' => $ctx->visitedExpressions,
+            ]);
+            throw new CycleException("Circular reference: {$address}");
+        }
+
+        $ctx->visitedExpressions[] = $address;
+
+        $this->logger->debug('Executing nested expression from pre-resolved event', [
+            'eventId' => $event->getId(),
+            'address' => $address,
+            'depth' => count($ctx->visitedExpressions),
+        ]);
+
+        return $this->executeExpression($event, $address, $ctx);
+    }
+
+    /** @return NormalizedItem[] */
+    private function executeExpression(\App\Entity\Event $event, string $label, RuntimeContext $ctx): array
+    {
+        $start = microtime(true);
         $pipeline = $this->parser->parse($event);
         $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver);
 
         $this->logger->debug('Nested expression resolved', [
-            'address' => $address,
-            'depth' => $depth,
+            'label' => $label,
+            'depth' => count($ctx->visitedExpressions),
             'resultItems' => count($result),
             'ms' => round((microtime(true) - $start) * 1000),
         ]);

@@ -806,38 +806,65 @@ All source resolution follows the same pattern:
 ```php
 final class SourceResolver implements SourceResolverInterface
 {
+    // Kinds that are "containers" — resolving by event ID should expand their
+    // contents via AddressSourceResolver instead of returning the event itself.
+    private const DELEGATABLE_KINDS = [777, 30880, 30003, 30004, 30005, 30006, 10003];
+
     /** @return NormalizedItem[] */
     public function resolve(array $inputRef, RuntimeContext $ctx): array
     {
         // $inputRef = ["e", "<id>"] or ["a", "<kind>:<pk>:<d>"]
-        return match ($inputRef[0]) {
+        $items = match ($inputRef[0]) {
             'e' => $this->eventIdResolver->resolve($inputRef[1], $ctx),
             'a' => $this->addressResolver->resolve($inputRef[1], $ctx),
             default => throw new InvalidArgumentException("Unknown input type: {$inputRef[0]}"),
         };
+
+        // When an event ID resolves to a "container" kind (spell, expression, list),
+        // pass the already-fetched Event directly to AddressSourceResolver::resolveEvent()
+        // which calls executeEvent() on the specialized resolver — bypassing the DB
+        // re-lookup that would fail for relay-only events.
+        if ($inputRef[0] === 'e' && count($items) === 1) {
+            $kind = $items[0]->getKind();
+            if (in_array($kind, self::DELEGATABLE_KINDS, true)) {
+                return $this->addressResolver->resolveEvent($items[0]->getEvent(), $ctx);
+            }
+        }
+
+        return $items;
     }
 }
 ```
+
+This means spells, expressions, and lists can be referenced by either event ID (`e` tag)
+or address (`a` tag) — in both cases the container is expanded into its contents.
+The event is passed directly to avoid a DB re-lookup that would fail for relay-only events.
 
 ### AddressSourceResolver (delegates by kind)
 
 ```php
 final class AddressSourceResolver
 {
-    public function resolve(string $address, RuntimeContext $ctx): array
-    {
-        [$kind, $pubkey, $d] = explode(':', $address, 3);
-        $kind = (int) $kind;
+    // resolve() dispatches by kind from an address string (DB lookup path)
+    public function resolve(string $address, RuntimeContext $ctx): array { ... }
 
+    // resolveEvent() dispatches by kind from an already-resolved Event (no DB lookup)
+    public function resolveEvent(Event $event, RuntimeContext $ctx): array
+    {
+        $kind = $event->getKind();
         return match (true) {
-            $kind === 30880 => $this->expressionResolver->resolve($address, $ctx),
-            $kind === 777   => $this->spellResolver->resolve($address, $ctx),
-            in_array($kind, [30003, 30004, 30005, 30006, 10003]) => $this->listResolver->resolve($address, $ctx),
-            default         => $this->genericEventResolver->resolve($address, $ctx),
+            $kind === 30880 => $this->expressionResolver->executeEvent($event, $ctx),
+            $kind === 777   => $this->spellResolver->executeEvent($event, $ctx),
+            in_array($kind, self::LIST_KINDS, true) => $this->listResolver->executeEvent($event, $ctx),
+            default         => [new NormalizedItem($event)],
         };
     }
 }
 ```
+
+Each specialized resolver has two entry points:
+- `resolve(string $address, ...)` — finds the event in DB, then executes
+- `executeEvent(Event $event, ...)` — executes directly from a pre-resolved event
 
 ### ExpressionSourceResolver (recursive, with cycle detection)
 
@@ -864,23 +891,40 @@ final class ExpressionSourceResolver
 ```php
 final class SpellSourceResolver
 {
-    public function resolve(string $spellAddress, RuntimeContext $ctx): array
+    // resolve() — finds the spell in DB by address, then executes
+    public function resolve(string $spellAddress, RuntimeContext $ctx): array { ... }
+
+    // executeEvent() — executes directly from a pre-resolved Event (no DB lookup)
+    public function executeEvent(Event $spellEvent, RuntimeContext $ctx): array { ... }
+
+    // Shared execution logic:
+    private function executeSpell(Event $spellEvent, string $label, RuntimeContext $ctx): array
     {
-        $spellEvent = $this->findEvent($spellAddress);
-        $filter = $this->spellParser->parse($spellEvent, $ctx, $this->timeResolver);
+        $filter = $this->spellParser->parse($spellEvent, $ctx);
 
-        // DB-first: query local events
-        $events = $this->eventRepository->findByFilter($filter);
-
-        // Relay fallback if needed
-        if (empty($events) && isset($filter['relays'])) {
+        if (!empty($filter['relays'])) {
+            // Explicit relays: query them directly (authoritative source)
             $events = $this->fetchFromRelays($filter);
+            // DB fallback if relays returned nothing
+            if (empty($events)) {
+                $events = $this->eventRepository->findByFilter($filter);
+            }
+        } else {
+            // No explicit relays: DB-first, content relay fallback
+            $events = $this->eventRepository->findByFilter($filter);
+            if (empty($events)) {
+                $events = $this->fetchFromRelays($filter);
+            }
         }
 
         return array_map(fn(Event $e) => new NormalizedItem($e), $events);
     }
 }
 ```
+
+**Resolution strategy**: when a spell specifies explicit `["relays", ...]` tags, those relays
+are the primary source (relay-first). When no relays are specified, the local DB is primary
+(DB-first) with content relays as fallback.
 
 ### ReferenceResolver (NIP-FX `in` term expansion)
 

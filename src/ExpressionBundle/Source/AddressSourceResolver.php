@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\ExpressionBundle\Source;
 
+use App\Entity\Event;
 use App\ExpressionBundle\Exception\InvalidArgumentException;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
@@ -14,6 +15,8 @@ use Psr\Log\LoggerInterface;
  */
 final class AddressSourceResolver
 {
+    private const LIST_KINDS = [30003, 30004, 30005, 30006, 10003];
+
     public function __construct(
         private readonly ExpressionSourceResolver $expressionResolver,
         private readonly SpellSourceResolver $spellResolver,
@@ -31,12 +34,7 @@ final class AddressSourceResolver
         }
 
         $kind = (int) $parts[0];
-        $resolverType = match (true) {
-            $kind === 30880 => 'expression',
-            $kind === 777   => 'spell',
-            in_array($kind, [30003, 30004, 30005, 30006, 10003], true) => 'list',
-            default         => 'generic',
-        };
+        $resolverType = $this->resolverTypeForKind($kind);
 
         $this->logger->debug('Dispatching address reference', [
             'address' => $address,
@@ -49,6 +47,40 @@ final class AddressSourceResolver
             'spell'      => $this->spellResolver->resolve($address, $ctx),
             'list'       => $this->listResolver->resolve($address, $ctx),
             'generic'    => $this->genericEventResolver->resolve($address, $ctx),
+        };
+    }
+
+    /**
+     * Dispatch an already-resolved Event by its kind, bypassing DB lookups.
+     *
+     * @return NormalizedItem[]
+     */
+    public function resolveEvent(Event $event, RuntimeContext $ctx): array
+    {
+        $kind = $event->getKind();
+        $resolverType = $this->resolverTypeForKind($kind);
+
+        $this->logger->debug('Dispatching pre-resolved event by kind', [
+            'eventId' => $event->getId(),
+            'kind' => $kind,
+            'resolver' => $resolverType,
+        ]);
+
+        return match ($resolverType) {
+            'expression' => $this->expressionResolver->executeEvent($event, $ctx),
+            'spell'      => $this->spellResolver->executeEvent($event, $ctx),
+            'list'       => $this->listResolver->executeEvent($event, $ctx),
+            'generic'    => [new NormalizedItem($event)],
+        };
+    }
+
+    private function resolverTypeForKind(int $kind): string
+    {
+        return match (true) {
+            $kind === 30880 => 'expression',
+            $kind === 777   => 'spell',
+            in_array($kind, self::LIST_KINDS, true) => 'list',
+            default         => 'generic',
         };
     }
 }

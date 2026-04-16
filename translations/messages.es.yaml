@@ -57,6 +57,7 @@ nav:
     readingList: 'Lista de lectura'
     article: 'Artículo'
     expression: 'Expresión'
+    expressions: 'Expresiones'
     sendFeedback: 'Enviar comentarios'
     backToTop: 'Ir arriba'
     closeLeftSidebar: 'Cerrar barra lateral izquierda'
@@ -667,3 +668,20 @@ expressions:
     feedUrl: 'URL del Feed API'
     copyUrl: 'Copiar URL'
     createAnother: 'Crear Otra'
+
+# ── Lista de Expresiones ──────────────────────────────────────────
+expressionsList:
+    heading: 'Expresiones'
+    eyebrow: 'expresiones de feeds personalizados'
+    noExpressions: 'Aún no hay expresiones publicadas.'
+    stages: 'etapas'
+    createdBy: 'Creado por'
+    viewResults: 'Ver resultados'
+
+# ── Vista de Expresión ────────────────────────────────────────────
+expressionView:
+    by: 'Creado por'
+    noResults: 'Sin resultados para esta expresión.'
+    loginRequired: 'Inicia sesión para ver los resultados. Las expresiones se evalúan con tu contexto personal (contactos, intereses).'
+    backToList: 'Todas las Expresiones'
+

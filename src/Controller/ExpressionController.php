@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Dto\UserMetadata;
 use App\Enum\KindsEnum;
+use App\ExpressionBundle\Service\ExpressionService;
+use App\Repository\EventRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
+use App\Util\NostrKeyUtil;
+use Pagerfanta\Adapter\ArrayAdapter;
+use Pagerfanta\Pagerfanta;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,8 +25,9 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Expression creator — lets users build kind:30880 feed expression events
- * from predefined templates, customize them, sign, and publish.
+ * Expression creator and browser — lets users build kind:30880 feed expression
+ * events from predefined templates, view all published expressions, and
+ * see the evaluated results of any expression.
  */
 class ExpressionController extends AbstractController
 {
@@ -124,6 +132,12 @@ class ExpressionController extends AbstractController
         ];
     }
 
+    #[Route('/expressions', name: 'expression_list')]
+    public function list(): Response
+    {
+        return $this->render('expressions/index.html.twig');
+    }
+
     #[Route('/expressions/create', name: 'expression_create')]
     #[IsGranted('ROLE_USER')]
     public function create(): Response
@@ -131,6 +145,119 @@ class ExpressionController extends AbstractController
         return $this->render('expressions/create.html.twig', [
             'templates' => $this->getTemplates(),
         ]);
+    }
+
+    /**
+     * Expression view page — evaluates a kind:30880 expression and shows
+     * the resulting articles as cards, similar to follow-pack view.
+     */
+    #[Route('/expression/{npub}/{dtag}', name: 'expression_view', requirements: ['npub' => 'npub1[a-z0-9]+'])]
+    public function view(
+        string $npub,
+        string $dtag,
+        Request $request,
+        EventRepository $eventRepository,
+        ExpressionService $expressionService,
+        RedisCacheService $redisCacheService,
+    ): Response {
+        try {
+            $pubkey = NostrKeyUtil::npubToHex($npub);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException('Invalid npub.');
+        }
+
+        $expression = $eventRepository->findByNaddr(
+            KindsEnum::FEED_EXPRESSION->value,
+            $pubkey,
+            $dtag,
+        );
+
+        if (!$expression) {
+            throw $this->createNotFoundException('Expression not found.');
+        }
+
+        // Extract metadata
+        $title = '';
+        $description = null;
+        foreach ($expression->getTags() as $tag) {
+            $k = $tag[0] ?? '';
+            match ($k) {
+                'title' => $title = $tag[1] ?? '',
+                'description' => $description = $tag[1] ?? null,
+                default => null,
+            };
+        }
+        if (!$title) {
+            $title = $dtag;
+        }
+        if (!$description && $expression->getContent()) {
+            $description = $expression->getContent();
+        }
+
+        // Check if user is logged in — expression evaluation requires auth
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->render('expressions/view.html.twig', [
+                'title' => $title,
+                'description' => $description,
+                'authorNpub' => $npub,
+                'exprDtag' => $dtag,
+                'articles' => [],
+                'authorsMetadata' => [],
+                'needsLogin' => true,
+            ]);
+        }
+
+        // Evaluate the expression
+        try {
+            $userIdentifier = $user->getUserIdentifier();
+            $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
+                ? NostrKeyUtil::npubToHex($userIdentifier)
+                : $userIdentifier;
+
+            $results = $expressionService->evaluateCached($expression, $userPubkey);
+
+            // Extract Event entities from NormalizedItem results
+            $allArticles = array_map(fn($item) => $item->getEvent(), $results);
+
+            // Paginate
+            $page = max(1, (int) $request->query->get('page', 1));
+            $perPage = 20;
+            $pager = new Pagerfanta(new ArrayAdapter($allArticles));
+            $pager->setMaxPerPage($perPage);
+            $pager->setCurrentPage(min($page, max(1, $pager->getNbPages())));
+
+            $articles = array_slice($allArticles, ($pager->getCurrentPage() - 1) * $perPage, $perPage);
+
+            // Author metadata for cards
+            $articlePubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
+            $articleMetaMap = $redisCacheService->getMultipleMetadata($articlePubkeys);
+            $authorsMetadataStd = [];
+            foreach ($articleMetaMap as $pk => $meta) {
+                $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
+                    ? $meta->toStdClass() : $meta;
+            }
+
+            return $this->render('expressions/view.html.twig', [
+                'title' => $title,
+                'description' => $description,
+                'authorNpub' => $npub,
+                'exprDtag' => $dtag,
+                'articles' => $articles,
+                'authorsMetadata' => $authorsMetadataStd,
+                'pager' => $pager,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->render('expressions/view.html.twig', [
+                'title' => $title,
+                'description' => $description,
+                'authorNpub' => $npub,
+                'exprDtag' => $dtag,
+                'articles' => [],
+                'authorsMetadata' => [],
+                'error' => 'Could not evaluate expression: ' . $e->getMessage(),
+            ]);
+        }
     }
 
     /**

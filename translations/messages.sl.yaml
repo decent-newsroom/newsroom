@@ -57,6 +57,7 @@ nav:
     readingList: 'Bralni seznam'
     article: 'Članek'
     expression: 'Izraz'
+    expressions: 'Izrazi'
     sendFeedback: 'Pošlji povratno informacijo'
     backToTop: 'Na vrh'
     closeLeftSidebar: 'Zapri levo stransko vrstico'
@@ -667,3 +668,20 @@ expressions:
     feedUrl: 'URL vira API'
     copyUrl: 'Kopiraj URL'
     createAnother: 'Ustvari novega'
+
+# ── Seznam izrazov ────────────────────────────────────────────────
+expressionsList:
+    heading: 'Izrazi'
+    eyebrow: 'prilagojeni izrazi virov'
+    noExpressions: 'Še ni objavljenih izrazov.'
+    stages: 'korakov'
+    createdBy: 'Ustvaril/a'
+    viewResults: 'Poglej rezultate'
+
+# ── Pogled izraza ─────────────────────────────────────────────────
+expressionView:
+    by: 'Ustvaril/a'
+    noResults: 'Ni rezultatov za ta izraz.'
+    loginRequired: 'Prijavi se za ogled rezultatov. Izrazi se ovrednotijo z tvojim osebnim kontekstom (stiki, interesi).'
+    backToList: 'Vsi izrazi'
+

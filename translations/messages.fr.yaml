@@ -57,6 +57,7 @@ nav:
     readingList: 'Liste de lecture'
     article: 'Article'
     expression: 'Expression'
+    expressions: 'Expressions'
     sendFeedback: 'Envoyer un commentaire'
     backToTop: 'Retour en haut'
     closeLeftSidebar: 'Fermer la barre latérale gauche'
@@ -667,3 +668,20 @@ expressions:
     feedUrl: 'URL de l''API du flux'
     copyUrl: 'Copier l''URL'
     createAnother: 'Créer une autre'
+
+# ── Liste des Expressions ─────────────────────────────────────────
+expressionsList:
+    heading: 'Expressions'
+    eyebrow: 'expressions de flux personnalisés'
+    noExpressions: 'Aucune expression publiée pour le moment.'
+    stages: 'étapes'
+    createdBy: 'Créé par'
+    viewResults: 'Voir les résultats'
+
+# ── Vue d''Expression ─────────────────────────────────────────────
+expressionView:
+    by: 'Créé par'
+    noResults: 'Aucun résultat pour cette expression.'
+    loginRequired: 'Connectez-vous pour voir les résultats. Les expressions sont évaluées avec votre contexte personnel (contacts, intérêts).'
+    backToList: 'Toutes les Expressions'
+

@@ -57,6 +57,7 @@ nav:
     readingList: 'Leseliste'
     article: 'Artikel'
     expression: 'Ausdruck'
+    expressions: 'Ausdrücke'
     sendFeedback: 'Feedback senden'
     backToTop: 'Nach oben'
     closeLeftSidebar: 'Linke Seitenleiste schließen'
@@ -681,3 +682,20 @@ expressions:
     feedUrl: 'Feed-API-URL'
     copyUrl: 'URL kopieren'
     createAnother: 'Weiteren erstellen'
+
+# ── Ausdrücke-Liste ───────────────────────────────────────────────
+expressionsList:
+    heading: 'Ausdrücke'
+    eyebrow: 'benutzerdefinierte Feed-Ausdrücke'
+    noExpressions: 'Noch keine Ausdrücke veröffentlicht.'
+    stages: 'Stufen'
+    createdBy: 'Erstellt von'
+    viewResults: 'Ergebnisse anzeigen'
+
+# ── Ausdruck-Ansicht ─────────────────────────────────────────────
+expressionView:
+    by: 'Erstellt von'
+    noResults: 'Keine Ergebnisse für diesen Ausdruck.'
+    loginRequired: 'Melde dich an, um die Ergebnisse zu sehen. Ausdrücke werden mit deinem persönlichen Kontext (Kontakte, Interessen) ausgewertet.'
+    backToList: 'Alle Ausdrücke'
+
