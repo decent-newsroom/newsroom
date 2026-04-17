@@ -106,6 +106,12 @@ class OverEscapedMarkdownTest extends TestCase
         // Table pipes
         $this->assertStringContainsString('| Kind | Purpose | Encryption |', $result);
 
+        // Table rows must be on consecutive lines (no blank lines between them)
+        $this->assertStringContainsString(
+            "| Kind | Purpose | Encryption |\n|------|---------|------------|\n| 30800 | File content | NIP-44 (self) |",
+            $result,
+        );
+
         // No <br> tags left
         $this->assertStringNotContainsString('<br', $result);
 

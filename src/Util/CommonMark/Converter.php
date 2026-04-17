@@ -573,6 +573,20 @@ class Converter implements MarkdownConverterInterface
         // Collapse excessive blank lines that result from <br /> replacement.
         $content = preg_replace('/\n{3,}/', "\n\n", $content);
 
+        // Collapse blank lines between markdown table rows so the table is
+        // contiguous.  A table row starts with optional whitespace then `|`.
+        $content = preg_replace(
+            '/(\n[ \t]*\|[^\n]+)\n\n([ \t]*\|)/',
+            "$1\n$2",
+            $content,
+        );
+        // Run twice to handle three+ consecutive table rows separated by blanks
+        $content = preg_replace(
+            '/(\n[ \t]*\|[^\n]+)\n\n([ \t]*\|)/',
+            "$1\n$2",
+            $content,
+        );
+
         return $content;
     }
 
