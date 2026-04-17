@@ -879,6 +879,7 @@ followPackView:
 followPacks:
     heading: 'Pacchetti di follow'
     eyebrow: 'collezioni curate di autori'
+    create: 'Crea pacchetto'
     noPacks: 'Nessun pacchetto di follow con articoli ancora.'
     writers: 'autori'
     articles: 'articoli'

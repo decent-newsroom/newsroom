@@ -642,6 +642,7 @@ settings:
 followPacks:
     heading: 'Paquetes de seguimiento'
     eyebrow: 'colecciones curadas de autores'
+    create: 'Crear paquete'
     noPacks: 'Aún no hay paquetes de seguimiento con artículos.'
     writers: 'autores'
     articles: 'artículos'

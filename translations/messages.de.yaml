@@ -656,6 +656,7 @@ settings:
 followPacks:
     heading: 'Follow-Pakete'
     eyebrow: 'kuratierte Autorensammlungen'
+    create: 'Follow-Paket erstellen'
     noPacks: 'Noch keine Follow-Pakete mit Artikeln.'
     writers: 'Autoren'
     articles: 'Artikel'

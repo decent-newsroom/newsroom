@@ -13,8 +13,16 @@
 {% block body %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">
-            <h1>{{ 'followPacks.heading'|trans }}</h1>
+            <div class="d-flex align-items-center justify-content-between">
+                <h1>{{ 'followPacks.heading'|trans }}</h1>
+            </div>
             <p class="eyebrow">{{ 'followPacks.eyebrow'|trans }}</p>
+
+            <div class="d-flex align-items-center justify-content-between">
+            {% if app.user %}
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn-sm">{{ 'followPacks.create'|trans }}</a>
+            {% endif %}
+            </div>
         </div>
     </section>
     <section class="mb-5">

@@ -642,6 +642,7 @@ settings:
 followPacks:
     heading: 'Packs de suivi'
     eyebrow: 'collections d''auteurs sélectionnés'
+    create: 'Créer un pack'
     noPacks: 'Pas encore de packs de suivi avec des articles.'
     writers: 'auteurs'
     articles: 'articles'

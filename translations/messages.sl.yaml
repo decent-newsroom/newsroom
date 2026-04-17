@@ -642,6 +642,7 @@ settings:
 followPacks:
     heading: 'Paketi za sledenje'
     eyebrow: 'izbrane zbirke avtorjev'
+    create: 'Ustvari paket'
     noPacks: 'Še ni paketov za sledenje s članki.'
     writers: 'avtorjev'
     articles: 'člankov'
