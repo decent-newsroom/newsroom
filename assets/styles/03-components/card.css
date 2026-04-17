@@ -67,6 +67,18 @@ article .card:not(.zap-modal-content,.comment) {
     object-fit: cover;
 }
 
+.card-placeholder-bg {
+    width: 100%;
+    height: 200px;
+}
+
+@media screen and (min-width: 1200px) {
+    .featured-list .card-placeholder-bg {
+        height: auto;
+        aspect-ratio: 1.4;
+    }
+}
+
 @media screen and (min-width: 1200px) {
     .featured-list .card-header img {
         max-height: initial !important;

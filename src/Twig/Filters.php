@@ -26,6 +26,7 @@ class Filters extends AbstractExtension
             new TwigFilter('naddrEncode', [$this, 'naddrEncode']),
             new TwigFilter('toNpub', [$this, 'toNpub']),
             new TwigFilter('toHex', [$this, 'toHex']),
+            new TwigFilter('pastelHue', [$this, 'pastelHue']),
         ];
     }
 
@@ -134,5 +135,13 @@ class Filters extends AbstractExtension
         } catch (\Throwable) {
             return $npub; // Return original string if conversion fails
         }
+    }
+
+    /**
+     * Returns a deterministic hue (0–359) from a string, for use in pastel backgrounds.
+     */
+    public function pastelHue(string $input): int
+    {
+        return abs(crc32($input)) % 360;
     }
 }

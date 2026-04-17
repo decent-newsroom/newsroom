@@ -22,7 +22,10 @@
         <a href="{{ link }}" data-turbo-frame="_top">
             <div class="card-header">
                 {% if article.image %}
-                    <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none';" >
+                    <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" >
+                    <div class="card-placeholder-bg" style="display:none; background-color: hsl({{ (article.slug|default(article.title))|pastelHue }}, 70%, 85%);"></div>
+                {% else %}
+                    <div class="card-placeholder-bg" style="background-color: hsl({{ (article.slug|default(article.title))|pastelHue }}, 70%, 85%);"></div>
                 {% endif %}
             </div>
             {% if source_labels|default([])|length > 0 or category_label|default(null) %}
