@@ -31,7 +31,8 @@
     flex: 1;
 }
 
-.related-articles__item .card .card-header img {
+.related-articles__item .card .card-header img,
+.related-articles__item .card .card-header .card-placeholder-bg {
     max-height: 140px;
     object-fit: cover;
 }
