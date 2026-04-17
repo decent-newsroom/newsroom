@@ -1563,7 +1563,7 @@ class DefaultController extends AbstractController
      * Nostr Preview endpoint for Nostr identifiers (naddr, nevent, note, npub, nprofile)
      */
     #[Route('/api/preview/', name: 'nostr_preview', methods: ['POST'])]
-    public function nostrPreview(RequestStack $requestStack, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    public function nostrPreview(RequestStack $requestStack, EntityManagerInterface $entityManager, LoggerInterface $logger, RedisCacheService $redisCacheService): Response
     {
         $request = $requestStack->getCurrentRequest();
         $data = json_decode($request->getContent(), true);
@@ -1600,7 +1600,7 @@ class DefaultController extends AbstractController
                     return $this->handleEventPreview($decoded, $entityManager, $logger);
                 case 'npub':
                 case 'nprofile':
-                    return $this->handleProfilePreview($decoded, $entityManager, $logger);
+                    return $this->handleProfilePreview($decoded, $entityManager, $logger, $redisCacheService);
                 default:
                     return new Response('<div class="alert alert-warning">Unsupported preview type: ' . htmlspecialchars($type) . '</div>', 200);
             }
@@ -1665,13 +1665,59 @@ class DefaultController extends AbstractController
 
     private function handleEventPreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
     {
-        // For now, just show a basic preview
-        return new Response('<div class="alert alert-info">Event preview coming soon.</div>', 200);
+        $eventId = $decoded['id'] ?? ($decoded[0] ?? null);
+
+        if (!$eventId) {
+            return new Response('<div class="alert alert-warning">Invalid event identifier.</div>', 200);
+        }
+
+        // Try to find the event in database
+        $event = $entityManager->getRepository(Event::class)->findOneBy(['eventId' => $eventId]);
+
+        if ($event) {
+            $content = $event->getPayload()['content'] ?? '';
+            $kind = $event->getKind();
+
+            return new Response(
+                '<div class="nostr-event-preview p-3">' .
+                '<span class="badge" style="background: var(--color-info, #17a2b8);">Kind: ' . (int)$kind . '</span> ' .
+                '<p class="mt-2 mb-0 text-muted small line-clamp-3">' . htmlspecialchars(mb_substr($content, 0, 300)) . '</p>' .
+                '</div>',
+                200
+            );
+        }
+
+        return new Response('<div class="alert alert-info">Event not found locally.</div>', 200);
     }
 
-    private function handleProfilePreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger): Response
+    private function handleProfilePreview(array $decoded, EntityManagerInterface $entityManager, LoggerInterface $logger, RedisCacheService $redisCacheService): Response
     {
-        // For now, just show a basic preview
-        return new Response('<div class="alert alert-info">Profile preview coming soon.</div>', 200);
+        // decoded data contains hex pubkey directly or nested
+        $pubkey = $decoded['pubkey'] ?? ($decoded[0] ?? null);
+
+        if (!$pubkey || !NostrKeyUtil::isHexPubkey($pubkey)) {
+            $logger->warning('Profile preview: invalid or missing pubkey', ['decoded' => $decoded]);
+            return new Response('<div class="alert alert-warning">Invalid profile identifier.</div>', 200);
+        }
+
+        try {
+            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            $metadata = $redisCacheService->getMetadata($pubkey);
+            $user = $metadata->toStdClass();
+
+            return $this->render('components/Molecules/ProfilePreview.html.twig', [
+                'user' => $user,
+                'npub' => $npub,
+                'pubkey' => $pubkey,
+            ]);
+        } catch (\Exception $e) {
+            $logger->error('Failed to load profile preview', ['pubkey' => $pubkey, 'error' => $e->getMessage()]);
+            $npub = NostrKeyUtil::hexToNpub($pubkey);
+            return $this->render('components/Molecules/ProfilePreview.html.twig', [
+                'user' => null,
+                'npub' => $npub,
+                'pubkey' => $pubkey,
+            ]);
+        }
     }
 }

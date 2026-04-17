@@ -3,6 +3,7 @@
 ## v0.0.31
 
 - Made raw event JSON block on article and event pages collapsible (collapsed by default) for admin users.
+- Implemented profile preview for npub/nprofile mentions in comments — profiles now show avatar, display name, NIP-05, and bio instead of "coming soon". Also implemented basic event preview for nevent/note references.
 - Added "while-you're-at-it" cleanup: all event ingestion paths (`GenericEventProjector`, `PersistGatewayEventsHandler`, `ArticleEventProjector`, `MediaEventProjector`) now automatically delete older versions of replaceable events and article revisions when a newer one is persisted. Extracted shared `ReplaceableEventCleanupService` for consistent NIP-01 replaceable event semantics across the codebase.
 - Added progress feedback to `db:cleanup` command, showing batch-by-batch deletion progress and a summary on completion.
 - [Bug] Fixed `articles:process-html --naddr` not selecting the latest article revision — the query lacked `ORDER BY created_at DESC`, so an older revision could be updated while the article page served the latest one. The command now processes all revisions and invalidates Redis article caches (`view:articles:latest`, per-author views) so the fix is visible immediately.
