@@ -543,6 +543,40 @@ class Converter implements MarkdownConverterInterface
     /**
      * Normalize emphasis markers that contain interior whitespace.
      *
+     * Detect content where a Nostr client has backslash-escaped markdown
+     * punctuation characters (e.g. \*\*bold\*\*, \#\# Heading, \- list item,
+     * \[link\]\(url\)).  When escapes are pervasive we strip the backslashes
+     * so CommonMark can parse the intended formatting.
+     *
+     * Also normalises `<br />` tag-only line separators (common in the same
+     * clients) into double-newlines for proper paragraph breaks.
+     */
+    private function unescapeOverEscapedMarkdown(string $content): string
+    {
+        // Count backslash-escaped markdown punctuation characters.
+        // The characters that matter: * # - [ ] ( ) | : ` > ! ~
+        $escapedCount = preg_match_all('/\\\\[*#\-\[\]()|:>`!~]/', $content);
+
+        // Heuristic: if there are many escapes relative to content length,
+        // the content was over-escaped by the publishing client.
+        if ($escapedCount < 8) {
+            return $content;
+        }
+
+        // Replace <br /> (with optional whitespace/newlines around it) with
+        // double newlines for proper markdown paragraph separation.
+        $content = preg_replace('/\s*<br\s*\/?>\s*/i', "\n\n", $content);
+
+        // Remove backslash escapes before markdown-significant punctuation.
+        $content = preg_replace('/\\\\([*#\-\[\]()|:>`!~])/', '$1', $content);
+
+        // Collapse excessive blank lines that result from <br /> replacement.
+        $content = preg_replace('/\n{3,}/', "\n\n", $content);
+
+        return $content;
+    }
+
+    /**
      * Many Nostr clients and authors leave spaces inside bold/italic markers
      * (e.g. "*text *" or "** text **").  The CommonMark spec requires emphasis
      * delimiters to be "flanking" — the opening delimiter must not be followed
@@ -657,6 +691,12 @@ class Converter implements MarkdownConverterInterface
      */
     private function convertMarkdownToHTML(string $markdown): string
     {
+        // Some Nostr clients publish content with backslash-escaped markdown
+        // punctuation (e.g. \*\*bold\*\*, \#\# heading, \- list item).
+        // CommonMark treats these as literal characters, producing raw syntax
+        // in the output.  Detect and unescape when the pattern is pervasive.
+        $markdown = $this->unescapeOverEscapedMarkdown($markdown);
+
         // Decode HTML entities early so that constructs like &#x20; inside
         // emphasis markers are visible as real whitespace to the normaliser
         // (e.g. "*text&#x20;*" → "*text *" → " *text*").

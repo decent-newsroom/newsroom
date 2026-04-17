@@ -2,6 +2,7 @@
 
 ## v0.0.31
 
+- [Bug] Fixed article HTML rendering for content published with over-escaped markdown (backslash-escaped `\*\*`, `\#\#`, `\-`, `\[`, etc.) and `<br />` line separators — the converter now detects this pattern and unescapes before parsing, so headings, bold, lists, links, and tables render correctly.
 - [Bug] Fixed markdown converter choking on emphasis markers containing HTML-encoded whitespace (`&#x20;`) — entities are now decoded before emphasis normalization so that constructs like `*text&#x20;*` are properly handled.
 - Added "Create Follow Pack" link to the follow packs page heading (visible to logged-in users).
 - Added pastel-colored placeholder backgrounds for article cards without cover images, so the layout no longer looks broken when images are missing.
