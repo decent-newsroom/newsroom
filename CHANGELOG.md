@@ -2,6 +2,7 @@
 
 ## v0.0.31
 
+- [Bug] Fixed markdown converter choking on emphasis markers containing HTML-encoded whitespace (`&#x20;`) — entities are now decoded before emphasis normalization so that constructs like `*text&#x20;*` are properly handled.
 - Added pastel-colored placeholder backgrounds for article cards without cover images, so the layout no longer looks broken when images are missing.
 - Made raw event JSON block on article and event pages collapsible (collapsed by default) for admin users.
 - Implemented profile preview for npub/nprofile mentions in comments — profiles now show avatar, display name, NIP-05, and bio instead of "coming soon". Also implemented basic event preview for nevent/note references.

@@ -657,6 +657,11 @@ class Converter implements MarkdownConverterInterface
      */
     private function convertMarkdownToHTML(string $markdown): string
     {
+        // Decode HTML entities early so that constructs like &#x20; inside
+        // emphasis markers are visible as real whitespace to the normaliser
+        // (e.g. "*text&#x20;*" → "*text *" → " *text*").
+        $markdown = html_entity_decode($markdown);
+
         // Normalize emphasis markers with interior whitespace so that
         // CommonMark recognises them as flanking delimiters.
         $markdown = $this->normalizeEmphasisWhitespace($markdown);
@@ -692,7 +697,7 @@ class Converter implements MarkdownConverterInterface
         }
 
         $converter = new MarkdownConverter($env);
-        $html = (string) $converter->convert(html_entity_decode($markdown));
+        $html = (string) $converter->convert($markdown);
 
         // Restore math expressions that were extracted before CommonMark
         // processing.  The placeholders are pure alphanumeric tokens that
