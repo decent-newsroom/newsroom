@@ -383,6 +383,7 @@ comments:
     publishComment: 'Publish Comment'
     label: 'Comment'
     zap: 'Zap'
+    replyingTo: 'Replying to'
 
 # ── User Menu / Auth ──────────────────────────────────────────────
 auth:

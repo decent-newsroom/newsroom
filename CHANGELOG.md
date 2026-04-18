@@ -3,6 +3,7 @@
 ## v0.0.32
 
 - [Bug] Fixed bold/italic wrapping a single punctuation character followed immediately by a word (e.g. `**#**livingmen`) not rendering as emphasis — CommonMark's flanking delimiter rules reject the closing `**` in this case, so these patterns are now pre-converted to HTML `<strong>`/`<em>` tags before parsing.
+- Improved comment rendering with proper NIP-22 tag semantics: replies to comments now show "Replying to Name1, Name2" (from lowercase `p` tags, hydrated via profile cache) and a one-line preview of the parent comment (from lowercase `e` tag). Only displayed for actual reply-to-comment threads (`k` = 1111), not top-level article comments. Uppercase `P`/`E` tags (root scope) are correctly distinguished from lowercase parent-scope tags.
 
 ## v0.0.31
 

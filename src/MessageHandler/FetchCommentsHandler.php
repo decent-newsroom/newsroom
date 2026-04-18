@@ -7,6 +7,7 @@ use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\CommentEventProjector;
 use App\Service\Nostr\NostrClient;
+use App\Util\Nip22TagParser;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -145,7 +146,7 @@ class FetchCommentsHandler
         }, $events);
     }
 
-    /** Collect pubkeys (authors + zappers), hydrate profiles via your Redis cache, compute max_ts */
+    /** Collect pubkeys (authors + p-tag reply targets + zappers), hydrate profiles via Redis cache, compute max_ts */
     private function hydrateProfilesAndTs(array $comments): array
     {
         $keys = [];
@@ -153,16 +154,12 @@ class FetchCommentsHandler
 
         foreach ($comments as $c) {
             $maxTs = max($maxTs, (int)($c->created_at ?? 0));
-            if (!empty($c->pubkey)) {
-                $keys[] = $c->pubkey;
-            }
-            if (($c->kind ?? null) == 9735) {
-                foreach (($c->tags ?? []) as $tag) {
-                    if (($tag[0] ?? null) === 'p' && isset($tag[1])) {
-                        $keys[] = $tag[1];
-                    }
-                }
-            }
+            $collected = Nip22TagParser::collectPubkeys(
+                $c->pubkey ?? null,
+                $c->tags ?? [],
+                is_numeric($c->kind ?? null) ? (int) $c->kind : null
+            );
+            $keys = array_merge($keys, $collected);
         }
 
         $keys = array_values(array_unique($keys));

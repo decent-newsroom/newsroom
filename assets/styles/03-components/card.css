@@ -110,6 +110,30 @@ article .card:not(.zap-modal-content,.comment) {
     padding: 0;
 }
 
+.comment-replying-to {
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-1);
+}
+
+.comment-parent-preview {
+    background-color: var(--color-bg);
+    border-left: 2px solid var(--color-text-muted);
+    padding: var(--spacing-1) var(--spacing-2);
+    margin-bottom: var(--spacing-1);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.comment-parent-preview__author {
+    font-weight: 600;
+    margin-right: var(--spacing-1);
+}
+
+.comment-parent-preview__text {
+    color: var(--color-text-muted);
+}
+
 .card.embed {
     background-color: var(--color-bg-light);
 }

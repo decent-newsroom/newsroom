@@ -6,6 +6,7 @@ use App\Message\FetchCommentsMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\NostrLinkParser;
+use App\Util\Nip22TagParser;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
@@ -34,6 +35,10 @@ final class Comments
     public array $zapAmounts = [];
     public array $zappers = [];
     public array $authorsMetadata = [];
+    /** @var array<string, string[]> comment ID → list of display names being replied to */
+    public array $replyingTo = [];
+    /** @var array<string, array{pubkey: string, content: string}|null> comment ID → parent comment preview */
+    public array $parentPreview = [];
     public bool  $loading = true;
 
     public function __construct(
@@ -77,6 +82,7 @@ final class Comments
 
                 $this->parseZaps();
                 $this->parseNostrLinks();
+                $this->parseReplyMetadata();
             }
         } catch (\Throwable) {
             // DB unavailable – fall through to loading state
@@ -106,8 +112,9 @@ final class Comments
 
         $this->authorsMetadata = $data['profiles'] ?? [];
 
-        $this->parseZaps();         // your existing method – fills $zapAmounts & $zappers
-        $this->parseNostrLinks();   // your existing method – fills $commentLinks & $processedContent
+        $this->parseZaps();
+        $this->parseNostrLinks();
+        $this->parseReplyMetadata();
 
         $this->loading = false;
     }
@@ -203,6 +210,87 @@ final class Comments
     }
 
     // --- Helpers ---
+
+    /**
+     * Parse NIP-22 tags to build reply metadata using Nip22TagParser.
+     *
+     * Only populates "replying to" and parent preview for replies to
+     * other comments (parentKind = 1111), not top-level article comments.
+     */
+    private function parseReplyMetadata(): void
+    {
+        // Index comments by ID for parent lookups
+        $commentsById = [];
+        foreach ($this->list as $comment) {
+            if (!empty($comment['id'])) {
+                $commentsById[$comment['id']] = $comment;
+            }
+        }
+
+        $neededPubkeys = [];
+
+        foreach ($this->list as $comment) {
+            $commentId = $comment['id'] ?? null;
+            $tags = $comment['tags'] ?? [];
+
+            if (empty($commentId) || empty($tags) || !is_array($tags)) {
+                continue;
+            }
+
+            $parsed = Nip22TagParser::parse($tags);
+
+            // Only show reply metadata for replies to other comments
+            if ($parsed['parentKind'] !== '1111') {
+                continue;
+            }
+
+            // 1) "Replying to" from lowercase p-tags, excluding self
+            $pTagPubkeys = array_filter(
+                $parsed['parentPubkeys'],
+                fn(string $pk) => $pk !== ($comment['pubkey'] ?? '')
+            );
+            if (!empty($pTagPubkeys)) {
+                $pTagPubkeys = array_values(array_unique($pTagPubkeys));
+                $this->replyingTo[$commentId] = $pTagPubkeys;
+                foreach ($pTagPubkeys as $pk) {
+                    $neededPubkeys[$pk] = true;
+                }
+            }
+
+            // 2) Parent comment preview from lowercase e-tag
+            $parentId = $parsed['parentEventId'];
+            if ($parentId !== null && isset($commentsById[$parentId])) {
+                $parent = $commentsById[$parentId];
+                $parentPubkey = $parent['pubkey'] ?? '';
+                $neededPubkeys[$parentPubkey] = true;
+                $this->parentPreview[$commentId] = [
+                    'pubkey' => $parentPubkey,
+                    'content' => mb_strimwidth($parent['content'] ?? '', 0, 120, '…'),
+                ];
+            }
+        }
+
+        // Hydrate any missing metadata for referenced pubkeys
+        $missingPubkeys = array_diff(array_keys($neededPubkeys), array_keys($this->authorsMetadata));
+        if (!empty($missingPubkeys)) {
+            $extra = $this->redisCacheService->getMultipleMetadata(array_values($missingPubkeys));
+            $this->authorsMetadata = array_merge($this->authorsMetadata, $extra);
+        }
+
+        // Resolve pubkeys to display names
+        foreach ($this->replyingTo as $commentId => $pubkeys) {
+            $names = [];
+            foreach ($pubkeys as $pk) {
+                $meta = $this->authorsMetadata[$pk] ?? null;
+                $name = null;
+                if ($meta) {
+                    $name = $meta['display_name'] ?? $meta['name'] ?? null;
+                }
+                $names[] = $name ?: substr($pk, 0, 8) . '…';
+            }
+            $this->replyingTo[$commentId] = $names;
+        }
+    }
 
     /**
      * Find first tag value by key.

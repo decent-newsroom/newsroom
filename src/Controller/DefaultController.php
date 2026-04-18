@@ -1697,7 +1697,10 @@ class DefaultController extends AbstractController
 
         if (!$pubkey || !NostrKeyUtil::isHexPubkey($pubkey)) {
             $logger->warning('Profile preview: invalid or missing pubkey', ['decoded' => $decoded]);
-            return new Response('<div class="alert alert-warning">Invalid profile identifier.</div>', 200);
+            if ($this->isGranted('ROLE_ADMIN')) {
+                return new Response('<div class="alert alert-warning">Invalid profile identifier.</div>', 200);
+            }
+            return new Response('', 200);
         }
 
         try {

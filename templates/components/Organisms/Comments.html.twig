@@ -24,6 +24,25 @@
                     <small>{{ item.created_at|date('F j Y') }}</small>
                 </div>
 
+                {# Replying to names from p-tags #}
+                {% if replyingTo[item.id] is defined and replyingTo[item.id]|length > 0 %}
+                    <div class="comment-replying-to">
+                        <small>{{ 'comments.replyingTo'|trans }} {{ replyingTo[item.id]|join(', ') }}</small>
+                    </div>
+                {% endif %}
+
+                {# Parent comment one-line preview #}
+                {% if parentPreview[item.id] is defined %}
+                    <div class="comment-parent-preview">
+                        <small>
+                            {% set parentMeta = authorsMetadata[parentPreview[item.id].pubkey] ?? null %}
+                            {% set parentName = parentMeta ? (parentMeta.display_name ?? parentMeta.name ?? parentPreview[item.id].pubkey[:8] ~ '…') : parentPreview[item.id].pubkey[:8] ~ '…' %}
+                            <span class="comment-parent-preview__author">{{ parentName }}:</span>
+                            <span class="comment-parent-preview__text">{{ parentPreview[item.id].content }}</span>
+                        </small>
+                    </div>
+                {% endif %}
+
                 <div class="card-body">
                     {% if item.kind is defined and item.kind == '9735' %}
                         <div class="zap-amount">
