@@ -92,6 +92,7 @@ main.editor-layout {
 
 .editor-tab:hover {
     background: var(--hover, #f3f4f6);
+    color: var(--color-text-mid) !important;
 }
 
 .editor-tab.is-active {
