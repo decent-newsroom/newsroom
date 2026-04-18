@@ -696,6 +696,7 @@ expressionsList:
     eyebrow: 'benutzerdefinierte Feed-Ausdrücke'
     noExpressions: 'Noch keine Ausdrücke veröffentlicht.'
     stages: 'Stufen'
+    createNew: 'Neuen Ausdruck erstellen'
     createdBy: 'Erstellt von'
     viewResults: 'Ergebnisse anzeigen'
     edit: 'Bearbeiten'

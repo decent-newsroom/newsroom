@@ -682,6 +682,7 @@ expressionsList:
     eyebrow: 'prilagojeni izrazi virov'
     noExpressions: 'Še ni objavljenih izrazov.'
     stages: 'korakov'
+    createNew: 'Ustvari nov izraz'
     createdBy: 'Ustvaril/a'
     viewResults: 'Poglej rezultate'
     edit: 'Uredi'

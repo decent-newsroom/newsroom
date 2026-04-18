@@ -682,6 +682,7 @@ expressionsList:
     eyebrow: 'expresiones de feeds personalizados'
     noExpressions: 'Aún no hay expresiones publicadas.'
     stages: 'etapas'
+    createNew: 'Crear nueva expresión'
     createdBy: 'Creado por'
     viewResults: 'Ver resultados'
     edit: 'Editar'

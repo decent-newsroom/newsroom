@@ -682,6 +682,7 @@ expressionsList:
     eyebrow: 'expressions de flux personnalisés'
     noExpressions: 'Aucune expression publiée pour le moment.'
     stages: 'étapes'
+    createNew: 'Créer une nouvelle expression'
     createdBy: 'Créé par'
     viewResults: 'Voir les résultats'
     edit: 'Modifier'

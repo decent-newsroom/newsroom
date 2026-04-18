@@ -922,6 +922,7 @@ expressionsList:
     eyebrow: 'custom feed expressions'
     noExpressions: 'No expressions published yet.'
     stages: 'stages'
+    createNew: 'Create New Expression'
     createdBy: 'Created by'
     viewResults: 'View results'
     edit: 'Edit'

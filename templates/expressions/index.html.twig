@@ -13,8 +13,15 @@
 {% block body %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">
-            <h1>{{ 'expressionsList.heading'|trans }}</h1>
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>{{ 'expressionsList.heading'|trans }}</h1>
+            </div>
             <p class="eyebrow">{{ 'expressionsList.eyebrow'|trans }}</p>
+            <div class="d-flex justify-content-between align-items-center">
+            {% if app.user %}
+                <a href="{{ path('expression_create') }}" class="btn btn-sm">{{ 'expressionsList.createNew'|trans }}</a>
+            {% endif %}
+            </div>
         </div>
     </section>
     <section class="mb-5">
