@@ -55,19 +55,6 @@
                     {% endif %}
                     <twig:Atoms:Content content="{{ item.content }}" />
                 </div>
-
-                {# Display Nostr link previews if links detected #}
-                {% if commentLinks[item.id] is defined and commentLinks[item.id]|length > 0 %}
-                    <div class="card-footer nostr-previews mt-3">
-                        <div class="preview-container">
-                            {% for link in commentLinks[item.id] %}
-                                <div>
-                                    <twig:Molecules:NostrPreview preview="{{ link }}" />
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
             </div>
         {% else %}
             <div class="no-comments">{{ 'comments.noComments'|trans }}</div>

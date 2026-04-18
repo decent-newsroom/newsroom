@@ -120,7 +120,10 @@ final class Comments
     }
 
     /**
-     * Parse Nostr links in comments for client-side loading
+     * Parse Nostr links in comments and store processed content.
+     *
+     * Inline rendering is handled by Atoms:Content + resolve_nostr_embeds,
+     * so we only track processed content here for reference.
      */
     private function parseNostrLinks(): void
     {
@@ -132,16 +135,7 @@ final class Comments
                 continue;
             }
 
-            // Store the original content
             $this->processedContent[$commentId] = $content;
-
-            // Parse the content for Nostr links
-            $links = $this->nostrLinkParser->parseLinks($content);
-
-            if (!empty($links)) {
-                // Save the links for the client-side to fetch
-                $this->commentLinks[$commentId] = $links;
-            }
         }
     }
 
