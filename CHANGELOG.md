@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.33
+
+- [Bug] Fixed lightbox z-index, so it's full screen now.
+
+
 ## v0.0.32
 Comments.
 
