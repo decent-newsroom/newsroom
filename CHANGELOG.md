@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.32
+
+- [Bug] Fixed bold/italic wrapping a single punctuation character followed immediately by a word (e.g. `**#**livingmen`) not rendering as emphasis — CommonMark's flanking delimiter rules reject the closing `**` in this case, so these patterns are now pre-converted to HTML `<strong>`/`<em>` tags before parsing.
+
 ## v0.0.31
 
 - [Bug] Fixed article HTML rendering for content published with over-escaped markdown (backslash-escaped `\*\*`, `\#\#`, `\-`, `\[`, etc.) and `<br />` line separators — the converter now detects this pattern and unescapes before parsing, so headings, bold, lists, links, and tables render correctly.

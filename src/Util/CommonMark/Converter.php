@@ -720,6 +720,24 @@ class Converter implements MarkdownConverterInterface
         // CommonMark recognises them as flanking delimiters.
         $markdown = $this->normalizeEmphasisWhitespace($markdown);
 
+        // CommonMark flanking rules: a closing ** (or *) preceded by punctuation
+        // is only right-flanking if the next char is whitespace or punctuation.
+        // So "**#**word" won't close because '#' is punctuation and 'w' is not.
+        // Pre-convert these to HTML <strong>/<em> tags since CommonMark cannot
+        // handle them natively.
+        // Bold: **P**word where P is a punctuation character
+        $markdown = preg_replace(
+            '/\*\*(\p{P})\*\*(?=\S)/u',
+            '<strong>$1</strong>',
+            $markdown,
+        ) ?? $markdown;
+        // Italic: *P*word
+        $markdown = preg_replace(
+            '/(?<!\*)\*(\p{P})\*(?!\*)(?=\S)/u',
+            '<em>$1</em>',
+            $markdown,
+        ) ?? $markdown;
+
         $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
         $config = [
