@@ -8,6 +8,7 @@ use App\ExpressionBundle\Exception\InvalidArgumentException;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
 use Psr\Log\LoggerInterface;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 
 /**
@@ -39,6 +40,9 @@ final class SourceResolver implements SourceResolverInterface
     /** @return NormalizedItem[] */
     public function resolve(array $inputRef, RuntimeContext $ctx): array
     {
+        // Detect and decode bech32-encoded references (nevent1..., naddr1..., note1...)
+        $inputRef = $this->decodeBech32Input($inputRef);
+
         $this->logger->debug('Resolving input reference', [
             'type' => $inputRef[0],
             'ref' => substr($inputRef[1] ?? '', 0, 64),
@@ -69,5 +73,52 @@ final class SourceResolver implements SourceResolverInterface
         }
 
         return $items;
+    }
+
+    /**
+     * If the reference value is a bech32-encoded Nostr identifier (nevent, naddr, note),
+     * decode it and convert to the appropriate [type, reference] pair.
+     */
+    private function decodeBech32Input(array $inputRef): array
+    {
+        $ref = $inputRef[1] ?? '';
+
+        // Strip nostr: prefix if present
+        if (str_starts_with($ref, 'nostr:')) {
+            $ref = substr($ref, 6);
+        }
+
+        if (str_starts_with($ref, 'nevent1') || str_starts_with($ref, 'note1')) {
+            try {
+                $nip19 = new Nip19Helper();
+                $decoded = $nip19->decode($ref);
+                if (isset($decoded['event_id'])) {
+                    return ['e', $decoded['event_id']];
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to decode bech32 nevent/note', [
+                    'ref' => substr($ref, 0, 64),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if (str_starts_with($ref, 'naddr1')) {
+            try {
+                $nip19 = new Nip19Helper();
+                $decoded = $nip19->decode($ref);
+                if (isset($decoded['kind'], $decoded['author'], $decoded['identifier'])) {
+                    $address = $decoded['kind'] . ':' . $decoded['author'] . ':' . $decoded['identifier'];
+                    return ['a', $address];
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to decode bech32 naddr', [
+                    'ref' => substr($ref, 0, 64),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $inputRef;
     }
 }

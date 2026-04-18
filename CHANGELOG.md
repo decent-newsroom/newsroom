@@ -3,6 +3,7 @@
 ## v0.0.33
 
 - [Bug] Fixed lightbox z-index, so it's full screen now.
+- [Bug] Fixed expression evaluation failing when input references use bech32-encoded identifiers (nevent1, naddr1, note1) instead of raw hex event IDs or address coordinates. The SourceResolver now auto-decodes bech32 references before routing to the appropriate resolver.
 
 
 ## v0.0.32
