@@ -70,6 +70,7 @@ framework:
             'App\Message\FetchMediaEventsMessage': async
             'App\Message\FetchMissingCurationMediaMessage': async
             'App\Message\FetchEventFromRelaysMessage': async
+            'App\Message\EvaluateExpressionMessage': async
             'App\Message\ProjectMagazineMessage': async
             # --- Low priority: login warmup, gateway persistence, relay lists ---
             # Relay list warming on login - fetch from network and persist to DB

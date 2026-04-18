@@ -39,6 +39,26 @@ final class FeedCacheService
     }
 
     /**
+     * Read-only cache check. Returns cached items or null on miss.
+     * @return array|null NormalizedItem[] or null
+     */
+    public function get(string $cacheKey): ?array
+    {
+        try {
+            $item = $this->cache->getItem($cacheKey);
+            if ($item->isHit()) {
+                $cached = $item->get();
+                if (is_array($cached)) {
+                    return $cached;
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('Feed cache read failed', ['cacheKey' => $cacheKey, 'error' => $e->getMessage()]);
+        }
+        return null;
+    }
+
+    /**
      * @param callable $factory Returns NormalizedItem[]
      * @return array NormalizedItem[]
      */

@@ -942,4 +942,8 @@ expressionView:
     noResults: 'No results from this expression.'
     loginRequired: 'Log in to view expression results. Expressions are evaluated with your personal context (contacts, interests).'
     backToList: 'All Expressions'
+    evaluating: 'Evaluating expression…'
+    evaluatingDetail: 'Fetching and filtering events from relays. This may take a moment.'
+    takingLonger: 'This is taking longer than usual. Complex expressions need more time.'
+    evaluationFailed: 'Expression evaluation failed. Please try again later.'
 

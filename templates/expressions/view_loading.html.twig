@@ -1,0 +1,59 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ title }} — {{ brand_name }}{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if description %}
+        <meta property="og:description" content="{{ description }}">
+    {% endif %}
+    <meta property="og:site_name" content="{{ brand_name }}">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5">
+            <h1>{{ title }}</h1>
+            {% if description %}
+                <p class="eyebrow">{{ description }}</p>
+            {% endif %}
+            <div>
+                {{ 'expressionView.by'|trans }}
+                <twig:Molecules:UserFromNpub :ident="authorNpub" />
+            </div>
+        </div>
+    </section>
+
+    <section class="w-container mb-5"
+             data-controller="content--expression-feed"
+             data-content--expression-feed-topic-value="{{ mercureTopic }}"
+             data-content--expression-feed-timeout-value="60000"
+    >
+        <div data-content--expression-feed-target="spinner" class="text-center py-5">
+            <div class="spinner mb-3"></div>
+            <h3 data-content--expression-feed-target="statusHeading">{{ 'expressionView.evaluating'|trans }}</h3>
+            <p data-content--expression-feed-target="statusDetail" class="text-muted">
+                {{ 'expressionView.evaluatingDetail'|trans }}
+            </p>
+        </div>
+
+        <div data-content--expression-feed-target="slowNotice" style="display: none" class="text-center py-3">
+            <p class="text-muted">{{ 'expressionView.takingLonger'|trans }}</p>
+        </div>
+
+        <div data-content--expression-feed-target="error" style="display: none">
+            <div class="alert alert-warning">
+                {{ 'expressionView.evaluationFailed'|trans }}
+            </div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+        <a href="{{ path('expression_list') }}" class="btn btn-sm">← {{ 'expressionView.backToList'|trans }}</a>
+    </div>
+{% endblock %}
+

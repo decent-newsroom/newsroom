@@ -77,6 +77,27 @@ final class ExpressionService
         return $this->cache->getOrSet($cacheKey, fn() => $this->evaluate($expression, $userPubkey));
     }
 
+    /**
+     * Build the cache key for an expression + user without evaluating.
+     */
+    public function buildCacheKey(Event $expression, string $userPubkey): string
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        return $this->cache->buildKey($expression, $ctx);
+    }
+
+    /**
+     * Check if cached results exist for this expression + user.
+     * @return NormalizedItem[]|null  Cached results or null if cache is cold
+     */
+    public function getCachedResults(Event $expression, string $userPubkey): ?array
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        $cacheKey = $this->cache->buildKey($expression, $ctx);
+
+        return $this->cache->get($cacheKey);
+    }
+
     private function buildCoordinate(Event $expression): string
     {
         $dTag = '';

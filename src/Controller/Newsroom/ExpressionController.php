@@ -7,6 +7,7 @@ namespace App\Controller\Newsroom;
 use App\Dto\UserMetadata;
 use App\Enum\KindsEnum;
 use App\ExpressionBundle\Service\ExpressionService;
+use App\Message\EvaluateExpressionMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
@@ -21,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -206,6 +208,7 @@ class ExpressionController extends AbstractController
         EventRepository $eventRepository,
         ExpressionService $expressionService,
         RedisCacheService $redisCacheService,
+        MessageBusInterface $messageBus,
     ): Response {
         try {
             $pubkey = NostrKeyUtil::npubToHex($npub);
@@ -255,56 +258,76 @@ class ExpressionController extends AbstractController
             ]);
         }
 
-        // Evaluate the expression
-        try {
-            $userIdentifier = $user->getUserIdentifier();
-            $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
-                ? NostrKeyUtil::npubToHex($userIdentifier)
-                : $userIdentifier;
+        $userIdentifier = $user->getUserIdentifier();
+        $userPubkey = NostrKeyUtil::isNpub($userIdentifier)
+            ? NostrKeyUtil::npubToHex($userIdentifier)
+            : $userIdentifier;
 
-            $results = $expressionService->evaluateCached($expression, $userPubkey);
+        // Try cache first — if warm, render immediately
+        $cachedResults = $expressionService->getCachedResults($expression, $userPubkey);
 
-            // Extract Event entities from NormalizedItem results
-            $allArticles = array_map(fn($item) => $item->getEvent(), $results);
-
-            // Paginate
-            $page = max(1, (int) $request->query->get('page', 1));
-            $perPage = 20;
-            $pager = new Pagerfanta(new ArrayAdapter($allArticles));
-            $pager->setMaxPerPage($perPage);
-            $pager->setCurrentPage(min($page, max(1, $pager->getNbPages())));
-
-            $articles = array_slice($allArticles, ($pager->getCurrentPage() - 1) * $perPage, $perPage);
-
-            // Author metadata for cards
-            $articlePubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
-            $articleMetaMap = $redisCacheService->getMultipleMetadata($articlePubkeys);
-            $authorsMetadataStd = [];
-            foreach ($articleMetaMap as $pk => $meta) {
-                $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
-                    ? $meta->toStdClass() : $meta;
-            }
-
-            return $this->render('expressions/view.html.twig', [
-                'title' => $title,
-                'description' => $description,
-                'authorNpub' => $npub,
-                'exprDtag' => $dtag,
-                'articles' => $articles,
-                'authorsMetadata' => $authorsMetadataStd,
-                'pager' => $pager,
-            ]);
-        } catch (\Throwable $e) {
-            return $this->render('expressions/view.html.twig', [
-                'title' => $title,
-                'description' => $description,
-                'authorNpub' => $npub,
-                'exprDtag' => $dtag,
-                'articles' => [],
-                'authorsMetadata' => [],
-                'error' => 'Could not evaluate expression: ' . $e->getMessage(),
-            ]);
+        if ($cachedResults !== null) {
+            return $this->renderResults(
+                $cachedResults, $title, $description, $npub, $dtag, $request, $redisCacheService,
+            );
         }
+
+        // Cache is cold — dispatch async evaluation and show loading state
+        $cacheKey = $expressionService->buildCacheKey($expression, $userPubkey);
+
+        $messageBus->dispatch(new EvaluateExpressionMessage(
+            kind: KindsEnum::FEED_EXPRESSION->value,
+            pubkey: $pubkey,
+            identifier: $dtag,
+            userPubkey: $userPubkey,
+            cacheKey: $cacheKey,
+        ));
+
+        return $this->render('expressions/view_loading.html.twig', [
+            'title' => $title,
+            'description' => $description,
+            'authorNpub' => $npub,
+            'exprDtag' => $dtag,
+            'mercureTopic' => '/expression-eval/' . $cacheKey,
+        ]);
+    }
+
+    private function renderResults(
+        array $results,
+        string $title,
+        ?string $description,
+        string $npub,
+        string $dtag,
+        Request $request,
+        RedisCacheService $redisCacheService,
+    ): Response {
+        $allArticles = array_map(fn($item) => $item->getEvent(), $results);
+
+        $page = max(1, (int) $request->query->get('page', 1));
+        $perPage = 20;
+        $pager = new Pagerfanta(new ArrayAdapter($allArticles));
+        $pager->setMaxPerPage($perPage);
+        $pager->setCurrentPage(min($page, max(1, $pager->getNbPages())));
+
+        $articles = array_slice($allArticles, ($pager->getCurrentPage() - 1) * $perPage, $perPage);
+
+        $articlePubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
+        $articleMetaMap = $redisCacheService->getMultipleMetadata($articlePubkeys);
+        $authorsMetadataStd = [];
+        foreach ($articleMetaMap as $pk => $meta) {
+            $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
+                ? $meta->toStdClass() : $meta;
+        }
+
+        return $this->render('expressions/view.html.twig', [
+            'title' => $title,
+            'description' => $description,
+            'authorNpub' => $npub,
+            'exprDtag' => $dtag,
+            'articles' => $articles,
+            'authorsMetadata' => $authorsMetadataStd,
+            'pager' => $pager,
+        ]);
     }
 
     /**
