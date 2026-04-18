@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Media;
 
 use App\Entity\MediaPostCache;
 use App\Util\NostrKeyUtil;

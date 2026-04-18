@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Media;
 
 use App\Entity\UserUpload;
 use Doctrine\ORM\EntityManagerInterface;

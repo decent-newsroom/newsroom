@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Newsroom;
 
+use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Nostr\UserProfileService;
-use App\Dto\UserMetadata;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

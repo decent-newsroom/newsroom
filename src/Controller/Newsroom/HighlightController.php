@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Newsroom;
 
 use App\Entity\Highlight;
 use App\Service\Nostr\NostrClient;
@@ -8,10 +8,9 @@ use App\Service\Nostr\UserRelayListService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
-use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 class HighlightController extends AbstractController

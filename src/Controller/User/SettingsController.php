@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\User;
 
 use App\Entity\Event as EventEntity;
 use App\Entity\User;
@@ -21,10 +21,10 @@ use App\Service\PublicationSubdomainService;
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
-use swentel\nostr\Nip19\Nip19Helper;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event as NostrEvent;
+use swentel\nostr\Nip19\Nip19Helper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

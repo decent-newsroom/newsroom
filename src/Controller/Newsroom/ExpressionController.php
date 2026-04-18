@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+namespace App\Controller\Newsroom;
 
 use App\Dto\UserMetadata;
 use App\Enum\KindsEnum;
