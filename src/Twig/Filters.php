@@ -27,6 +27,7 @@ class Filters extends AbstractExtension
             new TwigFilter('toNpub', [$this, 'toNpub']),
             new TwigFilter('toHex', [$this, 'toHex']),
             new TwigFilter('pastelHue', [$this, 'pastelHue']),
+            new TwigFilter('json_decode', [$this, 'jsonDecode']),
         ];
     }
 
@@ -143,5 +144,10 @@ class Filters extends AbstractExtension
     public function pastelHue(string $input): int
     {
         return abs(crc32($input)) % 360;
+    }
+
+    public function jsonDecode(string $json): mixed
+    {
+        return json_decode($json, true);
     }
 }

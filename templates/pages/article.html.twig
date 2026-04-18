@@ -48,6 +48,69 @@
             </div>
         {% endif %}
 
+        {# Post-publish: suggest writing a kind 1 note about the article #}
+        {% for flashData in app.flashes('article_published') %}
+            {% set pubData = flashData|json_decode %}
+            {% if pubData and pubData.slug == article.slug %}
+                <div data-controller="nostr--nostr-suggest-note"
+                     data-nostr--nostr-suggest-note-title-value="{{ pubData.title }}"
+                     data-nostr--nostr-suggest-note-slug-value="{{ pubData.slug }}"
+                     data-nostr--nostr-suggest-note-pubkey-value="{{ pubData.pubkey }}"
+                     data-nostr--nostr-suggest-note-publish-url-value="{{ path('api_note_publish') }}">
+
+                    {# Banner #}
+                    <div class="notice info suggest-note-banner"
+                         data-nostr--nostr-suggest-note-target="banner">
+                        <p>
+                            🎉 {{ 'article.publishedSuccess'|trans|default('Your article was published!') }}
+                            <button class="btn btn-primary btn-sm"
+                                    type="button"
+                                    data-action="nostr--nostr-suggest-note#openDialog">
+                                {{ 'article.suggestNote'|trans|default('Announce it with a note') }}
+                            </button>
+                            <button class="btn btn-link btn-sm"
+                                    type="button"
+                                    data-action="nostr--nostr-suggest-note#dismiss">
+                                {{ 'common.dismiss'|trans|default('Dismiss') }}
+                            </button>
+                        </p>
+                    </div>
+
+                    {# Modal dialog #}
+                    <div class="suggest-note-backdrop"
+                         data-nostr--nostr-suggest-note-target="dialog"
+                         style="display:none;"
+                         data-action="click->nostr--nostr-suggest-note#closeDialog">
+                        <div class="suggest-note-modal" data-action="click->nostr--nostr-suggest-note#stopPropagation">
+                            <div class="suggest-note-modal__header">
+                                <h3>{{ 'article.announceNote'|trans|default('Announce your article') }}</h3>
+                                <button class="close" type="button"
+                                        data-action="nostr--nostr-suggest-note#closeDialog">&times;</button>
+                            </div>
+                            <div class="suggest-note-modal__body">
+                                <p class="text-muted">{{ 'article.announceNoteHint'|trans|default('Write a short note to let people know about your new article. The link is included automatically.') }}</p>
+                                <textarea data-nostr--nostr-suggest-note-target="textarea"
+                                          class="form-control"
+                                          rows="5"></textarea>
+                                <div data-nostr--nostr-suggest-note-target="status"
+                                     class="suggest-note-modal__status"></div>
+                            </div>
+                            <div class="suggest-note-modal__footer">
+                                <button class="btn btn-secondary" type="button"
+                                        data-action="nostr--nostr-suggest-note#closeDialog">
+                                    {{ 'common.cancel'|trans|default('Cancel') }}
+                                </button>
+                                <button class="btn btn-primary" type="button"
+                                        data-action="nostr--nostr-suggest-note#publishNote">
+                                    {{ 'article.publishNote'|trans|default('Sign & Publish Note') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+
         {% if isDraft is defined and isDraft %}
         <div class="article-actions">
             <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">{{ 'article.editDraft'|trans }}</a>

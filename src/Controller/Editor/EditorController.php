@@ -459,6 +459,15 @@ class EditorController extends AbstractController
                 ]);
             }
 
+            // Set flash message for post-publish note suggestion (only for published articles)
+            if (!$isDraft) {
+                $request->getSession()->getFlashBag()->add('article_published', json_encode([
+                    'title' => $article->getTitle(),
+                    'slug' => $article->getSlug(),
+                    'pubkey' => $article->getPubkey(),
+                ]));
+            }
+
             return new JsonResponse([
                 'success' => true,
                 'message' => $isDraft ? 'Draft saved successfully' : 'Article published successfully',
