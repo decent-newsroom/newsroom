@@ -277,6 +277,15 @@ article:
     returnHome: 'Nazaj na domačo stran'
     relatedArticles: 'Sorodni članki'
     relatedFromInterests: 'Več iz vaših interesov'
+    publishedSuccess: 'Vaš članek je bil objavljen!'
+    suggestNote: 'Najavite ga z zapiskom'
+    announceNote: 'Najavite svoj članek'
+    announceNoteHint: 'Napišite kratek zapisek, da bodo ljudje izvedeli za vaš novi članek. Povezava je samodejno vključena.'
+    publishNote: 'Podpiši in objavi zapisek'
+
+common:
+    dismiss: 'Opusti'
+    cancel: 'Prekliči'
 
 # ── Spustni meni z dejanji članka ─────────────────────────────────
 articleActions:

@@ -347,6 +347,15 @@ article:
     returnHome: 'Torna alla homepage'
     relatedArticles: 'Articoli correlati'
     relatedFromInterests: 'Altro dai tuoi interessi'
+    publishedSuccess: 'Il tuo articolo è stato pubblicato!'
+    suggestNote: 'Annuncialo con una nota'
+    announceNote: 'Annuncia il tuo articolo'
+    announceNoteHint: 'Scrivi una breve nota per far sapere alle persone del tuo nuovo articolo. Il link viene incluso automaticamente.'
+    publishNote: 'Firma e pubblica nota'
+
+common:
+    dismiss: 'Chiudi'
+    cancel: 'Annulla'
 
 # ── Article Actions Dropdown ─────────────────────────────────────
 articleActions:

@@ -277,6 +277,15 @@ article:
     returnHome: 'Zurück zur Startseite'
     relatedArticles: 'Verwandte Artikel'
     relatedFromInterests: 'Mehr aus Ihren Interessen'
+    publishedSuccess: 'Ihr Artikel wurde veröffentlicht!'
+    suggestNote: 'Mit einer Notiz ankündigen'
+    announceNote: 'Artikel ankündigen'
+    announceNoteHint: 'Schreiben Sie eine kurze Notiz, um andere über Ihren neuen Artikel zu informieren. Der Link wird automatisch eingefügt.'
+    publishNote: 'Signieren & Notiz veröffentlichen'
+
+common:
+    dismiss: 'Verwerfen'
+    cancel: 'Abbrechen'
 
 # ── Artikel-Aktionen-Dropdown ────────────────────────────────────────
 articleActions:

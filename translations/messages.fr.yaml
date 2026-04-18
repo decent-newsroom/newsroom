@@ -277,6 +277,15 @@ article:
     returnHome: "Retour à la page d'accueil"
     relatedArticles: 'Articles similaires'
     relatedFromInterests: 'Plus de vos centres d''intérêt'
+    publishedSuccess: 'Votre article a été publié !'
+    suggestNote: 'Annoncez-le avec une note'
+    announceNote: 'Annoncer votre article'
+    announceNoteHint: 'Écrivez une courte note pour informer les gens de votre nouvel article. Le lien est inclus automatiquement.'
+    publishNote: 'Signer et publier la note'
+
+common:
+    dismiss: 'Fermer'
+    cancel: 'Annuler'
 
 # ── Menu déroulant des actions d'article ─────────────────────────────
 articleActions:
