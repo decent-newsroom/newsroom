@@ -5,6 +5,7 @@
 - [Bug] Fixed bold/italic wrapping a single punctuation character followed immediately by a word (e.g. `**#**livingmen`) not rendering as emphasis — CommonMark's flanking delimiter rules reject the closing `**` in this case, so these patterns are now pre-converted to HTML `<strong>`/`<em>` tags before parsing.
 - Improved comment rendering with proper NIP-22 tag semantics: replies to comments now show "Replying to Name1, Name2" (from lowercase `p` tags, hydrated via profile cache) and a one-line preview of the parent comment (from lowercase `e` tag). Only displayed for actual reply-to-comment threads (`k` = 1111), not top-level article comments. Uppercase `P`/`E` tags (root scope) are correctly distinguished from lowercase parent-scope tags.
 - [Bug] Fixed nostr links in comments being rendered twice — once inline via CommonMark/resolve_nostr_embeds and again as NostrPreview cards at the bottom. Removed the redundant bottom preview section; inline embeds now handle all nostr link rendering.
+- [Bug] Fixed "Replying to" showing raw hex pubkeys instead of profile names — `getMultipleMetadata()` returns `UserMetadata` DTOs but the name resolution was using array access. Added `normalizeMetadata()` to convert all metadata to stdClass consistently before template rendering.
 - Added "Create New Expression" button on the expressions list page (visible to logged-in users) linking to the expression creation page.
 
 ## v0.0.31

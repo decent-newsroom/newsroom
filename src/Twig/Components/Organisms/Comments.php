@@ -78,7 +78,9 @@ final class Comments
 
                 // Hydrate author metadata from cache
                 $pubkeys = array_unique(array_filter(array_column($this->list, 'pubkey')));
-                $this->authorsMetadata = $this->redisCacheService->getMultipleMetadata($pubkeys);
+                $this->authorsMetadata = $this->normalizeMetadata(
+                    $this->redisCacheService->getMultipleMetadata($pubkeys)
+                );
 
                 $this->parseZaps();
                 $this->parseNostrLinks();
@@ -267,7 +269,9 @@ final class Comments
         // Hydrate any missing metadata for referenced pubkeys
         $missingPubkeys = array_diff(array_keys($neededPubkeys), array_keys($this->authorsMetadata));
         if (!empty($missingPubkeys)) {
-            $extra = $this->redisCacheService->getMultipleMetadata(array_values($missingPubkeys));
+            $extra = $this->normalizeMetadata(
+                $this->redisCacheService->getMultipleMetadata(array_values($missingPubkeys))
+            );
             $this->authorsMetadata = array_merge($this->authorsMetadata, $extra);
         }
 
@@ -276,14 +280,35 @@ final class Comments
             $names = [];
             foreach ($pubkeys as $pk) {
                 $meta = $this->authorsMetadata[$pk] ?? null;
-                $name = null;
-                if ($meta) {
-                    $name = $meta['display_name'] ?? $meta['name'] ?? null;
-                }
+                $name = $meta->display_name ?? $meta->name ?? null;
                 $names[] = $name ?: substr($pk, 0, 8) . '…';
             }
             $this->replyingTo[$commentId] = $names;
         }
+    }
+
+    /**
+     * Normalize metadata from RedisCacheService to stdClass objects.
+     *
+     * getMultipleMetadata() may return UserMetadata DTOs, stdClass, or mixed.
+     * Templates and name resolution expect stdClass with ->display_name, ->name, etc.
+     *
+     * @param array<string, mixed> $metadata pubkey => metadata
+     * @return array<string, \stdClass|null>
+     */
+    private function normalizeMetadata(array $metadata): array
+    {
+        $normalized = [];
+        foreach ($metadata as $pubkey => $meta) {
+            if ($meta instanceof \App\Dto\UserMetadata) {
+                $normalized[$pubkey] = $meta->toStdClass();
+            } elseif ($meta instanceof \stdClass) {
+                $normalized[$pubkey] = $meta;
+            } else {
+                $normalized[$pubkey] = null;
+            }
+        }
+        return $normalized;
     }
 
     /**

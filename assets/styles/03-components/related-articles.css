@@ -41,11 +41,13 @@
     border: none;
 }
 
+.comment h2.card-title,
 .related-articles__item h2.card-title {
     line-height: 1.3;
     font-size: 2em;
 }
 
+.comment .lede,
 .related-articles__item .lede {
     line-height: 1.25;
     font-size: 1.4em;
