@@ -144,7 +144,7 @@ export default class extends Controller {
     // --- 3) Quill init ---
     const toolbarOptions = [
       ['bold', 'italic', 'strike'],
-      ['link', 'blockquote', 'code-block', 'image'], // 'formula' can be added if needed
+      ['link', 'blockquote', 'code-block', 'image', 'formula'],
       [{ header: 1 }, { header: 2 }, { header: 3 }],
       [{ list: 'ordered' }, { list: 'bullet' }],
     ];

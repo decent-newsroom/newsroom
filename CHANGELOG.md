@@ -9,6 +9,7 @@ Comments.
 - [Bug] Fixed nostr links in comments being rendered twice — once inline via CommonMark/resolve_nostr_embeds and again as NostrPreview cards at the bottom. Removed the redundant bottom preview section; inline embeds now handle all nostr link rendering.
 - [Bug] Fixed "Replying to" showing raw hex pubkeys instead of profile names — `getMultipleMetadata()` returns `UserMetadata` DTOs but the name resolution was using array access. Added `normalizeMetadata()` to convert all metadata to stdClass consistently before template rendering.
 - Added "Create New Expression" button on the expressions list page (visible to logged-in users) linking to the expression creation page.
+- Added math formula support to the article editor: formula toolbar button enabled in Quill, and the canonical Delta↔Markdown converter now round-trips inline (`$…$`) and display (`$$…$$`) math losslessly, including `\(…\)` delimiter support.
 
 
 ## v0.0.31

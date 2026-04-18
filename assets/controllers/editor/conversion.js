@@ -31,6 +31,7 @@ export function deltaToMarkdown(delta, opts = {}) {
     orderedListStyle: 'increment', // 'one' | 'increment'
     embedToMarkdown: (embed) => {
       if (!embed || typeof embed !== 'object') return '';
+      if (embed.formula) return `$${embed.formula}$`;
       if (embed.nostrMention) return `nostr:${embed.nostrMention.npub || ''}`;
       if (embed.imageAlt) return `![${embed.imageAlt.alt || ''}](${String(embed.imageAlt.src || '')})`;
       if (embed.image) return `![](${String(embed.image)})`;
@@ -120,6 +121,16 @@ export function deltaToMarkdown(delta, opts = {}) {
 
     // leaving code block?
     closeFence();
+
+    // Display math promotion: if line is only `$…$` with optional whitespace, promote to $$…$$
+    const displayMatch = line.match(/^\s*\$([^$]+)\$\s*$/);
+    if (displayMatch && !attrs.header && !attrs.blockquote && !attrs.list) {
+      // Check there's no other content (e.g. not inside a heading)
+      closeList();
+      md += `$$\n${displayMatch[1]}\n$$\n`;
+      line = '';
+      return;
+    }
 
     const indent = Number.isFinite(attrs.indent) ? attrs.indent : 0;
     const indentPrefix = indent > 0 ? '  '.repeat(indent) : '';
@@ -286,6 +297,36 @@ export function markdownToDelta(md, opts = {}) {
       continue;
     }
 
+    // Display math: single-line $$…$$
+    const displayMathSingle = line.match(/^\s*\$\$(.+)\$\$\s*$/);
+    if (displayMathSingle) {
+      ops.push({ insert: { formula: displayMathSingle[1].trim() } });
+      ops.push({ insert: '\n' });
+      continue;
+    }
+
+    // Display math: multi-line $$ opener
+    if (line.trim() === '$$') {
+      let mathContent = '';
+      lineIdx++;
+      while (lineIdx < lines.length && lines[lineIdx].trim() !== '$$') {
+        mathContent += (mathContent ? '\n' : '') + lines[lineIdx];
+        lineIdx++;
+      }
+      // lineIdx now points at closing $$ (or end of input)
+      ops.push({ insert: { formula: mathContent.trim() } });
+      ops.push({ insert: '\n' });
+      continue;
+    }
+
+    // Display math: \[…\] on a single line
+    const displayMathBracket = line.match(/^\s*\\\[(.+)\\]\s*$/);
+    if (displayMathBracket) {
+      ops.push({ insert: { formula: displayMathBracket[1].trim() } });
+      ops.push({ insert: '\n' });
+      continue;
+    }
+
     // Check for setext-style headers (underlined with === or ---)
     // Look ahead to see if the next line is an underline
     const nextLine = lineIdx + 1 < lines.length ? lines[lineIdx + 1] : null;
@@ -392,6 +433,32 @@ function inlineMarkdownToOps(text, mentionNames) {
       pushText('nostr:'); i += 6; continue;
     }
 
+    // inline math: \(…\)
+    if (text[i] === '\\' && text[i + 1] === '(') {
+      const closeIdx = text.indexOf('\\)', i + 2);
+      if (closeIdx !== -1) {
+        const tex = text.slice(i + 2, closeIdx);
+        if (tex) ops.push({ insert: { formula: tex } });
+        i = closeIdx + 2;
+        continue;
+      }
+    }
+
+    // inline math: $…$ (not $$, not currency)
+    if (text[i] === '$' && text[i + 1] !== '$') {
+      const end = text.indexOf('$', i + 1);
+      if (end !== -1 && end > i + 1) {
+        const tex = text.slice(i + 1, end);
+        // TeX whitespace rule: no leading/trailing space
+        if (tex[0] !== ' ' && tex[tex.length - 1] !== ' ' && !/^\s*[\d.,]+\s*$/.test(tex)) {
+          ops.push({ insert: { formula: tex } });
+          i = end + 1;
+          continue;
+        }
+      }
+      pushText('$'); i += 1; continue;
+    }
+
     // inline code: `...`
     if (text[i] === '`') {
       const end = text.indexOf('`', i + 1);
@@ -487,7 +554,7 @@ function inlineMarkdownToOps(text, mentionNames) {
 }
 
 function nextSpecialIndex(text, start) {
-  const specials = ['`', '[', '!', '*', '~'];
+  const specials = ['`', '[', '!', '*', '~', '$', '\\'];
   let min = text.length;
   for (const ch of specials) {
     const idx = text.indexOf(ch, start);
