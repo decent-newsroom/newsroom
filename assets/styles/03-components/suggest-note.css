@@ -1,77 +1,25 @@
-.suggest-note-banner {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-}
-
+/* Suggest-note banner (post-publish CTA) */
 .suggest-note-banner p {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
     flex-wrap: wrap;
-}
-
-.suggest-note-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: var(--z-overlay, 1000);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.suggest-note-modal {
-    background: var(--color-bg);
-    width: min(560px, 90vw);
-    max-height: 80vh;
-    overflow: auto;
-    z-index: var(--z-modal, 1001);
-    border: 1px solid var(--color-border, #ccc);
-}
-
-.suggest-note-modal__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-3) var(--spacing-3) 0;
-}
-
-.suggest-note-modal__header h3 {
     margin: 0;
 }
 
-.suggest-note-modal__header .close {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    font-size: 1.5rem;
-    line-height: 1;
-    cursor: pointer;
+/* Footer and status — only pieces not covered by iu-modal / modal.css */
+.suggest-note__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-2);
+    padding: 0 var(--spacing-3) var(--spacing-3);
 }
 
-.suggest-note-modal__body {
-    padding: var(--spacing-3);
-}
-
-.suggest-note-modal__body textarea {
-    width: 100%;
-    resize: vertical;
-    font-family: inherit;
-    font-size: 0.95rem;
-}
-
-.suggest-note-modal__status {
+.suggest-note__status {
     margin-top: var(--spacing-2);
     font-size: 0.85rem;
     color: var(--color-text-muted, #666);
     min-height: 1.2em;
 }
 
-.suggest-note-modal__footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-2);
-    padding: 0 var(--spacing-3) var(--spacing-3);
-}
 

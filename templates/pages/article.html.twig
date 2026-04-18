@@ -76,26 +76,26 @@
                         </p>
                     </div>
 
-                    {# Modal dialog #}
-                    <div class="suggest-note-backdrop"
+                    {# Modal dialog — reuses .iu-backdrop / .iu-modal from modal.css #}
+                    <div class="iu-backdrop"
                          data-nostr--nostr-suggest-note-target="dialog"
                          style="display:none;"
                          data-action="click->nostr--nostr-suggest-note#closeDialog">
-                        <div class="suggest-note-modal" data-action="click->nostr--nostr-suggest-note#stopPropagation">
-                            <div class="suggest-note-modal__header">
-                                <h3>{{ 'article.announceNote'|trans|default('Announce your article') }}</h3>
+                        <div class="iu-modal" data-action="click->nostr--nostr-suggest-note#stopPropagation">
+                            <div class="modal-header">
+                                <h5>{{ 'article.announceNote'|trans|default('Announce your article') }}</h5>
                                 <button class="close" type="button"
                                         data-action="nostr--nostr-suggest-note#closeDialog">&times;</button>
                             </div>
-                            <div class="suggest-note-modal__body">
+                            <div class="modal-body">
                                 <p class="text-muted">{{ 'article.announceNoteHint'|trans|default('Write a short note to let people know about your new article. The link is included automatically.') }}</p>
                                 <textarea data-nostr--nostr-suggest-note-target="textarea"
                                           class="form-control"
                                           rows="5"></textarea>
                                 <div data-nostr--nostr-suggest-note-target="status"
-                                     class="suggest-note-modal__status"></div>
+                                     class="suggest-note__status"></div>
                             </div>
-                            <div class="suggest-note-modal__footer">
+                            <div class="suggest-note__footer">
                                 <button class="btn btn-secondary" type="button"
                                         data-action="nostr--nostr-suggest-note#closeDialog">
                                     {{ 'common.cancel'|trans|default('Cancel') }}
