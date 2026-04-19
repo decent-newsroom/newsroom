@@ -2,6 +2,7 @@
 
 ## v0.0.33
 
+- Added `profile:regenerate` console command to invalidate and rebuild a user's profile cache by npub or hex pubkey.
 - [Bug] Fixed lightbox z-index, so it's full screen now.
 - [Bug] Fixed expression evaluation failing when input references use bech32-encoded identifiers (nevent1, naddr1, note1) instead of raw hex event IDs or address coordinates. The SourceResolver now auto-decodes bech32 references before routing to the appropriate resolver.
 - Async expression evaluation: expression pages now load instantly with a loading indicator when the cache is cold. Evaluation runs in the background via Messenger, and results are pushed to the browser via Mercure SSE. On subsequent visits, cached results render immediately.
