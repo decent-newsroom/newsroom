@@ -84,6 +84,11 @@ class ResetMessengerStreamsCommand extends Command
 
         $io->title("Messenger Streams (env: {$this->environment})");
 
+        // Auto-discovery: scan every DB (0..15) for stream-type keys that look
+        // like messenger streams. Helps spot DSN / DB-index mismatches between
+        // the console and the worker containers.
+        $this->discoverStreams($redis, $io);
+
         if ($discard && !$dryRun) {
             if (!$io->confirm('--discard will PERMANENTLY drop every undelivered message in every listed stream. Continue?', false)) {
                 $io->warning('Aborted.');
@@ -198,6 +203,83 @@ class ResetMessengerStreamsCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Scan every Redis DB for stream-type keys that look like messenger
+     * streams, and list them. Purely diagnostic — does not modify state.
+     */
+    private function discoverStreams(\Redis $redis, SymfonyStyle $io): void
+    {
+        $io->section('Stream discovery (scanning all DBs for messenger-like streams)');
+
+        $foundAny = false;
+        $originalDb = 0;
+
+        // Figure out current DB from CLIENT INFO (best-effort) so we can restore it.
+        try {
+            $clientInfo = $redis->rawCommand('CLIENT', 'INFO');
+            if (is_string($clientInfo) && preg_match('/\sdb=(\d+)/', $clientInfo, $m)) {
+                $originalDb = (int) $m[1];
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        for ($db = 0; $db < 16; $db++) {
+            try {
+                if (!$redis->select($db)) {
+                    continue;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $cursor  = null;
+            $matches = [];
+            do {
+                $keys = $redis->scan($cursor, '*messenger*', 500);
+                if (!is_array($keys)) {
+                    break;
+                }
+                foreach ($keys as $key) {
+                    try {
+                        if ($redis->type($key) === \Redis::REDIS_STREAM) {
+                            $matches[$key] = true;
+                        }
+                    } catch (\Throwable) {
+                        // ignore
+                    }
+                }
+            } while ($cursor > 0);
+
+            if ($matches) {
+                $foundAny = true;
+                $io->writeln(sprintf('  <info>db=%d</info>', $db));
+                foreach (array_keys($matches) as $key) {
+                    try {
+                        $len = $redis->xLen($key);
+                    } catch (\Throwable) {
+                        $len = '?';
+                    }
+                    $io->writeln(sprintf('    %s  (xlen=%s)', $key, $len));
+                }
+            }
+        }
+
+        if (!$foundAny) {
+            $io->writeln('  <comment>no messenger-like streams found in any DB (0-15)</comment>');
+            $io->writeln('  <comment>hint: the console container may be pointing at a different Redis instance than the workers. Compare MESSENGER_TRANSPORT_DSN in the php and worker services.</comment>');
+        }
+
+        // Restore to the DSN-selected DB so the rest of the command operates
+        // against the originally-configured database.
+        try {
+            $redis->select($originalDb);
+        } catch (\Throwable) {
+            // ignore
+        }
+        $io->newLine();
     }
 
     private function connect(string $dsn, SymfonyStyle $io): ?\Redis
