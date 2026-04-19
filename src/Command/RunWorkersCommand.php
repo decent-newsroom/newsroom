@@ -15,6 +15,8 @@ use Symfony\Component\Process\Process;
  * Runs two Symfony Messenger consumer processes:
  *   - async: high-priority content fetches (articles, comments, media, magazines)
  *   - async_low_priority: gateway persistence, login warmup, relay lists
+ *   - async_expressions: user-initiated expression evaluation (isolated so a
+ *     backlog on `async` never delays the loading page)
  *
  * Relay subscriptions run in a separate service (worker-relay) via app:run-relay-workers.
  * Profile work runs in worker-profiles via app:run-profile-workers.
@@ -37,7 +39,8 @@ class RunWorkersCommand extends Command
                 'Runs Symfony Messenger consumers for the async and async_low_priority queues.' . "\n\n" .
                 'Consumers:' . "\n" .
                 '  - async: High-priority content fetches (articles, comments, media, magazines)' . "\n" .
-                '  - async_low_priority: Gateway persistence, login warmup, relay lists' . "\n\n" .
+                '  - async_low_priority: Gateway persistence, login warmup, relay lists' . "\n" .
+                '  - async_expressions: User-initiated expression evaluation' . "\n\n" .
                 'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
                 'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
                 'The relay gateway runs as a separate Docker service (relay-gateway).' . "\n" .
@@ -72,6 +75,13 @@ class RunWorkersCommand extends Command
                     '-vv', '--memory-limit=128M', '--time-limit=3600',
                 ],
                 'description' => 'Messenger consumer (async_low_priority: gateway persistence, login warmup)',
+            ],
+            'messenger-expressions' => [
+                'command' => [
+                    'php', 'bin/console', 'messenger:consume', 'async_expressions',
+                    '-vv', '--memory-limit=192M', '--time-limit=3600',
+                ],
+                'description' => 'Messenger consumer (async_expressions: user-initiated expression evaluation)',
             ],
         ];
 

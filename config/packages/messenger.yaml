@@ -37,6 +37,26 @@ framework:
                     delay: 5000
                     multiplier: 2
 
+            # Dedicated transport for expression evaluation.
+            # Expression evaluations are user-initiated (a page is waiting on
+            # Mercure for the result) and must not queue behind bulk content
+            # fetches on the `async` transport. Isolated on its own consumer
+            # so results hit Redis + Mercure ASAP.
+            async_expressions:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: '%kernel.environment%:messenger:async_expressions'
+                    group: '%kernel.environment%-expressions'
+                    consumer: 'consumer-%kernel.environment%-expressions'
+                    stream_max_entries: 5000
+                    redeliver_timeout: 300
+                    delete_after_ack: false
+                    delete_after_reject: false
+                retry_strategy:
+                    max_retries: 1
+                    delay: 2000
+                    multiplier: 2
+
             # Dedicated transport for heavy profile refresh work.
             # Profile batch updates make relay calls (25 pubkeys per batch) and
             # can take tens of seconds each, starving faster messages on the
@@ -70,7 +90,7 @@ framework:
             'App\Message\FetchMediaEventsMessage': async
             'App\Message\FetchMissingCurationMediaMessage': async
             'App\Message\FetchEventFromRelaysMessage': async
-            'App\Message\EvaluateExpressionMessage': async
+            'App\Message\EvaluateExpressionMessage': async_expressions
             'App\Message\ProjectMagazineMessage': async
             # --- Low priority: login warmup, gateway persistence, relay lists ---
             # Relay list warming on login - fetch from network and persist to DB

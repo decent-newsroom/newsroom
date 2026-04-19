@@ -32,7 +32,7 @@ Results are cached for 300 seconds (5 minutes) by default, configurable via `exp
 
 ## Messenger Routing
 
-`EvaluateExpressionMessage` is routed to the `async` transport (high priority), processed by the `worker` service.
+`EvaluateExpressionMessage` is routed to the dedicated `async_expressions` transport, processed by an isolated `messenger-expressions` consumer subprocess in the `worker` service (`app:run-workers`). It is intentionally kept off the shared `async` queue so that a backlog of bulk content fetches (articles, comments, media, magazines) can never delay a user-initiated expression evaluation — the loading page is blocking on Mercure for this result.
 
 ## Mercure Topics
 
