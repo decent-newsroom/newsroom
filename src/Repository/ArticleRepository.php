@@ -97,6 +97,48 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find articles by full coordinate tuples (kind:pubkey:slug).
+     *
+     * Used by the magazine category page, which references articles by full
+     * NIP-01 replaceable-event coordinates in its `a` tags. Slug-only lookup
+     * collides across authors and kinds, so we match on all three components
+     * and return the most recent revision per coordinate.
+     *
+     * @param array<array{kind:int,pubkey:string,slug:string}> $coordinates
+     * @return Article[] keyed by "kind:pubkey:slug"
+     */
+    public function findByCoordinates(array $coordinates): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('a');
+        $orX = $qb->expr()->orX();
+        foreach ($coordinates as $i => $c) {
+            $orX->add(sprintf('(a.kind = :k%1$d AND a.pubkey = :p%1$d AND a.slug = :s%1$d)', $i));
+            $qb->setParameter('k' . $i, (int) $c['kind']);
+            $qb->setParameter('p' . $i, $c['pubkey']);
+            $qb->setParameter('s' . $i, $c['slug']);
+        }
+        $qb->where($orX)->orderBy('a.createdAt', 'DESC');
+
+        /** @var Article[] $results */
+        $results = $qb->getQuery()->getResult();
+
+        // Keep newest revision per coordinate key
+        $map = [];
+        foreach ($results as $article) {
+            $key = $article->getKind()?->value . ':' . $article->getPubkey() . ':' . $article->getSlug();
+            if (!isset($map[$key]) || $article->getCreatedAt() > $map[$key]->getCreatedAt()) {
+                $map[$key] = $article;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Find articles by slugs
      *
      * @param array $slugs

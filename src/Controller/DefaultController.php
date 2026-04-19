@@ -1309,57 +1309,75 @@ class DefaultController extends AbstractController
         }
 
         if (!empty($coordinates)) {
-            // Extract slugs for query
-            $slugs = array_map(function($coordinate) {
+            // Parse full coordinates (kind:pubkey:slug) so we can look up articles
+            // by their exact NIP-01 replaceable-event address rather than by slug
+            // alone — slugs collide across authors and kinds.
+            $parsed = [];
+            $slugs = [];
+            foreach ($coordinates as $coordinate) {
                 $parts = explode(':', $coordinate, 3);
-                return end($parts);
-            }, $coordinates);
-            $slugs = array_filter($slugs); // Remove empty values
+                if (count($parts) !== 3 || $parts[2] === '') {
+                    continue;
+                }
+                $parsed[$coordinate] = [
+                    'kind'   => (int) $parts[0],
+                    'pubkey' => $parts[1],
+                    'slug'   => $parts[2],
+                ];
+                $slugs[] = $parts[2];
+            }
 
-            // Use the search service to find articles by slugs
-            $articles = $articleSearch->findBySlugs(array_values($slugs), 200);
+            // Preferred path: look up by full coordinate (kind, pubkey, slug).
+            $articleRepo = $entityManager->getRepository(\App\Entity\Article::class);
+            $coordMap = $articleRepo->findByCoordinates(array_values($parsed));
 
-            // Create a map of slug => item to remove duplicates
+            // Fallback: search service lookup by slug, for any coordinate we
+            // couldn't resolve by exact match (e.g. articles not yet projected
+            // into the DB article table, or minor kind mismatches from legacy
+            // data). Dedupe by slug, newest wins.
             $slugMap = [];
-            foreach ($articles as $item) {
-                $slug = $item->getSlug();
-                if ($slug !== '') {
-                    // If the slugMap doesn't contain it yet, add it
-                    if (!isset($slugMap[$slug])) {
+            $needSlugFallback = false;
+            foreach ($parsed as $coord => $info) {
+                $key = $info['kind'] . ':' . $info['pubkey'] . ':' . $info['slug'];
+                if (!isset($coordMap[$key])) {
+                    $needSlugFallback = true;
+                    break;
+                }
+            }
+            if ($needSlugFallback) {
+                $articles = $articleSearch->findBySlugs(array_values(array_unique($slugs)), 200);
+                foreach ($articles as $item) {
+                    $slug = $item->getSlug();
+                    if ($slug === '' || $slug === null) {
+                        continue;
+                    }
+                    if (!isset($slugMap[$slug]) || $item->getCreatedAt() > $slugMap[$slug]->getCreatedAt()) {
                         $slugMap[$slug] = $item;
-                    } else {
-                        // If it already exists, compare created_at timestamps and save newest
-                        $existingItem = $slugMap[$slug];
-                        if ($item->getCreatedAt() > $existingItem->getCreatedAt()) {
-                            $slugMap[$slug] = $item;
-                        }
                     }
                 }
             }
 
-            // Find missing coordinates
+            // Build ordered list in original coordinate order.
             $missingCoordinates = [];
             foreach ($coordinates as $coordinate) {
-                $parts = explode(':', $coordinate, 3);
-                if (!isset($slugMap[end($parts)])) {
+                if (!isset($parsed[$coordinate])) {
+                    continue;
+                }
+                $info = $parsed[$coordinate];
+                $key = $info['kind'] . ':' . $info['pubkey'] . ':' . $info['slug'];
+                if (isset($coordMap[$key])) {
+                    $list[] = $coordMap[$key];
+                } elseif (isset($slugMap[$info['slug']])) {
+                    $list[] = $slugMap[$info['slug']];
+                } else {
                     $missingCoordinates[] = $coordinate;
                 }
             }
 
-            // If we have missing articles, fetch them directly using NostrClient's getArticlesByCoordinates
             if (!empty($missingCoordinates)) {
-
                 $logger->info('There were missing articles', [
                     'missing' => $missingCoordinates
                 ]);
-            }
-
-            // Build ordered list based on original coordinates order
-            foreach ($coordinates as $coordinate) {
-                $parts = explode(':', $coordinate, 3);
-                if (isset($slugMap[end($parts)])) {
-                    $list[] = $slugMap[end($parts)];
-                }
             }
         }
 

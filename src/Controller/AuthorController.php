@@ -850,7 +850,15 @@ class AuthorController extends AbstractController
         if (in_array($tab, $cacheableTabs)) {
             $cacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
 
-            if ($cacheResult['isCached'] && $cacheResult['data'] !== null) {
+            // Owners viewing their own profile always see freshly-computed data.
+            // The profile-tab cache has a 24h hard TTL and, if ever populated
+            // empty (e.g. right after signup or before the first relay-worker
+            // projection), it would otherwise mask a user's own articles for up
+            // to a day. The editor sidebar hits Postgres directly for the same
+            // reason — this keeps the two views consistent.
+            $bypassCache = $isOwner;
+
+            if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
                 // Use cached data for instant response - convert arrays to objects for Twig
                 $templateData = $this->hydrateTemplateData($cacheResult['data']);
 
@@ -1487,42 +1495,29 @@ class AuthorController extends AbstractController
         RedisViewFactory $viewFactory,
         ArticleSearchInterface $articleSearch
     ): array {
-        $cachedArticles = $viewStore->fetchUserArticles($pubkey);
+        // Note: the legacy `view:user:articles:<pubkey>` Redis key is NOT a
+        // reliable source for an author's own articles — it was historically
+        // reused to cache reading-list contents (articles the user saved,
+        // authored by others). Reading from it here would either be empty
+        // (typical case) or actively poison the profile with unrelated
+        // articles. Always read from the search/DB layer so behaviour matches
+        // the article editor sidebar which queries Postgres directly.
         $viewData = [];
 
-        if ($cachedArticles !== null) {
-            foreach ($cachedArticles as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    $articleData = $baseObject['article'];
-                    $kind = $articleData['kind'] ?? null;
-                    $slug = $articleData['slug'] ?? null;
+        $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
+        // Always filter out drafts for the articles tab (drafts live in their own tab).
+        $articles = $this->filterAndDeduplicateArticles($articles, false);
 
-                    // Skip drafts (they go in drafts tab)
-                    if ($kind === KindsEnum::LONGFORM_DRAFT->value) {
-                        continue;
+        foreach ($articles as $article) {
+            if ($article instanceof Article) {
+                try {
+                    $baseObject = $viewFactory->articleBaseObject($article, null);
+                    $normalized = $viewFactory->normalizeBaseObject($baseObject);
+                    if (isset($normalized['article'])) {
+                        $viewData[] = (object) $normalized['article'];
                     }
-
-                    if ($slug) {
-                        $viewData[] = (object) $articleData;
-                    }
-                }
-            }
-            $viewData = $this->deduplicateViewData($viewData);
-        } else {
-            $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
-            $articles = $this->filterAndDeduplicateArticles($articles, false); // Always filter out drafts for articles tab
-
-            foreach ($articles as $article) {
-                if ($article instanceof Article) {
-                    try {
-                        $baseObject = $viewFactory->articleBaseObject($article, null);
-                        $normalized = $viewFactory->normalizeBaseObject($baseObject);
-                        if (isset($normalized['article'])) {
-                            $viewData[] = (object) $normalized['article'];
-                        }
-                    } catch (\Exception $e) {
-                        $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
-                    }
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
                 }
             }
         }

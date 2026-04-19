@@ -115,47 +115,32 @@ class RevalidateProfileCacheHandler
 
     private function buildArticlesData(string $pubkey, bool $isOwner): array
     {
-        $cachedArticles = $this->viewStore->fetchUserArticles($pubkey);
+        // The legacy `view:user:articles:<pubkey>` Redis key has been used for
+        // reading-list contents (articles saved by this user, authored by
+        // others) — it is not a reliable cache of the author's own articles.
+        // Always read from the DB-backed search service here so background
+        // revalidation matches the synchronous controller path and the editor
+        // sidebar.
         $viewData = [];
 
-        if ($cachedArticles !== null) {
-            foreach ($cachedArticles as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    $articleData = $baseObject['article'];
-                    $kind = $articleData['kind'] ?? null;
-                    $slug = $articleData['slug'] ?? null;
+        $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
+        $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
 
-                    // Skip drafts
-                    if ($kind === KindsEnum::LONGFORM_DRAFT->value) {
-                        continue;
-                    }
-
-                    if ($slug) {
-                        $viewData[] = $articleData;
-                    }
+        foreach ($articles as $article) {
+            if ($article instanceof Article) {
+                // Skip drafts unless owner
+                if (!$isOwner && $article->getKind() === KindsEnum::LONGFORM_DRAFT) {
+                    continue;
                 }
-            }
-        } else {
-            // Fallback to database
-            $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
-            $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
 
-            foreach ($articles as $article) {
-                if ($article instanceof Article) {
-                    // Skip drafts unless owner
-                    if (!$isOwner && $article->getKind() === KindsEnum::LONGFORM_DRAFT) {
-                        continue;
+                try {
+                    $baseObject = $this->viewFactory->articleBaseObject($article, $authorMetadata);
+                    $normalized = $this->viewFactory->normalizeBaseObject($baseObject);
+                    if (isset($normalized['article'])) {
+                        $viewData[] = $normalized['article'];
                     }
-
-                    try {
-                        $baseObject = $this->viewFactory->articleBaseObject($article, $authorMetadata);
-                        $normalized = $this->viewFactory->normalizeBaseObject($baseObject);
-                        if (isset($normalized['article'])) {
-                            $viewData[] = $normalized['article'];
-                        }
-                    } catch (\Exception $e) {
-                        $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
-                    }
+                } catch (\Exception $e) {
+                    $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
                 }
             }
         }
