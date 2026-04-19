@@ -2,6 +2,7 @@
 
 ## v0.0.33
 
+- [Bug] Fixed sporadic `Could not acknowledge redis message "…"` TransportException from Symfony Messenger when scaling the `worker` service to multiple replicas. Each replica now gets a unique Redis Streams consumer name by suffixing with Docker's per-container `HOSTNAME`, so replicas no longer share a consumer identity within the same group.
 - [Bug] Fixed published articles disappearing from author profile pages. The "while-you're-at-it" article revision cleanup in `ReplaceableEventCleanupService::removeOlderArticleRevisions` was deleting by `(pubkey, slug)` only, ignoring `kind`.
 - Isolated expression evaluation on a dedicated `async_expressions` Messenger transport with its own consumer subprocess in `app:run-workers`, so user-initiated expression pages are never delayed by backlog on the shared `async` queue (articles, comments, media, magazines).
 - Added `profile:regenerate` console command to invalidate and rebuild a user's profile cache by npub or hex pubkey.

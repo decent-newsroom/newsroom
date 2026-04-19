@@ -9,12 +9,18 @@ framework:
                     - App\Messenger\Middleware\IgnoreTransportExceptionMiddleware
 
         transports:
+            # NOTE on `consumer` names: each worker *replica* must have a unique
+            # consumer name within its Redis Streams consumer group. If replicas
+            # share a consumer name, ack of an already-processed entry returns 0
+            # and Symfony raises "Could not acknowledge redis message".
+            # We suffix with HOSTNAME, which Docker sets uniquely per container
+            # (e.g. `newsroom-worker-1`, `-2`, `-3` when scaling the worker service).
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     stream: '%kernel.environment%:messenger:async'   # dev/prod get different keys
                     group: '%kernel.environment%'
-                    consumer: 'consumer-%kernel.environment%'
+                    consumer: 'consumer-%kernel.environment%-%env(default::HOSTNAME)%'
                     stream_max_entries: 10000
                     redeliver_timeout: 300
                     delete_after_ack: false
@@ -27,7 +33,7 @@ framework:
                 options:
                     stream: '%kernel.environment%:messenger:async_low'
                     group: '%kernel.environment%-low'
-                    consumer: 'consumer-%kernel.environment%-low'
+                    consumer: 'consumer-%kernel.environment%-low-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 600
                     delete_after_ack: false
@@ -47,7 +53,7 @@ framework:
                 options:
                     stream: '%kernel.environment%:messenger:async_expressions'
                     group: '%kernel.environment%-expressions'
-                    consumer: 'consumer-%kernel.environment%-expressions'
+                    consumer: 'consumer-%kernel.environment%-expressions-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 300
                     delete_after_ack: false
@@ -67,7 +73,7 @@ framework:
                 options:
                     stream: '%kernel.environment%:messenger:async_profiles'
                     group: '%kernel.environment%-profiles'
-                    consumer: 'consumer-%kernel.environment%-profiles'
+                    consumer: 'consumer-%kernel.environment%-profiles-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 900
                     delete_after_ack: false
