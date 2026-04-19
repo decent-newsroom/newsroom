@@ -86,16 +86,25 @@ class ReplaceableEventCleanupService
     }
 
     /**
-     * Remove older Article revisions sharing the same pubkey + slug (d-tag).
-     * Keeps only the article with the highest createdAt (or newest eventId on tie).
+     * Remove older Article revisions sharing the same pubkey + kind + slug (d-tag).
+     *
+     * NIP-01: parameterized-replaceable events are keyed by (pubkey, kind, d-tag).
+     * Kinds 30023 (longform) and 30024 (draft) share a d-tag but are DIFFERENT
+     * addresses and MUST NOT replace each other — so we scope the cleanup to the
+     * same kind as the new article.
+     *
+     * Tie-break follows NIP-01: on equal created_at, the lexicographically lower
+     * event id wins; all others are removed.
+     *
      * Must be called AFTER the new article is flushed.
      */
     public function removeOlderArticleRevisions(Article $newArticle, EntityManagerInterface $em): int
     {
         $pubkey = $newArticle->getPubkey();
         $slug = $newArticle->getSlug();
+        $kind = $newArticle->getKind();
 
-        if (!$pubkey || !$slug) {
+        if (!$pubkey || !$slug || !$kind) {
             return 0;
         }
 
@@ -104,6 +113,7 @@ class ReplaceableEventCleanupService
 
             $qb->delete(Article::class, 'a')
                 ->where('a.pubkey = :pubkey')
+                ->andWhere('a.kind = :kind')
                 ->andWhere('a.slug = :slug')
                 ->andWhere('a.id != :currentId')
                 ->andWhere(
@@ -111,13 +121,16 @@ class ReplaceableEventCleanupService
                         'a.createdAt < :createdAt',
                         $qb->expr()->andX(
                             'a.createdAt = :createdAt',
-                            'a.id > :currentId'
+                            // NIP-01 tie-break: lower Nostr event id wins.
+                            'a.eventId > :currentEventId'
                         )
                     )
                 )
                 ->setParameter('pubkey', $pubkey)
+                ->setParameter('kind', $kind)
                 ->setParameter('slug', $slug)
                 ->setParameter('currentId', $newArticle->getId())
+                ->setParameter('currentEventId', $newArticle->getEventId() ?? '')
                 ->setParameter('createdAt', $newArticle->getCreatedAt());
 
             $deleted = $qb->getQuery()->execute();
@@ -125,6 +138,7 @@ class ReplaceableEventCleanupService
             if ($deleted > 0) {
                 $this->logger->debug('Cleaned up older article revisions', [
                     'pubkey' => substr($pubkey, 0, 16) . '...',
+                    'kind' => $kind instanceof \BackedEnum ? $kind->value : $kind,
                     'slug' => $slug,
                     'deleted_count' => $deleted,
                     'kept_id' => $newArticle->getId(),
