@@ -81,6 +81,8 @@ services:
   relay-gateway:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
+    env_file:
+      - .env.prod.local
     environment:
       APP_ENV: prod
       DATABASE_URL: ${DATABASE_URL}
@@ -103,6 +105,8 @@ services:
   worker-profiles:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
+    env_file:
+      - .env.prod.local
     environment:
       APP_ENV: prod
       DATABASE_URL: ${DATABASE_URL}
@@ -120,6 +124,8 @@ services:
   worker:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
+    env_file:
+      - .env.prod.local
     environment:
       APP_ENV: prod
       DATABASE_URL: ${DATABASE_URL}
@@ -139,6 +145,8 @@ services:
   worker-relay:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
+    env_file:
+      - .env.prod.local
     environment:
       APP_ENV: prod
       DATABASE_URL: ${DATABASE_URL}
