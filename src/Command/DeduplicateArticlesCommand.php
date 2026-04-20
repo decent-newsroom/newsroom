@@ -26,8 +26,13 @@ class DeduplicateArticlesCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $repo = $this->em->getRepository(Article::class);
-        $slugIndex = [];
+        // Key: "pubkey:slug" -> bool. Deduplication is per author: two different
+        // authors can legitimately share the same slug (e.g. "hello-world"), and
+        // flagging one author's article as a duplicate of another's would evict
+        // it from the search index and hide it from profile tabs / magazines.
+        $seen = [];
         $page = 0;
+        $flagged = 0;
 
         // Process articles in batches
         while (true) {
@@ -39,16 +44,24 @@ class DeduplicateArticlesCommand extends Command
             }
 
             foreach ($articles as $article) {
+                $pubkey = $article->getPubkey();
                 $slug = $article->getSlug();
-
-                // If this slug hasn't been seen, store the slug
-                if (!in_array($slug, $slugIndex)) {
-                    $slugIndex[] = $slug;
+                $kind = $article->getKind();
+                // Skip malformed rows — can't meaningfully dedup them
+                if ($pubkey === null || $slug === null || $kind === null) {
                     continue;
                 }
-                // The articles are sorted, so the first one should be kept
-                // Mark current article as DO_NOT_INDEX
+                $key = $pubkey . ':' . $slug . ':' . $kind->value;
+
+                // If this (author, slug, kind) tuple hasn't been seen, keep it
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    continue;
+                }
+                // The articles are sorted by createdAt DESC, so the newest one is kept
+                // Mark current (older) article as DO_NOT_INDEX
                 $article->setIndexStatus(IndexStatusEnum::DO_NOT_INDEX);
+                $flagged++;
             }
 
             // Flush the batch and clear memory to avoid overload
@@ -59,7 +72,7 @@ class DeduplicateArticlesCommand extends Command
             $page++;
         }
 
-        $output->writeln('Article deduplication complete.');
+        $output->writeln(sprintf('Article deduplication complete. Flagged %d duplicate(s) as DO_NOT_INDEX.', $flagged));
         return Command::SUCCESS;
 
     }

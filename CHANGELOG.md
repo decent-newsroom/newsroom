@@ -2,6 +2,8 @@
 
 ## v0.0.33
 
+- [Bug] Fixed `articles:deduplicate` flagging articles across different authors as duplicates. The command was keying its "seen" set on `slug` alone, so if two authors happened to pick the same slug (e.g. `hello-world`), the older author's article got marked `DO_NOT_INDEX` and silently evicted from Elasticsearch — causing it to vanish from the author profile tab and magazine categories while still appearing in the editor sidebar and via direct links. Deduplication now keys on `pubkey:slug:kind`, matches the semantics of Nostr replaceable events, and reports how many duplicates it flagged.
+- Added `articles:reset-index-status` recovery command to flip longform articles wrongly marked `DO_NOT_INDEX` back to `TO_BE_INDEXED` so `articles:index` can re-persist them to Elasticsearch. Supports `--pubkey=<npub|hex>` (recommended) or `--all`, plus `--dry-run`.
 - [Bug] Fixed republished (edited) expressions continuing to serve stale feed results until the 5-minute cache TTL expired. The expression's `created_at` timestamp is now part of the feed cache key, so editing and republishing an expression immediately invalidates the cached results.
 - [Bug] Fixed expression creator reusing the d-tag of a previously edited expression when publishing a new one. The `_existingDTag` was given unconditional priority over user input; now the d-tag input field takes precedence, and `_existingDTag` is properly cleared on template selection and reset.
 - [Bug] Fixed expression builder inputs losing focus on every keystroke. The JSON preview update is now debounced (300ms), and clause value edits no longer trigger a full DOM re-render of all stages.
