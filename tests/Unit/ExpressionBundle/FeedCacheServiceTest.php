@@ -89,6 +89,24 @@ class FeedCacheServiceTest extends TestCase
         );
     }
 
+    public function testBuildKeyDiffersWhenExpressionRepublished(): void
+    {
+        // Simulate edit: same kind/pubkey/d-tag but newer created_at
+        $original = $this->makeEvent('expr1', 30880);
+        $original->setCreatedAt(1_700_000_000);
+
+        $edited = $this->makeEvent('expr1', 30880);
+        $edited->setCreatedAt(1_700_000_500);
+
+        $ctx = new RuntimeContext('pubkey1', ['c1'], ['t1'], time());
+
+        $this->assertNotSame(
+            $this->service->buildKey($original, $ctx),
+            $this->service->buildKey($edited, $ctx),
+            'Republishing an expression (new created_at) must yield a new cache key'
+        );
+    }
+
     private function makeEvent(string $id, int $kind): Event
     {
         $event = new Event();

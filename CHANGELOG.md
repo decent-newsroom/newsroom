@@ -2,6 +2,7 @@
 
 ## v0.0.33
 
+- [Bug] Fixed republished (edited) expressions continuing to serve stale feed results until the 5-minute cache TTL expired. The expression's `created_at` timestamp is now part of the feed cache key, so editing and republishing an expression immediately invalidates the cached results.
 - [Bug] Fixed expression creator reusing the d-tag of a previously edited expression when publishing a new one. The `_existingDTag` was given unconditional priority over user input; now the d-tag input field takes precedence, and `_existingDTag` is properly cleared on template selection and reset.
 - [Bug] Fixed expression builder inputs losing focus on every keystroke. The JSON preview update is now debounced (300ms), and clause value edits no longer trigger a full DOM re-render of all stages.
 - Async expression evaluation no longer enforces the `expression.max_execution_time` budget. The worker path (`EvaluateExpressionHandler` → `ExpressionService::evaluateCached(..., enforceTimeout: false)`) can now run as long as needed; the timeout still protects synchronous/API evaluations.

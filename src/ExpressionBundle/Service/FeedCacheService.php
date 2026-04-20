@@ -35,7 +35,11 @@ final class FeedCacheService
             implode(',', $ctx->contacts) . '|' . implode(',', $ctx->interests)
         );
 
-        return 'feed_' . md5("{$coordinate}:{$ctx->mePubkey}:{$ctxHash}");
+        // Include the expression's created_at so that republishing (editing)
+        // the expression yields a new cache key and stale results are not served.
+        $version = $expression->getCreatedAt();
+
+        return 'feed_' . md5("{$coordinate}:v{$version}:{$ctx->mePubkey}:{$ctxHash}");
     }
 
     /**
