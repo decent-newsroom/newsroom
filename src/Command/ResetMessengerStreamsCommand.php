@@ -67,12 +67,32 @@ class ResetMessengerStreamsCommand extends Command
 
         // Every messenger transport defined in config/packages/messenger.yaml.
         // Keep this in sync with that file.
+        //
+        // Expected layout (separate streams per transport):
         $streams = [
             "{$this->environment}:messenger:async"             => $this->environment,
             "{$this->environment}:messenger:async_low"         => "{$this->environment}-low",
             "{$this->environment}:messenger:async_expressions" => "{$this->environment}-expressions",
             "{$this->environment}:messenger:async_profiles"    => "{$this->environment}-profiles",
         ];
+
+        // Legacy / misconfigured layout: all groups share a single stream
+        // whose name comes from the DSN path (e.g. "/0" → stream "0",
+        // "/messages" → stream "messages"). Detect this so we can still
+        // inspect the actual state even when the config drifted.
+        // We add all known group names as candidates for this stream.
+        $parsed = parse_url($this->messengerTransportDsn);
+        $dsnStream = isset($parsed['path']) ? ltrim($parsed['path'], '/') : null;
+        $allGroups = [
+            $this->environment,
+            "{$this->environment}-low",
+            "{$this->environment}-expressions",
+            "{$this->environment}-profiles",
+        ];
+        if ($dsnStream !== null && $dsnStream !== '' && !isset($streams[$dsnStream])) {
+            // Map the DSN-derived stream to all expected groups (single-stream layout).
+            $streams[$dsnStream] = $allGroups;
+        }
 
         $dsn = $this->messengerTransportDsn;
         if (!$dsn) {
@@ -95,7 +115,7 @@ class ResetMessengerStreamsCommand extends Command
         // Auto-discovery: scan every DB (0..15) for stream-type keys that look
         // like messenger streams. Helps spot DSN / DB-index mismatches between
         // the console and the worker containers.
-        $this->discoverStreams($redis, $io);
+        $this->discoverStreams($redis, $io, $streams);
 
         if ($discard && !$dryRun) {
             if (!$io->confirm('--discard will PERMANENTLY drop every undelivered message in every listed stream. Continue?', false)) {
@@ -104,8 +124,9 @@ class ResetMessengerStreamsCommand extends Command
             }
         }
 
-        foreach ($streams as $stream => $group) {
+        foreach ($streams as $stream => $groupOrGroups) {
             $io->section($stream);
+            $ourGroups = is_array($groupOrGroups) ? $groupOrGroups : [$groupOrGroups];
 
             if (!$redis->exists($stream)) {
                 $io->text('<comment>stream does not exist yet</comment>');
@@ -130,7 +151,7 @@ class ResetMessengerStreamsCommand extends Command
                 $lastId  = $g['last-delivered-id'] ?? $g[7]  ?? '?';
                 $lag     = $g['lag']               ?? $g[11] ?? null;
 
-                $isOurs = ($name === $group);
+                $isOurs = in_array($name, $ourGroups, true);
 
                 $io->writeln(sprintf(
                     '  group <info>%s</info>%s  pending=<comment>%s</comment>  last-delivered=%s%s',
@@ -217,7 +238,7 @@ class ResetMessengerStreamsCommand extends Command
      * Scan every Redis DB for stream-type keys that look like messenger
      * streams, and list them. Purely diagnostic — does not modify state.
      */
-    private function discoverStreams(\Redis $redis, SymfonyStyle $io): void
+    private function discoverStreams(\Redis $redis, SymfonyStyle $io, array $streams): void
     {
         $io->section('Stream discovery (scanning all DBs for messenger-like streams)');
 
@@ -234,6 +255,48 @@ class ResetMessengerStreamsCommand extends Command
             // ignore
         }
 
+        // Direct EXISTS check for expected stream names on the current DB first.
+        // This is the most reliable method — no SCAN iteration issues.
+        $io->writeln('  <comment>Direct check for expected streams on current DB:</comment>');
+        foreach ($streams as $streamName => $_) {
+            try {
+                $exists = $redis->exists($streamName);
+                $type   = $exists ? $redis->type($streamName) : null;
+                $len    = ($exists && $type === \Redis::REDIS_STREAM) ? $redis->xLen($streamName) : null;
+                $io->writeln(sprintf(
+                    '    %s  exists=%s  type=%s%s',
+                    $streamName,
+                    $exists ? '<info>yes</info>' : '<fg=yellow>no</>',
+                    match($type) {
+                        \Redis::REDIS_STREAM => 'stream',
+                        \Redis::REDIS_STRING => 'string',
+                        \Redis::REDIS_LIST   => 'list',
+                        \Redis::REDIS_SET    => 'set',
+                        \Redis::REDIS_ZSET   => 'zset',
+                        \Redis::REDIS_HASH   => 'hash',
+                        null                 => '-',
+                        default              => "unknown({$type})",
+                    },
+                    $len !== null ? "  xlen={$len}" : '',
+                ));
+                if ($exists) {
+                    $foundAny = true;
+                }
+            } catch (\Throwable $e) {
+                $io->writeln(sprintf('    %s  <error>error: %s</error>', $streamName, $e->getMessage()));
+            }
+        }
+        $io->newLine();
+
+        // Enable SCAN_RETRY so phpredis automatically retries when an
+        // iteration returns no matches but the cursor hasn't been exhausted.
+        // Without this, SCAN can exit after one empty batch in large keyspaces.
+        try {
+            $redis->setOption(\Redis::OPT_SCAN, \Redis::SCAN_RETRY);
+        } catch (\Throwable) {
+            // older phpredis versions may not support this — fall through
+        }
+
         for ($db = 0; $db < 16; $db++) {
             try {
                 if (!$redis->select($db)) {
@@ -243,12 +306,14 @@ class ResetMessengerStreamsCommand extends Command
                 continue;
             }
 
-            $cursor  = null;
             $matches = [];
-            do {
-                $keys = $redis->scan($cursor, '*messenger*', 500);
-                if (is_array($keys)) {
-                    foreach ($keys as $key) {
+
+            // Primary: use KEYS for a reliable one-shot lookup (safe here
+            // because we only run this from an operator CLI, not hot path).
+            try {
+                $found = $redis->keys('*messenger*');
+                if (is_array($found)) {
+                    foreach ($found as $key) {
                         try {
                             if ($redis->type($key) === \Redis::REDIS_STREAM) {
                                 $matches[$key] = true;
@@ -258,7 +323,24 @@ class ResetMessengerStreamsCommand extends Command
                         }
                     }
                 }
-            } while ($cursor > 0);
+            } catch (\Throwable) {
+                // Fallback to SCAN if KEYS is disabled (e.g. rename-command).
+                $cursor = null;
+                do {
+                    $keys = $redis->scan($cursor, '*messenger*', 500);
+                    if (is_array($keys)) {
+                        foreach ($keys as $key) {
+                            try {
+                                if ($redis->type($key) === \Redis::REDIS_STREAM) {
+                                    $matches[$key] = true;
+                                }
+                            } catch (\Throwable) {
+                                // ignore
+                            }
+                        }
+                    }
+                } while ($cursor > 0);
+            }
 
             if ($matches) {
                 $foundAny = true;
