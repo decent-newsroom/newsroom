@@ -30,6 +30,7 @@ export default class extends Controller {
   connect() {
     this.stages = [];
     this._existingDTag = null;
+    this._previewTimer = null;
 
     // If editing an existing expression, load it into the builder
     if (this.hasExistingEventValue && this.existingEventValue && Object.keys(this.existingEventValue).length > 0) {
@@ -182,7 +183,10 @@ export default class extends Controller {
     const tag = this.stages[stageIdx].tags[clauseIdx];
     if (!tag) return;
 
+    let needsRerender = false;
+
     if (field === 'type') {
+      needsRerender = true;
       // Rebuild clause tag with new type
       const oldType = tag[0];
       tag[0] = value;
@@ -226,7 +230,9 @@ export default class extends Controller {
       tag[2] = value;
     }
 
-    this._renderStages();
+    if (needsRerender) {
+      this._renderStages();
+    }
     this.updatePreview();
   }
 
@@ -261,13 +267,16 @@ export default class extends Controller {
   /* ------------------------------------------------------------------ */
 
   updatePreview() {
-    const tags = this._buildTags();
-    const event = {
-      kind: 30880,
-      content: this.contentInputTarget.value,
-      tags: tags,
-    };
-    this.previewTarget.textContent = JSON.stringify(event, null, 2);
+    clearTimeout(this._previewTimer);
+    this._previewTimer = setTimeout(() => {
+      const tags = this._buildTags();
+      const event = {
+        kind: 30880,
+        content: this.contentInputTarget.value,
+        tags: tags,
+      };
+      this.previewTarget.textContent = JSON.stringify(event, null, 2);
+    }, 300);
   }
 
   /* ------------------------------------------------------------------ */
