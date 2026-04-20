@@ -14,8 +14,9 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  * per-transport `stream:` option in messenger.yaml, collapsing all four
  * queues into one shared Redis stream.
  *
- * This compiler pass rejects any MESSENGER_TRANSPORT_DSN with a non-empty
- * path at container build time — before a broken config can reach production.
+ * This compiler pass logs a build-time warning when the DSN has a non-empty
+ * path. The actual hard failure is enforced at runtime by
+ * {@see \App\EventListener\MessengerDsnHealthListener}.
  *
  * @see vendor/symfony/redis-messenger/Transport/Connection.php line ~310
  */
@@ -23,16 +24,12 @@ class ValidateMessengerDsnPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container): void
     {
-        // Try to resolve the DSN from the environment at compile time.
-        // In dev, dotenv is loaded; in prod with compiled containers the env
-        // may not be available — in that case the runtime check in
-        // ResetMessengerStreamsCommand catches it.
         $dsn = $_ENV['MESSENGER_TRANSPORT_DSN']
             ?? $_SERVER['MESSENGER_TRANSPORT_DSN']
             ?? (getenv('MESSENGER_TRANSPORT_DSN') ?: '');
 
         if ($dsn === '' || str_contains($dsn, '%env(') || str_contains($dsn, '${')) {
-            return; // unresolved placeholder — cannot validate at compile time
+            return;
         }
 
         $parsed = parse_url($dsn);
@@ -45,15 +42,24 @@ class ValidateMessengerDsnPass implements CompilerPassInterface
             return;
         }
 
-        throw new \RuntimeException(sprintf(
-            'MESSENGER_TRANSPORT_DSN has a non-empty path "/%s". ' .
+        // Log to stderr so it's visible in docker build output, but don't
+        // block the build — the runtime listener will prevent the app from
+        // actually serving traffic with a broken DSN.
+        $message = sprintf(
+            '[WARNING] MESSENGER_TRANSPORT_DSN has a non-empty path "/%s". ' .
             'Symfony\'s Redis transport uses the DSN path as the stream name, ' .
             'which silently overrides the per-transport "stream:" option in ' .
             'messenger.yaml and collapses all queues into one shared Redis stream. ' .
             'Remove the path. For a specific DB index, use ?dbindex=%s instead.',
             $path,
             ctype_digit($path) ? $path : '0',
-        ));
+        );
+
+        // Write to stderr for build visibility
+        file_put_contents('php://stderr', "\n\n  ⚠⚠⚠  {$message}\n\n");
+
+        // Also tag the container so the runtime listener can check
+        $container->setParameter('app.messenger_dsn_warning', $message);
     }
 }
 
