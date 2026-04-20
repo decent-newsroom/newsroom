@@ -45,6 +45,7 @@ final class ExpressionRunner
         Pipeline $pipeline,
         RuntimeContext $ctx,
         SourceResolverInterface $resolver,
+        bool $enforceTimeout = true,
     ): array {
         $startTime = microtime(true);
         $previousResult = null;
@@ -73,17 +74,19 @@ final class ExpressionRunner
                 'resolveMs' => $resolveMs,
             ]);
 
-            // Check timeout after source resolution
-            $elapsed = microtime(true) - $startTime;
-            if ($elapsed >= $this->expressionMaxExecutionTime) {
-                $this->logger->warning('Expression timeout', [
-                    'dTag' => $pipeline->dTag,
-                    'stage' => $i + 1,
-                    'op' => $stage->op,
-                    'elapsedS' => round($elapsed, 2),
-                    'limitS' => $this->expressionMaxExecutionTime,
-                ]);
-                throw new TimeoutException('Expression evaluation exceeded max execution time');
+            // Check timeout after source resolution (skipped when not enforced, e.g. async workers)
+            if ($enforceTimeout) {
+                $elapsed = microtime(true) - $startTime;
+                if ($elapsed >= $this->expressionMaxExecutionTime) {
+                    $this->logger->warning('Expression timeout', [
+                        'dTag' => $pipeline->dTag,
+                        'stage' => $i + 1,
+                        'op' => $stage->op,
+                        'elapsedS' => round($elapsed, 2),
+                        'limitS' => $this->expressionMaxExecutionTime,
+                    ]);
+                    throw new TimeoutException('Expression evaluation exceeded max execution time');
+                }
             }
 
             // 2. Get the operation

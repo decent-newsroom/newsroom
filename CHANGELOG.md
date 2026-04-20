@@ -2,6 +2,7 @@
 
 ## v0.0.33
 
+- Async expression evaluation no longer enforces the `expression.max_execution_time` budget. The worker path (`EvaluateExpressionHandler` → `ExpressionService::evaluateCached(..., enforceTimeout: false)`) can now run as long as needed; the timeout still protects synchronous/API evaluations.
 - [Bug] Fixed Mercure Bolt transport configuration: `cleanup_frequency` was set to `300` (invalid — must be a 0–1 probability), and no `size` cap was set, causing `mercure.db` to grow unbounded (2 GB+ on prod). Now capped at 100 000 events with a 0.5 cleanup probability.
 - Added compile-time guard (`ValidateMessengerDsnPass`) that rejects `MESSENGER_TRANSPORT_DSN` with a non-empty path — Symfony's Redis transport treats the DSN path as the stream name, silently overriding per-transport `stream:` options and collapsing all queues into one shared Redis stream. The build now fails with a clear message and fix instructions.
 - Added DSN health check and stream-uniqueness verification to `app:messenger:reset-streams` — the command now validates that the DSN has no path override and that all transport stream names are distinct, with clear ✓/✗ indicators.

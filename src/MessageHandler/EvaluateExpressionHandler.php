@@ -46,7 +46,7 @@ final class EvaluateExpressionHandler
         }
 
         try {
-            $results = $this->expressionService->evaluateCached($expression, $message->userPubkey);
+            $results = $this->expressionService->evaluateCached($expression, $message->userPubkey, false);
 
             $this->logger->info('Async expression evaluation completed', [
                 'coordinate' => $coordinate,

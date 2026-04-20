@@ -32,7 +32,7 @@ final class ExpressionService
      * @param string $userPubkey Hex pubkey of the authenticated user (required)
      * @return NormalizedItem[]
      */
-    public function evaluate(Event $expression, string $userPubkey): array
+    public function evaluate(Event $expression, string $userPubkey, bool $enforceTimeout = true): array
     {
         $start = microtime(true);
         $coordinate = $this->buildCoordinate($expression);
@@ -40,12 +40,13 @@ final class ExpressionService
         $this->logger->info('Evaluating expression', [
             'coordinate' => $coordinate,
             'user' => substr($userPubkey, 0, 12) . '…',
+            'enforceTimeout' => $enforceTimeout,
         ]);
 
         try {
             $ctx = $this->contextFactory->create($userPubkey);
             $pipeline = $this->parser->parse($expression);
-            $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver);
+            $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver, $enforceTimeout);
 
             $this->logger->info('Expression evaluated', [
                 'coordinate' => $coordinate,
@@ -69,12 +70,12 @@ final class ExpressionService
      * Evaluate with caching.
      * @return NormalizedItem[]
      */
-    public function evaluateCached(Event $expression, string $userPubkey): array
+    public function evaluateCached(Event $expression, string $userPubkey, bool $enforceTimeout = true): array
     {
         $ctx = $this->contextFactory->create($userPubkey);
         $cacheKey = $this->cache->buildKey($expression, $ctx);
 
-        return $this->cache->getOrSet($cacheKey, fn() => $this->evaluate($expression, $userPubkey));
+        return $this->cache->getOrSet($cacheKey, fn() => $this->evaluate($expression, $userPubkey, $enforceTimeout));
     }
 
     /**
