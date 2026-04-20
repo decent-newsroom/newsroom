@@ -81,7 +81,9 @@ export default class extends Controller {
     const tpl = this.templatesValue.find(t => t.id === id);
     if (!tpl) return;
 
+    this._existingDTag = null;
     this.titleInputTarget.value = tpl.title || tpl.name;
+    this.dtagInputTarget.value = '';
     this.contentInputTarget.value = tpl.content || '';
 
     // Parse tags into stages
@@ -101,7 +103,9 @@ export default class extends Controller {
 
   reset() {
     this.stages = [];
+    this._existingDTag = null;
     this.titleInputTarget.value = '';
+    this.dtagInputTarget.value = '';
     this.contentInputTarget.value = '';
     this.galleryTarget.style.display = '';
     this.builderTarget.style.display = 'none';
@@ -350,7 +354,7 @@ export default class extends Controller {
   _buildTags() {
     const title = this.titleInputTarget.value.trim();
     const dtagValue = this.dtagInputTarget.value.trim();
-    const dTag = this._existingDTag || dtagValue || (this._slugify(title) + '-' + Date.now());
+    const dTag = dtagValue || (this._existingDTag ? this._existingDTag : (this._slugify(title) + '-' + Date.now()));
     const tags = [['d', dTag], ['title', title]];
 
     for (const stage of this.stages) {
