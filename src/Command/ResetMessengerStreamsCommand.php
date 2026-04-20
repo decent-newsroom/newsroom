@@ -8,6 +8,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Inspect / repair Symfony Messenger Redis Streams consumer groups.
@@ -39,6 +40,8 @@ class ResetMessengerStreamsCommand extends Command
 {
     public function __construct(
         private readonly string $environment,
+        #[Autowire('%env(MESSENGER_TRANSPORT_DSN)%')]
+        private readonly string $messengerTransportDsn,
     ) {
         parent::__construct();
     }
@@ -71,7 +74,7 @@ class ResetMessengerStreamsCommand extends Command
             "{$this->environment}:messenger:async_profiles"    => "{$this->environment}-profiles",
         ];
 
-        $dsn = $_ENV['MESSENGER_TRANSPORT_DSN'] ?? $_SERVER['MESSENGER_TRANSPORT_DSN'] ?? null;
+        $dsn = $this->messengerTransportDsn;
         if (!$dsn) {
             $io->error('MESSENGER_TRANSPORT_DSN not set');
             return Command::FAILURE;
@@ -84,6 +87,11 @@ class ResetMessengerStreamsCommand extends Command
 
         $io->title("Messenger Streams (env: {$this->environment})");
 
+        // Show the resolved DSN (mask password) so the operator can verify
+        // the console container is pointing at the same Redis as the workers.
+        $maskedDsn = preg_replace('#://:[^@]*@#', '://:<redacted>@', $dsn);
+        $io->writeln(sprintf('<comment>DSN: %s</comment>', $maskedDsn));
+        $io->newLine();
         // Auto-discovery: scan every DB (0..15) for stream-type keys that look
         // like messenger streams. Helps spot DSN / DB-index mismatches between
         // the console and the worker containers.
@@ -239,16 +247,15 @@ class ResetMessengerStreamsCommand extends Command
             $matches = [];
             do {
                 $keys = $redis->scan($cursor, '*messenger*', 500);
-                if (!is_array($keys)) {
-                    break;
-                }
-                foreach ($keys as $key) {
-                    try {
-                        if ($redis->type($key) === \Redis::REDIS_STREAM) {
-                            $matches[$key] = true;
+                if (is_array($keys)) {
+                    foreach ($keys as $key) {
+                        try {
+                            if ($redis->type($key) === \Redis::REDIS_STREAM) {
+                                $matches[$key] = true;
+                            }
+                        } catch (\Throwable) {
+                            // ignore
                         }
-                    } catch (\Throwable) {
-                        // ignore
                     }
                 }
             } while ($cursor > 0);
@@ -269,6 +276,20 @@ class ResetMessengerStreamsCommand extends Command
 
         if (!$foundAny) {
             $io->writeln('  <comment>no messenger-like streams found in any DB (0-15)</comment>');
+
+            // Fallback: try KEYS on the original DB as a sanity check.
+            try {
+                $redis->select($originalDb);
+                $allKeys = $redis->keys('*');
+                $io->writeln(sprintf('  <comment>total keys in db=%d: %d</comment>', $originalDb, is_array($allKeys) ? count($allKeys) : 0));
+                if (is_array($allKeys) && count($allKeys) > 0) {
+                    $sample = array_slice($allKeys, 0, 10);
+                    $io->writeln(sprintf('  <comment>sample keys: %s</comment>', implode(', ', $sample)));
+                }
+            } catch (\Throwable) {
+                // ignore
+            }
+
             $io->writeln('  <comment>hint: the console container may be pointing at a different Redis instance than the workers. Compare MESSENGER_TRANSPORT_DSN in the php and worker services.</comment>');
         }
 
