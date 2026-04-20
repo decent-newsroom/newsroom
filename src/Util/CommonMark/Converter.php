@@ -746,7 +746,7 @@ class Converter implements MarkdownConverterInterface
             'autolink'          => ['allowed_protocols' => ['https'], 'default_protocol' => 'https'],
             'embed'             => [
                 'adapter'         => new OscaroteroEmbedAdapter(),
-                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build', 'video.nostr.build'],
+                'allowed_domains' => ['youtube.com', 'x.com', 'github.com', 'fountain.fm', 'blossom.primal.net', 'i.nostr.build', 'video.nostr.build', 'c.tenor.com', 'tenor.com'],
                 'fallback'        => 'link',
             ],
         ];
