@@ -23,8 +23,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-%env(default::HOSTNAME)%'
                     stream_max_entries: 10000
                     redeliver_timeout: 300
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    delete_after_ack: true
+                    delete_after_reject: true
             
             
             # Low-priority transport for login warmup, gateway persistence, relay lists
@@ -36,8 +36,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-low-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 600
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    delete_after_ack: true
+                    delete_after_reject: true
                 retry_strategy:
                     max_retries: 1
                     delay: 5000
@@ -56,8 +56,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-expressions-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 300
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    delete_after_ack: true
+                    delete_after_reject: true
                 retry_strategy:
                     max_retries: 1
                     delay: 2000
@@ -76,8 +76,8 @@ framework:
                     consumer: 'consumer-%kernel.environment%-profiles-%env(default::HOSTNAME)%'
                     stream_max_entries: 5000
                     redeliver_timeout: 900
-                    delete_after_ack: false
-                    delete_after_reject: false
+                    delete_after_ack: true
+                    delete_after_reject: true
                 retry_strategy:
                     max_retries: 1
                     delay: 10000

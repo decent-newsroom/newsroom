@@ -71,7 +71,8 @@
 		mercure {
 			transport bolt {
 				path /data/mercure.db
-				cleanup_frequency 300
+				size 100000
+				cleanup_frequency 0.5
 			}
 
 			# JWT key for both publisher and subscriber

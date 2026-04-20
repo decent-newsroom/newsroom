@@ -53,6 +53,8 @@ class ResetMessengerStreamsCommand extends Command
             ->addOption('reclaim', null, InputOption::VALUE_NONE, 'Safely reclaim stuck pending entries to a live consumer via XAUTOCLAIM (non-destructive)')
             ->addOption('min-idle', null, InputOption::VALUE_REQUIRED, 'Minimum idle time in milliseconds for --reclaim', '60000')
             ->addOption('cleanup', null, InputOption::VALUE_NONE, 'Delete consumer groups from other environments')
+            ->addOption('prune', null, InputOption::VALUE_NONE, 'Remove stale consumers (idle > threshold, pending=0) from current groups')
+            ->addOption('prune-idle', null, InputOption::VALUE_REQUIRED, 'Minimum idle time in milliseconds for --prune (default: 1 hour)', '3600000')
             ->addOption('discard', null, InputOption::VALUE_NONE, 'DESTRUCTIVE: skip all undelivered messages (XGROUP SETID ... +)');
     }
 
@@ -62,8 +64,10 @@ class ResetMessengerStreamsCommand extends Command
         $dryRun  = (bool) $input->getOption('dry-run');
         $reclaim = (bool) $input->getOption('reclaim');
         $cleanup = (bool) $input->getOption('cleanup');
+        $prune   = (bool) $input->getOption('prune');
         $discard = (bool) $input->getOption('discard');
         $minIdle = (int) $input->getOption('min-idle');
+        $pruneIdle = (int) $input->getOption('prune-idle');
 
         // Every messenger transport defined in config/packages/messenger.yaml.
         // Keep this in sync with that file.
@@ -112,6 +116,38 @@ class ResetMessengerStreamsCommand extends Command
         $maskedDsn = preg_replace('#://:[^@]*@#', '://:<redacted>@', $dsn);
         $io->writeln(sprintf('<comment>DSN: %s</comment>', $maskedDsn));
         $io->newLine();
+
+        // ── DSN health check ────────────────────────────────────────────
+        // Symfony's Redis transport parses the DSN path as: /stream/group/consumer
+        // A non-empty path silently overrides the per-transport `stream:` option
+        // from messenger.yaml, collapsing all queues into one shared stream.
+        $dsnPath = trim($parsed['path'] ?? '', '/');
+        if ($dsnPath !== '') {
+            $io->error([
+                sprintf('⚠ MESSENGER_TRANSPORT_DSN has path "/%s"', $dsnPath),
+                'Symfony uses this as the stream name, OVERRIDING the per-transport',
+                '"stream:" option in messenger.yaml. All four transports share one stream!',
+                '',
+                'Fix: remove the path from the DSN.',
+                ctype_digit($dsnPath)
+                    ? sprintf('For DB index %s, use ?dbindex=%s instead.', $dsnPath, $dsnPath)
+                    : 'If this was intended as a stream name, set it via the stream: option per transport.',
+            ]);
+        } else {
+            $io->writeln('  <info>✓</info> DSN has no path — per-transport stream names from messenger.yaml will be used');
+        }
+
+        // Verify all configured stream names are unique
+        $streamNames = array_keys($streams);
+        $uniqueNames = array_unique($streamNames);
+        if (count($streamNames) === count($uniqueNames)) {
+            $io->writeln(sprintf('  <info>✓</info> All %d transport streams have unique names', count($streamNames)));
+        } else {
+            $dupes = array_diff_assoc($streamNames, $uniqueNames);
+            $io->error(sprintf('Duplicate stream names detected: %s', implode(', ', $dupes)));
+        }
+        $io->newLine();
+
         // Auto-discovery: scan every DB (0..15) for stream-type keys that look
         // like messenger streams. Helps spot DSN / DB-index mismatches between
         // the console and the worker containers.
@@ -169,7 +205,29 @@ class ResetMessengerStreamsCommand extends Command
                         $cname    = $c['name']    ?? $c[1] ?? '?';
                         $cpending = $c['pending'] ?? $c[3] ?? 0;
                         $cidle    = $c['idle']    ?? $c[5] ?? 0;
-                        $io->writeln(sprintf('      consumer <info>%s</info>  pending=%d  idle=%dms', $cname, $cpending, $cidle));
+                        $isStale  = $cpending === 0 && $cidle > $pruneIdle;
+                        $io->writeln(sprintf(
+                            '      consumer <info>%s</info>  pending=%d  idle=%dms%s',
+                            $cname, $cpending, $cidle,
+                            $isStale ? '  <fg=yellow>← stale</>' : '',
+                        ));
+                    }
+
+                    // Prune stale consumers (idle > threshold, pending=0)
+                    if ($prune && $isOurs) {
+                        foreach ($consumers as $c) {
+                            $cname    = $c['name']    ?? $c[1] ?? '?';
+                            $cpending = $c['pending'] ?? $c[3] ?? 0;
+                            $cidle    = $c['idle']    ?? $c[5] ?? 0;
+                            if ($cpending === 0 && $cidle > $pruneIdle) {
+                                if ($dryRun) {
+                                    $io->note(sprintf('would XGROUP DELCONSUMER «%s» from group «%s» (idle %ds, pending=0)', $cname, $name, intdiv($cidle, 1000)));
+                                } else {
+                                    $redis->rawCommand('XGROUP', 'DELCONSUMER', $stream, $name, $cname);
+                                    $io->writeln(sprintf('      <fg=green>✓ pruned stale consumer «%s» (idle %ds)</>', $cname, intdiv($cidle, 1000)));
+                                }
+                            }
+                        }
                     }
                 } catch (\Throwable) {
                     // best-effort only
@@ -225,8 +283,8 @@ class ResetMessengerStreamsCommand extends Command
         }
 
         $io->newLine();
-        if (!$reclaim && !$cleanup && !$discard) {
-            $io->info('Read-only diagnostic. Use --reclaim to safely re-deliver stuck pendings, --cleanup to drop foreign groups, --discard to wipe backlogs.');
+        if (!$reclaim && !$cleanup && !$discard && !$prune) {
+            $io->info('Read-only diagnostic. Use --reclaim to safely re-deliver stuck pendings, --prune to remove stale consumers, --cleanup to drop foreign groups, --discard to wipe backlogs.');
         } elseif (!$dryRun) {
             $io->info('Done. Workers do not need to be restarted.');
         }
