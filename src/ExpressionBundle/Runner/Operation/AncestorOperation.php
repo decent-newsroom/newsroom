@@ -38,16 +38,47 @@ final class AncestorOperation implements OperationInterface
         $out = [];
 
         foreach ($inputs[0] as $item) {
-            $chain = $this->walkAncestors($item);
-
             if ($rootOnly) {
-                // If the input has no parent, it is its own root.
+                // Fast path: use the kind's explicit root-tag hint when present
+                // (NIP-10 marked `"root"` e tag, NIP-22 uppercase `E`/`A`). This
+                // jumps directly to the true root without needing every
+                // intermediate event in the local DB — the iterative walk breaks
+                // as soon as one hop fails to resolve, which is the common case
+                // for deeply-nested threads where middle events aren't cached.
+                $hinted = $this->resolver->rootHint($item);
+                if ($hinted !== null) {
+                    $out[] = $hinted;
+                    continue;
+                }
+
+                $chain = $this->walkAncestors($item);
+                // If the input has no parent, it is its own root (per NIP-GX).
                 $out[] = empty($chain) ? $item : $chain[count($chain) - 1];
                 continue;
             }
 
-            foreach ($chain as $ancestor) {
+            foreach ($this->walkAncestors($item) as $ancestor) {
                 $out[] = $ancestor;
+            }
+
+            // If the kind declares an explicit root tag and the iterative walk
+            // didn't reach it (typically because an intermediate hop wasn't in
+            // the local DB), append the true root at the farthest position so
+            // the chain still terminates at it. This is a no-op when the walk
+            // already emitted the root.
+            $hinted = $this->resolver->rootHint($item);
+            if ($hinted !== null) {
+                $hintedId = $hinted->getCanonicalId();
+                $alreadyEmitted = false;
+                foreach ($out as $emitted) {
+                    if ($emitted->getCanonicalId() === $hintedId) {
+                        $alreadyEmitted = true;
+                        break;
+                    }
+                }
+                if (!$alreadyEmitted) {
+                    $out[] = $hinted;
+                }
             }
         }
 

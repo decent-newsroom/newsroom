@@ -77,6 +77,30 @@ final class TraversalResolver
         return in_array($item->getKind(), [1, 1111, 30040], true);
     }
 
+    /**
+     * Best-effort shortcut to the "true root" of an item when the kind declares
+     * an explicit root tag, used to implement `ancestor root` without having to
+     * climb the parent chain one hop at a time.
+     *
+     * - `kind:1`    : marked `"root"` e tag (NIP-10)
+     * - `kind:1111` : uppercase `E` (event-id) or `A` (addressable) root-scope tag (NIP-22)
+     * - `kind:30040`: no explicit root hint (inclusion-based graph may have multiple parents;
+     *                 walking up with {@see parents()} is the only correct path)
+     *
+     * Returns null when no root hint is declared, when the hint references a
+     * non-event target (e.g. a NIP-22 `I` external identity), or when the
+     * referenced event cannot be resolved from the local DB. Callers SHOULD
+     * fall back to iterative traversal via {@see parents()} in that case.
+     */
+    public function rootHint(NormalizedItem $item): ?NormalizedItem
+    {
+        return match ($item->getKind()) {
+            1     => $this->kind1RootHint($item),
+            1111  => $this->kind1111RootHint($item),
+            default => null,
+        };
+    }
+
     // ---- kind:1 (NIP-10) ------------------------------------------------
 
     private function kind1Parent(NormalizedItem $item): ?NormalizedItem
@@ -103,6 +127,25 @@ final class TraversalResolver
 
         $event = $this->eventRepository->findById($parentId);
         return $event !== null ? new NormalizedItem($event) : null;
+    }
+
+    /**
+     * NIP-10 marked `"root"` e tag — the thread's true root event.
+     * Returns null if the marked root is missing (pre-marker notes) or the
+     * referenced event is not in the local DB.
+     */
+    private function kind1RootHint(NormalizedItem $item): ?NormalizedItem
+    {
+        foreach ($item->getEvent()->getTags() as $tag) {
+            if (($tag[0] ?? null) !== 'e' || !isset($tag[1])) {
+                continue;
+            }
+            if (($tag[3] ?? null) === 'root') {
+                $event = $this->eventRepository->findById($tag[1]);
+                return $event !== null ? new NormalizedItem($event) : null;
+            }
+        }
+        return null;
     }
 
     /** @return NormalizedItem[] */
@@ -142,6 +185,43 @@ final class TraversalResolver
                 return $this->resolveAddress($tag[1]);
             }
             // `i` parents are external identities; no event parent under this NIP.
+        }
+        return null;
+    }
+
+    /**
+     * NIP-22 uppercase root-scope tag — the thread's true root, which is the
+     * event (article, note, etc.) the comment thread is attached to.
+     *
+     * Preference order per NIP-22:
+     *   - `E` (event-id root scope) over `A` (addressable root scope) when both
+     *     are present; in practice NIP-22 clients set one or the other, but if
+     *     both appear `E` is the concrete event and `A` is its coordinate, so
+     *     `E` resolves faster.
+     *   - `I` (external identity root scope) is ignored for event traversal.
+     */
+    private function kind1111RootHint(NormalizedItem $item): ?NormalizedItem
+    {
+        $eventIdRoot = null;
+        $addressRoot = null;
+
+        foreach ($item->getEvent()->getTags() as $tag) {
+            $type = $tag[0] ?? null;
+            if ($type === 'E' && isset($tag[1]) && $eventIdRoot === null) {
+                $eventIdRoot = $tag[1];
+            } elseif ($type === 'A' && isset($tag[1]) && $addressRoot === null) {
+                $addressRoot = $tag[1];
+            }
+        }
+
+        if ($eventIdRoot !== null) {
+            $event = $this->eventRepository->findById($eventIdRoot);
+            if ($event !== null) {
+                return new NormalizedItem($event);
+            }
+        }
+        if ($addressRoot !== null) {
+            return $this->resolveAddress($addressRoot);
         }
         return null;
     }
