@@ -164,6 +164,30 @@ final class TraversalResolver
     }
 
     /**
+     * True if the item may legitimately be emitted as its own root under the
+     * NIP-GX "ancestor root" totality clause.
+     *
+     * Beyond the "no declared parent/root" check in {@see hasDeclaredRoot()},
+     * this applies kind-specific rules so that items that are clearly not
+     * thread origins don't leak to the top of `ancestor root` feeds:
+     *
+     *   - kind:1 (NIP-10 notes): must declare at least one `a` tag (i.e. be
+     *     associated with an addressable event, typically an article).
+     *     Standalone notes with no `a` tag are not considered thread roots
+     *     in the expression/spell context — surfacing every off-topic note
+     *     as its own root defeats the purpose of asking for roots.
+     *   - all other supported kinds: fall back to {@see hasDeclaredRoot()}
+     *     being false (the caller already checked that).
+     */
+    public function canBeSelfRoot(NormalizedItem $item): bool
+    {
+        if ($item->getKind() === 1) {
+            return $this->hasAnyTag($item->getEvent()->getTags(), ['a']);
+        }
+        return true;
+    }
+
+    /**
      * @param array<int, array<int, string>> $tags
      * @param list<string>                   $names
      */

@@ -67,7 +67,12 @@ final class AncestorOperation implements OperationInterface
                 // own root" totality clause only fires when the input has
                 // NO declared parent/root; a declared-but-unresolvable ref
                 // yields no event (per the address-resolution rule).
-                if (!$this->resolver->hasDeclaredRoot($item)) {
+                // Additionally, kind-specific rules in canBeSelfRoot() reject
+                // items that are clearly not thread origins (e.g. kind:1
+                // notes with no `a` tag associating them with an article),
+                // so `ancestor root` feeds don't fill up with off-topic
+                // standalone notes.
+                if (!$this->resolver->hasDeclaredRoot($item) && $this->resolver->canBeSelfRoot($item)) {
                     $out[] = $item;
                 }
                 continue;
