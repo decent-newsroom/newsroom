@@ -423,6 +423,16 @@ services:
     App\ExpressionBundle\Runner\Operation\DifferenceOperation:
         tags: ['expression.operation']
 
+    # NIP-GX traversal operations
+    App\ExpressionBundle\Runner\Operation\ParentOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\ChildOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\AncestorOperation:
+        tags: ['expression.operation']
+    App\ExpressionBundle\Runner\Operation\DescendantOperation:
+        tags: ['expression.operation']
+
     App\ExpressionBundle\Runner\Normalizer\IdentityNormalizer:
         tags: ['expression.normalizer']
     App\ExpressionBundle\Runner\Normalizer\RecencyNormalizer:

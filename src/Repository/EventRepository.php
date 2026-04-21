@@ -746,4 +746,44 @@ class EventRepository extends ServiceEntityRepository
         return (int) $conn->executeQuery($sql, $params)->fetchOne();
     }
 
+    /**
+     * Find events of specified kinds that have a tag matching (name, value).
+     *
+     * Used by NIP-GX traversal operators to locate children of a given event
+     * (e.g. kind:1 replies referencing an event id via `e`, kind:1111 comments
+     * referencing an addressable coordinate via `a`, or kind:30040 indices
+     * including an event via `a`).
+     *
+     * @param string $tagName The first element of the tag to match (e.g. "e", "a")
+     * @param string $tagValue The second element of the tag to match (event id or coordinate)
+     * @param int[] $kinds Event kinds to restrict the search to; empty means any kind
+     * @param int $limit Maximum number of events to return
+     * @return Event[]
+     */
+    public function findReferencingEvents(string $tagName, string $tagValue, array $kinds = [], int $limit = 200): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = 'SELECT * FROM event e WHERE EXISTS (
+            SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+            WHERE tag->>0 = :tagName AND tag->>1 = :tagValue
+        )';
+        $params = ['tagName' => $tagName, 'tagValue' => $tagValue];
+
+        if (!empty($kinds)) {
+            $placeholders = [];
+            foreach (array_values($kinds) as $i => $kind) {
+                $placeholders[] = ':kind_' . $i;
+                $params['kind_' . $i] = (int) $kind;
+            }
+            $sql .= ' AND e.kind IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        $sql .= ' ORDER BY e.created_at ASC LIMIT :limit';
+        $params['limit'] = max(1, $limit);
+
+        $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+        return array_map(fn($row) => $this->mapRowToEvent($row), $results);
+    }
+
 }

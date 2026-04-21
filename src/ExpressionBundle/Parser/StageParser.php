@@ -14,9 +14,16 @@ use App\ExpressionBundle\Model\Stage;
  */
 final class StageParser
 {
-    private const VALID_OPS = ['all', 'any', 'none', 'sort', 'slice', 'distinct', 'union', 'intersect', 'difference', 'score'];
+    private const VALID_OPS = ['all', 'any', 'none', 'sort', 'slice', 'distinct', 'union', 'intersect', 'difference', 'score', 'parent', 'child', 'ancestor', 'descendant'];
     private const FILTER_OPS = ['all', 'any', 'none'];
     private const SET_OPS = ['union', 'intersect', 'difference'];
+    private const TRAVERSAL_OPS = ['parent', 'child', 'ancestor', 'descendant'];
+    private const TRAVERSAL_MODIFIERS = [
+        'ancestor' => ['root'],
+        'descendant' => ['leaves'],
+        'parent' => [],
+        'child' => [],
+    ];
     private const BLOCKED_SORT_PROPS = ['id', 'pubkey'];
 
     public function __construct(
@@ -44,9 +51,28 @@ final class StageParser
         $sortMode = null;
         $sliceOffset = null;
         $sliceLimit = null;
+        $traversalModifier = null;
+
+        $isTraversal = in_array($op, self::TRAVERSAL_OPS, true);
 
         foreach ($stageTags as $tag) {
             $tagType = $tag[0] ?? null;
+
+            // Traversal ops' modifier is inlined in the op tag and re-synthesized
+            // by ExpressionParser as e.g. ["ancestor","root"] or ["descendant","leaves"].
+            if ($isTraversal && $tagType === $op) {
+                if (count($tag) > 2) {
+                    throw new InvalidArgumentException("{$op} stage accepts at most one modifier");
+                }
+                if (isset($tag[1])) {
+                    $allowed = self::TRAVERSAL_MODIFIERS[$op];
+                    if (!in_array($tag[1], $allowed, true)) {
+                        throw new InvalidArgumentException("Invalid modifier for {$op}: '{$tag[1]}'");
+                    }
+                    $traversalModifier = $tag[1];
+                }
+                continue;
+            }
 
             switch ($tagType) {
                 case 'input':
@@ -131,6 +157,11 @@ final class StageParser
             throw new InvalidArgumentException('score operation requires at least one term');
         }
 
+        // Traversal ops are single-input: explicit inputs allowed only on the first stage (NIP-GX).
+        if ($isTraversal && !$isFirstStage && !empty($inputs)) {
+            throw new InvalidArgumentException("{$op} stage must not have explicit input tags (single-input op); remove the input tags to consume the previous stage result");
+        }
+
         return new Stage(
             op: $op,
             inputs: $inputs,
@@ -142,6 +173,7 @@ final class StageParser
             sortMode: $sortMode,
             sliceOffset: $sliceOffset,
             sliceLimit: $sliceLimit,
+            traversalModifier: $traversalModifier,
         );
     }
 }

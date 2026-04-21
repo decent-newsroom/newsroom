@@ -99,13 +99,27 @@ final class NormalizedItem
      */
     public function getCanonicalId(): string
     {
-        $kind = $this->getKind();
-        if ($kind >= 30000 && $kind < 40000) {
-            $dValues = $this->getTagValues('d');
-            $d = $dValues[0] ?? '';
-            return "a:{$kind}:{$this->getPubkey()}:{$d}";
+        $coord = $this->getAddressableCoordinate();
+        if ($coord !== null) {
+            return "a:{$coord}";
         }
         return "e:{$this->getId()}";
+    }
+
+    /**
+     * Addressable coordinate `<kind>:<pubkey>:<d>` for parameterized replaceable events
+     * (kinds 30000–39999), or null for non-addressable events. Used by NIP-GX traversal
+     * to match `a`-tag references.
+     */
+    public function getAddressableCoordinate(): ?string
+    {
+        $kind = $this->getKind();
+        if ($kind < 30000 || $kind >= 40000) {
+            return null;
+        }
+        $dValues = $this->getTagValues('d');
+        $d = $dValues[0] ?? '';
+        return "{$kind}:{$this->getPubkey()}:{$d}";
     }
 
     /**
