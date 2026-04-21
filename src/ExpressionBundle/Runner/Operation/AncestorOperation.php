@@ -52,8 +52,24 @@ final class AncestorOperation implements OperationInterface
                 }
 
                 $chain = $this->walkAncestors($item);
-                // If the input has no parent, it is its own root (per NIP-GX).
-                $out[] = empty($chain) ? $item : $chain[count($chain) - 1];
+                if (!empty($chain)) {
+                    $out[] = $chain[count($chain) - 1];
+                    continue;
+                }
+
+                // Chain empty. NIP-GX's "is its own root" totality clause only
+                // applies when the input has NO declared parent/root — i.e. the
+                // event genuinely starts a thread. When a parent/root IS
+                // declared but cannot be resolved from the local DB, per
+                // NIP-GX's address-resolution rule the stage yields no event;
+                // we MUST NOT leak the intermediate comment/reply as if it
+                // were the root (otherwise e.g. a kind:1111 comment whose
+                // referenced article isn't cached would surface as its own
+                // headline in expression results, defeating the whole point
+                // of asking for the root).
+                if (!$this->resolver->hasDeclaredRoot($item)) {
+                    $out[] = $item;
+                }
                 continue;
             }
 

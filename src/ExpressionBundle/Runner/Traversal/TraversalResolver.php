@@ -78,6 +78,69 @@ final class TraversalResolver
     }
 
     /**
+     * True if the item declares a parent/root reference in its tags, regardless
+     * of whether the referenced event can be resolved from the local DB.
+     *
+     * Used by {@see AncestorOperation} to distinguish between:
+     *   - input with no declared parent/root → emit the input itself as its own
+     *     root (NIP-GX "ancestor root" totality clause);
+     *   - input whose declared parent/root cannot be resolved → emit nothing
+     *     (NIP-GX "a coordinate that resolves to no visible event contributes
+     *     no result" — we don't want the intermediate item leaking through as
+     *     a "root" just because we can't see what it's really attached to).
+     *
+     * For `kind:30040` this is always false: its inclusion-based graph has no
+     * declared root; walking up via {@see parents()} is the only correct path.
+     */
+    public function hasDeclaredRoot(NormalizedItem $item): bool
+    {
+        $tags = $item->getEvent()->getTags();
+
+        return match ($item->getKind()) {
+            // NIP-10 marked `"root"` e tag; in the absence of a marked root,
+            // a marked `"reply"` still signals the item sits inside a thread.
+            1 => $this->hasTagWithMarker($tags, 'e', ['root', 'reply']),
+
+            // NIP-22: uppercase E/A (root scope) or lowercase e/a (direct parent).
+            // Either one means the comment is attached to something upstream.
+            1111 => $this->hasAnyTag($tags, ['E', 'A', 'e', 'a']),
+
+            default => false,
+        };
+    }
+
+    /**
+     * @param array<int, array<int, string>> $tags
+     * @param list<string>                   $names
+     */
+    private function hasAnyTag(array $tags, array $names): bool
+    {
+        foreach ($tags as $tag) {
+            if (isset($tag[1], $tag[0]) && in_array($tag[0], $names, true) && $tag[1] !== '') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param array<int, array<int, string>> $tags
+     * @param list<string>                   $markers
+     */
+    private function hasTagWithMarker(array $tags, string $name, array $markers): bool
+    {
+        foreach ($tags as $tag) {
+            if (($tag[0] ?? null) !== $name || !isset($tag[1])) {
+                continue;
+            }
+            if (in_array($tag[3] ?? null, $markers, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Best-effort shortcut to the "true root" of an item when the kind declares
      * an explicit root tag, used to implement `ancestor root` without having to
      * climb the parent chain one hop at a time.

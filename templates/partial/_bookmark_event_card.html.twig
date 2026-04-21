@@ -32,6 +32,12 @@
             {% include 'event/_kind10015_tags.html.twig' with {event: event} %}
         {% elseif event.kind == 39089 %}
             {% include 'event/_kind39089_followPack.html.twig' with {event: event} %}
+        {% elseif event.kind == 1111 %}
+            {# NIP-22 comment: in a feed (bookmarks / expression results)
+               the article being commented on is the more useful headline,
+               so render the resolved root/parent as the primary card with
+               the comment text shown above as a small callout. #}
+            {% include 'partial/_comment_as_card.html.twig' with {event: event} %}
         {% else %}
             {# Default: parsed content preview #}
             <div class="event-content">

@@ -82,8 +82,34 @@ card baseline is kept).
 
 - `templates/event/index.html.twig` — dispatches kind 1111 to the new
   partial and includes the meta block.
-- `templates/event/_kind1111_comment.html.twig` — new.
+- `templates/event/_kind1111_comment.html.twig` — new. Used on the
+  single-event page where the comment itself is the focus.
 - `templates/event/_event_meta.html.twig` — new.
+- `templates/partial/_comment_as_card.html.twig` — new. Inverted
+  layout used in feed contexts (bookmarks, expression results): the
+  resolved root/parent target is the primary card, the comment text is
+  shown as a small "X commented:" callout above it.
+- `templates/partial/_bookmark_event_card.html.twig` — dispatches kind
+  1111 through `_comment_as_card.html.twig` so a comment in a feed reads
+  as the article being discussed, not a context-free comment body.
 - `assets/styles/03-components/event-single.css` — new.
 - `assets/app.js` — imports the new stylesheet.
+
+## Two layouts, two contexts
+
+The same NIP-22 comment is rendered differently depending on where it
+appears:
+
+| Context                         | Template                              | Headline             |
+|---------------------------------|---------------------------------------|----------------------|
+| `/e/{nevent}` single event page | `event/_kind1111_comment.html.twig`   | the comment          |
+| Bookmarks                       | `partial/_comment_as_card.html.twig`  | the referenced item  |
+| Expression results              | `partial/_comment_as_card.html.twig`  | the referenced item  |
+
+In feed contexts the inversion matters: a `kind:30880` expression that
+returns recent `kind:1111` events (e.g. "comments by my contacts") is
+much more useful when the cards in the result list are the articles
+those contacts commented on, rather than a stack of one-line replies
+without context. The comment author + text are preserved as a small
+callout so the conversational signal isn't lost.
 

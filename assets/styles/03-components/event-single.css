@@ -91,3 +91,23 @@
     margin: 0;
 }
 
+.comment-callout {
+    margin: 0 0 var(--spacing-3);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-left: 3px solid var(--color-nostr, #6c5ce7);
+    background: var(--color-bg-light, #f8f8f8);
+}
+
+.comment-callout-header {
+    color: var(--color-text-muted, #666);
+    margin-bottom: var(--spacing-1);
+}
+
+.comment-callout-body {
+    margin: 0;
+    font-style: italic;
+}
+
+.comment-callout-external a {
+    word-break: break-all;
+}
