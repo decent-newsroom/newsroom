@@ -20,7 +20,9 @@
 
     <div class="card-body">
         {# Reuse existing event kind partials #}
-        {% if event.kind == 20 %}
+        {% if event.kind in [30023, 30024] and event.slug is not empty and event.title is not empty %}
+            <twig:Molecules:Card :article="event" />
+        {% elseif event.kind == 20 %}
             {% include 'event/_kind20_picture.html.twig' with {event: event, embed: true} %}
         {% elseif event.kind in [21, 22, 34235, 34236] %}
             {% include 'event/_kind22_video.html.twig' with {event: event, embed: true} %}
