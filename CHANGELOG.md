@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## v0.0.33
+Db, caching, and indexing fixes.
 
 - [Bug] Fixed `articles:deduplicate` flagging articles across different authors as duplicates. The command was keying its "seen" set on `slug` alone, so if two authors happened to pick the same slug (e.g. `hello-world`), the older author's article got marked `DO_NOT_INDEX` and silently evicted from Elasticsearch — causing it to vanish from the author profile tab and magazine categories while still appearing in the editor sidebar and via direct links. Deduplication now keys on `pubkey:slug:kind`, matches the semantics of Nostr replaceable events, and reports how many duplicates it flagged.
 - Added `articles:reset-index-status` recovery command to flip longform articles wrongly marked `DO_NOT_INDEX` back to `TO_BE_INDEXED` so `articles:index` can re-persist them to Elasticsearch. Supports `--pubkey=<npub|hex>` (recommended) or `--all`, plus `--dry-run`.
