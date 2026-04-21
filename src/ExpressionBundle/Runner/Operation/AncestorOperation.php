@@ -151,16 +151,23 @@ final class AncestorOperation implements OperationInterface
      * Iteratively climb from the seed to the farthest reachable ancestor.
      *
      * At each step:
-     *   1. If the current node has resolvable parents, take the first one and
-     *      continue.
-     *   2. If not, but the node declares a root-scope tag (NIP-10 marked
+     *   1. If the current node's kind has no threading-based upward rule
+     *      (i.e. it isn't kind:1, kind:1111, or kind:30040), terminate.
+     *      This prevents the default `parents()` fall-through for non-
+     *      threading addressable kinds (articles, etc.) from leaking
+     *      inclusion-based parents (e.g. kind:30040 magazines that contain
+     *      the article) into comment-root results. Any `a`/`A` tag hop
+     *      from a kind:1111 comment is therefore final.
+     *   2. If the current node has resolvable parents, take the first one
+     *      and continue.
+     *   3. If not, but the node declares a root-scope tag (NIP-10 marked
      *      "root" e, NIP-22 uppercase E/A), jump to the hint's target and
      *      continue climbing FROM THAT event. Misconfigured NIP-22 clients
      *      sometimes chain root scopes (uppercase E pointing at another
      *      comment instead of the thread's true origin), so we don't stop
      *      at the first hint — we keep going until no further progress is
      *      possible.
-     *   3. Otherwise the walk terminates.
+     *   4. Otherwise the walk terminates.
      *
      * Returns null if:
      *   - the seed has no declared parent/root (caller uses the NIP-GX
@@ -186,6 +193,19 @@ final class AncestorOperation implements OperationInterface
         $advanced = false;
 
         for ($depth = 0; $depth < self::MAX_DEPTH; $depth++) {
+            // Any `a`/`A` tag reference from a comment is final: once the
+            // climb has advanced into an event whose kind has no defined
+            // threading-based upward rule (e.g. a kind:30023 article reached
+            // via a kind:1111 comment's `a`/`A` tag), we stop. Otherwise the
+            // default `parents()` fall-through for non-threading kinds would
+            // surface inclusion-based parents (e.g. kind:30040 publications
+            // that include the article) as the root — which is not what
+            // "root of this comment thread" means in practice. Kind:30040
+            // stays traversable so nested-index chains still climb.
+            if ($advanced && !$this->resolver->isTraversable($current)) {
+                return $this->terminate($current, $advanced);
+            }
+
             $parents = $this->resolver->parents($current);
             if (!empty($parents)) {
                 // Pick the first not-yet-visited parent. Tree-shaped kinds
