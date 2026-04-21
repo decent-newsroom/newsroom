@@ -140,12 +140,19 @@ export default class extends Controller {
       this.stages[idx].tags = [['sort-ns', 'tag'], ['sort-field', 'published_at'], ['sort-dir', 'desc']];
     } else if (opType === 'slice') {
       this.stages[idx].tags = [['slice-offset', '0'], ['slice-limit', '20']];
+    } else if (opType === 'traversal') {
+      // Preserve any existing `input` tags (traversal ops are single-input but may be
+      // the first stage); drop only sort/slice scaffolding. Reset modifier to none.
+      const keptInputs = this.stages[idx].tags.filter(t => t[0] === 'input');
+      this.stages[idx].tags = [['traversal-modifier', ''], ...keptInputs];
     } else {
       // Keep existing tags or start fresh
       if (this.stages[idx].tags.length === 0 ||
           this.stages[idx].tags[0][0] === 'sort-ns' ||
-          this.stages[idx].tags[0][0] === 'slice-offset') {
-        this.stages[idx].tags = [];
+          this.stages[idx].tags[0][0] === 'slice-offset' ||
+          this.stages[idx].tags[0][0] === 'traversal-modifier') {
+        // Preserve any existing inputs when leaving traversal mode.
+        this.stages[idx].tags = this.stages[idx].tags.filter(t => t[0] === 'input');
       }
     }
     this._renderStages();
@@ -156,6 +163,19 @@ export default class extends Controller {
     const idx = parseInt(event.currentTarget.dataset.stageIndex, 10);
     this.stages[idx].tags.push(['match', 'prop', 'kind', '30023']);
     this._renderStages();
+    this.updatePreview();
+  }
+
+  updateTraversalModifier(event) {
+    const idx = parseInt(event.currentTarget.dataset.stageIndex, 10);
+    const stage = this.stages[idx];
+    if (!stage) return;
+    const existing = stage.tags.find(t => t[0] === 'traversal-modifier');
+    if (existing) {
+      existing[1] = event.currentTarget.value;
+    } else {
+      stage.tags.unshift(['traversal-modifier', event.currentTarget.value]);
+    }
     this.updatePreview();
   }
 
@@ -380,6 +400,20 @@ export default class extends Controller {
         tags.push(['op', 'slice', offset, limit]);
       } else if (opType === 'dedup') {
         tags.push(['op', 'distinct']);
+      } else if (opType === 'traversal') {
+        const modifier = (stage.tags.find(t => t[0] === 'traversal-modifier') || [])[1] || '';
+        if (modifier) {
+          tags.push(['op', stage.op, modifier]);
+        } else {
+          tags.push(['op', stage.op]);
+        }
+        // Emit any input tags the user configured (validated server-side: only
+        // allowed on a first-stage traversal op, per NIP-GX).
+        for (const clause of stage.tags) {
+          if (clause[0] === 'input' && clause[2]) {
+            tags.push([...clause]);
+          }
+        }
       } else {
         // Filter or set ops
         tags.push(['op', stage.op]);
@@ -459,6 +493,13 @@ export default class extends Controller {
               ['slice-limit', tag[3] || '20'],
             ],
           };
+        } else if (opType === 'traversal') {
+          // NIP-GX: ["op","ancestor","root"] or ["op","descendant","leaves"].
+          // parent/child have no modifier.
+          current = {
+            op,
+            tags: [['traversal-modifier', tag[2] || '']],
+          };
         } else {
           current = { op, tags: [] };
         }
@@ -476,6 +517,7 @@ export default class extends Controller {
     if (op === 'slice') return 'slice';
     if (op === 'distinct') return 'dedup';
     if (['union', 'intersect', 'difference'].includes(op)) return 'set';
+    if (['parent', 'child', 'ancestor', 'descendant'].includes(op)) return 'traversal';
     return 'filter'; // all, any, none
   }
 
@@ -517,6 +559,12 @@ export default class extends Controller {
             <option value="intersect"${stage.op === 'intersect' ? ' selected' : ''}>intersect — keep shared</option>
             <option value="difference"${stage.op === 'difference' ? ' selected' : ''}>difference — subtract</option>
             <option value="distinct"${stage.op === 'distinct' ? ' selected' : ''}>distinct — deduplicate</option>
+          </optgroup>
+          <optgroup label="Traversal (NIP-GX)">
+            <option value="parent"${stage.op === 'parent' ? ' selected' : ''}>parent — one-hop up</option>
+            <option value="child"${stage.op === 'child' ? ' selected' : ''}>child — one-hop down</option>
+            <option value="ancestor"${stage.op === 'ancestor' ? ' selected' : ''}>ancestor — all the way up</option>
+            <option value="descendant"${stage.op === 'descendant' ? ' selected' : ''}>descendant — all the way down</option>
           </optgroup>
         </select>
         <button class="btn btn-sm btn-danger"
@@ -564,6 +612,47 @@ export default class extends Controller {
         </div>`;
     } else if (opType === 'dedup') {
       html += `<div class="expression-stage__body"><em>Deduplicates items by canonical identity.</em></div>`;
+    } else if (opType === 'traversal') {
+      const modifier = (stage.tags.find(t => t[0] === 'traversal-modifier') || [])[1] || '';
+      const modifierOptions = stage.op === 'ancestor'
+        ? [['', 'all ancestors (nearest first)'], ['root', 'root only']]
+        : stage.op === 'descendant'
+          ? [['', 'all descendants (DFS)'], ['leaves', 'leaves only']]
+          : null;
+
+      html += `<div class="expression-stage__body expression-traversal-fields">`;
+      if (modifierOptions) {
+        html += `
+          <label>Modifier</label>
+          <select class="form-control form-control-sm"
+                  data-action="change->nostr--nostr-expression#updateTraversalModifier"
+                  data-stage-index="${idx}">
+            ${modifierOptions.map(([v, label]) =>
+              `<option value="${v}"${modifier === v ? ' selected' : ''}>${label}</option>`
+            ).join('')}
+          </select>`;
+      } else {
+        html += `<em>Resolves the ${stage.op === 'parent' ? 'direct parent(s)' : 'direct children'} of each input event (NIP-GX).</em>`;
+      }
+
+      // Inputs: only meaningful on the first stage, but render any that exist so
+      // the user can see and edit them. Non-first traversal stages MUST have none.
+      stage.tags
+        .filter(t => t[0] === 'input')
+        .forEach((clause) => {
+          // Find the real index within stage.tags for removeClause/updateClause
+          const realIdx = stage.tags.indexOf(clause);
+          html += this._renderClauseHtml(clause, idx, realIdx);
+        });
+
+      html += `
+        <div class="expression-clause-actions">
+          <button class="btn btn-sm btn-secondary"
+                  data-action="click->nostr--nostr-expression#addInput"
+                  data-stage-index="${idx}">+ Input</button>
+          <small class="text-muted">First stage requires an input; later traversal stages consume the previous stage result.</small>
+        </div>
+      </div>`;
     } else {
       // Filter or set ops — show clauses + inputs
       html += `<div class="expression-stage__body">`;

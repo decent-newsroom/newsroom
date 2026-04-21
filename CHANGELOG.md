@@ -2,7 +2,9 @@
 
 ## v0.0.34
 Graph traversal operators.
+
 - Added NIP-GX graph traversal operators (`parent`, `child`, `ancestor`, `descendant`) to the ExpressionBundle. Traversal stages extend `kind:30880` expressions with kind-specific parent/child resolution for `kind:1` (NIP-10 marked threading), `kind:1111` (NIP-22 comments, lowercase `e`/`a` parents), and `kind:30040` (NKBIP-01 publication indices; inclusion-based parents, `a`-tag declaration order for children). Modifiers `ancestor root` and `descendant leaves` are supported. Downward traversal is DB-only and best-effort, with per-item visited sets to terminate cycles silently and depth bounds to protect against pathological chains.
+- Exposed the new NIP-GX traversal ops in the expression builder UI (`/expressions/create` and `/expressions/edit/...`). The stage operation dropdown now has a "Traversal (NIP-GX)" optgroup, and `ancestor`/`descendant` stages expose a modifier selector for `root` / `leaves`. Traversal stages are serialized as `["op","<op>"]` or `["op","<op>","<modifier>"]`, matching the runner's parser.
 
 
 ## v0.0.33
