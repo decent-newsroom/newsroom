@@ -560,7 +560,7 @@ export default class extends Controller {
             <option value="difference"${stage.op === 'difference' ? ' selected' : ''}>difference — subtract</option>
             <option value="distinct"${stage.op === 'distinct' ? ' selected' : ''}>distinct — deduplicate</option>
           </optgroup>
-          <optgroup label="Traversal (NIP-GX)">
+          <optgroup label="Traversal">
             <option value="parent"${stage.op === 'parent' ? ' selected' : ''}>parent — one-hop up</option>
             <option value="child"${stage.op === 'child' ? ' selected' : ''}>child — one-hop down</option>
             <option value="ancestor"${stage.op === 'ancestor' ? ' selected' : ''}>ancestor — all the way up</option>
