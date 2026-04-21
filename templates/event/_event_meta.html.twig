@@ -70,10 +70,6 @@
                 <dt><small>Client:</small></dt>
                 <dd><small>{{ metaClient }}</small></dd>
             {% endif %}
-            {% if metaAlt and not (event.content is empty or event.content|length < 5) %}
-                <dt><small>Description:</small></dt>
-                <dd><small><em>{{ metaAlt }}</em></small></dd>
-            {% endif %}
         </dl>
     {% endif %}
 </section>

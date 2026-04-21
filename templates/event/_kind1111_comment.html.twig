@@ -51,7 +51,7 @@
             <small>Replying to{% if parentKind %} <span class="badge bg-secondary">kind {{ parentKind }}</span>{% endif %}</small>
         </div>
         {% if parentA %}
-            <twig:Organisms:ArticleFromCoordinate :coordinate="parentA" />
+            <twig:Organisms:ArticleFromCoordinate :coordinate="parentA" :autoFetch="true" />
         {% elseif parentE %}
             <twig:Molecules:NostrEmbed :bech="parentE|nEncode" type="note" />
         {% elseif parentI %}
@@ -77,7 +77,7 @@
         {% if rootA %}
             {# Try to link to the addressable coordinate; ArticleFromCoordinate
                falls back to a CardPlaceholder for non-article addressable kinds. #}
-            <twig:Organisms:ArticleFromCoordinate :coordinate="rootA" />
+            <twig:Organisms:ArticleFromCoordinate :coordinate="rootA" :autoFetch="true" />
         {% elseif rootE %}
             <twig:Molecules:NostrEmbed :bech="rootE|nEncode" type="note" />
         {% elseif rootI %}

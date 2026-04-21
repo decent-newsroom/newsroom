@@ -45,34 +45,28 @@ final class AncestorOperation implements OperationInterface
 
         foreach ($inputs[0] as $item) {
             if ($rootOnly) {
-                // Fast path: use the kind's explicit root-tag hint when present
-                // (NIP-10 marked `"root"` e tag, NIP-22 uppercase `E`/`A`). This
-                // jumps directly to the true root without needing every
-                // intermediate event in the local DB — the iterative walk breaks
-                // as soon as one hop fails to resolve, which is the common case
-                // for deeply-nested threads where middle events aren't cached.
-                $hinted = $this->resolver->rootHint($item);
-                if ($hinted !== null) {
-                    $out[] = $hinted;
+                // `ancestor root` per NIP-GX: "Returns only the farthest
+                // ancestor." We climb hop-by-hop from the input, taking the
+                // first resolvable parent at each step. When the current node
+                // has a declared parent/root that cannot be resolved (gap in
+                // the local DB), we consult the kind's root-tag hint (NIP-10
+                // marked root, NIP-22 uppercase E/A) to jump over the gap
+                // and continue from there. We do NOT use the root hint as a
+                // blind fast-path at the very first hop: many NIP-22 clients
+                // set uppercase E to "the thing I replied to" rather than
+                // the true thread root, so short-circuiting on it lands
+                // kind:1111 comments at the top of feeds where the user
+                // actually wants the originating article/note.
+                $farthest = $this->climbToRoot($item);
+                if ($farthest !== null) {
+                    $out[] = $farthest;
                     continue;
                 }
 
-                $chain = $this->walkAncestors($item);
-                if (!empty($chain)) {
-                    $out[] = $chain[count($chain) - 1];
-                    continue;
-                }
-
-                // Chain empty. NIP-GX's "is its own root" totality clause only
-                // applies when the input has NO declared parent/root — i.e. the
-                // event genuinely starts a thread. When a parent/root IS
-                // declared but cannot be resolved from the local DB, per
-                // NIP-GX's address-resolution rule the stage yields no event;
-                // we MUST NOT leak the intermediate comment/reply as if it
-                // were the root (otherwise e.g. a kind:1111 comment whose
-                // referenced article isn't cached would surface as its own
-                // headline in expression results, defeating the whole point
-                // of asking for the root).
+                // Chain empty AND no resolvable root hint. NIP-GX's "is its
+                // own root" totality clause only fires when the input has
+                // NO declared parent/root; a declared-but-unresolvable ref
+                // yields no event (per the address-resolution rule).
                 if (!$this->resolver->hasDeclaredRoot($item)) {
                     $out[] = $item;
                 }
@@ -146,6 +140,130 @@ final class AncestorOperation implements OperationInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Iteratively climb from the seed to the farthest reachable ancestor.
+     *
+     * At each step:
+     *   1. If the current node has resolvable parents, take the first one and
+     *      continue.
+     *   2. If not, but the node declares a root-scope tag (NIP-10 marked
+     *      "root" e, NIP-22 uppercase E/A), jump to the hint's target and
+     *      continue climbing FROM THAT event. Misconfigured NIP-22 clients
+     *      sometimes chain root scopes (uppercase E pointing at another
+     *      comment instead of the thread's true origin), so we don't stop
+     *      at the first hint — we keep going until no further progress is
+     *      possible.
+     *   3. Otherwise the walk terminates.
+     *
+     * Returns null if:
+     *   - the seed has no declared parent/root (caller uses the NIP-GX
+     *     totality clause to emit the seed itself), or
+     *   - the seed declares a parent/root that cannot be resolved anywhere
+     *     (no step made progress past the seed) — per the address-resolution
+    *     rule, such items yield no event, or
+     *   - the walk advanced but stopped at an intermediate node that *itself*
+     *     declares an unresolvable root. A kind:1111 comment (or any kind with
+     *     defined upward traversal) is never a legitimate "root" if it still
+     *     has something declared upstream that we can't see — surfacing it
+     *     would leak intermediate comments into feeds that asked for thread
+     *     roots. We only accept `$current` as the farthest ancestor when it
+     *     genuinely has no further declared upstream.
+     *
+     * Visited set is keyed on canonical id and guards against cycles and
+     * self-referential declared roots.
+     */
+    private function climbToRoot(NormalizedItem $seed): ?NormalizedItem
+    {
+        $current = $seed;
+        $visited = [$seed->getCanonicalId() => true];
+        $advanced = false;
+
+        for ($depth = 0; $depth < self::MAX_DEPTH; $depth++) {
+            $parents = $this->resolver->parents($current);
+            if (!empty($parents)) {
+                // Pick the first not-yet-visited parent. Tree-shaped kinds
+                // (kind:1, kind:1111) have at most one anyway. For inclusion-
+                // based graphs (kind:30040) multiple parents are possible;
+                // taking the first gives a deterministic single answer,
+                // consistent with NIP-GX's "exactly one event" totality
+                // for the `root` modifier.
+                $progressed = false;
+                foreach ($parents as $parent) {
+                    $pid = $parent->getCanonicalId();
+                    if (isset($visited[$pid])) {
+                        continue;
+                    }
+                    $visited[$pid] = true;
+                    $current = $parent;
+                    $advanced = true;
+                    $progressed = true;
+                    break;
+                }
+                if ($progressed) {
+                    continue;
+                }
+                // All parents already visited — cycle or back-reference.
+                return $this->terminate($current, $advanced);
+            }
+
+            // No resolvable parent. If the current node declares a root-scope
+            // tag, jump to it (skipping over any gap in the local DB).
+            if ($this->resolver->hasDeclaredRoot($current)) {
+                $hint = $this->resolver->rootHint($current);
+                if ($hint !== null) {
+                    $hid = $hint->getCanonicalId();
+                    if (!isset($visited[$hid])) {
+                        $visited[$hid] = true;
+                        $current = $hint;
+                        $advanced = true;
+                        continue;
+                    }
+                }
+                // Root declared but unresolvable (or already visited). Per
+                // NIP-GX's address-resolution rule, items whose declared
+                // root cannot be reached yield no event — including the
+                // intermediate node we got stuck on, if IT still declares
+                // something upstream. See {@see terminate()}.
+                return $this->terminate($current, $advanced);
+            }
+
+            // No parents, no declared root: genuinely at the top.
+            return $this->terminate($current, $advanced);
+        }
+
+        // Safety: depth cap reached.
+        return $this->terminate($current, $advanced);
+    }
+
+    /**
+     * Decide whether the final $current may be emitted as the farthest
+     * ancestor, given whether the walk advanced past the seed.
+     *
+     * Rules:
+     *   - If the walk never advanced (no hop succeeded), emit nothing. The
+     *     caller will fall back to the NIP-GX totality clause only when the
+     *     seed has no declared parent/root.
+     *   - If the walk advanced but the final node still declares upstream
+     *     references we couldn't resolve (e.g. a nested kind:1111 whose
+     *     own parent is missing from the local DB), emit nothing. Surfacing
+     *     an intermediate kind:1111 as "root" would leak comments into
+     *     feeds that explicitly asked for thread origins, contradicting
+     *     both the intent of `ancestor root` and NIP-GX's address-resolution
+     *     rule.
+     *   - Otherwise, the final node has no further declared upstream: it is
+     *     a legitimate root under this NIP and we emit it.
+     */
+    private function terminate(NormalizedItem $current, bool $advanced): ?NormalizedItem
+    {
+        if (!$advanced) {
+            return null;
+        }
+        if ($this->resolver->hasDeclaredRoot($current)) {
+            return null;
+        }
+        return $current;
     }
 }
 

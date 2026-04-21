@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\ExpressionBundle\Runner\Traversal;
 
+use App\Entity\Article;
 use App\Entity\Event;
 use App\ExpressionBundle\Model\NormalizedItem;
+use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 
 /**
@@ -54,6 +56,7 @@ final class TraversalResolver
 
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly ArticleRepository $articleRepository,
     ) {}
 
     /**
@@ -288,17 +291,37 @@ final class TraversalResolver
 
     private function kind1111Parent(NormalizedItem $item): ?NormalizedItem
     {
-        // NIP-22: lowercase `e` or `a` identify the direct parent.
+        // NIP-22: lowercase `e` or `a` identify the direct parent. A comment
+        // MAY carry both (an event-id reference AND its addressable coordinate)
+        // as redundant pointers to the same parent; it MAY also carry only one.
+        // We collect every candidate in document order and return the first one
+        // that actually resolves — so a comment whose `e` points to an event
+        // missing from the local cache still finds its parent via the `a`
+        // coordinate, and vice versa. Returning null on the first dead ref
+        // (the previous behavior) was incorrect: it caused articles that were
+        // reachable via the other tag shape to be dropped from downstream
+        // ancestor traversal.
+        //
+        // `i` parents are external identities; no event parent under this NIP.
         foreach ($item->getEvent()->getTags() as $tag) {
             $type = $tag[0] ?? null;
-            if ($type === 'e' && isset($tag[1])) {
+            if (!isset($tag[1])) {
+                continue;
+            }
+            if ($type === 'e') {
                 $event = $this->lookupById($tag[1]);
-                return $event !== null ? new NormalizedItem($event) : null;
+                if ($event !== null) {
+                    return new NormalizedItem($event);
+                }
+                continue;
             }
-            if ($type === 'a' && isset($tag[1])) {
-                return $this->resolveAddress($tag[1]);
+            if ($type === 'a') {
+                $resolved = $this->resolveAddress($tag[1]);
+                if ($resolved !== null) {
+                    return $resolved;
+                }
+                continue;
             }
-            // `i` parents are external identities; no event parent under this NIP.
         }
         return null;
     }
@@ -436,8 +459,16 @@ final class TraversalResolver
     /**
      * DB lookup with per-evaluation memoization.
      *
-     * Returns the Event for this id, or null if not found. A cached miss
-     * (false in the cache) returns null without re-hitting the DB.
+     * Returns the Event for this id, or null if not found.
+     *
+     * The event table and the article table are separate: `ArticleEventProjector`
+     * writes longform (kind 30023 / 30024) ingestion only into the `article` table,
+     * so articles ingested via the relay worker are invisible to `EventRepository`.
+     * On an event-table miss we therefore consult {@see ArticleRepository} by
+     * `event_id` and synthesize an Event entity from the stored raw payload, so
+     * traversal can walk through / terminate at longform articles even when no
+     * matching row exists in the `event` table. Cached misses (false in the
+     * cache) short-circuit both lookups.
      */
     private function lookupById(string $id): ?Event
     {
@@ -446,12 +477,23 @@ final class TraversalResolver
             return $this->eventCache[$key] ?: null;
         }
         $event = $this->eventRepository->findById($id);
+        if ($event === null) {
+            $article = $this->articleRepository->findOneBy(['eventId' => $id]);
+            if ($article !== null) {
+                $event = $this->articleToEvent($article);
+            }
+        }
         $this->eventCache[$key] = $event ?? false;
         return $event;
     }
 
     /**
      * DB lookup with per-evaluation memoization, for addressable coordinates.
+     *
+     * Mirrors {@see lookupById()}: when the event table has no row at this
+     * coordinate AND the coordinate is a longform kind, fall back to the
+     * article table by `pubkey` + `slug` and synthesize an Event from the
+     * Article's stored raw payload.
      */
     private function lookupByCoord(string $coord): ?Event
     {
@@ -464,8 +506,80 @@ final class TraversalResolver
             $this->eventCache[$key] = false;
             return null;
         }
-        $event = $this->eventRepository->findByNaddr((int) $parts[0], $parts[1], $parts[2]);
+        $kind = (int) $parts[0];
+        $event = $this->eventRepository->findByNaddr($kind, $parts[1], $parts[2]);
+        if ($event === null && ($kind === 30023 || $kind === 30024)) {
+            $article = $this->articleRepository->findOneBy([
+                'pubkey' => $parts[1],
+                'slug' => $parts[2],
+            ]);
+            if ($article !== null) {
+                $event = $this->articleToEvent($article);
+            }
+        }
         $this->eventCache[$key] = $event ?? false;
+        return $event;
+    }
+
+    /**
+     * Synthesize a transient (unmanaged) Event entity from an Article row.
+     *
+     * The resolver only reads scalar/tag properties from the Event, so we do
+     * not need to persist or attach the instance — a detached entity carrying
+     * the article's `id`, `kind`, `pubkey`, `content`, `created_at`, `tags`
+     * and `sig` is sufficient for all downstream traversal calls.
+     *
+     * Tags are taken from the stored `raw` event payload when available; if
+     * the raw payload is missing (older rows predating the raw column), the
+     * tags are reconstructed from indexed article fields so `d`, `title`,
+     * `published_at`, and topics still participate in traversal / matching.
+     */
+    private function articleToEvent(Article $article): Event
+    {
+        $event = new Event();
+        $event->setId($article->getEventId() ?? '');
+        $event->setKind($article->getKind()?->value ?? 30023);
+        $event->setPubkey($article->getPubkey() ?? '');
+        $event->setContent($article->getContent() ?? '');
+        $event->setSig($article->getSig() ?? '');
+
+        $createdAt = $article->getCreatedAt();
+        $event->setCreatedAt($createdAt !== null ? $createdAt->getTimestamp() : 0);
+
+        $tags = [];
+        $raw = $article->getRaw();
+        if (is_array($raw) && isset($raw['tags']) && is_array($raw['tags'])) {
+            // Normalize each tag to a plain list<string> — the raw JSON round-
+            // trip may yield mixed arrays/objects which break `$tag[0]` access.
+            foreach ($raw['tags'] as $t) {
+                if (is_array($t)) {
+                    $tags[] = array_values(array_map(
+                        static fn($v) => is_scalar($v) ? (string) $v : '',
+                        $t,
+                    ));
+                }
+            }
+        }
+        if (empty($tags)) {
+            // Best-effort reconstruction from indexed fields.
+            if ($article->getSlug() !== null) {
+                $tags[] = ['d', $article->getSlug()];
+            }
+            if ($article->getTitle() !== null) {
+                $tags[] = ['title', $article->getTitle()];
+            }
+            $publishedAt = $article->getPublishedAt();
+            if ($publishedAt !== null) {
+                $tags[] = ['published_at', (string) $publishedAt->getTimestamp()];
+            }
+            foreach ($article->getTopics() ?? [] as $topic) {
+                if (is_string($topic) && $topic !== '') {
+                    $tags[] = ['t', $topic];
+                }
+            }
+        }
+        $event->setTags($tags);
+
         return $event;
     }
 
@@ -556,6 +670,23 @@ final class TraversalResolver
                 foreach ($needed as $id) {
                     $this->eventCache['id:' . $id] = $found[$id] ?? false;
                 }
+                // Fallback: for any id the event table didn't have, consult the
+                // article table. Articles ingested by ArticleEventProjector live
+                // only there; synthesize a transient Event for each hit so the
+                // per-evaluation cache hits downstream parent/root lookups.
+                $missing = array_values(array_filter(
+                    $needed,
+                    fn(string $id) => !isset($found[$id]),
+                ));
+                if (!empty($missing)) {
+                    $articles = $this->articleRepository->findBy(['eventId' => $missing]);
+                    foreach ($articles as $article) {
+                        $eid = $article->getEventId();
+                        if ($eid !== null) {
+                            $this->eventCache['id:' . $eid] = $this->articleToEvent($article);
+                        }
+                    }
+                }
             }
         }
 
@@ -568,6 +699,63 @@ final class TraversalResolver
                 $found = $this->eventRepository->findByCoordinates($needed);
                 foreach ($needed as $c) {
                     $this->eventCache['a:' . $c] = $found[$c] ?? false;
+                }
+                // Fallback: article-table lookup for longform coordinates that
+                // the event table didn't resolve. We match on (pubkey, slug)
+                // and synthesize an Event entity from the article's raw payload.
+                $this->fallbackCoordsToArticles(array_values(array_filter(
+                    $needed,
+                    fn(string $c) => !isset($found[$c]),
+                )));
+            }
+        }
+    }
+
+    /**
+     * For each addressable coordinate of kind 30023 / 30024 that the event-
+     * table batch didn't resolve, look up the Article in one `findBy()` call
+     * and cache a synthetic Event under its `a:` key so subsequent
+     * {@see lookupByCoord()} calls hit memory.
+     *
+     * Splits into a single IN query over (pubkey, slug) pairs by grouping by
+     * pubkey; the article table is small enough that a straightforward
+     * per-pubkey slug IN is cheap and keeps the SQL portable.
+     *
+     * @param string[] $coordinates Each of the form "kind:pubkey:d"
+     */
+    private function fallbackCoordsToArticles(array $coordinates): void
+    {
+        if (empty($coordinates)) {
+            return;
+        }
+        $byPubkey = [];
+        foreach ($coordinates as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) !== 3 || !ctype_digit($parts[0])) {
+                continue;
+            }
+            $kind = (int) $parts[0];
+            if ($kind !== 30023 && $kind !== 30024) {
+                continue;
+            }
+            $byPubkey[$parts[1]][$coord] = $parts[2];
+        }
+        foreach ($byPubkey as $pubkey => $slugMap) {
+            $articles = $this->articleRepository->findBy([
+                'pubkey' => $pubkey,
+                'slug' => array_values($slugMap),
+            ]);
+            // index by slug for fast lookup
+            $bySlug = [];
+            foreach ($articles as $article) {
+                $slug = $article->getSlug();
+                if ($slug !== null) {
+                    $bySlug[$slug] = $article;
+                }
+            }
+            foreach ($slugMap as $coord => $slug) {
+                if (isset($bySlug[$slug])) {
+                    $this->eventCache['a:' . $coord] = $this->articleToEvent($bySlug[$slug]);
                 }
             }
         }

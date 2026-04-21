@@ -81,6 +81,7 @@
     gap: var(--spacing-1) var(--spacing-3);
     margin: var(--spacing-2) 0 0;
     color: var(--color-text-muted, #666);
+    align-items: baseline;
 }
 
 .event-meta-extra dt {
