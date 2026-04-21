@@ -1,0 +1,92 @@
+{# NIP-22 Comment (kind 1111)
+   Renders the root / parent reference as a card above the comment
+   content so that readers can see what is being commented on.
+
+   Per NIP-22, the root-scope is carried in uppercase tags:
+     ["E", <event-id>, <relay>, <pubkey>]        – root is a plain event
+     ["A", "<kind>:<pubkey>:<d>", <relay>]        – root is addressable
+     ["I", <identity>]                            – root is an external identity
+     ["K", "<kind>"]                              – root kind (hint)
+     ["P", <pubkey>]                              – root author
+   The direct parent uses the lowercase equivalents (e / a / i / k / p).
+#}
+
+{# ── Extract root-scope refs ───────────────────────────────────── #}
+{% set rootE = null %}
+{% set rootA = null %}
+{% set rootI = null %}
+{% set rootKind = null %}
+{% set rootAuthor = null %}
+
+{# ── Extract direct-parent refs ────────────────────────────────── #}
+{% set parentE = null %}
+{% set parentA = null %}
+{% set parentI = null %}
+{% set parentKind = null %}
+{% set parentAuthor = null %}
+
+{% for tag in event.tags %}
+    {% if tag[0] == 'E' and rootE is null and tag[1] is defined %}{% set rootE = tag[1] %}{% endif %}
+    {% if tag[0] == 'A' and rootA is null and tag[1] is defined %}{% set rootA = tag[1] %}{% endif %}
+    {% if tag[0] == 'I' and rootI is null and tag[1] is defined %}{% set rootI = tag[1] %}{% endif %}
+    {% if tag[0] == 'K' and rootKind is null and tag[1] is defined %}{% set rootKind = tag[1] %}{% endif %}
+    {% if tag[0] == 'P' and rootAuthor is null and tag[1] is defined %}{% set rootAuthor = tag[1] %}{% endif %}
+
+    {% if tag[0] == 'e' and parentE is null and tag[1] is defined %}{% set parentE = tag[1] %}{% endif %}
+    {% if tag[0] == 'a' and parentA is null and tag[1] is defined %}{% set parentA = tag[1] %}{% endif %}
+    {% if tag[0] == 'i' and parentI is null and tag[1] is defined %}{% set parentI = tag[1] %}{% endif %}
+    {% if tag[0] == 'k' and parentKind is null and tag[1] is defined %}{% set parentKind = tag[1] %}{% endif %}
+    {% if tag[0] == 'p' and parentAuthor is null and tag[1] is defined %}{% set parentAuthor = tag[1] %}{% endif %}
+{% endfor %}
+
+{# Is the parent the same event as the root? (avoid rendering two identical cards) #}
+{% set parentIsRoot = (parentE is not null and parentE == rootE)
+                     or (parentA is not null and parentA == rootA)
+                     or (parentI is not null and parentI == rootI) %}
+
+{# ── "Replying to" – direct parent ─────────────────────────────── #}
+{% if parentA or parentE or parentI %}
+    <aside class="comment-parent" aria-label="Replying to">
+        <div class="comment-parent-label">
+            <small>Replying to{% if parentKind %} <span class="badge bg-secondary">kind {{ parentKind }}</span>{% endif %}</small>
+        </div>
+        {% if parentA %}
+            <twig:Organisms:ArticleFromCoordinate :coordinate="parentA" />
+        {% elseif parentE %}
+            <twig:Molecules:NostrEmbed :bech="parentE|nEncode" type="note" />
+        {% elseif parentI %}
+            <div class="comment-parent-external">
+                <a href="{{ parentI }}" target="_blank" rel="noopener noreferrer">{{ parentI }}</a>
+            </div>
+        {% endif %}
+    </aside>
+{% endif %}
+
+{# ── Comment content ───────────────────────────────────────────── #}
+<div class="event-content comment-content">
+    <twig:Atoms:Content :content="event.content" />
+</div>
+{% include 'partial/_gallery.html.twig' with {event: event, isEmbed: false} %}
+
+{# ── "In thread" – root, only if different from the parent ─────── #}
+{% if not parentIsRoot and (rootA or rootE or rootI) %}
+    <aside class="comment-root" aria-label="In thread">
+        <div class="comment-root-label">
+            <small>In thread{% if rootKind %} <span class="badge bg-secondary">kind {{ rootKind }}</span>{% endif %}</small>
+        </div>
+        {% if rootA %}
+            {# Try to link to the addressable coordinate; ArticleFromCoordinate
+               falls back to a CardPlaceholder for non-article addressable kinds. #}
+            <twig:Organisms:ArticleFromCoordinate :coordinate="rootA" />
+        {% elseif rootE %}
+            <twig:Molecules:NostrEmbed :bech="rootE|nEncode" type="note" />
+        {% elseif rootI %}
+            <div class="comment-root-external">
+                <a href="{{ rootI }}" target="_blank" rel="noopener noreferrer">{{ rootI }}</a>
+            </div>
+        {% endif %}
+    </aside>
+{% endif %}
+
+
+

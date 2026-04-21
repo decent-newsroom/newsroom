@@ -1,0 +1,82 @@
+{# Generic event metadata block.
+   Surfaces commonly-used but previously-hidden tags:
+     - alt         : human description (NIP-31, used as fallback when content is empty or kind is unknown)
+     - title       : title tag (for kinds that support it, excluded when the page title already shows it)
+     - summary     : short summary
+     - published_at: ISO/unix publish time
+     - t           : hashtags / topics
+     - p           : mentioned pubkeys
+     - client      : client that published the event
+   The block renders nothing if no interesting tags are present.
+#}
+{% set metaAlt = null %}
+{% set metaSummary = null %}
+{% set metaPublishedAt = null %}
+{% set metaClient = null %}
+{% set metaTopics = [] %}
+{% set metaMentions = [] %}
+
+{% for tag in event.tags %}
+    {% if tag[0] == 'alt' and metaAlt is null and tag[1] is defined %}{% set metaAlt = tag[1] %}{% endif %}
+    {% if tag[0] == 'summary' and metaSummary is null and tag[1] is defined %}{% set metaSummary = tag[1] %}{% endif %}
+    {% if tag[0] == 'published_at' and metaPublishedAt is null and tag[1] is defined %}{% set metaPublishedAt = tag[1] %}{% endif %}
+    {% if tag[0] == 'client' and metaClient is null and tag[1] is defined %}{% set metaClient = tag[1] %}{% endif %}
+    {% if tag[0] == 't' and tag[1] is defined %}{% set metaTopics = metaTopics|merge([tag[1]]) %}{% endif %}
+    {% if tag[0] == 'p' and tag[1] is defined and tag[1]|length == 64 %}{% set metaMentions = metaMentions|merge([tag[1]]) %}{% endif %}
+{% endfor %}
+
+{% set hasAnyMeta = metaAlt or metaSummary or metaPublishedAt or metaClient
+                   or metaTopics|length > 0 or metaMentions|length > 0 %}
+
+{% if hasAnyMeta %}
+<section class="event-meta-block" aria-label="Event details">
+    {% if metaSummary %}
+        <p class="event-meta-summary lede">{{ metaSummary }}</p>
+    {% endif %}
+
+    {% if metaAlt and (event.content is empty or event.content|length < 5) %}
+        {# Only surface alt prominently when the content itself is empty —
+           otherwise it duplicates the main content. #}
+        <p class="event-meta-alt"><em>{{ metaAlt }}</em></p>
+    {% endif %}
+
+    {% if metaTopics|length > 0 %}
+        <div class="event-meta-topics">
+            <small class="event-meta-label">Topics:</small>
+            {% for t in metaTopics|slice(0, 20) %}
+                <a href="{{ path('forum_tag', {'tag': t}) }}" class="badge bg-secondary">#{{ t }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if metaMentions|length > 0 %}
+        <div class="event-meta-mentions">
+            <small class="event-meta-label">Mentions:</small>
+            {% for pk in metaMentions|slice(0, 10) %}
+                <a href="{{ path('author-redirect', {'pubkey': pk}) }}">
+                    <twig:Molecules:UserFromNpub :ident="pk" />
+                </a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if metaPublishedAt or metaClient or (metaAlt and not (event.content is empty or event.content|length < 5)) %}
+        <dl class="event-meta-extra">
+            {% if metaPublishedAt %}
+                <dt><small>Published:</small></dt>
+                <dd><small>{{ metaPublishedAt|date('F j, Y H:i') }}</small></dd>
+            {% endif %}
+            {% if metaClient %}
+                <dt><small>Client:</small></dt>
+                <dd><small>{{ metaClient }}</small></dd>
+            {% endif %}
+            {% if metaAlt and not (event.content is empty or event.content|length < 5) %}
+                <dt><small>Description:</small></dt>
+                <dd><small><em>{{ metaAlt }}</em></small></dd>
+            {% endif %}
+        </dl>
+    {% endif %}
+</section>
+{% endif %}
+
+

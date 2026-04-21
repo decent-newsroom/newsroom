@@ -119,6 +119,8 @@
             {% include 'event/_kind10015_tags.html.twig' %}
         {% elseif event.kind == 39089 %}
             {% include 'event/_kind39089_followPack.html.twig' %}
+        {% elseif event.kind == 1111 %}
+            {% include 'event/_kind1111_comment.html.twig' %}
         {% else %}
             {# Regular event content for non-picture and non-video events #}
             <div class="event-content">
@@ -126,6 +128,13 @@
             </div>
             {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: false} %}
 
+        {% endif %}
+
+        {# Surface commonly-used but otherwise hidden tags (alt, topics, mentions, published_at, client).
+           Skipped for kinds with dedicated chrome that already displays these. #}
+        {% set metaExcludedKinds = [20, 21, 22, 34235, 34236, 1450, 10015, 39089] %}
+        {% if event.kind not in metaExcludedKinds %}
+            {% include 'event/_event_meta.html.twig' %}
         {% endif %}
 
     </div>

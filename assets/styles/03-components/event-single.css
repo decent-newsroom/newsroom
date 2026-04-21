@@ -1,0 +1,93 @@
+/**
+ * Single event page chrome.
+ * Styles for the comment-parent / comment-root cards rendered above
+ * kind 1111 comments, plus the generic event-meta block that surfaces
+ * alt / topics / mentions / published_at / client tags on any kind.
+ */
+
+.comment-parent,
+.comment-root {
+    margin: var(--spacing-3) 0;
+    padding: var(--spacing-2);
+    border-left: 3px solid var(--color-nostr, var(--color-primary, #6c5ce7));
+    background: var(--color-bg-light, #f8f8f8);
+}
+
+.comment-parent-label,
+.comment-root-label {
+    margin-bottom: var(--spacing-2);
+    color: var(--color-text-muted, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.comment-parent-label .badge,
+.comment-root-label .badge {
+    margin-left: var(--spacing-1);
+}
+
+.comment-root {
+    opacity: 0.85;
+    border-left-width: 2px;
+}
+
+.comment-parent-external a,
+.comment-root-external a {
+    word-break: break-all;
+}
+
+.event-meta-block {
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--color-border, #e5e5e5);
+    font-size: 0.9rem;
+}
+
+.event-meta-block .event-meta-summary {
+    font-style: italic;
+    color: var(--color-text-muted, #555);
+}
+
+.event-meta-block .event-meta-alt {
+    color: var(--color-text-muted, #555);
+}
+
+.event-meta-topics,
+.event-meta-mentions {
+    margin: var(--spacing-2) 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-1);
+    align-items: center;
+}
+
+.event-meta-topics .badge,
+.event-meta-topics a {
+    text-decoration: none;
+}
+
+.event-meta-label {
+    margin-right: var(--spacing-2);
+    color: var(--color-text-muted, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.event-meta-extra {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-1) var(--spacing-3);
+    margin: var(--spacing-2) 0 0;
+    color: var(--color-text-muted, #666);
+}
+
+.event-meta-extra dt {
+    font-weight: 600;
+}
+
+.event-meta-extra dd {
+    margin: 0;
+}
+
