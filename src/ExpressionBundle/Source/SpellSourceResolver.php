@@ -55,51 +55,69 @@ final class SpellSourceResolver
     {
         $start = microtime(true);
         $filter = $this->spellParser->parse($spellEvent, $ctx);
-        $hasExplicitRelays = !empty($filter['relays']);
+
+        // Fanout strategy: the local DB and default strfry relay only contain a
+        // narrow, pre-indexed subset of events. For spell evaluation we want the
+        // freshest and broadest possible results, so we ALWAYS query the user's
+        // declared NIP-65 read relays (from RuntimeContext), unioned with any
+        // explicit `relays` tags on the spell itself. DB results are merged as
+        // a supplement / fallback.
+        $spellRelays = $filter['relays'] ?? [];
+        $userRelays = $ctx->relays ?? [];
+        $queryRelays = array_values(array_unique(array_merge($spellRelays, $userRelays)));
 
         $this->logger->debug('Spell filter built', [
             'label' => $label,
             'kinds' => $filter['kinds'] ?? [],
             'limit' => $filter['limit'] ?? null,
-            'relays' => $filter['relays'] ?? [],
+            'spellRelays' => $spellRelays,
+            'userRelays' => $userRelays,
         ]);
 
-        if ($hasExplicitRelays) {
-            // Explicit relays: query them directly — they are the authoritative source.
-            $this->logger->debug('Spell has explicit relays, querying them directly', [
-                'label' => $label,
-                'relays' => $filter['relays'],
-            ]);
-            $events = $this->fetchFromRelays($filter);
-            $source = 'relays';
-
-            // DB fallback if relays returned nothing
-            if (empty($events)) {
-                $this->logger->debug('Spell relays returned empty, falling back to DB', [
-                    'label' => $label,
-                ]);
-                $events = $this->eventRepository->findByFilter($filter);
-                $source = 'db-fallback';
-            }
+        // 1) Query relays (user + spell). If none available, fall back to the
+        //    project default content relays inside fetchFromRelays().
+        $relayFilter = $filter;
+        if (!empty($queryRelays)) {
+            $relayFilter['relays'] = $queryRelays;
         } else {
-            // No explicit relays: DB-first, then content relay fallback.
-            $events = $this->eventRepository->findByFilter($filter);
-            $source = 'db';
+            unset($relayFilter['relays']);
+        }
+        $relayEvents = $this->fetchFromRelays($relayFilter);
 
-            if (empty($events)) {
-                $this->logger->debug('Spell DB empty, falling back to content relays', [
-                    'label' => $label,
-                ]);
-                $events = $this->fetchFromRelays($filter);
-                $source = 'relays-fallback';
+        // 2) Supplement with local DB (covers the narrow pre-indexed subset
+        //    and acts as a safety net if all relays fail).
+        $dbEvents = $this->eventRepository->findByFilter($filter);
+
+        // Merge + dedupe by event id, preserving relay results first.
+        $merged = [];
+        foreach ([$relayEvents, $dbEvents] as $bucket) {
+            foreach ($bucket as $event) {
+                $id = $event->getId();
+                if ($id === null || $id === '') {
+                    continue;
+                }
+                if (!isset($merged[$id])) {
+                    $merged[$id] = $event;
+                }
             }
         }
+        $events = array_values($merged);
+
+        // Optional: honor the spell's limit on the merged result set.
+        if (!empty($filter['limit']) && count($events) > (int) $filter['limit']) {
+            // Keep newest first by created_at.
+            usort($events, static fn(Event $a, Event $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
+            $events = array_slice($events, 0, (int) $filter['limit']);
+        }
+
+        $source = sprintf('relays(%d)+db(%d)', count($relayEvents), count($dbEvents));
 
         $ms = round((microtime(true) - $start) * 1000);
         $this->logger->info('Spell resolved', [
             'label' => $label,
             'source' => $source,
             'events' => count($events),
+            'queryRelays' => $queryRelays,
             'ms' => $ms,
         ]);
 

@@ -63,6 +63,33 @@ prompt instead of results.
 | Picker styles | `assets/styles/03-components/spell-picker.css` |
 | Mercure topic | `/spell-eval/{cacheKey}` (reuses `content--expression-feed` Stimulus controller) |
 
+## Relay fanout
+
+Spell evaluation always consults relays, not just the local DB. The local
+strfry relay + `event` table only cover a narrow, pre-indexed subset of
+network events, so `SpellSourceResolver::executeSpell` builds its query
+relay set as the **union of**:
+
+1. Any `relays` tags declared on the spell event itself (authoritative
+   hints from the spell author).
+2. The viewer's NIP-65 read/CONTENT relays, resolved via
+   `UserRelayListService::getRelaysForFetching` and carried on
+   `RuntimeContext::$relays` (populated by `RuntimeContextFactory`).
+
+If both are empty (e.g. a user with no cached NIP-65 list and a spell
+without explicit relay hints), the runner falls back to
+`RelaySetFactory::getDefault()` (the project's default content relays).
+
+After the relay query, local DB results (`EventRepository::findByFilter`)
+are merged in as a supplement, deduplicated by event id (relay hits win
+ties). The spell's `limit` is applied to the merged set, sorted by
+`created_at` descending.
+
+Caching is unchanged: results are still keyed per
+`(eventId, created_at, viewer pubkey, contacts+interests hash)`, which
+implicitly scopes them to the viewer (whose relay list drives the
+fanout), so no cross-user leakage is possible.
+
 ## Commands
 
 Run inside the Docker container:
