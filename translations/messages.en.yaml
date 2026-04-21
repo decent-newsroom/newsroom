@@ -393,6 +393,9 @@ comments:
     label: 'Comment'
     zap: 'Zap'
     replyingTo: 'Replying to'
+    writeCta: 'Write a comment'
+    reply: 'Reply'
+    replyTo: 'Reply to %name%'
 
 # ── User Menu / Auth ──────────────────────────────────────────────
 auth:

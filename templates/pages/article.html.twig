@@ -303,25 +303,33 @@
         {% endif %}
 
         {% if not (isDraft is defined and isDraft) %}
-        <twig:Organisms:CommentForm
-            :publish_url="path('comment_publish')"
-            :csrf_token="csrf_token('comment_publish')"
-            :root_context="{
-                tag: 'A',
-                value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
-                relay: null,
-                pubkey: article.pubkey,
-                kind: 30023
-            }"
-            :parent_context="{
-                tag: 'a',
-                value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
-                relay: null,
-                pubkey: article.pubkey,
-                kind: 30023
-            }" />
+        {% set articleRoot = {
+            tag: 'A',
+            value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+            relay: null,
+            pubkey: article.pubkey,
+            kind: 30023
+        } %}
+        <details class="comment-form-toggle">
+            <summary class="btn btn-primary comment-form-toggle__cta">{{ 'comments.writeCta'|trans }}</summary>
+            <twig:Organisms:CommentForm
+                :publish_url="path('comment_publish')"
+                :csrf_token="csrf_token('comment_publish')"
+                :root_context="articleRoot"
+                :parent_context="{
+                    tag: 'a',
+                    value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+                    relay: null,
+                    pubkey: article.pubkey,
+                    kind: 30023
+                }" />
+        </details>
 
-        <twig:Organisms:Comments current="30023:{{ article.pubkey }}:{{ article.slug|e }}"></twig:Organisms:Comments>
+        <twig:Organisms:Comments
+            current="30023:{{ article.pubkey }}:{{ article.slug|e }}"
+            :rootContext="articleRoot"
+            :replyPublishUrl="path('comment_publish')"
+            :replyCsrfToken="csrf_token('comment_publish')" />
         {% endif %}
 
         {# Highlights - shown after comments #}

@@ -246,13 +246,21 @@
             } %}
         {% endif %}
 
-        <twig:Organisms:CommentForm
-            :publish_url="path('comment_publish')"
-            :csrf_token="csrf_token('comment_publish')"
-            :root_context="rootContext"
-            :parent_context="parentContext" />
+        <details class="comment-form-toggle">
+            <summary class="btn btn-primary comment-form-toggle__cta">{{ 'comments.writeCta'|trans }}</summary>
+            <twig:Organisms:CommentForm
+                :publish_url="path('comment_publish')"
+                :csrf_token="csrf_token('comment_publish')"
+                :root_context="rootContext"
+                :parent_context="parentContext" />
+        </details>
 
-        <twig:Organisms:Comments :current="commentKey" :authorPubkey="event.pubkey" />
+        <twig:Organisms:Comments
+            :current="commentKey"
+            :authorPubkey="event.pubkey"
+            :rootContext="rootContext"
+            :replyPublishUrl="path('comment_publish')"
+            :replyCsrfToken="csrf_token('comment_publish')" />
     {% endif %}
 </div>
 {% endblock %}

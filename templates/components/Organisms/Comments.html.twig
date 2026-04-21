@@ -55,6 +55,27 @@
                     {% endif %}
                     <twig:Atoms:Content content="{{ item.content }}" />
                 </div>
+
+                {# Reply-to-comment form (NIP-22): keeps the original root, overrides parent to this comment #}
+                {% if rootContext and replyPublishUrl and item.kind != '9735' and item.id is defined %}
+                    {% set replyAuthor = authorsMetadata[item.pubkey] ?? null %}
+                    {% set replyName = replyAuthor ? (replyAuthor.display_name ?? replyAuthor.name ?? item.pubkey[:8] ~ '…') : item.pubkey[:8] ~ '…' %}
+                    <details class="comment-reply-toggle">
+                        <summary class="comment-reply-toggle__cta">{{ 'comments.replyTo'|trans({'%name%': replyName}) }}</summary>
+                        <twig:Organisms:CommentForm
+                            :publish_url="replyPublishUrl"
+                            :csrf_token="replyCsrfToken"
+                            :root_context="rootContext"
+                            :parent_context="{
+                                tag: 'e',
+                                value: item.id,
+                                relay: null,
+                                pubkey: item.pubkey,
+                                kind: 1111
+                            }"
+                            :form_id="'reply_' ~ item.id" />
+                    </details>
+                {% endif %}
             </div>
         {% else %}
             <div class="no-comments">{{ 'comments.noComments'|trans }}</div>

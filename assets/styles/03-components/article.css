@@ -225,6 +225,37 @@ article .card {
     gap: var(--spacing-2);
 }
 
+/* Collapsible comment-form CTAs — project style: no shading, no rounded edges */
+.comment-form-toggle,
+.comment-reply-toggle {
+    display: block;
+    margin-block: var(--spacing-2);
+}
+
+.comment-form-toggle > summary,
+.comment-reply-toggle > summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-block;
+}
+
+.comment-form-toggle > summary::-webkit-details-marker,
+.comment-reply-toggle > summary::-webkit-details-marker {
+    display: none;
+}
+
+.comment-form-toggle[open] > summary,
+.comment-reply-toggle[open] > summary {
+    margin-bottom: var(--spacing-2);
+}
+
+.comment-reply-toggle__cta {
+    font-size: 0.9em;
+    color: var(--color-link, inherit);
+    text-decoration: underline;
+    padding-block: var(--spacing-1);
+}
+
 article p > img {
     display: block;
     margin: var(--spacing-2) auto;

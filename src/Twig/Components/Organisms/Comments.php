@@ -31,6 +31,20 @@ final class Comments
     #[LiveProp(writable: false)]
     public ?string $authorPubkey = null;
 
+    /**
+     * Root context for nested reply forms (NIP-22).
+     * Shape: { tag, value, relay, pubkey, kind }. Null disables reply UI.
+     * @var array<string,mixed>|null
+     */
+    #[LiveProp(writable: false)]
+    public ?array $rootContext = null;
+
+    #[LiveProp(writable: false)]
+    public ?string $replyPublishUrl = null;
+
+    #[LiveProp(writable: false)]
+    public ?string $replyCsrfToken = null;
+
     #[LiveProp]
     public array $list = [];
     public array $commentLinks = [];
@@ -58,10 +72,13 @@ final class Comments
      * renders immediately, then dispatches an async message so the worker
      * can refresh from relays and push updates via Mercure.
      */
-    public function mount(string $current, ?string $authorPubkey = null): void
+    public function mount(string $current, ?string $authorPubkey = null, ?array $rootContext = null, ?string $replyPublishUrl = null, ?string $replyCsrfToken = null): void
     {
         $this->current = $current;
         $this->authorPubkey = $authorPubkey;
+        $this->rootContext = $rootContext;
+        $this->replyPublishUrl = $replyPublishUrl;
+        $this->replyCsrfToken = $replyCsrfToken;
 
         // ── 1. Immediate DB load ──────────────────────────────────────
         try {
