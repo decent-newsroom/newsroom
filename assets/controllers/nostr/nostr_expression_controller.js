@@ -207,18 +207,56 @@ export default class extends Controller {
 
     if (field === 'type') {
       needsRerender = true;
-      // Rebuild clause tag with new type
-      const oldType = tag[0];
-      tag[0] = value;
-      // Adjust structure for different clause types
+
+      // Extract logical fields from the SOURCE clause before rebuilding.
+      //
+      // Clause shapes are not structurally compatible across types:
+      //   input     [type, inputType, value]
+      //   match/not [type, ns, sel,  value]          // 4 slots
+      //   cmp       [type, ns, sel,  comparator, value]   // 5 slots
+      //   text      [type, ns, sel,  mode,       value]   // 5 slots
+      //
+      // A positional copy (tag[3] → new tag[3]) silently promotes the match
+      // VALUE into the cmp COMPARATOR slot (e.g. "30023" ending up as the
+      // comparator), which was impossible to fix via the UI because the
+      // comparator dropdown would fall back to the default on blur while the
+      // serialized tag still carried the stale value. Mapping semantically
+      // below preserves ns/sel/value across type changes and uses type-
+      // appropriate defaults for comparator/mode/inputType.
+      const src = { inputType: null, ns: null, sel: null, comparator: null, mode: null, value: null };
+      switch (tag[0]) {
+        case 'input':
+          src.inputType = tag[1];
+          src.value = tag[2];
+          break;
+        case 'match':
+        case 'not':
+          src.ns = tag[1];
+          src.sel = tag[2];
+          src.value = tag[3];
+          break;
+        case 'cmp':
+          src.ns = tag[1];
+          src.sel = tag[2];
+          src.comparator = tag[3];
+          src.value = tag[4];
+          break;
+        case 'text':
+          src.ns = tag[1];
+          src.sel = tag[2];
+          src.mode = tag[3];
+          src.value = tag[4];
+          break;
+      }
+
       if (value === 'input') {
-        this.stages[stageIdx].tags[clauseIdx] = ['input', 'e', tag[2] || ''];
+        this.stages[stageIdx].tags[clauseIdx] = ['input', src.inputType || 'e', src.value || ''];
       } else if (value === 'match' || value === 'not') {
-        this.stages[stageIdx].tags[clauseIdx] = [value, tag[1] || 'prop', tag[2] || 'kind', tag[3] || ''];
+        this.stages[stageIdx].tags[clauseIdx] = [value, src.ns || 'prop', src.sel || 'kind', src.value || ''];
       } else if (value === 'cmp') {
-        this.stages[stageIdx].tags[clauseIdx] = [value, tag[1] || 'tag', tag[2] || 'published_at', tag[3] || 'gte', tag[4] || '7d'];
+        this.stages[stageIdx].tags[clauseIdx] = [value, src.ns || 'tag', src.sel || 'published_at', src.comparator || 'gte', src.value || '7d'];
       } else if (value === 'text') {
-        this.stages[stageIdx].tags[clauseIdx] = [value, tag[1] || 'tag', tag[2] || 'title', tag[3] || 'contains-ci', tag[4] || ''];
+        this.stages[stageIdx].tags[clauseIdx] = [value, src.ns || 'tag', src.sel || 'title', src.mode || 'contains-ci', src.value || ''];
       }
     } else if (field === 'namespace') {
       tag[1] = value;
