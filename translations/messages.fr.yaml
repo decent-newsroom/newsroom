@@ -702,4 +702,5 @@ expressionView:
     noResults: 'Aucun résultat pour cette expression.'
     loginRequired: 'Connectez-vous pour voir les résultats. Les expressions sont évaluées avec votre contexte personnel (contacts, intérêts).'
     backToList: 'Toutes les Expressions'
+    takingLonger: 'Recherche. Tri. Filtrage. Évaluation. Chargement...'
 

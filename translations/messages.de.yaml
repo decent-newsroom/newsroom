@@ -716,4 +716,5 @@ expressionView:
     noResults: 'Keine Ergebnisse für diesen Ausdruck.'
     loginRequired: 'Melde dich an, um die Ergebnisse zu sehen. Ausdrücke werden mit deinem persönlichen Kontext (Kontakte, Interessen) ausgewertet.'
     backToList: 'Alle Ausdrücke'
+    takingLonger: 'Suchen. Sortieren. Filtern. Auswerten. Laden...'
 

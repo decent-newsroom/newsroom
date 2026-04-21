@@ -894,3 +894,6 @@ followPacks:
     articles: 'articoli'
     curatedBy: 'Curato da'
 
+expressionView:
+    takingLonger: 'Ricerca. Ordinamento. Filtraggio. Valutazione. Caricamento...'
+

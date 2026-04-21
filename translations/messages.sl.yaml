@@ -702,4 +702,5 @@ expressionView:
     noResults: 'Ni rezultatov za ta izraz.'
     loginRequired: 'Prijavi se za ogled rezultatov. Izrazi se ovrednotijo z tvojim osebnim kontekstom (stiki, interesi).'
     backToList: 'Vsi izrazi'
+    takingLonger: 'Iskanje. Razvrščanje. Filtriranje. Vrednotenje. Nalaganje...'
 

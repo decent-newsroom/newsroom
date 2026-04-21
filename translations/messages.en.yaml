@@ -944,6 +944,6 @@ expressionView:
     backToList: 'All Expressions'
     evaluating: 'Evaluating expression…'
     evaluatingDetail: 'Fetching and filtering events from relays. This may take a moment.'
-    takingLonger: 'This is taking longer than usual. Complex expressions need more time.'
+    takingLonger: 'Searching. Sorting. Filtering. Evaluating. Loading...'
     evaluationFailed: 'Expression evaluation failed. Please try again later.'
 
