@@ -52,33 +52,53 @@ class CommentController extends AbstractController
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            // Extract the A tag (uppercase) containing the article coordinate
+            // Extract the root reference: either A (addressable coordinate)
+            // or E (event id) per NIP-22. Also capture an uppercase P tag so we
+            // can resolve the parent author's relays for non-addressable parents.
             $articleCoordinate = null;
+            $rootEventId = null;
+            $rootAuthorPubkey = null;
             foreach ($signedEvent['tags'] as $tag) {
-                if (is_array($tag) && count($tag) >= 2 && $tag[0] === 'A') {
+                if (!is_array($tag) || count($tag) < 2) {
+                    continue;
+                }
+                if ($tag[0] === 'A' && $articleCoordinate === null) {
                     $articleCoordinate = $tag[1];
-                    break;
+                } elseif ($tag[0] === 'E' && $rootEventId === null) {
+                    $rootEventId = $tag[1];
+                } elseif ($tag[0] === 'P' && $rootAuthorPubkey === null) {
+                    $rootAuthorPubkey = $tag[1];
                 }
             }
 
-            if (!$articleCoordinate) {
-                return new JsonResponse(['error' => 'No article reference (A tag) found in comment'], 400);
+            if (!$articleCoordinate && !$rootEventId) {
+                return new JsonResponse(['error' => 'No root reference (A or E tag) found in comment'], 400);
             }
 
-            // Parse the coordinate to get the article author's pubkey
-            // Format: kind:pubkey:identifier
-            $coordinateParts = explode(':', $articleCoordinate, 3);
-            if (count($coordinateParts) < 3) {
-                return new JsonResponse(['error' => 'Invalid article coordinate format'], 400);
+            // Resolve the parent-author pubkey used for relay routing.
+            if ($articleCoordinate) {
+                // Parse the coordinate to get the article author's pubkey
+                // Format: kind:pubkey:identifier
+                $coordinateParts = explode(':', $articleCoordinate, 3);
+                if (count($coordinateParts) < 3) {
+                    return new JsonResponse(['error' => 'Invalid article coordinate format'], 400);
+                }
+                $articleAuthorPubkey = $coordinateParts[1];
+            } else {
+                // Non-addressable parent — rely on the P tag authored the event.
+                if (!$rootAuthorPubkey || !preg_match('/^[0-9a-f]{64}$/', $rootAuthorPubkey)) {
+                    return new JsonResponse(['error' => 'Missing or invalid P tag for non-addressable parent'], 400);
+                }
+                $articleAuthorPubkey = $rootAuthorPubkey;
             }
 
-            $articleAuthorPubkey = $coordinateParts[1];
             $commenterPubkey = $signedEvent['pubkey'];
 
             $this->logger->info('Publishing comment', [
                 'comment_id' => $signedEvent['id'],
-                'article_coordinate' => $articleCoordinate,
-                'article_author' => $articleAuthorPubkey,
+                'root_coordinate' => $articleCoordinate,
+                'root_event_id' => $rootEventId,
+                'root_author' => $articleAuthorPubkey,
                 'commenter' => $commenterPubkey,
             ]);
 

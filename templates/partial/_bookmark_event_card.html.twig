@@ -9,10 +9,10 @@
     {% endfor %}
 
     <div class="card-header">
-        <h4 class="card-title">
+        <h4 class="card-title {{ eventTitle ? '' : 'hidden' }}">
             {{ eventTitle ?? 'Untitled' }}
         </h4>
-        <div class="event-meta">
+        <div class="metadata">
             <p class="m-0">by <twig:Molecules:UserFromNpub :ident="event.pubkey" /></p>
             <small>{{ event.createdAt|date('M j, Y') }}</small>
         </div>

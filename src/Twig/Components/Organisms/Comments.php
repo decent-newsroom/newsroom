@@ -28,6 +28,9 @@ final class Comments
     #[LiveProp(writable: false)]
     public string $current;
 
+    #[LiveProp(writable: false)]
+    public ?string $authorPubkey = null;
+
     #[LiveProp]
     public array $list = [];
     public array $commentLinks = [];
@@ -55,9 +58,10 @@ final class Comments
      * renders immediately, then dispatches an async message so the worker
      * can refresh from relays and push updates via Mercure.
      */
-    public function mount(string $current): void
+    public function mount(string $current, ?string $authorPubkey = null): void
     {
         $this->current = $current;
+        $this->authorPubkey = $authorPubkey;
 
         // ── 1. Immediate DB load ──────────────────────────────────────
         try {
@@ -94,7 +98,7 @@ final class Comments
 
         // ── 2. Async relay refresh (may push Mercure update later) ────
         try {
-            $this->bus->dispatch(new FetchCommentsMessage($current));
+            $this->bus->dispatch(new FetchCommentsMessage($current, $this->authorPubkey));
         } catch (\Throwable) {
             // transport unavailable (Redis down, etc.) – not critical
         }

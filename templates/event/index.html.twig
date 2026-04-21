@@ -183,5 +183,67 @@
         <pre>{{ event|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
     </details>
     {% endif %}
+
+    {# ── NIP-22 Comments ────────────────────────────────────────────
+       Available for any kind except dedicated-UI kinds that are handled
+       elsewhere (articles 30023/30024, curation sets 30004–30006, and
+       NIP-28 chat 42 all redirect to their own views before reaching
+       this template, so the block below is a safety net). #}
+    {% set commentsDisabledKinds = [30023, 30024, 30004, 30005, 30006, 42] %}
+    {% if event.kind not in commentsDisabledKinds %}
+        {# Extract the d-tag (if any) to detect addressable events. Per
+           NIP-01, addressable event kinds live in 30000–39999 and always
+           carry a d tag. Non-addressable events (kind 0–9999, etc.) are
+           referenced by event id instead. #}
+        {% set dTag = null %}
+        {% for tag in event.tags %}
+            {% if tag[0] == 'd' and dTag is null and tag[1] is defined %}
+                {% set dTag = tag[1] %}
+            {% endif %}
+        {% endfor %}
+
+        {% set isAddressable = (event.kind >= 30000 and event.kind < 40000) and dTag is not null %}
+        {% if isAddressable %}
+            {% set commentKey = event.kind ~ ':' ~ event.pubkey ~ ':' ~ dTag %}
+            {% set rootContext = {
+                tag: 'A',
+                value: commentKey,
+                relay: null,
+                pubkey: event.pubkey,
+                kind: event.kind
+            } %}
+            {% set parentContext = {
+                tag: 'a',
+                value: commentKey,
+                relay: null,
+                pubkey: event.pubkey,
+                kind: event.kind
+            } %}
+        {% else %}
+            {% set commentKey = event.id %}
+            {% set rootContext = {
+                tag: 'E',
+                value: event.id,
+                relay: null,
+                pubkey: event.pubkey,
+                kind: event.kind
+            } %}
+            {% set parentContext = {
+                tag: 'e',
+                value: event.id,
+                relay: null,
+                pubkey: event.pubkey,
+                kind: event.kind
+            } %}
+        {% endif %}
+
+        <twig:Organisms:CommentForm
+            :publish_url="path('comment_publish')"
+            :csrf_token="csrf_token('comment_publish')"
+            :root_context="rootContext"
+            :parent_context="parentContext" />
+
+        <twig:Organisms:Comments :current="commentKey" :authorPubkey="event.pubkey" />
+    {% endif %}
 </div>
 {% endblock %}

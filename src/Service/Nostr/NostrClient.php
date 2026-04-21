@@ -477,9 +477,9 @@ class NostrClient
     }
 
     /** @see SocialEventService::getComments() */
-    public function getComments(string $coordinate, ?int $since = null): array
+    public function getComments(string $coordinate, ?int $since = null, ?string $authorPubkey = null): array
     {
-        return $this->socialEventService->getComments($coordinate, $since);
+        return $this->socialEventService->getComments($coordinate, $since, $authorPubkey);
     }
 
     /** @see SocialEventService::getZaps() */

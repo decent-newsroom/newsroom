@@ -30,6 +30,7 @@ class FetchCommentsHandler
     public function __invoke(FetchCommentsMessage $message): void
     {
         $coordinate = $message->getCoordinate();
+        $authorPubkey = $message->getAuthorPubkey();
 
         // Step 1: Check cache first (fast path)
         $cached = $this->redisCacheService->getCommentsPayload($coordinate);
@@ -65,13 +66,13 @@ class FetchCommentsHandler
         }
 
         // Step 3: Refresh from relays (async/background refresh)
-        $this->refreshFromRelays($coordinate, $dbComments);
+        $this->refreshFromRelays($coordinate, $dbComments, $authorPubkey);
     }
 
     /**
      * Refresh comments from Nostr relays, persisting new ones to database
      */
-    private function refreshFromRelays(string $coordinate, array $existingDbComments): void
+    private function refreshFromRelays(string $coordinate, array $existingDbComments, ?string $authorPubkey = null): void
     {
         try {
             // Get the latest timestamp from DB for incremental fetch
@@ -84,7 +85,7 @@ class FetchCommentsHandler
             ]);
 
             // Fetch from relays (local relay first, then others)
-            $newEvents = $this->nostrClient->getComments($coordinate, $since);
+            $newEvents = $this->nostrClient->getComments($coordinate, $since, $authorPubkey);
 
             if (empty($newEvents)) {
                 $this->logger->debug('No new comments from relays', ['coordinate' => $coordinate]);

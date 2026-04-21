@@ -2,7 +2,7 @@
 
 ## Overview
 
-Comments use Nostr kind 1111 events. They are fetched from relays, persisted to the database, and displayed on article pages via the `Comments` Twig Live Component.
+Comments use Nostr kind 1111 events. They are fetched from relays, persisted to the database, and displayed on article pages and the generic event page (`/e/{nevent}`) via the `Comments` Twig Live Component.
 
 ## Architecture
 
@@ -43,6 +43,24 @@ When `k` = `1111` (reply to a comment), the component:
 3. Looks up the parent comment via lowercase `e`-tag and displays a one-line preview
 
 Top-level comments (where `k` = the article kind) do not show reply metadata since the parent is the article itself.
+
+## Generic event page support
+
+The generic event page at `/e/{nevent}` renders the same comment UI for any event kind, not just longform articles. Two modes:
+
+| Parent type | Example kinds | Root tags | Parent tags | `current` / comment key |
+|-------------|---------------|-----------|-------------|-------------------------|
+| Addressable (30000–39999 with `d` tag) | 30023 articles, 30040 publications, 39089 follow packs, 1450 tabular data (when addressable), 10015 interests | `A`, `K`, `P` | `a`, `k`, `p` | `kind:pubkey:d-tag` coordinate |
+| Non-addressable | 1 notes, 20 pictures, 21/22 videos, 34235/34236 legacy video, generic unknown | `E`, `K`, `P` | `e`, `k`, `p` | 64-hex event id |
+
+Gating: the UI is suppressed for kinds that already have dedicated flows and normally redirect before the event template is reached (30023/30024 articles, 30004–30006 curation sets, 42 chat).
+
+Server-side branching:
+- `SocialEventService::getComments($ref, $since, $authorPubkey)` detects coordinate vs event id (contains `:` → coordinate; 64-hex → event id) and filters on `#A` or `#E` respectively. For non-addressable parents, relays are resolved from the optional `$authorPubkey` argument, falling back to the default relay pool when no pubkey hint is available.
+- `FetchCommentsMessage($coordinate, $authorPubkey = null)` carries the pubkey hint through to the handler.
+- `CommentController::publish` accepts either an `A` tag (addressable root) or an `E` + `P` tag pair (non-addressable root) to resolve commenter + parent-author relays for publishing.
+
+The database layer (`EventRepository::findCommentsByCoordinate`) already matches on any `tag[1]` value regardless of the tag key, so both coordinates and event ids work unchanged.
 
 ## Lessons Learned
 

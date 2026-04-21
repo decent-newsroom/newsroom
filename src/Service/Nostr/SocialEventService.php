@@ -106,32 +106,54 @@ class SocialEventService
     // -------------------------------------------------------------------------
 
     /**
-     * Get comments (kind 1111) and zap receipts (kind 9735) for a coordinate.
+     * Get comments (kind 1111) and zap receipts (kind 9735) for a parent
+     * reference, which may be either an addressable coordinate or an event id.
      *
-     * @param string   $coordinate  "kind:pubkey:identifier"
-     * @param int|null $since       Only events after this timestamp
+     * @param string      $ref          either "kind:pubkey:identifier" (addressable)
+     *                                   or a 64-char lowercase hex event id
+     *                                   (non-addressable parent)
+     * @param int|null    $since        Only events after this timestamp
+     * @param string|null $authorPubkey Author pubkey hint used to pick the
+     *                                   right relay set when $ref is an event id
      * @return array   Deduplicated comment/zap events
-     * @throws \InvalidArgumentException on malformed coordinate
+     * @throws \InvalidArgumentException on malformed reference
      */
-    public function getComments(string $coordinate, ?int $since = null): array
+    public function getComments(string $ref, ?int $since = null, ?string $authorPubkey = null): array
     {
-        $this->logger->info('Getting comments for coordinate', ['coordinate' => $coordinate]);
+        $this->logger->info('Getting comments for parent ref', ['ref' => $ref]);
 
-        $parts = explode(':', $coordinate, 3);
-        if (count($parts) < 3) {
-            throw new \InvalidArgumentException('Invalid coordinate format, expected kind:pubkey:identifier');
+        $isCoordinate = str_contains($ref, ':');
+        if ($isCoordinate) {
+            $parts = explode(':', $ref, 3);
+            if (count($parts) < 3) {
+                throw new \InvalidArgumentException('Invalid coordinate format, expected kind:pubkey:identifier');
+            }
+            $pubkey = $parts[1];
+        } else {
+            if (!preg_match('/^[0-9a-f]{64}$/', $ref)) {
+                throw new \InvalidArgumentException('Invalid parent reference, expected kind:pubkey:id or 64-hex event id');
+            }
+            $pubkey = $authorPubkey;
         }
-        $pubkey = $parts[1];
 
         if ($this->nostrDefaultRelay) {
             $authorRelays = [$this->nostrDefaultRelay];
             $this->logger->info('Using local relay for comments fetch', ['relay' => $this->nostrDefaultRelay]);
-        } else {
+        } elseif ($pubkey) {
             $authorRelays = $this->relaySetFactory->forAuthor($pubkey)->getRelays()
                 ? array_map(fn($r) => $r->getUrl(), $this->relaySetFactory->forAuthor($pubkey)->getRelays())
                 : [];
             $this->logger->info('Using author relays for comments fetch', [
-                'coordinate'  => $coordinate,
+                'ref'         => $ref,
+                'relay_count' => count($authorRelays),
+            ]);
+        } else {
+            // No pubkey hint for a plain event id — fall back to default relay pool
+            $authorRelays = array_values(array_filter(
+                array_map(fn($r) => is_object($r) ? $r->getUrl() : (string) $r, $this->relayPool->getDefaultRelays() ?? [])
+            ));
+            $this->logger->info('Using default relays for comments fetch (no pubkey)', [
+                'ref'         => $ref,
                 'relay_count' => count($authorRelays),
             ]);
         }
@@ -140,7 +162,11 @@ class SocialEventService
         $subscriptionId = $subscription->setId();
         $filter         = new Filter();
         $filter->setKinds([KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value]);
-        $filter->setTag('#A', [$coordinate]);
+        if ($isCoordinate) {
+            $filter->setTag('#A', [$ref]);
+        } else {
+            $filter->setTag('#E', [$ref]);
+        }
 
         if (is_int($since) && $since > 0) {
             $filter->setSince($since);
