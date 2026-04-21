@@ -433,6 +433,79 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Batch variant of {@see findByNaddr}: resolve many addressable coordinates
+     * (`kind:pubkey:d`) to their current (latest) replaceable events in a
+     * single query.
+     *
+     * Returns a map coordinate → Event. Coordinates with no matching event
+     * are absent from the map.
+     *
+     * Used by NIP-GX traversal to prefetch all parent / root / child addresses
+     * across a stage's input items in one round-trip instead of N.
+     *
+     * @param string[] $coordinates Each of the form "kind:pubkey:d". Duplicates allowed; deduplicated internally.
+     * @return array<string, Event>
+     */
+    public function findByCoordinates(array $coordinates): array
+    {
+        if (empty($coordinates)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+
+        // Parse and deduplicate. Invalid coordinates are skipped silently —
+        // they simply won't appear in the result map.
+        $parsed = [];
+        foreach (array_unique($coordinates) as $coord) {
+            $parts = explode(':', $coord, 3);
+            if (count($parts) !== 3 || !ctype_digit($parts[0])) {
+                continue;
+            }
+            $parsed[$coord] = [(int) $parts[0], $parts[1], $parts[2]];
+        }
+        if (empty($parsed)) {
+            return [];
+        }
+
+        // Build an OR of (kind, pubkey, d_tag) triples. PostgreSQL's planner
+        // can use the d_tag column index efficiently when each disjunct is
+        // equality on the three indexed columns; for very large batches we
+        // cap at MAX_CHUNK and chunk the query, to keep parameter count
+        // bounded (PG's practical limit is 65535 bind params).
+        $map = [];
+        foreach (array_chunk($parsed, 500, preserve_keys: true) as $chunk) {
+            $whereParts = [];
+            $params = [];
+            $i = 0;
+            foreach ($chunk as $coord => [$kind, $pubkey, $d]) {
+                $whereParts[] = "(e.kind = :k{$i} AND e.pubkey = :p{$i} AND e.d_tag = :d{$i})";
+                $params["k{$i}"] = $kind;
+                $params["p{$i}"] = $pubkey;
+                $params["d{$i}"] = $d;
+                $i++;
+            }
+
+            // created_at DESC so that for replaceable events we keep the latest
+            // version per coordinate when we pick the first row seen per coord.
+            $sql = 'SELECT * FROM event e WHERE '
+                . implode(' OR ', $whereParts)
+                . ' ORDER BY e.created_at DESC';
+
+            $rows = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+
+            foreach ($rows as $row) {
+                $coord = $row['kind'] . ':' . $row['pubkey'] . ':' . ($row['d_tag'] ?? '');
+                if (!isset($map[$coord])) {
+                    $map[$coord] = $this->mapRowToEvent($row);
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Find highlight events (kind 9802) that reference articles
      *
      * @param int $limit Maximum number of highlights to return
@@ -764,11 +837,66 @@ class EventRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        $sql = 'SELECT * FROM event e WHERE EXISTS (
-            SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-            WHERE tag->>0 = :tagName AND tag->>1 = :tagValue
-        )';
-        $params = ['tagName' => $tagName, 'tagValue' => $tagValue];
+        // Use the GIN index on event.tags (jsonb_path_ops) via the containment
+        // operator `@>`. The equivalent jsonb_array_elements + tag->>0 / tag->>1
+        // predicate does NOT use the GIN index and degrades to a sequential
+        // scan on large event tables.
+        $jsonTag = json_encode([[$tagName, $tagValue]], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $sql = 'SELECT * FROM event e WHERE e.tags @> CAST(:jsonTag AS jsonb)';
+        $params = ['jsonTag' => $jsonTag];
+
+        if (!empty($kinds)) {
+            $placeholders = [];
+            foreach (array_values($kinds) as $i => $kind) {
+                $placeholders[] = ':kind_' . $i;
+                $params['kind_' . $i] = (int) $kind;
+            }
+            $sql .= ' AND e.kind IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        $sql .= ' ORDER BY e.created_at ASC LIMIT :limit';
+        $params['limit'] = max(1, $limit);
+
+        $results = $conn->executeQuery($sql, $params)->fetchAllAssociative();
+        return array_map(fn($row) => $this->mapRowToEvent($row), $results);
+    }
+
+    /**
+     * Batch variant of {@see findReferencingEvents}: returns all events of the
+     * given kinds that reference ANY of the supplied tag values.
+     *
+     * Used by the NIP-GX traversal operators to replace N per-item queries
+     * with a single OR'd containment query (e.g. find all kind:1111 comments
+     * whose `a` tag matches one of 500 coordinates in a single SQL call).
+     *
+     * Each containment predicate `tags @> '[[name,value]]'::jsonb` uses the
+     * GIN(jsonb_path_ops) index independently, so the planner can combine
+     * them via bitmap OR.
+     *
+     * @param string   $tagName   First element of the tag to match.
+     * @param string[] $tagValues Second-element values to match (deduplicated by caller).
+     * @param int[]    $kinds     Restrict to these kinds; empty = any.
+     * @param int      $limit     Global row cap.
+     * @return Event[]            Flat list; caller groups by tag value if needed.
+     */
+    public function findReferencingEventsBatch(string $tagName, array $tagValues, array $kinds = [], int $limit = 1000): array
+    {
+        if (empty($tagValues)) {
+            return [];
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+
+        $orParts = [];
+        $params = [];
+        foreach (array_values(array_unique($tagValues)) as $i => $value) {
+            $p = 'tag_' . $i;
+            $orParts[] = 'e.tags @> CAST(:' . $p . ' AS jsonb)';
+            $params[$p] = json_encode([[$tagName, (string) $value]], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        $sql = 'SELECT * FROM event e WHERE (' . implode(' OR ', $orParts) . ')';
 
         if (!empty($kinds)) {
             $placeholders = [];

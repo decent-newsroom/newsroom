@@ -12,6 +12,7 @@ use App\ExpressionBundle\Model\Pipeline;
 use App\ExpressionBundle\Model\RuntimeContext;
 use App\ExpressionBundle\Model\Stage;
 use App\ExpressionBundle\Runner\Operation\OperationInterface;
+use App\ExpressionBundle\Runner\Traversal\TraversalResolver;
 use App\ExpressionBundle\Source\SourceResolverInterface;
 use Psr\Log\LoggerInterface;
 
@@ -29,6 +30,7 @@ final class ExpressionRunner
     public function __construct(
         iterable $operationIterable,
         private readonly LoggerInterface $logger,
+        private readonly TraversalResolver $traversalResolver,
         private readonly int $expressionMaxExecutionTime = 30,
     ) {
         foreach ($operationIterable as $operation) {
@@ -47,6 +49,12 @@ final class ExpressionRunner
         SourceResolverInterface $resolver,
         bool $enforceTimeout = true,
     ): array {
+        // TraversalResolver is a request-scoped service shared across every
+        // evaluation in this process; wipe its memoization caches so no id/
+        // coordinate lookup leaks between evaluations (the DB may have moved
+        // on, and traversal correctness depends on fresh lookups per run).
+        $this->traversalResolver->resetCache();
+
         $startTime = microtime(true);
         $previousResult = null;
         $stageCount = count($pipeline->stages);

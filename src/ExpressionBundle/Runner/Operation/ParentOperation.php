@@ -29,6 +29,12 @@ final class ParentOperation implements OperationInterface
             throw new ArityException('parent requires exactly 1 input');
         }
 
+        // Batch-hydrate every declared parent reference across the whole input
+        // set in one round-trip (one query for event-id refs, one for
+        // addressable coordinate refs), so the per-item parents() calls below
+        // all hit the resolver's in-memory cache.
+        $this->resolver->prefetchForParents($inputs[0]);
+
         $result = [];
         foreach ($inputs[0] as $item) {
             foreach ($this->resolver->parents($item) as $parent) {

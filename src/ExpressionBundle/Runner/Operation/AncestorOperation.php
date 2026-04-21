@@ -37,6 +37,12 @@ final class AncestorOperation implements OperationInterface
         $rootOnly = $stage->traversalModifier === 'root';
         $out = [];
 
+        // Batch-hydrate every declared parent / root reference across the
+        // whole input set in one round-trip (one query for event-id refs,
+        // one for addressable coordinate refs). Subsequent rootHint()
+        // and walkAncestors() per-item calls hit the in-memory cache.
+        $this->resolver->prefetchForParents($inputs[0]);
+
         foreach ($inputs[0] as $item) {
             if ($rootOnly) {
                 // Fast path: use the kind's explicit root-tag hint when present
@@ -116,6 +122,11 @@ final class AncestorOperation implements OperationInterface
         $frontier = [$start];
 
         for ($depth = 0; $depth < self::MAX_DEPTH; $depth++) {
+            // Prefetch next-level parent refs for the whole frontier in one
+            // batched SQL call before we iterate. Without this, deeply-nested
+            // threads do one DB round-trip per hop per item.
+            $this->resolver->prefetchForParents($frontier);
+
             $next = [];
             foreach ($frontier as $node) {
                 foreach ($this->resolver->parents($node) as $parent) {

@@ -24,9 +24,49 @@ final class TraversalResolver
     /** Upper bound on children returned per input item. */
     private const MAX_CHILDREN = 500;
 
+    /**
+     * Per-evaluation cache for id / coord → Event lookups.
+     *
+     * Keys:
+     *   - `id:<hex>`  → Event or false (cached miss)
+     *   - `a:<kind:pubkey:d>` → Event or false (cached miss)
+     *
+     * Populated by {@see prefetchForParents()} / {@see prefetchForChildren()}
+     * and consulted by the internal {@see lookupById()} / {@see lookupByCoord()}
+     * helpers, so that the iterative per-item traversal code never re-hits the
+     * DB for events already fetched during this run.
+     *
+     * @var array<string, Event|false>
+     */
+    private array $eventCache = [];
+
+    /**
+     * Per-evaluation cache for batched child lookups.
+     *
+     * Key is the parent NormalizedItem's canonical id; value is the full
+     * sorted list of children resolved in {@see prefetchForChildren()}.
+     * Consulted by {@see children()} so a downstream DFS / BFS never
+     * re-queries the DB for a node it has already seen.
+     *
+     * @var array<string, NormalizedItem[]>
+     */
+    private array $childrenCache = [];
+
     public function __construct(
         private readonly EventRepository $eventRepository,
     ) {}
+
+    /**
+     * Drop all per-evaluation caches. Called by the runner at the start of
+     * every pipeline run — the resolver is a shared service and must not
+     * leak lookups from one evaluation to the next (the DB may have changed
+     * between runs, and we never want a stale hit).
+     */
+    public function resetCache(): void
+    {
+        $this->eventCache = [];
+        $this->childrenCache = [];
+    }
 
     /**
      * Return the direct parents of a single input item.
@@ -55,18 +95,29 @@ final class TraversalResolver
     /**
      * Return the direct children of a single input item in canonical order.
      *
+     * Reads from the per-evaluation children cache when populated by
+     * {@see prefetchForChildren()}; falls back to an online per-item lookup
+     * otherwise. The result is memoized so repeated calls for the same node
+     * (e.g. during {@see DescendantOperation}'s DFS) are free.
+     *
      * @return NormalizedItem[]
      */
     public function children(NormalizedItem $item): array
     {
-        $kind = $item->getKind();
+        $cid = $item->getCanonicalId();
+        if (isset($this->childrenCache[$cid])) {
+            return $this->childrenCache[$cid];
+        }
 
-        return match ($kind) {
+        $children = match ($item->getKind()) {
             1 => $this->kind1Children($item),
             1111 => $this->kind1111Children($item),
             30040 => $this->kind30040Children($item),
             default => [],
         };
+
+        $this->childrenCache[$cid] = $children;
+        return $children;
     }
 
     /**
@@ -188,7 +239,7 @@ final class TraversalResolver
             return null;
         }
 
-        $event = $this->eventRepository->findById($parentId);
+        $event = $this->lookupById($parentId);
         return $event !== null ? new NormalizedItem($event) : null;
     }
 
@@ -204,7 +255,7 @@ final class TraversalResolver
                 continue;
             }
             if (($tag[3] ?? null) === 'root') {
-                $event = $this->eventRepository->findById($tag[1]);
+                $event = $this->lookupById($tag[1]);
                 return $event !== null ? new NormalizedItem($event) : null;
             }
         }
@@ -241,7 +292,7 @@ final class TraversalResolver
         foreach ($item->getEvent()->getTags() as $tag) {
             $type = $tag[0] ?? null;
             if ($type === 'e' && isset($tag[1])) {
-                $event = $this->eventRepository->findById($tag[1]);
+                $event = $this->lookupById($tag[1]);
                 return $event !== null ? new NormalizedItem($event) : null;
             }
             if ($type === 'a' && isset($tag[1])) {
@@ -278,7 +329,7 @@ final class TraversalResolver
         }
 
         if ($eventIdRoot !== null) {
-            $event = $this->eventRepository->findById($eventIdRoot);
+            $event = $this->lookupById($eventIdRoot);
             if ($event !== null) {
                 return new NormalizedItem($event);
             }
@@ -378,17 +429,326 @@ final class TraversalResolver
 
     private function resolveAddress(string $address): ?NormalizedItem
     {
-        $parts = explode(':', $address, 3);
-        if (count($parts) !== 3) {
+        $event = $this->lookupByCoord($address);
+        return $event !== null ? new NormalizedItem($event) : null;
+    }
+
+    /**
+     * DB lookup with per-evaluation memoization.
+     *
+     * Returns the Event for this id, or null if not found. A cached miss
+     * (false in the cache) returns null without re-hitting the DB.
+     */
+    private function lookupById(string $id): ?Event
+    {
+        $key = 'id:' . $id;
+        if (array_key_exists($key, $this->eventCache)) {
+            return $this->eventCache[$key] ?: null;
+        }
+        $event = $this->eventRepository->findById($id);
+        $this->eventCache[$key] = $event ?? false;
+        return $event;
+    }
+
+    /**
+     * DB lookup with per-evaluation memoization, for addressable coordinates.
+     */
+    private function lookupByCoord(string $coord): ?Event
+    {
+        $key = 'a:' . $coord;
+        if (array_key_exists($key, $this->eventCache)) {
+            return $this->eventCache[$key] ?: null;
+        }
+        $parts = explode(':', $coord, 3);
+        if (count($parts) !== 3 || !ctype_digit($parts[0])) {
+            $this->eventCache[$key] = false;
             return null;
         }
-        [$kind, $pubkey, $d] = $parts;
-        if (!ctype_digit($kind)) {
-            return null;
+        $event = $this->eventRepository->findByNaddr((int) $parts[0], $parts[1], $parts[2]);
+        $this->eventCache[$key] = $event ?? false;
+        return $event;
+    }
+
+    /**
+     * Prefetch all upward references (parents + root hints) declared by the
+     * supplied items in two batched SQL round-trips (one for `e`/`E` event
+     * ids, one for `a`/`A` addressable coordinates).
+     *
+     * After this call, the per-item parent / root-hint lookups against these
+     * items are guaranteed to hit the in-memory cache, collapsing O(N) DB
+     * queries into O(1). Callers invoke this once per traversal stage before
+     * iterating the input set.
+     *
+     * Safe to call repeatedly — already-cached refs are not re-queried. Also
+     * safe to call on mixed-kind input; items whose kind has no defined
+     * upward graph contribute no refs.
+     *
+     * @param NormalizedItem[] $items
+     */
+    public function prefetchForParents(array $items): void
+    {
+        $ids = [];
+        $coords = [];
+
+        foreach ($items as $item) {
+            $tags = $item->getEvent()->getTags();
+            $kind = $item->getKind();
+
+            if ($kind === 1) {
+                // NIP-10: marked "reply" e-tag takes precedence over "root".
+                $reply = null;
+                $root = null;
+                foreach ($tags as $tag) {
+                    if (($tag[0] ?? null) !== 'e' || !isset($tag[1])) {
+                        continue;
+                    }
+                    $marker = $tag[3] ?? null;
+                    if ($marker === 'reply' && $reply === null) {
+                        $reply = $tag[1];
+                    } elseif ($marker === 'root' && $root === null) {
+                        $root = $tag[1];
+                    }
+                }
+                // The root hint is the "root"-marked event directly; also worth
+                // prefetching so kind1RootHint() hits the cache.
+                if ($reply !== null) {
+                    $ids[$reply] = true;
+                }
+                if ($root !== null) {
+                    $ids[$root] = true;
+                }
+                continue;
+            }
+
+            if ($kind === 1111) {
+                // NIP-22: lowercase e/a = direct parent, uppercase E/A = root scope.
+                // Collect every e/E id and a/A coordinate on this event.
+                foreach ($tags as $tag) {
+                    $t = $tag[0] ?? null;
+                    if (!isset($tag[1])) {
+                        continue;
+                    }
+                    if ($t === 'e' || $t === 'E') {
+                        $ids[$tag[1]] = true;
+                    } elseif ($t === 'a' || $t === 'A') {
+                        $coords[$tag[1]] = true;
+                    }
+                    // `i`/`I` are external identities — not event refs.
+                }
+                continue;
+            }
+
+            // kind:30040 and other addressable kinds have inclusion-based
+            // parents. Finding them requires a reverse index query, not an
+            // id/coord lookup — handled by inclusionParents() per-item.
+            // Pre-batching inclusion parents is possible (findReferencingEventsBatch
+            // on the items' addressable coords) but deferred: kind:30040 parent
+            // queries are rare compared to kind:1111 ancestor root.
         }
 
-        $event = $this->eventRepository->findByNaddr((int) $kind, $pubkey, $d);
-        return $event !== null ? new NormalizedItem($event) : null;
+        if (!empty($ids)) {
+            $needed = array_values(array_filter(
+                array_keys($ids),
+                fn(string $id) => !array_key_exists('id:' . $id, $this->eventCache),
+            ));
+            if (!empty($needed)) {
+                $found = $this->eventRepository->findByIds($needed);
+                foreach ($needed as $id) {
+                    $this->eventCache['id:' . $id] = $found[$id] ?? false;
+                }
+            }
+        }
+
+        if (!empty($coords)) {
+            $needed = array_values(array_filter(
+                array_keys($coords),
+                fn(string $c) => !array_key_exists('a:' . $c, $this->eventCache),
+            ));
+            if (!empty($needed)) {
+                $found = $this->eventRepository->findByCoordinates($needed);
+                foreach ($needed as $c) {
+                    $this->eventCache['a:' . $c] = $found[$c] ?? false;
+                }
+            }
+        }
+    }
+
+    /**
+     * Prefetch the direct children for every input item in one batched SQL
+     * round-trip per reference shape.
+     *
+     * For `kind:1` and `kind:1111` inputs: a single batched reverse-index query
+     * replaces N per-item queries. Results are grouped by parent id and cached
+     * by canonical id so subsequent calls to {@see children()} return from
+     * memory.
+     *
+     * For `kind:30040` inputs: children come from the index's own `a` tags
+     * (no reverse lookup needed), so we just prefetch those coordinates into
+     * the event cache.
+     *
+     * Safe to call repeatedly; items that already have a cached children list
+     * are skipped.
+     *
+     * @param NormalizedItem[] $items
+     */
+    public function prefetchForChildren(array $items): void
+    {
+        $k1ParentIds = [];   // kind:1 parents → find kind:1 children with e tag = these ids
+        $k1111ParentIds = [];   // kind:1111 parents identified by e tag
+        $k1111ParentCoords = []; // kind:1111 parents identified by a tag (addressable parent)
+        $k30040ChildCoords = []; // kind:30040 inputs: prefetch their included a-tag targets
+        $k1Items = [];       // parent id → NormalizedItem (for grouping)
+        $k1111Items = [];    // canonical id → NormalizedItem (for grouping)
+
+        foreach ($items as $item) {
+            $cid = $item->getCanonicalId();
+            if (isset($this->childrenCache[$cid])) {
+                continue;
+            }
+
+            switch ($item->getKind()) {
+                case 1:
+                    $id = $item->getId();
+                    $k1ParentIds[$id] = true;
+                    $k1Items[$id] = $item;
+                    break;
+
+                case 1111:
+                    $id = $item->getId();
+                    $k1111ParentIds[$id] = true;
+                    $k1111Items[$cid] = $item;
+                    $coord = $item->getAddressableCoordinate();
+                    if ($coord !== null) {
+                        $k1111ParentCoords[$coord] = true;
+                    }
+                    break;
+
+                case 30040:
+                    foreach ($item->getEvent()->getTags() as $tag) {
+                        if (($tag[0] ?? null) === 'a' && isset($tag[1])) {
+                            $k30040ChildCoords[$tag[1]] = true;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // kind:30040 — prefetch referenced coordinates into the event cache.
+        if (!empty($k30040ChildCoords)) {
+            $needed = array_values(array_filter(
+                array_keys($k30040ChildCoords),
+                fn(string $c) => !array_key_exists('a:' . $c, $this->eventCache),
+            ));
+            if (!empty($needed)) {
+                $found = $this->eventRepository->findByCoordinates($needed);
+                foreach ($needed as $c) {
+                    $this->eventCache['a:' . $c] = $found[$c] ?? false;
+                }
+            }
+        }
+
+        // kind:1 — batched reverse index: all kind:1 events that `e`-tag any of these ids.
+        if (!empty($k1ParentIds)) {
+            $rows = $this->eventRepository->findReferencingEventsBatch(
+                tagName: 'e',
+                tagValues: array_keys($k1ParentIds),
+                kinds: [1],
+                limit: self::MAX_CHILDREN * count($k1ParentIds),
+            );
+            // Group by the parent each row actually points at (marked reply/root e tag).
+            foreach (array_keys($k1ParentIds) as $pid) {
+                $this->childrenCache[$k1Items[$pid]->getCanonicalId()] = [];
+            }
+            foreach ($rows as $row) {
+                $candidate = new NormalizedItem($row);
+                $parent = $this->kind1Parent($candidate);
+                if ($parent === null) {
+                    continue;
+                }
+                $parentCid = $parent->getCanonicalId();
+                if (isset($this->childrenCache[$parentCid])) {
+                    $this->childrenCache[$parentCid][] = $candidate;
+                }
+            }
+            foreach ($k1Items as $pItem) {
+                $cid = $pItem->getCanonicalId();
+                $this->childrenCache[$cid] = $this->sortByCreatedAtThenId($this->childrenCache[$cid]);
+            }
+        }
+
+        // kind:1111 — one batched query for the e-tag shape, one for the a-tag
+        // shape. Candidates are unioned then assigned per parent based on the
+        // same kind1111Parent() rule used in the online path.
+        if (!empty($k1111Items)) {
+            $byIdRows = [];
+            if (!empty($k1111ParentIds)) {
+                $byIdRows = $this->eventRepository->findReferencingEventsBatch(
+                    tagName: 'e',
+                    tagValues: array_keys($k1111ParentIds),
+                    kinds: [1111],
+                    limit: self::MAX_CHILDREN * max(1, count($k1111ParentIds)),
+                );
+            }
+            $byCoordRows = [];
+            if (!empty($k1111ParentCoords)) {
+                $byCoordRows = $this->eventRepository->findReferencingEventsBatch(
+                    tagName: 'a',
+                    tagValues: array_keys($k1111ParentCoords),
+                    kinds: [1111],
+                    limit: self::MAX_CHILDREN * max(1, count($k1111ParentCoords)),
+                );
+            }
+
+            // Initialize empty buckets so parents with no children get [].
+            foreach ($k1111Items as $cid => $_pItem) {
+                $this->childrenCache[$cid] = [];
+            }
+
+            // Coord → canonical id index for a-tag matches.
+            $cidByCoord = [];
+            foreach ($k1111Items as $cid => $pItem) {
+                $c = $pItem->getAddressableCoordinate();
+                if ($c !== null) {
+                    $cidByCoord[$c] = $cid;
+                }
+            }
+            // Id → canonical id index for e-tag matches. (For non-addressable
+            // parents, canonical id equals the event id.)
+            $cidById = [];
+            foreach ($k1111Items as $cid => $pItem) {
+                $cidById[$pItem->getId()] = $cid;
+            }
+
+            $seen = [];
+            foreach (array_merge($byIdRows, $byCoordRows) as $row) {
+                $rowId = $row->getId();
+                if (isset($seen[$rowId])) {
+                    continue;
+                }
+                $seen[$rowId] = true;
+
+                $candidate = new NormalizedItem($row);
+                // Use the authoritative per-comment parent resolver.
+                $parent = $this->kind1111Parent($candidate);
+                if ($parent === null) {
+                    continue;
+                }
+                $targetCid = $cidById[$parent->getId()] ?? null;
+                if ($targetCid === null) {
+                    $parentCoord = $parent->getAddressableCoordinate();
+                    if ($parentCoord !== null) {
+                        $targetCid = $cidByCoord[$parentCoord] ?? null;
+                    }
+                }
+                if ($targetCid !== null && isset($this->childrenCache[$targetCid])) {
+                    $this->childrenCache[$targetCid][] = $candidate;
+                }
+            }
+
+            foreach ($k1111Items as $cid => $_pItem) {
+                $this->childrenCache[$cid] = $this->sortByCreatedAtThenId($this->childrenCache[$cid]);
+            }
+        }
     }
 
     /**

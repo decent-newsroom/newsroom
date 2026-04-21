@@ -29,6 +29,11 @@ final class ChildOperation implements OperationInterface
             throw new ArityException('child requires exactly 1 input');
         }
 
+        // Batched reverse-index query: all children of every input item in
+        // one SQL round-trip per reference shape (e-tag + a-tag), instead of
+        // N queries. Subsequent children() calls hit the in-memory cache.
+        $this->resolver->prefetchForChildren($inputs[0]);
+
         $result = [];
         foreach ($inputs[0] as $item) {
             foreach ($this->resolver->children($item) as $child) {

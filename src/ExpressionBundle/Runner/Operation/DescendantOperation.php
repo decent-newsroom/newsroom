@@ -38,6 +38,14 @@ final class DescendantOperation implements OperationInterface
         $leavesOnly = $stage->traversalModifier === 'leaves';
         $out = [];
 
+        // Batched reverse-index query for the seed layer: finds the direct
+        // children of every input item in one SQL round-trip and memoizes
+        // them on the resolver, so the DFS below hits the cache for its first
+        // (and most expensive — widest fan-out) level. Deeper levels still
+        // query per-node, which is a deliberate tradeoff to preserve DFS
+        // output ordering required by NIP-GX without restructuring the walk.
+        $this->resolver->prefetchForChildren($inputs[0]);
+
         foreach ($inputs[0] as $item) {
             $visited = [$item->getCanonicalId() => true];
             $produced = 0;
