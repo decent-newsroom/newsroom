@@ -40,7 +40,30 @@
                 {{ 'expressionView.noResults'|trans }}
             </div>
         {% else %}
-            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+            {# Expressions can return any event kind. Split longform articles
+               (which render nicely as grid cards) from other kinds (rendered
+               via the kind-dispatching bookmark card partial). #}
+            {% set articleCards = [] %}
+            {% set otherEvents = [] %}
+            {% for item in articles %}
+                {% if item.kind in [30023, 30024] and item.slug is not empty and item.title is not empty %}
+                    {% set articleCards = articleCards|merge([item]) %}
+                {% else %}
+                    {% set otherEvents = otherEvents|merge([item]) %}
+                {% endif %}
+            {% endfor %}
+
+            {% if articleCards|length > 0 %}
+                <twig:Organisms:CardList :list="articleCards" :authorsMetadata="authorsMetadata" class="article-list" />
+            {% endif %}
+
+            {% if otherEvents|length > 0 %}
+                <div class="expression-results-events">
+                    {% for event in otherEvents %}
+                        {% include 'partial/_bookmark_event_card.html.twig' with {event: event} %}
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             {% if pager is defined and pager.getNbPages() > 1 %}
                 <twig:Atoms:Pagination :pager="pager" route="expression_view" :routeParams="{npub: authorNpub, dtag: exprDtag}" />
