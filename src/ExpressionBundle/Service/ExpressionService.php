@@ -9,6 +9,7 @@ use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Parser\ExpressionParser;
 use App\ExpressionBundle\Runner\ExpressionRunner;
 use App\ExpressionBundle\Source\SourceResolverInterface;
+use App\ExpressionBundle\Source\SpellSourceResolver;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -24,6 +25,7 @@ final class ExpressionService
         private readonly RuntimeContextFactory $contextFactory,
         private readonly FeedCacheService $cache,
         private readonly LoggerInterface $logger,
+        private readonly SpellSourceResolver $spellResolver,
     ) {}
 
     /**
@@ -109,5 +111,85 @@ final class ExpressionService
             }
         }
         return "{$expression->getKind()}:{$expression->getPubkey()}:{$dTag}";
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Spells (NIP-A7, kind:777) — regular events addressed by event id. */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Execute a kind:777 spell event. Requires an authenticated user.
+     *
+     * @return NormalizedItem[]
+     */
+    public function evaluateSpell(Event $spell, string $userPubkey): array
+    {
+        $start = microtime(true);
+        $label = $spell->getId() ?: 'unknown';
+
+        $this->logger->info('Evaluating spell', [
+            'eventId' => $label,
+            'user' => substr($userPubkey, 0, 12) . '…',
+        ]);
+
+        try {
+            $ctx = $this->contextFactory->create($userPubkey);
+            $result = $this->spellResolver->executeEvent($spell, $ctx);
+
+            $this->logger->info('Spell evaluated', [
+                'eventId' => $label,
+                'resultItems' => count($result),
+                'totalMs' => round((microtime(true) - $start) * 1000),
+            ]);
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->logger->error('Spell evaluation failed', [
+                'eventId' => $label,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Evaluate a spell with caching. Cache key mixes event id + author context so
+     * republished spells (new event id) and per-user contexts never collide.
+     *
+     * @return NormalizedItem[]
+     */
+    public function evaluateSpellCached(Event $spell, string $userPubkey): array
+    {
+        $cacheKey = $this->buildSpellCacheKey($spell, $userPubkey);
+        return $this->cache->getOrSet($cacheKey, fn() => $this->evaluateSpell($spell, $userPubkey));
+    }
+
+    /**
+     * Build the feed cache key for a spell + user without evaluating.
+     */
+    public function buildSpellCacheKey(Event $spell, string $userPubkey): string
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        $ctxHash = md5(
+            implode(',', $ctx->contacts) . '|' . implode(',', $ctx->interests)
+        );
+        return 'spell_' . md5(sprintf(
+            '%s:v%d:%s:%s',
+            $spell->getId(),
+            $spell->getCreatedAt(),
+            $ctx->mePubkey,
+            $ctxHash
+        ));
+    }
+
+    /**
+     * Return cached spell results or null on miss.
+     *
+     * @return NormalizedItem[]|null
+     */
+    public function getCachedSpellResults(Event $spell, string $userPubkey): ?array
+    {
+        return $this->cache->get($this->buildSpellCacheKey($spell, $userPubkey));
     }
 }

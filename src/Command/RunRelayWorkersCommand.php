@@ -62,6 +62,12 @@ class RunRelayWorkersCommand extends Command
                 InputOption::VALUE_NONE,
                 'Disable user context hydration worker'
             )
+            ->addOption(
+                'without-spells',
+                null,
+                InputOption::VALUE_NONE,
+                'Disable spell hydration worker'
+            )
             ->setHelp(
                 'Runs local relay subscription workers in a single process.' . "\n\n" .
                 'Workers:' . "\n" .
@@ -69,7 +75,8 @@ class RunRelayWorkersCommand extends Command
                 '  - Media hydration: Subscribes to relay for media events (kinds 20, 21, 22)' . "\n" .
                 '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
                 '  - User context hydration: Subscribes to relay for user identity/social events' . "\n" .
-                '    (follows, bookmarks, interests, relay lists, etc.)' . "\n\n" .
+                '    (follows, bookmarks, interests, relay lists, etc.)' . "\n" .
+                '  - Spell hydration: Subscribes to relay for spell events (kind 777, NIP-A7)' . "\n\n" .
                 'This command is designed to run as the worker-relay Docker service.' . "\n" .
                 'Messenger consumers run in the worker service (app:run-workers).' . "\n" .
                 'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
@@ -117,6 +124,13 @@ class RunRelayWorkersCommand extends Command
             $workers['user-context'] = [
                 'command' => ['php', 'bin/console', 'user-context:subscribe-local-relay', '-vv'],
                 'description' => 'User context hydration worker',
+            ];
+        }
+
+        if (!$input->getOption('without-spells')) {
+            $workers['spells'] = [
+                'command' => ['php', 'bin/console', 'spells:subscribe-local-relay', '-vv'],
+                'description' => 'Spell hydration worker',
             ];
         }
 

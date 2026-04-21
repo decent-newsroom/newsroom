@@ -1,0 +1,61 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ title }} — {{ brand_name }}{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if description %}
+        <meta property="og:description" content="{{ description }}">
+    {% endif %}
+    <meta property="og:site_name" content="{{ brand_name }}">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand mb-3">
+        <div class="container mt-5">
+            <h1>{{ title }}</h1>
+            {% if description %}
+                <p class="eyebrow">{{ description }}</p>
+            {% endif %}
+            <div>
+                {{ 'spellView.by'|trans }}
+                <twig:Molecules:UserFromNpub :ident="authorNpub" />
+            </div>
+        </div>
+    </section>
+
+    <section class="w-container mb-5">
+        {% if error is defined and error %}
+            <div class="alert alert-warning">
+                {{ error }}
+            </div>
+        {% elseif needsLogin is defined and needsLogin %}
+            <div class="alert alert-info">
+                {{ 'spellView.loginRequired'|trans }}
+            </div>
+        {% elseif articles is empty %}
+            <div class="alert alert-info">
+                {{ 'spellView.noResults'|trans }}
+            </div>
+        {% else %}
+            <div class="spell-results-events">
+                {% for event in articles %}
+                    {% include 'partial/_bookmark_event_card.html.twig' with {event: event} %}
+                {% endfor %}
+            </div>
+
+            {% if pager is defined and pager.getNbPages() > 1 %}
+                <twig:Atoms:Pagination :pager="pager" route="spell_view" :routeParams="{nevent: nevent}" />
+            {% endif %}
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <div class="d-flex gap-3 center mt-3 mb-3 ln-section--reader">
+        <a href="{{ path('spell_list') }}" class="btn btn-sm">← {{ 'spellView.backToList'|trans }}</a>
+    </div>
+{% endblock %}
+

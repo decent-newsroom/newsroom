@@ -25,6 +25,7 @@
                         <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
                         <li><a href="{{ path('follow_packs') }}">{{ 'nav.followPacks'|trans }}</a></li>
                         <li class="hidden"><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
+                        <li class="hidden"><a href="{{ path('spell_list') }}">{{ 'spellsList.heading'|trans }}</a></li>
                         {% if app.user %}
                             <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
                             <li><a href="{{ path('my_bookmarks') }}">{{ 'nav.bookmarks'|trans }}</a></li>

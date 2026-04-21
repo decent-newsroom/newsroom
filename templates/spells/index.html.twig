@@ -1,0 +1,26 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'spellsList.heading'|trans }} — {{ brand_name }}{% endblock %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ 'spellsList.heading'|trans }} - {{ brand_name }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ 'spellsList.eyebrow'|trans }}">
+    <meta property="og:site_name" content="{{ brand_name }}">
+{% endblock %}
+
+{% block body %}
+    <section class="d-flex gap-3 center ln-section--newsstand">
+        <div class="container mt-5 mb-5">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>{{ 'spellsList.heading'|trans }}</h1>
+            </div>
+            <p class="eyebrow">{{ 'spellsList.eyebrow'|trans }}</p>
+        </div>
+    </section>
+    <section class="mb-5">
+        <twig:Organisms:SpellList />
+    </section>
+{% endblock %}
+

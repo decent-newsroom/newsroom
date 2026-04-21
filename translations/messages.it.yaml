@@ -897,3 +897,19 @@ followPacks:
 expressionView:
     takingLonger: 'Ricerca. Ordinamento. Filtraggio. Valutazione. Caricamento...'
 
+# -- Spells (NIP-A7, kind 777) -------------------------------------
+spellsList:
+    heading: 'Spells'
+    eyebrow: 'portable query filters (NIP-A7, kind 777)'
+    noSpells: 'No spells published yet.'
+    createdBy: 'Created by'
+    viewResults: 'View results'
+spellView:
+    by: 'Created by'
+    noResults: 'No results from this spell.'
+    loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
+    backToList: 'All Spells'
+    evaluating: 'Running spell...'
+    evaluatingDetail: 'Fetching events that match this spell from relays.'
+    takingLonger: 'Searching. Filtering. Loading...'
+    evaluationFailed: 'Spell evaluation failed. Please try again later.'

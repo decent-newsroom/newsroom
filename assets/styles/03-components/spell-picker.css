@@ -1,0 +1,92 @@
+/* Spell picker modal — click-to-use spell shortcut in the expression builder.
+   Follows the project's styling rules: no shading, no rounded edges. */
+
+.spell-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 4rem 1rem 1rem;
+    z-index: 1080;
+}
+
+.spell-picker-modal {
+    background: var(--color-bg, #fff);
+    color: var(--color-fg, #111);
+    border: 1px solid var(--color-border, #222);
+    width: min(720px, 100%);
+    max-height: calc(100vh - 6rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.spell-picker-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.spell-picker-modal__header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+}
+
+.spell-picker-modal__close {
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.spell-picker-modal__search {
+    width: 100%;
+}
+
+.spell-picker-modal__list {
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.spell-picker-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--color-border, #ccc);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+.spell-picker-row:hover,
+.spell-picker-row:focus-visible {
+    background: var(--color-accent-subtle, #f2f2f2);
+    outline: none;
+}
+
+.spell-picker-row__desc {
+    font-size: 0.875rem;
+    color: var(--color-muted, #555);
+}
+
+.spell-picker-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+    font-size: 0.8125rem;
+}
+

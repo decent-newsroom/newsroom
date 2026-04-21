@@ -186,6 +186,140 @@ export default class extends Controller {
     this.updatePreview();
   }
 
+  /* ------------------------------------------------------------------ */
+  /*  Spell picker (NIP-A7, kind 777) — click-to-use input shortcut     */
+  /* ------------------------------------------------------------------ */
+
+  async pickSpell(event) {
+    const idx = parseInt(event.currentTarget.dataset.stageIndex, 10);
+    if (Number.isNaN(idx) || !this.stages[idx]) return;
+
+    const spells = await this._fetchSpells();
+    if (spells === null) {
+      this._toast('Failed to load spells.', 'danger');
+      return;
+    }
+    if (spells.length === 0) {
+      this._toast('No spells available on this relay yet.', 'info');
+      return;
+    }
+
+    this._openSpellPicker(spells, (spell) => {
+      // Insert as a new `e` input referencing the spell's event id.
+      // NIP-A7 spells are regular events addressed by event id.
+      this.stages[idx].tags.push(['input', 'e', spell.id]);
+      this._renderStages();
+      this.updatePreview();
+      this._toast(`Added spell: ${spell.name}`, 'success');
+    });
+  }
+
+  async _fetchSpells() {
+    try {
+      const response = await fetch('/api/spells', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return Array.isArray(data.spells) ? data.spells : [];
+    } catch (e) {
+      console.error('[expression] Failed to fetch spells:', e);
+      return null;
+    }
+  }
+
+  _openSpellPicker(spells, onPick) {
+    // Remove any stale picker
+    this._closeSpellPicker();
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'spell-picker-backdrop';
+    backdrop.setAttribute('role', 'dialog');
+    backdrop.setAttribute('aria-modal', 'true');
+
+    const modal = document.createElement('div');
+    modal.className = 'spell-picker-modal';
+
+    const header = document.createElement('div');
+    header.className = 'spell-picker-modal__header';
+    header.innerHTML = `
+      <h3>Pick a spell</h3>
+      <button type="button" class="spell-picker-modal__close" aria-label="Close">&times;</button>
+    `;
+
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'form-control spell-picker-modal__search';
+    search.placeholder = 'Filter by name, description, topic…';
+
+    const list = document.createElement('div');
+    list.className = 'spell-picker-modal__list';
+
+    const renderList = (filter) => {
+      const q = (filter || '').trim().toLowerCase();
+      list.innerHTML = '';
+      const filtered = q === '' ? spells : spells.filter(s => {
+        const hay = [
+          s.name || '', s.description || '', s.author_name || '',
+          (s.topics || []).join(' '),
+        ].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+      if (filtered.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'text-muted';
+        empty.textContent = 'No spells match your filter.';
+        list.appendChild(empty);
+        return;
+      }
+      for (const spell of filtered) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'spell-picker-row';
+        row.innerHTML = `
+          <strong>${this._esc(spell.name || spell.id)}</strong>
+          ${spell.description ? `<span class="spell-picker-row__desc">${this._esc(spell.description.slice(0, 140))}</span>` : ''}
+          <span class="spell-picker-row__meta">
+            ${(spell.kinds || []).map(k => `<span class="badge bg-secondary">kind ${k}</span>`).join(' ')}
+            ${(spell.topics || []).slice(0, 4).map(t => `<span class="badge bg-info">#${this._esc(t)}</span>`).join(' ')}
+            ${spell.author_name ? `<span class="text-muted">— ${this._esc(spell.author_name)}</span>` : ''}
+          </span>
+        `;
+        row.addEventListener('click', () => {
+          this._closeSpellPicker();
+          onPick(spell);
+        });
+        list.appendChild(row);
+      }
+    };
+
+    search.addEventListener('input', () => renderList(search.value));
+
+    modal.appendChild(header);
+    modal.appendChild(search);
+    modal.appendChild(list);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    const close = () => this._closeSpellPicker();
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    header.querySelector('.spell-picker-modal__close').addEventListener('click', close);
+    const keyHandler = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', keyHandler);
+
+    this._spellPicker = { el: backdrop, keyHandler };
+    renderList('');
+    search.focus();
+  }
+
+  _closeSpellPicker() {
+    if (!this._spellPicker) return;
+    try { document.removeEventListener('keydown', this._spellPicker.keyHandler); } catch {}
+    try { this._spellPicker.el.remove(); } catch {}
+    this._spellPicker = null;
+  }
+
   removeClause(event) {
     const stageIdx = parseInt(event.currentTarget.dataset.stageIndex, 10);
     const clauseIdx = parseInt(event.currentTarget.dataset.clauseIndex, 10);
@@ -688,6 +822,10 @@ export default class extends Controller {
           <button class="btn btn-sm btn-secondary"
                   data-action="click->nostr--nostr-expression#addInput"
                   data-stage-index="${idx}">+ Input</button>
+          <button class="btn btn-sm btn-secondary"
+                  data-action="click->nostr--nostr-expression#pickSpell"
+                  data-stage-index="${idx}"
+                  title="Pick a kind:777 spell as input">+ Spell</button>
           <small class="text-muted">First stage requires an input; later traversal stages consume the previous stage result.</small>
         </div>
       </div>`;
@@ -705,6 +843,10 @@ export default class extends Controller {
           <button class="btn btn-sm btn-secondary"
                   data-action="click->nostr--nostr-expression#addInput"
                   data-stage-index="${idx}">+ Input</button>
+          <button class="btn btn-sm btn-secondary"
+                  data-action="click->nostr--nostr-expression#pickSpell"
+                  data-stage-index="${idx}"
+                  title="Pick a kind:777 spell as input">+ Spell</button>
         </div>
       </div>`;
     }

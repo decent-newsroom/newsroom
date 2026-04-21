@@ -1,0 +1,34 @@
+<div {{ attributes }}>
+    {% set spells = this.spells %}
+    {% if spells is not empty %}
+        {% for spell in spells %}
+            <div class="card p-3 ln-section--reader">
+                <div class="card-body">
+                    <h2 class="card-title">
+                        <a href="{{ path('spell_view', { nevent: spell.nevent }) }}">
+                            {{ spell.name }}
+                        </a>
+                    </h2>
+                    {% if spell.description %}
+                        <p class="eyebrow">{{ spell.description|length > 140 ? spell.description|slice(0, 140) ~ '…' : spell.description }}</p>
+                    {% endif %}
+                    <div class="d-flex flex-row gap-2 flex-wrap align-items-center justify-content-center mb-2">
+                        {% for k in spell.kinds %}
+                            <span class="badge bg-secondary">kind {{ k }}</span>
+                        {% endfor %}
+                        {% for t in spell.topics|slice(0, 4) %}
+                            <span class="badge bg-info">#{{ t }}</span>
+                        {% endfor %}
+                    </div>
+                    <p>{{ 'spellsList.createdBy'|trans }} <twig:Molecules:UserFromNpub :ident="spell.pubkey" /></p>
+                    <a href="{{ path('spell_view', { nevent: spell.nevent }) }}" class="btn btn-sm">
+                        {{ 'spellsList.viewResults'|trans }} →
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p><small>{{ 'spellsList.noSpells'|trans }}</small></p>
+    {% endif %}
+</div>
+
