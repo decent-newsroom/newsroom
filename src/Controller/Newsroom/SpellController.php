@@ -173,12 +173,12 @@ final class SpellController extends AbstractController
             }
 
             try {
-                $nevent = (string) Bech32::nevent([
-                    'id' => $event->getId(),
-                    'relays' => [],
-                    'author' => $pubkey,
-                    'kind' => KindsEnum::SPELL->value,
-                ]);
+                $nevent = (string) Bech32::nevent(
+                    id: $event->getId(),
+                    relays: [],
+                    author: $pubkey,
+                    kind: KindsEnum::SPELL->value,
+                );
             } catch (\Throwable) {
                 $nevent = $event->getId();
             }
