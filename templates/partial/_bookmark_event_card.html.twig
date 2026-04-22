@@ -46,7 +46,9 @@
             <div class="event-content">
                 <twig:Atoms:Content :content="event.content" />
             </div>
-            {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} %}
+            {% if not event.kind == 1 %}
+                {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} %}
+            {% endif %}
         {% endif %}
     </div>
 
