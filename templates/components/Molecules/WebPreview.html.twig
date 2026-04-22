@@ -1,0 +1,29 @@
+<div class="web-preview web-preview--placeholder"
+     data-controller="utility--web-preview"
+     data-utility--web-preview-url-value="{{ url }}"
+     data-utility--web-preview-endpoint-value="{{ path('api_web_preview') }}">
+    <div class="web-preview__body">
+        <div class="web-preview__host">{{ this.host }}</div>
+        <div class="web-preview__title">{{ label ?? url }}</div>
+        <div class="web-preview__url">
+            <a href="{{ url }}" target="_blank" rel="noopener noreferrer nofollow">{{ url }}</a>
+        </div>
+        <div class="web-preview__actions">
+            <button type="button"
+                    class="btn btn-small"
+                    data-utility--web-preview-target="trigger"
+                    data-action="utility--web-preview#load">
+                {{ 'webPreview.loadCta'|trans }}
+            </button>
+            <small class="web-preview__notice">
+                {{ 'webPreview.loadNotice'|trans({'%host%': this.host}) }}
+            </small>
+        </div>
+        <div class="web-preview__status"
+             data-utility--web-preview-target="status"
+             role="status"
+             aria-live="polite"></div>
+    </div>
+</div>
+
+

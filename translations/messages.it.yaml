@@ -913,3 +913,7 @@ spellView:
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
+
+webPreview:
+    loadCta: 'Carica anteprima'
+    loadNotice: 'Clicca per caricare un''anteprima da %host%. Verrà contattato un server di terze parti.'

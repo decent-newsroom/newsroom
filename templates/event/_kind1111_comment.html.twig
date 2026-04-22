@@ -55,9 +55,13 @@
         {% elseif parentE %}
             <twig:Molecules:NostrEmbed :bech="parentE|nEncode" type="note" />
         {% elseif parentI %}
-            <div class="comment-parent-external">
-                <a href="{{ parentI }}" target="_blank" rel="noopener noreferrer">{{ parentI }}</a>
-            </div>
+            {% if parentI matches '#^https?://#i' %}
+                <twig:Molecules:WebPreview :url="parentI" />
+            {% else %}
+                <div class="comment-parent-external">
+                    <a href="{{ parentI }}" target="_blank" rel="noopener noreferrer">{{ parentI }}</a>
+                </div>
+            {% endif %}
         {% endif %}
     </aside>
 {% endif %}
@@ -81,9 +85,13 @@
         {% elseif rootE %}
             <twig:Molecules:NostrEmbed :bech="rootE|nEncode" type="note" />
         {% elseif rootI %}
-            <div class="comment-root-external">
-                <a href="{{ rootI }}" target="_blank" rel="noopener noreferrer">{{ rootI }}</a>
-            </div>
+            {% if rootI matches '#^https?://#i' %}
+                <twig:Molecules:WebPreview :url="rootI" />
+            {% else %}
+                <div class="comment-root-external">
+                    <a href="{{ rootI }}" target="_blank" rel="noopener noreferrer">{{ rootI }}</a>
+                </div>
+            {% endif %}
         {% endif %}
     </aside>
 {% endif %}
