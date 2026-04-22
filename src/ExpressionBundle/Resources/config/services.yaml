@@ -6,10 +6,21 @@ services:
             $expressionCacheTtl: '%expression.cache_ttl%'
             $expressionMaxDepth: '%expression.max_depth%'
             $expressionMaxExecutionTime: '%expression.max_execution_time%'
+            # All PSR-3 LoggerInterface injections inside the bundle route through
+            # the switch, so an async handler can temporarily redirect every pipeline
+            # log record to a MercureProgressLogger for the duration of one evaluation.
+            Psr\Log\LoggerInterface: '@App\ExpressionBundle\Logging\LoggerSwitch'
 
     App\ExpressionBundle\:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
             - '../../ExpressionBundle.php'
+
+    # Explicit definition so we can inject the real Monolog logger as the default
+    # delegate — without this, the auto-resolution would loop back onto the bind above.
+    App\ExpressionBundle\Logging\LoggerSwitch:
+        arguments:
+            $default: '@logger'
+        public: true
 

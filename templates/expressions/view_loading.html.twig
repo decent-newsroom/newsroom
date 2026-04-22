@@ -48,6 +48,11 @@
                 {{ 'expressionView.evaluationFailed'|trans }}
             </div>
         </div>
+
+        <div class="expression-log" data-content--expression-feed-target="logPanel" style="display: none">
+            <h4 class="expression-log__title">{{ 'expressionView.logPanelTitle'|trans }}</h4>
+            <ol class="expression-log__list" data-content--expression-feed-target="logList"></ol>
+        </div>
     </section>
 {% endblock %}
 

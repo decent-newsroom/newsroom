@@ -717,6 +717,7 @@ expressionView:
     loginRequired: 'Melde dich an, um die Ergebnisse zu sehen. Ausdrücke werden mit deinem persönlichen Kontext (Kontakte, Interessen) ausgewertet.'
     backToList: 'Alle Ausdrücke'
     takingLonger: 'Suchen. Sortieren. Filtern. Auswerten. Laden...'
+    logPanelTitle: 'Auswertungsprotokoll'
 
 # -- Spells (NIP-A7, kind 777) -------------------------------------
 spellsList:
@@ -731,6 +732,7 @@ spellView:
     loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
     backToList: 'All Spells'
     evaluating: 'Running spell...'
+    logPanelTitle: 'Auswertungsprotokoll'
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'

@@ -967,3 +967,4 @@ spellView:
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
+    logPanelTitle: 'Evaluation log'

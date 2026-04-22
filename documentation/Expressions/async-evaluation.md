@@ -36,9 +36,50 @@ Results are cached for 300 seconds (5 minutes) by default, configurable via `exp
 
 ## Mercure Topics
 
-- Topic pattern: `/expression-eval/{cacheKey}`
+- Topic pattern: `/expression-eval/{cacheKey}` (and `/spell-eval/{cacheKey}` for spells)
+- Payload on progress: `{"status": "log", "level": "info|warning|error|...", "message": "...", "context": {...}, "ts": 1713782400000}`
 - Payload on success: `{"status": "ready", "count": 42}`
 - Payload on error: `{"status": "error", "error": "..."}`
+
+### Progress log streaming
+
+While the worker is evaluating, every PSR-3 record emitted by the bundle
+(`ExpressionService`, `ExpressionRunner`, the `SourceResolver` family,
+`FeedCacheService`) is teed to the same Mercure topic as a `status: "log"`
+payload. The loading template renders a live scrolling panel (see
+`expression-log.css`) so the user can see which stage is running, how many
+events were fetched from relays, cache hits/misses, etc. `debug`-level
+records are filtered out at the source by `MercureProgressLogger` to avoid
+flooding the hub during tight per-item loops.
+
+The wiring is:
+
+- `App\ExpressionBundle\Logging\LoggerSwitch` is bound as the PSR-3
+  `LoggerInterface` for every bundle service (see
+  `src/ExpressionBundle/Resources/config/services.yaml`). Its default
+  delegate is the Monolog logger — sync call sites (API controllers, tests)
+  behave as before.
+- The async handlers (`EvaluateExpressionHandler`, `EvaluateSpellHandler`)
+  construct a `TeeLogger(monolog, MercureProgressLogger(hub, topic))` and
+  push it onto the switch for the duration of `__invoke`, popping in a
+  `finally` block.
+- Mercure's bolt transport retains published updates, so a browser that
+  reconnects during evaluation gets missed entries replayed via
+  `Last-Event-ID` automatically.
+
+## Diagnostics
+
+If no updates reach the browser:
+
+1. Check worker logs for `Mercure publish failed for expression evaluation`
+   — the handler escalates this to `error` with full exception class and
+   HTTP message.
+2. Verify `MERCURE_URL` and `MERCURE_JWT_SECRET` are identical between the
+   `worker` and `php` services (`docker compose exec worker printenv`).
+3. In the browser devtools Network tab, confirm the EventSource connection
+   to `MERCURE_PUBLIC_URL` returns `200` with
+   `content-type: text/event-stream`. A self-signed TLS cert on
+   `https://localhost:8443` silently blocks EventSource until accepted.
 
 ## Timeout Behavior
 

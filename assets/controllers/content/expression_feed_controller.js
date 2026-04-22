@@ -2,7 +2,9 @@ import { Controller } from '@hotwired/stimulus';
 
 /**
  * Subscribes to a Mercure topic for async expression evaluation results.
- * When the evaluation is ready, reloads the page to show cached results instantly.
+ * - status: 'log'   → append entry to live log panel
+ * - status: 'ready' → reload to render cached results
+ * - status: 'error' → show error alert
  *
  * stimulusFetch: 'lazy'
  */
@@ -10,13 +12,15 @@ export default class extends Controller {
     static values = {
         topic: String,
         timeout: { type: Number, default: 60000 },
+        maxLogEntries: { type: Number, default: 500 },
     };
 
-    static targets = ['spinner', 'error', 'slowNotice', 'statusHeading', 'statusDetail'];
+    static targets = ['spinner', 'error', 'slowNotice', 'statusHeading', 'statusDetail', 'logList', 'logPanel'];
 
     connect() {
         if (this._started) return;
         this._started = true;
+        this._logCount = 0;
 
         const hubUrl = window.MercureHubUrl
             || document.querySelector('meta[name="mercure-hub"]')?.content;
@@ -66,6 +70,11 @@ export default class extends Controller {
 
         console.debug('[expression-feed] Received', data);
 
+        if (data.status === 'log') {
+            this._appendLog(data);
+            return;
+        }
+
         if (data.status === 'error') {
             this._showError();
             this.disconnect();
@@ -78,10 +87,55 @@ export default class extends Controller {
         }
     }
 
+    _appendLog(entry) {
+        if (!this.hasLogListTarget) return;
+
+        // Reveal the panel on first entry.
+        if (this._logCount === 0 && this.hasLogPanelTarget) {
+            this.logPanelTarget.style.display = '';
+        }
+
+        const level = (entry.level || 'info').toLowerCase();
+        const li = document.createElement('li');
+        li.className = `expression-log__line expression-log__line--${level}`;
+
+        const ts = entry.ts ? new Date(entry.ts) : new Date();
+        const time = document.createElement('time');
+        time.className = 'expression-log__time';
+        time.textContent = ts.toLocaleTimeString(undefined, { hour12: false });
+
+        const lvl = document.createElement('span');
+        lvl.className = 'expression-log__level';
+        lvl.textContent = level.toUpperCase();
+
+        const msg = document.createElement('span');
+        msg.className = 'expression-log__message';
+        msg.textContent = entry.message || '';
+
+        li.append(time, lvl, msg);
+
+        if (entry.context && Object.keys(entry.context).length) {
+            const ctx = document.createElement('span');
+            ctx.className = 'expression-log__context';
+            try { ctx.textContent = JSON.stringify(entry.context); } catch { ctx.textContent = ''; }
+            li.append(ctx);
+        }
+
+        this.logListTarget.append(li);
+        this._logCount += 1;
+
+        // Cap entries to avoid unbounded DOM growth on slow evaluations.
+        const max = this.maxLogEntriesValue;
+        while (this.logListTarget.children.length > max) {
+            this.logListTarget.removeChild(this.logListTarget.firstElementChild);
+        }
+
+        // Auto-scroll to bottom.
+        this.logListTarget.scrollTop = this.logListTarget.scrollHeight;
+    }
+
     _onTimeout() {
         // On timeout, reload once — if cache is now warm, results will show.
-        // If still cold, the loading page will be shown again (but expression
-        // may still be evaluating in the worker).
         this.disconnect();
         this._reload();
     }

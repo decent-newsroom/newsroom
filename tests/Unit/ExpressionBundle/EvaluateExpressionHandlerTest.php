@@ -37,6 +37,7 @@ class EvaluateExpressionHandlerTest extends TestCase
         $ref->getProperty('eventRepository')->setValue($handler, $this->eventRepository);
         $ref->getProperty('hub')->setValue($handler, $this->hub);
         $ref->getProperty('logger')->setValue($handler, new NullLogger());
+        $ref->getProperty('loggerSwitch')->setValue($handler, null);
         // expressionService is not set — OK because "not found" path returns before using it
 
         return $handler;
@@ -49,7 +50,7 @@ class EvaluateExpressionHandlerTest extends TestCase
             ->willReturn(null);
 
         $this->hub
-            ->expects($this->once())
+            ->expects($this->atLeastOnce())
             ->method('publish')
             ->with($this->isInstanceOf(Update::class));
 

@@ -703,6 +703,7 @@ expressionView:
     loginRequired: 'Prijavi se za ogled rezultatov. Izrazi se ovrednotijo z tvojim osebnim kontekstom (stiki, interesi).'
     backToList: 'Vsi izrazi'
     takingLonger: 'Iskanje. Razvrščanje. Filtriranje. Vrednotenje. Nalaganje...'
+    logPanelTitle: 'Dnevnik vrednotenja'
 
 # -- Spells (NIP-A7, kind 777) -------------------------------------
 spellsList:
@@ -717,6 +718,7 @@ spellView:
     loginRequired: 'Log in to run this spell. Spells are evaluated with your personal context (contacts, interests).'
     backToList: 'All Spells'
     evaluating: 'Running spell...'
+    logPanelTitle: 'Dnevnik vrednotenja'
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
