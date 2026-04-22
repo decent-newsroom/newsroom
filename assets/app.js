@@ -87,7 +87,7 @@ import './styles/04-pages/expressions.css';
 // 05 - Utilities (last for highest specificity)
 import './styles/05-utilities/utilities.css';
 
-console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
+console.log('This log comes from assets/app.js - welcome to AssetMapper! ');
 
 import Prism from 'prismjs';
 
