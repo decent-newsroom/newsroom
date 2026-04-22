@@ -79,7 +79,7 @@ framework:
                     delete_after_ack: true
                     delete_after_reject: true
                 retry_strategy:
-                    max_retries: 1
+                    max_retries: 0
                     delay: 10000
                     multiplier: 2
             

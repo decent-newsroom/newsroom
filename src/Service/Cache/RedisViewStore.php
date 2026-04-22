@@ -23,7 +23,7 @@ class RedisViewStore
     private const HIGHLIGHTS_TTL = 2400; // 40 minutes (must exceed cron interval for highlights: 30min)
 
     // Stale-while-revalidate TTLs
-    private const PROFILE_STALE_TTL = 60; // Consider stale after 1 minute
+    private const PROFILE_STALE_TTL = 600; // Consider stale after 10 minutes (raised from 60s to cut async_profiles dispatch volume)
     private const PROFILE_MAX_TTL = 86400; // Hard expiry after 1 day
 
     public function __construct(

@@ -20,6 +20,14 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
  */
 readonly class UserDTOProvider implements UserProviderInterface
 {
+    /**
+     * Skip dispatching an async profile refresh on user refresh/login if we
+     * already refreshed metadata within this window. Every authenticated
+     * request triggers refreshUser(), so without this guard the
+     * async_profiles queue grows 1:1 with request volume for logged-in users.
+     */
+    private const METADATA_REFRESH_WINDOW_SECONDS = 4 * 3600; // 4 hours
+
     public function __construct(
         private EntityManagerInterface    $entityManager,
         private LoggerInterface           $logger,
@@ -60,10 +68,23 @@ readonly class UserDTOProvider implements UserProviderInterface
                 $this->logger->info('Created new user during refresh', ['npub' => $user->getUserIdentifier()]);
             }
 
-            // Trigger async profile update if we want to refresh metadata
+            // Trigger async profile update only if metadata is older than the refresh window.
+            // Without this guard, every authenticated request enqueues an
+            // UpdateProfileProjectionMessage and floods async_profiles.
             try {
-                $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+                $lastRefresh = $freshUser->getLastMetadataRefresh();
+                $isFresh = $lastRefresh !== null
+                    && (time() - $lastRefresh->getTimestamp()) < self::METADATA_REFRESH_WINDOW_SECONDS;
+
+                if ($isFresh) {
+                    $this->logger->debug('Skipping profile refresh dispatch; metadata is fresh', [
+                        'npub' => $user->getUserIdentifier(),
+                        'last_refresh' => $lastRefresh->format(\DateTimeInterface::ATOM),
+                    ]);
+                } else {
+                    $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                    $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+                }
             } catch (\Throwable $e) {
                 // Log but don't block refresh
                 $this->logger->error('Exception on dispatch during refresh: ' . $e->getMessage(), ['npub' => $user->getUserIdentifier()]);
@@ -118,11 +139,19 @@ readonly class UserDTOProvider implements UserProviderInterface
         try {
             $pubkey = NostrKeyUtil::npubToHex($identifier);
 
-            // Dispatch async message to update profile projection
-            // This is non-blocking and won't delay login
-            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+            // Only dispatch profile projection update on login if metadata is
+            // stale. Prevents duplicate work with refreshUser() and avoids
+            // flooding async_profiles when a user logs back in frequently.
+            $lastRefresh = $user->getLastMetadataRefresh();
+            $isFresh = $lastRefresh !== null
+                && (time() - $lastRefresh->getTimestamp()) < self::METADATA_REFRESH_WINDOW_SECONDS;
 
-            $this->logger->debug('Dispatched profile projection update', ['npub' => $identifier]);
+            if (!$isFresh) {
+                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+                $this->logger->debug('Dispatched profile projection update', ['npub' => $identifier]);
+            } else {
+                $this->logger->debug('Skipping login profile dispatch; metadata is fresh', ['npub' => $identifier]);
+            }
         } catch (\InvalidArgumentException|ExceptionInterface $e) {
             $this->logger->error('Invalid npub identifier.', ['npub' => $identifier]);
             throw $e;
