@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Article;
 use App\Factory\ArticleFactory;
 use App\Message\UpdateProfileProjectionMessage;
+use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Util\CommonMark\Converter;
 use Doctrine\Persistence\ManagerRegistry;
@@ -30,6 +31,7 @@ class ArticleEventProjector
         private readonly UserRolePromoter $userRolePromoter,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly ReplaceableEventCleanupService $cleanupService,
+        private readonly RedisViewStore $viewStore,
     ) {
     }
 
@@ -157,6 +159,19 @@ class ArticleEventProjector
                 $this->userRolePromoter->promoteToWriter($article->getPubkey());
             } catch (\Throwable $e) {
                 $this->logger->warning('Failed to promote article author to ROLE_WRITER', [
+                    'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Invalidate the author's profile-tab caches so the newly ingested
+            // article is visible immediately to visitors. Without this the
+            // article would be visible on Discover / via direct links but not
+            // on the author's profile until the 24h cache entry expires.
+            try {
+                $this->viewStore->invalidateProfileTabs($article->getPubkey());
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to invalidate author profile tabs after article ingestion', [
                     'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
                     'error' => $e->getMessage(),
                 ]);

@@ -25,6 +25,11 @@ class RedisViewStore
     // Stale-while-revalidate TTLs
     private const PROFILE_STALE_TTL = 600; // Consider stale after 10 minutes (raised from 60s to cut async_profiles dispatch volume)
     private const PROFILE_MAX_TTL = 86400; // Hard expiry after 1 day
+    // Short TTL used when a tab's primary payload comes back empty. Prevents
+    // a transient empty result (e.g. a visitor hitting a profile before the
+    // Article projection has settled) from poisoning the 24h cache and hiding
+    // articles that are visible everywhere else (Discover, direct links).
+    private const PROFILE_EMPTY_TTL = 120; // 2 minutes
 
     public function __construct(
         private readonly \Redis $redis,
@@ -128,7 +133,15 @@ class RedisViewStore
             $json = json_encode($cacheData, JSON_THROW_ON_ERROR);
             $compressed = $this->shouldCompress($json) ? gzcompress($json, 6) : $json;
 
-            $this->redis->setex($key, self::PROFILE_MAX_TTL, $compressed);
+            // When the tab's primary payload is empty, cache with a very short
+            // TTL so the next request can attempt a fresh rebuild. This keeps
+            // performance for healthy profiles (full 24h TTL) but prevents a
+            // one-off empty result from hiding an author's articles for a day.
+            $ttl = $this->isEmptyTabPayload($tab, $data)
+                ? self::PROFILE_EMPTY_TTL
+                : self::PROFILE_MAX_TTL;
+
+            $this->redis->setex($key, $ttl, $compressed);
 
             // Clean up any legacy :compressed flag
             $this->redis->del($key . ':compressed');
@@ -137,6 +150,8 @@ class RedisViewStore
                 'key' => $key,
                 'tab' => $tab,
                 'size_bytes' => strlen($compressed),
+                'ttl' => $ttl,
+                'empty' => $ttl === self::PROFILE_EMPTY_TTL,
             ]);
         } catch (\Exception $e) {
             $this->logger->error('Failed to store profile tab data', [
@@ -144,6 +159,26 @@ class RedisViewStore
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Determine whether the primary payload for a given tab is empty.
+     * Used to apply a short TTL so transient empty results don't poison the
+     * 24h profile cache.
+     */
+    private function isEmptyTabPayload(string $tab, array $data): bool
+    {
+        return match ($tab) {
+            'articles' => empty($data['articles']),
+            'overview' => empty($data['recentArticles'])
+                && empty($data['recentMedia'])
+                && empty($data['recentHighlights'])
+                && empty($data['authorMagazines']),
+            'media' => empty($data['mediaEvents']),
+            'highlights' => empty($data['highlights']),
+            'drafts' => empty($data['drafts']),
+            default => false,
+        };
     }
 
     /**

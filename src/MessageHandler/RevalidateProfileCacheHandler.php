@@ -72,7 +72,11 @@ class RevalidateProfileCacheHandler
                 default => [],
             };
 
-            // Store updated cache
+            // Don't overwrite a populated cache with an empty rebuild — that
+            // would simply re-poison the cache we just spent effort healing.
+            // If the rebuilt payload is empty we still store it, but
+            // `storeProfileTabData` uses a short TTL for empty payloads so
+            // the next request will rebuild again.
             $this->viewStore->storeProfileTabData($pubkey, $tab, $data);
 
             $this->logger->info('✅ Profile cache revalidated', [

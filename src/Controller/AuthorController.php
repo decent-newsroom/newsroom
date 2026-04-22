@@ -859,19 +859,46 @@ class AuthorController extends AbstractController
             $bypassCache = $isOwner;
 
             if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
-                // Use cached data for instant response - convert arrays to objects for Twig
-                $templateData = $this->hydrateTemplateData($cacheResult['data']);
+                // Guard against a poisoned empty cache: if the critical payload
+                // for the requested tab is empty, treat it as a cache miss and
+                // rebuild synchronously. This heals profiles whose cache was
+                // populated before the Article projection settled and which
+                // would otherwise hide articles for up to 24h even though the
+                // articles are visible in Discover and via direct links.
+                $cachedIsEmpty = $this->isEmptyCachedTabPayload($tab, $cacheResult['data']);
 
-                // If stale, trigger background revalidation
-                if ($cacheResult['isStale']) {
+                if ($cachedIsEmpty) {
+                    $templateData = match($tab) {
+                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+                        'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
+                        'media' => $this->getMediaTabData($pubkey, $redisCacheService),
+                        'highlights' => $this->getHighlightsTabData($pubkey, $em),
+                        'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
+                        default => [],
+                    };
+
+                    $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
+
                     try {
                         $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
-                        $this->logger->debug('Profile cache stale, dispatched revalidation', [
-                            'pubkey' => substr($pubkey, 0, 8),
-                            'tab' => $tab,
-                        ]);
                     } catch (\Throwable $e) {
-                        $this->logger->warning('Failed to dispatch profile revalidation', ['error' => $e->getMessage()]);
+                        $this->logger->warning('Failed to dispatch profile revalidation after empty-cache rebuild', ['error' => $e->getMessage()]);
+                    }
+                } else {
+                    // Use cached data for instant response - convert arrays to objects for Twig
+                    $templateData = $this->hydrateTemplateData($cacheResult['data']);
+
+                    // If stale, trigger background revalidation
+                    if ($cacheResult['isStale']) {
+                        try {
+                            $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                            $this->logger->debug('Profile cache stale, dispatched revalidation', [
+                                'pubkey' => substr($pubkey, 0, 8),
+                                'tab' => $tab,
+                            ]);
+                        } catch (\Throwable $e) {
+                            $this->logger->warning('Failed to dispatch profile revalidation', ['error' => $e->getMessage()]);
+                        }
                     }
                 }
             } else {
@@ -1616,6 +1643,27 @@ class AuthorController extends AbstractController
         });
 
         return $deduplicated;
+    }
+
+    /**
+     * Detect whether a cached profile-tab payload's primary array is empty.
+     * An empty payload is treated as a cache miss so a poisoned entry cannot
+     * hide articles that are visible elsewhere (Discover, direct links) for
+     * up to 24 hours.
+     */
+    private function isEmptyCachedTabPayload(string $tab, array $data): bool
+    {
+        return match ($tab) {
+            'articles' => empty($data['articles']),
+            'overview' => empty($data['recentArticles'])
+                && empty($data['recentMedia'])
+                && empty($data['recentHighlights'])
+                && empty($data['authorMagazines']),
+            'media' => empty($data['mediaEvents']),
+            'highlights' => empty($data['highlights']),
+            'drafts' => empty($data['drafts']),
+            default => false,
+        };
     }
 
     /**
