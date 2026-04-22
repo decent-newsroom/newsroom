@@ -736,3 +736,7 @@ spellView:
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
+
+webPreview:
+    loadCta: 'Vorschau laden'
+    loadNotice: 'Klicken, um eine Vorschau von %host% zu laden. Dabei wird ein Drittanbieter kontaktiert.'

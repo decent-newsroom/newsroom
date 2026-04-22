@@ -968,3 +968,7 @@ spellView:
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
     logPanelTitle: 'Evaluation log'
+
+webPreview:
+    loadCta: 'Load preview'
+    loadNotice: 'Click to fetch a preview from %host%. This will contact a third-party server.'

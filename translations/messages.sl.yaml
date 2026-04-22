@@ -722,3 +722,7 @@ spellView:
     evaluatingDetail: 'Fetching events that match this spell from relays.'
     takingLonger: 'Searching. Filtering. Loading...'
     evaluationFailed: 'Spell evaluation failed. Please try again later.'
+
+webPreview:
+    loadCta: 'Naloži predogled'
+    loadNotice: 'Kliknite za prenos predogleda z %host%. Stik bo vzpostavljen s tujim strežnikom.'
