@@ -46,7 +46,7 @@
 
 {# ── "Replying to" – direct parent ─────────────────────────────── #}
 {% if parentA or parentE or parentI %}
-    <aside class="comment-parent" aria-label="Replying to">
+    <div class="comment-parent" aria-label="Replying to">
         <div class="comment-parent-label">
             <small>Replying to{% if parentKind %} <span class="badge bg-secondary">kind {{ parentKind }}</span>{% endif %}</small>
         </div>
@@ -63,7 +63,7 @@
                 </div>
             {% endif %}
         {% endif %}
-    </aside>
+    </div>
 {% endif %}
 
 {# ── Comment content ───────────────────────────────────────────── #}

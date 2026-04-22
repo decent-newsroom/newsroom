@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Entity\Event;
+use App\Enum\KindsEnum;
 use App\Message\PersistGatewayEventsMessage;
+use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
+use App\Service\EventDeletionService;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\ReplaceableEventCleanupService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,6 +34,8 @@ final class PersistGatewayEventsHandler
         private readonly EntityManagerInterface $entityManager,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly ReplaceableEventCleanupService $cleanupService,
+        private readonly DeletedEventRepository $deletedEventRepository,
+        private readonly EventDeletionService $eventDeletionService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -67,6 +72,32 @@ final class PersistGatewayEventsHandler
                 continue;
             }
 
+            // NIP-09 shadow-ban: skip events that have been tombstoned.
+            $rawKind = (int) ($rawEvent['kind'] ?? 0);
+            $rawPubkey = (string) ($rawEvent['pubkey'] ?? '');
+            if ($rawKind !== KindsEnum::DELETION_REQUEST->value && $rawPubkey !== '') {
+                $rawDTag = null;
+                if ($rawKind >= 30000 && $rawKind <= 39999) {
+                    foreach (($rawEvent['tags'] ?? []) as $t) {
+                        if (is_array($t) && ($t[0] ?? '') === 'd' && isset($t[1])) {
+                            $rawDTag = (string) $t[1];
+                            break;
+                        }
+                    }
+                    if ($rawDTag === null) { $rawDTag = ''; }
+                }
+                if ($this->deletedEventRepository->isSuppressed(
+                    (string) $eventId,
+                    $rawKind,
+                    $rawPubkey,
+                    $rawDTag,
+                    (int) ($rawEvent['created_at'] ?? 0),
+                )) {
+                    $skipped++;
+                    continue;
+                }
+            }
+
             try {
                 $entity = $this->buildEntity($rawEvent);
                 $this->entityManager->persist($entity);
@@ -83,6 +114,7 @@ final class PersistGatewayEventsHandler
                 if ($batch >= self::BATCH_SIZE) {
                     $this->entityManager->flush();
                     $this->cleanupReplaceableEvents($batchEntities);
+                    $this->processDeletionRequests($batchEntities);
                     $batchEntities = [];
                     $batch = 0;
                 }
@@ -99,6 +131,7 @@ final class PersistGatewayEventsHandler
         if ($batch > 0) {
             $this->entityManager->flush();
             $this->cleanupReplaceableEvents($batchEntities);
+            $this->processDeletionRequests($batchEntities);
         }
 
         if ($persisted > 0) {
@@ -134,6 +167,29 @@ final class PersistGatewayEventsHandler
     {
         foreach ($entities as $entity) {
             $this->cleanupService->removeOlderEventVersions($entity, $this->entityManager);
+        }
+    }
+
+    /**
+     * Process NIP-09 (kind 5) deletion requests included in the persisted batch.
+     * Runs after flush so the deletion event itself is already stored.
+     *
+     * @param Event[] $entities
+     */
+    private function processDeletionRequests(array $entities): void
+    {
+        foreach ($entities as $entity) {
+            if ($entity->getKind() !== KindsEnum::DELETION_REQUEST->value) {
+                continue;
+            }
+            try {
+                $this->eventDeletionService->processDeletionRequest($entity);
+            } catch (\Throwable $e) {
+                $this->logger->warning('NIP-09: failed to process gateway-ingested deletion request', [
+                    'event_id' => $entity->getId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

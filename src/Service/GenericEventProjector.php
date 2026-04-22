@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
@@ -32,6 +33,8 @@ class GenericEventProjector
         private readonly UserRolePromoter $userRolePromoter,
         private readonly RecordIdentityService $recordIdentityService,
         private readonly ReplaceableEventCleanupService $cleanupService,
+        private readonly DeletedEventRepository $deletedEventRepository,
+        private readonly EventDeletionService $eventDeletionService,
     ) {
     }
 
@@ -76,10 +79,40 @@ class GenericEventProjector
             return $existing;
         }
 
-        // For replaceable events, skip if a newer version already exists.
-        // This prevents re-inserting stale events that arrive out of order.
+        // NIP-09 shadow-ban: if this event (or its coordinate) was previously
+        // deleted by its author via a kind:5 request, do not re-ingest it.
         $kind = (int) ($event->kind ?? 0);
         $pubkey = $event->pubkey ?? '';
+        if ($pubkey !== '' && $kind !== KindsEnum::DELETION_REQUEST->value) {
+            $dTag = $this->extractDTag($event);
+            if ($this->deletedEventRepository->isSuppressed(
+                (string) $event->id,
+                $kind,
+                $pubkey,
+                $dTag,
+                (int) ($event->created_at ?? 0),
+            )) {
+                $this->logger->info('NIP-09: suppressing ingestion of tombstoned event', [
+                    'event_id' => $event->id,
+                    'kind' => $kind,
+                    'pubkey' => substr($pubkey, 0, 16) . '...',
+                ]);
+                // Return a synthetic entity so callers have something to work with,
+                // without actually persisting.
+                $stub = new Event();
+                $stub->setId((string) $event->id);
+                $stub->setKind($kind);
+                $stub->setPubkey($pubkey);
+                $stub->setCreatedAt((int) ($event->created_at ?? 0));
+                $stub->setTags($event->tags ?? []);
+                $stub->setContent($event->content ?? '');
+                $stub->setSig($event->sig ?? '');
+                return $stub;
+            }
+        }
+
+        // For replaceable events, skip if a newer version already exists.
+        // This prevents re-inserting stale events that arrive out of order.
         if ($pubkey !== '' && $this->isReplaceableOrParameterized($kind)) {
             $newerExists = $this->newerReplaceableExists($kind, $pubkey, $event);
             if ($newerExists) {
@@ -150,6 +183,20 @@ class GenericEventProjector
             'pubkey' => substr($event->pubkey ?? '', 0, 16) . '...',
             'relay' => $relayUrl
         ]);
+
+        // NIP-09: if this is a kind:5 deletion request, process it now that the
+        // request itself is persisted. This cascades removal to all local stores
+        // and records tombstones to suppress any late-arriving re-publishes.
+        if ((int) $event->kind === KindsEnum::DELETION_REQUEST->value) {
+            try {
+                $this->eventDeletionService->processDeletionRequest($entity);
+            } catch (\Throwable $e) {
+                $this->logger->warning('NIP-09: failed to process deletion request', [
+                    'event_id' => $event->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         // Grant ROLE_EDITOR to authors of reading lists / magazines (kind 30040)
         if ((int) $event->kind === KindsEnum::PUBLICATION_INDEX->value && !empty($event->pubkey)) {
