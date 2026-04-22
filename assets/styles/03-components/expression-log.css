@@ -8,7 +8,7 @@
 .expression-log {
     margin-top: 1.5rem;
     border: 1px solid var(--color-border, #333);
-    background: var(--color-surface, #111);
+    background: var(--color-bg-muted, #111);
 }
 
 .expression-log__title {
