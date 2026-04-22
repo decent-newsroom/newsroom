@@ -737,54 +737,77 @@ class EventRepository extends ServiceEntityRepository
      */
     public function findByFilter(array $filter): array
     {
-        $qb = $this->createQueryBuilder('e');
+        // Built as native SQL so we can use PostgreSQL's jsonb containment
+        // operator `@>` for tag predicates. That operator uses the
+        // GIN(jsonb_path_ops) index on event.tags, unlike
+        // jsonb_array_elements()+tag->>0 which has no DQL equivalent and
+        // degrades to a sequential scan.
+        $conn = $this->getEntityManager()->getConnection();
 
-        if (isset($filter['kinds'])) {
-            $qb->andWhere('e.kind IN (:kinds)')
-               ->setParameter('kinds', $filter['kinds']);
+        $where = [];
+        $params = [];
+        $types = [];
+
+        if (isset($filter['kinds']) && is_array($filter['kinds']) && $filter['kinds'] !== []) {
+            $where[] = 'e.kind IN (:kinds)';
+            $params['kinds'] = array_map('intval', array_values($filter['kinds']));
+            $types['kinds'] = \Doctrine\DBAL\ArrayParameterType::INTEGER;
         }
-        if (isset($filter['authors'])) {
-            $qb->andWhere('e.pubkey IN (:authors)')
-               ->setParameter('authors', $filter['authors']);
+        if (isset($filter['authors']) && is_array($filter['authors']) && $filter['authors'] !== []) {
+            $where[] = 'e.pubkey IN (:authors)';
+            $params['authors'] = array_values($filter['authors']);
+            $types['authors'] = \Doctrine\DBAL\ArrayParameterType::STRING;
         }
-        if (isset($filter['ids'])) {
-            $qb->andWhere('e.id IN (:ids)')
-               ->setParameter('ids', $filter['ids']);
+        if (isset($filter['ids']) && is_array($filter['ids']) && $filter['ids'] !== []) {
+            $where[] = 'e.id IN (:ids)';
+            $params['ids'] = array_values($filter['ids']);
+            $types['ids'] = \Doctrine\DBAL\ArrayParameterType::STRING;
         }
         if (isset($filter['since'])) {
-            $qb->andWhere('e.created_at >= :since')
-               ->setParameter('since', $filter['since']);
+            $where[] = 'e.created_at >= :since';
+            $params['since'] = (int) $filter['since'];
         }
         if (isset($filter['until'])) {
-            $qb->andWhere('e.created_at <= :until')
-               ->setParameter('until', $filter['until']);
+            $where[] = 'e.created_at <= :until';
+            $params['until'] = (int) $filter['until'];
         }
 
         // Tag filters (#t, #p, #e, etc.)
+        // For each tag name with N values, OR the containment predicates
+        // together (Nostr filter semantics: any value matches).
         $tagIdx = 0;
         foreach ($filter as $key => $values) {
-            if (str_starts_with($key, '#') && is_array($values)) {
-                $tagName = substr($key, 1);
-                foreach ($values as $val) {
-                    $paramTag = "tagName_{$tagIdx}";
-                    $paramVal = "tagVal_{$tagIdx}";
-                    $qb->andWhere("EXISTS (SELECT 1 FROM jsonb_array_elements(e.tags) AS tag WHERE tag->>0 = :{$paramTag} AND tag->>1 = :{$paramVal})")
-                       ->setParameter($paramTag, $tagName)
-                       ->setParameter($paramVal, $val);
-                    $tagIdx++;
-                }
+            if (!is_string($key) || !str_starts_with($key, '#') || !is_array($values) || $values === []) {
+                continue;
+            }
+            $tagName = substr($key, 1);
+            $orParts = [];
+            foreach ($values as $val) {
+                $p = 'tag_' . $tagIdx;
+                $orParts[] = 'e.tags @> CAST(:' . $p . ' AS jsonb)';
+                $params[$p] = json_encode(
+                    [[$tagName, (string) $val]],
+                    JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                );
+                $tagIdx++;
+            }
+            if ($orParts !== []) {
+                $where[] = '(' . implode(' OR ', $orParts) . ')';
             }
         }
 
-        $qb->orderBy('e.created_at', 'DESC');
-
-        if (isset($filter['limit'])) {
-            $qb->setMaxResults((int) $filter['limit']);
-        } else {
-            $qb->setMaxResults(500);
+        $sql = 'SELECT * FROM event e';
+        if ($where !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
         }
+        $sql .= ' ORDER BY e.created_at DESC';
 
-        return $qb->getQuery()->getResult();
+        $limit = isset($filter['limit']) ? max(1, (int) $filter['limit']) : 500;
+        $sql .= ' LIMIT :limit';
+        $params['limit'] = $limit;
+
+        $rows = $conn->executeQuery($sql, $params, $types)->fetchAllAssociative();
+        return array_map(fn(array $row) => $this->mapRowToEvent($row), $rows);
     }
 
     /**
