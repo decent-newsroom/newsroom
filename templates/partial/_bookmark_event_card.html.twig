@@ -50,7 +50,7 @@
         {% endif %}
     </div>
 
-    <div>
+    <div class="card-footer p-3">
         {% set note1 = event.encodeAsNote1() %}
         {% if note1 %}
             <a href="/e/{{ note1 }}">
@@ -60,7 +60,6 @@
             <span class="text-muted">Event ID: {{ event.id|slice(0, 16) }}…</span>
         {% endif %}
     </div>
-    <hr>
 </div>
 {% endif %}
 

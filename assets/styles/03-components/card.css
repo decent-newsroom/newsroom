@@ -146,3 +146,10 @@ article .card:not(.zap-modal-content,.comment) {
 .card.embed .card-body h2 {
     margin-top: var(--spacing-2);
 }
+
+.bookmark-event-card .metadata {
+    display: flex;
+    gap: 10px;
+    padding: 8px 16px;
+    justify-content: space-between;
+}
