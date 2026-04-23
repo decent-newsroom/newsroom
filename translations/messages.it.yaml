@@ -883,6 +883,8 @@ followPackView:
     noArticles: 'Nessun articolo da questo gruppo ancora.'
     members: 'Scrittori'
     viewArticles: 'Visualizza articoli di questo gruppo →'
+    shareNewsroomLink: 'Link Newsroom'
+    shareNaddr: 'Naddr'
 
 # ── Pagina Follow Packs ───────────────────────────────────────────
 followPacks:

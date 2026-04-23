@@ -18,6 +18,44 @@
 {% block body %}
     {# Hero section — mirrors the magazine-hero pattern #}
     <div class="magazine-hero">
+        <div data-controller="utility--share-dropdown" class="dropdown share-dropdown magazine-hero__actions">
+            <button data-utility--share-dropdown-target="button"
+                    class="btn btn-secondary btn-sm"
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    data-action="click->utility--share-dropdown#toggle">
+                ⋯
+            </button>
+            <div data-utility--share-dropdown-target="menu"
+                 class="dropdown-menu dropdown-menu-end"
+                 style="display:none;position:absolute;z-index:1000;min-width:200px;">
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ url('follow_pack_view', { npub: authorNpub, dtag: packDtag }) }}">
+                    {{ 'followPackView.shareNewsroomLink'|trans }}
+                </button>
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ packEvent|naddrEncode }}">
+                    {{ 'followPackView.shareNaddr'|trans }}
+                </button>
+                {% if app.user and app.user.userIdentifier != authorNpub %}
+                    <div class="dropdown-divider"></div>
+                    <form method="post" action="{{ path('notifications_subscriptions_add') }}" class="m-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('notification-subscribe') }}" />
+                        <input type="hidden" name="identifier" value="{{ packEvent|naddrEncode }}" />
+                        <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
+                        <button class="dropdown-item" type="submit">
+                            {{ 'notifications.subscription.addSubmit'|trans }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
         {% if image %}
             <div class="magazine-hero__cover">
                 <img src="{{ image }}" alt="{{ title }}" class="magazine-hero__cover-img">
