@@ -74,7 +74,7 @@
 
 {# ── "In thread" – root, only if different from the parent ─────── #}
 {% if not parentIsRoot and (rootA or rootE or rootI) %}
-    <aside class="comment-root" aria-label="In thread">
+    <div class="comment-root" aria-label="In thread">
         <div class="comment-root-label">
             <small>In thread{% if rootKind %} <span class="badge bg-secondary">kind {{ rootKind }}</span>{% endif %}</small>
         </div>
@@ -93,7 +93,7 @@
                 </div>
             {% endif %}
         {% endif %}
-    </aside>
+    </div>
 {% endif %}
 
 
