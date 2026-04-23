@@ -18,9 +18,9 @@
         {% endif %}
         <ul class="user-nav">
             <li><a href="{{ path('settings') }}">{{ 'nav.settings'|trans }}</a></li>
-            <li><a href="{{ path('notifications_index') }}">{{ 'notifications.pageTitle'|trans }}</a></li>
             {% if is_granted('ROLE_ADMIN') %}
-            <li><a href="{{ path('profile_stats') }}">{{ 'nav.myStats'|trans }}</a></li>
+                <li><a href="{{ path('notifications_index') }}">{{ 'notifications.pageTitle'|trans }}</a></li>
+                <li><a href="{{ path('profile_stats') }}">{{ 'nav.myStats'|trans }}</a></li>
             {% endif %}
             <li>
                 <a href="/logout"
