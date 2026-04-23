@@ -25,9 +25,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * --cleanup : delete consumer groups that don't belong to the current
  *             environment (e.g. stale `dev` groups left on a stream).
  *
- * --discard : DESTRUCTIVE. Moves last-delivered-id to the end of the stream
- *             (`XGROUP SETID … +`), permanently skipping every undelivered
- *             message. Only use when you deliberately want to wipe a backlog.
+ * --discard : DESTRUCTIVE. Moves last-delivered-id to the tail of the stream
+ *             (`XGROUP SETID ... $`), skipping current backlog while still
+ *             allowing future messages to be delivered.
  *
  * --dry-run : preview what would happen without making changes.
  */
@@ -53,7 +53,7 @@ class ResetMessengerStreamsCommand extends Command
             ->addOption('cleanup', null, InputOption::VALUE_NONE, 'Delete consumer groups from other environments')
             ->addOption('prune', null, InputOption::VALUE_NONE, 'Remove stale consumers (idle > threshold, pending=0) from current groups')
             ->addOption('prune-idle', null, InputOption::VALUE_REQUIRED, 'Minimum idle time in milliseconds for --prune (default: 1 hour)', '3600000')
-            ->addOption('discard', null, InputOption::VALUE_NONE, 'DESTRUCTIVE: skip all undelivered messages (XGROUP SETID ... +)');
+            ->addOption('discard', null, InputOption::VALUE_NONE, 'DESTRUCTIVE: skip current backlog (XGROUP SETID ... $)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -268,12 +268,12 @@ class ResetMessengerStreamsCommand extends Command
                     }
                 }
 
-                // Destructive discard: skip the whole backlog.
+                // Destructive discard: skip current backlog and continue from tail.
                 if ($discard) {
                     if ($dryRun) {
-                        $io->note("would XGROUP SETID «{$name}» → + (drop backlog)");
+                        $io->note("would XGROUP SETID «{$name}» -> $ (drop current backlog, keep consuming new)");
                     } else {
-                        $redis->rawCommand('XGROUP', 'SETID', $stream, $name, '+');
+                        $redis->rawCommand('XGROUP', 'SETID', $stream, $name, '$');
                         $io->warning("discarded backlog on «{$name}»");
                     }
                 }
