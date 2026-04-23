@@ -9,6 +9,7 @@ use App\Enum\ActiveIndexingStatus;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
+use App\Service\NotificationProService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -32,6 +33,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
 
     public function __construct(
         private readonly ActiveIndexingService $activeIndexingService,
+        private readonly NotificationProService $notificationProService,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
         string $recipientPubkey,
@@ -137,6 +139,43 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             $io->success(sprintf('Processed %d subscription payment(s).', $activatedCount));
         } else {
             $io->info('No matching payments found.');
+        }
+
+        // ── Notifications Pro ────────────────────────────────────────────────
+        $pendingPro = $this->notificationProService->getPendingSubscriptions();
+        if (!empty($pendingPro)) {
+            $proInvoiceMap = [];
+            foreach ($pendingPro as $sub) {
+                $bolt11 = $sub->getPendingInvoiceBolt11();
+                if ($bolt11) {
+                    $proInvoiceMap[strtolower($bolt11)] = $sub;
+                }
+            }
+
+            $proActivated = 0;
+            foreach ($zapReceipts as $receipt) {
+                $bolt11FromReceipt = $this->extractBolt11FromReceipt($receipt);
+                if (!$bolt11FromReceipt) {
+                    continue;
+                }
+                $bolt11Lower = strtolower($bolt11FromReceipt);
+                if (isset($proInvoiceMap[$bolt11Lower])) {
+                    $sub = $proInvoiceMap[$bolt11Lower];
+                    if ($sub->getStatus() === ActiveIndexingStatus::PENDING) {
+                        $this->notificationProService->activateSubscription($sub, $receipt->getId());
+                        $io->success(sprintf('Activated Notifications Pro for %s', $sub->getNpub()));
+                    } else {
+                        $this->notificationProService->renewSubscription($sub, $receipt->getId());
+                        $io->success(sprintf('Renewed Notifications Pro for %s', $sub->getNpub()));
+                    }
+                    $proActivated++;
+                    unset($proInvoiceMap[$bolt11Lower]);
+                }
+            }
+
+            if ($proActivated > 0) {
+                $io->success(sprintf('Processed %d Notifications Pro payment(s).', $proActivated));
+            }
         }
 
         return Command::SUCCESS;

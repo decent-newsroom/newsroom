@@ -57,7 +57,7 @@ class UserMetadata
             website: $user->getWebsite() ? [$user->getWebsite()] : [],
             lud16: $user->getLud16() ? [$user->getLud16()] : [],
             lud06: [],
-            nip05: $user->getNip05() ? [$user->getNip05()] : [],
+            nip05: self::extractMultiValueString($user->getNip05()),
             bot: false,
         );
     }
@@ -106,11 +106,31 @@ class UserMetadata
 
         // Handle array values (from Nostr tags)
         if (is_array($value)) {
+            if ('nip05' === $property) {
+                $normalized = [];
+                foreach ($value as $item) {
+                    if (!is_string($item)) {
+                        continue;
+                    }
+                    foreach (self::extractMultiValueString($item) as $identifier) {
+                        if (!in_array($identifier, $normalized, true)) {
+                            $normalized[] = $identifier;
+                        }
+                    }
+                }
+
+                return $normalized;
+            }
+
             return array_values(array_filter($value, fn($v) => is_string($v) && $v !== ''));
         }
 
         // Handle string values - convert to single-element array
         if (is_string($value) && $value !== '') {
+            if ('nip05' === $property) {
+                return self::extractMultiValueString($value);
+            }
+
             return [$value];
         }
 
@@ -139,6 +159,27 @@ class UserMetadata
         }
 
         return null;
+    }
+
+    /**
+     * Parse comma-separated string values into a normalized list.
+     */
+    private static function extractMultiValueString(?string $value): array
+    {
+        if (null === $value || '' === trim($value)) {
+            return [];
+        }
+
+        $result = [];
+        foreach (explode(',', $value) as $candidate) {
+            $normalized = trim($candidate);
+            if ('' === $normalized || in_array($normalized, $result, true)) {
+                continue;
+            }
+            $result[] = $normalized;
+        }
+
+        return $result;
     }
 
     /**

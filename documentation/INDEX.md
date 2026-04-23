@@ -20,6 +20,7 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [Highlights](Reader/highlights.md) — Kind 9802 highlight display and caching
 - [Reading Lists](Newsroom/reading-lists.md) — Curated article lists with workflow state machine
 - [Home Feed](Reader/home-feed-logged-in.md) — Tabbed feed for logged-in users (Latest, Follows, Interests, Podcasts, News Bots)
+- [Notifications Center](Notifications/notifications-center.md) — Per-user subscriptions (npub / publication / NIP-51 set) with real-time Mercure toasts for kinds 30023 and 30040
 
 ### Content & Publishing
 - [Discover Page](Reader/discover-page.md) — Latest articles with bot filtering

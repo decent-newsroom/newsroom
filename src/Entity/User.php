@@ -120,6 +120,11 @@ class User implements UserInterface, EquatableInterface
         return in_array(RolesEnum::ACTIVE_INDEXING->value, $this->roles, true);
     }
 
+    public function isNotificationsProSubscriber(): bool
+    {
+        return in_array(RolesEnum::NOTIFICATIONS_PRO->value, $this->roles, true);
+    }
+
     public function isRssManager(): bool
     {
         return in_array(RolesEnum::RSS->value, $this->roles, true);

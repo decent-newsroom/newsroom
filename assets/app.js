@@ -52,6 +52,7 @@ import './styles/03-components/spell-picker.css';
 import './styles/03-components/expression-log.css';
 import './styles/03-components/source-badge.css';
 import './styles/03-components/web-preview.css';
+import './styles/03-components/notifications.css';
 
 // Toast notifications
 import './styles/toast.css';

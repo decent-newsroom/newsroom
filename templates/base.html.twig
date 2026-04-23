@@ -71,6 +71,13 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
+{# Global notifications listener — private Mercure topic, authenticated users only #}
+{% if app.user %}
+<div data-controller="ui--notifications-stream"
+     data-ui--notifications-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/notifications')|url_encode }}"
+     style="display:none"></div>
+{% endif %}
+
 {# Relay AUTH signer — listens for NIP-42 challenges from the relay gateway via Mercure #}
 {% if app.user and relay_gateway_enabled and relayAuthListen is not empty %}
 <div data-controller="nostr--relay-auth"

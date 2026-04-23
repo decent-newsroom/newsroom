@@ -171,6 +171,11 @@ services:
             $mercurePublicUrl: '%env(MERCURE_PUBLIC_URL)%'
             $mercureJwtSecret: '%env(MERCURE_JWT_SECRET)%'
 
+    # Mercure Subscriber Token Service — per-user JWTs for private notifications topic
+    App\Service\Mercure\MercureSubscriberTokenService:
+        arguments:
+            $mercureJwtSecret: '%env(MERCURE_JWT_SECRET)%'
+
     # Relay Gateway Client — Redis Streams interface to the gateway process
     App\Service\Nostr\RelayGatewayClient:
         arguments:
@@ -303,6 +308,12 @@ services:
 
     # Active Indexing Service
     App\Service\ActiveIndexingService:
+        arguments:
+            $recipientPubkey: '%active_indexing_recipient_pubkey%'
+            $recipientLud16: '%active_indexing_recipient_lud16%'
+
+    # Notifications Pro Service — paywall for NIP-51 set subscriptions and higher caps
+    App\Service\NotificationProService:
         arguments:
             $recipientPubkey: '%active_indexing_recipient_pubkey%'
             $recipientLud16: '%active_indexing_recipient_lud16%'

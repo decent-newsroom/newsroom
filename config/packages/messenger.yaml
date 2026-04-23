@@ -99,6 +99,8 @@ framework:
             'App\Message\EvaluateExpressionMessage': async_expressions
             'App\Message\EvaluateSpellMessage': async_expressions
             'App\Message\ProjectMagazineMessage': async
+            # Notifications fan-out: ingested event → per-user delivery + Mercure push
+            'App\Message\FanOutNotificationMessage': async
             # --- Low priority: login warmup, gateway persistence, relay lists ---
             # Relay list warming on login - fetch from network and persist to DB
             'App\Message\UpdateRelayListMessage': async_low_priority

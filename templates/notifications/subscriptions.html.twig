@@ -1,0 +1,65 @@
+{% extends 'layout.html.twig' %}
+{% block title %}{{ 'notifications.subscriptionsTitle'|trans }}{% endblock %}
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading
+        heading="{{ 'notifications.subscriptionsTitle'|trans }}"
+        tagline="{{ 'notifications.subscriptionsTagline'|trans }}" />
+
+    <p>
+        <a href="{{ path('notifications_index') }}">← {{ 'notifications.backToCenter'|trans }}</a>
+    </p>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message|trans }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Tier status banner #}
+    {% if isPro %}
+        <div class="notice success mb-3" style="max-width: 600px;">
+            ⚡ <strong>Notifications Pro</strong> active — unlimited subscriptions of all source types.
+            {% if proSubscription and proSubscription.expiresAt %}
+                Expires {{ proSubscription.expiresAt|date('F j, Y') }}.
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="notice info mb-3" style="max-width: 600px;">
+            Free plan: {{ currentCount }}/{{ freeCap }} subscriptions used. NIP-51 set subscriptions require
+            <a href="{{ path('notifications_pro_index') }}">Notifications Pro</a>.
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ path('notifications_subscriptions_add') }}" class="mb-4">
+        <input type="hidden" name="_token" value="{{ csrf_token('notification-subscribe') }}" />
+        <label for="identifier">{{ 'notifications.subscription.addLabel'|trans }}</label>
+        <input type="text" id="identifier" name="identifier"
+               placeholder="{{ 'notifications.subscription.addPlaceholder'|trans }}"
+               autocomplete="off"
+               required />
+        <button type="submit" class="btn">{{ 'notifications.subscription.addSubmit'|trans }}</button>
+    </form>
+
+    {% if subscriptions is empty %}
+        <p class="text-muted">{{ 'notifications.subscriptions.empty'|trans }}</p>
+    {% else %}
+        <ul class="subscription-list">
+            {% for s in subscriptions %}
+                <li class="subscription-item">
+                    <div>
+                        <span class="subscription-item__type">{{ s.sourceType.label|trans }}</span>
+                        <code class="subscription-item__value">{{ s.label ?: s.sourceValue }}</code>
+                    </div>
+                    <form method="post" action="{{ path('notifications_subscriptions_remove', {id: s.id}) }}"
+                          onsubmit="return confirm('{{ 'notifications.subscription.removeConfirm'|trans }}');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('notification-unsubscribe') }}" />
+                        <button type="submit" class="btn btn-sm">{{ 'notifications.subscription.remove'|trans }}</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}
+

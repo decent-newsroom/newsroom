@@ -1,0 +1,58 @@
+{% extends 'layout.html.twig' %}
+{% block title %}{{ 'notifications.pageTitle'|trans }}{% endblock %}
+{% block body %}
+<div class="w-container py-4"
+     data-controller="ui--notifications-stream"
+     data-ui--notifications-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/notifications')|url_encode }}">
+
+    <twig:Atoms:PageHeading
+        heading="{{ 'notifications.pageTitle'|trans }}"
+        tagline="{{ 'notifications.tagline'|trans }}" />
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ path('notifications_subscriptions') }}">{{ 'notifications.manageSubscriptions'|trans }}</a>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            {% if not isPro %}
+                <a href="{{ path('notifications_pro_index') }}" class="badge badge--pro">⚡ Notifications Pro</a>
+            {% endif %}
+            <span class="badge">{{ unread }}</span> {{ 'notifications.unreadLabel'|trans }}
+        </div>
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message|trans }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if notifications is empty %}
+        <p class="text-muted">{{ 'notifications.empty'|trans }}</p>
+    {% else %}
+        <ul class="notification-list" data-ui--notifications-stream-target="list">
+            {% for n in notifications %}
+                <li class="notification-item{% if n.readAt is null %} notification-item--unread{% endif %}"
+                    data-notification-id="{{ n.id }}">
+                    <div class="notification-item__header">
+                        <span class="notification-item__kind">
+                            {% if n.eventKind == 30023 %}{{ 'notifications.toast.newArticle'|trans }}
+                            {% elseif n.eventKind == 30040 %}{{ 'notifications.toast.newPublication'|trans }}
+                            {% else %}{{ n.eventKind }}
+                            {% endif %}
+                        </span>
+                        <time datetime="{{ n.createdAt|date('c') }}">{{ n.createdAt|date('Y-m-d H:i') }}</time>
+                    </div>
+                    <a href="{{ n.url }}" class="notification-item__title">
+                        {{ n.title ?: 'notifications.untitled'|trans }}
+                    </a>
+                    {% if n.summary %}
+                        <p class="notification-item__summary">{{ n.summary }}</p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}
+

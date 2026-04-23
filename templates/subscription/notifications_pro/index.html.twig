@@ -1,0 +1,105 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="Notifications Pro" tagline="Subscribe to more sources, unlock NIP-51 set notifications" />
+
+    {% for message in app.flashes('success') %}
+        <div class="notice success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="notice error">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('info') %}
+        <div class="notice info">{{ message }}</div>
+    {% endfor %}
+
+    {% if subscription and subscription.isActive %}
+        <div class="notice success" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
+            <strong>✓ Notifications Pro active!</strong><br>
+            Plan: {{ subscription.tier.label }}<br>
+            Expires: {{ subscription.expiresAt|date('F j, Y') }}
+            {% if subscription.daysRemaining is not null %}
+                ({{ subscription.daysRemaining }} days remaining)
+            {% endif %}
+        </div>
+        <div style="text-align: center;">
+            {% for tier in tiers %}
+                <a href="{{ path('notifications_pro_renew', {tier: tier.value}) }}" class="btn btn-secondary" style="margin: var(--spacing-1);">
+                    ⚡ Renew — {{ tier.label }}
+                </a>
+            {% endfor %}
+        </div>
+    {% elseif subscription and subscription.status.value == 'pending' %}
+        <div class="notice info" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--spacing-3);">
+                <div>
+                    <strong>⏳ Payment Pending</strong><br>
+                    Your Notifications Pro subscription is awaiting payment.
+                    <br><small style="color: var(--color-text-mid);">If you didn't pay or want a different plan, you can cancel.</small>
+                </div>
+                <form action="{{ path('notifications_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel?');">
+                    <button type="submit" class="btn btn-secondary" style="white-space: nowrap;">Cancel Pending</button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="d-flex flex-column align-items-center gap-3 mb-5">
+            <p>
+                The free tier allows up to <strong>{{ freeCap }} subscriptions</strong> of the <em>npub</em> and <em>publication</em> types.<br>
+                <strong>Notifications Pro</strong> removes these limits and unlocks subscriptions to <em>NIP-51 interest sets</em>.
+            </p>
+        </div>
+
+        {# Free vs Pro comparison #}
+        <div class="d-flex gap-4 mb-5" style="justify-content: center; flex-wrap: wrap;">
+            <div class="card" style="min-width: 240px; flex: 1; max-width: 320px;">
+                <h3 style="margin-bottom: var(--spacing-3);">Free</h3>
+                <ul class="feature-list">
+                    <li>Up to {{ freeCap }} npub / publication subscriptions</li>
+                    <li style="opacity: .5; text-decoration: line-through;">NIP-51 set subscriptions</li>
+                    <li style="opacity: .5; text-decoration: line-through;">Unlimited subscriptions</li>
+                </ul>
+            </div>
+            <div class="card" style="min-width: 240px; flex: 1; max-width: 320px; border-color: var(--color-accent);">
+                <h3 style="margin-bottom: var(--spacing-3);">Pro ⚡</h3>
+                <ul class="feature-list">
+                    <li>Unlimited npub / publication subscriptions</li>
+                    <li>NIP-51 set subscriptions (interests, follow lists, ...)</li>
+                    <li>Priority matching pipeline</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="pricing-section" data-controller="ui--pricing-toggle">
+            <div class="pricing-toggle" role="group" aria-label="Billing period">
+                <button type="button" class="toggle-btn active" data-period="monthly" data-action="click->ui--pricing-toggle#toggle">Monthly</button>
+                <button type="button" class="toggle-btn" data-period="yearly" data-action="click->ui--pricing-toggle#toggle">
+                    Yearly <span class="save-badge">Save 17%</span>
+                </button>
+            </div>
+
+            <div class="pricing-card">
+                {% for tier in tiers %}
+                    <div class="pricing-details" data-ui--pricing-toggle-target="panel" data-period="{{ tier.value }}" {% if tier.value == 'yearly' %}style="display: none;"{% endif %}>
+                        <div class="price-display">
+                            <span class="price-amount">{{ tier.priceInSats|number_format }}</span>
+                            <span class="price-unit">sats</span>
+                            <span class="price-period">/ {{ tier.value == 'monthly' ? 'month' : 'year' }}</span>
+                        </div>
+
+                        {% if app.user %}
+                            <a href="{{ path('notifications_pro_subscribe', {tier: tier.value}) }}" class="btn btn-subscribe">
+                                ⚡ Subscribe Now
+                            </a>
+                        {% else %}
+                            <button class="btn btn-subscribe" disabled>Login to Subscribe</button>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+

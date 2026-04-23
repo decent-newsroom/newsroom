@@ -1,0 +1,92 @@
+/* Notifications Center — list + item styles. No shading, no rounded edges. */
+
+.notification-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.notification-item {
+    border: 1px solid var(--color-border, #444);
+    padding: 0.75rem 1rem;
+    background: var(--color-surface, transparent);
+}
+
+.notification-item--unread {
+    border-left: 3px solid var(--color-accent, #f0ad4e);
+}
+
+.notification-item--fresh {
+    animation: notification-fresh 1.2s ease-out;
+}
+
+@keyframes notification-fresh {
+    from { background-color: var(--color-accent-soft, rgba(240, 173, 78, 0.2)); }
+    to   { background-color: transparent; }
+}
+
+.notification-item__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #888);
+    margin-bottom: 0.25rem;
+}
+
+.notification-item__kind {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.notification-item__title {
+    display: block;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--color-text, inherit);
+}
+
+.notification-item__title:hover {
+    text-decoration: underline;
+}
+
+.notification-item__summary {
+    margin: 0.5rem 0 0;
+    color: var(--color-text-muted, #bbb);
+    font-size: 0.95rem;
+}
+
+.subscription-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.subscription-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border, #444);
+}
+
+.subscription-item__type {
+    display: inline-block;
+    margin-right: 0.5rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #888);
+}
+
+.subscription-item__value {
+    font-family: var(--font-mono, monospace);
+    word-break: break-all;
+}
+

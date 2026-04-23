@@ -1,0 +1,84 @@
+{% extends 'layout.html.twig' %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading
+        heading="{{ isRenewal ? 'Renew Notifications Pro' : 'Subscribe to Notifications Pro' }}"
+        tagline="{{ tier.label }}"
+    />
+
+    <p class="mb-4">
+        <a href="{{ path('notifications_pro_index') }}">← Back to Notifications Pro</a>
+    </p>
+
+    <div class="d-flex gap-4">
+        <div class="card" style="flex: 1;">
+            <div style="text-align: center;">
+                <p class="mb-3">
+                    <strong>Amount: {{ amount|number_format }} sats</strong>
+                </p>
+
+                <p class="mb-4">
+                    Scan the QR code or copy the invoice to pay with your Lightning wallet.
+                </p>
+
+                <div class="mb-4">
+                    {{ qrSvg|raw }}
+                </div>
+
+                <div class="mb-3">
+                    <label class="mb-1">BOLT11 Invoice:</label>
+                    <div class="d-flex flex-row gap-1">
+                        <input
+                            type="text"
+                            id="bolt11-input"
+                            style="flex: 1; font-family: monospace; font-size: 12px; padding: var(--spacing-1);"
+                            value="{{ bolt11 }}"
+                            readonly
+                            onclick="this.select()"
+                        />
+                        <button
+                            class="btn btn-secondary"
+                            type="button"
+                            onclick="navigator.clipboard.writeText('{{ bolt11|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                        >
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
+                <a href="lightning:{{ bolt11|upper }}" class="btn mb-3">
+                    ⚡ Open in Wallet
+                </a>
+
+                <hr style="margin: var(--spacing-4) 0;">
+
+                <div id="payment-status" style="margin-bottom: var(--spacing-3);"
+                     data-controller="utility--payment-status"
+                     data-utility--payment-status-check-url-value="{{ path('notifications_pro_check_payment', {id: subscription.id}) }}"
+                     data-utility--payment-status-redirect-url-value="{{ path('notifications_pro_index') }}"
+                     data-utility--payment-status-interval-value="30000">
+                    <button type="button" class="btn btn-secondary" data-action="utility--payment-status#check" style="margin-bottom: var(--spacing-2);">
+                        Check Payment Status
+                    </button>
+                    <div data-utility--payment-status-target="result"></div>
+                </div>
+
+                <p class="mb-3">
+                    After payment, your subscription will be activated automatically.
+                </p>
+
+                <div class="mt-5 mb-2">
+                    <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-2);">Changed your mind?</p>
+                    <form action="{{ path('notifications_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription?');">
+                        <div class="actions">
+                            <button type="submit" class="btn btn-secondary">Cancel Pending Subscription</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

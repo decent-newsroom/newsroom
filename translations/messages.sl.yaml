@@ -726,3 +726,32 @@ spellView:
 webPreview:
     loadCta: 'Naloži predogled'
     loadNotice: 'Kliknite za prenos predogleda z %host%. Stik bo vzpostavljen s tujim strežnikom.'
+# ── Notifications Center ──────────────────────────────────────────
+notifications:
+    pageTitle: 'Notifications'
+    tagline: 'New articles and publications from the sources you follow.'
+    empty: 'No notifications yet.'
+    untitled: 'Untitled'
+    unreadLabel: 'unread'
+    manageSubscriptions: 'Manage subscriptions'
+    backToCenter: 'Back to notifications'
+    subscriptionsTitle: 'Notification subscriptions'
+    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive notifications for new long-form content (kinds 30023 and 30040).'
+    subscriptions:
+        empty: 'You have no active subscriptions.'
+    subscription:
+        addLabel: 'Subscribe to'
+        addPlaceholder: 'npub1… / naddr1… / hex pubkey / kind:pubkey:d'
+        addSubmit: 'Subscribe'
+        remove: 'Unsubscribe'
+        removeConfirm: 'Remove this subscription?'
+        sourceType:
+            npub: 'Author (npub)'
+            publication: 'Publication'
+            nip51Set: 'NIP-51 set'
+    toast:
+        newArticle: 'New article'
+        newPublication: 'New publication'
+    errors:
+        invalidInput: 'Could not recognize that identifier.'
+        alreadySubscribed: 'You are already subscribed to that source.'

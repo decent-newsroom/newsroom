@@ -6,14 +6,17 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Message\FanOutNotificationMessage;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\Notification\NotificationMatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Projects generic Nostr events into Event entities
@@ -35,6 +38,7 @@ class GenericEventProjector
         private readonly ReplaceableEventCleanupService $cleanupService,
         private readonly DeletedEventRepository $deletedEventRepository,
         private readonly EventDeletionService $eventDeletionService,
+        private readonly MessageBusInterface $messageBus,
     ) {
     }
 
@@ -205,6 +209,21 @@ class GenericEventProjector
             } catch (\Throwable $e) {
                 $this->logger->warning('Failed to promote event author to ROLE_EDITOR', [
                     'pubkey' => substr($event->pubkey, 0, 16) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Notifications fan-out: dispatch for in-scope kinds (30023, 30040).
+        // Recipient resolution, dedup, and Mercure push happen in the handler
+        // so this stays off the ingestion hot path.
+        if (NotificationMatcher::isNotifiedKind((int) $event->kind)) {
+            try {
+                $this->messageBus->dispatch(new FanOutNotificationMessage($entity->getId()));
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to dispatch FanOutNotificationMessage', [
+                    'event_id' => $entity->getId(),
+                    'kind' => $entity->getKind(),
                     'error' => $e->getMessage(),
                 ]);
             }

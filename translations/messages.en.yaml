@@ -972,3 +972,38 @@ spellView:
 webPreview:
     loadCta: 'Load preview'
     loadNotice: 'Click to fetch a preview from %host%. This will contact a third-party server.'
+# ── Notifications Center ──────────────────────────────────────────
+notifications:
+    pageTitle: 'Notifications'
+    tagline: 'New articles and publications from the sources you follow.'
+    empty: 'No notifications yet.'
+    untitled: 'Untitled'
+    unreadLabel: 'unread'
+    manageSubscriptions: 'Manage subscriptions'
+    backToCenter: 'Back to notifications'
+    subscriptionsTitle: 'Notification subscriptions'
+    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive notifications for new long-form content (kinds 30023 and 30040).'
+    subscriptions:
+        empty: 'You have no active subscriptions.'
+    subscription:
+        addLabel: 'Subscribe to'
+        addPlaceholder: 'npub1… / naddr1… / hex pubkey / kind:pubkey:d'
+        addSubmit: 'Subscribe'
+        remove: 'Unsubscribe'
+        removeConfirm: 'Remove this subscription?'
+        sourceType:
+            npub: 'Author (npub)'
+            publication: 'Publication'
+            nip51Set: 'NIP-51 set'
+    toast:
+        newArticle: 'New article'
+        newPublication: 'New publication'
+    errors:
+        invalidInput: 'Could not recognize that identifier.'
+        alreadySubscribed: 'You are already subscribed to that source.'
+
+notificationsPro:
+    required:
+        nip51Sets: 'NIP-51 set subscriptions require Notifications Pro.'
+        cap: 'You have reached the free subscription limit. Upgrade to Notifications Pro for unlimited subscriptions.'
+

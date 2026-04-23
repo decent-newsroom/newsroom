@@ -32,8 +32,13 @@ final class Nip05Badge
 
     public function mount($nip05, $npub): void
     {
-        $this->nip05 = $nip05;
-        $this->npub = $npub;
+        $this->nip05 = trim((string) $nip05);
+        $this->npub = trim((string) $npub);
+
+        if ('' === $this->nip05 || '' === $this->npub) {
+            return;
+        }
+
         // Only verify if both nip05 and pubkey are provided
         if ($this->nip05 && $this->npub) {
             $key = new Key();

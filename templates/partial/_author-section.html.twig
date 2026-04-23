@@ -28,21 +28,28 @@
         </div>
 
         {% if author.nip05 is defined and author.nip05 is not empty %}
-            <div class="nip05-badge-list">
-                {% if author.nip05 is iterable %}
-                    {% for nip05Value in author.nip05 %}
+            {% set nip05Values = [] %}
+            {% for rawNip05 in (author.nip05 is iterable ? author.nip05 : [author.nip05]) %}
+                {% if rawNip05 is not empty %}
+                    {% for candidateNip05 in rawNip05|split(',') %}
+                        {% set normalizedNip05 = candidateNip05|trim %}
+                        {% if normalizedNip05 is not empty and normalizedNip05 not in nip05Values %}
+                            {% set nip05Values = nip05Values|merge([normalizedNip05]) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+
+            {% if nip05Values is not empty %}
+                <div class="nip05-badge-list">
+                    {% for nip05Value in nip05Values %}
                         <twig:Atoms:Nip05Badge
                             nip05="{{ nip05Value }}"
                             :npub="npub"
                         />
                     {% endfor %}
-                {% else %}
-                    <twig:Atoms:Nip05Badge
-                        nip05="{{ author.nip05 }}"
-                        :npub="npub"
-                    />
-                {% endif %}
-            </div>
+                </div>
+            {% endif %}
         {% endif %}
         <div class="mt-2">
             {% if author.about is defined and author.about %}
