@@ -13,6 +13,22 @@
     background: var(--color-bg-light, #f8f8f8);
 }
 
+.event-op {
+    margin-bottom: var(--spacing-3);
+}
+
+.event-op-label {
+    margin: 0 0 var(--spacing-1);
+    color: var(--color-text-muted, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.event-op .embedded-event-card {
+    margin: 0;
+}
+
 .comment-parent-label,
 .comment-root-label {
     margin-bottom: var(--spacing-2);

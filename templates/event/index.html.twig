@@ -88,6 +88,18 @@
             {% set title = tag[1] %}
         {% endif %}
     {% endfor %}
+
+{% if opEvent is defined and opEvent %}
+<section class="w-container event-op" aria-label="Original post">
+    <div class="event-op-label"><small>OP</small></div>
+    {% include 'components/event_card.html.twig' with {
+        event: opEvent,
+        author: opAuthor ?? null,
+        nevent: opEvent.id|nEncode
+    } %}
+</section>
+{% endif %}
+
 <article class="w-container">
     <div class="card">
         <div class="card-header">

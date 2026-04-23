@@ -12,6 +12,7 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
+use App\Util\Nip10TagParser;
 use Exception;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data;
@@ -42,6 +43,59 @@ class EventController extends AbstractController
         $obj->tags = $entity->getTags();
         $obj->sig = $entity->getSig();
         return $obj;
+    }
+
+    /**
+     * Resolve root OP for kind-1 notes via NIP-10 marked root e-tag.
+     */
+    private function resolveRootOpEvent(
+        object $event,
+        EventRepository $eventRepository,
+        NostrClient $nostrClient,
+        GenericEventProjector $genericEventProjector,
+        LoggerInterface $logger,
+    ): ?\stdClass {
+        if ((int) ($event->kind ?? 0) !== KindsEnum::TEXT_NOTE->value) {
+            return null;
+        }
+
+        if (!isset($event->tags) || !is_array($event->tags)) {
+            return null;
+        }
+
+        $rootReference = Nip10TagParser::findRootReference($event->tags);
+        if ($rootReference === null) {
+            return null;
+        }
+
+        $rootEventId = $rootReference['eventId'];
+        if ($rootEventId === ($event->id ?? '')) {
+            return null;
+        }
+
+        $rootEntity = $eventRepository->findById($rootEventId);
+        if ($rootEntity) {
+            return $this->entityToObject($rootEntity);
+        }
+
+        try {
+            $rawEvent = $nostrClient->getEventById($rootEventId, $rootReference['relays']);
+            if ($rawEvent !== null) {
+                $persisted = $genericEventProjector->projectEventFromNostrEvent(
+                    $rawEvent,
+                    $rootReference['relays'][0] ?? 'sync-root-fetch',
+                );
+
+                return $this->entityToObject($persisted);
+            }
+        } catch (\Throwable $e) {
+            $logger->warning('Synchronous relay fetch failed for root OP event', [
+                'eventId' => $rootEventId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 
     /**
@@ -404,6 +458,15 @@ class EventController extends AbstractController
 
             $authorMetadata = $redisCacheService->getMetadata($event->pubkey);
 
+            $opEvent = $this->resolveRootOpEvent(
+                $event,
+                $eventRepository,
+                $nostrClient,
+                $genericEventProjector,
+                $logger,
+            );
+            $opAuthorMetadata = $opEvent ? $redisCacheService->getMetadata($opEvent->pubkey) : null;
+
             // Batch fetch profiles for follow pack events (kind 39089)
             $followPackProfiles = [];
             if (isset($event->kind) && $event->kind == 39089 && isset($event->tags)) {
@@ -425,6 +488,8 @@ class EventController extends AbstractController
             $response = $this->render('event/index.html.twig', [
                 'event' => $event,
                 'author' => $authorMetadata,
+                'opEvent' => $opEvent,
+                'opAuthor' => $opAuthorMetadata,
                 'nostrLinks' => $nostrLinks,
                 'followPackProfiles' => $followPackProfiles
             ]);
