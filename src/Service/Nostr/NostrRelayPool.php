@@ -879,4 +879,166 @@ class NostrRelayPool implements RelayPoolInterface
     {
         $this->subscribeLocal($kinds, $onEvent, 'generic', $since);
     }
+
+    /**
+     * One-shot fetch from the local relay: send a REQ, process every stored event,
+     * and return after EOSE (or on idle timeout when no EOSE arrives).
+     *
+     * Unlike {@see subscribeLocal()} this does not stay connected for live events —
+     * it is intended for backfills / repair jobs that need to drain the relay once.
+     *
+     * @param array<int> $kinds      Event kinds to query
+     * @param callable   $onEvent    function(object $event, string $relayUrl): void
+     * @param int|null   $since      Only events with created_at >= since
+     * @param int|null   $until      Only events with created_at <= until
+     * @param int|null   $limit      Optional per-filter limit
+     * @param int        $idleTimeoutSeconds Abort waiting for EOSE after this many seconds with no messages
+     * @return int Number of events received
+     */
+    public function fetchLocalUntilEose(
+        array $kinds,
+        callable $onEvent,
+        ?int $since = null,
+        ?int $until = null,
+        ?int $limit = null,
+        int $idleTimeoutSeconds = 30,
+    ): int {
+        if (!$this->nostrDefaultRelay) {
+            throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
+        }
+        if (empty($kinds)) {
+            throw new \InvalidArgumentException('At least one event kind must be specified');
+        }
+
+        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
+        $relay = $this->getRelay($relayUrl);
+        if (!$relay->isConnected()) {
+            $relay->connect();
+        }
+        $client = $relay->getClient();
+        $client->setTimeout(5);
+
+        $subscription = new Subscription();
+        $subscriptionId = $subscription->setId();
+
+        $filter = new Filter();
+        $filter->setKinds($kinds);
+        if ($since !== null) {
+            $filter->setSince($since);
+        }
+        if ($until !== null) {
+            $filter->setUntil($until);
+        }
+        if ($limit !== null) {
+            $filter->setLimit($limit);
+        }
+
+        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+        $payload = $requestMessage->generate();
+
+        $this->logger->info('fetchLocalUntilEose: sending REQ', [
+            'relay' => $relayUrl,
+            'subscription_id' => $subscriptionId,
+            'kinds' => $kinds,
+            'since' => $since,
+            'until' => $until,
+            'limit' => $limit,
+        ]);
+
+        $client->text($payload);
+
+        $handler = new RelaySubscriptionHandler($this->logger);
+        $eventCount = 0;
+        $lastMessageAt = time();
+        $eoseReceived = false;
+
+        while (!$eoseReceived) {
+            try {
+                $resp = $client->receive();
+
+                if ($resp instanceof \WebSocket\Message\Ping) {
+                    $handler->handlePing($client);
+                    $lastMessageAt = time();
+                    continue;
+                }
+                if (!($resp instanceof \WebSocket\Message\Text)) {
+                    continue;
+                }
+
+                $relayResponse = $handler->parseRelayResponse($resp);
+                if (!$relayResponse) {
+                    continue;
+                }
+
+                $lastMessageAt = time();
+
+                switch ($relayResponse->type) {
+                    case 'EVENT':
+                        if ($relayResponse instanceof \swentel\nostr\RelayResponse\RelayResponseEvent) {
+                            $event = $relayResponse->event;
+                            $eventCount++;
+                            try {
+                                $onEvent($event, $relayUrl);
+                            } catch (\Throwable $e) {
+                                $this->logger->error('fetchLocalUntilEose: callback error', [
+                                    'event_id' => $event->id ?? 'unknown',
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
+                        break;
+
+                    case 'EOSE':
+                        $eoseReceived = true;
+                        $this->logger->info('fetchLocalUntilEose: EOSE received', [
+                            'events' => $eventCount,
+                        ]);
+                        break;
+
+                    case 'CLOSED':
+                        $message = $handler->extractMessage(json_decode($resp->getContent()));
+                        $this->logger->warning('fetchLocalUntilEose: relay CLOSED subscription', [
+                            'relay' => $relayUrl,
+                            'message' => $message,
+                        ]);
+                        throw new \Exception('Subscription closed by relay: ' . $message);
+
+                    case 'AUTH':
+                        $challenge = $handler->extractAuthChallenge(json_decode($resp->getContent()));
+                        if ($challenge) {
+                            $handler->handleAuth($relay, $client, $challenge);
+                            $client->text($payload);
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+            } catch (\Throwable $e) {
+                if ($handler->isTimeoutError($e)) {
+                    if (time() - $lastMessageAt > $idleTimeoutSeconds) {
+                        $this->logger->warning('fetchLocalUntilEose: idle timeout before EOSE, giving up', [
+                            'idle_seconds' => time() - $lastMessageAt,
+                            'events' => $eventCount,
+                        ]);
+                        break;
+                    }
+                    continue;
+                }
+                if ($handler->isBadMessageError($e)) {
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        // Politely close the subscription.
+        try {
+            $client->text(json_encode(['CLOSE', $subscriptionId]));
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        return $eventCount;
+    }
 }
