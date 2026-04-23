@@ -76,9 +76,11 @@ class NotificationsController extends AbstractController
     #[Route('/notifications/subscriptions', name: 'notifications_subscriptions_add', methods: ['POST'])]
     public function addSubscription(Request $request): Response
     {
+        $redirectTo = $this->resolveRedirectPath($request) ?? $this->generateUrl('notifications_subscriptions');
+
         if (!$this->isCsrfTokenValid('notification-subscribe', (string) $request->request->get('_token'))) {
             $this->addFlash('error', 'notifications.errors.invalidInput');
-            return $this->redirectToRoute('notifications_subscriptions');
+            return $this->redirect($redirectTo);
         }
 
         /** @var User $user */
@@ -86,14 +88,14 @@ class NotificationsController extends AbstractController
         $raw = trim((string) $request->request->get('identifier', ''));
         if ($raw === '') {
             $this->addFlash('error', 'notifications.errors.invalidInput');
-            return $this->redirectToRoute('notifications_subscriptions');
+            return $this->redirect($redirectTo);
         }
 
         try {
             [$type, $value, $label] = $this->parseIdentifier($raw);
         } catch (\InvalidArgumentException $e) {
             $this->addFlash('error', 'notifications.errors.invalidInput');
-            return $this->redirectToRoute('notifications_subscriptions');
+            return $this->redirect($redirectTo);
         }
 
         // Paywall check
@@ -105,14 +107,29 @@ class NotificationsController extends AbstractController
 
         if ($this->subscriptionRepository->findOneForUser($user, $type, $value) !== null) {
             $this->addFlash('error', 'notifications.errors.alreadySubscribed');
-            return $this->redirectToRoute('notifications_subscriptions');
+            return $this->redirect($redirectTo);
         }
 
         $subscription = new NotificationSubscription($user, $type, $value, $label);
         $this->em->persist($subscription);
         $this->em->flush();
 
-        return $this->redirectToRoute('notifications_subscriptions');
+        return $this->redirect($redirectTo);
+    }
+
+    private function resolveRedirectPath(Request $request): ?string
+    {
+        $redirectTo = trim((string) $request->request->get('redirect_to', ''));
+
+        if ($redirectTo === '') {
+            return null;
+        }
+
+        if (!str_starts_with($redirectTo, '/') || str_starts_with($redirectTo, '//')) {
+            return null;
+        }
+
+        return $redirectTo;
     }
 
     #[Route('/notifications/subscriptions/{id}', name: 'notifications_subscriptions_remove', methods: ['POST', 'DELETE'])]
