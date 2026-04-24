@@ -4,7 +4,7 @@ namespace App\Enum;
 
 enum VanityNameStatus: string
 {
-    case PENDING = 'pending';       // Awaiting payment confirmation
+    case PENDING = 'pending';       // Reserved but not yet fully activated (transitional state)
     case ACTIVE = 'active';         // Vanity name is active and can be used
     case SUSPENDED = 'suspended';   // Temporarily suspended
     case RELEASED = 'released';     // User released or it expired
@@ -17,7 +17,7 @@ enum VanityNameStatus: string
     public function getLabel(): string
     {
         return match ($this) {
-            self::PENDING => 'Pending Payment',
+            self::PENDING => 'Pending Activation',
             self::ACTIVE => 'Active',
             self::SUSPENDED => 'Suspended',
             self::RELEASED => 'Released',

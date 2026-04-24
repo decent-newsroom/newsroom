@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Entity\VanityName;
 use App\Enum\VanityNamePaymentType;
 use App\Enum\VanityNameStatus;
+use App\Repository\UserRelayListRepository;
 use App\Repository\VanityNameRepository;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
@@ -22,6 +23,7 @@ class VanityNameService
 
     public function __construct(
         private readonly VanityNameRepository $repository,
+        private readonly UserRelayListRepository $userRelayListRepository,
         private readonly LoggerInterface $logger,
         private readonly CacheInterface $appCache,
         private readonly LNURLResolver $lnurlResolver,
@@ -399,7 +401,9 @@ class VanityNameService
     }
 
     /**
-     * Get NIP-05 response data (cached)
+     * Get NIP-05 response data (cached).
+     * Includes both ACTIVE and PENDING names so that any registration is
+     * immediately resolvable regardless of activation state.
      */
     public function getNip05Response(?string $name = null): array
     {
@@ -408,65 +412,74 @@ class VanityNameService
         try {
             return $this->appCache->get($cacheKey, function (ItemInterface $item) use ($name) {
                 $item->expiresAfter(self::CACHE_TTL);
-
-                $names = [];
-                $relays = [];
-
-            if ($name !== null) {
-                // Single name lookup
-                $vanityName = $this->repository->findActiveByVanityName($name);
-                if ($vanityName !== null) {
-                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
-                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
-                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
-                    }
-                }
-            } else {
-                // All active names
-                $activeNames = $this->repository->findAllActive();
-                foreach ($activeNames as $vanityName) {
-                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
-                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
-                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
-                    }
-                }
-            }
-
-            $response = ['names' => $names];
-            if (!empty($relays)) {
-                $response['relays'] = $relays;
-            }
-
-            return $response;
+                return $this->buildNip05Response($name);
             });
         } catch (\Throwable $e) {
             $this->logger->warning('Cache unavailable for NIP-05 response, falling back to database', ['name' => $name, 'error' => $e->getMessage()]);
-            // Duplicate the logic without cache
-            $names = [];
-            $relays = [];
-            if ($name !== null) {
-                $vanityName = $this->repository->findActiveByVanityName($name);
-                if ($vanityName !== null) {
-                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
-                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
-                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
-                    }
-                }
-            } else {
-                $activeNames = $this->repository->findAllActive();
-                foreach ($activeNames as $vanityName) {
-                    $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
-                    if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
-                        $relays[$vanityName->getPubkeyHex()] = $vanityName->getRelays();
-                    }
-                }
-            }
-            $response = ['names' => $names];
-            if (!empty($relays)) {
-                $response['relays'] = $relays;
-            }
-            return $response;
+            return $this->buildNip05Response($name);
         }
+    }
+
+    private function buildNip05Response(?string $name): array
+    {
+        $names = [];
+        $relays = [];
+
+        if ($name !== null) {
+            $vanityName = $this->repository->findActiveByVanityName($name);
+            if ($vanityName !== null) {
+                $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
+                $relayList = $this->userRelayListRepository->findByPubkey($vanityName->getPubkeyHex());
+                $resolved = $this->resolveRelays($vanityName, $relayList);
+                if (!empty($resolved)) {
+                    $relays[$vanityName->getPubkeyHex()] = $resolved;
+                }
+            }
+        } else {
+            $activeNames = $this->repository->findAllActive();
+
+            // Batch-load NIP-65 relay lists for all pubkeys in one query
+            $pubkeys = array_map(fn($v) => $v->getPubkeyHex(), $activeNames);
+            $relayLists = $this->userRelayListRepository->findByPubkeys($pubkeys);
+
+            foreach ($activeNames as $vanityName) {
+                $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
+                $resolved = $this->resolveRelays($vanityName, $relayLists[$vanityName->getPubkeyHex()] ?? null);
+                if (!empty($resolved)) {
+                    $relays[$vanityName->getPubkeyHex()] = $resolved;
+                }
+            }
+        }
+
+        $response = ['names' => $names];
+        if (!empty($relays)) {
+            $response['relays'] = $relays;
+        }
+
+        return $response;
+    }
+
+    /**
+     * Resolve relay URLs for a vanity name.
+     * Uses the manually set relays on the VanityName if present,
+     * otherwise falls back to the user's NIP-65 write relays.
+     *
+     * @return string[]
+     */
+    private function resolveRelays(VanityName $vanityName, ?\App\Entity\UserRelayList $relayList = null): array
+    {
+        // Prefer manually configured relays on the vanity name record
+        if ($vanityName->getRelays() !== null && !empty($vanityName->getRelays())) {
+            return $vanityName->getRelays();
+        }
+
+        // Fall back to the user's NIP-65 write relays (or all relays if no writes)
+        if ($relayList !== null) {
+            $writeRelays = $relayList->getWriteRelays();
+            return !empty($writeRelays) ? $writeRelays : $relayList->getAllRelays();
+        }
+
+        return [];
     }
 
     /**
