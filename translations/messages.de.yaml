@@ -760,7 +760,7 @@ notifications:
         remove: 'Unsubscribe'
         removeConfirm: 'Remove this subscription?'
         sourceType:
-            npub: 'Author (npub)'
+            npub: 'Author'
             publication: 'Publication'
             nip51Set: 'NIP-51 set'
     toast:

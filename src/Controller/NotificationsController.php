@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Magazine;
 use App\Entity\NotificationSubscription;
 use App\Entity\User;
 use App\Enum\NotificationSourceTypeEnum;
@@ -64,8 +65,29 @@ class NotificationsController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
+        $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
+
+        // Resolve magazine titles for PUBLICATION subscriptions (coordinate → title map).
+        $coordinateTitles = [];
+        $magazineRepo = $this->em->getRepository(Magazine::class);
+        foreach ($subscriptions as $sub) {
+            if ($sub->getSourceType() !== NotificationSourceTypeEnum::PUBLICATION) {
+                continue;
+            }
+            $parts = explode(':', $sub->getSourceValue(), 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+            [, $pubkey, $slug] = $parts;
+            $magazine = $magazineRepo->findOneBy(['pubkey' => $pubkey, 'slug' => $slug]);
+            if ($magazine?->getTitle() !== null) {
+                $coordinateTitles[$sub->getSourceValue()] = $magazine->getTitle();
+            }
+        }
+
         return $this->render('notifications/subscriptions.html.twig', [
-            'subscriptions' => $this->subscriptionRepository->findActiveForUser($user),
+            'subscriptions' => $subscriptions,
+            'coordinateTitles' => $coordinateTitles,
             'isPro' => $this->accessService->isPro($user),
             'freeCap' => $this->accessService->getFreeCap(),
             'currentCount' => $this->subscriptionRepository->countActiveForUser($user),

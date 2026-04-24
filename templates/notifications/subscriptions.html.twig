@@ -19,7 +19,7 @@
     {# Tier status banner #}
     {% if isPro %}
         <div class="notice success mb-3" style="max-width: 600px;">
-            ⚡ <strong>Notifications Pro</strong> active — unlimited subscriptions of all source types.
+            <strong>Notifications Pro</strong> active — unlimited subscriptions of all source types.
             {% if proSubscription and proSubscription.expiresAt %}
                 Expires {{ proSubscription.expiresAt|date('F j, Y') }}.
             {% endif %}
@@ -38,7 +38,9 @@
                placeholder="{{ 'notifications.subscription.addPlaceholder'|trans }}"
                autocomplete="off"
                required />
-        <button type="submit" class="btn">{{ 'notifications.subscription.addSubmit'|trans }}</button>
+        <div class="actions">
+            <button type="submit" class="btn">{{ 'notifications.subscription.addSubmit'|trans }}</button>
+        </div>
     </form>
 
     {% if subscriptions is empty %}
@@ -49,7 +51,13 @@
                 <li class="subscription-item">
                     <div>
                         <span class="subscription-item__type">{{ s.sourceType.label|trans }}</span>
-                        <code class="subscription-item__value">{{ s.label ?: s.sourceValue }}</code>
+                        {% if s.sourceType.value == 'npub' %}
+                            <span class="subscription-item__value"><twig:Molecules:UserFromNpub ident="{{ s.sourceValue }}" /></span>
+                        {% elseif s.sourceType.value == 'publication' %}
+                            <span class="subscription-item__value">{{ coordinateTitles[s.sourceValue] ?? (s.sourceValue|split(':')|last) }}</span>
+                        {% else %}
+                            <span class="subscription-item__value">{{ s.label ?: (s.sourceValue|split(':')|last) }}</span>
+                        {% endif %}
                     </div>
                     <form method="post" action="{{ path('notifications_subscriptions_remove', {id: s.id}) }}"
                           onsubmit="return confirm('{{ 'notifications.subscription.removeConfirm'|trans }}');">
