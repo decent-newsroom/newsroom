@@ -40,7 +40,7 @@ Unique constraint: `(user_id, source_type, source_value)`. Indexes: `(active, so
 | `event_coordinate` | varchar(512) nullable | `kind:pubkey:d` when addressable |
 | `title` | varchar(512) nullable | from `title` / `name` / `alt` tag |
 | `summary` | varchar(1024) nullable | from `summary` tag |
-| `url` | varchar(1024) | deep link (`/article/naddr1…`) |
+| `url` | varchar(1024) | generic event deep link (`/e/{nip19}`) |
 | `created_at` | timestamp | Nostr event `created_at`, NOT ingestion time |
 | `seen_at` | timestamp nullable | cleared when user opens `/notifications` |
 | `read_at` | timestamp nullable | per-item read marker |
@@ -102,6 +102,14 @@ The hub is already wired in `frankenphp/Caddyfile` (Bolt transport, `anonymous` 
 ```
 
 The payload deliberately does **not** include the raw event body, to prevent leaking spammy or NSFW content through the toast channel.
+
+### kind:30040 deep-link routing
+
+- Notification URLs stay generic (`/e/naddr1...`).
+- `EventController` owns the redirect decision after resolving the event payload:
+  - nested kind:30040 `a` tags => `/mag/{slug}`
+  - nested kind:30023/30024 `a` tags => `/p/{npub}/list/{slug}`
+- If tags cannot classify the event, `/e/...` renders the generic event page.
 
 ## Frontend
 

@@ -98,6 +98,30 @@ class EventController extends AbstractController
         return null;
     }
 
+    private function classifyPublicationTarget(array $tags): string
+    {
+        $hasArticleReference = false;
+
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'a' || !isset($tag[1]) || !is_string($tag[1])) {
+                continue;
+            }
+
+            $parts = explode(':', $tag[1], 2);
+            $kind = isset($parts[0]) ? (int)$parts[0] : 0;
+
+            if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
+                return 'magazine';
+            }
+
+            if ($kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                $hasArticleReference = true;
+            }
+        }
+
+        return $hasArticleReference ? 'reading_list' : 'unknown';
+    }
+
     /**
      * @throws Exception
      */
@@ -416,6 +440,31 @@ class EventController extends AbstractController
                             'pubkey' => $data->pubkey,
                             'identifier' => $data->identifier,
                         ]);
+                    }
+
+                    if ($data->kind === KindsEnum::PUBLICATION_INDEX->value && isset($event->tags) && is_array($event->tags)) {
+                        $classification = $this->classifyPublicationTarget($event->tags);
+
+                        if ($classification === 'magazine') {
+                            $logger->info('Redirecting publication index to magazine page', [
+                                'slug' => $data->identifier,
+                            ]);
+                            return $this->redirectToRoute('magazine-index', [
+                                'mag' => $data->identifier,
+                            ]);
+                        }
+
+                        if ($classification === 'reading_list') {
+                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                            $logger->info('Redirecting publication index to reading list page', [
+                                'npub' => $npub,
+                                'slug' => $data->identifier,
+                            ]);
+                            return $this->redirectToRoute('reading-list', [
+                                'npub' => $npub,
+                                'slug' => $data->identifier,
+                            ]);
+                        }
                     }
 
                     // Redirect curation sets to their dedicated views

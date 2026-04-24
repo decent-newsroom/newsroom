@@ -46,11 +46,16 @@ class NotificationRenderer
     {
         $naddr = $this->encodeNaddr($event);
         if ($naddr !== null) {
-            return '/article/' . $naddr;
+            return '/e/' . $naddr;
         }
-        // Non-addressable fallback — should not happen for 30023/30040 but
-        // guards against edge cases (empty d-tag, invalid pubkey).
-        return '/event/' . $event->getId();
+
+        $note = $this->encodeNote($event);
+        if ($note !== null) {
+            return '/e/' . $note;
+        }
+
+        // Last-resort fallback when event id cannot be encoded.
+        return '/notifications';
     }
 
     private function encodeNaddr(Event $event): ?string
@@ -71,6 +76,21 @@ class NotificationRenderer
             return $nip19->encodeAddr($nostr, $dTag, $event->getKind());
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to encode notification naddr', [
+                'event_id' => $event->getId(),
+                'kind' => $event->getKind(),
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    private function encodeNote(Event $event): ?string
+    {
+        try {
+            $nip19 = new Nip19Helper();
+            return $nip19->encodeNote($event->getId());
+        } catch (\Throwable $e) {
+            $this->logger->warning('Failed to encode notification note id', [
                 'event_id' => $event->getId(),
                 'kind' => $event->getKind(),
                 'error' => $e->getMessage(),
