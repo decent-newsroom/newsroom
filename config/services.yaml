@@ -40,7 +40,7 @@ parameters:
     active_indexing_recipient_lud16: '%env(default:project_contribution_lud16:ACTIVE_INDEXING_RECIPIENT_LUD16)%'
     
     # Vanity Name Service settings
-    vanity_server_domain: '%env(default::SERVER_NAME)%'
+    vanity_server_domain: '%base_domain%'
     
     # Unfold subdomain routing
     unfold_host: '%env(UNFOLD_HOST)%'

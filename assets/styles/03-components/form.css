@@ -122,3 +122,16 @@ form .form-check-label {
     margin: 0;
     font-weight: normal;
 }
+
+.input-group {
+    display: flex;
+    flex-direction: row;
+}
+
+.input-group label {
+    flex-grow: 1;
+}
+
+.input-group button {
+    flex-shrink: 0;
+}

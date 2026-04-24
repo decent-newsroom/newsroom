@@ -99,14 +99,15 @@ class VanityNameService
         $existingName = $this->repository->findByVanityName($name);
         if ($existingName !== null && in_array($existingName->getStatus()->value, ['released', 'expired'], true) && $existingName->getNpub() === $npub) {
             // Reset status and update payment type
-            $existingName->setStatus(VanityNameStatus::PENDING);
             $existingName->setPaymentType($paymentType);
-            // 3 months from now for subscription, no expiry for admin grants
-            $until = $paymentType === VanityNamePaymentType::SUBSCRIPTION
-                ? (new \DateTime())->modify('+3 months')
-                : null;
-            $existingName->setExpiresAt($until);
+            $existingName->setExpiresAt(null);
             $existingName->setPendingInvoiceBolt11(null);
+            // Free and admin grants are activated immediately; others stay pending
+            if (in_array($paymentType, [VanityNamePaymentType::ADMIN_GRANTED, VanityNamePaymentType::FREE], true)) {
+                $existingName->activate();
+            } else {
+                $existingName->setStatus(VanityNameStatus::PENDING);
+            }
             $this->repository->save($existingName);
             $this->clearNip05Cache();
             $this->logger->info('Vanity name re-claimed by original owner', [
@@ -122,8 +123,8 @@ class VanityNameService
         $pubkeyHex = $key->convertToHex($npub);
         $vanityName = new VanityName($name, $npub, $pubkeyHex, $paymentType);
 
-        // Admin grants are activated immediately
-        if ($paymentType === VanityNamePaymentType::ADMIN_GRANTED) {
+        // Free registrations and admin grants are activated immediately
+        if (in_array($paymentType, [VanityNamePaymentType::ADMIN_GRANTED, VanityNamePaymentType::FREE], true)) {
             $vanityName->activate();
         }
 
@@ -499,7 +500,8 @@ class VanityNameService
     }
 
     /**
-     * Get server domain for NIP-05 identifiers
+     * Get server domain for NIP-05 identifiers.
+     * Comes from BASE_DOMAIN env var (falls back to SERVER_NAME via base_domain parameter).
      */
     public function getServerDomain(): string
     {
