@@ -5,26 +5,26 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\ActiveIndexingStatus;
-use App\Enum\NotificationProTier;
-use App\Repository\NotificationProSubscriptionRepository;
+use App\Enum\UpdateProTier;
+use App\Repository\UpdateProSubscriptionRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Paid Notifications Pro subscription. Mirrors the state machine used by
+ * Paid Updates Pro subscription. Mirrors the state machine used by
  * {@see ActiveIndexingSubscription} (pending → active → grace → expired) but
- * without the relay-fetch configuration — Notifications Pro only gates
- * entitlement to the heavier notification source types (NIP-51 sets) and a
+ * without the relay-fetch configuration — Updates Pro only gates
+ * entitlement to the heavier update source types (NIP-51 sets) and a
  * higher per-user subscription cap; it does not involve a background worker.
  *
  * Uses the shared {@see ActiveIndexingStatus} enum as the status vocabulary.
  */
-#[ORM\Entity(repositoryClass: NotificationProSubscriptionRepository::class)]
+#[ORM\Entity(repositoryClass: UpdateProSubscriptionRepository::class)]
 #[ORM\Table(name: 'notification_pro_subscription')]
 #[ORM\Index(columns: ['npub'], name: 'idx_notif_pro_npub')]
 #[ORM\Index(columns: ['status'], name: 'idx_notif_pro_status')]
 #[ORM\Index(columns: ['expires_at'], name: 'idx_notif_pro_expires')]
-class NotificationProSubscription
+class UpdateProSubscription
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -34,8 +34,8 @@ class NotificationProSubscription
     #[ORM\Column(length: 255, unique: true)]
     private string $npub;
 
-    #[ORM\Column(length: 20, enumType: NotificationProTier::class)]
-    private NotificationProTier $tier;
+    #[ORM\Column(length: 20, enumType: UpdateProTier::class)]
+    private UpdateProTier $tier;
 
     #[ORM\Column(length: 20, enumType: ActiveIndexingStatus::class)]
     private ActiveIndexingStatus $status = ActiveIndexingStatus::PENDING;
@@ -61,7 +61,7 @@ class NotificationProSubscription
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private \DateTimeInterface $updatedAt;
 
-    public function __construct(string $npub, NotificationProTier $tier)
+    public function __construct(string $npub, UpdateProTier $tier)
     {
         $this->npub = $npub;
         $this->tier = $tier;
@@ -72,8 +72,8 @@ class NotificationProSubscription
     public function getId(): ?int { return $this->id; }
     public function getNpub(): string { return $this->npub; }
 
-    public function getTier(): NotificationProTier { return $this->tier; }
-    public function setTier(NotificationProTier $tier): self
+    public function getTier(): UpdateProTier { return $this->tier; }
+    public function setTier(UpdateProTier $tier): self
     {
         $this->tier = $tier;
         $this->updatedAt = new \DateTime();

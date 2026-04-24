@@ -44,12 +44,12 @@
                 </button>
                 {% if app.user and app.user.userIdentifier != authorNpub %}
                     <div class="dropdown-divider"></div>
-                    <form method="post" action="{{ path('notifications_subscriptions_add') }}" class="m-0">
-                        <input type="hidden" name="_token" value="{{ csrf_token('notification-subscribe') }}" />
+                    <form method="post" action="{{ path('updates_subscriptions_add') }}" class="m-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
                         <input type="hidden" name="identifier" value="{{ packEvent|naddrEncode }}" />
                         <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
                         <button class="dropdown-item" type="submit">
-                            {{ 'notifications.subscription.addSubmit'|trans }}
+                            {{ 'updates.subscription.addSubmit'|trans }}
                         </button>
                     </form>
                 {% endif %}

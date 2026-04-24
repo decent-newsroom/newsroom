@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Repository\NotificationRepository;
+use App\Repository\UpdateRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * A delivered notification item for a specific user. Created by the fan-out
+ * A delivered update item for a specific user. Created by the fan-out
  * handler when an ingested Nostr event matches at least one of the user's
- * active {@see NotificationSubscription} rows.
+ * active {@see UpdateSubscription} rows.
  *
  * v1 delivers kinds 30023 and 30040 only.
  */
-#[ORM\Entity(repositoryClass: NotificationRepository::class)]
+#[ORM\Entity(repositoryClass: UpdateRepository::class)]
 #[ORM\Table(name: 'notification')]
 #[ORM\UniqueConstraint(name: 'uniq_notification_user_event', columns: ['user_id', 'event_id'])]
 #[ORM\Index(name: 'idx_notification_user_unread', columns: ['user_id', 'read_at'])]
 #[ORM\Index(name: 'idx_notification_user_created', columns: ['user_id', 'created_at'])]
-class Notification
+class Update
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -31,9 +31,9 @@ class Notification
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
-    #[ORM\ManyToOne(targetEntity: NotificationSubscription::class)]
+    #[ORM\ManyToOne(targetEntity: UpdateSubscription::class)]
     #[ORM\JoinColumn(name: 'subscription_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    private ?NotificationSubscription $subscription = null;
+    private ?UpdateSubscription $subscription = null;
 
     #[ORM\Column(type: Types::STRING, length: 64)]
     private string $eventId;
@@ -60,11 +60,11 @@ class Notification
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
-    /** Set when the user opens the notifications page and the bell badge clears. */
+    /** Set when the user opens the updates page and the bell badge clears. */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $seenAt = null;
 
-    /** Set when the user explicitly marks this notification as read. */
+    /** Set when the user explicitly marks this update as read. */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $readAt = null;
 
@@ -75,7 +75,7 @@ class Notification
         string $eventPubkey,
         string $url,
         \DateTimeImmutable $createdAt,
-        ?NotificationSubscription $subscription = null,
+        ?UpdateSubscription $subscription = null,
         ?string $eventCoordinate = null,
         ?string $title = null,
         ?string $summary = null,
@@ -102,7 +102,7 @@ class Notification
         return $this->user;
     }
 
-    public function getSubscription(): ?NotificationSubscription
+    public function getSubscription(): ?UpdateSubscription
     {
         return $this->subscription;
     }

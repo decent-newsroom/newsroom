@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace App\Controller\Subscription;
 
 use App\Entity\User;
-use App\Enum\NotificationProTier;
-use App\Service\NotificationProService;
+use App\Enum\UpdateProTier;
+use App\Service\UpdateProService;
 use App\Service\QRGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[Route('/subscription/notifications-pro', name: 'notifications_pro_')]
-class NotificationProController extends AbstractController
+#[Route('/subscription/updates-pro', name: 'updates_pro_')]
+class UpdateProController extends AbstractController
 {
     public function __construct(
-        private readonly NotificationProService $proService,
+        private readonly UpdateProService $proService,
         private readonly QRGenerator $qrGenerator,
     ) {
     }
@@ -35,10 +35,10 @@ class NotificationProController extends AbstractController
             $subscription = $this->proService->getSubscription($user->getUserIdentifier());
         }
 
-        return $this->render('subscription/notifications_pro/index.html.twig', [
+        return $this->render('subscription/updates_pro/index.html.twig', [
             'subscription' => $subscription,
-            'tiers' => NotificationProTier::cases(),
-            'freeCap' => NotificationProService::FREE_SUBSCRIPTION_CAP,
+            'tiers' => UpdateProTier::cases(),
+            'freeCap' => UpdateProService::FREE_SUBSCRIPTION_CAP,
         ]);
     }
 
@@ -49,10 +49,10 @@ class NotificationProController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function subscribe(string $tier): Response
     {
-        $tierEnum = NotificationProTier::tryFrom($tier);
+        $tierEnum = UpdateProTier::tryFrom($tier);
         if (!$tierEnum) {
             $this->addFlash('error', 'Invalid tier.');
-            return $this->redirectToRoute('notifications_pro_index');
+            return $this->redirectToRoute('updates_pro_index');
         }
 
         /** @var User $user */
@@ -60,15 +60,15 @@ class NotificationProController extends AbstractController
         $npub = $user->getUserIdentifier();
 
         if ($this->proService->hasActiveSubscription($npub)) {
-            $this->addFlash('info', 'You already have an active Notifications Pro subscription.');
-            return $this->redirectToRoute('notifications_pro_index');
+            $this->addFlash('info', 'You already have an active Updates Pro subscription.');
+            return $this->redirectToRoute('updates_pro_index');
         }
 
         try {
             $invoiceData = $this->proService->createSubscriptionInvoice($npub, $tierEnum);
             $qrSvg = $this->qrGenerator->svg('lightning:' . strtoupper($invoiceData['bolt11']), 280);
 
-            return $this->render('subscription/notifications_pro/invoice.html.twig', [
+            return $this->render('subscription/updates_pro/invoice.html.twig', [
                 'subscription' => $invoiceData['subscription'],
                 'bolt11' => $invoiceData['bolt11'],
                 'amount' => $invoiceData['amount'],
@@ -78,7 +78,7 @@ class NotificationProController extends AbstractController
             ]);
         } catch (\Exception $e) {
             $this->addFlash('error', 'Failed to create invoice: ' . $e->getMessage());
-            return $this->redirectToRoute('notifications_pro_index');
+            return $this->redirectToRoute('updates_pro_index');
         }
     }
 
@@ -89,10 +89,10 @@ class NotificationProController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function renew(string $tier): Response
     {
-        $tierEnum = NotificationProTier::tryFrom($tier);
+        $tierEnum = UpdateProTier::tryFrom($tier);
         if (!$tierEnum) {
             $this->addFlash('error', 'Invalid tier.');
-            return $this->redirectToRoute('notifications_pro_index');
+            return $this->redirectToRoute('updates_pro_index');
         }
 
         /** @var User $user */
@@ -103,7 +103,7 @@ class NotificationProController extends AbstractController
             $invoiceData = $this->proService->createSubscriptionInvoice($npub, $tierEnum);
             $qrSvg = $this->qrGenerator->svg('lightning:' . strtoupper($invoiceData['bolt11']), 280);
 
-            return $this->render('subscription/notifications_pro/invoice.html.twig', [
+            return $this->render('subscription/updates_pro/invoice.html.twig', [
                 'subscription' => $invoiceData['subscription'],
                 'bolt11' => $invoiceData['bolt11'],
                 'amount' => $invoiceData['amount'],
@@ -113,7 +113,7 @@ class NotificationProController extends AbstractController
             ]);
         } catch (\Exception $e) {
             $this->addFlash('error', 'Failed to create renewal invoice: ' . $e->getMessage());
-            return $this->redirectToRoute('notifications_pro_index');
+            return $this->redirectToRoute('updates_pro_index');
         }
     }
 
@@ -154,7 +154,7 @@ class NotificationProController extends AbstractController
             $this->addFlash('error', 'Failed to cancel: ' . $e->getMessage());
         }
 
-        return $this->redirectToRoute('notifications_pro_index');
+        return $this->redirectToRoute('updates_pro_index');
     }
 }
 

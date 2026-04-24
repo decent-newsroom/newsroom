@@ -9,7 +9,7 @@ use App\Enum\ActiveIndexingStatus;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\ActiveIndexingService;
-use App\Service\NotificationProService;
+use App\Service\UpdateProService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -33,7 +33,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
 
     public function __construct(
         private readonly ActiveIndexingService $activeIndexingService,
-        private readonly NotificationProService $notificationProService,
+        private readonly UpdateProService $notificationProService,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
         string $recipientPubkey,
@@ -141,7 +141,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             $io->info('No matching payments found.');
         }
 
-        // ── Notifications Pro ────────────────────────────────────────────────
+        // ── Updates Pro ────────────────────────────────────────────────
         $pendingPro = $this->notificationProService->getPendingSubscriptions();
         if (!empty($pendingPro)) {
             $proInvoiceMap = [];
@@ -163,10 +163,10 @@ class SubscriptionZapReceiptWorkerCommand extends Command
                     $sub = $proInvoiceMap[$bolt11Lower];
                     if ($sub->getStatus() === ActiveIndexingStatus::PENDING) {
                         $this->notificationProService->activateSubscription($sub, $receipt->getId());
-                        $io->success(sprintf('Activated Notifications Pro for %s', $sub->getNpub()));
+                        $io->success(sprintf('Activated Updates Pro for %s', $sub->getNpub()));
                     } else {
                         $this->notificationProService->renewSubscription($sub, $receipt->getId());
-                        $io->success(sprintf('Renewed Notifications Pro for %s', $sub->getNpub()));
+                        $io->success(sprintf('Renewed Updates Pro for %s', $sub->getNpub()));
                     }
                     $proActivated++;
                     unset($proInvoiceMap[$bolt11Lower]);
@@ -174,7 +174,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             }
 
             if ($proActivated > 0) {
-                $io->success(sprintf('Processed %d Notifications Pro payment(s).', $proActivated));
+                $io->success(sprintf('Processed %d Updates Pro payment(s).', $proActivated));
             }
         }
 

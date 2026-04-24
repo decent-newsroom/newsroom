@@ -1,11 +1,11 @@
 <div class="w-container">
     <div class="article-actions">
         {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
-            <form method="post" action="{{ path('notifications_subscriptions_add') }}" class="d-inline">
-                <input type="hidden" name="_token" value="{{ csrf_token('notification-subscribe') }}" />
+            <form method="post" action="{{ path('updates_subscriptions_add') }}" class="d-inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
                 <input type="hidden" name="identifier" value="{{ pubkey }}" />
                 <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
-                <button type="submit" class="btn btn-outline-primary">{{ 'notifications.subscription.addSubmit'|trans }}</button>
+                <button type="submit" class="btn btn-outline-primary">{{ 'updates.subscription.addSubmit'|trans }}</button>
             </form>
             <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
         {% endif %}

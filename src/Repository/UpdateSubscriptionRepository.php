@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\NotificationSubscription;
+use App\Entity\UpdateSubscription;
 use App\Entity\User;
-use App\Enum\NotificationSourceTypeEnum;
+use App\Enum\UpdateSourceTypeEnum;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<NotificationSubscription>
+ * @extends ServiceEntityRepository<UpdateSubscription>
  */
-class NotificationSubscriptionRepository extends ServiceEntityRepository
+class UpdateSubscriptionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, NotificationSubscription::class);
+        parent::__construct($registry, UpdateSubscription::class);
     }
 
     /**
-     * @return NotificationSubscription[]
+     * @return UpdateSubscription[]
      */
     public function findActiveForUser(User $user): array
     {
@@ -45,7 +45,7 @@ class NotificationSubscriptionRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    public function findOneForUser(User $user, NotificationSourceTypeEnum $type, string $value): ?NotificationSubscription
+    public function findOneForUser(User $user, UpdateSourceTypeEnum $type, string $value): ?UpdateSubscription
     {
         return $this->findOneBy([
             'user' => $user,
@@ -58,9 +58,9 @@ class NotificationSubscriptionRepository extends ServiceEntityRepository
      * Returns all active subscriptions matching a given type+value across all users.
      * Used by the fan-out handler to resolve the set of recipients for an incoming event.
      *
-     * @return NotificationSubscription[]
+     * @return UpdateSubscription[]
      */
-    public function findActiveBySourceValues(NotificationSourceTypeEnum $type, array $values): array
+    public function findActiveBySourceValues(UpdateSourceTypeEnum $type, array $values): array
     {
         if ($values === []) {
             return [];
@@ -101,13 +101,13 @@ class NotificationSubscriptionRepository extends ServiceEntityRepository
             $type = $row['source_type'];
             $value = $row['source_value'];
             switch ($type) {
-                case NotificationSourceTypeEnum::NPUB->value:
+                case UpdateSourceTypeEnum::NPUB->value:
                     $npubs[$value] = true;
                     break;
-                case NotificationSourceTypeEnum::PUBLICATION->value:
+                case UpdateSourceTypeEnum::PUBLICATION->value:
                     $publications[$value] = true;
                     break;
-                case NotificationSourceTypeEnum::NIP51_SET->value:
+                case UpdateSourceTypeEnum::NIP51_SET->value:
                     $sets[$value] = true;
                     break;
             }

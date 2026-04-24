@@ -71,10 +71,10 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
-{# Global notifications listener — private Mercure topic, authenticated users only #}
+{# Global updates listener — private Mercure topic, authenticated users only #}
 {% if app.user %}
-<div data-controller="ui--notifications-stream"
-     data-ui--notifications-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/notifications')|url_encode }}"
+<div data-controller="ui--updates-stream"
+     data-ui--updates-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/updates')|url_encode }}"
      style="display:none"></div>
 {% endif %}
 

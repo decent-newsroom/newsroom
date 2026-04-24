@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Enum\NotificationSourceTypeEnum;
-use App\Repository\NotificationSubscriptionRepository;
+use App\Enum\UpdateSourceTypeEnum;
+use App\Repository\UpdateSubscriptionRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * A user's active subscription to a notification source (npub, publication
- * coordinate, or NIP-51 set coordinate). See {@see NotificationSourceTypeEnum}.
+ * A user's active subscription to an update source (npub, publication
+ * coordinate, or NIP-51 set coordinate). See {@see UpdateSourceTypeEnum}.
  */
-#[ORM\Entity(repositoryClass: NotificationSubscriptionRepository::class)]
+#[ORM\Entity(repositoryClass: UpdateSubscriptionRepository::class)]
 #[ORM\Table(name: 'notification_subscription')]
 #[ORM\UniqueConstraint(
     name: 'uniq_notification_subscription',
@@ -21,7 +21,7 @@ use Doctrine\ORM\Mapping as ORM;
 )]
 #[ORM\Index(name: 'idx_notification_subscription_active_type', columns: ['active', 'source_type'])]
 #[ORM\Index(name: 'idx_notification_subscription_user', columns: ['user_id'])]
-class NotificationSubscription
+class UpdateSubscription
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -32,8 +32,8 @@ class NotificationSubscription
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
-    #[ORM\Column(type: Types::STRING, length: 32, enumType: NotificationSourceTypeEnum::class)]
-    private NotificationSourceTypeEnum $sourceType;
+    #[ORM\Column(type: Types::STRING, length: 32, enumType: UpdateSourceTypeEnum::class)]
+    private UpdateSourceTypeEnum $sourceType;
 
     #[ORM\Column(type: Types::STRING, length: 512)]
     private string $sourceValue;
@@ -49,7 +49,7 @@ class NotificationSubscription
 
     public function __construct(
         User $user,
-        NotificationSourceTypeEnum $sourceType,
+        UpdateSourceTypeEnum $sourceType,
         string $sourceValue,
         ?string $label = null,
     ) {
@@ -71,7 +71,7 @@ class NotificationSubscription
         return $this->user;
     }
 
-    public function getSourceType(): NotificationSourceTypeEnum
+    public function getSourceType(): UpdateSourceTypeEnum
     {
         return $this->sourceType;
     }

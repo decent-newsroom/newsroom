@@ -8,7 +8,7 @@ use App\Entity\User;
 
 /**
  * Mints short-lived HS256 JWTs for Mercure *subscribers*, scoped to a single
- * per-user notifications topic.
+ * per-user updates topic.
  *
  * The token is delivered to the browser via an HttpOnly cookie that the Mercure
  * hub honors automatically on SSE requests to /.well-known/mercure — no JS
@@ -26,17 +26,17 @@ class MercureSubscriberTokenService
     }
 
     /**
-     * Return the Mercure topic URL for a given user's private notifications stream.
+     * Return the Mercure topic URL for a given user's private updates stream.
      * The numeric DB id (not the pubkey) is used so the topic is not trivially
      * guessable by knowing someone's public identity.
      */
     public static function topicForUser(User $user): string
     {
-        return sprintf('/users/%d/notifications', (int) $user->getId());
+        return sprintf('/users/%d/updates', (int) $user->getId());
     }
 
     /**
-     * Mint a subscriber JWT scoped to this user's notifications topic only.
+     * Mint a subscriber JWT scoped to this user's updates topic only.
      */
     public function mintForUser(User $user, int $ttlSeconds = self::TTL_SECONDS): string
     {

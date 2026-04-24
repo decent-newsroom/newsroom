@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Magazine;
-use App\Entity\NotificationSubscription;
+use App\Entity\UpdateSubscription;
 use App\Entity\User;
-use App\Enum\NotificationSourceTypeEnum;
-use App\Repository\NotificationRepository;
-use App\Repository\NotificationSubscriptionRepository;
-use App\Service\Notification\NotificationAccessService;
-use App\Service\NotificationProService;
+use App\Enum\UpdateSourceTypeEnum;
+use App\Repository\UpdateRepository;
+use App\Repository\UpdateSubscriptionRepository;
+use App\Service\Update\UpdateAccessService;
+use App\Service\UpdateProService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -24,43 +24,43 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Notifications Center — per-user notification feed and subscription management.
+ * Updates Center — per-user update feed and subscription management.
  */
 #[IsGranted('ROLE_USER')]
-class NotificationsController extends AbstractController
+class UpdatesController extends AbstractController
 {
     public function __construct(
-        private readonly NotificationRepository $notificationRepository,
-        private readonly NotificationSubscriptionRepository $subscriptionRepository,
-        private readonly NotificationAccessService $accessService,
-        private readonly NotificationProService $proService,
+        private readonly UpdateRepository $updateRepository,
+        private readonly UpdateSubscriptionRepository $subscriptionRepository,
+        private readonly UpdateAccessService $accessService,
+        private readonly UpdateProService $proService,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
     ) {
     }
 
-    #[Route('/notifications', name: 'notifications_index', methods: ['GET'])]
+    #[Route('/updates', name: 'updates_index', methods: ['GET'])]
     public function index(): Response
     {
         /** @var User $user */
         $user = $this->getUser();
-        $items = $this->notificationRepository->findRecentForUser($user, 50);
+        $items = $this->updateRepository->findRecentForUser($user, 50);
         $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
 
         // Opening the page clears the "unseen" badge but leaves per-item read state.
-        $this->notificationRepository->markAllSeen($user);
+        $this->updateRepository->markAllSeen($user);
 
-        return $this->render('notifications/index.html.twig', [
-            'notifications' => $items,
+        return $this->render('updates/index.html.twig', [
+            'updates' => $items,
             'subscriptions' => $subscriptions,
-            'unread' => $this->notificationRepository->countUnreadForUser($user),
+            'unread' => $this->updateRepository->countUnreadForUser($user),
             'isPro' => $this->accessService->isPro($user),
             'freeCap' => $this->accessService->getFreeCap(),
             'proSubscription' => $this->proService->getSubscription($user->getUserIdentifier()),
         ]);
     }
 
-    #[Route('/notifications/subscriptions', name: 'notifications_subscriptions', methods: ['GET'])]
+    #[Route('/updates/subscriptions', name: 'updates_subscriptions', methods: ['GET'])]
     public function subscriptions(): Response
     {
         /** @var User $user */
@@ -71,7 +71,7 @@ class NotificationsController extends AbstractController
         $coordinateTitles = [];
         $magazineRepo = $this->em->getRepository(Magazine::class);
         foreach ($subscriptions as $sub) {
-            if ($sub->getSourceType() !== NotificationSourceTypeEnum::PUBLICATION) {
+            if ($sub->getSourceType() !== UpdateSourceTypeEnum::PUBLICATION) {
                 continue;
             }
             $parts = explode(':', $sub->getSourceValue(), 3);
@@ -85,7 +85,7 @@ class NotificationsController extends AbstractController
             }
         }
 
-        return $this->render('notifications/subscriptions.html.twig', [
+        return $this->render('updates/subscriptions.html.twig', [
             'subscriptions' => $subscriptions,
             'coordinateTitles' => $coordinateTitles,
             'isPro' => $this->accessService->isPro($user),
@@ -95,13 +95,13 @@ class NotificationsController extends AbstractController
         ]);
     }
 
-    #[Route('/notifications/subscriptions', name: 'notifications_subscriptions_add', methods: ['POST'])]
+    #[Route('/updates/subscriptions', name: 'updates_subscriptions_add', methods: ['POST'])]
     public function addSubscription(Request $request): Response
     {
-        $redirectTo = $this->resolveRedirectPath($request) ?? $this->generateUrl('notifications_subscriptions');
+        $redirectTo = $this->resolveRedirectPath($request) ?? $this->generateUrl('updates_subscriptions');
 
-        if (!$this->isCsrfTokenValid('notification-subscribe', (string) $request->request->get('_token'))) {
-            $this->addFlash('error', 'notifications.errors.invalidInput');
+        if (!$this->isCsrfTokenValid('update-subscribe', (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'updates.errors.invalidInput');
             return $this->redirect($redirectTo);
         }
 
@@ -109,14 +109,14 @@ class NotificationsController extends AbstractController
         $user = $this->getUser();
         $raw = trim((string) $request->request->get('identifier', ''));
         if ($raw === '') {
-            $this->addFlash('error', 'notifications.errors.invalidInput');
+            $this->addFlash('error', 'updates.errors.invalidInput');
             return $this->redirect($redirectTo);
         }
 
         try {
             [$type, $value, $label] = $this->parseIdentifier($raw);
         } catch (\InvalidArgumentException $e) {
-            $this->addFlash('error', 'notifications.errors.invalidInput');
+            $this->addFlash('error', 'updates.errors.invalidInput');
             return $this->redirect($redirectTo);
         }
 
@@ -124,15 +124,15 @@ class NotificationsController extends AbstractController
         $blockReason = $this->accessService->blockReason($user, $type);
         if ($blockReason !== null) {
             $this->addFlash('error', $blockReason);
-            return $this->redirectToRoute('notifications_pro_index');
+            return $this->redirectToRoute('updates_pro_index');
         }
 
         if ($this->subscriptionRepository->findOneForUser($user, $type, $value) !== null) {
-            $this->addFlash('error', 'notifications.errors.alreadySubscribed');
+            $this->addFlash('error', 'updates.errors.alreadySubscribed');
             return $this->redirect($redirectTo);
         }
 
-        $subscription = new NotificationSubscription($user, $type, $value, $label);
+        $subscription = new UpdateSubscription($user, $type, $value, $label);
         $this->em->persist($subscription);
         $this->em->flush();
 
@@ -154,12 +154,12 @@ class NotificationsController extends AbstractController
         return $redirectTo;
     }
 
-    #[Route('/notifications/subscriptions/{id}', name: 'notifications_subscriptions_remove', methods: ['POST', 'DELETE'])]
+    #[Route('/updates/subscriptions/{id}', name: 'updates_subscriptions_remove', methods: ['POST', 'DELETE'])]
     public function removeSubscription(Request $request, int $id): Response
     {
-        if (!$this->isCsrfTokenValid('notification-unsubscribe', (string) $request->request->get('_token'))) {
-            $this->addFlash('error', 'notifications.errors.invalidInput');
-            return $this->redirectToRoute('notifications_subscriptions');
+        if (!$this->isCsrfTokenValid('update-unsubscribe', (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'updates.errors.invalidInput');
+            return $this->redirectToRoute('updates_subscriptions');
         }
 
         /** @var User $user */
@@ -172,28 +172,28 @@ class NotificationsController extends AbstractController
         $this->em->remove($sub);
         $this->em->flush();
 
-        return $this->redirectToRoute('notifications_subscriptions');
+        return $this->redirectToRoute('updates_subscriptions');
     }
 
     // ----- JSON API for the bell/toast -----
 
-    #[Route('/api/notifications/unread-count', name: 'api_notifications_unread_count', methods: ['GET'])]
+    #[Route('/api/updates/unread-count', name: 'api_updates_unread_count', methods: ['GET'])]
     public function unreadCount(): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
         return new JsonResponse([
-            'unread' => $this->notificationRepository->countUnreadForUser($user),
-            'unseen' => $this->notificationRepository->countUnseenForUser($user),
+            'unread' => $this->updateRepository->countUnreadForUser($user),
+            'unseen' => $this->updateRepository->countUnseenForUser($user),
         ]);
     }
 
-    #[Route('/api/notifications/{id}/read', name: 'api_notifications_mark_read', methods: ['POST'])]
+    #[Route('/api/updates/{id}/read', name: 'api_updates_mark_read', methods: ['POST'])]
     public function markRead(string $id): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
-        $n = $this->notificationRepository->findForUser($user, $id);
+        $n = $this->updateRepository->findForUser($user, $id);
         if ($n === null) {
             return new JsonResponse(['ok' => false], 404);
         }
@@ -202,12 +202,12 @@ class NotificationsController extends AbstractController
         return new JsonResponse(['ok' => true]);
     }
 
-    #[Route('/api/notifications/mark-all-seen', name: 'api_notifications_mark_all_seen', methods: ['POST'])]
+    #[Route('/api/updates/mark-all-seen', name: 'api_updates_mark_all_seen', methods: ['POST'])]
     public function markAllSeen(): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
-        $count = $this->notificationRepository->markAllSeen($user);
+        $count = $this->updateRepository->markAllSeen($user);
         return new JsonResponse(['ok' => true, 'updated' => $count]);
     }
 
@@ -220,7 +220,7 @@ class NotificationsController extends AbstractController
      *  - `naddr1…` / `nostr:naddr1…` → PUBLICATION (if kind=30040) or NIP51_SET (if a supported NIP-51 set kind)
      *  - raw `kind:pubkey:d` coordinate → PUBLICATION or NIP51_SET depending on kind
      *
-     * @return array{0: NotificationSourceTypeEnum, 1: string, 2: ?string}
+     * @return array{0: UpdateSourceTypeEnum, 1: string, 2: ?string}
      */
     private function parseIdentifier(string $raw): array
     {
@@ -228,12 +228,12 @@ class NotificationsController extends AbstractController
 
         // Hex pubkey
         if (NostrKeyUtil::isHexPubkey($raw)) {
-            return [NotificationSourceTypeEnum::NPUB, $raw, null];
+            return [UpdateSourceTypeEnum::NPUB, $raw, null];
         }
 
         // npub1…
         if (NostrKeyUtil::isNpub($raw)) {
-            return [NotificationSourceTypeEnum::NPUB, NostrKeyUtil::npubToHex($raw), $raw];
+            return [UpdateSourceTypeEnum::NPUB, NostrKeyUtil::npubToHex($raw), $raw];
         }
 
         // naddr1…
@@ -254,17 +254,17 @@ class NotificationsController extends AbstractController
         throw new \InvalidArgumentException('Unrecognized identifier');
     }
 
-    private function typeForCoordinate(int $kind): NotificationSourceTypeEnum
+    private function typeForCoordinate(int $kind): UpdateSourceTypeEnum
     {
         if ($kind === 30040) {
-            return NotificationSourceTypeEnum::PUBLICATION;
+            return UpdateSourceTypeEnum::PUBLICATION;
         }
         // Any other supported set kind goes under NIP51_SET.
         $setKinds = [3, 10000, 10015, 30003, 30004, 30005, 30015, 39089];
         if (in_array($kind, $setKinds, true)) {
-            return NotificationSourceTypeEnum::NIP51_SET;
+            return UpdateSourceTypeEnum::NIP51_SET;
         }
-        throw new \InvalidArgumentException('Unsupported kind for notification subscription');
+        throw new \InvalidArgumentException('Unsupported kind for update subscription');
     }
 }
 

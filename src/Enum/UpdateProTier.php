@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Enum;
 
 /**
- * Paid tiers that grant {@see RolesEnum::NOTIFICATIONS_PRO}, unlocking the
- * heavier notification source types (NIP-51 set expansion) and higher
+ * Paid tiers that grant {@see RolesEnum::UPDATES_PRO}, unlocking the
+ * heavier update source types (NIP-51 set expansion) and higher
  * per-user subscription caps.
  *
  * Cheaper than Active Indexing: one HTTP/DB lookup per incoming event, not a
  * persistent relay fetch loop.
  */
-enum NotificationProTier: string
+enum UpdateProTier: string
 {
     case MONTHLY = 'monthly';
     case YEARLY = 'yearly';

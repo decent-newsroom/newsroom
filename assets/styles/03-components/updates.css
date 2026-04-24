@@ -1,6 +1,6 @@
-/* Notifications Center — list + item styles. No shading, no rounded edges. */
+/* Updates Center — list + item styles. No shading, no rounded edges. */
 
-.notification-list {
+.update-list {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -9,26 +9,26 @@
     gap: 0.75rem;
 }
 
-.notification-item {
+.update-item {
     border: 1px solid var(--color-border, #444);
     padding: 0.75rem 1rem;
     background: var(--color-surface, transparent);
 }
 
-.notification-item--unread {
+.update-item--unread {
     border-left: 3px solid var(--color-accent, #f0ad4e);
 }
 
-.notification-item--fresh {
-    animation: notification-fresh 1.2s ease-out;
+.update-item--fresh {
+    animation: update-fresh 1.2s ease-out;
 }
 
-@keyframes notification-fresh {
+@keyframes update-fresh {
     from { background-color: var(--color-accent-soft, rgba(240, 173, 78, 0.2)); }
     to   { background-color: transparent; }
 }
 
-.notification-item__header {
+.update-item__header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -37,23 +37,23 @@
     margin-bottom: 0.25rem;
 }
 
-.notification-item__kind {
+.update-item__kind {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
-.notification-item__title {
+.update-item__title {
     display: block;
     font-weight: 600;
     text-decoration: none;
     color: var(--color-text, inherit);
 }
 
-.notification-item__title:hover {
+.update-item__title:hover {
     text-decoration: underline;
 }
 
-.notification-item__summary {
+.update-item__summary {
     margin: 0.5rem 0 0;
     color: var(--color-text-muted, #bbb);
     font-size: 0.95rem;

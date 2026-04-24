@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\Notification;
+use App\Entity\Update;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Notification>
+ * @extends ServiceEntityRepository<Update>
  */
-class NotificationRepository extends ServiceEntityRepository
+class UpdateRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Notification::class);
+        parent::__construct($registry, Update::class);
     }
 
     /**
-     * @return Notification[]
+     * @return Update[]
      */
     public function findRecentForUser(User $user, int $limit = 50, ?string $beforeId = null): array
     {
@@ -78,7 +78,7 @@ class NotificationRepository extends ServiceEntityRepository
         return $this->findOneBy(['user' => $user, 'eventId' => $eventId]) !== null;
     }
 
-    public function findForUser(User $user, string $id): ?Notification
+    public function findForUser(User $user, string $id): ?Update
     {
         return $this->findOneBy(['id' => $id, 'user' => $user]);
     }

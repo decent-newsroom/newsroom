@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\NotificationProService;
+use App\Service\UpdateProService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -12,20 +12,20 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Moves Notifications Pro subscriptions through the expiry state machine:
+ * Moves Updates Pro subscriptions through the expiry state machine:
  *  ACTIVE (expiresAt passed) → GRACE
- *  GRACE  (graceEndsAt passed) → EXPIRED  + revoke ROLE_NOTIFICATIONS_PRO
+ *  GRACE  (graceEndsAt passed) → EXPIRED  + revoke ROLE_UPDATES_PRO
  *
  * Run via cron once per hour (or each time active-indexing:check-receipts runs).
  */
 #[AsCommand(
-    name: 'notifications-pro:expire-subscriptions',
-    description: 'Expire Notifications Pro subscriptions that have lapsed their grace period',
+    name: 'updates-pro:expire-subscriptions',
+    description: 'Expire Updates Pro subscriptions that have lapsed their grace period',
 )]
-class NotificationsProExpireCommand extends Command
+class UpdatesProExpireCommand extends Command
 {
     public function __construct(
-        private readonly NotificationProService $proService,
+        private readonly UpdateProService $proService,
     ) {
         parent::__construct();
     }

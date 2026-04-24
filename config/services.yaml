@@ -312,8 +312,8 @@ services:
             $recipientPubkey: '%active_indexing_recipient_pubkey%'
             $recipientLud16: '%active_indexing_recipient_lud16%'
 
-    # Notifications Pro Service — paywall for NIP-51 set subscriptions and higher caps
-    App\Service\NotificationProService:
+    # Updates Pro Service — paywall for NIP-51 set subscriptions and higher caps
+    App\Service\UpdateProService:
         arguments:
             $recipientPubkey: '%active_indexing_recipient_pubkey%'
             $recipientLud16: '%active_indexing_recipient_lud16%'

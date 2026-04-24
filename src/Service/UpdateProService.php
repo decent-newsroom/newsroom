@@ -4,38 +4,38 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\NotificationProSubscription;
+use App\Entity\UpdateProSubscription;
 use App\Entity\User;
 use App\Enum\ActiveIndexingStatus;
-use App\Enum\NotificationProTier;
+use App\Enum\UpdateProTier;
 use App\Enum\RolesEnum;
-use App\Repository\NotificationProSubscriptionRepository;
+use App\Repository\UpdateProSubscriptionRepository;
 use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 
 /**
- * Manages paid Notifications Pro subscriptions.
+ * Manages paid Updates Pro subscriptions.
  *
  * Mirrors the lifecycle of {@see ActiveIndexingService} (invoice → activate /
  * renew → grace → expire) but without relay-fetch configuration.
  *
- * Free tier limits (enforced by callers / {@see NotificationAccessService}):
+ * Free tier limits (enforced by callers / {@see UpdateAccessService}):
  *   - Up to {@see self::FREE_SUBSCRIPTION_CAP} npub + publication subscriptions.
  *   - No NIP-51 set subscriptions.
  * Pro tier:
  *   - Unlimited subscriptions of all source types.
  */
-class NotificationProService
+class UpdateProService
 {
-    /** Maximum notification subscriptions for free (non-Pro) users. */
+    /** Maximum update subscriptions for free (non-Pro) users. */
     public const FREE_SUBSCRIPTION_CAP = 5;
 
     private readonly string $recipientPubkeyHex;
 
     public function __construct(
-        private readonly NotificationProSubscriptionRepository $subscriptionRepository,
+        private readonly UpdateProSubscriptionRepository $subscriptionRepository,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LNURLResolver $lnurlResolver,
@@ -51,7 +51,7 @@ class NotificationProService
         }
     }
 
-    public function getSubscription(string $npub): ?NotificationProSubscription
+    public function getSubscription(string $npub): ?UpdateProSubscription
     {
         return $this->subscriptionRepository->findByNpub($npub);
     }
@@ -65,14 +65,14 @@ class NotificationProService
     /**
      * Create or reuse a pending subscription and generate a BOLT11 invoice.
      *
-     * @return array{bolt11: string, amount: int, subscription: NotificationProSubscription}
+     * @return array{bolt11: string, amount: int, subscription: UpdateProSubscription}
      */
-    public function createSubscriptionInvoice(string $npub, NotificationProTier $tier): array
+    public function createSubscriptionInvoice(string $npub, UpdateProTier $tier): array
     {
         $subscription = $this->subscriptionRepository->findByNpub($npub);
 
         if (!$subscription) {
-            $subscription = new NotificationProSubscription($npub, $tier);
+            $subscription = new UpdateProSubscription($npub, $tier);
         } elseif ($subscription->isExpired() || $subscription->getStatus() === ActiveIndexingStatus::PENDING) {
             $subscription->setTier($tier);
         }
@@ -91,7 +91,7 @@ class NotificationProService
         $subscription->setStatus(ActiveIndexingStatus::PENDING);
         $this->subscriptionRepository->save($subscription);
 
-        $this->logger->info('Created Notifications Pro invoice', [
+        $this->logger->info('Created Updates Pro invoice', [
             'npub' => $npub,
             'tier' => $tier->value,
             'amount_sats' => $amountSats,
@@ -104,7 +104,7 @@ class NotificationProService
         ];
     }
 
-    public function activateSubscription(NotificationProSubscription $subscription, string $zapReceiptEventId): void
+    public function activateSubscription(UpdateProSubscription $subscription, string $zapReceiptEventId): void
     {
         $subscription->setZapReceiptEventId($zapReceiptEventId);
         $subscription->activate();
@@ -112,14 +112,14 @@ class NotificationProService
 
         $this->grantProRole($subscription->getNpub());
 
-        $this->logger->info('Activated Notifications Pro subscription', [
+        $this->logger->info('Activated Updates Pro subscription', [
             'npub' => $subscription->getNpub(),
             'tier' => $subscription->getTier()->value,
             'expires_at' => $subscription->getExpiresAt()?->format('Y-m-d H:i:s'),
         ]);
     }
 
-    public function renewSubscription(NotificationProSubscription $subscription, string $zapReceiptEventId): void
+    public function renewSubscription(UpdateProSubscription $subscription, string $zapReceiptEventId): void
     {
         $subscription->setZapReceiptEventId($zapReceiptEventId);
         $subscription->renew();
@@ -127,14 +127,14 @@ class NotificationProService
 
         $this->grantProRole($subscription->getNpub());
 
-        $this->logger->info('Renewed Notifications Pro subscription', [
+        $this->logger->info('Renewed Updates Pro subscription', [
             'npub' => $subscription->getNpub(),
             'tier' => $subscription->getTier()->value,
             'expires_at' => $subscription->getExpiresAt()?->format('Y-m-d H:i:s'),
         ]);
     }
 
-    /** @return NotificationProSubscription[] */
+    /** @return UpdateProSubscription[] */
     public function getPendingSubscriptions(): array
     {
         return $this->subscriptionRepository->findWithPendingInvoices();
@@ -187,8 +187,8 @@ class NotificationProService
             $user->setNpub($npub);
             $this->entityManager->persist($user);
         }
-        if (!$user->isNotificationsProSubscriber()) {
-            $user->addRole(RolesEnum::NOTIFICATIONS_PRO->value);
+        if (!$user->isUpdatesProSubscriber()) {
+            $user->addRole(RolesEnum::UPDATES_PRO->value);
             $this->entityManager->flush();
         }
     }
@@ -196,8 +196,8 @@ class NotificationProService
     private function revokeProRole(string $npub): void
     {
         $user = $this->userRepository->findOneBy(['npub' => $npub]);
-        if ($user && $user->isNotificationsProSubscriber()) {
-            $user->removeRole(RolesEnum::NOTIFICATIONS_PRO->value);
+        if ($user && $user->isUpdatesProSubscriber()) {
+            $user->removeRole(RolesEnum::UPDATES_PRO->value);
             $this->entityManager->flush();
         }
     }

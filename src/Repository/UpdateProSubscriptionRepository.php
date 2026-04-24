@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
-use App\Entity\NotificationProSubscription;
+use App\Entity\UpdateProSubscription;
 use App\Enum\ActiveIndexingStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<NotificationProSubscription>
+ * @extends ServiceEntityRepository<UpdateProSubscription>
  */
-class NotificationProSubscriptionRepository extends ServiceEntityRepository
+class UpdateProSubscriptionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, NotificationProSubscription::class);
+        parent::__construct($registry, UpdateProSubscription::class);
     }
 
-    public function findByNpub(string $npub): ?NotificationProSubscription
+    public function findByNpub(string $npub): ?UpdateProSubscription
     {
         return $this->findOneBy(['npub' => $npub]);
     }
 
-    /** @return NotificationProSubscription[] */
+    /** @return UpdateProSubscription[] */
     public function findWithPendingInvoices(): array
     {
         return $this->createQueryBuilder('s')
@@ -35,7 +35,7 @@ class NotificationProSubscriptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** @return NotificationProSubscription[] */
+    /** @return UpdateProSubscription[] */
     public function findExpiredNeedingGraceTransition(): array
     {
         return $this->createQueryBuilder('s')
@@ -47,7 +47,7 @@ class NotificationProSubscriptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** @return NotificationProSubscription[] */
+    /** @return UpdateProSubscription[] */
     public function findGracePeriodEnded(): array
     {
         return $this->createQueryBuilder('s')
@@ -59,7 +59,7 @@ class NotificationProSubscriptionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function save(NotificationProSubscription $subscription, bool $flush = true): void
+    public function save(UpdateProSubscription $subscription, bool $flush = true): void
     {
         $this->getEntityManager()->persist($subscription);
         if ($flush) {
@@ -67,7 +67,7 @@ class NotificationProSubscriptionRepository extends ServiceEntityRepository
         }
     }
 
-    public function remove(NotificationProSubscription $subscription, bool $flush = true): void
+    public function remove(UpdateProSubscription $subscription, bool $flush = true): void
     {
         $this->getEntityManager()->remove($subscription);
         if ($flush) {

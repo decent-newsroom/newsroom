@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Notification;
+namespace App\Service\Update;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
@@ -12,12 +12,12 @@ use swentel\nostr\Nip19\Nip19Helper;
 
 /**
  * Turns a notified {@see Event} into display-safe title / summary / URL for a
- * {@see \App\Entity\Notification} row and its Mercure toast payload.
+ * {@see \App\Entity\Update} row and its Mercure toast payload.
  *
  * Keeps only the fields that are safe to render in a cross-user toast — no
  * raw event body, no profile data beyond the author pubkey.
  */
-class NotificationRenderer
+class UpdateRenderer
 {
     public function __construct(
         private readonly LoggerInterface $logger,
@@ -55,7 +55,7 @@ class NotificationRenderer
         }
 
         // Last-resort fallback when event id cannot be encoded.
-        return '/notifications';
+        return '/updates';
     }
 
     private function encodeNaddr(Event $event): ?string
@@ -75,7 +75,7 @@ class NotificationRenderer
             $nostr->setKind($event->getKind());
             return $nip19->encodeAddr($nostr, $dTag, $event->getKind());
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to encode notification naddr', [
+            $this->logger->warning('Failed to encode update naddr', [
                 'event_id' => $event->getId(),
                 'kind' => $event->getKind(),
                 'error' => $e->getMessage(),
@@ -90,7 +90,7 @@ class NotificationRenderer
             $nip19 = new Nip19Helper();
             return $nip19->encodeNote($event->getId());
         } catch (\Throwable $e) {
-            $this->logger->warning('Failed to encode notification note id', [
+            $this->logger->warning('Failed to encode update note id', [
                 'event_id' => $event->getId(),
                 'kind' => $event->getKind(),
                 'error' => $e->getMessage(),
@@ -129,6 +129,4 @@ class NotificationRenderer
         return mb_substr($s, 0, $max - 1) . '…';
     }
 }
-
-
 

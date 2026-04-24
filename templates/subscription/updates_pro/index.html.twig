@@ -2,7 +2,7 @@
 
 {% block body %}
 <div class="w-container py-4">
-    <twig:Atoms:PageHeading heading="Notifications Pro" tagline="Subscribe to more sources, unlock NIP-51 set notifications" />
+    <twig:Atoms:PageHeading heading="Updates Pro" tagline="Subscribe to more sources, unlock NIP-51 set updates" />
 
     {% for message in app.flashes('success') %}
         <div class="notice success">{{ message }}</div>
@@ -16,7 +16,7 @@
 
     {% if subscription and subscription.isActive %}
         <div class="notice success" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
-            <strong>✓ Notifications Pro active!</strong><br>
+            <strong>✓ Updates Pro active!</strong><br>
             Plan: {{ subscription.tier.label }}<br>
             Expires: {{ subscription.expiresAt|date('F j, Y') }}
             {% if subscription.daysRemaining is not null %}
@@ -25,7 +25,7 @@
         </div>
         <div style="text-align: center;">
             {% for tier in tiers %}
-                <a href="{{ path('notifications_pro_renew', {tier: tier.value}) }}" class="btn btn-secondary" style="margin: var(--spacing-1);">
+                <a href="{{ path('updates_pro_renew', {tier: tier.value}) }}" class="btn btn-secondary" style="margin: var(--spacing-1);">
                     ⚡ Renew — {{ tier.label }}
                 </a>
             {% endfor %}
@@ -35,10 +35,10 @@
             <div style="display: flex; justify-content: space-between; align-items: start; gap: var(--spacing-3);">
                 <div>
                     <strong>⏳ Payment Pending</strong><br>
-                    Your Notifications Pro subscription is awaiting payment.
+                    Your Updates Pro subscription is awaiting payment.
                     <br><small style="color: var(--color-text-mid);">If you didn't pay or want a different plan, you can cancel.</small>
                 </div>
-                <form action="{{ path('notifications_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel?');">
+                <form action="{{ path('updates_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel?');">
                     <button type="submit" class="btn btn-secondary" style="white-space: nowrap;">Cancel Pending</button>
                 </form>
             </div>
@@ -47,7 +47,7 @@
         <div class="d-flex flex-column align-items-center gap-3 mb-5">
             <p>
                 The free tier allows up to <strong>{{ freeCap }} subscriptions</strong> of the <em>npub</em> and <em>publication</em> types.<br>
-                <strong>Notifications Pro</strong> removes these limits and unlocks subscriptions to <em>NIP-51 interest sets</em>.
+                <strong>Updates Pro</strong> removes these limits and unlocks subscriptions to <em>NIP-51 interest sets</em>.
             </p>
         </div>
 
@@ -89,7 +89,7 @@
                         </div>
 
                         {% if app.user %}
-                            <a href="{{ path('notifications_pro_subscribe', {tier: tier.value}) }}" class="btn btn-subscribe">
+                            <a href="{{ path('updates_pro_subscribe', {tier: tier.value}) }}" class="btn btn-subscribe">
                                 ⚡ Subscribe Now
                             </a>
                         {% else %}

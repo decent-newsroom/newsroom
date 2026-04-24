@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Notification;
+namespace App\Service\Update;
 
 use App\Entity\Event;
-use App\Entity\NotificationSubscription;
+use App\Entity\UpdateSubscription;
 use App\Enum\KindsEnum;
-use App\Enum\NotificationSourceTypeEnum;
+use App\Enum\UpdateSourceTypeEnum;
 use App\Repository\EventRepository;
-use App\Repository\NotificationSubscriptionRepository;
+use App\Repository\UpdateSubscriptionRepository;
 
 /**
- * Resolves the set of {@see NotificationSubscription} rows that should receive
- * a notification for a given ingested {@see Event}.
+ * Resolves the set of {@see UpdateSubscription} rows that should receive
+ * an update for a given ingested {@see Event}.
  *
  * v1 notified kinds: {@see self::NOTIFIED_KINDS}. Events of any other kind
- * short-circuit and never produce notifications.
+ * short-circuit and never produce updates.
  */
-class NotificationMatcher
+class UpdateMatcher
 {
     public const NOTIFIED_KINDS = [
         KindsEnum::LONGFORM->value,          // 30023
@@ -41,7 +41,7 @@ class NotificationMatcher
     ];
 
     public function __construct(
-        private readonly NotificationSubscriptionRepository $subscriptionRepository,
+        private readonly UpdateSubscriptionRepository $subscriptionRepository,
         private readonly EventRepository $eventRepository,
     ) {
     }
@@ -92,8 +92,8 @@ class NotificationMatcher
     }
 
     /**
-     * @return NotificationSubscription[] Unique list of matching subscriptions.
-     *                                     Indexed by `userId` as the array key to enforce one-per-user.
+     * @return UpdateSubscription[] Unique list of matching subscriptions.
+     *                               Indexed by `userId` as the array key to enforce one-per-user.
      */
     public function match(Event $event): array
     {
@@ -101,12 +101,12 @@ class NotificationMatcher
             return [];
         }
 
-        /** @var array<int, NotificationSubscription> $matched keyed by user id */
+        /** @var array<int, UpdateSubscription> $matched keyed by user id */
         $matched = [];
 
         // 1. NPUB: any subscription to this event's author.
         $npubHits = $this->subscriptionRepository->findActiveBySourceValues(
-            NotificationSourceTypeEnum::NPUB,
+            UpdateSourceTypeEnum::NPUB,
             [$event->getPubkey()]
         );
         foreach ($npubHits as $sub) {
@@ -127,7 +127,7 @@ class NotificationMatcher
         }
         if ($coordinateCandidates !== []) {
             $pubHits = $this->subscriptionRepository->findActiveBySourceValues(
-                NotificationSourceTypeEnum::PUBLICATION,
+                UpdateSourceTypeEnum::PUBLICATION,
                 array_values(array_unique($coordinateCandidates))
             );
             foreach ($pubHits as $sub) {
@@ -139,7 +139,7 @@ class NotificationMatcher
         //    and check event against each bucket. Only fetch sets that exist in
         //    some user's active subscriptions (cheap initial query).
         $setSubs = $this->subscriptionRepository->findActiveBySourceValues(
-            NotificationSourceTypeEnum::NIP51_SET,
+            UpdateSourceTypeEnum::NIP51_SET,
             $this->allActiveSetCoordinates()
         );
         if ($setSubs !== []) {
@@ -148,7 +148,7 @@ class NotificationMatcher
             $eventTags = self::tTagValues($event);
 
             // Group set subs by coordinate so each coord is expanded once.
-            /** @var array<string, NotificationSubscription[]> $bySetCoord */
+            /** @var array<string, UpdateSubscription[]> $bySetCoord */
             $bySetCoord = [];
             foreach ($setSubs as $sub) {
                 $bySetCoord[$sub->getSourceValue()][] = $sub;

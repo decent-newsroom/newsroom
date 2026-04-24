@@ -1,0 +1,58 @@
+{% extends 'layout.html.twig' %}
+{% block title %}{{ 'updates.pageTitle'|trans }}{% endblock %}
+{% block body %}
+<div class="w-container py-4"
+     data-controller="ui--updates-stream"
+     data-ui--updates-stream-topic-url-value="{{ mercure_public_hub_url }}?topic={{ ('/users/' ~ app.user.id ~ '/updates')|url_encode }}">
+
+    <twig:Atoms:PageHeading
+        heading="{{ 'updates.pageTitle'|trans }}"
+        tagline="{{ 'updates.tagline'|trans }}" />
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="{{ path('updates_subscriptions') }}">{{ 'updates.manageSubscriptions'|trans }}</a>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            {% if not isPro %}
+                <a href="{{ path('updates_pro_index') }}" class="badge badge--pro">⚡ Updates Pro</a>
+            {% endif %}
+            <span class="badge">{{ unread }}</span> {{ 'updates.unreadLabel'|trans }}
+        </div>
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message|trans }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if updates is empty %}
+        <p class="text-muted">{{ 'updates.empty'|trans }}</p>
+    {% else %}
+        <ul class="update-list" data-ui--updates-stream-target="list">
+            {% for n in updates %}
+                <li class="update-item{% if n.readAt is null %} update-item--unread{% endif %}"
+                    data-update-id="{{ n.id }}">
+                    <div class="update-item__header">
+                        <span class="update-item__kind">
+                            {% if n.eventKind == 30023 %}{{ 'updates.toast.newArticle'|trans }}
+                            {% elseif n.eventKind == 30040 %}{{ 'updates.toast.newPublication'|trans }}
+                            {% else %}{{ n.eventKind }}
+                            {% endif %}
+                        </span>
+                        <time datetime="{{ n.createdAt|date('c') }}">{{ n.createdAt|date('Y-m-d H:i') }}</time>
+                    </div>
+                    <a href="{{ n.url }}" class="update-item__title">
+                        {{ n.title ?: 'updates.untitled'|trans }}
+                    </a>
+                    {% if n.summary %}
+                        <p class="update-item__summary">{{ n.summary }}</p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>
+{% endblock %}
+

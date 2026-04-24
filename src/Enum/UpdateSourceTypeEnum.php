@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Enum;
 
 /**
- * Type of source a user has subscribed to for notifications.
+ * Type of source a user has subscribed to for updates.
  *
  * v1 scope: only long-form content kinds (30023) and publication indices (30040)
- * are ever delivered as notifications, regardless of source type.
+ * are ever delivered as updates, regardless of source type.
  */
-enum NotificationSourceTypeEnum: string
+enum UpdateSourceTypeEnum: string
 {
     /** Single author pubkey. `source_value` = 64-char hex pubkey. */
     case NPUB = 'npub';
@@ -28,9 +28,9 @@ enum NotificationSourceTypeEnum: string
     public function label(): string
     {
         return match ($this) {
-            self::NPUB => 'notifications.subscription.sourceType.npub',
-            self::PUBLICATION => 'notifications.subscription.sourceType.publication',
-            self::NIP51_SET => 'notifications.subscription.sourceType.nip51Set',
+            self::NPUB => 'updates.subscription.sourceType.npub',
+            self::PUBLICATION => 'updates.subscription.sourceType.publication',
+            self::NIP51_SET => 'updates.subscription.sourceType.nip51Set',
         };
     }
 }

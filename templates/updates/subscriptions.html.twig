@@ -1,13 +1,13 @@
 {% extends 'layout.html.twig' %}
-{% block title %}{{ 'notifications.subscriptionsTitle'|trans }}{% endblock %}
+{% block title %}{{ 'updates.subscriptionsTitle'|trans }}{% endblock %}
 {% block body %}
 <div class="w-container py-4">
     <twig:Atoms:PageHeading
-        heading="{{ 'notifications.subscriptionsTitle'|trans }}"
-        tagline="{{ 'notifications.subscriptionsTagline'|trans }}" />
+        heading="{{ 'updates.subscriptionsTitle'|trans }}"
+        tagline="{{ 'updates.subscriptionsTagline'|trans }}" />
 
     <p>
-        <a href="{{ path('notifications_index') }}">← {{ 'notifications.backToCenter'|trans }}</a>
+        <a href="{{ path('updates_index') }}">← {{ 'updates.backToCenter'|trans }}</a>
     </p>
 
     {% for label, messages in app.flashes %}
@@ -19,7 +19,7 @@
     {# Tier status banner #}
     {% if isPro %}
         <div class="notice success mb-3" style="max-width: 600px;">
-            <strong>Notifications Pro</strong> active — unlimited subscriptions of all source types.
+            <strong>Updates Pro</strong> active — unlimited subscriptions of all source types.
             {% if proSubscription and proSubscription.expiresAt %}
                 Expires {{ proSubscription.expiresAt|date('F j, Y') }}.
             {% endif %}
@@ -27,24 +27,24 @@
     {% else %}
         <div class="notice info mb-3" style="max-width: 600px;">
             Free plan: {{ currentCount }}/{{ freeCap }} subscriptions used. NIP-51 set subscriptions require
-            <a href="{{ path('notifications_pro_index') }}">Notifications Pro</a>.
+            <a href="{{ path('updates_pro_index') }}">Updates Pro</a>.
         </div>
     {% endif %}
 
-    <form method="post" action="{{ path('notifications_subscriptions_add') }}" class="mb-4">
-        <input type="hidden" name="_token" value="{{ csrf_token('notification-subscribe') }}" />
-        <label for="identifier">{{ 'notifications.subscription.addLabel'|trans }}</label>
+    <form method="post" action="{{ path('updates_subscriptions_add') }}" class="mb-4">
+        <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
+        <label for="identifier">{{ 'updates.subscription.addLabel'|trans }}</label>
         <input type="text" id="identifier" name="identifier"
-               placeholder="{{ 'notifications.subscription.addPlaceholder'|trans }}"
+               placeholder="{{ 'updates.subscription.addPlaceholder'|trans }}"
                autocomplete="off"
                required />
         <div class="actions">
-            <button type="submit" class="btn">{{ 'notifications.subscription.addSubmit'|trans }}</button>
+            <button type="submit" class="btn">{{ 'updates.subscription.addSubmit'|trans }}</button>
         </div>
     </form>
 
     {% if subscriptions is empty %}
-        <p class="text-muted">{{ 'notifications.subscriptions.empty'|trans }}</p>
+        <p class="text-muted">{{ 'updates.subscriptions.empty'|trans }}</p>
     {% else %}
         <ul class="subscription-list">
             {% for s in subscriptions %}
@@ -59,10 +59,10 @@
                             <span class="subscription-item__value">{{ s.label ?: (s.sourceValue|split(':')|last) }}</span>
                         {% endif %}
                     </div>
-                    <form method="post" action="{{ path('notifications_subscriptions_remove', {id: s.id}) }}"
-                          onsubmit="return confirm('{{ 'notifications.subscription.removeConfirm'|trans }}');">
-                        <input type="hidden" name="_token" value="{{ csrf_token('notification-unsubscribe') }}" />
-                        <button type="submit" class="btn btn-sm">{{ 'notifications.subscription.remove'|trans }}</button>
+                    <form method="post" action="{{ path('updates_subscriptions_remove', {id: s.id}) }}"
+                          onsubmit="return confirm('{{ 'updates.subscription.removeConfirm'|trans }}');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('update-unsubscribe') }}" />
+                        <button type="submit" class="btn btn-sm">{{ 'updates.subscription.remove'|trans }}</button>
                     </form>
                 </li>
             {% endfor %}

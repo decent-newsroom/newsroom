@@ -3,12 +3,12 @@
 {% block body %}
 <div class="w-container py-4">
     <twig:Atoms:PageHeading
-        heading="{{ isRenewal ? 'Renew Notifications Pro' : 'Subscribe to Notifications Pro' }}"
+        heading="{{ isRenewal ? 'Renew Updates Pro' : 'Subscribe to Updates Pro' }}"
         tagline="{{ tier.label }}"
     />
 
     <p class="mb-4">
-        <a href="{{ path('notifications_pro_index') }}">← Back to Notifications Pro</a>
+        <a href="{{ path('updates_pro_index') }}">← Back to Updates Pro</a>
     </p>
 
     <div class="d-flex gap-4">
@@ -55,8 +55,8 @@
 
                 <div id="payment-status" style="margin-bottom: var(--spacing-3);"
                      data-controller="utility--payment-status"
-                     data-utility--payment-status-check-url-value="{{ path('notifications_pro_check_payment', {id: subscription.id}) }}"
-                     data-utility--payment-status-redirect-url-value="{{ path('notifications_pro_index') }}"
+                     data-utility--payment-status-check-url-value="{{ path('updates_pro_check_payment', {id: subscription.id}) }}"
+                     data-utility--payment-status-redirect-url-value="{{ path('updates_pro_index') }}"
                      data-utility--payment-status-interval-value="30000">
                     <button type="button" class="btn btn-secondary" data-action="utility--payment-status#check" style="margin-bottom: var(--spacing-2);">
                         Check Payment Status
@@ -70,7 +70,7 @@
 
                 <div class="mt-5 mb-2">
                     <p style="color: var(--color-text-muted); margin-bottom: var(--spacing-2);">Changed your mind?</p>
-                    <form action="{{ path('notifications_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription?');">
+                    <form action="{{ path('updates_pro_cancel') }}" method="post" onsubmit="return confirm('Cancel this pending subscription?');">
                         <div class="actions">
                             <button type="submit" class="btn btn-secondary">Cancel Pending Subscription</button>
                         </div>

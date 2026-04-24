@@ -727,17 +727,17 @@ webPreview:
     loadCta: 'Cargar vista previa'
     loadNotice: 'Haz clic para obtener una vista previa de %host%. Se contactará un servidor de terceros.'
 
-# ── Notifications Center ──────────────────────────────────────────
-notifications:
-    pageTitle: 'Notifications'
+# ── Updates Center ──────────────────────────────────────────
+updates:
+    pageTitle: 'Updates'
     tagline: 'New articles and publications from the sources you follow.'
-    empty: 'No notifications yet.'
+    empty: 'No updates yet.'
     untitled: 'Untitled'
     unreadLabel: 'unread'
     manageSubscriptions: 'Manage subscriptions'
-    backToCenter: 'Back to notifications'
-    subscriptionsTitle: 'Notification subscriptions'
-    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive notifications for new long-form content (kinds 30023 and 30040).'
+    backToCenter: 'Back to updates'
+    subscriptionsTitle: 'Update subscriptions'
+    subscriptionsTagline: 'Subscribe to an npub, a publication, or a NIP-51 list to receive updates for new long-form content (kinds 30023 and 30040).'
     subscriptions:
         empty: 'You have no active subscriptions.'
     subscription:

@@ -46,8 +46,8 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # graph tables (current_record, parsed_reference). Auto-repairs issues.
 0 3 * * * . /etc/environment && /usr/local/bin/php /app/bin/console dn:graph:audit --fix >> /var/log/cron-graph-audit.log 2>&1
 
-# Subscription payment checks (Active Indexing + Notifications Pro)
+# Subscription payment checks (Active Indexing + Updates Pro)
 # Checks for zap receipts matching pending invoices; also processes expiry / grace transitions.
 */5 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console active-indexing:check-receipts >> /var/log/cron-zap-receipts.log 2>&1
-*/60 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console notifications-pro:expire-subscriptions >> /var/log/cron-notif-pro-expire.log 2>&1
+*/60 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console updates-pro:expire-subscriptions >> /var/log/cron-updates-pro-expire.log 2>&1
 

@@ -6,12 +6,12 @@ namespace App\Service;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Message\FanOutNotificationMessage;
+use App\Message\FanOutUpdateMessage;
 use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
-use App\Service\Notification\NotificationMatcher;
+use App\Service\Update\UpdateMatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
@@ -214,14 +214,14 @@ class GenericEventProjector
             }
         }
 
-        // Notifications fan-out: dispatch for in-scope kinds (30023, 30040).
+        // Updates fan-out: dispatch for in-scope kinds (30023, 30040).
         // Recipient resolution, dedup, and Mercure push happen in the handler
         // so this stays off the ingestion hot path.
-        if (NotificationMatcher::isNotifiedKind((int) $event->kind)) {
+        if (UpdateMatcher::isNotifiedKind((int) $event->kind)) {
             try {
-                $this->messageBus->dispatch(new FanOutNotificationMessage($entity->getId()));
+                $this->messageBus->dispatch(new FanOutUpdateMessage($entity->getId()));
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to dispatch FanOutNotificationMessage', [
+                $this->logger->warning('Failed to dispatch FanOutUpdateMessage', [
                     'event_id' => $entity->getId(),
                     'kind' => $entity->getKind(),
                     'error' => $e->getMessage(),
