@@ -73,6 +73,19 @@ class UpdateRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function markAllRead(User $user): int
+    {
+        return (int) $this->createQueryBuilder('n')
+            ->update()
+            ->set('n.readAt', ':now')
+            ->andWhere('n.user = :user')
+            ->andWhere('n.readAt IS NULL')
+            ->setParameter('now', new \DateTimeImmutable())
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->execute();
+    }
+
     public function existsForUserAndEvent(User $user, string $eventId): bool
     {
         return $this->findOneBy(['user' => $user, 'eventId' => $eventId]) !== null;

@@ -44,11 +44,31 @@ class UpdatesController extends AbstractController
     {
         /** @var User $user */
         $user = $this->getUser();
-        $items = $this->updateRepository->findRecentForUser($user, 50);
+        $raw = $this->updateRepository->findRecentForUser($user, 200);
         $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
 
-        // Opening the page clears the "unseen" badge but leaves per-item read state.
+        // Opening the page marks all updates as seen and read.
         $this->updateRepository->markAllSeen($user);
+        $this->updateRepository->markAllRead($user);
+
+        // Collapse: for article updates (kind 30023), only keep the latest
+        // per publication/author (identified by eventPubkey). Results are
+        // already sorted newest-first so the first occurrence is the latest.
+        $items = [];
+        $seenPubkeys = [];
+        foreach ($raw as $update) {
+            if ($update->getEventKind() === 30023) {
+                $key = $update->getEventPubkey();
+                if (isset($seenPubkeys[$key])) {
+                    continue;
+                }
+                $seenPubkeys[$key] = true;
+            }
+            $items[] = $update;
+            if (count($items) >= 50) {
+                break;
+            }
+        }
 
         return $this->render('updates/index.html.twig', [
             'updates' => $items,
