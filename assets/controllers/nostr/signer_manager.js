@@ -6,6 +6,7 @@
 // on every page load.
 
 const REMOTE_SIGNER_KEY = 'amber_remote_signer';
+const PENDING_SYNC_KEY  = 'nip46_server_sync_pending'; // set after login; cleared once server registration succeeds
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 const CONNECTION_TIMEOUT_MS = 60000; // 60 seconds - event may arrive after EOSE
@@ -63,6 +64,12 @@ export async function getSigner(retryCount = 0) {
 
 export function setRemoteSignerSession(session) {
   localStorage.setItem(REMOTE_SIGNER_KEY, JSON.stringify(session));
+  // Mark that we still need to sync the session credentials to the server.
+  // The /api/nostr-connect/session POST made right after login often returns 401
+  // because the PHP session hasn't been committed to Redis yet at that exact
+  // moment.  syncServerSessionIfPending() (called on every turbo:load) retries
+  // the registration once the user is fully authenticated after the page reload.
+  localStorage.setItem(PENDING_SYNC_KEY, '1');
 }
 
 /**
@@ -73,6 +80,7 @@ export function setRemoteSignerSession(session) {
 export function clearRemoteSignerSession() {
   console.log('[signer_manager] Clearing remote signer session');
   localStorage.removeItem(REMOTE_SIGNER_KEY);
+  localStorage.removeItem(PENDING_SYNC_KEY);
   try { remoteSigner?.close?.(); } catch (_) {}
   remoteSigner = null;
   remoteSignerPromise = null;
@@ -85,6 +93,54 @@ export function getRemoteSignerSession() {
     return JSON.parse(raw);
   } catch {
     return null;
+  }
+}
+
+/**
+ * POST the stored NIP-46 session credentials to /api/nostr-connect/session if a
+ * registration is still pending (flag set in setRemoteSignerSession).
+ *
+ * Called on every turbo:load so that a failed pre-reload attempt (which gets 401
+ * because the PHP session hasn't been committed to Redis yet) is retried
+ * automatically once the user is authenticated on the reloaded page.
+ */
+export async function syncServerSessionIfPending() {
+  if (!localStorage.getItem(PENDING_SYNC_KEY)) return;
+
+  const session = getRemoteSignerSession();
+  if (!session?.privkey) return;
+
+  const bunkerPubkey  = session.bunkerPointer?.pubkey;
+  const bunkerRelays  = session.bunkerPointer?.relays?.length
+    ? session.bunkerPointer.relays
+    : (session.relays ?? []);
+
+  if (!bunkerPubkey || !bunkerRelays.length) return;
+
+  try {
+    const resp = await fetch('/api/nostr-connect/session', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        clientPrivkeyHex: session.privkey,
+        bunkerPubkeyHex:  bunkerPubkey,
+        bunkerRelays:     bunkerRelays,
+      }),
+    });
+
+    if (resp.ok) {
+      // Registration succeeded — no need to retry on subsequent page loads.
+      localStorage.removeItem(PENDING_SYNC_KEY);
+      console.log('[signer_manager] NIP-46 server session registered successfully');
+    } else if (resp.status === 400) {
+      // Bad request — invalid stored data, stop retrying.
+      localStorage.removeItem(PENDING_SYNC_KEY);
+      console.warn('[signer_manager] NIP-46 server session rejected (400), clearing pending flag');
+    }
+    // 401 → user not authenticated yet; keep the flag and retry on next turbo:load.
+  } catch (_) {
+    // Network error — keep the flag for next page load.
   }
 }
 

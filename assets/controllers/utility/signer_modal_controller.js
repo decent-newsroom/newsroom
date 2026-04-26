@@ -241,7 +241,7 @@ export default class extends Controller {
     if (!bp || !bp.pubkey || !bp.relays || !this._localSecretKeyHex) {
       return;
     }
-    await fetch('/api/nostr-connect/session', {
+    const resp = await fetch('/api/nostr-connect/session', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -251,6 +251,11 @@ export default class extends Controller {
         bunkerRelays:     bp.relays,
       }),
     });
+    // If the pre-reload registration succeeded, clear the pending flag so
+    // syncServerSessionIfPending() skips the redundant retry on turbo:load.
+    if (resp.ok) {
+      localStorage.removeItem('nip46_server_sync_pending');
+    }
   }
 
   async copyUri() {
