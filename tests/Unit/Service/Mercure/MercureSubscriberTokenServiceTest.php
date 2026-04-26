@@ -24,7 +24,7 @@ class MercureSubscriberTokenServiceTest extends TestCase
 
         $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/'), true), true);
         self::assertIsArray($payload);
-        self::assertSame(['/users/7/notifications'], $payload['mercure']['subscribe']);
+        self::assertSame(['/users/7/updates'], $payload['mercure']['subscribe']);
         self::assertArrayHasKey('exp', $payload);
         self::assertGreaterThan(time(), $payload['exp']);
     }
@@ -34,7 +34,7 @@ class MercureSubscriberTokenServiceTest extends TestCase
         $user = new User();
         $user->setId(42);
         $user->setNpub('npub1whatever');
-        self::assertSame('/users/42/notifications', MercureSubscriberTokenService::topicForUser($user));
+        self::assertSame('/users/42/updates', MercureSubscriberTokenService::topicForUser($user));
     }
 }
 

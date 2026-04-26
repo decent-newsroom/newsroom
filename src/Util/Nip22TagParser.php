@@ -59,7 +59,9 @@ final class Nip22TagParser
                     $result['rootPubkey'] = (string) $value;
                     break;
                 case 'p':
-                    $result['parentPubkeys'][] = (string) $value;
+                    if ($value !== '') {
+                        $result['parentPubkeys'][] = (string) $value;
+                    }
                     break;
                 case 'E':
                     $result['rootEventId'] = (string) $value;
