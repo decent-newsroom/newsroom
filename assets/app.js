@@ -103,14 +103,3 @@ function highlightCode() { Prism.highlightAll(); }
 highlightCode();
 document.addEventListener('turbo:load', highlightCode);
 
-// Retry NIP-46 server session registration on every page load.
-// The initial attempt (right after login, before page reload) often returns 401
-// because the PHP session hasn't been committed to Redis yet at that exact moment.
-// syncServerSessionIfPending() checks for a pending flag set by setRemoteSignerSession()
-// and re-posts the credentials once the user is authenticated on the reloaded page.
-import('./controllers/nostr/signer_manager.js').then(({ syncServerSessionIfPending }) => {
-  document.addEventListener('turbo:load', () => {
-    syncServerSessionIfPending().catch(() => {});
-  });
-}).catch(() => {});
-

@@ -144,6 +144,18 @@ export async function syncServerSessionIfPending() {
   }
 }
 
+// Self-register: retry pending NIP-46 server session on every Turbo page load.
+// This module is statically imported by several Stimulus controllers (e.g.
+// article_actions_dropdown, reading_list_dropdown, relay_auth) so the listener
+// will be registered on most authenticated pages without any extra wiring in app.js.
+// Using turbo:load rather than a one-shot DOMContentLoaded so it also fires after
+// Turbo navigations (important when the user navigates away from /login post-auth).
+if (typeof document !== 'undefined') {
+  document.addEventListener('turbo:load', () => {
+    syncServerSessionIfPending().catch(() => {});
+  });
+}
+
 // Create BunkerSigner from stored session
 // Uses fromBunker() for reconnection with stored BunkerPointer
 // Falls back to fromURI() for legacy sessions
