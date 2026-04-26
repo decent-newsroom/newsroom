@@ -2,6 +2,8 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        bind:
+            $kernelCacheDir: '%kernel.cache_dir%'
 
     App\UnfoldBundle\:
         resource: '../../'

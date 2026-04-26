@@ -18,10 +18,13 @@ class HandlebarsRenderer
 
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly string $projectDir,
+        readonly string $projectDir,
+        readonly string $kernelCacheDir,
     ) {
         $this->themesBasePath = $projectDir . '/src/UnfoldBundle/Resources/themes';
-        $this->cachePath = $projectDir . '/var/cache/unfold/templates';
+        // Store compiled templates inside the env-specific cache dir so they are
+        // deleted and rebuilt automatically when `cache:clear` runs.
+        $this->cachePath = $kernelCacheDir . '/unfold/templates';
     }
 
     /**

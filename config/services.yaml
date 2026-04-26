@@ -64,6 +64,7 @@ services:
             $environment: '%kernel.environment%'
             $baseDomain: '%base_domain%'
             $messengerTransportDsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+            $kernelCacheDir: '%kernel.cache_dir%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
