@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Nostr\GatewayConnection;
+use App\Service\Nostr\Nip46AuthSigner;
+use App\Service\Nostr\Nip46SessionService;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
@@ -172,6 +174,8 @@ class RelayGatewayCommand extends Command
         private readonly RelayRegistry $relayRegistry,
         private readonly RelayHealthStore $healthStore,
         private readonly HubInterface $hub,
+        private readonly Nip46AuthSigner $nip46Signer,
+        private readonly Nip46SessionService $nip46Sessions,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -1565,8 +1569,62 @@ class RelayGatewayCommand extends Command
             return;
         }
 
-        // For user connections, initiate Mercure roundtrip
-        $this->logger->info('Gateway: AUTH challenge for user connection, starting Mercure roundtrip', [
+        // For user connections, try server-side NIP-46 signing first (no browser
+        // roundtrip needed if the user logged in with a remote signer).
+        $this->logger->info('Gateway: AUTH challenge for user connection, checking NIP-46 session', [
+            'relay' => $conn->relayUrl,
+            'pubkey' => substr($conn->pubkey, 0, 8) . '...',
+        ]);
+
+        $session = $this->nip46Sessions->get($conn->pubkey);
+
+        if ($session !== null) {
+            $this->logger->info('Gateway: found NIP-46 session — signing AUTH server-side', [
+                'relay' => $conn->relayUrl,
+                'pubkey' => substr($conn->pubkey, 0, 8) . '...',
+            ]);
+
+            $authRelayUrl = $this->resolveRelayUrlForAuth($conn->relayUrl);
+            $signedEvent  = $this->nip46Signer->signAuthEvent(
+                $conn->pubkey,
+                $authRelayUrl,
+                $challenge,
+                $session,
+            );
+
+            if ($signedEvent !== null) {
+                // Send AUTH directly — no browser roundtrip needed
+                try {
+                    $authPayload = json_encode(['AUTH', $signedEvent]);
+                    $conn->getClient()->text($authPayload);
+                    $conn->authStatus = 'authed';
+                    $conn->touch();
+                    $this->healthStore->setAuthRequired($conn->relayUrl);
+                    $this->healthStore->setAuthStatus($conn->relayUrl, 'nip46');
+                    $this->logger->info('Gateway: NIP-46 server-side AUTH sent successfully', [
+                        'relay'  => $conn->relayUrl,
+                        'pubkey' => substr($conn->pubkey, 0, 8) . '...',
+                    ]);
+                    // Flush any deferred publishes/reqs now that we're authed
+                    $this->flushDeferredForConnection($key, $conn);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Gateway: failed to send NIP-46 AUTH to relay', [
+                        'relay' => $conn->relayUrl,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $conn->authStatus = 'failed';
+                }
+                return;
+            }
+
+            $this->logger->warning('Gateway: NIP-46 signing failed — falling back to Mercure roundtrip', [
+                'relay'  => $conn->relayUrl,
+                'pubkey' => substr($conn->pubkey, 0, 8) . '...',
+            ]);
+        }
+
+        // No NIP-46 session (NIP-07 extension user) — use Mercure roundtrip
+        $this->logger->info('Gateway: AUTH challenge — using Mercure roundtrip to browser', [
             'relay' => $conn->relayUrl,
             'pubkey' => substr($conn->pubkey, 0, 8) . '...',
         ]);

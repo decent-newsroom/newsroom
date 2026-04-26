@@ -172,6 +172,11 @@ export default class extends Controller {
           secret: this._secret
         });
         this._setStatus('Authenticated. Reloading…');
+
+        // Forward NIP-46 session to the server so the relay gateway can sign
+        // NIP-42 AUTH events server-side (no browser roundtrip on AUTH).
+        await this._registerServerSession().catch(() => {/* non-fatal */});
+
         setTimeout(() => window.location.reload(), 500);
       } else {
         this._setStatus('Login failed (' + resp.status + ')');
@@ -180,6 +185,24 @@ export default class extends Controller {
       console.error('[amber-connect] auth error', e);
       this._setStatus('Auth error: ' + (e.message || 'unknown'));
     }
+  }
+
+  /** POST the ephemeral NIP-46 session credentials to the server. */
+  async _registerServerSession() {
+    const bp = this._signer.bp;
+    if (!bp || !bp.pubkey || !bp.relays || !this._localSecretKeyHex) {
+      return;
+    }
+    await fetch('/api/nostr-connect/session', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        clientPrivkeyHex: this._localSecretKeyHex,
+        bunkerPubkeyHex:  bp.pubkey,
+        bunkerRelays:     bp.relays,
+      }),
+    });
   }
 
   async copyUri() {

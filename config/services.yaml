@@ -198,6 +198,11 @@ services:
     App\Service\Nostr\NostrRequestExecutor:
         lazy: true
 
+    # NIP-46 session storage — encrypted ephemeral client keys for remote-signer users
+    App\Service\Nostr\Nip46SessionService:
+        arguments:
+            $encryptionKey: '%encryption_key%'
+
     App\MessageHandler\UpdateRelayListHandler:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
