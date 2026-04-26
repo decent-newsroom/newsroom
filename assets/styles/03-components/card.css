@@ -74,7 +74,6 @@ article .card:not(.zap-modal-content,.comment) {
 
 @media screen and (min-width: 1200px) {
     .featured-list .card-placeholder-bg {
-        height: auto;
         aspect-ratio: 1.4;
     }
 }

@@ -1841,20 +1841,23 @@ class RelayGatewayCommand extends Command
      *
      * Preference:
      *   1. User connection (if pubkey provided and connection exists + connected)
-     *   2. On-demand shared connection (if exists + connected)
-     *   3. null → caller opens inline or records error
+     *   2. On-demand shared connection (only when no pubkey — anonymous requests)
+     *   3. null → caller opens inline as user-keyed (pubkey) or shared (no pubkey)
      */
     private function routeConnection(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
-        // Try user connection first
+        // Per-user auth: always use a user-keyed connection when a pubkey is known.
+        // Never fall back to a shared (ephemeral) connection for authenticated users.
         if ($pubkey) {
             $userKey = GatewayConnection::buildKey($relayUrl, $pubkey);
             if (isset($this->connections[$userKey]) && $this->connections[$userKey]->isConnected()) {
                 return $this->connections[$userKey];
             }
+            // No user connection yet — return null so caller opens one inline.
+            return null;
         }
 
-        // Try existing on-demand shared connection
+        // Anonymous request — use an existing shared connection if available.
         $sharedKey = GatewayConnection::buildKey($relayUrl);
         if (isset($this->connections[$sharedKey]) && $this->connections[$sharedKey]->isConnected()) {
             return $this->connections[$sharedKey];
@@ -1868,8 +1871,8 @@ class RelayGatewayCommand extends Command
      *
      * Preference:
      *   1. Existing user connection (authed or mid-AUTH → caller defers send)
-     *   2. Existing on-demand shared connection
-     *   3. null → caller opens inline or writes immediate failure
+     *   2. Existing on-demand shared connection (only when no pubkey — anonymous)
+     *   3. null → caller opens inline as user-keyed or shared
      */
     private function routeConnectionForPublish(string $relayUrl, ?string $pubkey): ?GatewayConnection
     {
@@ -1878,9 +1881,12 @@ class RelayGatewayCommand extends Command
             if (isset($this->connections[$userKey]) && $this->connections[$userKey]->isConnected()) {
                 return $this->connections[$userKey];
             }
+            // No user connection yet — return null so caller opens one inline
+            // as a user-keyed connection (per-user auth, never ephemeral).
+            return null;
         }
 
-        // Fall back to on-demand shared connection
+        // Fall back to on-demand shared connection for anonymous publishes.
         $sharedKey = GatewayConnection::buildKey($relayUrl);
         if (isset($this->connections[$sharedKey]) && $this->connections[$sharedKey]->isConnected()) {
             return $this->connections[$sharedKey];

@@ -206,9 +206,7 @@ services:
         arguments:
             $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
 
-    App\EventListener\UserMetadataSyncListener:
-        arguments:
-            $gatewayEnabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+    App\EventListener\UserMetadataSyncListener: ~
 
     App\EventListener\LogoutRelayCleanupListener:
         arguments:

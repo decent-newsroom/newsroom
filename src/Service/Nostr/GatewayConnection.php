@@ -11,9 +11,10 @@ use WebSocket\Client as WsClient;
 /**
  * Represents a single persistent WebSocket connection in the relay gateway.
  *
- * Connections are keyed by "{relayUrl}" (shared) or "{relayUrl}::{pubkeyHex}" (user-specific).
- * Shared connections use ephemeral AUTH; user connections authenticate as the user's actual npub
- * via Mercure roundtrip signing.
+ * Connections are keyed by "{relayUrl}" (shared/anonymous) or "{relayUrl}::{pubkeyHex}" (user-specific).
+ * User connections always authenticate as the user's actual npub via Mercure roundtrip signing.
+ * Shared connections (no pubkey) are used only for anonymous/system-level traffic and may use
+ * ephemeral AUTH; per-user requests never fall back to a shared connection.
  *
  * Wraps a swentel\nostr\Relay object (which itself wraps a WebSocket\Client).
  * This matches the protocol patterns used by TweakedRequest and NostrRelayPool::subscribeLocal().

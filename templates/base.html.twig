@@ -49,8 +49,6 @@
 </head>
 <body data-controller="service-worker visit-analytics" data-visit-analytics-path-value="{{ app.request.pathInfo }}">
 
-{% set relayAuthListen = app.flashes('relay_auth_listen') %}
-
 {% block header %}
     <twig:Header />
 {% endblock %}
@@ -78,11 +76,11 @@
      style="display:none"></div>
 {% endif %}
 
-{# Relay AUTH signer — listens for NIP-42 challenges from the relay gateway via Mercure #}
-{% if app.user and relay_gateway_enabled and relayAuthListen is not empty %}
+{# Relay AUTH signer — always active for logged-in users so every relay connection authenticates as the user, not as an ephemeral key #}
+{% if app.user and relay_gateway_enabled %}
 <div data-controller="nostr--relay-auth"
      data-nostr--relay-auth-pubkey-value="{{ app.user.npub|npub_to_hex }}"
-     data-nostr--relay-auth-poll-url-value="{{ path('api_relay_auth_pending') }}"
+     data-nostr--relay-auth-hub-url-value="{{ mercure_public_hub_url }}"
      style="display:none"></div>
 {% endif %}
 

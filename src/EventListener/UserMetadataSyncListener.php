@@ -24,7 +24,6 @@ class UserMetadataSyncListener
         private readonly MessageBusInterface $messageBus,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
-        private readonly bool $gatewayEnabled = false,
     ) {
     }
 
@@ -53,7 +52,11 @@ class UserMetadataSyncListener
         }
 
         // Dispatch async relay list warming — throttled to avoid hammering relays
-        // on repeated logins / tab refreshes
+        // on repeated logins / tab refreshes.
+        // Gateway warm is always dispatched (inside UpdateRelayListHandler) when
+        // shouldSync is true. For throttled logins where shouldSync is false we
+        // still re-warm gateway connections so any new AUTH challenges that arrived
+        // since the last warm are handled by the now-persistent relay-auth controller.
         try {
             $npub = $user->getNpub();
             if ($npub && NostrKeyUtil::isNpub($npub)) {
@@ -70,9 +73,6 @@ class UserMetadataSyncListener
                     $fullSync = $lastRefresh === null;
                     $this->messageBus->dispatch(new UpdateRelayListMessage($hex, $fullSync));
 
-                    if ($this->gatewayEnabled && $event->getRequest()->hasSession()) {
-                        $event->getRequest()->getSession()->getFlashBag()->add('relay_auth_listen', '1');
-                    }
 
                     $this->logger->debug('Dispatched relay list warming for user', [
                         'npub' => substr($npub, 0, 16) . '...',
