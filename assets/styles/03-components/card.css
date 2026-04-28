@@ -4,6 +4,11 @@
  * For shared card styles, see cards-shared.css
  */
 
+.article-edited-note {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
 h2.card-title {
     margin-top: var(--spacing-2);
 }

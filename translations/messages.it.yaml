@@ -6,6 +6,7 @@ text:
     noResults: 'Nessun risultato.'
     by: 'di'
     published: 'Pubblicato'
+    edited: 'Modificato'
     all: 'Tutti'
     signIn: 'Accedi'
     createNew: 'Crea nuovo'

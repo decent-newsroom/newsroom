@@ -6,6 +6,7 @@ text:
     noResults: 'Aucun résultat.'
     by: 'par'
     published: 'Publié'
+    edited: 'Modifié'
     all: 'Tout'
     signIn: 'Se connecter'
     createNew: 'Créer nouveau'

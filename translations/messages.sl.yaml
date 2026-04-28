@@ -6,6 +6,7 @@ text:
     noResults: 'Ni rezultatov.'
     by: 'avtor'
     published: 'Objavljeno'
+    edited: 'Urejeno'
     all: 'Vse'
     signIn: 'Prijava'
     createNew: 'Ustvari novo'

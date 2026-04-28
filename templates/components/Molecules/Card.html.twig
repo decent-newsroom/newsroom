@@ -6,7 +6,13 @@
                 {% set user = authors_metadata|default([])[pubkey] ?? null %}
                 <p class="m-0">by <twig:Molecules:UserFromNpub :user="user" :ident="pubkey" /></p>
             {% endif %}
-            <small>{{ article.createdAt|date('F j Y') }}</small>
+            {# Show published date; if article has been edited (created_at ≠ published_at), show edit indicator #}
+            {% set displayDate = (article.publishedAt is not null) ? article.publishedAt : article.createdAt %}
+            {% set isEdited = article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+            <small>{{ displayDate|date('F j Y') }}</small>
+            {% if isEdited %}
+                <small class="article-edited-note" title="{{ 'text.edited'|trans }}: {{ article.createdAt|date('F j, Y') }}">· {{ 'text.edited'|trans }} {{ article.createdAt|date('M j, Y') }}</small>
+            {% endif %}
         </div>
         {% if article.kind == 30024 %}
             {# Draft - use draft route #}

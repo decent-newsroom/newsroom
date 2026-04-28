@@ -14,7 +14,12 @@
             </div>
 
             <div class="article-date text-muted small">
-                {{ article.createdAt|date('M j, Y') }}
+                {% set displayDate = (article.publishedAt is defined and article.publishedAt is not null) ? article.publishedAt : article.createdAt %}
+                {% set isEdited = article.publishedAt is defined and article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+                {{ displayDate|date('M j, Y') }}
+                {% if isEdited %}
+                    <span class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('M j, Y') }}</span>
+                {% endif %}
             </div>
         </div>
 

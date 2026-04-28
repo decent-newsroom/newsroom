@@ -200,10 +200,11 @@
                     <span>
                         {% if article.publishedAt is not null %}
                             <small>{{ article.publishedAt|date('F j, Y') }}</small>
+                            {% if article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+                                <small class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('F j, Y') }}</small>
+                            {% endif %}
                         {% else %}
-                            <small>
-    {#                            <twig:ux:icon name="heroicons:pencil" class="icon" /> #}
-                                {{ article.createdAt|date('F j, Y') }}</small>
+                            <small>{{ article.createdAt|date('F j, Y') }}</small>
                         {% endif %}
                     </span>
                 </div>

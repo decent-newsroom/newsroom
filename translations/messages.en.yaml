@@ -6,6 +6,7 @@ text:
     noResults: 'No results.'
     by: 'by'
     published: 'Published'
+    edited: 'Edited'
     all: 'All'
     signIn: 'Sign In'
     createNew: 'Create new'

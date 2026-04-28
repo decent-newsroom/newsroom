@@ -6,6 +6,7 @@ text:
     noResults: 'Sin resultados.'
     by: 'por'
     published: 'Publicado'
+    edited: 'Editado'
     all: 'Todo'
     signIn: 'Iniciar sesión'
     createNew: 'Crear nuevo'
