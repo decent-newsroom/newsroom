@@ -201,7 +201,9 @@ class ArticleRepository extends ServiceEntityRepository
             $types[$key] = ParameterType::STRING;
         }
 
-        $sql = 'SELECT DISTINCT id, created_at FROM article WHERE ' . implode(' OR ', $wheres)
+        $sql = 'SELECT DISTINCT id, created_at FROM article WHERE (' . implode(' OR ', $wheres) . ')'
+             // Only fresh releases: skip revisions where published_at differs from created_at
+             . ' AND (published_at IS NULL OR published_at = created_at)'
              . ' ORDER BY created_at DESC';
 
         if ($limit > 0) {
@@ -249,6 +251,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->andWhere('a.slug IS NOT NULL')
             ->andWhere('a.kind != :draftKind')
             ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
+            // Only fresh releases: skip revisions where published_at differs from created_at
+            ->andWhere('a.publishedAt IS NULL OR a.publishedAt = a.createdAt')
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults($limit * 2); // overfetch for deduplication
 
