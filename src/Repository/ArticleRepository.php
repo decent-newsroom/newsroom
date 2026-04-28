@@ -35,6 +35,8 @@ class ArticleRepository extends ServiceEntityRepository
             ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
             ->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
             ->setParameter('slugPattern', '%/%')
+            // Only fresh releases: filter out revisions where published_at differs from created_at
+            ->andWhere('a.publishedAt = a.createdAt')
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults($limit * 2); // Get more initially, will dedupe by slug
 

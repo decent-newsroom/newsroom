@@ -72,7 +72,9 @@ class CacheLatestArticlesCommand extends Command
             ->andWhere('a.title IS NOT NULL')
             ->andWhere("a.title != ''")
             ->andWhere('a.kind != :draftKind')
-            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT);
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
+            // Only fresh releases: filter out revisions where published_at differs from created_at
+            ->andWhere('a.publishedAt = a.createdAt');
 
         if (!empty($excludedPubkeys)) {
             $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
