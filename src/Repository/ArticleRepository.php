@@ -716,7 +716,9 @@ class ArticleRepository extends ServiceEntityRepository
             ->andWhere('a.title IS NOT NULL')
             ->andWhere('a.slug IS NOT NULL')
             ->andWhere('a.kind != :draftKind')
-            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT);
+            ->setParameter('draftKind', KindsEnum::LONGFORM_DRAFT)
+            // Only fresh releases: skip revisions where published_at differs from created_at
+            ->andWhere('a.publishedAt IS NULL OR a.publishedAt = a.createdAt');
 
         /** @var Article[] $allArticles */
         $allArticles = $qb->getQuery()->getResult();
