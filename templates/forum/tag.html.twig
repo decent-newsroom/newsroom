@@ -3,18 +3,10 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ tag|capitalize }}" />
 
-    <div class="articles-list">
-        {% for article in articles %}
-            <div class="article-item">
-                <h3><a href="{{ path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode}) }}">{{ article.title }}</a></h3>
-                <p>{{ article.summary|slice(0, 200) }}{% if article.summary|length > 200 %}...{% endif %}</p>
-                <small>{{ 'text.published'|trans }}: {{ (article.publishedAt ?? article.createdAt)|date('Y-m-d') }}{% if article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %} <span class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('Y-m-d') }}</span>{% endif %}</small>
-            </div>
-        {% endfor %}
-    </div>
-
     {% if articles is empty %}
-        <p>No articles found for this tag.</p>
+        <p>{{ 'topics.noArticles'|trans }}</p>
+    {% else %}
+        <twig:Organisms:CardList :list="articles" class="article-list" />
     {% endif %}
 
     {% if pager.getNbPages() > 1 %}

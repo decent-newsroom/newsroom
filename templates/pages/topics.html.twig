@@ -55,7 +55,7 @@
 
 <div class="topics-list">
     {% for key, topic in topics %}
-        <a href="{{ path('topics', {'topic': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
+        <a href="{{ path('forum_topic', {'key': key}) }}" class="topic-button {{ selectedTopic == key ? 'active' : '' }}">
             {{ topic.name }}
         </a>
     {% endfor %}
@@ -63,15 +63,7 @@
 
 {% if selectedTopic and articles %}
     <h2>{{ 'topics.recentIn'|trans({'%topic%': topics[selectedTopic].name}) }}</h2>
-    <div class="articles-list">
-        {% for article in articles %}
-            <div class="article-item">
-                <h3><a href="{{ path('article-slug', {slug: article.slug|url_encode}) }}">{{ article.title }}</a></h3>
-                <p>{{ article.summary|slice(0, 150) }}{% if article.summary|length > 150 %}...{% endif %}</p>
-                <small>{{ 'text.published'|trans }}: {{ (article.publishedAt ?? article.createdAt)|date('Y-m-d') }}{% if article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %} <span class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('Y-m-d') }}</span>{% endif %}</small>
-            </div>
-        {% endfor %}
-    </div>
+    <twig:Organisms:CardList :list="articles" class="article-list" />
 {% elseif selectedTopic %}
     <p>{{ 'topics.noArticles'|trans }}</p>
 {% endif %}

@@ -29,6 +29,43 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 class ForumController extends AbstractController
 {
+    #[Route('/topics', name: 'topics')]
+    public function topics(
+        ArticleSearchInterface $articleSearch,
+        Request $request,
+    ): Response {
+        // Build flat topics map: key => ['name' => ..., 'tags' => [...]]
+        $topics = [];
+        foreach (ForumTopics::TOPICS as $catKey => $cat) {
+            foreach ($cat['subcategories'] as $subKey => $sub) {
+                $key = $catKey . '-' . $subKey;
+                $topics[$key] = [
+                    'name' => $sub['name'],
+                    'tags' => $sub['tags'],
+                ];
+            }
+        }
+
+        $selectedTopic = $request->query->get('topic');
+        $articles = [];
+
+        if ($selectedTopic && isset($topics[$selectedTopic])) {
+            $tags = array_map('strtolower', $topics[$selectedTopic]['tags']);
+            try {
+                $articles = $articleSearch->findByTopics($tags, 20, 0);
+                $articles = $this->deduplicateArticles($articles);
+            } catch (\Throwable) {
+                $articles = [];
+            }
+        }
+
+        return $this->render('pages/topics.html.twig', [
+            'topics' => $topics,
+            'selectedTopic' => $selectedTopic,
+            'articles' => $articles,
+        ]);
+    }
+
     #[Route('/forum', name: 'forum')]
     public function index(
         ArticleSearchInterface $articleSearch,
