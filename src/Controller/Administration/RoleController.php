@@ -20,6 +20,27 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 class RoleController extends AbstractController
 {
+    #[Route('/admin/roles/users', name: 'admin_roles_users')]
+    public function usersWithRoles(Request $request, UserEntityRepository $userRepository, RedisCacheService $redisCacheService): Response
+    {
+        $page = max(1, (int)$request->query->get('page', 1));
+        $perPage = 20;
+        $offset = ($page - 1) * $perPage;
+
+        $total = $userRepository->countUsersWithAnyRoles();
+        $users = $userRepository->findUsersWithAnyRolesPaginated($perPage, $offset);
+        $usersWithRolesData = $this->enrichUsersWithMetadata($users, $redisCacheService);
+
+        // Pagerfanta for pagination controls
+        $pager = new \Pagerfanta\Pagerfanta(new \Pagerfanta\Adapter\FixedAdapter($total, $users));
+        $pager->setMaxPerPage($perPage);
+        $pager->setCurrentPage($page);
+
+        return $this->render('admin/roles_users.html.twig', [
+            'usersWithRoles' => $usersWithRolesData,
+            'pager' => $pager,
+        ]);
+    }
     #[Route('/admin/role', name: 'admin_roles')]
     public function index(UserEntityRepository $userRepository, RedisCacheService $redisCacheService): Response
     {
@@ -37,16 +58,11 @@ class RoleController extends AbstractController
         $rssManagers = $userRepository->findRssManagers();
         $rssManagersData = $this->enrichUsersWithMetadata($rssManagers, $redisCacheService);
 
-        // Get all users with any roles for the overview table
-        $usersWithRoles = $userRepository->findUsersWithAnyRoles();
-        $usersWithRolesData = $this->enrichUsersWithMetadata($usersWithRoles, $redisCacheService);
-
         return $this->render('admin/roles.html.twig', [
             'form' => $form->createView(),
             'featuredWriters' => $featuredWritersData,
             'mutedUsers' => $mutedUsersData,
             'rssManagers' => $rssManagersData,
-            'usersWithRoles' => $usersWithRolesData,
         ]);
     }
 

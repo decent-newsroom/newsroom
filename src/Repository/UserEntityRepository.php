@@ -12,6 +12,46 @@ use Doctrine\Persistence\ManagerRegistry;
 
 class UserEntityRepository extends ServiceEntityRepository
 {
+    /**
+     * Paginated: Find users with any roles beyond the default ROLE_USER
+     * @param int $limit
+     * @param int $offset
+     * @return User[]
+     * @throws Exception
+     */
+    public function findUsersWithAnyRolesPaginated(int $limit = 20, int $offset = 0): array
+    {
+        $conn = $this->entityManager->getConnection();
+        $sql = "SELECT id FROM app_user WHERE roles::text != '[]' AND roles::text != 'null' AND roles IS NOT NULL ORDER BY npub ASC LIMIT :limit OFFSET :offset";
+        $result = $conn->executeQuery($sql, [
+            'limit' => $limit,
+            'offset' => $offset
+        ]);
+
+        $ids = $result->fetchFirstColumn();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('u')
+            ->where('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('u.npub', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Get total count of users with any roles beyond the default ROLE_USER
+     * @return int
+     * @throws Exception
+     */
+    public function countUsersWithAnyRoles(): int
+    {
+        $conn = $this->entityManager->getConnection();
+        $sql = "SELECT COUNT(*) FROM app_user WHERE roles::text != '[]' AND roles::text != 'null' AND roles IS NOT NULL";
+        return (int) $conn->fetchOne($sql);
+    }
     public function __construct(ManagerRegistry $registry, private readonly EntityManagerInterface $entityManager)
     {
         parent::__construct($registry, User::class);

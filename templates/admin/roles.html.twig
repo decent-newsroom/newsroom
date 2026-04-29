@@ -54,81 +54,11 @@
         {{ form_end(form) }}
     </div>
 
-    {# All Users with Roles Overview #}
+    {# Users with Roles Overview - moved to its own page #}
     <div class="users-with-roles-admin mb-5">
         <h2>Users with Roles</h2>
         <p class="text-muted">All users that have any roles assigned beyond the default ROLE_USER.</p>
-
-        {% if usersWithRoles is defined and usersWithRoles|length > 0 %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Avatar</th>
-                        <th>Name</th>
-                        <th>Npub</th>
-                        <th>Roles</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in usersWithRoles %}
-                        <tr>
-                            <td>
-                                {% if entry.metadata.picture is defined and entry.metadata.picture %}
-                                    <img src="{{ entry.metadata.picture }}"
-                                         alt="Avatar"
-                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
-                                {% else %}
-                                    <span style="width: 40px; height: 40px; border-radius: 50%; background: #e0e0e0; display: inline-flex; align-items: center; justify-content: center;">
-                                        <twig:ux:icon name="iconoir:user" style="width: 20px; height: 20px;" />
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if entry.metadata %}
-                                    <a href="{{ path('author-profile', { npub: entry.npub }) }}">
-                                        <twig:Atoms:NameOrNpub :author="entry.metadata" :npub="entry.npub" />
-                                    </a>
-                                {% else %}
-                                    {{ entry.npub|shortenNpub }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                <code style="font-size: 0.8rem;">{{ entry.npub|shortenNpub }}</code>
-                            </td>
-                            <td>
-                                {% for role in entry.user.roles %}
-                                    {% if role != 'ROLE_USER' %}
-                                        <span class="badge {% if role == 'ROLE_ADMIN' %}bg-danger{% elseif role == 'ROLE_MUTED' %}bg-secondary{% elseif role == 'ROLE_FEATURED_WRITER' %}bg-success{% elseif role == 'ROLE_ACTIVE_INDEXING' %}bg-info{% elseif role == 'ROLE_RSS' %}bg-warning text-dark{% else %}bg-primary{% endif %}" style="margin-right: 4px;">
-                                            {{ role }}
-                                        </span>
-                                    {% endif %}
-                                {% endfor %}
-                            </td>
-                            <td>
-                                {% for role in entry.user.roles %}
-                                    {% if role != 'ROLE_USER' and role != 'ROLE_ADMIN' %}
-                                        <form action="{{ path('admin_user_role_remove', { id: entry.user.id }) }}"
-                                              method="post"
-                                              style="display: inline;"
-                                              onsubmit="return confirm('Remove {{ role }} from this user?');">
-                                            <input type="hidden" name="role" value="{{ role }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" style="margin-bottom: 2px;">
-                                                Remove {{ role|replace({'ROLE_': ''}) }}
-                                            </button>
-                                        </form>
-                                    {% endif %}
-                                {% endfor %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="alert alert-info">
-                No users with special roles found.
-            </div>
-        {% endif %}
+        <a href="{{ path('admin_roles_users') }}" class="btn btn-primary">View Users with Roles (paginated)</a>
     </div>
 
     {# Featured Writers Management #}
