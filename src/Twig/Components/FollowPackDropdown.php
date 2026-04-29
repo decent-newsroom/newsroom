@@ -44,8 +44,14 @@ final class FollowPackDropdown
         );
 
         $result = [];
+        $seen = [];
         foreach ($packs as $pack) {
             $dTag = $pack->getSlug() ?? '';
+            // Deduplicate by dTag (kind and npub are fixed in this context)
+            if ($dTag === '' || isset($seen[$dTag])) {
+                continue;
+            }
+            $seen[$dTag] = true;
             $title = '';
             $members = [];
 

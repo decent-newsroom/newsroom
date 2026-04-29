@@ -3,6 +3,7 @@
 ## v0.0.35
 Updates.
 
+- [Bug] Deduplicated follow packs in the 'Add to follow pack' dropdown on user profile pages.
 - [Improvement] Enhanced admin roles management: updated `RoleController.php` to provide robust user role assignment and removal, including featured writers, muted users, and RSS managers. Added metadata enrichment for user listings, improved flash messaging, and ensured cache refresh for muted pubkeys. All actions are now more consistent and error-tolerant.
 - [Feature] Articles feed now filters out revisions: only articles where `published_at` equals `created_at` (or `published_at` is not set) are shown in all article feeds — latest feed, follows feed, interests feed, and the combined for-you/articles tab. This ensures edits to existing articles do not surface as new entries. Applied in `ArticleRepository::findLatestArticles`, `findLatestByPubkeys`, and `findByTopics`, as well as `CacheLatestArticlesCommand`.
 - [Feature] Article cards and detail pages now show an "Edited" note (muted, italic) when an article has been revised — i.e. when `created_at` differs from `published_at`. Cards display the original `published_at` date as the primary date; the edit date is shown inline. Translated into all six supported locales.
@@ -172,7 +173,7 @@ Math mode. Emphasis. Build.
 
 
 ## v0.0.28
-Searching, searching... 
+Searching, searching...
 
 - [Bug] Fixed author NIP-05 displaying as literal "Array" in the right sidebar, follow pack pages, and profile tabs. The `nip05` field from Nostr metadata can sometimes be an array; all member resolution code paths and templates now extract the first element when the value is iterable.
 - Follow pack pages and profile sidebars now dispatch an async batch profile fetch (`BatchUpdateProfileProjectionMessage`) for members whose metadata is missing from the local cache. On first visit, profiles without cached metadata trigger a background relay fetch so they resolve on subsequent page loads.
@@ -294,7 +295,7 @@ Styles, magazines, and bug fixes.
 - [Bug] Fixed magazine index signing flow aborting entirely when the user rejects signing any single category or the magazine event. Rejected or failed signings are now skipped gracefully, and the signer advances to the next item in the list. A summary is shown at the end indicating which events were published and which were skipped.
 - Added featured Unfold sites section: Unfold-hosted magazine subdomains are now shown as premium content at the top of the discover page and the authenticated home feed. Each card displays the magazine title, summary, and cover image resolved from the local event database, with a link to the hosted subdomain. Results are cached for 15 minutes.
 - [Bug] Fixed Stimulus controllers from `ui/` and `utility/` folders not loading (article actions, login, sidebar, etc. all broken). The `asset-map:compile` command added to the docker-entrypoint was generating a truncated `controllers.js` that silently dropped ~30 controllers. Pre-compiled assets in `public/assets/` override Symfony's dynamic asset serving, so the broken file was served to every browser. Fix: `asset-map:compile` now only runs when `APP_ENV=prod`; in dev mode, any stale pre-compiled assets are automatically removed so the stimulus-bundle compiler generates the full controller map dynamically.
-- [Bug] Fixed `cache:clear` I/O error on startup (`Failed to open stream: Input/output error` for `UnfoldBundle.php`). Root cause: Symfony's kernel boot loads every bundle class from `bundles.php` via `include()`, and the Docker bind mount (Windows → Linux) produces persistent I/O errors on the `UnfoldBundle.php` file. Fix: de-bundled both `UnfoldBundle` and `ChatBundle` — removed them from `bundles.php`, moved their DependencyInjection parameters and service scans into the main `config/services.yaml`, replaced `@UnfoldBundle`/`@ChatBundle` route notation with direct file paths, added the `@Chat` Twig namespace to `twig.yaml`, and converted `config/packages/chat.yaml` from bundle config tree to plain parameters. 
+- [Bug] Fixed `cache:clear` I/O error on startup (`Failed to open stream: Input/output error` for `UnfoldBundle.php`). Root cause: Symfony's kernel boot loads every bundle class from `bundles.php` via `include()`, and the Docker bind mount (Windows → Linux) produces persistent I/O errors on the `UnfoldBundle.php` file. Fix: de-bundled both `UnfoldBundle` and `ChatBundle` — removed them from `bundles.php`, moved their DependencyInjection parameters and service scans into the main `config/services.yaml`, replaced `@UnfoldBundle`/`@ChatBundle` route notation with direct file paths, added the `@Chat` Twig namespace to `twig.yaml`, and converted `config/packages/chat.yaml` from bundle config tree to plain parameters.
 - [Bug] Fixed Mercure SSE subscriptions not working in production.
 - Added polling fallback for async event fetching: the Stimulus controller now polls a new `/api/event-fetch-status/{lookupKey}` endpoint alongside Mercure SSE.
 - Replaced synchronous relay fetching on the `/e/naddr1…` (and `nevent`/`note`) route with an async Messenger job. The page now instantly renders a loading placeholder with a spinner, subscribes to a Mercure topic for the result, and automatically reloads when the event is found — or shows a "not found on relays" state with a retry button after timeout. This eliminates the `Maximum execution time of 15 seconds exceeded` error and stops slow relay lookups from blocking FrankenPHP workers.
@@ -325,9 +326,9 @@ Graph layer, highlights, and various bug fixes.
 - Deprecated search query counting, throttling, result limitations, and credit transaction records. Search is now unrestricted for all users (anonymous and authenticated alike) with no credit cost. The credits system (`CreditsManager`, `RedisCreditStore`, `CreditTransaction`, `GetCreditsComponent`) and admin transaction dashboard are marked `@deprecated` and will be removed in a future release.
 - [Bug] Fixed images added via QuillJS editor toolbar not surviving round-trip through markdown: `![alt](url)` syntax was parsed as a link instead of an image embed, causing images to be lost or mangled on mode switch.
 - [Bug] Fixed images inserted from the sidebar media manager showing as raw markdown text in the QuillJS editor instead of rendering as visual image embeds.
-- Added `dn:graph:audit` command — cron-safe consistency checker that detects drift between `event`/`article` tables and graph tables (`current_record`, `parsed_reference`). 
-- Added `dn:graph:rebuild-record` command — single-coordinate surgical repair that replays newest-wins resolution and re-parses references. 
-- Added `GraphMagazineListService` — graph-backed replacement for `MagazineRepository` listing queries. Uses `current_record` + event metadata to list top-level magazines, filter by pubkey, and count. 
+- Added `dn:graph:audit` command — cron-safe consistency checker that detects drift between `event`/`article` tables and graph tables (`current_record`, `parsed_reference`).
+- Added `dn:graph:rebuild-record` command — single-coordinate surgical repair that replays newest-wins resolution and re-parses references.
+- Added `GraphMagazineListService` — graph-backed replacement for `MagazineRepository` listing queries. Uses `current_record` + event metadata to list top-level magazines, filter by pubkey, and count.
 - Deprecated `MagazineProjector`, `ProjectMagazineMessage`, `ProjectMagazineMessageHandler`, and `ProjectMagazinesCommand`. The graph layer (`current_record` + `parsed_reference` + `GraphLookupService`) replaces periodic magazine projection.
 - [Bug] Fixed highlights not showing on article pages: removed `HIGHLIGHTS_ENABLED` feature gate that was left on after the async refactor resolved the original performance issue.
 - [Bug] Fixed highlight-to-article coordinate mismatch: all ingestion paths now extract the canonical coordinate from the event's own `a` tag, ensuring consistency between cron-fetched and async-refreshed highlights.
@@ -340,7 +341,7 @@ Graph layer, highlights, and various bug fixes.
 
 
 ## v0.0.20
-Bugs, downtime, limits. 
+Bugs, downtime, limits.
 
 - Moved `/preview/` route to `/api/preview/` so it is not counted in page visits.
 - [Bug] Fixed periodic 504 Gateway Timeout caused by FrankenPHP worker pool exhaustion: the `/latest-articles` route's cache-miss fallback was synchronously fetching 150 articles from Nostr relays with a 5-minute `set_time_limit(300)`, blocking one of only 4 workers for up to 5 minutes. Replaced with a fast database search fallback (same as `/discover`). The cron job (`app:cache_latest_articles`, every 15 min) handles relay fetching asynchronously.
@@ -478,7 +479,7 @@ Mentions, embeds, and uploads.
 - [Bug] Fixed cron.
 
 ## v0.0.14
-Ripped out relay management, again, trying something different. 
+Ripped out relay management, again, trying something different.
 
 - Implemented i18n translations: extracted all user-facing text into YAML translation files, added locale switching via footer language selector. English remains the default.
 - Relay pool management Phase 1: centralized relay configuration via `RelayRegistry` (replaces 4 scattered hardcoded constants), Redis-backed persistent health tracking via `RelayHealthStore`, and consolidated 3 near-identical subscription loops (~600 lines) into one parameterized `subscribeLocal()` method with heartbeat reporting.
@@ -513,7 +514,7 @@ All improvements were gathered on the way, while trying to get rid of the persis
 
 
 ## v0.0.12
-More metadata is better.  
+More metadata is better.
 
 - Fixed article links on tag pages to use the correct `/p/{npub}/d/{slug}` URL format instead of `/article/d/{slug}`.
 - Removed the floating ReadingListQuickAdd widget (component, template, and CSS) — replaced by other functionality.
@@ -577,7 +578,7 @@ Toast on toast, and event in event.
 - Better handle comments.
 - Added generic 'alt' tags to index events.
 - Admin dash update.
-- Overhauled Caddy config. 
+- Overhauled Caddy config.
 - [Bug] Comments never loaded... because configuration was a mess.
 - [Bug] Button didn't open a dialog on login page.
 
@@ -592,7 +593,7 @@ Lists that actually list things. Revolutionary.
 
 
 ## v0.0.6
-Testing revealed some issues. What a shocker. 
+Testing revealed some issues. What a shocker.
 
 - Non-blocking user profile data sync, typed metadata.
 - Show/hide long highlights context.
@@ -635,7 +636,7 @@ We know you have better things to do than waiting around for the page to load.
 - [Bug] Fixed share links
 - [Bug] Fixed bunker signer
 
-## v0.0.2 
+## v0.0.2
 Let's pretend we finally know what we are doing here.
 
 - Initial changelog created.
