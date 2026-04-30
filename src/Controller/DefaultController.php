@@ -511,7 +511,7 @@ class DefaultController extends AbstractController
         // Dispatch async batch profile fetch for members with missing metadata
         if (!empty($missingProfilePubkeys)) {
             try {
-                $messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missingProfilePubkeys));
+                // $messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missingProfilePubkeys));
             } catch (\Throwable) {
                 // Non-critical — profiles will be fetched on next refresh cycle
             }
