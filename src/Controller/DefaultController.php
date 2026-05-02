@@ -581,7 +581,10 @@ class DefaultController extends AbstractController
      * @throws InvalidArgumentException|\Doctrine\DBAL\Exception
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
-    public function magIndex(string $mag, EntityManagerInterface $entityManager) : Response
+    public function magIndex(string $mag, EntityManagerInterface $entityManager,
+                             Converter $converter,
+                             ArticleSearchInterface $articleSearch,
+                             RedisCacheService $redisCacheService) : Response
     {
         // Get latest magazine index by slug from database
         $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
@@ -602,9 +605,10 @@ class DefaultController extends AbstractController
 
         $magazine = array_shift($nzines);
 
-        // Extract 'a' tags and categorize them by kind (30040 vs 30041)
+        // Extract 'a' tags and categorize them by kind (30040 vs 30041 vs 30023)
         $categoryTags = [];
         $chapterCoordinates = [];
+        $frontPageArticleCoordinate = null; // first kind:30023 direct child, if any
 
         if ($magazine->getTags()) {
             foreach ($magazine->getTags() as $tag) {
@@ -618,6 +622,9 @@ class DefaultController extends AbstractController
                         } elseif ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
                             // This is a chapter (30041)
                             $chapterCoordinates[] = $tag[1]; // Store the full coordinate
+                        } elseif ($kind === KindsEnum::LONGFORM->value && $frontPageArticleCoordinate === null) {
+                            // First kind:30023 article is used as the magazine front page
+                            $frontPageArticleCoordinate = $tag[1];
                         }
                     }
                 }
@@ -688,6 +695,57 @@ class DefaultController extends AbstractController
                 $isOwner = ($currentPubkey === $magazine->getPubkey());
             } catch (\Throwable $e) {
                 // ignore
+            }
+        }
+
+        // If the magazine designates a kind:30023 article as its front page, fetch and render it
+        if ($frontPageArticleCoordinate !== null) {
+            $fpParts = explode(':', $frontPageArticleCoordinate, 3);
+            $fpSlug = $fpParts[2] ?? '';
+            $fpPubkey = $fpParts[1] ?? '';
+
+            $frontArticles = $articleSearch->findBySlugs([$fpSlug], 10);
+            // Prefer the article whose pubkey matches the coordinate
+            $frontArticle = null;
+            foreach ($frontArticles as $candidate) {
+                if ($candidate->getPubkey() === $fpPubkey) {
+                    $frontArticle = $candidate;
+                    break;
+                }
+            }
+            if ($frontArticle === null && !empty($frontArticles)) {
+                $frontArticle = $frontArticles[0];
+            }
+
+            if ($frontArticle !== null) {
+                $htmlContent = $frontArticle->getProcessedHtml();
+                if (!$htmlContent) {
+                    try {
+                        $htmlContent = $converter->convertToHTML(
+                            $frontArticle->getContent(),
+                            null,
+                            $frontArticle->getKind()?->value,
+                            $frontArticle->getRaw()['tags'] ?? null,
+                        );
+                    } catch (\Throwable) {
+                        $htmlContent = '';
+                    }
+                }
+
+                $key = new \swentel\nostr\Key\Key();
+                $fpNpub = $key->convertPublicKeyToBech32($frontArticle->getPubkey());
+                $fpAuthorMetadata = $redisCacheService->getMetadata($frontArticle->getPubkey());
+
+                return $this->render('magazine/magazine-front-article.html.twig', [
+                    'magazine' => $magazine,
+                    'mag' => $mag,
+                    'isOwner' => $isOwner,
+                    'article' => $frontArticle,
+                    'content' => $htmlContent,
+                    'npub' => $fpNpub,
+                    'author' => $fpAuthorMetadata->toStdClass(),
+                    'categoryTags' => $categoryTags,
+                ]);
             }
         }
 

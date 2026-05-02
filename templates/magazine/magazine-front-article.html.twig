@@ -1,0 +1,104 @@
+{% extends 'layout.html.twig' %}
+
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ magazine.title }} - Newsroom">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if article.image %}
+        <meta property="og:image" content="{{ article.image }}">
+    {% endif %}
+    {% if article.summary %}
+        <meta property="og:description" content="{{ article.summary|striptags|u.truncate(159,'…')|e }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+
+    {# Link to machine-readable manifest #}
+    <link rel="alternate" type="application/json" href="{{ url('magazine-manifest', {'mag': mag}) }}" title="Magazine Manifest">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
+{% endblock %}
+
+{% block body %}
+    <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" :isOwner="isOwner|default(false)" />
+
+    <article class="w-container">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">{{ article.title }}</h1>
+            </div>
+            {% if author %}
+                <div class="byline">
+                    <span>
+                        {{ 'text.byline'|trans }} <a href="{{ path('author-redirect', {'pubkey': article.pubkey}) }}">
+                            <twig:Atoms:NameOrNpub :author="author" :npub="npub" />
+                        </a>
+                    </span>
+                    <span>
+                        {% if article.publishedAt is not null %}
+                            <small>{{ article.publishedAt|date('F j, Y') }}</small>
+                            {% if article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+                                <small class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('F j, Y') }}</small>
+                            {% endif %}
+                        {% else %}
+                            <small>{{ article.createdAt|date('F j, Y') }}</small>
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="card-body">
+            {% if article.summary %}
+                <div class="lede"
+                     data-controller="utility--katex"
+                     data-utility--katex-display-value="false">
+                    {{ article.summary }}
+                </div>
+            {% endif %}
+
+            {% if article.image %}
+                <div class="article__image">
+                    <img src="{{ article.image }}" alt="{{ article.title }}">
+                </div>
+            {% endif %}
+
+            <div class="article-main"
+                 data-controller="utility--katex"
+                 data-utility--katex-display-value="true">
+                {{ content|resolve_nostr_embeds|raw }}
+            </div>
+
+            {% if article.topics|length > 0 %}
+                <hr class="divider" />
+                <div class="tags">
+                    {% for tag in article.topics %}
+                        {% if tag is not empty %}
+                            <a href="{{ path('forum_tag', {'tag': tag|url_encode}) }}" class="tag">#{{ tag }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# Category list below the front-page article — gives readers a navigation entry point #}
+        {% if categoryTags is defined and categoryTags is not empty %}
+            <hr class="divider">
+            <section class="mb-5">
+                {% for cat in categoryTags %}
+                    <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list" />
+                {% endfor %}
+            </section>
+        {% endif %}
+    </article>
+{% endblock %}
+
