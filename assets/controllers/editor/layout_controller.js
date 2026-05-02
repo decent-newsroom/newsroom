@@ -344,9 +344,6 @@ export default class extends Controller {
     }
 
     saveDraft() {
-        // Only for mobile actions, not header
-        alert('[Editor] saveDraft called');
-
         // Mark as draft - set checkbox to true
         const draftCheckbox = this.element.querySelector('input[name*="[isDraft]"]');
         if (draftCheckbox) {
@@ -355,21 +352,17 @@ export default class extends Controller {
             console.warn('[Editor] Draft checkbox not found');
         }
 
-        // Submit the form
-        const form = this.element.querySelector('form');
-        if (form) {
-            this.updateStatus('Saving draft...');
-            form.requestSubmit();
-            console.log('[Editor] Form submitted for draft');
+        // Trigger click on the hidden Nostr publish button (same pattern as header controller)
+        const publishButton = document.querySelector('[data-nostr--nostr-publish-target="publishButton"]');
+        if (publishButton) {
+            console.log('[Editor] Triggering publish button click for draft save');
+            publishButton.click();
         } else {
-            console.error('[Editor] Form not found for saveDraft');
+            console.error('[Editor] Hidden publish button not found for saveDraft');
         }
     }
 
     publish() {
-        // Only for mobile actions, not header
-        alert('[Editor] publish called');
-
         // Mark as NOT draft - set checkbox to false
         const draftCheckbox = this.element.querySelector('input[name*="[isDraft]"]');
         if (draftCheckbox) {
@@ -378,26 +371,13 @@ export default class extends Controller {
             console.warn('[Editor] Draft checkbox not found');
         }
 
-        // Find the Nostr publish controller and trigger publish
-        const nostrController = this.application.getControllerForElementAndIdentifier(
-            this.element.querySelector('[data-controller*="nostr--nostr-publish"]'),
-            'nostr--nostr-publish'
-        );
-
-        if (nostrController && typeof nostrController.publish === 'function') {
-            console.log('[Editor] Nostr publish controller found, calling publish()');
-            nostrController.publish();
+        // Trigger click on the hidden Nostr publish button (same pattern as header controller)
+        const publishButton = document.querySelector('[data-nostr--nostr-publish-target="publishButton"]');
+        if (publishButton) {
+            console.log('[Editor] Triggering publish button click');
+            publishButton.click();
         } else {
-            // Fallback: submit the form
-            const form = this.element.querySelector('form');
-            if (form) {
-                this.updateStatus('Publishing...');
-                form.requestSubmit();
-                console.log('[Editor] Form submitted for publish');
-            } else {
-                console.error('[Editor] Form not found for publish');
-                alert('Could not find publishing controller or form. Please try again.');
-            }
+            console.error('[Editor] Could not publish');
         }
     }
 
