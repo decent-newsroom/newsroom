@@ -3,6 +3,7 @@
 {% block title %}{{ 'followPacks.heading'|trans }} — Newsroom{% endblock %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ 'followPacks.heading'|trans }} - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">

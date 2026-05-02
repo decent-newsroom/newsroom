@@ -3,6 +3,7 @@
 {% import 'macros/jsonld.html.twig' as jsonld %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ category.title }} - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">

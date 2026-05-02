@@ -1,7 +1,8 @@
 {% extends 'layout.html.twig' %}
 
 {% block ogtags %}
-    <meta property="og:title" content="My Magazines - Newsroom">
+    {{ parent() }}
+    <meta property="og:title" content="My Magazines - Decent Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="Your magazines on Newsroom">

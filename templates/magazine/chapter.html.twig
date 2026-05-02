@@ -5,6 +5,7 @@
 {% block title %}{{ chapter.title }} - {{ magazine.title|default(mag) }} - Newsroom{% endblock %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ chapter.title }} - {{ magazine.title|default(mag) }}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="{{ app.request.uri }}">

@@ -3,6 +3,7 @@
 {% block title %}{{ 'spellsList.heading'|trans }} — {{ brand_name }}{% endblock %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ 'spellsList.heading'|trans }} - {{ brand_name }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">

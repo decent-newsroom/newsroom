@@ -1,6 +1,7 @@
 {% extends 'layout.html.twig' %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ author.name ?? author.display_name ?? npub }} - Newsroom">
     <meta property="og:type" content="profile">
     <meta property="og:url" content="{{ app.request.uri }}">

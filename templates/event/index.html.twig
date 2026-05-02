@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block ogtags %}
+    {{ parent() }}
     {# Set og:type dynamically based on event kind #}
     {% set ogType = 'article' %}
     {% if event.kind in [21, 22, 34235, 34236] %}

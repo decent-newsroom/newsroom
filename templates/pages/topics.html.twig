@@ -1,6 +1,7 @@
 {% extends 'layout.html.twig' %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{% if selectedTopic %}{{ topics[selectedTopic].name }} - {% endif %}Topics - Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">

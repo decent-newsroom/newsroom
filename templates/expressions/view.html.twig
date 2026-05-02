@@ -3,6 +3,7 @@
 {% block title %}{{ title }} — {{ brand_name }}{% endblock %}
 
 {% block ogtags %}
+    {{ parent() }}
     <meta property="og:title" content="{{ title }}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
