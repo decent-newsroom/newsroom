@@ -105,11 +105,15 @@ final class MagazineHero
             return [];
         }
 
-        // Filter: tag[0] === 'a'
+        // Filter: tag[0] === 'a', and exclude kind:30023 longform articles (used as front-page content, not nav links)
         $filtered = [];
         foreach ($tags as $tag) {
             if (is_array($tag) && isset($tag[0]) && $tag[0] === 'a') {
-                $filtered[] = $tag;
+                $parts = explode(':', $tag[1] ?? '', 3);
+                $kind = (int)($parts[0] ?? 0);
+                if ($kind !== 30023) {
+                    $filtered[] = $tag;
+                }
             }
         }
 

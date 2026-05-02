@@ -42,3 +42,8 @@
     color: var(--color-text, #333);
 }
 
+.source-badge--featured {
+    border-color: var(--color-accent-strong, #333);
+    color: var(--color-accent-strong, #333);
+}
+
