@@ -76,6 +76,40 @@ class RelayGatewayCommand extends Command
     private int $onDemandIdleTimeout = 900; // 15 minutes for on-demand shared connections
     private int $authTimeout = 60; // seconds
 
+    /**
+     * Max age (seconds) for persistent connections before proactive recycling.
+     *
+     * Some public relays silently drop WebSocket connections
+     * after ~5 minutes of no Nostr-protocol activity. By recycling
+     * persistent connections before that deadline we avoid the "dead connection
+     * not detected until the next query" pattern that causes per-request reconnects.
+     */
+    private int $maxPersistentConnAge = 180; // 3 minutes — well before the typical 5-min relay timeout
+
+    /**
+     * Ping idle threshold (seconds): send a keepalive ping when a persistent
+     * connection has been idle for this long. Set lower than the relay idle
+     * timeout so a single missed maintenance cycle doesn't lose the connection.
+     */
+    private int $pingIdleThreshold = 20;
+
+    /**
+     * Per-relay reconnect cooldown.
+     * Keyed by relay URL; value is the earliest Unix timestamp at which we may
+     * attempt a new connection. Prevents hammering relays that return 503/520.
+     *
+     * @var array<string, int>
+     */
+    private array $connectNotBefore = [];
+
+    /**
+     * Consecutive connection failure count per relay URL.
+     * Used to compute exponential backoff for connectNotBefore.
+     *
+     * @var array<string, int>
+     */
+    private array $connectFailureCount = [];
+
     /** @var array<string, GatewayConnection> Keyed by connection key */
     private array $connections = [];
 
@@ -269,11 +303,15 @@ class RelayGatewayCommand extends Command
         $this->initializeStreams();
         $this->cleanupOrphanedResponseStreams();
 
-        // On-demand connection model: no shared connections opened at startup.
-        // Connections are opened lazily when a query or publish first targets a
-        // relay, kept alive for the on-demand idle TTL, then closed. User warm
-        // commands pre-open authenticated connections for AUTH-gated relays.
-        $io->success('Gateway started (on-demand connections). Entering event loop.');
+        // Pre-warm all system-configured relay connections.
+        // Queues them into pendingConnections so the event loop opens them
+        // one-per-tick without blocking startup. This ensures persistent
+        // connections to profile/content relays (damus, primal, purplepag.es,
+        // etc.) are established before the first query wave arrives, preventing
+        // per-request inline opens and associated hammering on cold start.
+        $this->preWarmConfiguredRelays();
+
+        $io->success('Gateway started. Pre-warming configured relays. Entering event loop.');
 
         // Write initial heartbeat so the status command detects us immediately
         try {
@@ -305,8 +343,8 @@ class RelayGatewayCommand extends Command
                 // 4. Check for completed AUTH roundtrips
                 $this->checkPendingAuths();
 
-                // 5. Periodic maintenance (every 60 seconds)
-                if (time() - $lastMaintenanceCheck >= 60) {
+                // 5. Periodic maintenance (every 30 seconds)
+                if (time() - $lastMaintenanceCheck >= 30) {
                     $this->performMaintenance();
                     $lastMaintenanceCheck = time();
                 }
@@ -450,6 +488,46 @@ class RelayGatewayCommand extends Command
     // Connection management
     // =========================================================================
 
+    /**
+     * Queue all system-configured relay URLs into pendingConnections so the
+     * event loop opens them one-per-tick at startup (non-blocking).
+     *
+     * Uses ALL configured URLs (profile, content, local, signer) so that the
+     * most-queried public relays (damus, primal, purplepag.es) are connected
+     * before the first wave of requests arrives, avoiding per-request inline
+     * opens and the associated hammering / latency spike on cold start.
+     */
+    private function preWarmConfiguredRelays(): void
+    {
+        $urls = $this->relayRegistry->getAllUrls();
+        $seen = [];
+        foreach ($urls as $url) {
+            $resolved = $this->resolveRelayUrl($url);
+            $key = GatewayConnection::buildKey($resolved);
+            if (isset($seen[$resolved])) {
+                continue;
+            }
+            $seen[$resolved] = true;
+            // Skip if already open or already queued
+            if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+                continue;
+            }
+            $alreadyQueued = false;
+            foreach ($this->pendingConnections as $pending) {
+                if ($pending['relayUrl'] === $resolved && $pending['pubkey'] === null) {
+                    $alreadyQueued = true;
+                    break;
+                }
+            }
+            if (!$alreadyQueued) {
+                $this->pendingConnections[] = ['relayUrl' => $resolved, 'pubkey' => null];
+            }
+        }
+        $this->logger->info('Gateway: queued configured relays for pre-warm', [
+            'count' => count($this->pendingConnections),
+        ]);
+    }
+
     private function openConnection(string $relayUrl, ?string $pubkey): GatewayConnection
     {
         $conn = new GatewayConnection($relayUrl, $pubkey);
@@ -458,6 +536,32 @@ class RelayGatewayCommand extends Command
         // Check if already open
         if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
             return $this->connections[$key];
+        }
+
+        // For anonymous (shared) connections: enforce per-relay connect cooldown
+        // and the on-demand connection cap.
+        if ($pubkey === null) {
+            // Cooldown: prevents hammering relays that return 503/520.
+            $notBefore = $this->connectNotBefore[$relayUrl] ?? 0;
+            if (time() < $notBefore) {
+                $remaining = $notBefore - time();
+                throw new \RuntimeException(
+                    sprintf('Connection cooling down — %ds remaining before retry', $remaining)
+                );
+            }
+
+            // On-demand cap: persistent (configured) connections are exempt.
+            // If the cap is reached, evict the idlest non-persistent connection
+            // to make room — this bounds memory and open-fd usage.
+            if (!$this->relayRegistry->isConfiguredRelay($relayUrl)) {
+                $onDemandCount = count(array_filter(
+                    $this->connections,
+                    fn($c) => $c->isShared() && !$c->persistent,
+                ));
+                if ($onDemandCount >= $this->maxSharedConnections) {
+                    $this->evictIdlestOnDemandConnection();
+                }
+            }
         }
 
         $this->logger->info('Gateway: opening connection', [
@@ -496,6 +600,11 @@ class RelayGatewayCommand extends Command
 
             $this->connections[$key] = $conn;
 
+            // Reset backoff tracking on successful connect
+            if ($pubkey === null) {
+                unset($this->connectNotBefore[$relayUrl], $this->connectFailureCount[$relayUrl]);
+            }
+
             // Record success in health store
             $this->healthStore->recordSuccess($relayUrl);
 
@@ -507,6 +616,22 @@ class RelayGatewayCommand extends Command
                 'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
                 'error' => $e->getMessage(),
             ]);
+
+            // Apply exponential backoff for anonymous connections so we don't
+            // hammer a relay that is rate-limiting or temporarily down.
+            if ($pubkey === null) {
+                $failCount = ($this->connectFailureCount[$relayUrl] ?? 0) + 1;
+                $this->connectFailureCount[$relayUrl] = $failCount;
+                // 10s, 20s, 40s, 80s, 160s, max 300s
+                $backoff = min(10 * (2 ** ($failCount - 1)), 300);
+                $this->connectNotBefore[$relayUrl] = time() + $backoff;
+                $this->logger->info('Gateway: relay connection cooldown set', [
+                    'relay'         => $relayUrl,
+                    'fail_count'    => $failCount,
+                    'backoff_secs'  => $backoff,
+                ]);
+            }
+
             $this->healthStore->recordFailure($relayUrl);
             throw $e;
         }
@@ -540,6 +665,28 @@ class RelayGatewayCommand extends Command
         foreach (array_keys($this->connections) as $key) {
             $this->closeConnection($key);
         }
+    }
+
+    /**
+     * Enqueue a reconnect for a configured relay if it is not already queued
+     * and is not currently open and connected.
+     *
+     * Called when a query finds a configured relay in cooldown so that the
+     * relay is proactively reconnected as soon as the cooldown expires,
+     * rather than waiting for the next maintenance cycle.
+     */
+    private function queueConfiguredRelayReconnect(string $relayUrl): void
+    {
+        $key = GatewayConnection::buildKey($relayUrl);
+        if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+            return; // Already live
+        }
+        foreach ($this->pendingConnections as $pending) {
+            if ($pending['relayUrl'] === $relayUrl && $pending['pubkey'] === null) {
+                return; // Already queued
+            }
+        }
+        $this->pendingConnections[] = ['relayUrl' => $relayUrl, 'pubkey' => null];
     }
 
     // =========================================================================
@@ -702,7 +849,29 @@ class RelayGatewayCommand extends Command
                 // If no connection exists, open one inline (blocking).
                 // The one-per-tick drainPendingConnections + settle cycle is too
                 // slow — the client times out before connections are ready.
+                //
+                // Exception: for anonymous shared connections to configured relays,
+                // check the per-relay cooldown before opening inline. A relay that
+                // just returned 503/520 should not be retried on every query —
+                // instead we skip it for this request and let maintenance reconnect
+                // it with proper backoff. The relay is also queued for reconnect
+                // via pendingConnections if not already waiting.
                 if (!$conn || !$conn->isConnected()) {
+                    if ($pubkey === null && $this->relayRegistry->isConfiguredRelay($relayUrl)) {
+                        $notBefore = $this->connectNotBefore[$relayUrl] ?? 0;
+                        if (time() < $notBefore) {
+                            $remaining = $notBefore - time();
+                            $errors[$relayUrl] = sprintf('Connection cooling down — %ds remaining', $remaining);
+                            $this->logger->debug('Gateway: skipping query relay in cooldown', [
+                                'relay'            => $relayUrl,
+                                'cooldown_seconds' => $remaining,
+                                'correlation_id'   => $correlationId,
+                            ]);
+                            // Queue a reconnect so the relay is ready for the next batch
+                            $this->queueConfiguredRelayReconnect($relayUrl);
+                            continue;
+                        }
+                    }
                     try {
                         $conn = $this->openConnection($relayUrl, $pubkey);
                     } catch (\Throwable $openErr) {
@@ -1059,6 +1228,10 @@ class RelayGatewayCommand extends Command
      * once inside handleWarm or handlePublishRequest, ensures the gateway
      * loop continues processing WebSocket messages and Redis streams while
      * connections are being established.
+     *
+     * Connections in their backoff cooldown window are skipped and left in
+     * the queue; the next call will try the next entry. This prevents the
+     * loop from stalling on a rate-limited relay.
      */
     private function drainPendingConnections(): void
     {
@@ -1066,29 +1239,43 @@ class RelayGatewayCommand extends Command
             return;
         }
 
-        $next = array_shift($this->pendingConnections);
-        $relayUrl = $next['relayUrl'];
-        $pubkey   = $next['pubkey'];
+        // Find the first queued connection that is not currently in cooldown
+        foreach ($this->pendingConnections as $index => $pending) {
+            $relayUrl = $pending['relayUrl'];
+            $pubkey   = $pending['pubkey'];
 
-        // Check again — may have been opened by a concurrent warm or publish
-        $key = GatewayConnection::buildKey($relayUrl, $pubkey);
-        if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
-            return;
-        }
+            // Skip connections in backoff cooldown (anonymous only)
+            if ($pubkey === null) {
+                $notBefore = $this->connectNotBefore[$relayUrl] ?? 0;
+                if (time() < $notBefore) {
+                    continue; // Still cooling down — try next entry
+                }
+            }
 
-        try {
-            $this->openConnection($relayUrl, $pubkey);
-            $this->logger->info('Gateway: opened queued connection', [
-                'relay'  => $relayUrl,
-                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
-                'remaining_queue' => count($this->pendingConnections),
-            ]);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Gateway: failed to open queued connection', [
-                'relay'  => $relayUrl,
-                'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
-                'error'  => $e->getMessage(),
-            ]);
+            // Remove from queue (splice this index out)
+            array_splice($this->pendingConnections, $index, 1);
+
+            // Check again — may have been opened by a concurrent warm or publish
+            $key = GatewayConnection::buildKey($relayUrl, $pubkey);
+            if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+                return;
+            }
+
+            try {
+                $this->openConnection($relayUrl, $pubkey);
+                $this->logger->info('Gateway: opened queued connection', [
+                    'relay'  => $relayUrl,
+                    'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
+                    'remaining_queue' => count($this->pendingConnections),
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Gateway: failed to open queued connection', [
+                    'relay'  => $relayUrl,
+                    'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : 'on-demand',
+                    'error'  => $e->getMessage(),
+                ]);
+            }
+            return; // Only one connection per tick
         }
     }
 
@@ -2201,12 +2388,45 @@ class RelayGatewayCommand extends Command
         }
 
         // Handle persistent shared connections: auto-reconnect dead ones,
+        // proactively recycle aged ones before the relay drops them,
         // never idle-close them.
         foreach ($this->connections as $key => $conn) {
             if (!$conn->isShared() || !$conn->persistent) {
                 continue;
             }
+
+            if ($conn->isConnected()) {
+                // Proactively recycle connections that are approaching the relay's
+                // idle/session timeout. Public relays (damus, primal) behind
+                // Cloudflare or with their own timeout policies silently drop
+                // WebSocket connections after ~5 minutes. By closing and
+                // reconnecting at maxPersistentConnAge (3 min by default) we
+                // avoid the "dead connection only detected on first query" pattern
+                // that causes per-request reconnects and hammering.
+                $connAge = time() - $conn->connectedAt;
+                if ($connAge >= $this->maxPersistentConnAge) {
+                    $this->logger->info('Gateway: proactively recycling aged persistent connection', [
+                        'relay'    => $conn->relayUrl,
+                        'conn_age' => $connAge,
+                        'max_age'  => $this->maxPersistentConnAge,
+                    ]);
+                    // markDisconnected() so the reconnect block below fires
+                    $conn->markDisconnected();
+                }
+            }
+
             if (!$conn->isConnected()) {
+                // Respect per-relay cooldown before reconnecting (prevents hammering
+                // relays that were rate-limiting when this connection last failed).
+                $notBefore = $this->connectNotBefore[$conn->relayUrl] ?? 0;
+                if (time() < $notBefore) {
+                    $this->logger->debug('Gateway: skipping reconnect — relay in cooldown', [
+                        'relay'            => $conn->relayUrl,
+                        'cooldown_seconds' => $notBefore - time(),
+                    ]);
+                    continue;
+                }
+
                 $delay = $conn->getReconnectDelay();
                 $this->logger->info('Gateway: reconnecting dead persistent connection', [
                     'relay'              => $conn->relayUrl,
@@ -2215,21 +2435,24 @@ class RelayGatewayCommand extends Command
                 ]);
                 // Remove the dead connection and re-open
                 $relayUrl = $conn->relayUrl;
+                $attempts = $conn->reconnectAttempts;
                 $this->closeConnection($key);
                 try {
                     $newConn = $this->openConnection($relayUrl, null);
-                    $newConn->reconnectAttempts = $conn->reconnectAttempts + 1;
+                    $newConn->reconnectAttempts = $attempts + 1;
                 } catch (\Throwable $e) {
                     $this->logger->warning('Gateway: failed to reconnect persistent connection', [
                         'relay' => $relayUrl,
                         'error' => $e->getMessage(),
                     ]);
                 }
+                continue; // Skip keepalive check for newly opened (or failed) connection
             }
-            // Persistent connections are never idle-closed — skip timeout check
-            // Send a keepalive ping if idle for more than 45 seconds to prevent
-            // the remote relay or intermediate proxies from dropping the socket.
-            if ($conn->isConnected() && $conn->getIdleSeconds() > 45) {
+
+            // Send keepalive ping if the connection has been idle too long.
+            // Use a shorter threshold than the maintenance interval so we
+            // never let a connection go idle for more than ~30 seconds.
+            if ($conn->getIdleSeconds() > $this->pingIdleThreshold) {
                 try {
                     $conn->getClient()->ping();
                     $conn->touch();
@@ -2277,6 +2500,12 @@ class RelayGatewayCommand extends Command
             }
         }
 
+        // Re-queue any configured relay that is completely absent from the
+        // connection pool (e.g. never opened, or removed after a fatal error).
+        // The cooldown check inside openConnection / drainPendingConnections
+        // ensures we don't reconnect too aggressively.
+        $this->ensureConfiguredRelaysQueued();
+
         $this->logger->info('Gateway: maintenance complete', [
             'persistent_connections' => $persistentCount,
             'on_demand_connections'  => $sharedCount - $persistentCount,
@@ -2296,6 +2525,35 @@ class RelayGatewayCommand extends Command
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    /**
+     * Ensure all system-configured relays have an active or queued connection.
+     *
+     * Called at the end of each maintenance cycle so that relays which are not
+     * connected AND not already in pendingConnections get re-queued. The
+     * cooldown check inside openConnection() prevents immediate reconnect when
+     * a relay is still in its backoff window — drainPendingConnections will
+     * simply skip it until the window expires.
+     */
+    private function ensureConfiguredRelaysQueued(): void
+    {
+        foreach ($this->relayRegistry->getAllUrls() as $url) {
+            $resolved = $this->resolveRelayUrl($url);
+            $key = GatewayConnection::buildKey($resolved);
+            // Already connected — nothing to do
+            if (isset($this->connections[$key]) && $this->connections[$key]->isConnected()) {
+                continue;
+            }
+            // Already pending — nothing to do
+            foreach ($this->pendingConnections as $pending) {
+                if ($pending['relayUrl'] === $resolved && $pending['pubkey'] === null) {
+                    continue 2;
+                }
+            }
+            // Not connected and not queued — add to queue
+            $this->pendingConnections[] = ['relayUrl' => $resolved, 'pubkey' => null];
+        }
+    }
 
     private function countUserConnections(string $pubkey): int
     {
@@ -2337,6 +2595,32 @@ class RelayGatewayCommand extends Command
             $this->logger->info('Gateway: evicting idlest user connection', [
                 'key' => $idlestKey,
                 'idle_seconds' => $maxIdle,
+            ]);
+            $this->closeConnection($idlestKey);
+        }
+    }
+
+    /**
+     * Evict the idlest non-persistent on-demand shared connection to make room
+     * for a new one when the maxSharedConnections cap is reached.
+     */
+    private function evictIdlestOnDemandConnection(): void
+    {
+        $idlestKey = null;
+        $maxIdle = -1;
+
+        foreach ($this->connections as $key => $conn) {
+            if ($conn->isShared() && !$conn->persistent && $conn->getIdleSeconds() > $maxIdle) {
+                $maxIdle = $conn->getIdleSeconds();
+                $idlestKey = $key;
+            }
+        }
+
+        if ($idlestKey !== null) {
+            $this->logger->info('Gateway: evicting idlest on-demand connection (cap reached)', [
+                'key'          => $idlestKey,
+                'idle_seconds' => $maxIdle,
+                'cap'          => $this->maxSharedConnections,
             ]);
             $this->closeConnection($idlestKey);
         }

@@ -3,6 +3,7 @@
 ## v0.0.35
 Updates.
 
+- [Improvement] Relay gateway: persistent connections to public relays are now pre-warmed at startup, proactively recycled every 3 minutes before relay idle-timeouts drop them, and guarded by per-relay exponential backoff (10 s → 300 s) when a relay returns 503/520. Maintenance now runs every 30 s (was 60 s) with keepalive pings sent after 20 s of idle (was 45 s). Queries respect the cooldown window and fail gracefully for the affected relay rather than opening a new inline connection — preventing the connection-per-request hammering pattern visible in the logs.
 - [Bug] Deduplicated follow packs in the 'Add to follow pack' dropdown on user profile pages.
 - [Improvement] Enhanced admin roles management: updated `RoleController.php` to provide robust user role assignment and removal, including featured writers, muted users, and RSS managers. Added metadata enrichment for user listings, improved flash messaging, and ensured cache refresh for muted pubkeys. All actions are now more consistent and error-tolerant.
 - [Feature] Articles feed now filters out revisions: only articles where `published_at` equals `created_at` (or `published_at` is not set) are shown in all article feeds — latest feed, follows feed, interests feed, and the combined for-you/articles tab. This ensures edits to existing articles do not surface as new entries. Applied in `ArticleRepository::findLatestArticles`, `findLatestByPubkeys`, and `findByTopics`, as well as `CacheLatestArticlesCommand`.

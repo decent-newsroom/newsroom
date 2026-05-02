@@ -22,7 +22,6 @@ parameters:
         - 'wss://relay.damus.io'
         - 'wss://relay.primal.net'
         - 'wss://nos.lol'
-        - 'wss://relay.snort.social'
     relay_registry.project_relays:
         - 'wss://relay.decentnewsroom.com'
     relay_registry.signer_relays:
