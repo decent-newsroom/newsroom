@@ -22,6 +22,9 @@ final class FeaturedList
     /** Whether this category's items are 30041 chapters rather than articles. */
     public bool $isChapterCategory = false;
 
+    /** Whether this category's items are 30040 subcategories rather than articles. */
+    public bool $isSubcategoryCategory = false;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ArticleSearchInterface $articleSearch
@@ -87,6 +90,12 @@ final class FeaturedList
             // This is a chapter-based category (hybrid collection)
             $this->isChapterCategory = true;
             $this->list = $this->fetchChapters($coordinates);
+        } elseif ($firstKind === KindsEnum::PUBLICATION_INDEX->value) {
+            // This is a subcategory container — children are other 30040 index events
+            $this->isSubcategoryCategory = true;
+            // Pass raw coordinate tags (as they appear in the parent event) so the template
+            // can render a nested FeaturedList for each subcategory.
+            $this->list = array_map(fn(string $c) => ['a', $c], $coordinates);
         } else {
             // Standard article-based category
             $slugs = array_map(function ($coordinate) {

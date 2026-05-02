@@ -1232,12 +1232,36 @@ class DefaultController extends AbstractController
             }
         }
 
-        // Detect whether this category references 30041 chapters or articles
+        // Detect whether this category references 30041 chapters, 30040 subcategories, or articles
         $isChapterCategory = false;
+        $isSubcategoryCategory = false;
         if (!empty($coordinates)) {
             $firstParts = explode(':', $coordinates[0], 3);
             $firstKind = (int)($firstParts[0] ?? 0);
             $isChapterCategory = ($firstKind === KindsEnum::PUBLICATION_CONTENT->value);
+            $isSubcategoryCategory = ($firstKind === KindsEnum::PUBLICATION_INDEX->value);
+        }
+
+        if ($isSubcategoryCategory) {
+            // This category's children are other 30040 index events — render as subcategory list
+            $subcategoryTags = array_map(fn(string $c) => ['a', $c], $coordinates);
+
+            $catIndex = new \swentel\nostr\Event\Event();
+            $catIndex->setId($eventData['id']);
+            $catIndex->setPublicKey($eventData['pubkey']);
+            $catIndex->setCreatedAt($eventData['created_at']);
+            $catIndex->setKind($eventData['kind']);
+            $catIndex->setTags($tags);
+            $catIndex->setContent($eventData['content']);
+            $catIndex->setSignature($eventData['sig']);
+
+            return $this->render('pages/category-subcategories.html.twig', [
+                'mag' => $mag,
+                'magazine' => $magazine,
+                'category' => $category,
+                'subcategoryTags' => $subcategoryTags,
+                'index' => $catIndex,
+            ]);
         }
 
         if ($isChapterCategory) {

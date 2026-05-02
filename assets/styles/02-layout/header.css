@@ -137,6 +137,18 @@
     border-bottom: 1px solid var(--color-border);
 }
 
+/* Subcategory nesting: indent the sub-level FeaturedList */
+.featured-list--sub {
+    padding-left: var(--spacing-4);
+    border-left: 2px solid var(--color-border);
+    margin-bottom: var(--spacing-4);
+}
+
+.featured-list--sub .featured-cat {
+    font-size: 1.1rem;
+    top: 110px;
+}
+
 /* Article list cards */
 .featured-list .metadata,
 .article-list .metadata {

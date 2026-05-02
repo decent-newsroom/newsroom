@@ -1,0 +1,51 @@
+{% extends 'layout.html.twig' %}
+
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{% block ogtags %}
+    <meta property="og:title" content="{{ category.title }} - Newsroom">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    <meta property="og:description" content="{{ category.summary is defined ? (category.summary ?? '') : '' }}">
+    <meta property="og:site_name" content="Newsroom">
+
+    {# BreadcrumbList for navigation #}
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title, "url": url('magazine-index', {'mag': mag})},
+        {"name": category.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
+
+    {# JSON-LD Structured Data for Category/Collection Page #}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": {{ category.title|json_encode|raw }},
+        {% if category.summary is defined and category.summary %}
+        "description": {{ category.summary|json_encode|raw }},
+        {% endif %}
+        "url": {{ app.request.uri|json_encode|raw }},
+        "isPartOf": {
+            "@type": "Periodical",
+            "name": {{ magazine.title|json_encode|raw }},
+            "url": "{{ url('magazine-index', {'mag': mag}) }}"
+        }
+    }
+    </script>
+{% endblock %}
+
+{% block body %}
+    <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine" />
+
+    <section class="mb-5">
+        {% for subcat in subcategoryTags %}
+            <twig:Organisms:FeaturedList :mag="mag" category="{{ subcat }}" class="featured-list featured-list--sub" />
+        {% endfor %}
+    </section>
+{% endblock %}
+
