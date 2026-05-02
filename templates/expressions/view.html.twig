@@ -43,7 +43,7 @@
         {% else %}
             {# Expressions can return any event kind; the bookmark card
                partial dispatches by kind (including longform articles). #}
-            <div class="expression-results-events">
+            <div class="expression-results-events featured-list">
                 {% for event in articles %}
                     {% include 'partial/_bookmark_event_card.html.twig' with {event: event} %}
                 {% endfor %}
