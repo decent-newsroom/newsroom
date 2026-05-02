@@ -135,6 +135,7 @@ a:hover {
 /* Images and icons */
 img {
     max-width: 100%;
+    max-height: 76vh;
     height: auto;
     margin: auto;
     display: block;

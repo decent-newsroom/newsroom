@@ -8,6 +8,8 @@
     <meta property="og:url" content="{{ app.request.uri }}">
     {% if article.image %}
         <meta property="og:image" content="{{ article.image }}">
+    {% else %}
+        <meta property="og:image" content="{{ asset('images/dn-header.png') }}" />
     {% endif %}
     {% if article.summary %}
         <meta property="og:description" content="{{ article.summary|striptags|u.truncate(159,'…')|e }}">
@@ -92,16 +94,14 @@
                 </div>
             {% endif %}
         </div>
-
-        {# Category list below the front-page article — gives readers a navigation entry point #}
-        {% if categoryTags is defined and categoryTags is not empty %}
-            <hr class="divider">
-            <section class="mb-5">
-                {% for cat in categoryTags %}
-                    <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list" />
-                {% endfor %}
-            </section>
-        {% endif %}
     </article>
+    {# Category list below the front-page article — gives readers a navigation entry point #}
+    {% if categoryTags is defined and categoryTags is not empty %}
+        <section class="mb-5 p-0">
+            {% for cat in categoryTags %}
+                <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list" />
+            {% endfor %}
+        </section>
+    {% endif %}
 {% endblock %}
 

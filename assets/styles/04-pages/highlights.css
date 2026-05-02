@@ -153,7 +153,6 @@
 
 /* Article inline highlights */
 .article-highlight {
-    background: transparent;
     border-bottom: 2px solid transparent;
     padding: 0.1em 0;
     transition: all 0.3s ease;
