@@ -14,8 +14,6 @@ parameters:
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:
         - 'wss://purplepag.es'
-        - 'wss://relay.primal.net'
-        - 'wss://relay.damus.io'
     relay_registry.content_relays:
         - 'wss://theforest.nostr1.com'
         - 'wss://thecitadel.nostr1.com/'

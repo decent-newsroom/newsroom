@@ -309,6 +309,16 @@ class RelayGatewayCommand extends Command
 
         // Register signal handlers
         if (function_exists('pcntl_signal')) {
+            // Enable async signal delivery so that SIGTERM/SIGINT/SIGALRM are
+            // dispatched immediately — even while the process is blocked inside a
+            // synchronous system call such as a TCP connect() or SSL handshake.
+            // Without this, PHP only delivers signals at pcntl_signal_dispatch()
+            // call sites, meaning a blocking relay->connect() would prevent the
+            // SIGALRM watchdog from ever firing.
+            if (function_exists('pcntl_async_signals')) {
+                pcntl_async_signals(true);
+            }
+
             pcntl_signal(SIGTERM, fn() => $this->shouldStop = true);
             pcntl_signal(SIGINT, fn() => $this->shouldStop = true);
             // SIGALRM fires when a single event-loop iteration blocks for longer
@@ -354,14 +364,16 @@ class RelayGatewayCommand extends Command
         $lastMaintenanceCheck = 0;
 
         while (!$this->shouldStop) {
+            // With pcntl_async_signals(true) above, signals are delivered
+            // immediately so pcntl_signal_dispatch() is called here only as a
+            // fallback for environments that don't support async signals.
             if (function_exists('pcntl_signal_dispatch')) {
                 pcntl_signal_dispatch();
             }
 
-            // Reset the per-iteration watchdog alarm. If any sub-call in this
-            // iteration blocks for longer than LOOP_WATCHDOG_SECONDS the alarm
-            // fires, SIGALRM is delivered, and the handler above exits the process
-            // so Docker can restart the gateway container automatically.
+            // Reset the per-iteration watchdog alarm. Because async signal
+            // delivery is enabled, this alarm will fire even if the process is
+            // blocked inside a synchronous TCP connect / SSL handshake.
             if (function_exists('pcntl_alarm')) {
                 pcntl_alarm(self::LOOP_WATCHDOG_SECONDS);
             }
