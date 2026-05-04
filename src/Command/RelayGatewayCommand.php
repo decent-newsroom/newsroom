@@ -203,6 +203,23 @@ class RelayGatewayCommand extends Command
     private string $lastRequestId = '$';
     private string $lastControlId = '$';
 
+    /**
+     * Watchdog: maximum seconds a single event-loop iteration may take before
+     * the SIGALRM handler forces a graceful exit. Covers the case where a
+     * blocking TCP/TLS handshake or Redis call hangs indefinitely.
+     */
+    private const LOOP_WATCHDOG_SECONDS = 600; // 10 minutes
+
+    /**
+     * Self-restart: if the heartbeat key has not been successfully written to
+     * Redis for this many seconds the process assumes it is in a bad state and
+     * exits so Docker can restart it.
+     */
+    private const HEARTBEAT_STALE_SECONDS = 300; // 5 minutes
+
+    /** Unix timestamp of the last successfully written heartbeat */
+    private int $lastHeartbeatWrittenAt = 0;
+
     public function __construct(
         private readonly \Redis $redis,
         private readonly RelayRegistry $relayRegistry,
@@ -294,6 +311,18 @@ class RelayGatewayCommand extends Command
         if (function_exists('pcntl_signal')) {
             pcntl_signal(SIGTERM, fn() => $this->shouldStop = true);
             pcntl_signal(SIGINT, fn() => $this->shouldStop = true);
+            // SIGALRM fires when a single event-loop iteration blocks for longer
+            // than LOOP_WATCHDOG_SECONDS. We exit with a non-zero status so that
+            // Docker (restart: unless-stopped) will bring the gateway back up.
+            pcntl_signal(SIGALRM, function () use ($io): void {
+                $this->logger->critical('Gateway watchdog triggered: event loop was unresponsive for >' . self::LOOP_WATCHDOG_SECONDS . 's. Exiting for Docker restart.');
+                $io->error('Watchdog timeout — exiting for automatic restart.');
+                $this->closeAllConnections();
+                try {
+                    $this->redis->del('relay_gateway:heartbeat');
+                } catch (\RedisException) {}
+                exit(1);
+            });
         }
 
         $this->handler = new RelaySubscriptionHandler($this->logger);
@@ -318,6 +347,7 @@ class RelayGatewayCommand extends Command
             $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
             $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
             $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
+            $this->lastHeartbeatWrittenAt = time();
         } catch (\RedisException) {}
 
         // Main event loop
@@ -326,6 +356,14 @@ class RelayGatewayCommand extends Command
         while (!$this->shouldStop) {
             if (function_exists('pcntl_signal_dispatch')) {
                 pcntl_signal_dispatch();
+            }
+
+            // Reset the per-iteration watchdog alarm. If any sub-call in this
+            // iteration blocks for longer than LOOP_WATCHDOG_SECONDS the alarm
+            // fires, SIGALRM is delivered, and the handler above exits the process
+            // so Docker can restart the gateway container automatically.
+            if (function_exists('pcntl_alarm')) {
+                pcntl_alarm(self::LOOP_WATCHDOG_SECONDS);
             }
 
             try {
@@ -371,6 +409,10 @@ class RelayGatewayCommand extends Command
 
         // Graceful shutdown
         $io->section('Shutting down gateway...');
+        // Cancel any pending SIGALRM so it doesn't fire during teardown
+        if (function_exists('pcntl_alarm')) {
+            pcntl_alarm(0);
+        }
         $this->closeAllConnections();
         try {
             $this->redis->del('relay_gateway:heartbeat');
@@ -2362,7 +2404,20 @@ class RelayGatewayCommand extends Command
             $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
             $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
             $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
-        } catch (\RedisException) {}
+            $this->lastHeartbeatWrittenAt = time();
+        } catch (\RedisException $e) {
+            $this->logger->warning('Gateway: failed to write heartbeat to Redis', ['error' => $e->getMessage()]);
+        }
+
+        // If the heartbeat hasn't been successfully written for too long
+        // (e.g. Redis went away or we were somehow stuck between maintenance
+        // cycles), exit so Docker can restart the container cleanly.
+        if ($this->lastHeartbeatWrittenAt > 0
+            && (time() - $this->lastHeartbeatWrittenAt) > self::HEARTBEAT_STALE_SECONDS
+        ) {
+            $this->logger->critical('Gateway: heartbeat stale for >' . self::HEARTBEAT_STALE_SECONDS . 's — exiting for automatic restart.');
+            $this->shouldStop = true;
+        }
 
         // Close idle OR dead user connections
         foreach ($this->connections as $key => $conn) {

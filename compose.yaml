@@ -225,6 +225,15 @@ services:
           - -vv
           - --time-limit=3600
       restart: unless-stopped
+      healthcheck:
+          # Fail if the gateway heartbeat key is missing or >120s old.
+          # Docker marks the container unhealthy; combined with restart: unless-stopped
+          # the frozen process is visible via `docker ps` and `docker inspect`.
+          test: ["CMD", "php", "bin/console", "app:relay-gateway:status", "--health-check"]
+          interval: 60s
+          timeout: 10s
+          retries: 3
+          start_period: 30s
       depends_on:
           php:
               condition: service_healthy

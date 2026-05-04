@@ -81,6 +81,12 @@ services:
   relay-gateway:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "php", "bin/console", "app:relay-gateway:status", "--health-check"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     env_file:
       - .env.prod.local
     environment:

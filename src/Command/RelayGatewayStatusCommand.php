@@ -15,10 +15,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Diagnostic command — inspect the relay gateway's Redis streams in real time.
  *
  * Usage:
- *   bin/console app:relay-gateway:status           # one-shot snapshot
- *   bin/console app:relay-gateway:status --watch   # refresh every 2s
+ *   bin/console app:relay-gateway:status                  # one-shot snapshot
+ *   bin/console app:relay-gateway:status --watch          # refresh every 2s
+ *   bin/console app:relay-gateway:status --health-check   # Docker HEALTHCHECK (exit 0=healthy)
  *   bin/console app:relay-gateway:status --send-warm --pubkey=<hex> --relays=wss://r1,wss://r2
- *   bin/console app:relay-gateway:status --send-ping  # write a test publish to request stream
+ *   bin/console app:relay-gateway:status --send-ping      # write a test publish to request stream
  */
 #[AsCommand(
     name: 'app:relay-gateway:status',
@@ -42,7 +43,8 @@ class RelayGatewayStatusCommand extends Command
             ->addOption('send-warm', null, InputOption::VALUE_NONE, 'Write a warm command to relay:control')
             ->addOption('pubkey', null, InputOption::VALUE_REQUIRED, 'Pubkey hex for --send-warm')
             ->addOption('relays', null, InputOption::VALUE_REQUIRED, 'Comma-separated relay URLs for --send-warm')
-            ->addOption('send-ping', null, InputOption::VALUE_NONE, 'Write a dummy publish to relay:requests and show response');
+            ->addOption('send-ping', null, InputOption::VALUE_NONE, 'Write a dummy publish to relay:requests and show response')
+            ->addOption('health-check', null, InputOption::VALUE_NONE, 'Exit 0 if the gateway heartbeat is fresh (≤120s), 1 otherwise — for use as a Docker HEALTHCHECK');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -56,6 +58,10 @@ class RelayGatewayStatusCommand extends Command
 
         if ($input->getOption('send-ping')) {
             return $this->sendPing($io);
+        }
+
+        if ($input->getOption('health-check')) {
+            return $this->runHealthCheck($output);
         }
 
         do {
@@ -307,6 +313,38 @@ class RelayGatewayStatusCommand extends Command
             return $id;
         }
         return $parts[0] . '-' . ((int) $parts[1] + 1);
+    }
+
+    /**
+     * Docker HEALTHCHECK entry point.
+     *
+     * Reads relay_gateway:heartbeat from Redis and exits 0 (healthy) if it
+     * exists and is no more than 120 seconds old, or 1 (unhealthy) otherwise.
+     * Produces a single terse line on stdout/stderr so `docker inspect` shows
+     * a useful last-health-check output.
+     */
+    private function runHealthCheck(OutputInterface $output): int
+    {
+        try {
+            $heartbeat = $this->redis->get('relay_gateway:heartbeat');
+        } catch (\Throwable $e) {
+            $output->writeln('unhealthy: redis error — ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+
+        if ($heartbeat === false || $heartbeat === null) {
+            $output->writeln('unhealthy: relay_gateway:heartbeat key missing');
+            return Command::FAILURE;
+        }
+
+        $age = time() - (int) $heartbeat;
+        if ($age > 120) {
+            $output->writeln(sprintf('unhealthy: heartbeat stale (%ds old)', $age));
+            return Command::FAILURE;
+        }
+
+        $output->writeln(sprintf('healthy: heartbeat %ds old', $age));
+        return Command::SUCCESS;
     }
 }
 
