@@ -207,18 +207,58 @@ class RelayGatewayCommand extends Command
      * Watchdog: maximum seconds a single event-loop iteration may take before
      * the SIGALRM handler forces a graceful exit. Covers the case where a
      * blocking TCP/TLS handshake or Redis call hangs indefinitely.
+     *
+     * Tightened from 600s → 120s so a stalled loop is killed before the
+     * dashboard "No heartbeat" threshold (60s alive window + grace).
      */
-    private const LOOP_WATCHDOG_SECONDS = 600; // 10 minutes
+    private const LOOP_WATCHDOG_SECONDS = 120; // 2 minutes
 
     /**
      * Self-restart: if the heartbeat key has not been successfully written to
      * Redis for this many seconds the process assumes it is in a bad state and
      * exits so Docker can restart it.
      */
-    private const HEARTBEAT_STALE_SECONDS = 300; // 5 minutes
+    private const HEARTBEAT_STALE_SECONDS = 90;
+
+    /**
+     * TTL applied to the heartbeat + cursor keys in Redis. Short enough that
+     * any real stall in the event loop turns the dashboard red within ~1
+     * minute. The writer refreshes the keys on every iteration (throttled by
+     * HEARTBEAT_WRITE_INTERVAL_SECONDS), so under healthy conditions the keys
+     * never expire.
+     */
+    private const HEARTBEAT_TTL_SECONDS = 30;
+
+    /**
+     * Minimum spacing between heartbeat writes. Avoids hammering Redis with
+     * hundreds of writes per second on a hot loop while still refreshing the
+     * key well within HEARTBEAT_TTL_SECONDS.
+     */
+    private const HEARTBEAT_WRITE_INTERVAL_SECONDS = 5;
+
+    /**
+     * How often the gateway emits a one-line "tick" summary log. Without this,
+     * silent gaps in the logs are indistinguishable from a stalled loop.
+     */
+    private const TICK_LOG_INTERVAL_SECONDS = 10;
+
+    /**
+     * Maximum seconds allowed for the underlying TCP + TLS + WebSocket
+     * handshake when opening a relay connection. The default of the
+     * phrity/websocket Client is 60s, which means a single dead public relay
+     * can stall the entire event loop for a full minute. After connect the
+     * timeout is set to 0 (non-blocking) for the regular receive sweep.
+     */
+    private const CONNECT_TIMEOUT_SECONDS = 5;
 
     /** Unix timestamp of the last successfully written heartbeat */
     private int $lastHeartbeatWrittenAt = 0;
+
+    /** Unix timestamp of the last attempted heartbeat write (throttling) */
+    private int $lastHeartbeatAttemptAt = 0;
+
+    /** Unix timestamp of the last "tick" summary log */
+    private int $lastTickLogAt = 0;
 
     public function __construct(
         private readonly \Redis $redis,
@@ -353,12 +393,7 @@ class RelayGatewayCommand extends Command
         $io->success('Gateway started. Pre-warming configured relays. Entering event loop.');
 
         // Write initial heartbeat so the status command detects us immediately
-        try {
-            $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
-            $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
-            $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
-            $this->lastHeartbeatWrittenAt = time();
-        } catch (\RedisException) {}
+        $this->writeHeartbeat(true);
 
         // Main event loop
         $lastMaintenanceCheck = 0;
@@ -377,6 +412,17 @@ class RelayGatewayCommand extends Command
             if (function_exists('pcntl_alarm')) {
                 pcntl_alarm(self::LOOP_WATCHDOG_SECONDS);
             }
+
+            // Refresh heartbeat + stream cursors at the *start* of every
+            // iteration, before any potentially-blocking call. This is what
+            // the admin dashboard reads — keeping it decoupled from
+            // performMaintenance() means a slow WebSocket sweep or stuck TLS
+            // handshake doesn't make us look dead while we recover.
+            $this->writeHeartbeat();
+
+            // Emit a periodic tick log so log-gap visibility doesn't depend on
+            // event-driven log lines firing.
+            $this->maybeTickLog();
 
             try {
                 // 1. Process incoming requests from Redis Streams (non-blocking)
@@ -624,11 +670,21 @@ class RelayGatewayCommand extends Command
         ]);
 
         try {
-            // Use swentel Relay (wraps WebSocket\Client) — same as TweakedRequest
+            // Use swentel Relay (wraps WebSocket\Client) — same as TweakedRequest.
+            //
+            // The Relay wrapper instantiates a WebSocket\Client in its
+            // constructor and exposes it via getClient(). We connect that
+            // pre-existing client directly (rather than calling
+            // Relay::connect(), which would discard it and build a new one)
+            // so we can apply a short connect/handshake timeout via
+            // setTimeout() *before* the TCP+TLS handshake. The default Client
+            // timeout is 60s, which is long enough for a single dead public
+            // relay to stall the entire event loop.
             $relay = new Relay($relayUrl);
-            $relay->connect();
-
             $client = $relay->getClient();
+            $client->setTimeout(self::CONNECT_TIMEOUT_SECONDS);
+            $client->connect();
+
             // 0 = non-blocking drain: receive() returns immediately if the OS
             // buffer is empty, throwing a timeout exception (caught in
             // processWebSocketMessages as "nothing to read"). With N connections
@@ -2408,18 +2464,65 @@ class RelayGatewayCommand extends Command
     // Maintenance
     // =========================================================================
 
-    private function performMaintenance(): void
+    /**
+     * Write the heartbeat + stream cursor keys to Redis. Called at the start
+     * of every loop iteration (throttled to HEARTBEAT_WRITE_INTERVAL_SECONDS)
+     * and unconditionally at startup.
+     *
+     * The dashboard reads these keys directly; keeping the write decoupled
+     * from any blocking I/O is what makes "No heartbeat" / "(no cursor)"
+     * actually mean "loop is stuck" rather than "loop is busy".
+     */
+    private function writeHeartbeat(bool $force = false): void
     {
-        // Write heartbeat + cursor positions so the status command can detect
-        // whether we're alive and whether we've caught up with the streams.
+        $now = time();
+        if (!$force && ($now - $this->lastHeartbeatAttemptAt) < self::HEARTBEAT_WRITE_INTERVAL_SECONDS) {
+            return;
+        }
+        $this->lastHeartbeatAttemptAt = $now;
+
         try {
-            $this->redis->setex('relay_gateway:heartbeat', 120, (string) time());
-            $this->redis->setex('relay_gateway:cursor:requests', 120, $this->lastRequestId);
-            $this->redis->setex('relay_gateway:cursor:control', 120, $this->lastControlId);
-            $this->lastHeartbeatWrittenAt = time();
+            $this->redis->setex('relay_gateway:heartbeat', self::HEARTBEAT_TTL_SECONDS, (string) $now);
+            $this->redis->setex('relay_gateway:cursor:requests', self::HEARTBEAT_TTL_SECONDS, $this->lastRequestId);
+            $this->redis->setex('relay_gateway:cursor:control', self::HEARTBEAT_TTL_SECONDS, $this->lastControlId);
+            $this->lastHeartbeatWrittenAt = $now;
         } catch (\RedisException $e) {
             $this->logger->warning('Gateway: failed to write heartbeat to Redis', ['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Emit a one-line summary log every TICK_LOG_INTERVAL_SECONDS so periods
+     * of low activity remain visible in the log stream. Without this, a
+     * silent gap is indistinguishable from a stalled loop.
+     */
+    private function maybeTickLog(): void
+    {
+        $now = time();
+        if (($now - $this->lastTickLogAt) < self::TICK_LOG_INTERVAL_SECONDS) {
+            return;
+        }
+        $this->lastTickLogAt = $now;
+
+        $this->logger->info('Gateway: tick', [
+            'connections'         => count($this->connections),
+            'pending_connections' => count($this->pendingConnections),
+            'pending_queries'     => count($this->pendingQueries),
+            'pending_publishes'   => count($this->pendingPublishes),
+            'pending_auths'       => count($this->pendingAuths),
+            'last_request_id'     => $this->lastRequestId,
+            'last_control_id'     => $this->lastControlId,
+            'hb_age_s'            => $this->lastHeartbeatWrittenAt > 0
+                ? $now - $this->lastHeartbeatWrittenAt
+                : null,
+        ]);
+    }
+
+    private function performMaintenance(): void
+    {
+        // Heartbeat + cursor writes happen on every loop iteration via
+        // writeHeartbeat() — they are intentionally NOT done here so that a
+        // long-running maintenance pass cannot make us look dead.
 
         // If the heartbeat hasn't been successfully written for too long
         // (e.g. Redis went away or we were somehow stuck between maintenance

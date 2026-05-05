@@ -476,7 +476,10 @@ class RelayAdminService
             if ($heartbeat) {
                 $ago = time() - (int) $heartbeat;
                 return [
-                    'alive' => $ago < 120,
+                    // Heartbeat is refreshed every ~5s with a 30s TTL. 60s
+                    // gives one missed iteration's worth of grace before the
+                    // dashboard flags the gateway as down.
+                    'alive' => $ago < 60,
                     'age_seconds' => $ago,
                     'timestamp' => (int) $heartbeat,
                 ];

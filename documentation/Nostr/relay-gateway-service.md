@@ -113,7 +113,8 @@ docker compose exec relay-gateway php bin/console app:relay-gateway:status
 ```
 
 The status command shows:
-- **Gateway Process** — heartbeat check (alive/stale/missing), updated every 60s by the gateway's maintenance loop
+- **Gateway Process** — heartbeat check (alive/stale/missing). The heartbeat key (`relay_gateway:heartbeat`) is refreshed at the start of every event-loop iteration (throttled to once every 5 s, TTL 30 s). The dashboard considers the gateway alive when the heartbeat is younger than 60 s. The Redis stream cursor keys (`relay_gateway:cursor:requests`, `relay_gateway:cursor:control`) are written on the same schedule. If any of these go missing, the loop is genuinely stuck — not just busy. The process self-exits for Docker to restart it after 90 s of stale heartbeat, and a `SIGALRM` watchdog forcefully terminates a single iteration after 120 s.
+- **Tick log** — every ~10 s the gateway emits a `Gateway: tick` log line with current connection counts, queue depths, last stream IDs, and heartbeat age. Use this to distinguish an idle period from a stalled loop in `docker compose logs relay-gateway`.
 - **Redis Streams** — request and control stream lengths and last IDs
 - **Open Response Streams** — in-flight query/publish responses (transient, 60s TTL — "None" is normal when no queries are active)
 - **Health Store** — per-relay health metrics including auth status, failures, latency, and last activity timestamps
