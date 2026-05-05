@@ -33,7 +33,7 @@ All connections are opened lazily when a query or publish first targets a relay,
 | Type | Key | Default Idle TTL | Description |
 |---|---|---|---|
 | On-demand shared | relay URL | 5 min | Opened when needed, shared across requests |
-| User-specific | relay::pubkey | 30 min | Opened via `warm` command, authenticated as user's npub |
+| User-specific | relay::pubkey | 2 h | Opened via `warm` command, authenticated as user's npub |
 
 ### NIP-42 AUTH Flow
 
@@ -85,7 +85,7 @@ The `app:relay-gateway` command accepts the following options:
 | `--max-user-conns` | 5 | Maximum connections per user |
 | `--max-total-user-conns` | 200 | Maximum total user connections across all users |
 | `--max-shared-conns` | 20 | Maximum on-demand shared connections |
-| `--user-idle-timeout` | 1800 | User connection idle timeout in seconds (30 min) |
+| `--user-idle-timeout` | 7200 | User connection idle timeout in seconds (2 h). A user-keyed authenticated WebSocket survives quiet periods up to this TTL, so a user signing in and publishing 90 min later usually does **not** trigger a fresh NIP-42 challenge — the existing socket is reused. |
 | `--on-demand-idle-timeout` | 300 | On-demand shared connection idle timeout in seconds (5 min) |
 | `--auth-timeout` | 60 | AUTH roundtrip timeout in seconds |
 | `--time-limit` | 3600 | Max runtime before graceful restart (0=unlimited) |

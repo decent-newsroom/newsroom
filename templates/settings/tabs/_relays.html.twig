@@ -75,6 +75,62 @@
             }|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}</code></pre>
         </details>
     {% endif %}
+
+    {# Recent gateway activity for this user — AUTH outcomes and publish results #}
+    <div class="relay-activity">
+        <h3 class="settings-section__subtitle">{{ 'settings.relays.activity.heading'|trans }}</h3>
+        <p class="settings-section__desc settings-section__desc--small">
+            {{ 'settings.relays.activity.description'|trans }}
+        </p>
+
+        {% if relayActivity is defined and relayActivity|length > 0 %}
+            <table class="relay-activity__table">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'settings.relays.activity.col.time'|trans }}</th>
+                        <th scope="col">{{ 'settings.relays.activity.col.event'|trans }}</th>
+                        <th scope="col">{{ 'settings.relays.activity.col.relay'|trans }}</th>
+                        <th scope="col">{{ 'settings.relays.activity.col.status'|trans }}</th>
+                        <th scope="col">{{ 'settings.relays.activity.col.detail'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in relayActivity %}
+                        {% set ts = entry.ts|date('Y-m-d H:i:s') %}
+                        {% set isOk = entry.status == 'ok' %}
+                        {% set isPending = entry.status == 'pending' %}
+                        {% set isFailed = entry.status == 'failed' %}
+                        {% set typeLabel = entry.type == 'auth'
+                            ? ('settings.relays.activity.type.auth.' ~ (entry.method|default('none')))|trans
+                            : 'settings.relays.activity.type.publish'|trans %}
+                        <tr class="relay-activity__row
+                                   {{ isOk ? 'relay-activity__row--ok' : '' }}
+                                   {{ isPending ? 'relay-activity__row--pending' : '' }}
+                                   {{ isFailed ? 'relay-activity__row--failed' : '' }}">
+                            <td class="relay-activity__time"><time datetime="{{ entry.ts|date('c') }}">{{ ts }}</time></td>
+                            <td class="relay-activity__type">{{ typeLabel }}</td>
+                            <td class="relay-activity__relay">{{ entry.relay }}</td>
+                            <td class="relay-activity__status">
+                                {{ ('settings.relays.activity.status.' ~ entry.status)|trans }}
+                            </td>
+                            <td class="relay-activity__detail">
+                                {% if entry.event_id is defined %}
+                                    <code title="{{ entry.event_id }}">{{ entry.event_id|slice(0, 12) }}…</code>
+                                {% endif %}
+                                {% if entry.detail is defined %}
+                                    <span class="relay-activity__message">{{ entry.detail }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="relay-activity__empty">{{ 'settings.relays.activity.empty'|trans }}</p>
+        {% endif %}
+    </div>
 </div>
+
+
 
 

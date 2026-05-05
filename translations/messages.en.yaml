@@ -751,6 +751,26 @@ settings:
         newToNostrHint: 'Set relay.decentnewsroom.com as your home relay.'
         addHomeRelay: '+ Add Home Relay'
         rawJson: 'Raw Relay List Event (kind 10002)'
+        activity:
+            heading: 'Recent relay activity'
+            description: 'Recent AUTH challenges and publish results from the relay gateway, on your behalf. Capped at the last 200 entries; older items roll off automatically.'
+            empty: 'No recent activity. Publish or refresh to see entries here.'
+            col:
+                time: 'Time'
+                event: 'Event'
+                relay: 'Relay'
+                status: 'Status'
+                detail: 'Detail'
+            type:
+                auth:
+                    nip07: 'AUTH (browser)'
+                    nip46: 'AUTH (remote signer)'
+                    none: 'AUTH'
+                publish: 'Publish'
+            status:
+                ok: 'OK'
+                pending: 'Pending'
+                failed: 'Failed'
     events:
         heading: 'Your Nostr Events'
         description: 'Overview of all Nostr events used by Decent Newsroom to personalize your experience.'

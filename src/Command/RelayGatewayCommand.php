@@ -8,6 +8,7 @@ use App\Service\Nostr\GatewayConnection;
 use App\Service\Nostr\Nip46AuthSigner;
 use App\Service\Nostr\Nip46SessionService;
 use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayUserActivityStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
 use App\Util\RelayUrlNormalizer;
@@ -288,6 +289,7 @@ class RelayGatewayCommand extends Command
         private readonly Nip46SessionService $nip46Sessions,
         private readonly LoggerInterface $logger,
         private readonly \App\ReadModel\RedisView\RedisRelayInfoView $relayInfoView,
+        private readonly RelayUserActivityStore $userActivityStore,
     ) {
         parent::__construct();
     }
@@ -1679,6 +1681,15 @@ class RelayGatewayCommand extends Command
                 $this->healthStore->recordSuccess($relayUrl);
             }
 
+            if ($conn->pubkey !== null && $conn->pubkey !== '') {
+                $this->userActivityStore->recordPublish(
+                    $conn->pubkey,
+                    $relayUrl,
+                    $eventId,
+                    $accepted,
+                );
+            }
+
             if (isset($this->pendingCorrelations[$correlationId])) {
                 $this->pendingCorrelations[$correlationId]['ok'][$relayUrl] = $accepted;
                 $this->pendingCorrelations[$correlationId]['done']++;
@@ -1933,6 +1944,12 @@ class RelayGatewayCommand extends Command
                     $conn->touch();
                     $this->healthStore->setAuthRequired($conn->relayUrl);
                     $this->healthStore->setAuthStatus($conn->relayUrl, 'nip46');
+                    $this->userActivityStore->recordAuth(
+                        $conn->pubkey,
+                        $conn->relayUrl,
+                        'nip46',
+                        RelayUserActivityStore::STATUS_OK,
+                    );
                     $this->logger->info('Gateway: NIP-46 server-side AUTH sent successfully', [
                         'relay'  => $conn->relayUrl,
                         'pubkey' => substr($conn->pubkey, 0, 8) . '...',
@@ -1945,6 +1962,13 @@ class RelayGatewayCommand extends Command
                         'error' => $e->getMessage(),
                     ]);
                     $conn->authStatus = 'failed';
+                    $this->userActivityStore->recordAuth(
+                        $conn->pubkey,
+                        $conn->relayUrl,
+                        'nip46',
+                        RelayUserActivityStore::STATUS_FAILED,
+                        $e->getMessage(),
+                    );
                 }
                 return;
             }
@@ -1953,6 +1977,13 @@ class RelayGatewayCommand extends Command
                 'relay'  => $conn->relayUrl,
                 'pubkey' => substr($conn->pubkey, 0, 8) . '...',
             ]);
+            $this->userActivityStore->recordAuth(
+                $conn->pubkey,
+                $conn->relayUrl,
+                'nip46',
+                RelayUserActivityStore::STATUS_FAILED,
+                'signing failed, falling back to browser',
+            );
         }
 
         // No NIP-46 session (NIP-07 extension user) — use Mercure roundtrip
@@ -2008,6 +2039,12 @@ class RelayGatewayCommand extends Command
                 'relay' => $conn->relayUrl,
                 'pubkey' => substr($conn->pubkey, 0, 8) . '...',
             ]);
+            $this->userActivityStore->recordAuth(
+                $conn->pubkey,
+                $conn->relayUrl,
+                'nip07',
+                RelayUserActivityStore::STATUS_PENDING,
+            );
 
         } catch (\Throwable $e) {
             $this->logger->error('Gateway: failed to initiate AUTH roundtrip', [
@@ -2015,6 +2052,13 @@ class RelayGatewayCommand extends Command
                 'error' => $e->getMessage(),
             ]);
             $conn->authStatus = 'failed';
+            $this->userActivityStore->recordAuth(
+                $conn->pubkey,
+                $conn->relayUrl,
+                'nip07',
+                RelayUserActivityStore::STATUS_FAILED,
+                'failed to publish challenge: ' . $e->getMessage(),
+            );
         }
 
         $this->healthStore->setAuthRequired($conn->relayUrl);
@@ -2033,7 +2077,17 @@ class RelayGatewayCommand extends Command
                     'request_id' => $requestId,
                 ]);
                 if (isset($this->connections[$connKey])) {
-                    $this->connections[$connKey]->authStatus = 'failed';
+                    $conn = $this->connections[$connKey];
+                    $conn->authStatus = 'failed';
+                    if ($conn->pubkey !== null && $conn->pubkey !== '') {
+                        $this->userActivityStore->recordAuth(
+                            $conn->pubkey,
+                            $conn->relayUrl,
+                            'nip07',
+                            RelayUserActivityStore::STATUS_FAILED,
+                            'browser did not sign within timeout',
+                        );
+                    }
                 }
                 unset($this->pendingAuths[$requestId]);
                 continue;
@@ -2061,6 +2115,15 @@ class RelayGatewayCommand extends Command
                     $conn->touch();
 
                     $this->healthStore->setAuthStatus($conn->relayUrl, 'user_authed');
+
+                    if ($conn->pubkey !== null && $conn->pubkey !== '') {
+                        $this->userActivityStore->recordAuth(
+                            $conn->pubkey,
+                            $conn->relayUrl,
+                            'nip07',
+                            RelayUserActivityStore::STATUS_OK,
+                        );
+                    }
 
                     $this->logger->info('Gateway: AUTH completed via Mercure roundtrip', [
                         'request_id' => $requestId,

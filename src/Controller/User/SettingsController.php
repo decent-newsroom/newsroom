@@ -55,6 +55,7 @@ class SettingsController extends AbstractController
         private readonly RedisCacheService $redisCacheService,
         private readonly RelayRegistry $relayRegistry,
         private readonly LoggerInterface $logger,
+        private readonly \App\Service\Nostr\RelayUserActivityStore $relayUserActivityStore,
     ) {}
 
     #[Route('/settings', name: 'settings')]
@@ -106,6 +107,11 @@ class SettingsController extends AbstractController
         // Build structured relay list from kind 10002 event for the Relays tab
         $relays = $this->buildRelayListFromEvent($events[KindsEnum::RELAY_LIST->value] ?? null);
 
+        // Recent gateway activity for this pubkey (AUTH outcomes, publish OK/error).
+        // Newest first, capped at 50 entries — surfaced under the Relays tab so
+        // users can see why a publish failed or whether AUTH succeeded silently.
+        $relayActivity = $this->relayUserActivityStore->getRecent($pubkeyHex, 50);
+
         return $this->render('settings/index.html.twig', [
             'npub' => $npub,
             'pubkeyHex' => $pubkeyHex,
@@ -115,6 +121,7 @@ class SettingsController extends AbstractController
             'existingTags' => $existingTags,
             'events' => $events,
             'relays' => $relays,
+            'relayActivity' => $relayActivity,
             'projectRelayUrl' => $this->relayRegistry->getPublicUrl(),
             'vanityName' => $vanityName,
             'activeIndexing' => $activeIndexing,
