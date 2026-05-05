@@ -84,7 +84,7 @@ The `app:relay-gateway` command accepts the following options:
 |---|---|---|
 | `--max-user-conns` | 5 | Maximum connections per user |
 | `--max-total-user-conns` | 200 | Maximum total user connections across all users |
-| `--max-shared-conns` | 20 | Maximum on-demand shared connections |
+| `--max-shared-conns` | 50 | Maximum on-demand shared connections. The cap is **soft**: if a fan-out query needs more slots than are available and no truly-idle slot can be evicted (every shared socket is either younger than 5 s or serving a pending query), the gateway logs a warning and lets the count exceed the cap for the duration of the active query rather than tearing down an in-flight REQ. Raise this if you regularly see "soft cap exceeded" warnings. |
 | `--user-idle-timeout` | 7200 | User connection idle timeout in seconds (2 h). A user-keyed authenticated WebSocket survives quiet periods up to this TTL, so a user signing in and publishing 90 min later usually does **not** trigger a fresh NIP-42 challenge — the existing socket is reused. |
 | `--on-demand-idle-timeout` | 300 | On-demand shared connection idle timeout in seconds (5 min) |
 | `--auth-timeout` | 60 | AUTH roundtrip timeout in seconds |

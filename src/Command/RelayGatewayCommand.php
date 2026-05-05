@@ -347,7 +347,7 @@ class RelayGatewayCommand extends Command
         $this
             ->addOption('max-user-conns', null, InputOption::VALUE_OPTIONAL, 'Max connections per user', '5')
             ->addOption('max-total-user-conns', null, InputOption::VALUE_OPTIONAL, 'Max total user connections', '200')
-            ->addOption('max-shared-conns', null, InputOption::VALUE_OPTIONAL, 'Max on-demand shared connections', '20')
+            ->addOption('max-shared-conns', null, InputOption::VALUE_OPTIONAL, 'Max on-demand shared connections', '50')
             ->addOption('user-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'User connection idle timeout (seconds)', '7200')
             ->addOption('on-demand-idle-timeout', null, InputOption::VALUE_OPTIONAL, 'On-demand shared connection idle timeout (seconds)', '900')
             ->addOption('auth-timeout', null, InputOption::VALUE_OPTIONAL, 'AUTH roundtrip timeout (seconds)', '60')
@@ -2845,41 +2845,123 @@ class RelayGatewayCommand extends Command
         return $count;
     }
 
+    /**
+     * Evict the idlest user-keyed connection. Same protections as the
+     * on-demand variant: never evict a newborn or a connection mid-query.
+     * Soft-fails (no eviction, warning logged) if all candidates are busy.
+     */
     private function evictIdlestUserConnection(): void
     {
-        $idlest = null;
+        $newbornGrace = 5;
+
+        $busyKeys = [];
+        foreach ($this->pendingQueries as $pending) {
+            if (!$pending['done']) {
+                $busyKeys[$pending['connKey']] = true;
+            }
+        }
+
         $idlestKey = null;
         $maxIdle = 0;
+        $newbornCount = 0;
+        $busyCount = 0;
+        $consideredCount = 0;
 
+        $now = time();
         foreach ($this->connections as $key => $conn) {
-            if ($conn->isUserConnection() && $conn->getIdleSeconds() > $maxIdle) {
-                $maxIdle = $conn->getIdleSeconds();
-                $idlest = $conn;
+            if (!$conn->isUserConnection()) {
+                continue;
+            }
+            $consideredCount++;
+
+            if ($now - $conn->connectedAt < $newbornGrace) {
+                $newbornCount++;
+                continue;
+            }
+            if (isset($busyKeys[$key])) {
+                $busyCount++;
+                continue;
+            }
+
+            $idle = $conn->getIdleSeconds();
+            if ($idle > $maxIdle) {
+                $maxIdle = $idle;
                 $idlestKey = $key;
             }
         }
 
-        if ($idlestKey) {
+        if ($idlestKey !== null) {
             $this->logger->info('Gateway: evicting idlest user connection', [
                 'key' => $idlestKey,
                 'idle_seconds' => $maxIdle,
             ]);
             $this->closeConnection($idlestKey);
+            return;
         }
+
+        $this->logger->warning('Gateway: soft cap exceeded — no idle user connection to evict', [
+            'user_open' => $consideredCount,
+            'newborn'   => $newbornCount,
+            'busy'      => $busyCount,
+        ]);
     }
 
     /**
      * Evict the idlest non-persistent on-demand shared connection to make room
      * for a new one when the maxSharedConnections cap is reached.
+     *
+     * Selection rules (in order):
+     *   1. Skip connections younger than NEWBORN_GRACE_SECONDS — they haven't
+     *      had time to receive even an EOSE for their first REQ.
+     *   2. Skip connections that are still serving at least one pending query.
+     *      Killing them mid-flight wastes the open and guarantees the affected
+     *      relay returns nothing for the active correlation.
+     *   3. Among the survivors, evict the one with the highest idle time.
+     *   4. If no connection passes (1) and (2) — i.e. every shared slot is
+     *      either newborn or busy — log a warning and skip eviction. The new
+     *      connection will push the count past the soft cap for the duration
+     *      of the active fan-out, which is a far better failure mode than
+     *      tearing down an in-flight query.
      */
     private function evictIdlestOnDemandConnection(): void
     {
+        $newbornGrace = 5; // seconds
+
+        // Build the set of connection keys that have at least one active
+        // (not-done) pending query. Cheap O(pending) precompute beats O(N×M)
+        // inside the inner loop below.
+        $busyKeys = [];
+        foreach ($this->pendingQueries as $pending) {
+            if (!$pending['done']) {
+                $busyKeys[$pending['connKey']] = true;
+            }
+        }
+
         $idlestKey = null;
         $maxIdle = -1;
+        $newbornCount = 0;
+        $busyCount = 0;
+        $consideredCount = 0;
 
+        $now = time();
         foreach ($this->connections as $key => $conn) {
-            if ($conn->isShared() && !$conn->persistent && $conn->getIdleSeconds() > $maxIdle) {
-                $maxIdle = $conn->getIdleSeconds();
+            if (!$conn->isShared() || $conn->persistent) {
+                continue;
+            }
+            $consideredCount++;
+
+            if ($now - $conn->connectedAt < $newbornGrace) {
+                $newbornCount++;
+                continue;
+            }
+            if (isset($busyKeys[$key])) {
+                $busyCount++;
+                continue;
+            }
+
+            $idle = $conn->getIdleSeconds();
+            if ($idle > $maxIdle) {
+                $maxIdle = $idle;
                 $idlestKey = $key;
             }
         }
@@ -2891,7 +2973,19 @@ class RelayGatewayCommand extends Command
                 'cap'          => $this->maxSharedConnections,
             ]);
             $this->closeConnection($idlestKey);
+            return;
         }
+
+        // Soft-cap mode: every shared slot is either newborn or busy. Letting
+        // the new open succeed is the lesser evil — it keeps the in-flight
+        // fan-out intact at the cost of briefly exceeding maxSharedConnections.
+        $this->logger->warning('Gateway: soft cap exceeded — no idle on-demand connection to evict', [
+            'cap'         => $this->maxSharedConnections,
+            'shared_open' => $consideredCount,
+            'newborn'     => $newbornCount,
+            'busy'        => $busyCount,
+            'hint'        => 'increase --max-shared-conns or reduce per-query relay fan-out',
+        ]);
     }
 
     private function isTimeoutError(\Throwable $e): bool
