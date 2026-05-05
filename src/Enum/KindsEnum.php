@@ -34,6 +34,7 @@ enum KindsEnum: int
     case BOOKMARKS = 10003; // NIP-51, Standard bookmarks list
     case INTERESTS = 10015; // NIP-51
     case MEDIA_FOLLOWS = 10020; // NIP-68, multimedia follow list
+    case RELAY_MONITOR_ANNOUNCEMENT = 10166; // NIP-66, relay monitor self-announcement (replaceable, per monitor pubkey)
     case BLOSSOM_SERVER_LIST = 10063; // NIP-B7, user Blossom server list
     case HTTP_AUTH = 27235; // NIP-98, HTTP Auth
     case BOOKMARK_SETS = 30003; // NIP-51, Categorized bookmark sets
@@ -50,5 +51,6 @@ enum KindsEnum: int
     case PLAYLIST = 34139; // Playlist (e.g. Nostria music playlists)
     case ADDRESSABLE_VIDEO = 34235; // NIP-71, addressable video events
     case ADDRESSABLE_SHORT_VIDEO = 34236; // NIP-71, addressable short-form video events
+    case RELAY_DISCOVERY = 30166; // NIP-66, relay liveness/monitoring event (parameterised replaceable, d=relay-url)
     case FOLLOW_PACK = 39089; // NIP-51, Follow pack / starter pack (list of npubs)
 }

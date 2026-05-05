@@ -287,6 +287,7 @@ class RelayGatewayCommand extends Command
         private readonly Nip46AuthSigner $nip46Signer,
         private readonly Nip46SessionService $nip46Sessions,
         private readonly LoggerInterface $logger,
+        private readonly \App\ReadModel\RedisView\RedisRelayInfoView $relayInfoView,
     ) {
         parent::__construct();
     }
@@ -680,6 +681,24 @@ class RelayGatewayCommand extends Command
                 if ($onDemandCount >= $this->maxSharedConnections) {
                     $this->evictIdlestOnDemandConnection();
                 }
+            }
+        }
+
+        // NIP-11 preflight: if the cached Relay Information Document says the
+        // relay requires AUTH and we have no per-user signer for this open,
+        // skip the WebSocket handshake entirely. The connection would just
+        // sit there waiting for an AUTH challenge we cannot satisfy. Falling
+        // through silently when the doc is unknown preserves the prior
+        // behaviour for relays we have not yet probed.
+        if ($pubkey === null) {
+            $authRequired = $this->relayInfoView->isAuthRequired($relayUrl);
+            if ($authRequired === true) {
+                $this->logger->info('Gateway: skipping anonymous open — NIP-11 says auth_required', [
+                    'relay' => $relayUrl,
+                ]);
+                throw new \App\Exception\Nostr\AuthRequiredSkippedException(
+                    'NIP-11 preflight: ' . $relayUrl . ' requires AUTH; no anonymous open.'
+                );
             }
         }
 

@@ -7,6 +7,9 @@ namespace App\Service\Admin;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
+use App\Repository\RelayInformationRepository;
+use App\Repository\TrustedRelayMonitorRepository;
+use App\Service\Nostr\RelayDirectoryService;
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
@@ -32,6 +35,9 @@ class RelayAdminService
         private readonly RelayHealthStore $healthStore,
         private readonly NostrRelayPool $relayPool,
         private readonly \Redis $redis,
+        private readonly RelayInformationRepository $relayInformationRepository,
+        private readonly RelayDirectoryService $relayDirectoryService,
+        private readonly TrustedRelayMonitorRepository $trustedRelayMonitorRepository,
     ) {
     }
 
@@ -179,6 +185,94 @@ class RelayAdminService
         return [
             'strfry' => $strfryStatus,
         ];
+    }
+
+    /**
+     * Get NIP-11 information overview for every configured + previously-fetched relay.
+     *
+     * Returns one row per known relay URL: registry status, latest fetched
+     * NIP-11 fields, and current health (auth_required / auth_status).
+     * Drives the /admin/relay/nip11 view.
+     *
+     * @return array<int, array<string,mixed>>
+     */
+    public function getRelayInformationOverview(): array
+    {
+        // Union of registered URLs and previously-fetched URLs
+        $registered = [];
+        foreach ($this->relayRegistry->getAllUrls() as $url) {
+            $registered[RelayUrlNormalizer::normalize($url)] = $url;
+        }
+
+        $stored = $this->relayInformationRepository->findAllIndexed();
+        foreach ($stored as $normalized => $_row) {
+            if (!isset($registered[$normalized])) {
+                $registered[$normalized] = $normalized;
+            }
+        }
+
+        $rows = [];
+        foreach ($registered as $normalized => $rawUrl) {
+            $info   = $stored[$normalized] ?? null;
+            $health = $this->healthStore->getHealth($rawUrl);
+
+            $rows[] = [
+                'url'            => $rawUrl,
+                'normalized_url' => $normalized,
+                'registered'     => $this->relayRegistry->isConfiguredRelay($rawUrl),
+                'name'           => $info?->getName(),
+                'description'    => $info?->getDescription(),
+                'software'       => $info?->getSoftware(),
+                'version'        => $info?->getVersion(),
+                'supported_nips' => $info?->getSupportedNips() ?? [],
+                'auth_required'  => $info?->isAuthRequired() ?? $health['auth_required'],
+                'limitation'     => $info?->getLimitation(),
+                'icon'           => $info?->getIcon(),
+                'fetched_at'     => $info?->getFetchedAt(),
+                'fetch_error'    => $info?->getFetchError(),
+                'fetch_attempts' => $info?->getFetchAttempts() ?? 0,
+                'health'         => $health,
+            ];
+        }
+
+        // Sort: registered first, then by URL
+        usort($rows, static function (array $a, array $b): int {
+            if ($a['registered'] !== $b['registered']) {
+                return $b['registered'] <=> $a['registered'];
+            }
+            return strcmp($a['url'], $b['url']);
+        });
+
+        return $rows;
+    }
+
+    /**
+     * NIP-66 relay directory — ranked list for the admin directory UI.
+     *
+     * @param array{kind?: int, nip?: int} $filters
+     * @return array<int, array<string,mixed>>
+     */
+    public function getRelayDirectory(array $filters = []): array
+    {
+        return $this->relayDirectoryService->getDirectory($filters);
+    }
+
+    /**
+     * @return array<int, array<string,mixed>>
+     */
+    public function getMonitors(): array
+    {
+        return $this->relayDirectoryService->getMonitors();
+    }
+
+    public function trustMonitor(string $pubkey, ?int $userId = null): void
+    {
+        $this->trustedRelayMonitorRepository->add($pubkey, $userId);
+    }
+
+    public function untrustMonitor(string $pubkey): bool
+    {
+        return $this->trustedRelayMonitorRepository->remove($pubkey);
     }
 
     /**

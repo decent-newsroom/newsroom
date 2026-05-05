@@ -1,0 +1,116 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Information (NIP-11){% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay Information (NIP-11)"
+    tagline="cached Relay Information Documents for every configured + previously-seen relay"
+/>
+
+<div class="w-container">
+
+    {# Flash messages #}
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ type }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; font-size: 0.875rem;
+                {% if type == 'success' %}background: #dcfce7; color: #166534; border: 1px solid #86efac;{% endif %}
+                {% if type == 'error' %}background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5;{% endif %}
+            ">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# Navigation #}
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ path('admin_relay_index') }}" style="font-size: 0.875rem;">← Back to Relay Administration</a>
+        &nbsp;|&nbsp;
+        <a href="{{ path('admin_relay_gateway') }}" style="font-size: 0.875rem;">Gateway Status</a>
+    </div>
+
+    {# Bulk refresh #}
+    <form method="post" action="{{ path('admin_relay_nip11_refresh') }}" style="margin-bottom: 1rem;">
+        <input type="hidden" name="_token" value="{{ csrf_token('relay_nip11_refresh') }}">
+        <button type="submit" class="btn btn-secondary">Refresh all (async)</button>
+    </form>
+
+    {% if relays is empty %}
+        <p>No relays known yet.</p>
+    {% else %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Relay</th>
+                    <th style="padding: 0.5rem;">Software</th>
+                    <th style="padding: 0.5rem;">NIPs</th>
+                    <th style="padding: 0.5rem;">AUTH</th>
+                    <th style="padding: 0.5rem;">Last fetched</th>
+                    <th style="padding: 0.5rem;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in relays %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            <strong>{{ row.url }}</strong>
+                            {% if row.registered %}
+                                <span style="display: inline-block; margin-left: 0.5rem; padding: 0 0.4rem; background: #e0e7ff; color: #3730a3; font-size: 0.7rem; text-transform: uppercase;">configured</span>
+                            {% endif %}
+                            {% if row.name %}<div style="color: #6b7280; font-size: 0.8rem;">{{ row.name }}</div>{% endif %}
+                            {% if row.fetch_error %}
+                                <div style="color: #b91c1c; font-size: 0.8rem;">⚠ {{ row.fetch_error }} (attempts: {{ row.fetch_attempts }})</div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; font-family: monospace; font-size: 0.8rem;">
+                            {% if row.software %}
+                                {{ row.software|split('/')|last }}{% if row.version %} <span style="color: #6b7280;">{{ row.version }}</span>{% endif %}
+                            {% else %}
+                                <span style="color: #9ca3af;">unknown</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% if row.supported_nips is empty %}
+                                <span style="color: #9ca3af;">—</span>
+                            {% else %}
+                                {% for nip in row.supported_nips|slice(0, 12) %}
+                                    <span style="display: inline-block; padding: 0 0.35rem; margin: 0 0.1rem 0.1rem 0; background: #f3f4f6; font-size: 0.7rem; font-family: monospace;">{{ nip }}</span>
+                                {% endfor %}
+                                {% if row.supported_nips|length > 12 %}
+                                    <span style="font-size: 0.7rem; color: #6b7280;">+{{ row.supported_nips|length - 12 }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% if row.auth_required %}
+                                <span style="display: inline-block; padding: 0 0.4rem; background: #fef3c7; color: #92400e; font-size: 0.75rem; text-transform: uppercase;">required</span>
+                            {% else %}
+                                <span style="color: #6b7280;">no</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; color: #6b7280; font-size: 0.8rem;">
+                            {% if row.fetched_at %}
+                                {{ row.fetched_at|date('Y-m-d H:i') }}
+                            {% else %}
+                                <span style="color: #9ca3af;">never</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; text-align: right;">
+                            <form method="post" action="{{ path('admin_relay_nip11_refresh') }}" style="display: inline;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('relay_nip11_refresh') }}">
+                                <input type="hidden" name="url" value="{{ row.url }}">
+                                <button type="submit" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Refresh</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p style="margin-top: 1.5rem; color: #6b7280; font-size: 0.8rem;">
+            Refreshed automatically every 6 hours via the cron worker. Use the per-row <em>Refresh</em>
+            button to force an immediate fetch — the request is queued on the
+            <code>async_low_priority</code> Messenger transport.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}
+

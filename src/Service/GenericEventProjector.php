@@ -11,6 +11,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
 use App\Service\Update\UpdateMatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -39,6 +40,7 @@ class GenericEventProjector
         private readonly DeletedEventRepository $deletedEventRepository,
         private readonly EventDeletionService $eventDeletionService,
         private readonly MessageBusInterface $messageBus,
+        private readonly RelayDiscoveryEventProjector $relayDiscoveryProjector,
     ) {
     }
 
@@ -225,6 +227,19 @@ class GenericEventProjector
                     'event_id' => $entity->getId(),
                     'kind' => $entity->getKind(),
                     'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // NIP-66: project relay discovery events (10166 / 30166).
+        $nip66Kinds = [KindsEnum::RELAY_MONITOR_ANNOUNCEMENT->value, KindsEnum::RELAY_DISCOVERY->value];
+        if (in_array((int) $event->kind, $nip66Kinds, true)) {
+            try {
+                $this->relayDiscoveryProjector->onProjected($entity);
+            } catch (\Throwable $e) {
+                $this->logger->warning('NIP-66: relay discovery projection failed', [
+                    'event_id' => $entity->getId(),
+                    'error'    => $e->getMessage(),
                 ]);
             }
         }

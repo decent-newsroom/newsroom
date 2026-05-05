@@ -1,0 +1,100 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Monitors (NIP-66){% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay Monitors (NIP-66)"
+    tagline="trusted monitoring bots whose 30166 observations are projected"
+/>
+
+<div class="w-container">
+
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ type }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; font-size: 0.875rem;
+                {% if type == 'success' %}background: #dcfce7; color: #166534; border: 1px solid #86efac;{% endif %}
+                {% if type == 'error' %}background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5;{% endif %}
+            ">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ path('admin_relay_directory_index') }}" style="font-size: 0.875rem;">← Back to Relay Directory</a>
+        &nbsp;|&nbsp;
+        <a href="{{ path('admin_relay_index') }}" style="font-size: 0.875rem;">Relay Administration</a>
+    </div>
+
+    {# Add a trusted monitor #}
+    <div style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #e5e7eb;">
+        <h3 style="margin: 0 0 0.75rem;">Trust a monitor pubkey</h3>
+        <form method="post" action="{{ path('admin_relay_monitors_trust') }}" style="display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;">
+            <input type="hidden" name="_token" value="{{ csrf_token('relay_monitors') }}">
+            <label style="font-size: 0.85rem; flex: 1 1 300px;">
+                Monitor pubkey (hex)
+                <input type="text" name="pubkey" placeholder="64-char hex pubkey" style="display: block; margin-top: 0.25rem; padding: 0.3rem 0.5rem; width: 100%; font-family: monospace;">
+            </label>
+            <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.75rem;">Trust</button>
+        </form>
+    </div>
+
+    {% if monitors is empty %}
+        <p style="color: #6b7280;">No monitors known yet. Add a trusted monitor pubkey above to get started.</p>
+        <p style="color: #9ca3af; font-size: 0.8rem;">
+            Well-known NIP-66 monitors include <code>nostr.watch</code> and similar relay monitoring services.
+            Find their pubkeys via their NIP-05 identifiers or the Nostr network.
+        </p>
+    {% else %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Pubkey</th>
+                    <th style="padding: 0.5rem;">Status</th>
+                    <th style="padding: 0.5rem;">Frequency</th>
+                    <th style="padding: 0.5rem;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for monitor in monitors %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; vertical-align: top; font-family: monospace; font-size: 0.8rem;">
+                            {{ monitor.pubkey }}
+                            {% if monitor.name ?? false %}<div style="font-family: sans-serif; color: #6b7280;">{{ monitor.name }}</div>{% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% if monitor.trusted %}
+                                <span style="display: inline-block; padding: 0 0.4rem; background: #dcfce7; color: #166534; font-size: 0.75rem; text-transform: uppercase;">trusted</span>
+                            {% else %}
+                                <span style="display: inline-block; padding: 0 0.4rem; background: #f3f4f6; color: #6b7280; font-size: 0.75rem; text-transform: uppercase;">candidate</span>
+                            {% endif %}
+                            {% if (monitor.announced ?? true) == false %}
+                                <span style="display: inline-block; margin-left: 0.25rem; padding: 0 0.4rem; background: #fef3c7; color: #92400e; font-size: 0.75rem; text-transform: uppercase;">no 10166</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; color: #6b7280; font-size: 0.8rem;">
+                            {% if monitor.frequency_seconds ?? false %}{{ monitor.frequency_seconds }}s{% else %}—{% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; text-align: right;">
+                            {% if monitor.trusted %}
+                                <form method="post" action="{{ path('admin_relay_monitors_untrust') }}" style="display: inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('relay_monitors') }}">
+                                    <input type="hidden" name="pubkey" value="{{ monitor.pubkey }}">
+                                    <button type="submit" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;"
+                                        onclick="return confirm('Remove trust from this monitor?')">Untrust</button>
+                                </form>
+                            {% else %}
+                                <form method="post" action="{{ path('admin_relay_monitors_trust') }}" style="display: inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('relay_monitors') }}">
+                                    <input type="hidden" name="pubkey" value="{{ monitor.pubkey }}">
+                                    <button type="submit" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Trust</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}
+

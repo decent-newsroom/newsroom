@@ -1,0 +1,94 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Directory (NIP-66){% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay Directory (NIP-66)"
+    tagline="relay liveness data from trusted monitoring bots"
+/>
+
+<div class="w-container">
+
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ type }}" style="margin-bottom: 1rem; padding: 0.75rem 1rem; font-size: 0.875rem;
+                {% if type == 'success' %}background: #dcfce7; color: #166534; border: 1px solid #86efac;{% endif %}
+                {% if type == 'error' %}background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5;{% endif %}
+            ">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{{ path('admin_relay_index') }}" style="font-size: 0.875rem;">← Back to Relay Administration</a>
+        &nbsp;|&nbsp;
+        <a href="{{ path('admin_relay_monitors_index') }}" style="font-size: 0.875rem;">Trusted Monitors</a>
+        &nbsp;|&nbsp;
+        <a href="{{ path('admin_relay_nip11_index') }}" style="font-size: 0.875rem;">NIP-11 Info</a>
+    </div>
+
+    {# Filters #}
+    <form method="get" action="{{ path('admin_relay_directory_index') }}" style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;">
+        <label style="font-size: 0.85rem;">
+            Kind
+            <input type="number" name="kind" value="{{ filters.kind ?? '' }}" placeholder="e.g. 30023" style="display: block; margin-top: 0.25rem; padding: 0.3rem 0.5rem; width: 120px;">
+        </label>
+        <label style="font-size: 0.85rem;">
+            NIP
+            <input type="number" name="nip" value="{{ filters.nip ?? '' }}" placeholder="e.g. 11" style="display: block; margin-top: 0.25rem; padding: 0.3rem 0.5rem; width: 80px;">
+        </label>
+        <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.75rem;">Filter</button>
+        {% if filters is not empty %}
+            <a href="{{ path('admin_relay_directory_index') }}" style="font-size: 0.85rem; align-self: center;">Clear</a>
+        {% endif %}
+    </form>
+
+    {% if relays is empty %}
+        <div style="color: #6b7280; padding: 2rem 0;">
+            <p>No relay observations found. To populate this directory:</p>
+            <ol style="margin: 0.5rem 0 0 1.25rem; line-height: 1.8;">
+                <li>Add trusted monitor pubkeys on the <a href="{{ path('admin_relay_monitors_index') }}">Monitors</a> page.</li>
+                <li>The subscription worker will ingest kind 30166 events from those monitors.</li>
+            </ol>
+        </div>
+    {% else %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Relay</th>
+                    <th style="padding: 0.5rem;" title="Number of trusted monitors that have reported on this relay">Monitors</th>
+                    <th style="padding: 0.5rem;" title="Median open-RTT across all monitoring reports">Median RTT</th>
+                    <th style="padding: 0.5rem;" title="Native health score from RelayHealthStore">Health</th>
+                    <th style="padding: 0.5rem;">AUTH</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in relays %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            <strong>{{ row.url }}</strong>
+                            {% if row.name %}<div style="color: #6b7280; font-size: 0.8rem;">{{ row.name }}</div>{% endif %}
+                            {% if row.software %}<div style="color: #9ca3af; font-size: 0.75rem; font-family: monospace;">{{ row.software|split('/')|last }}</div>{% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top; text-align: center;">{{ row.monitor_count }}</td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% if row.median_rtt_ms is not null %}{{ row.median_rtt_ms }} ms{% else %}<span style="color: #9ca3af;">—</span>{% endif %}
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% set score = row.health_score %}
+                            <span style="color: {% if score >= 0.7 %}#166534{% elseif score >= 0.4 %}#92400e{% else %}#991b1b{% endif %};">
+                                {{ (score * 100)|round }}%
+                            </span>
+                        </td>
+                        <td style="padding: 0.5rem; vertical-align: top;">
+                            {% if row.auth_required %}<span style="font-size: 0.75rem; text-transform: uppercase; background: #fef3c7; color: #92400e; padding: 0 0.3rem;">required</span>{% else %}<span style="color:#6b7280;">no</span>{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p style="margin-top: 1rem; color: #6b7280; font-size: 0.8rem;">{{ relays|length }} relay(s) in directory. Populated live from kind 30166 events from trusted monitors.</p>
+    {% endif %}
+</div>
+{% endblock %}
+

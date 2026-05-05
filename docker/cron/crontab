@@ -30,6 +30,10 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Runs every 6 hours to refresh media content
 0 */6 * * * /app/docker/cron/media_discovery.sh >> /var/log/cron-media-discovery.log 2>&1
 
+# Refresh NIP-11 Relay Information Documents
+# Runs every 6 hours; dispatches async Messenger messages so the cron completes instantly.
+0 */6 * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:relays:refresh-information --stale --async >> /var/log/cron-relay-info.log 2>&1
+
 # Project magazine indices to Magazine entities
 # Runs every 30 minutes (reduced from 10 — magazine events are infrequent)
 */30 * * * * /app/docker/cron/project_magazines.sh >> /var/log/cron-magazine-projection.log 2>&1

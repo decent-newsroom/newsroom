@@ -110,6 +110,8 @@ framework:
             'App\Message\SyncUserEventsMessage': async_low_priority
             # Follows relay pool warming - build consolidated relay pool after login sync
             'App\Message\WarmFollowsRelayPoolMessage': async_low_priority
+            # NIP-11 fetch — async to keep admin "Refresh now" instant
+            'App\Message\FetchRelayInformationMessage': async_low_priority
             # --- Profiles: heavy background work, isolated to avoid blocking ---
             # Profile updates - relay calls, can be slow
             'App\Message\UpdateProfileProjectionMessage': async_profiles

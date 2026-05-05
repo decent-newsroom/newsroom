@@ -27,6 +27,17 @@ parameters:
         - 'wss://relay.decentnewsroom.com'
         - 'wss://relay.primal.net'
         - 'wss://relay.damus.io'
+
+    # NIP-11 Relay Information Document fetcher
+    relay_information.fetch_timeout_seconds: 5.0
+    relay_information.fetch_max_redirects: 2
+    relay_information.refresh_interval_seconds: 21600 # 6 hours
+
+    # NIP-66 Relay Discovery — bootstrap trusted monitor pubkeys (hex)
+    # Add known monitoring bot pubkeys here; their 30166 events will be
+    # projected into monitored_relay on arrival.
+    relay_discovery.bootstrap_monitor_pubkeys: []
+    relay_discovery.augmentation_limit: 5
     
     # Contribution/donation settings
     project_contribution_npub: '%env(default::PROJECT_CONTRIBUTION_NPUB)%'
@@ -161,6 +172,22 @@ services:
     App\Service\Nostr\RelayHealthStore:
         arguments:
             $redis: '@Redis'
+
+    # NIP-11 Relay Information Document fetcher (HTTP)
+    App\Service\Nostr\RelayInformationFetcher:
+        arguments:
+            $timeoutSeconds: '%relay_information.fetch_timeout_seconds%'
+            $maxRedirects:   '%relay_information.fetch_max_redirects%'
+
+    # NIP-11 Redis view (read cache for the gateway preflight)
+    App\ReadModel\RedisView\RedisRelayInfoView:
+        arguments:
+            $redis: '@Redis'
+
+    # NIP-66 Relay Directory Service
+    App\Service\Nostr\RelayDirectoryService:
+        arguments:
+            $augmentationLimit: '%relay_discovery.augmentation_limit%'
 
     # Mercure Admin Service — hub diagnostics for admin dashboard
     App\Service\Admin\MercureAdminService:

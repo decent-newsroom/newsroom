@@ -112,6 +112,49 @@ class RelayHealthStore
     }
 
     /**
+     * Cache the relay's supported NIP list (sourced from its NIP-11 document).
+     *
+     * @param int[] $nips
+     */
+    public function setSupportedNips(string $relayUrl, array $nips): void
+    {
+        try {
+            $key = $this->key($relayUrl);
+            $clean = array_values(array_unique(array_filter(
+                array_map('intval', $nips),
+                static fn(int $n) => $n > 0,
+            )));
+            $this->redis->hSet($key, 'supported_nips', json_encode($clean) ?: '[]');
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
+        } catch (\RedisException $e) {
+            $this->logger->debug('RelayHealthStore: Redis write failed (supported_nips)', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getSupportedNips(string $relayUrl): array
+    {
+        try {
+            $raw = $this->redis->hGet($this->key($relayUrl), 'supported_nips');
+            if (!is_string($raw) || $raw === '') {
+                return [];
+            }
+            $decoded = json_decode($raw, true);
+            if (!is_array($decoded)) {
+                return [];
+            }
+            return array_values(array_filter(
+                array_map('intval', $decoded),
+                static fn(int $n) => $n > 0,
+            ));
+        } catch (\RedisException) {
+            return [];
+        }
+    }
+
+    /**
      * Check if a relay is known to require AUTH.
      */
     public function isAuthRequired(string $relayUrl): bool
@@ -134,7 +177,42 @@ class RelayHealthStore
         }
     }
 
-    // ----- readers -----
+    /**
+     * Record an RTT observation from a NIP-66 monitoring bot.
+     *
+     * The monitor-reported latency is blended into the existing `avg_latency_ms`
+     * at a lower weight (0.1) than native measurements (0.3) so monitors
+     * supplement but never dominate real connection data. The `monitor_rtt_open`
+     * field is also stored raw so the admin UI can surface it separately.
+     */
+    public function recordMonitorObservation(
+        string $relayUrl,
+        ?int $rttOpenMs,
+        ?int $rttReadMs,
+        ?int $rttWriteMs,
+        int $observedAt,
+        string $monitorPubkey,
+    ): void {
+        try {
+            $key = $this->key($relayUrl);
+            if ($rttOpenMs !== null) {
+                $this->redis->hSet($key, 'monitor_rtt_open', (string) $rttOpenMs);
+                $this->redis->hSet($key, 'monitor_observed_at', (string) $observedAt);
+                // Blend lightly into the rolling average
+                $current = $this->redis->hGet($key, 'avg_latency_ms');
+                if ($current !== false && $current !== '') {
+                    $avg = (float) $current;
+                    $avg = ($avg * 0.9) + ($rttOpenMs * 0.1);
+                } else {
+                    $avg = (float) $rttOpenMs;
+                }
+                $this->redis->hSet($key, 'avg_latency_ms', (string) round($avg, 1));
+            }
+            $this->redis->expire($key, $this->ttlFor($relayUrl));
+        } catch (\RedisException $e) {
+            $this->logger->debug('RelayHealthStore: Redis write failed (monitor_observation)', ['error' => $e->getMessage()]);
+        }
+    }
 
     /**
      * Get all health data for a single relay.
