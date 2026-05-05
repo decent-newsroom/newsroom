@@ -26,17 +26,21 @@
     </div>
 
     {# Add a trusted monitor #}
-    <div style="margin-bottom: 2rem; padding: 1rem; border: 1px solid #e5e7eb;">
-        <h3 style="margin: 0 0 0.75rem;">Trust a monitor pubkey</h3>
-        <form method="post" action="{{ path('admin_relay_monitors_trust') }}" style="display: flex; gap: 0.5rem; align-items: flex-end; flex-wrap: wrap;">
+    <section>
+        <h3>Trust a monitor pubkey</h3>
+        <form method="post" action="{{ path('admin_relay_monitors_trust') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('relay_monitors') }}">
-            <label style="font-size: 0.85rem; flex: 1 1 300px;">
-                Monitor pubkey (hex)
-                <input type="text" name="pubkey" placeholder="64-char hex pubkey" style="display: block; margin-top: 0.25rem; padding: 0.3rem 0.5rem; width: 100%; font-family: monospace;">
-            </label>
-            <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.75rem;">Trust</button>
+            <div class="input-group">
+                <label>
+                    Monitor pubkey (hex)
+                    <input type="text" name="pubkey" placeholder="64-char hex pubkey" style="display: block; margin-top: 0.25rem; padding: 0.3rem 0.5rem; width: 100%; font-family: monospace;">
+                </label>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.75rem;">Trust</button>
+            </div>
         </form>
-    </div>
+    </section>
 
     {% if monitors is empty %}
         <p style="color: #6b7280;">No monitors known yet. Add a trusted monitor pubkey above to get started.</p>

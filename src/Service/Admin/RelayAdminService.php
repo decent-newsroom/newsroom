@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Admin;
 
+use App\Message\FetchRelayMonitorEventsMessage;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
@@ -12,6 +13,7 @@ use App\Repository\TrustedRelayMonitorRepository;
 use App\Service\Nostr\RelayDirectoryService;
 use App\Util\RelayUrlNormalizer;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use swentel\nostr\Filter\Filter;
 use swentel\nostr\Message\RequestMessage;
 use swentel\nostr\Relay\Relay;
@@ -38,6 +40,7 @@ class RelayAdminService
         private readonly RelayInformationRepository $relayInformationRepository,
         private readonly RelayDirectoryService $relayDirectoryService,
         private readonly TrustedRelayMonitorRepository $trustedRelayMonitorRepository,
+        private readonly MessageBusInterface $bus,
     ) {
     }
 
@@ -268,6 +271,19 @@ class RelayAdminService
     public function trustMonitor(string $pubkey, ?int $userId = null): void
     {
         $this->trustedRelayMonitorRepository->add($pubkey, $userId);
+
+        // Immediately kick off a background fetch of the monitor's NIP-66 events
+        // so the admin doesn't have to wait for the subscription worker to pick
+        // them up organically (they may never arrive if the monitor only publishes
+        // to relays we don't subscribe to).
+        try {
+            $this->bus->dispatch(new FetchRelayMonitorEventsMessage($pubkey));
+        } catch (\Throwable $e) {
+            $this->logger->warning('NIP-66: failed to dispatch monitor event fetch', [
+                'pubkey' => substr($pubkey, 0, 16) . '…',
+                'error'  => $e->getMessage(),
+            ]);
+        }
     }
 
     public function untrustMonitor(string $pubkey): bool

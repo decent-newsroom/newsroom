@@ -254,7 +254,7 @@ class RelayAdminController extends AbstractController
             return $this->redirectToRoute('admin_relay_monitors_index');
         }
         $this->relayAdminService->trustMonitor($pubkey, $this->getUser()?->getId());
-        $this->addFlash('success', sprintf('Trusted monitor: %s', substr($pubkey, 0, 16) . '…'));
+        $this->addFlash('success', sprintf('Trusted monitor: %s… (fetching their events in the background)', substr($pubkey, 0, 16)));
         return $this->redirectToRoute('admin_relay_monitors_index');
     }
 
