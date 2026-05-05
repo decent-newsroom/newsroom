@@ -247,9 +247,28 @@ class RelayGatewayCommand extends Command
      * handshake when opening a relay connection. The default of the
      * phrity/websocket Client is 60s, which means a single dead public relay
      * can stall the entire event loop for a full minute. After connect the
-     * timeout is set to 0 (non-blocking) for the regular receive sweep.
+     * timeout is set to RECEIVE_TIMEOUT_SECONDS for the regular receive
+     * sweep.
      */
     private const CONNECT_TIMEOUT_SECONDS = 5;
+
+    /**
+     * Per-receive timeout for the non-blocking sweep over open connections.
+     *
+     * IMPORTANT: this MUST be a small *non-zero* value. phrity/websocket's
+     * Client::setTimeout(0) translates to stream_set_timeout($stream, 0, 0),
+     * which on a blocking socket means "wait forever in fread() until at
+     * least one byte arrives" — not "return immediately". With timeout 0 the
+     * event loop deadlocks on whichever connection happens to be idle (no
+     * tick logs, no maintenance, eventually the SIGALRM watchdog fires).
+     *
+     * A small finite timeout (e.g. 10 ms) makes Stream::read() fall through
+     * cleanly: the lib raises ConnectionTimeoutException when no frame is
+     * available and our processWebSocketMessages() catch treats that as
+     * "nothing to read" and continues. Cost per sweep is bounded by
+     * (#connections × this value).
+     */
+    private const RECEIVE_TIMEOUT_SECONDS = 0.01;
 
     /** Unix timestamp of the last successfully written heartbeat */
     private int $lastHeartbeatWrittenAt = 0;
@@ -685,12 +704,9 @@ class RelayGatewayCommand extends Command
             $client->setTimeout(self::CONNECT_TIMEOUT_SECONDS);
             $client->connect();
 
-            // 0 = non-blocking drain: receive() returns immediately if the OS
-            // buffer is empty, throwing a timeout exception (caught in
-            // processWebSocketMessages as "nothing to read"). With N connections
-            // a 1-second timeout makes each sweep take up to N seconds, which
-            // blows past the correlation deadline long before EOSE arrives.
-            $client->setTimeout(0);
+            // Tight receive timeout for the per-tick non-blocking sweep.
+            // See RECEIVE_TIMEOUT_SECONDS for why this is NOT 0.
+            $client->setTimeout(self::RECEIVE_TIMEOUT_SECONDS);
 
             $conn->relay = $relay;
             $conn->connected = true;
