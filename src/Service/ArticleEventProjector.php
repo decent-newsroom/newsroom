@@ -4,14 +4,12 @@ namespace App\Service;
 
 use App\Entity\Article;
 use App\Factory\ArticleFactory;
-use App\Message\UpdateProfileProjectionMessage;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Util\CommonMark\Converter;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Projects Nostr article events into the database
@@ -27,7 +25,7 @@ class ArticleEventProjector
         private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
         private readonly Converter $converter,
-        private readonly MessageBusInterface $messageBus,
+        private readonly ProfileUpdateDispatcher $profileUpdateDispatcher,
         private readonly UserRolePromoter $userRolePromoter,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly ReplaceableEventCleanupService $cleanupService,
@@ -138,9 +136,9 @@ class ArticleEventProjector
                 ]);
             }
 
-            // Trigger async profile fetch for the article author
+            // Trigger async profile fetch for the article author (throttled to avoid queue floods)
             try {
-                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($article->getPubkey()));
+                $this->profileUpdateDispatcher->dispatch($article->getPubkey());
                 $this->logger->debug('Dispatched profile fetch for article author', [
                     'pubkey' => substr($article->getPubkey(), 0, 16) . '...',
                     'event_id' => $article->getEventId()

@@ -3,12 +3,11 @@
 namespace App\Security;
 
 use App\Entity\User;
-use App\Message\UpdateProfileProjectionMessage;
+use App\Service\ProfileUpdateDispatcher;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
@@ -31,7 +30,7 @@ readonly class UserDTOProvider implements UserProviderInterface
     public function __construct(
         private EntityManagerInterface    $entityManager,
         private LoggerInterface           $logger,
-        private MessageBusInterface       $messageBus
+        private ProfileUpdateDispatcher   $profileUpdateDispatcher
     )
     {
     }
@@ -83,7 +82,7 @@ readonly class UserDTOProvider implements UserProviderInterface
                     ]);
                 } else {
                     $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
-                    $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+                    $this->profileUpdateDispatcher->dispatch($pubkey);
                 }
             } catch (\Throwable $e) {
                 // Log but don't block refresh
@@ -147,7 +146,7 @@ readonly class UserDTOProvider implements UserProviderInterface
                 && (time() - $lastRefresh->getTimestamp()) < self::METADATA_REFRESH_WINDOW_SECONDS;
 
             if (!$isFresh) {
-                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+                $this->profileUpdateDispatcher->dispatch($pubkey);
                 $this->logger->debug('Dispatched profile projection update', ['npub' => $identifier]);
             } else {
                 $this->logger->debug('Skipping login profile dispatch; metadata is fresh', ['npub' => $identifier]);

@@ -173,6 +173,11 @@ services:
         arguments:
             $redis: '@Redis'
 
+    # Profile update throttle — prevents duplicate dispatches for the same pubkey
+    App\Service\ProfileUpdateDispatcher:
+        arguments:
+            $redis: '@Redis'
+
     # NIP-11 Relay Information Document fetcher (HTTP)
     App\Service\Nostr\RelayInformationFetcher:
         arguments:

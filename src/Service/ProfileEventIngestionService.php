@@ -3,15 +3,13 @@
 namespace App\Service;
 
 use App\Entity\Event;
-use App\Message\UpdateProfileProjectionMessage;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Service to handle profile-related event ingestion.
  *
  * When profile events (kind:0 metadata, kind:10002 relay list) are ingested,
- * this service triggers async projection updates.
+ * this service triggers async projection updates via the throttled dispatcher.
  */
 class ProfileEventIngestionService
 {
@@ -21,7 +19,7 @@ class ProfileEventIngestionService
     ];
 
     public function __construct(
-        private readonly MessageBusInterface $messageBus,
+        private readonly ProfileUpdateDispatcher $profileUpdateDispatcher,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -45,8 +43,7 @@ class ProfileEventIngestionService
                 'pubkey' => substr($pubkeyHex, 0, 8) . '...'
             ]);
 
-            // Dispatch async projection update
-            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkeyHex));
+            $this->profileUpdateDispatcher->dispatch($pubkeyHex);
         } catch (\Exception $e) {
             $this->logger->error('Failed to trigger profile projection update after ingestion', [
                 'event_id' => $event->getId(),
@@ -79,21 +76,19 @@ class ProfileEventIngestionService
             return;
         }
 
+        $pubkeys = array_keys($pubkeysToUpdate);
+
         $this->logger->info('Profile events ingested in batch, triggering projection updates', [
-            'pubkey_count' => count($pubkeysToUpdate)
+            'pubkey_count' => count($pubkeys)
         ]);
 
-        // Dispatch projection updates (deduplicated by pubkey)
-        foreach (array_keys($pubkeysToUpdate) as $pubkeyHex) {
-            try {
-                $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkeyHex));
-            } catch (\Exception $e) {
-                $this->logger->error('Failed to dispatch profile projection update', [
-                    'pubkey' => substr($pubkeyHex, 0, 8) . '...',
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
+        $queued = $this->profileUpdateDispatcher->dispatchBatch($pubkeys);
+
+        $this->logger->debug('Batch profile dispatch result', [
+            'requested' => count($pubkeys),
+            'queued' => $queued,
+            'throttled' => count($pubkeys) - $queued,
+        ]);
     }
 
     /**

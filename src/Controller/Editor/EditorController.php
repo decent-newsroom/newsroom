@@ -20,8 +20,8 @@ use App\Util\CommonMark\Converter;
 use App\Util\NostrKeyUtil;
 use App\Enum\AuthorContentType;
 use App\Message\FetchAuthorContentMessage;
-use App\Message\UpdateProfileProjectionMessage;
 use App\Message\RevalidateProfileCacheMessage;
+use App\Service\ProfileUpdateDispatcher;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
@@ -48,6 +48,7 @@ class EditorController extends AbstractController
         NostrEventParser $eventParser,
         UserRelayListService $userRelayListService,
         MessageBusInterface $messageBus,
+        ProfileUpdateDispatcher $profileUpdateDispatcher,
         $slug = null
     ): Response
     {
@@ -103,8 +104,8 @@ class EditorController extends AbstractController
                     $user->setRelays($relays);
                     $entityManager->flush();
                 }
-                // Dispatch async message to fetch real relays in the background
-                $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
+                // Dispatch async message to fetch real relays in the background (throttled)
+                $profileUpdateDispatcher->dispatch($currentPubkey);
             }
 
             $recentArticles = $entityManager->getRepository(Article::class)
@@ -171,7 +172,8 @@ class EditorController extends AbstractController
         NostrEventParser $eventParser,
         Request $request,
         UserRelayListService $userRelayListService,
-        MessageBusInterface $messageBus
+        MessageBusInterface $messageBus,
+        ProfileUpdateDispatcher $profileUpdateDispatcher
     ): Response {
         // This route previews another user's article, but sidebar shows current user's lists for navigation.
         $advancedMetadata = null;
@@ -215,7 +217,7 @@ class EditorController extends AbstractController
                     $user->setRelays($relays);
                     $entityManager->flush();
                 }
-                $messageBus->dispatch(new UpdateProfileProjectionMessage($currentPubkey));
+                $profileUpdateDispatcher->dispatch($currentPubkey);
             }
 
             $recentArticles = $entityManager->getRepository(Article::class)

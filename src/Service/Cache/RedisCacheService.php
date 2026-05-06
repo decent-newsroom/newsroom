@@ -6,10 +6,9 @@ namespace App\Service\Cache;
 use App\Dto\UserMetadata;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Message\BatchUpdateProfileProjectionMessage;
-use App\Message\UpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\ProfileUpdateDispatcher;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
@@ -17,7 +16,6 @@ use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 class RedisCacheService
@@ -29,7 +27,7 @@ class RedisCacheService
         private readonly CacheItemPoolInterface $npubCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface        $logger,
-        private readonly MessageBusInterface    $messageBus,
+        private readonly ProfileUpdateDispatcher $profileUpdateDispatcher,
         private readonly UserEntityRepository   $userRepository
     ) {}
 
@@ -95,9 +93,9 @@ class RedisCacheService
             $this->logger->error('Error fetching user from database.', ['exception' => $e, 'pubkey' => substr($pubkey, 0, 8)]);
         }
 
-        // No data in cache or database: dispatch async fetch
+        // No data in cache or database: dispatch async fetch (throttled)
         try {
-            $this->messageBus->dispatch(new UpdateProfileProjectionMessage($pubkey));
+            $this->profileUpdateDispatcher->dispatch($pubkey);
             $this->logger->debug('Dispatched async profile fetch for cache miss', ['pubkey' => substr($pubkey, 0, 8)]);
         } catch (\Throwable $e) {
             $this->logger->error('Error dispatching async profile fetch.', ['exception' => $e]);
@@ -191,12 +189,13 @@ class RedisCacheService
             $result[$pubkey] = UserMetadata::createDefault($pubkey);
         }
 
-        // Dispatch batch async fetch for all misses (non-blocking)
+        // Dispatch batch async fetch for all misses (throttled, non-blocking)
         if (!empty($missedPubkeys)) {
             try {
-                $this->messageBus->dispatch(new BatchUpdateProfileProjectionMessage($missedPubkeys));
+                $queued = $this->profileUpdateDispatcher->dispatchBatch($missedPubkeys);
                 $this->logger->debug('Dispatched batch async profile fetch', [
-                    'count' => count($missedPubkeys),
+                    'requested' => count($missedPubkeys),
+                    'queued' => $queued,
                     'sample' => substr($missedPubkeys[0] ?? '', 0, 8)
                 ]);
             } catch (\Throwable $e) {

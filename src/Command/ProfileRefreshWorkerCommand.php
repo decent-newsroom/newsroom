@@ -2,8 +2,8 @@
 
 namespace App\Command;
 
-use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\UserEntityRepository;
+use App\Service\ProfileUpdateDispatcher;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * Background worker that periodically refreshes profile metadata for users.
  *
  * This command runs continuously and triggers profile updates in batches,
- * using BatchUpdateProfileProjectionMessage for efficient single relay calls.
+ * using ProfileUpdateDispatcher for efficient, throttled relay calls.
  */
 #[AsCommand(
     name: 'app:profile-refresh-worker',
@@ -31,7 +31,7 @@ class ProfileRefreshWorkerCommand extends Command
 
     public function __construct(
         private readonly UserEntityRepository $userRepository,
-        private readonly MessageBusInterface $messageBus,
+        private readonly ProfileUpdateDispatcher $profileUpdateDispatcher,
         private readonly LoggerInterface $logger
     ) {
         parent::__construct();
@@ -161,14 +161,16 @@ class ProfileRefreshWorkerCommand extends Command
                 }
             }
 
-            // Dispatch batch message (single message for all pubkeys in batch)
+            // Dispatch batch message via throttled dispatcher
             if (!empty($pubkeysBatch)) {
                 try {
-                    $this->messageBus->dispatch(new BatchUpdateProfileProjectionMessage($pubkeysBatch));
-                    $dispatchedCount += count($pubkeysBatch);
+                    $queued = $this->profileUpdateDispatcher->dispatchBatch($pubkeysBatch);
+                    $dispatchedCount += $queued;
 
                     $this->logger->info('Dispatched batch profile update', [
-                        'batch_size' => count($pubkeysBatch)
+                        'batch_size' => count($pubkeysBatch),
+                        'queued' => $queued,
+                        'throttled' => count($pubkeysBatch) - $queued,
                     ]);
                 } catch (\Exception $e) {
                     $this->logger->error('Failed to dispatch batch profile update', [
