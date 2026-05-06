@@ -25,6 +25,8 @@ export default class extends Controller {
         });
 
         this.eventSources = {};
+        this._pendingUpdateByType = {}; // tracks tabs with unviewed Mercure updates
+        this._refreshDebounceTimers = {};
         this.subscribeToMercure();
     }
 
@@ -79,7 +81,8 @@ export default class extends Controller {
             if (contentType === this.activeTabValue) {
                 this.updateTabContent(contentType, data);
             } else {
-                // Show notification badge on tab
+                // Show notification badge on tab and remember there's a pending update
+                this._pendingUpdateByType[contentType] = true;
                 this.showTabNotification(contentType, data.count || 0);
             }
         } catch (error) {
@@ -88,17 +91,57 @@ export default class extends Controller {
     }
 
     /**
-     * Update tab content with new data
+     * Reload the active tab's Turbo Frame content from the server.
+     * Called both when Mercure fires for the currently-visible tab and when
+     * the user switches to a tab that has a pending update badge.
      */
-    updateTabContent(contentType, data) {
-        if (!data.items || data.items.length === 0) return;
+    updateTabContent(contentType, _data) {
+        // Debounce rapid successive notifications (e.g. multiple content types at once)
+        if (this._refreshDebounceTimers[contentType]) {
+            clearTimeout(this._refreshDebounceTimers[contentType]);
+        }
 
-        // Dispatch custom event for tab-specific controllers to handle
-        const event = new CustomEvent(`author-${contentType}:update`, {
-            detail: data,
-            bubbles: true
-        });
-        this.element.dispatchEvent(event);
+        this._refreshDebounceTimers[contentType] = setTimeout(async () => {
+            delete this._refreshDebounceTimers[contentType];
+
+            // Find the tab link element to get the URL
+            const tab = this.tabTargets.find(t => t.dataset.tab === contentType);
+            if (!tab) {
+                console.warn(`[profile-tabs] No tab link found for ${contentType}`);
+                return;
+            }
+
+            const url = tab.href;
+            console.log(`[profile-tabs] Refreshing ${contentType} tab from server`, { url });
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Turbo-Frame': 'profile-tab-content'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const frameContent = doc.querySelector('turbo-frame#profile-tab-content');
+
+                if (frameContent) {
+                    const targetFrame = document.querySelector('turbo-frame#profile-tab-content');
+                    if (targetFrame) {
+                        targetFrame.innerHTML = frameContent.innerHTML;
+                        console.log(`[profile-tabs] Refreshed ${contentType} tab content`);
+                    }
+                }
+            } catch (error) {
+                console.error(`[profile-tabs] Failed to refresh ${contentType} tab content:`, error);
+            }
+        }, 500);
     }
 
     /**
@@ -138,7 +181,7 @@ export default class extends Controller {
         event.preventDefault();
         const clickedTab = event.currentTarget;
         const tabName = clickedTab.dataset.tab;
-        const url = clickedTab.href;
+        let url = clickedTab.href;
 
         console.log(`[profile-tabs] Switching to ${tabName} tab, URL: ${url}`);
 
@@ -151,6 +194,15 @@ export default class extends Controller {
 
         // Clear notification for this tab
         this.clearTabNotification(tabName);
+
+        // If there's a pending Mercure update for this tab, ask the server to
+        // bypass its stale-while-revalidate cache so we get the freshest data.
+        const hasPendingUpdate = this._pendingUpdateByType[tabName] === true;
+        if (hasPendingUpdate) {
+            delete this._pendingUpdateByType[tabName];
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}refresh=1`;
+        }
 
         // Fetch the tab content
         try {

@@ -9,6 +9,7 @@ use App\Enum\AuthorContentType;
 use App\Factory\ArticleFactory;
 use App\Message\FetchAuthorContentMessage;
 use App\Repository\EventRepository;
+use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\UserRelayListService;
@@ -45,6 +46,7 @@ class FetchAuthorContentHandler
         private readonly LoggerInterface $logger,
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly Converter $converter,
+        private readonly RedisViewStore $viewStore,
     ) {}
 
     public function __invoke(FetchAuthorContentMessage $message): void
@@ -146,6 +148,28 @@ class FetchAuthorContentHandler
                     // Publish to Mercure for real-time updates
                     if (!empty($processedData)) {
                         $this->publishToMercure($pubkey, $contentType, $processedData);
+                    }
+
+                    // Invalidate profile tab cache so the next page request
+                    // rebuilds from the DB that now contains the relay-fetched
+                    // content. Without this the RevalidateProfileCacheHandler
+                    // may have already stored a pre-fetch empty (or stale)
+                    // payload with a 24h TTL, hiding the freshly-saved articles.
+                    if (in_array($contentType, [
+                        AuthorContentType::ARTICLES,
+                        AuthorContentType::DRAFTS,
+                        AuthorContentType::MEDIA,
+                        AuthorContentType::HIGHLIGHTS,
+                    ], true)) {
+                        try {
+                            $this->viewStore->invalidateProfileTabs($pubkey);
+                        } catch (\Throwable $e) {
+                            $this->logger->warning('Failed to invalidate profile tabs after content fetch', [
+                                'pubkey' => $pubkey,
+                                'content_type' => $contentType->value,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
                     }
 
                     $this->logger->info('✅ Processed author content type  ' . $contentType->value, [

@@ -856,7 +856,8 @@ class AuthorController extends AbstractController
             // projection), it would otherwise mask a user's own articles for up
             // to a day. The editor sidebar hits Postgres directly for the same
             // reason — this keeps the two views consistent.
-            $bypassCache = $isOwner;
+            // Also bypass when the client explicitly signals a pending Mercure update.
+            $bypassCache = $isOwner || $request->query->has('refresh');
 
             if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
                 // Guard against a poisoned empty cache: if the critical payload
