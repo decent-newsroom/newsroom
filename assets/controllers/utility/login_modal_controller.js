@@ -180,7 +180,7 @@ export default class extends Controller {
       });
       this.uriInputTargets.forEach(el => { el.value = this._uri || ''; });
       if (this._currentOption === 'amber' && this._uri && this.hasAmberDeepLinkBtnTarget) {
-        this.amberDeepLinkBtnTarget.href = 'nostrsigner:' + this._uri;
+        this.amberDeepLinkBtnTarget.href = this._uri;
       }
       return;
     }
@@ -222,7 +222,10 @@ export default class extends Controller {
       });
       this.uriInputTargets.forEach(el => { el.value = this._uri; });
       if (this.hasAmberDeepLinkBtnTarget) {
-        this.amberDeepLinkBtnTarget.href = 'nostrsigner:' + this._uri;
+        // Use nostrconnect:// directly — Amber registers this scheme for NIP-46
+        // connection initiation. Using nostrsigner: routes to Amber's signing
+        // requests screen instead, which shows "nothing to approve yet".
+        this.amberDeepLinkBtnTarget.href = this._uri;
       }
 
       this._setStatus('Awaiting signal…');
