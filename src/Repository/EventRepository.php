@@ -32,6 +32,26 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Build SQL OR predicates using jsonb containment for exact (tag key, value) pairs.
+     *
+     * @param string $column JSONB column name (e.g. e.tags)
+     * @param array<int, array{0:string,1:string}> $pairs
+     * @param array<string, mixed> $params Output bind params
+     */
+    private function buildTagContainmentOrCondition(string $column, array $pairs, array &$params): string
+    {
+        $orParts = [];
+
+        foreach ($pairs as $i => [$tagName, $tagValue]) {
+            $param = 'tag_match_' . $i;
+            $orParts[] = "{$column} @> CAST(:{$param} AS jsonb)";
+            $params[$param] = json_encode([[$tagName, $tagValue]], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        return '(' . implode(' OR ', $orParts) . ')';
+    }
+
+    /**
      * Map a database row to an Event entity
      */
     private function mapRowToEvent(array $row): Event
@@ -671,11 +691,47 @@ class EventRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        $sql = "SELECT * FROM event e
-                WHERE e.kind IN (1111, 9735)
-                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate');
+        $isCoordinate = str_contains($coordinate, ':');
+        $rootPairs = $isCoordinate
+            ? [['A', $coordinate], ['a', $coordinate]]
+            : [['E', $coordinate], ['e', $coordinate]];
+        $params = [];
+        $rootCondition = $this->buildTagContainmentOrCondition('e.tags', $rootPairs, $params);
 
-        $params = ['coordinate' => $coordinate];
+        $sql = "WITH RECURSIVE tree AS (
+                    SELECT e.id
+                    FROM event e
+                    WHERE e.kind = 1111
+                      AND {$rootCondition}
+
+                    UNION
+
+                    SELECT child.id
+                    FROM event child
+                    JOIN tree ON child.kind = 1111
+                    WHERE EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(child.tags) AS tag
+                        WHERE (tag->>0 = 'E' OR tag->>0 = 'e')
+                          AND tag->>1 = tree.id
+                    )
+                )
+                SELECT * FROM event e
+                WHERE (
+                    (e.kind = 1111 AND e.id IN (SELECT id FROM tree))
+                    OR
+                    (e.kind = 9735 AND (
+                        {$rootCondition}
+                        OR EXISTS (
+                            SELECT 1
+                            FROM tree
+                            WHERE EXISTS (
+                                SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                                WHERE (tag->>0 = 'E' OR tag->>0 = 'e')
+                                  AND tag->>1 = tree.id
+                            )
+                        )
+                    ))
+                )";
 
         if ($since !== null && $since > 0) {
             $sql .= " AND e.created_at > :since";
@@ -701,13 +757,21 @@ class EventRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
+        $isCoordinate = str_contains($coordinate, ':');
+        $pairs = $isCoordinate
+            ? [['A', $coordinate], ['a', $coordinate]]
+            : [['E', $coordinate], ['e', $coordinate]];
+
+        $params = [];
+        $refCondition = $this->buildTagContainmentOrCondition('e.tags', $pairs, $params);
+
         $sql = "SELECT e.created_at FROM event e
                 WHERE e.kind IN (1111, 9735)
-                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate') . "
+                AND {$refCondition}
                 ORDER BY e.created_at DESC
                 LIMIT 1";
 
-        $result = $conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchAssociative();
+        $result = $conn->executeQuery($sql, $params)->fetchAssociative();
 
         return $result ? (int)$result['created_at'] : null;
     }
@@ -722,11 +786,19 @@ class EventRepository extends ServiceEntityRepository
     {
         $conn = $this->getEntityManager()->getConnection();
 
+        $isCoordinate = str_contains($coordinate, ':');
+        $pairs = $isCoordinate
+            ? [['A', $coordinate], ['a', $coordinate]]
+            : [['E', $coordinate], ['e', $coordinate]];
+
+        $params = [];
+        $refCondition = $this->buildTagContainmentOrCondition('e.tags', $pairs, $params);
+
         $sql = "SELECT COUNT(e.id) FROM event e
                 WHERE e.kind = 1111
-                AND " . $this->buildJsonSearchCondition('e.tags', ':coordinate');
+                AND {$refCondition}";
 
-        return (int)$conn->executeQuery($sql, ['coordinate' => $coordinate])->fetchOne();
+        return (int)$conn->executeQuery($sql, $params)->fetchOne();
     }
 
     /**

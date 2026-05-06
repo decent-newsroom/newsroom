@@ -56,11 +56,13 @@ The generic event page at `/e/{nevent}` renders the same comment UI for any even
 Gating: the UI is suppressed for kinds that already have dedicated flows and normally redirect before the event template is reached (30023/30024 articles, 30004–30006 curation sets, 42 chat).
 
 Server-side branching:
-- `SocialEventService::getComments($ref, $since, $authorPubkey)` detects coordinate vs event id (contains `:` → coordinate; 64-hex → event id) and filters on `#A` or `#E` respectively. For non-addressable parents, relays are resolved from the optional `$authorPubkey` argument, falling back to the default relay pool when no pubkey hint is available.
+- 
+- `SocialEventService::getComments($ref, $since, $authorPubkey)` detects coordinate vs event id (contains `:` → coordinate; 64-hex → event id) and now queries both tag-case variants (`#A` + `#a`, or `#E` + `#e`) so comments from clients with different NIP-22 casing conventions are still fetched.
 - `FetchCommentsMessage($coordinate, $authorPubkey = null)` carries the pubkey hint through to the handler.
+- `FetchCommentsHandler` performs one-hop thread hydration after the root fetch: it takes recent kind:1111 ids from DB + fresh relay hits and fetches comments that reference those ids (`e`/`E`) to quickly fill reply chains.
 - `CommentController::publish` accepts either an `A` tag (addressable root) or an `E` + `P` tag pair (non-addressable root) to resolve commenter + parent-author relays for publishing.
 
-The database layer (`EventRepository::findCommentsByCoordinate`) already matches on any `tag[1]` value regardless of the tag key, so both coordinates and event ids work unchanged.
+The database layer (`EventRepository::findCommentsByCoordinate`) now anchors by explicit root tags (`A/a` or `E/e`) and uses a recursive query to include nested kind:1111 replies plus related zaps (`9735`) that point at comments in that thread.
 
 ## Lessons Learned
 

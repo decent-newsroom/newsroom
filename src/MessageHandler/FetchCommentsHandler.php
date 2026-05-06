@@ -17,6 +17,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 class FetchCommentsHandler
 {
     private const CACHE_TTL = 30;  // Cache for 30s as performance layer over DB
+    private const REPLY_PARENT_SCAN_LIMIT = 40;
 
     public function __construct(
         private readonly NostrClient $nostrClient,
@@ -84,8 +85,13 @@ class FetchCommentsHandler
                 'existing_count' => count($existingDbComments)
             ]);
 
-            // Fetch from relays (local relay first, then others)
+            // Fetch root-scoped comments for the current article/event.
             $newEvents = $this->nostrClient->getComments($coordinate, $since, $authorPubkey);
+
+            // Fetch one-hop replies to known comment IDs so threads populate quickly
+            // even when some clients only tag parent comment ids.
+            $replyEvents = $this->fetchReplyEvents($existingDbComments, $newEvents, $authorPubkey);
+            $newEvents = $this->deduplicateEventsById(array_merge($newEvents, $replyEvents));
 
             if (empty($newEvents)) {
                 $this->logger->debug('No new comments from relays', ['coordinate' => $coordinate]);
@@ -127,6 +133,72 @@ class FetchCommentsHandler
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * @param array<int, object|mixed> $fetchedEvents
+     * @return array<int, object>
+     */
+    private function deduplicateEventsById(array $fetchedEvents): array
+    {
+        $unique = [];
+        foreach ($fetchedEvents as $event) {
+            if (!is_object($event) || !isset($event->id) || !is_string($event->id)) {
+                continue;
+            }
+            $unique[$event->id] = $event;
+        }
+
+        return array_values($unique);
+    }
+
+    /**
+     * Fetch one-hop replies for recently seen comment IDs.
+     *
+     * @param array<int, object> $freshEvents
+     * @return array<int, object>
+     */
+    private function fetchReplyEvents(array $existingDbComments, array $freshEvents, ?string $authorPubkey): array
+    {
+        $idsByCreatedAt = [];
+
+        foreach ($existingDbComments as $comment) {
+            if (!$comment instanceof \App\Entity\Event || $comment->getKind() !== 1111) {
+                continue;
+            }
+            $idsByCreatedAt[$comment->getId()] = $comment->getCreatedAt();
+        }
+
+        foreach ($freshEvents as $event) {
+            if (!is_object($event) || ($event->kind ?? null) !== 1111 || !isset($event->id)) {
+                continue;
+            }
+            $idsByCreatedAt[(string) $event->id] = (int) ($event->created_at ?? 0);
+        }
+
+        if ($idsByCreatedAt === []) {
+            return [];
+        }
+
+        arsort($idsByCreatedAt);
+        $parentIds = array_slice(array_keys($idsByCreatedAt), 0, self::REPLY_PARENT_SCAN_LIMIT);
+
+        $replyEvents = [];
+        foreach ($parentIds as $parentId) {
+            try {
+                $replyEvents = array_merge(
+                    $replyEvents,
+                    $this->nostrClient->getComments($parentId, null, $authorPubkey)
+                );
+            } catch (\Throwable $e) {
+                $this->logger->debug('Reply hydration fetch failed for comment parent', [
+                    'parent_id' => $parentId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $this->deduplicateEventsById($replyEvents);
     }
 
     /**

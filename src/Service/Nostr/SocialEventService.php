@@ -160,19 +160,22 @@ class SocialEventService
 
         $subscription   = new Subscription();
         $subscriptionId = $subscription->setId();
-        $filter         = new Filter();
-        $filter->setKinds([KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value]);
-        if ($isCoordinate) {
-            $filter->setTag('#A', [$ref]);
-        } else {
-            $filter->setTag('#E', [$ref]);
+        $filters = [];
+        $tagNames = $isCoordinate ? ['#A', '#a'] : ['#E', '#e'];
+
+        foreach ($tagNames as $tagName) {
+            $filter = new Filter();
+            $filter->setKinds([KindsEnum::COMMENTS->value, KindsEnum::ZAP_RECEIPT->value]);
+            $filter->setTag($tagName, [$ref]);
+
+            if (is_int($since) && $since > 0) {
+                $filter->setSince($since);
+            }
+
+            $filters[] = $filter;
         }
 
-        if (is_int($since) && $since > 0) {
-            $filter->setSince($since);
-        }
-
-        $requestMessage = new RequestMessage($subscriptionId, [$filter]);
+        $requestMessage = new RequestMessage($subscriptionId, $filters);
         $responses      = $this->relayPool->sendToRelays(
             $authorRelays,
             fn() => $requestMessage,
