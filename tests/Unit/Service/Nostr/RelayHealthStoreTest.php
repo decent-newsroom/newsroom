@@ -195,6 +195,59 @@ class RelayHealthStoreTest extends TestCase
         $this->assertFalse($this->store->isHealthy('wss://example.com'));
     }
 
+    // --- Auto-mute ---
+
+    public function testAutoMuteTriggeredAtThreshold(): void
+    {
+        $redis = $this->createMock(\Redis::class);
+        $redis->method('hSet')->willReturn(true);
+        $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD);
+        $redis->method('expire')->willReturn(true);
+        $redis->method('sIsMember')->willReturn(false); // not already muted
+
+        $redis->expects($this->once())
+            ->method('sAdd')
+            ->with('relay_muted_urls', $this->anything());
+
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+
+        $store = new RelayHealthStore($redis, new NullLogger(), $registry);
+        $store->recordFailure('wss://bad-relay.example.com');
+    }
+
+    public function testNoAutoMuteBeforeThreshold(): void
+    {
+        $redis = $this->createMock(\Redis::class);
+        $redis->method('hSet')->willReturn(true);
+        $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD - 1);
+        $redis->method('expire')->willReturn(true);
+        $redis->method('sIsMember')->willReturn(false);
+        $redis->expects($this->never())->method('sAdd');
+
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+
+        $store = new RelayHealthStore($redis, new NullLogger(), $registry);
+        $store->recordFailure('wss://bad-relay.example.com');
+    }
+
+    public function testNoAutoMuteWhenAlreadyMuted(): void
+    {
+        $redis = $this->createMock(\Redis::class);
+        $redis->method('hSet')->willReturn(true);
+        $redis->method('hIncrBy')->willReturn(RelayHealthStore::AUTO_MUTE_THRESHOLD + 5);
+        $redis->method('expire')->willReturn(true);
+        $redis->method('sIsMember')->willReturn(true); // already muted
+        $redis->expects($this->never())->method('sAdd');
+
+        $registry = $this->createMock(RelayRegistry::class);
+        $registry->method('isConfiguredRelay')->willReturn(false);
+
+        $store = new RelayHealthStore($redis, new NullLogger(), $registry);
+        $store->recordFailure('wss://bad-relay.example.com');
+    }
+
     // --- URL normalization consistency ---
 
     public function testKeyNormalizationIsCaseInsensitive(): void

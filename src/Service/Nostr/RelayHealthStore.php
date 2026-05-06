@@ -29,6 +29,12 @@ class RelayHealthStore
     private const TTL = 86400; // 24 hours — ad-hoc user relays
     private const CONFIGURED_TTL = 604800; // 7 days — relays in the registry
 
+    /**
+     * Number of consecutive failures after which a relay is automatically muted.
+     * An admin can unmute it manually at any time via the relay dashboard.
+     */
+    public const AUTO_MUTE_THRESHOLD = 20;
+
     public function __construct(
         private readonly \Redis $redis,
         private readonly LoggerInterface $logger,
@@ -71,8 +77,18 @@ class RelayHealthStore
         try {
             $key = $this->key($relayUrl);
             $this->redis->hSet($key, 'last_failure', (string) time());
-            $this->redis->hIncrBy($key, 'consecutive_failures', 1);
+            $newCount = $this->redis->hIncrBy($key, 'consecutive_failures', 1);
             $this->redis->expire($key, $this->ttlFor($relayUrl));
+
+            // Auto-mute when the relay crosses the failure threshold and is not already muted.
+            if ($newCount !== false && $newCount >= self::AUTO_MUTE_THRESHOLD && !$this->isMuted($relayUrl)) {
+                $this->muteRelay($relayUrl);
+                $this->logger->warning('RelayHealthStore: relay auto-muted after exceeding failure threshold', [
+                    'url' => $relayUrl,
+                    'consecutive_failures' => $newCount,
+                    'threshold' => self::AUTO_MUTE_THRESHOLD,
+                ]);
+            }
         } catch (\RedisException $e) {
             $this->logger->debug('RelayHealthStore: Redis write failed (failure)', ['error' => $e->getMessage()]);
         }
