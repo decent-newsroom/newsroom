@@ -63,7 +63,8 @@ class VisitRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
             ->groupBy('v.route')
-            ->orderBy('count', 'DESC');
+            ->orderBy('count', 'DESC')
+            ->setMaxResults(100);
 
         if ($since) {
             $qb->where('v.visitedAt >= :since')
@@ -107,7 +108,7 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns visits grouped by session ID with counts.
+     * Returns visits grouped by session ID with counts (top 50 by visit count).
      */
     public function getVisitsBySession(\DateTimeImmutable $since = null): array
     {
@@ -115,7 +116,8 @@ class VisitRepository extends ServiceEntityRepository
             ->select('v.sessionId, COUNT(v.id) as visitCount, MIN(v.visitedAt) as firstVisit, MAX(v.visitedAt) as lastVisit')
             ->where('v.sessionId IS NOT NULL')
             ->groupBy('v.sessionId')
-            ->orderBy('visitCount', 'DESC');
+            ->orderBy('visitCount', 'DESC')
+            ->setMaxResults(50);
 
         if ($since) {
             $qb->andWhere('v.visitedAt >= :since')
@@ -349,29 +351,51 @@ class VisitRepository extends ServiceEntityRepository
 
     /**
      * Returns the bounce rate (percentage of sessions with only one visit).
+     * Uses a native SQL subquery to avoid loading all sessions into PHP memory.
      */
     public function getBounceRate(): float
     {
-        $qb = $this->createQueryBuilder('v')
-            ->select('v.sessionId, COUNT(v.id) as visitCount')
-            ->where('v.sessionId IS NOT NULL')
-            ->groupBy('v.sessionId');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $this->applyTrackedVisitFilters($qb);
-
-        $sessions = $qb->getQuery()->getResult();
-        $singleVisitSessions = 0;
-        $totalSessions = 0;
-        foreach ($sessions as $session) {
-            $totalSessions++;
-            if ($session['visitCount'] == 1) {
-                $singleVisitSessions++;
-            }
+        $assetClauses = '';
+        $params = [
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'br_asset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
         }
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'br_partial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "SELECT
+                    COUNT(*) FILTER (WHERE cnt = 1) AS single_visits,
+                    COUNT(*) AS total_sessions
+                FROM (
+                    SELECT COUNT(id) AS cnt
+                    FROM visit
+                    WHERE session_id IS NOT NULL
+                    AND route <> :apiRoot
+                    AND route NOT LIKE :apiPrefix
+                    {$assetClauses}
+                    {$partialClauses}
+                    GROUP BY session_id
+                ) sub";
+
+        $row = $conn->executeQuery($sql, $params)->fetchAssociative();
+
+        $totalSessions = (int) ($row['total_sessions'] ?? 0);
         if ($totalSessions === 0) {
             return 0.0;
         }
-        return round(($singleVisitSessions / $totalSessions) * 100, 2);
+
+        return round(((int) $row['single_visits'] / $totalSessions) * 100, 2);
     }
 
     /**

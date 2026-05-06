@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.37
+
+- [Bug] Fixed memory exhaustion on the visitor analytics admin page. `getBounceRate()` previously fetched every session row into PHP memory to count bounces; it now uses a single native SQL subquery (`COUNT(*) FILTER (WHERE cnt = 1)`). `getVisitsBySession()` now caps results at 50 rows. `getVisitCountByRoute()` now caps at 100 rows.
+
+
 ## v0.0.36
 Relay management.
 
