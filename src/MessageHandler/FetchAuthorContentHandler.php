@@ -24,6 +24,18 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 class FetchAuthorContentHandler
 {
+    /**
+     * Per-kind result limit for the combined REQ.
+     *
+     * The author profile UI displays at most ~20 items per content type. The
+     * old value of 500 was wildly excessive and forced relays to do work
+     * proportional to it for every kind in the union — directly responsible
+     * for the high timeout rate on
+     * `kinds=[20,21,22,9802,10015,30023,34235,34236];authors=N1;limit=500`
+     * documented in `documentation/Nostr/relay-filter-stats.md`.
+     */
+    private const FETCH_LIMIT = 100;
+
     public function __construct(
         private readonly UserRelayListService $userRelayListService,
         private readonly NostrRelayPool $relayPool,
@@ -51,6 +63,27 @@ class FetchAuthorContentHandler
         // Collect all kinds from all content types for a single combined REQ
         $allKinds = AuthorContentType::kindsForTypes($contentTypes);
 
+        // Strip replaceable singleton kinds we already have a recent copy of
+        // locally. INTERESTS (10015) is a kind:0-style replaceable: at most one
+        // event per pubkey, latest wins. If our DB already has a copy fresher
+        // than $since (or fresher than 6 hours when no since), there is no
+        // value in asking the relays for it again — and including it just
+        // forces every relay in the fan-out to do an extra index lookup.
+        $localCutoff = $since > 0 ? $since : (time() - 6 * 3600);
+        $allKinds = $this->stripLocallyFreshKinds(
+            $pubkey,
+            $allKinds,
+            [10015 /* INTERESTS */],
+            $localCutoff,
+        );
+
+        if (empty($allKinds)) {
+            $this->logger->info('ℹ️  All requested kinds already locally fresh — skipping relay fetch', [
+                'pubkey' => $pubkey,
+            ]);
+            return;
+        }
+
         $this->logger->info('🚀 FetchAuthorContentHandler invoked - Starting combined content fetch', [
             'pubkey' => $pubkey,
             'content_types' => array_map(fn($t) => $t->value, $contentTypes),
@@ -59,8 +92,13 @@ class FetchAuthorContentHandler
             'is_owner' => $message->isOwner(),
         ]);
 
-        // Get relays - either from message or auto-discover via NIP-65
-        $relays = $message->getRelays() ?? $this->userRelayListService->getRelaysForFetching($pubkey);
+        // Use the *author's write relays* — i.e. the outbox where they actually
+        // publish. The previous default (`getRelaysForFetching`) returned the
+        // viewer's follows-pool union of every author the viewer follows, which
+        // exploded the fan-out to 500+ relays per REQ and was the dominant
+        // source of timeouts on this signature
+        // (kinds=[20,21,22,9802,10015,30023,34235,34236];authors=N1;limit=…).
+        $relays = $message->getRelays() ?? $this->userRelayListService->getRelaysForAuthorContent($pubkey);
 
         if (empty($relays)) {
             $this->logger->error('❌ No relays available for fetching author content', [
@@ -161,7 +199,7 @@ class FetchAuthorContentHandler
             'filter' => [
                 'kinds' => $allKinds,
                 'authors' => [$pubkey],
-                'limit' => 500,
+                'limit' => self::FETCH_LIMIT,
                 'since' => $since > 0 ? $since : null,
             ]
         ]);
@@ -176,7 +214,7 @@ class FetchAuthorContentHandler
                     $filter = new Filter();
                     $filter->setKinds($allKinds);
                     $filter->setAuthors([$pubkey]);
-                    $filter->setLimit(500);
+                    $filter->setLimit(self::FETCH_LIMIT);
 
                     if ($since > 0) {
                         $filter->setSince($since);
@@ -187,7 +225,7 @@ class FetchAuthorContentHandler
                         'filter_details' => [
                             'kinds' => $allKinds,
                             'authors' => [$pubkey],
-                            'limit' => 500,
+                            'limit' => self::FETCH_LIMIT,
                             'since' => $since > 0 ? $since : null,
                         ]
                     ]);
@@ -443,6 +481,51 @@ class FetchAuthorContentHandler
             'items' => $items,
             'createdAt' => $event->created_at,
         ];
+    }
+
+    /**
+     * Drop kinds from the REQ list that we already have a sufficiently fresh
+     * local copy of. Only safe for replaceable singleton kinds (kind:0,
+     * kind:3, NIP-51 replaceable lists 10000-19999, etc.) where at most one
+     * event per pubkey ever exists and the latest wins.
+     *
+     * @param int[] $kinds                 All kinds being requested
+     * @param int[] $replaceableSingletons Subset of $kinds that are replaceable singletons
+     * @param int   $freshnessCutoff       Unix ts; a local copy newer than this is "fresh enough"
+     * @return int[] Remaining kinds that still need to be fetched from relays
+     */
+    private function stripLocallyFreshKinds(
+        string $pubkey,
+        array $kinds,
+        array $replaceableSingletons,
+        int $freshnessCutoff,
+    ): array {
+        $stripped = [];
+        foreach ($replaceableSingletons as $kind) {
+            if (!in_array($kind, $kinds, true)) {
+                continue;
+            }
+            try {
+                $existing = $this->eventRepository->findLatestByPubkeyAndKind($pubkey, $kind);
+            } catch (\Throwable) {
+                $existing = null;
+            }
+            if ($existing !== null && $existing->getCreatedAt() >= $freshnessCutoff) {
+                $stripped[] = $kind;
+            }
+        }
+
+        if ($stripped === []) {
+            return $kinds;
+        }
+
+        $this->logger->debug('Skipping locally-fresh replaceable kinds from REQ', [
+            'pubkey' => $pubkey,
+            'stripped_kinds' => $stripped,
+            'freshness_cutoff' => $freshnessCutoff,
+        ]);
+
+        return array_values(array_diff($kinds, $stripped));
     }
 
     private function publishToMercure(string $pubkey, AuthorContentType $contentType, array $data): void

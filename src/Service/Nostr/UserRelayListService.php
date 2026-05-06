@@ -202,6 +202,71 @@ class UserRelayListService
     }
 
     /**
+     * Get the relay set to use when fetching *content authored by* this pubkey
+     * (longform, media, highlights, etc. — i.e. anything we expect to find on
+     * the relays where the author publishes).
+     *
+     * Differs from {@see getRelaysForFetching()} on three points:
+     *
+     *   - Uses the author's `write` relays (NIP-65 outbox), not their `read` relays.
+     *     The author publishes to write relays; that's where their kind:30023 lives.
+     *   - Does NOT include the viewer's follows-pool. That pool is the union of
+     *     write relays of everyone the *viewer* follows — totally orthogonal to
+     *     the author whose content we're fetching, and the dominant source of
+     *     fan-out blow-up in author-profile pages.
+     *   - Caps the result at $maxRelays (default 20) so each REQ is bounded.
+     *
+     * Priority order:
+     *   1. Local relay (always)
+     *   2. Author's write relays (from cached NIP-65 list)
+     *   3. Registry CONTENT relays as a fallback (only if needed to reach the cap)
+     *
+     * @return string[]
+     */
+    public function getRelaysForAuthorContent(string $pubkeyOrNpub, int $maxRelays = 20): array
+    {
+        $hex = $this->toHex($pubkeyOrNpub);
+        $userList = $this->getRelayList($hex);
+
+        $relays = [];
+
+        $local = $this->relayRegistry->getLocalRelay();
+        if ($local) {
+            $relays[] = $local;
+        }
+        $hasLocal = $local !== null;
+
+        // Author's write relays — that's where the author actually publishes.
+        $writeRelays = $userList['write'] ?? $userList['all'] ?? [];
+        foreach ($writeRelays as $relay) {
+            if (count($relays) >= $maxRelays) {
+                break;
+            }
+            if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                continue;
+            }
+            if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
+                $relays[] = $relay;
+            }
+        }
+
+        // Top up with registry CONTENT relays only if we still have room.
+        // This guards against authors with no/empty NIP-65 lists.
+        if (count($relays) < $maxRelays) {
+            foreach ($this->relayRegistry->getForPurpose(RelayPurpose::CONTENT) as $relay) {
+                if (count($relays) >= $maxRelays) {
+                    break;
+                }
+                if (!in_array($relay, $relays, true)) {
+                    $relays[] = $relay;
+                }
+            }
+        }
+
+        return $relays;
+    }
+
+    /**
      * Get relays suitable for publishing on behalf of this author.
      * Non-blocking: returns fallbacks immediately on cache miss.
      *
