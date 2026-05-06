@@ -24,7 +24,6 @@
                         <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
                         <li><a href="{{ path('follow_packs') }}">{{ 'nav.followPacks'|trans }}</a></li>
                         {% if is_granted('ROLE_ADMIN') %}
-                            <li><a href="{{ path('bookshelf') }}">{{ 'nav.bookshelf'|trans }}</a></li>
                             <li><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
                             <li><a href="{{ path('spell_list') }}">{{ 'spellsList.heading'|trans }}</a></li>
                             <li><a href="{{ path('updates_index') }}">{{ 'updates.pageTitle'|trans }}</a></li>

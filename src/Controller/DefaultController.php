@@ -64,12 +64,13 @@ class DefaultController extends AbstractController
     }
 
     /**
-     * Bookshelf – lists all books (kind 30040 events referencing 30041 content)
+     * @deprecated The bookshelf page has been deprecated. The route is kept for backward
+     *             compatibility and now permanently redirects to the newsstand.
      */
     #[Route('/bookshelf', name: 'bookshelf')]
     public function bookshelf(): Response
     {
-        return $this->render('pages/bookshelf.html.twig');
+        return $this->redirectToRoute('newsstand', [], 301);
     }
 
     /**
