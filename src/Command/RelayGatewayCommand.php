@@ -723,7 +723,9 @@ class RelayGatewayCommand extends Command
             $relay = new Relay($relayUrl);
             $client = $relay->getClient();
             $client->setTimeout(self::CONNECT_TIMEOUT_SECONDS);
+            $connectStart = microtime(true);
             $client->connect();
+            $connectElapsedMs = (int) ((microtime(true) - $connectStart) * 1000);
 
             // Tight receive timeout for the per-tick non-blocking sweep.
             // See RECEIVE_TIMEOUT_SECONDS for why this is NOT 0.
@@ -752,8 +754,8 @@ class RelayGatewayCommand extends Command
                 unset($this->connectNotBefore[$relayUrl], $this->connectFailureCount[$relayUrl]);
             }
 
-            // Record success in health store
-            $this->healthStore->recordSuccess($relayUrl);
+            // Record success in health store (with handshake latency)
+            $this->healthStore->recordSuccess($relayUrl, $connectElapsedMs);
 
             return $conn;
 
@@ -1066,6 +1068,7 @@ class RelayGatewayCommand extends Command
                     'events'        => [],
                     'deadline'      => $deadline,
                     'done'          => false,
+                    'startedAt'     => microtime(true),
                 ];
                 $registeredCount++;
 
@@ -1210,6 +1213,7 @@ class RelayGatewayCommand extends Command
                     'eventId'       => $eventId,
                     'deadline'      => $deadline,
                     'done'          => false,
+                    'startedAt'     => microtime(true),
                 ];
                 $registeredCount++;
 
@@ -1604,7 +1608,12 @@ class RelayGatewayCommand extends Command
             $this->handler->sendClose($conn->getClient(), $subscriptionId);
         } catch (\Throwable) {}
 
-        $this->healthStore->recordSuccess($pending['relayUrl']);
+        $this->healthStore->recordSuccess(
+            $pending['relayUrl'],
+            isset($pending['startedAt'])
+                ? (int) ((microtime(true) - $pending['startedAt']) * 1000)
+                : null,
+        );
 
         $correlationId = $pending['correlationId'];
         if (!isset($this->pendingCorrelations[$correlationId])) {
@@ -1678,7 +1687,12 @@ class RelayGatewayCommand extends Command
             $correlationId = $pending['correlationId'];
 
             if ($accepted) {
-                $this->healthStore->recordSuccess($relayUrl);
+                $this->healthStore->recordSuccess(
+                    $relayUrl,
+                    isset($pending['startedAt'])
+                        ? (int) ((microtime(true) - $pending['startedAt']) * 1000)
+                        : null,
+                );
             }
 
             if ($conn->pubkey !== null && $conn->pubkey !== '') {

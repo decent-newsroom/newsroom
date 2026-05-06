@@ -427,8 +427,10 @@ class NostrRelayPool implements RelayPoolInterface
                     $client->setTimeout($timeout);
                 }
 
+                $publishStart = microtime(true);
                 $client->text($payload);
                 $response = $client->receive();
+                $elapsedMs = (int) ((microtime(true) - $publishStart) * 1000);
                 $client->disconnect();
 
                 if ($response === null) {
@@ -444,7 +446,7 @@ class NostrRelayPool implements RelayPoolInterface
                     $results[$url] = ['ok' => true];
                 }
 
-                $this->healthStore->recordSuccess($url);
+                $this->healthStore->recordSuccess($url, $elapsedMs);
 
             } catch (\Throwable $e) {
                 $this->logger->warning('Publish failed for relay', [
@@ -676,6 +678,7 @@ class NostrRelayPool implements RelayPoolInterface
         ]);
 
         $client->text($payload);
+        $reqSentAt = microtime(true);
 
         $this->logger->info('Entering infinite receive loop...', ['worker' => $workerName]);
 
@@ -743,8 +746,11 @@ class NostrRelayPool implements RelayPoolInterface
                             'subscription_id' => $subscriptionId,
                             'worker' => $workerName,
                         ]);
-                        // Record successful subscription in health store
-                        $this->healthStore->recordSuccess($relayUrl);
+                        // Record successful subscription in health store with REQ→EOSE latency
+                        $this->healthStore->recordSuccess(
+                            $relayUrl,
+                            (int) ((microtime(true) - $reqSentAt) * 1000),
+                        );
                         break;
 
                     case 'CLOSED':
