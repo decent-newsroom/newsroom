@@ -89,16 +89,44 @@
     </div>
 
     {# Summary #}
-    <div class="status-card" style="margin-top: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="status-card" style="margin-top: 1.5rem;"
+         data-controller="admin--relay-filter">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <h2 style="margin: 0;">All Known Relays</h2>
-            <span style="font-size: 0.8rem; color: #9ca3af;">
+            <span class="relay-filter-bar__count" data-admin--relay-filter-target="count">
                 {{ status.relays|length }} relay(s) seen
                 {% set muted_count = status.relays|filter(r => r.is_muted)|length %}
                 {% if muted_count > 0 %}
                     · <span style="color: #dc2626;">{{ muted_count }} muted</span>
                 {% endif %}
             </span>
+        </div>
+
+        {# Filter bar #}
+        <div class="relay-filter-bar">
+            <input type="search"
+                   class="relay-filter-bar__search"
+                   placeholder="Filter by URL…"
+                   data-admin--relay-filter-target="search"
+                   data-action="input->admin--relay-filter#search">
+            <div class="relay-filter-bar__btns">
+                <button type="button" class="relay-filter-btn relay-filter-btn--active"
+                        data-filter-btn data-filter-value="all"
+                        data-action="click->admin--relay-filter#setFilter">All</button>
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="configured"
+                        data-action="click->admin--relay-filter#setFilter">Configured</button>
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="discovered"
+                        data-action="click->admin--relay-filter#setFilter">Discovered</button>
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="muted"
+                        data-action="click->admin--relay-filter#setFilter">Muted</button>
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="unhealthy"
+                        data-action="click->admin--relay-filter#setFilter">Unhealthy</button>
+            </div>
         </div>
 
         {% if status.relays|length > 0 %}
@@ -120,7 +148,12 @@
                 </thead>
                 <tbody>
                 {% for relay in status.relays %}
-                    <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);{% if relay.is_muted %} opacity: 0.5;{% endif %}">
+                    <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);{% if relay.is_muted %} opacity: 0.5;{% endif %}"
+                        data-admin--relay-filter-target="row"
+                        data-relay-url="{{ relay.url }}"
+                        data-relay-muted="{{ relay.is_muted ? 'true' : 'false' }}"
+                        data-relay-healthy="{{ relay.healthy ? 'true' : 'false' }}"
+                        data-relay-configured="{{ relay.is_configured ? 'true' : 'false' }}">
                         <td style="padding:0.4rem 0.5rem; font-family:monospace; font-size:0.75rem; word-break:break-all; max-width:300px;">
                             {{ relay.url }}
                             {% if relay.is_local %}

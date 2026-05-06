@@ -2,6 +2,7 @@
 
 ## v0.0.37
 
+- [Improvement] Relay administration tables now have a live filter bar. A URL search input and one-click filter buttons (by purpose / Configured / Discovered / Muted / Unhealthy) are available on both the Relay Health table (`/admin/relay`) and the All Known Relays table (`/admin/relay/gateway`). A running "N of M relays" counter updates as filters are applied. Implemented as a lightweight Stimulus controller (`admin--relay-filter`) with no server round-trips.
 - [Improvement] Relays that accumulate 20 consecutive failures are now automatically muted by `RelayHealthStore`. A warning is logged at the time of auto-mute. Relays can be unmuted manually at any time from the admin relay dashboard. The threshold is exposed as `RelayHealthStore::AUTO_MUTE_THRESHOLD`.
 - [Bug] Amber login deep link now correctly opens Amber's NIP-46 connection screen instead of its signing-requests screen ("nothing to approve yet"). The link now uses the `nostrconnect://` URI scheme directly (which Amber registers for NIP-46 connection initiation) rather than wrapping it in `nostrsigner:` (which routes to Amber's NIP-55 pending-requests screen).
 - [Bug] Fixed memory exhaustion on the visitor analytics admin page. `getBounceRate()` previously fetched every session row into PHP memory to count bounces; it now uses a single native SQL subquery (`COUNT(*) FILTER (WHERE cnt = 1)`). `getVisitsBySession()` now caps results at 50 rows. `getVisitCountByRoute()` now caps at 100 rows.

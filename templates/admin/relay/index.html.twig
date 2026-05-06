@@ -109,8 +109,37 @@
 
     {# Per-Relay Health Table #}
     {% if pool_status.by_purpose is defined and pool_status.by_purpose|length > 0 %}
-    <div class="status-card" style="margin-top: 2rem;">
-        <h2>Relay Health</h2>
+    <div class="status-card" style="margin-top: 2rem;"
+         data-controller="admin--relay-filter">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h2 style="margin:0;">Relay Health</h2>
+            <span class="relay-filter-bar__count" data-admin--relay-filter-target="count"></span>
+        </div>
+
+        {# Filter bar #}
+        <div class="relay-filter-bar">
+            <input type="search"
+                   class="relay-filter-bar__search"
+                   placeholder="Filter by URL…"
+                   data-admin--relay-filter-target="search"
+                   data-action="input->admin--relay-filter#search">
+            <div class="relay-filter-bar__btns">
+                <button type="button" class="relay-filter-btn relay-filter-btn--active"
+                        data-filter-btn data-filter-value="all"
+                        data-action="click->admin--relay-filter#setFilter">All</button>
+                {% for purpose in pool_status.by_purpose|keys %}
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="{{ purpose }}"
+                        data-action="click->admin--relay-filter#setFilter">{{ purpose }}</button>
+                {% endfor %}
+                <button type="button" class="relay-filter-btn"
+                        data-filter-btn data-filter-value="unhealthy"
+                        data-action="click->admin--relay-filter#setFilter">Unhealthy</button>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
         <table class="relay-health-table" style="width:100%; border-collapse:collapse; font-size:0.875rem;">
             <thead>
                 <tr>
@@ -128,7 +157,12 @@
             <tbody>
             {% for purpose, relays in pool_status.by_purpose %}
                 {% for relay in relays %}
-                <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);">
+                <tr style="border-bottom:1px solid var(--color-border-subtle, #f0f0f0);"
+                    data-admin--relay-filter-target="row"
+                    data-relay-url="{{ relay.url }}"
+                    data-relay-purpose="{{ purpose }}"
+                    data-relay-healthy="{{ relay.healthy ? 'true' : 'false' }}"
+                    data-relay-muted="false">
                     <td style="padding:0.4rem 0.75rem;">
                         <span class="badge" style="font-size:0.75rem; padding:0.1rem 0.4rem; background:var(--color-surface-2,#f5f5f5); border-radius:0.25rem;">{{ purpose }}</span>
                     </td>
@@ -177,6 +211,7 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
         {% if pool_status.by_purpose|length == 0 %}
             <p style="color:#9ca3af; margin-top:1rem;">No relays configured in registry.</p>
         {% endif %}
