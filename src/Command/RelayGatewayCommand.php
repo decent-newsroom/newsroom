@@ -8,6 +8,7 @@ use App\Service\Nostr\GatewayConnection;
 use App\Service\Nostr\Nip46AuthSigner;
 use App\Service\Nostr\Nip46SessionService;
 use App\Service\Nostr\RelayHealthStore;
+use App\Service\Nostr\RelayFilterStatsStore;
 use App\Service\Nostr\RelayUserActivityStore;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
@@ -290,6 +291,7 @@ class RelayGatewayCommand extends Command
         private readonly LoggerInterface $logger,
         private readonly \App\ReadModel\RedisView\RedisRelayInfoView $relayInfoView,
         private readonly RelayUserActivityStore $userActivityStore,
+        private readonly RelayFilterStatsStore $filterStatsStore,
     ) {
         parent::__construct();
     }
@@ -1061,6 +1063,8 @@ class RelayGatewayCommand extends Command
 
                 $reqPayload = (new RequestMessage($subscriptionId, [$filterObj]))->generate();
 
+                $filterSignature = $this->filterStatsStore->signature($filter);
+
                 $this->pendingQueries[$subscriptionId] = [
                     'correlationId' => $correlationId,
                     'relayUrl'      => $relayUrl,
@@ -1069,7 +1073,13 @@ class RelayGatewayCommand extends Command
                     'deadline'      => $deadline,
                     'done'          => false,
                     'startedAt'     => microtime(true),
+                    'filterSig'     => $filterSignature,
                 ];
+
+                // Track that this filter shape was sent to this relay.
+                // EOSE / timeout outcomes are recorded later in completeQuery /
+                // completeQueryWithError / sweepTimedOutPending.
+                $this->filterStatsStore->recordRequest($relayUrl, $filterSignature);
                 $registeredCount++;
 
                 // If the connection is mid-AUTH, defer the REQ.
@@ -1615,6 +1625,16 @@ class RelayGatewayCommand extends Command
                 : null,
         );
 
+        // Per-filter latency / event-count stats
+        if (isset($pending['startedAt'], $pending['filterSig'])) {
+            $this->filterStatsStore->recordEose(
+                $pending['relayUrl'],
+                $pending['filterSig'],
+                (int) ((microtime(true) - $pending['startedAt']) * 1000),
+                count($pending['events']),
+            );
+        }
+
         $correlationId = $pending['correlationId'];
         if (!isset($this->pendingCorrelations[$correlationId])) {
             return;
@@ -1645,6 +1665,10 @@ class RelayGatewayCommand extends Command
 
         // Don't send CLOSE — the relay initiated the close
         $this->healthStore->recordFailure($pending['relayUrl']);
+
+        if (isset($pending['filterSig'])) {
+            $this->filterStatsStore->recordTimeout($pending['relayUrl'], $pending['filterSig']);
+        }
 
         $correlationId = $pending['correlationId'];
         if (!isset($this->pendingCorrelations[$correlationId])) {
@@ -1780,6 +1804,10 @@ class RelayGatewayCommand extends Command
                 'correlation_id'  => $pending['correlationId'],
                 'relay'           => $pending['relayUrl'],
             ]);
+
+            if (isset($pending['filterSig'])) {
+                $this->filterStatsStore->recordTimeout($pending['relayUrl'], $pending['filterSig']);
+            }
 
             // Send CLOSE if possible
             $conn = $this->connections[$pending['connKey']] ?? null;

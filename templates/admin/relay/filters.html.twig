@@ -1,0 +1,129 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Filter Stats{% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Relay Filter Stats"
+    tagline="what filters we send to relays, and how long they take to resolve"
+/>
+
+<div class="w-container">
+
+    <div style="margin-bottom: 1rem;">
+        <a href="{{ path('admin_relay_index') }}" style="font-size: 0.875rem;">← Relay Administration</a>
+        &nbsp;|&nbsp;
+        <a href="{{ path('admin_relay_gateway') }}" style="font-size: 0.875rem;">Gateway</a>
+    </div>
+
+    {# Sort tabs #}
+    {% set sort = overview.sort %}
+    <div style="margin-bottom: 1rem; font-size: 0.85rem;">
+        Sort:
+        {% for key, label in {'count': 'Most frequent', 'avg': 'Slowest avg', 'max': 'Slowest max', 'timeout': 'Most timeouts'} %}
+            {% if sort == key %}
+                <strong style="margin-right: 0.5rem;">{{ label }}</strong>
+            {% else %}
+                <a href="{{ path('admin_relay_filters_index', {sort: key, top: overview.top}) }}" style="margin-right: 0.5rem;">{{ label }}</a>
+            {% endif %}
+        {% endfor %}
+        <span style="color: #6b7280;">
+            ({{ overview.global|length }} of {{ overview.global_total_signatures }} signatures shown)
+        </span>
+    </div>
+
+    {% if overview.global is empty %}
+        <p style="color: #6b7280;">
+            No filter stats yet. The relay gateway populates these on every REQ.
+            Make sure the <code>relay-gateway</code> service is running with <code>--profile gateway</code>.
+        </p>
+    {% else %}
+        <h3 style="margin-top: 1.5rem;">Global — top filter shapes</h3>
+        <p style="font-size: 0.85rem; color: #6b7280;">
+            Aggregated across every relay we've talked to. The signature describes the
+            filter shape (kinds, presence/count of authors/ids/tags, since/until, limit) —
+            no pubkeys, ids, or tag values are stored.
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Signature</th>
+                    <th style="padding: 0.5rem; text-align: right;">REQs</th>
+                    <th style="padding: 0.5rem; text-align: right;">EOSE</th>
+                    <th style="padding: 0.5rem; text-align: right;">Timeouts</th>
+                    <th style="padding: 0.5rem; text-align: right;">Events</th>
+                    <th style="padding: 0.5rem; text-align: right;">Avg ms</th>
+                    <th style="padding: 0.5rem; text-align: right;">Max ms</th>
+                    <th style="padding: 0.5rem; text-align: right;">Relays</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in overview.global %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; font-family: monospace; font-size: 0.8rem; word-break: break-all;">{{ row.signature }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.count|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.eose_count|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if row.timeout_count > 0 %}color: #b91c1c;{% else %}color: #6b7280;{% endif %}">
+                            {{ row.timeout_count|number_format }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.events|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if row.avg_ms is not null and row.avg_ms > 1500 %}color: #b91c1c;
+                            {% elseif row.avg_ms is not null and row.avg_ms > 800 %}color: #b45309;{% endif %}">
+                            {{ row.avg_ms is not null ? row.avg_ms|number_format(1) : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: #6b7280;">
+                            {{ row.max_ms is not null ? row.max_ms|number_format : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: #6b7280;">{{ row.relays }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 2rem;">Per-relay summary</h3>
+        <p style="font-size: 0.85rem; color: #6b7280;">
+            One row per relay. Click a URL to drill down into the filter shapes sent to that relay.
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Relay</th>
+                    <th style="padding: 0.5rem; text-align: right;">Distinct filters</th>
+                    <th style="padding: 0.5rem; text-align: right;">REQs</th>
+                    <th style="padding: 0.5rem; text-align: right;">EOSE</th>
+                    <th style="padding: 0.5rem; text-align: right;">Timeouts</th>
+                    <th style="padding: 0.5rem; text-align: right;">Avg ms</th>
+                    <th style="padding: 0.5rem; text-align: right;">Max ms</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in overview.relays %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; font-family: monospace; font-size: 0.8rem;">
+                            <a href="{{ path('admin_relay_filters_index', {relay: r.url, sort: overview.sort}) }}">{{ r.url }}</a>
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ r.distinct_filters }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ r.total_reqs|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ r.eose|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if r.timeouts > 0 %}color: #b91c1c;{% else %}color: #6b7280;{% endif %}">
+                            {{ r.timeouts|number_format }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if r.avg_ms is not null and r.avg_ms > 1500 %}color: #b91c1c;
+                            {% elseif r.avg_ms is not null and r.avg_ms > 800 %}color: #b45309;{% endif %}">
+                            {{ r.avg_ms is not null ? r.avg_ms|number_format(1) : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: #6b7280;">
+                            {{ r.max_ms is not null ? r.max_ms|number_format : '—' }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}
+

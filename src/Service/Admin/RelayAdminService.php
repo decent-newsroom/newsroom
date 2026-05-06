@@ -8,6 +8,7 @@ use App\Message\FetchRelayMonitorEventsMessage;
 use App\Service\Nostr\NostrRelayPool;
 use App\Service\Nostr\RelayHealthStore;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\Nostr\RelayFilterStatsStore;
 use App\Repository\RelayInformationRepository;
 use App\Repository\TrustedRelayMonitorRepository;
 use App\Service\Nostr\RelayDirectoryService;
@@ -41,6 +42,7 @@ class RelayAdminService
         private readonly RelayDirectoryService $relayDirectoryService,
         private readonly TrustedRelayMonitorRepository $trustedRelayMonitorRepository,
         private readonly MessageBusInterface $bus,
+        private readonly RelayFilterStatsStore $filterStatsStore,
     ) {
     }
 
@@ -684,6 +686,95 @@ class RelayAdminService
     public function resetRelayHealth(string $url): void
     {
         $this->healthStore->recordSuccess($url);
+    }
+
+    /**
+     * Get filter-shape statistics: typical filters and how long they take.
+     *
+     * @return array{
+     *     global: list<array<string,mixed>>,
+     *     global_total_signatures: int,
+     *     relays: list<array<string,mixed>>,
+     *     sort: string,
+     *     top: int
+     * }
+     */
+    public function getFilterStatsOverview(int $top = 30, string $sort = 'count'): array
+    {
+        $rows = $this->filterStatsStore->getGlobalStats();
+        $rows = $this->sortFilterStats($rows, $sort);
+        $totalSignatures = count($rows);
+        $rows = array_slice($rows, 0, $top);
+
+        $relays = [];
+        foreach ($this->filterStatsStore->getKnownRelays() as $relayUrl) {
+            $perRelay = $this->filterStatsStore->getStatsForRelay($relayUrl);
+            $totalReqs = 0;
+            $totalEose = 0;
+            $totalTimeouts = 0;
+            $weightedNum = 0.0;
+            $weightedDenom = 0;
+            $maxMs = null;
+            foreach ($perRelay as $r) {
+                $totalReqs     += $r['count'];
+                $totalEose     += $r['eose_count'];
+                $totalTimeouts += $r['timeout_count'];
+                if ($r['avg_ms'] !== null && $r['eose_count'] > 0) {
+                    $weightedNum   += $r['avg_ms'] * $r['eose_count'];
+                    $weightedDenom += $r['eose_count'];
+                }
+                if ($r['max_ms'] !== null && ($maxMs === null || $r['max_ms'] > $maxMs)) {
+                    $maxMs = $r['max_ms'];
+                }
+            }
+            $relays[] = [
+                'url'              => $relayUrl,
+                'distinct_filters' => count($perRelay),
+                'total_reqs'       => $totalReqs,
+                'eose'             => $totalEose,
+                'timeouts'         => $totalTimeouts,
+                'avg_ms'           => $weightedDenom > 0 ? round($weightedNum / $weightedDenom, 1) : null,
+                'max_ms'           => $maxMs,
+            ];
+        }
+        usort($relays, fn(array $a, array $b): int => $b['total_reqs'] <=> $a['total_reqs']);
+
+        return [
+            'global'                  => $rows,
+            'global_total_signatures' => $totalSignatures,
+            'relays'                  => $relays,
+            'sort'                    => $sort,
+            'top'                     => $top,
+        ];
+    }
+
+    /**
+     * Per-signature stats for a single relay.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function getFilterStatsForRelay(string $relayUrl, int $top = 50, string $sort = 'count'): array
+    {
+        $rows = $this->filterStatsStore->getStatsForRelay($relayUrl);
+        $rows = $this->sortFilterStats($rows, $sort);
+        return array_slice($rows, 0, $top);
+    }
+
+    /**
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private function sortFilterStats(array $rows, string $sort): array
+    {
+        usort($rows, function (array $a, array $b) use ($sort): int {
+            return match ($sort) {
+                'avg'     => ($b['avg_ms'] ?? 0) <=> ($a['avg_ms'] ?? 0),
+                'max'     => ($b['max_ms'] ?? 0) <=> ($a['max_ms'] ?? 0),
+                'timeout' => $b['timeout_count'] <=> $a['timeout_count'],
+                default   => $b['count'] <=> $a['count'],
+            };
+        });
+        return $rows;
     }
 
     /**

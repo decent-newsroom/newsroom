@@ -173,6 +173,11 @@ services:
         arguments:
             $redis: '@Redis'
 
+    # Per-relay filter shape stats — counts and resolution latency per filter signature
+    App\Service\Nostr\RelayFilterStatsStore:
+        arguments:
+            $redis: '@Redis'
+
     # Profile update throttle — prevents duplicate dispatches for the same pubkey
     App\Service\ProfileUpdateDispatcher:
         arguments:

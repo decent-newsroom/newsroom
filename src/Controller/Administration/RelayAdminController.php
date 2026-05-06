@@ -258,6 +258,30 @@ class RelayAdminController extends AbstractController
         return $this->redirectToRoute('admin_relay_monitors_index');
     }
 
+    /**
+     * Filter-shape statistics: typical filters and which take long to resolve.
+     */
+    #[Route('/filters', name: 'filters_index', methods: ['GET'])]
+    public function filtersIndex(Request $request): Response
+    {
+        $sort = (string) ($request->query->get('sort') ?? 'count');
+        $top  = max(1, min(200, (int) ($request->query->get('top') ?? 30)));
+        $relayUrl = trim((string) $request->query->get('relay', ''));
+
+        if ($relayUrl !== '') {
+            return $this->render('admin/relay/filters_relay.html.twig', [
+                'relay_url' => $relayUrl,
+                'rows'      => $this->relayAdminService->getFilterStatsForRelay($relayUrl, $top, $sort),
+                'sort'      => $sort,
+                'top'       => $top,
+            ]);
+        }
+
+        return $this->render('admin/relay/filters.html.twig', [
+            'overview' => $this->relayAdminService->getFilterStatsOverview($top, $sort),
+        ]);
+    }
+
     #[Route('/monitors/untrust', name: 'monitors_untrust', methods: ['POST'])]
     public function untrustMonitor(Request $request): Response
     {

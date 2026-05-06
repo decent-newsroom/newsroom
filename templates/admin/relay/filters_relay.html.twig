@@ -1,0 +1,76 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Filter Stats — {{ relay_url }}{% endblock %}
+
+{% block body %}
+<twig:Atoms:PageHeading
+    heading="Filter Stats"
+    tagline="{{ relay_url }}"
+/>
+
+<div class="w-container">
+    <div style="margin-bottom: 1rem;">
+        <a href="{{ path('admin_relay_filters_index') }}" style="font-size: 0.875rem;">← All filter stats</a>
+    </div>
+
+    <div style="margin-bottom: 1rem; font-size: 0.85rem;">
+        Sort:
+        {% for key, label in {'count': 'Most frequent', 'avg': 'Slowest avg', 'max': 'Slowest max', 'timeout': 'Most timeouts'} %}
+            {% if sort == key %}
+                <strong style="margin-right: 0.5rem;">{{ label }}</strong>
+            {% else %}
+                <a href="{{ path('admin_relay_filters_index', {relay: relay_url, sort: key, top: top}) }}" style="margin-right: 0.5rem;">{{ label }}</a>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if rows is empty %}
+        <p style="color: #6b7280;">No filter stats recorded for this relay.</p>
+    {% else %}
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
+                    <th style="padding: 0.5rem;">Signature</th>
+                    <th style="padding: 0.5rem; text-align: right;">REQs</th>
+                    <th style="padding: 0.5rem; text-align: right;">EOSE</th>
+                    <th style="padding: 0.5rem; text-align: right;">Timeouts</th>
+                    <th style="padding: 0.5rem; text-align: right;">Events</th>
+                    <th style="padding: 0.5rem; text-align: right;">Avg ms</th>
+                    <th style="padding: 0.5rem; text-align: right;">Max ms</th>
+                    <th style="padding: 0.5rem; text-align: right;">Last ms</th>
+                    <th style="padding: 0.5rem;">Last seen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr style="border-bottom: 1px solid #f3f4f6;">
+                        <td style="padding: 0.5rem; font-family: monospace; font-size: 0.8rem; word-break: break-all;">{{ row.signature }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.count|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.eose_count|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if row.timeout_count > 0 %}color: #b91c1c;{% else %}color: #6b7280;{% endif %}">
+                            {{ row.timeout_count|number_format }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right;">{{ row.events|number_format }}</td>
+                        <td style="padding: 0.5rem; text-align: right;
+                            {% if row.avg_ms is not null and row.avg_ms > 1500 %}color: #b91c1c;
+                            {% elseif row.avg_ms is not null and row.avg_ms > 800 %}color: #b45309;{% endif %}">
+                            {{ row.avg_ms is not null ? row.avg_ms|number_format(1) : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: #6b7280;">
+                            {{ row.max_ms is not null ? row.max_ms|number_format : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; text-align: right; color: #6b7280;">
+                            {{ row.last_ms is not null ? row.last_ms|number_format : '—' }}
+                        </td>
+                        <td style="padding: 0.5rem; color: #6b7280;">
+                            {{ row.last_at is not null ? row.last_at|date('Y-m-d H:i:s') : '—' }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}
+
