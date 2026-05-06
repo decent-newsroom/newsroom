@@ -8,13 +8,12 @@
   {% if authenticated %}
     <div class="alert alert-success">{{ 'auth.alreadyAuthenticated'|trans }}</div>
   {% else %}
-    <div class="card" data-controller="utility--signer-modal">
-      <div class="card-body" data-controller="utility--login">
+    <div class="card" data-controller="utility--login-modal">
+      <div class="card-body">
         <p class="text-muted small mb-3">{{ 'auth.nostrCredentials'|trans }}</p>
-        <button class="btn btn--primary" data-action="click->utility--login#loginAct">{{ 'auth.loginWithExtension'|trans }}</button>
-        <button class="btn btn--primary" data-action="click->utility--signer-modal#openDialog">{{ 'auth.loginWithSigner'|trans }}</button>
+        <button class="btn btn--primary" data-action="click->utility--login-modal#openDialog">{{ 'auth.login'|trans }}</button>
       </div>
-      <twig:SignerModal />
+      <twig:LoginModal />
     </div>
   {% endif %}
 </div>

@@ -45,7 +45,7 @@
 {# Toast notification system #}
 {% include 'components/Toast.html.twig' %}
 
-<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--signer-modal" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
+<main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--login-modal" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
     {{ form_start(form, {'attr': {'id': 'editor-form'}}) }}
     <div class="editor-main">
         <div data-nostr--nostr-single-sign-target="status"
@@ -136,8 +136,8 @@
                                 Publish
                             </button>
                         {% else %}
-                            <button type="button" class="btn btn-accent btn-lg" data-action="utility--signer-modal#openDialog">
-                                Login with Bunker
+                            <button type="button" class="btn btn-accent btn-lg" data-action="utility--login-modal#openDialog">
+                                Login
                             </button>
                         {% endif %}
                     </div>
@@ -305,23 +305,7 @@
     </div>
 
     {# Modal for anon user authentication choice #}
-    <div id="auth-choice-modal" class="modal" tabindex="-1" style="display:none;">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Choose Authentication Method</h5>
-                </div>
-                <div class="modal-body">
-                    <p>You need to sign in to publish. Please choose a method:</p>
-                    <button type="button" class="btn btn-accent" id="proceed-with-signer">Proceed with Signer</button>
-                    <button type="button" class="btn btn-accent" id="proceed-with-extension">Proceed with Extension</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# Signer modal for bunker login #}
-    <twig:SignerModal />
+    <twig:LoginModal />
 </main>
 {% endblock %}
 

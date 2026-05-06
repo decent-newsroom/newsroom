@@ -75,29 +75,20 @@ export default class extends Controller {
     }
 
     setupAuthModal() {
-        this.authModal = document.getElementById('auth-choice-modal');
-        this.signerBtn = document.getElementById('proceed-with-signer');
-        this.extensionBtn = document.getElementById('proceed-with-extension');
-        this.isAnon = !window.appUser || !window.appUser.isAuthenticated; // You may need to set window.appUser in base.html.twig
-        if (this.signerBtn) {
-            this.signerBtn.addEventListener('click', () => {
-                this.hideAuthModal();
-                this.startPublishWith('signer');
-            });
-        }
-        if (this.extensionBtn) {
-            this.extensionBtn.addEventListener('click', () => {
-                this.hideAuthModal();
-                this.startPublishWith('extension');
-            });
-        }
+        // Find the unified login modal controller on this element
+        this._loginModalEl = this.element.closest('[data-controller~="utility--login-modal"]') || this.element;
+        this.isAnon = !window.appUser || !window.appUser.isAuthenticated;
     }
 
     showAuthModal() {
-        if (this.authModal) this.authModal.style.display = 'block';
+        const el = this._loginModalEl || this.element;
+        const ctrl = this.application.getControllerForElementAndIdentifier(el, 'utility--login-modal');
+        if (ctrl) {
+            ctrl.openDialog();
+        }
     }
     hideAuthModal() {
-        if (this.authModal) this.authModal.style.display = 'none';
+        // No-op — the new modal manages its own close state
     }
 
     hydrateState() {

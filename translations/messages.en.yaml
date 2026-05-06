@@ -414,6 +414,37 @@ auth:
     nostrCredentials: 'Use your Nostr credentials to authenticate.'
     loginTitle: 'Login | Decent Newsroom'
 
+# ── Login Modal ───────────────────────────────────────────────────
+loginModal:
+    title: 'Sign in with Nostr'
+    chooseMethod: 'Choose how you want to sign in:'
+    back: 'Back'
+    # Extension
+    extensionTitle: 'Browser Extension'
+    extensionHint: 'Alby, nos2x, Nostore, Flamingo & others'
+    extensionDescription: 'You need a NIP-07 compatible browser extension installed. Sign in with a single click once your extension is active.'
+    extensionConnect: 'Connect with Extension'
+    # Amber
+    amberTitle: 'Amber'
+    amberHint: 'Android remote signer app'
+    amberDeepLink: 'Open in Amber'
+    # Primal
+    primalTitle: 'Primal'
+    primalHint: 'Primal wallet remote signer'
+    primalDeepLink: 'Open in Primal'
+    # Remote Signer
+    remoteSignerTitle: 'Remote Signer'
+    remoteSignerHint: 'Connect with any NIP-46 compatible signer'
+    remoteSignerDescription: 'Paste your connection string from any NIP-46 compatible signer to connect.'
+    remoteSignerConnect: 'Connect'
+    # Shared
+    initializing: 'Initializing…'
+    copy: 'Copy'
+    pasteHint: 'Paste this into your signer app if it is on the same device.'
+    bunkerHint: 'You can also paste a bunker:// string from an existing signer session.'
+    bunkerLabel: 'Already have an active signer session? Paste the connection string here:'
+    stallHint: 'If pairing stalls, close and reopen this dialog to generate a new connection.'
+
 # ── Signer Modal ──────────────────────────────────────────────────
 signerModal:
     title: 'Remote Signer Login'

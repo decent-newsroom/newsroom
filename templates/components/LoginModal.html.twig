@@ -1,0 +1,208 @@
+{#
+  Unified login modal — rendered once per page, opened via:
+    data-action="click->utility--login-modal#openDialog"
+  Must be inside an element with data-controller="utility--login-modal".
+#}
+<div data-utility--login-modal-target="dialog" class="iu-dialog" style="display:none;">
+  <div class="iu-backdrop" data-action="click->utility--login-modal#closeDialog"></div>
+  <div class="iu-modal login-modal">
+
+    <div class="modal-header login-modal__header">
+      <h5>{{ 'loginModal.title'|trans }}</h5>
+      <button type="button" class="close" data-action="click->utility--login-modal#closeDialog">&times;</button>
+    </div>
+
+    {# ── Picker panel ──────────────────────────────────────────────────── #}
+    <div class="modal-body login-modal__body" data-panel="picker">
+      <p class="login-modal__subtitle">{{ 'loginModal.chooseMethod'|trans }}</p>
+
+      <div class="login-options">
+
+        {# Browser Extension #}
+        <button class="login-option"
+                data-action="click->utility--login-modal#showOption"
+                data-utility--login-modal-option-param="extension"
+                type="button">
+          <div class="login-option__icon login-option__icon--extension">
+            <img src="{{ asset('images/logos/extension-puzzle.svg') }}" alt="" />
+          </div>
+          <div class="login-option__body">
+            <div class="login-option__title">{{ 'loginModal.extensionTitle'|trans }}</div>
+            <div class="login-option__hint">{{ 'loginModal.extensionHint'|trans }}</div>
+          </div>
+          <div class="login-option__arrow">›</div>
+        </button>
+
+        {# Amber #}
+        <button class="login-option"
+                data-action="click->utility--login-modal#showOption"
+                data-utility--login-modal-option-param="amber"
+                type="button">
+          <div class="login-option__icon login-option__icon--amber">
+            <img src="{{ asset('images/logos/amber-logo.svg') }}" alt="Amber" />
+          </div>
+          <div class="login-option__body">
+            <div class="login-option__title">{{ 'loginModal.amberTitle'|trans }}</div>
+            <div class="login-option__hint">{{ 'loginModal.amberHint'|trans }}</div>
+          </div>
+          <div class="login-option__arrow">›</div>
+        </button>
+
+        {# Primal #}
+        <button class="login-option"
+                data-action="click->utility--login-modal#showOption"
+                data-utility--login-modal-option-param="primal"
+                type="button">
+          <div class="login-option__icon login-option__icon--primal">
+            <img src="{{ asset('images/logos/primal-logo.svg') }}" alt="Primal" />
+          </div>
+          <div class="login-option__body">
+            <div class="login-option__title">{{ 'loginModal.primalTitle'|trans }}</div>
+            <div class="login-option__hint">{{ 'loginModal.primalHint'|trans }}</div>
+          </div>
+          <div class="login-option__arrow">›</div>
+        </button>
+
+        {# Remote Signer #}
+        <button class="login-option"
+                data-action="click->utility--login-modal#showOption"
+                data-utility--login-modal-option-param="remote"
+                type="button">
+          <div class="login-option__icon login-option__icon--remote">
+            <img src="{{ asset('images/logos/padlock.svg') }}" alt="" />
+          </div>
+          <div class="login-option__body">
+            <div class="login-option__title">{{ 'loginModal.remoteSignerTitle'|trans }}</div>
+            <div class="login-option__hint">{{ 'loginModal.remoteSignerHint'|trans }}</div>
+          </div>
+          <div class="login-option__arrow">›</div>
+        </button>
+
+      </div>
+    </div>
+
+    {# ── Extension panel ───────────────────────────────────────────────── #}
+    <div class="modal-body login-modal__body" data-panel="extension" style="display:none;">
+      <button class="login-modal__back" type="button"
+              data-action="click->utility--login-modal#backToPicker">
+        ← {{ 'loginModal.back'|trans }}
+      </button>
+
+      <h6 class="login-modal__panel-title">{{ 'loginModal.extensionTitle'|trans }}</h6>
+      <p class="text-muted">{{ 'loginModal.extensionDescription'|trans }}</p>
+
+      <ul class="extension-list">
+          <li><a href="https://github.com/fiatjaf/nos2x" target="_blank" rel="noopener">nos2x</a> — Lightweight key extension (Chrome)</li>
+          <li><a href="https://diegogurpegui.com/nos2x-fox/" target="_blank" rel="noopener">nos2x-fox</a> — Lightweight key extension (Firefox)</li>
+          <li><a href="https://getalby.com/alby-extension" target="_blank" rel="noopener">Alby</a> — Bitcoin &amp; Nostr wallet (Chrome, Firefox)</li>
+      </ul>
+
+      <div data-utility--login-modal-target="nostrError" class="login-modal__error" style="display:none;"></div>
+
+      <button class="btn btn--primary" type="button"
+              data-action="click->utility--login-modal#loginExtension">
+        {{ 'loginModal.extensionConnect'|trans }}
+      </button>
+    </div>
+
+    {# ── NIP-46 QR panel (shared for Amber & Primal) ───────────────────── #}
+    <div class="modal-body login-modal__body" data-panel="nip46" style="display:none;">
+      <button class="login-modal__back" type="button"
+              data-action="click->utility--login-modal#backToPicker">
+        ← {{ 'loginModal.back'|trans }}
+      </button>
+
+      <h6 class="login-modal__panel-title" data-nip46-title>…</h6>
+      <p class="text-muted" data-nip46-hint></p>
+
+      <div class="login-modal__status">
+        <span data-utility--login-modal-target="status">{{ 'loginModal.initializing'|trans }}</span>
+      </div>
+
+      <div class="login-modal__qr">
+        <div data-utility--login-modal-target="qr"></div>
+      </div>
+
+      <div class="login-modal__uri-row">
+        <input type="text"
+               class="form-control font-monospace small"
+               data-utility--login-modal-target="uriInput"
+               readonly
+               placeholder="{{ 'loginModal.initializing'|trans }}" />
+        <button class="btn"
+                type="button"
+                data-action="click->utility--login-modal#copyUri"
+                data-utility--login-modal-target="copyButton">
+          {{ 'loginModal.copy'|trans }}
+        </button>
+      </div>
+      <p class="small text-muted mt-1 mb-0">{{ 'loginModal.pasteHint'|trans }}</p>
+
+      {# Amber deep-link button (hidden for Primal) #}
+      <div data-utility--login-modal-target="amberDeepLink" class="mt-3" style="display:none;">
+        <a data-utility--login-modal-target="amberDeepLinkBtn"
+           class="btn btn--primary"
+           href="#"
+           rel="noopener">
+          {{ 'loginModal.amberDeepLink'|trans }}
+        </a>
+      </div>
+    </div>
+
+    {# ── Remote Signer panel (bunker:// paste) ─────────────────────────── #}
+    <div class="modal-body login-modal__body" data-panel="remote" style="display:none;">
+      <button class="login-modal__back" type="button"
+              data-action="click->utility--login-modal#backToPicker">
+        ← {{ 'loginModal.back'|trans }}
+      </button>
+
+      <h6 class="login-modal__panel-title">{{ 'loginModal.remoteSignerTitle'|trans }}</h6>
+      <p class="text-muted">{{ 'loginModal.remoteSignerDescription'|trans }}</p>
+
+      <div class="login-modal__status">
+        <span data-utility--login-modal-target="status">{{ 'loginModal.initializing'|trans }}</span>
+      </div>
+
+      <div class="login-modal__qr">
+        <div data-utility--login-modal-target="qr"></div>
+      </div>
+
+      <div class="login-modal__uri-row">
+        <input type="text"
+               class="form-control font-monospace small"
+               data-utility--login-modal-target="uriInput"
+               readonly
+               placeholder="{{ 'loginModal.initializing'|trans }}" />
+        <button class="btn"
+                type="button"
+                data-action="click->utility--login-modal#copyUri"
+                data-utility--login-modal-target="copyButton">
+          {{ 'loginModal.copy'|trans }}
+        </button>
+      </div>
+      <p class="small text-muted mt-1 mb-3">{{ 'loginModal.pasteHint'|trans }}</p>
+
+      <hr class="login-modal__divider" />
+      <p class="small text-muted mt-3 mb-2">{{ 'loginModal.bunkerLabel'|trans }}</p>
+
+      <div class="login-modal__status">
+        <span data-utility--login-modal-target="remoteStatus"></span>
+      </div>
+
+      <div class="login-modal__uri-row">
+        <input type="text"
+               class="form-control font-monospace small"
+               data-utility--login-modal-target="bunkerInput"
+               placeholder="bunker://…" />
+        <button class="btn btn--primary"
+                type="button"
+                data-action="click->utility--login-modal#connectBunker">
+          {{ 'loginModal.remoteSignerConnect'|trans }}
+        </button>
+      </div>
+      <p class="small text-muted mt-1 mb-0">{{ 'loginModal.bunkerHint'|trans }}</p>
+    </div>
+
+  </div>
+</div>
+
