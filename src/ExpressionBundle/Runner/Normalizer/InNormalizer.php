@@ -73,7 +73,7 @@ final class InNormalizer implements NormalizerInterface
     private function isAddressReference(string $value): bool
     {
         // kind:pubkey:d format
-        return (bool) preg_match('/^\d+:[a-fA-F0-9]{64}:.+$/', $value);
+        return (bool) preg_match('/^\d+:[a-fA-F0-9]{64}:.*$/', $value);
     }
 }
 

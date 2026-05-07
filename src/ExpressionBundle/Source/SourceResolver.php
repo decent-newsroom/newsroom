@@ -31,10 +31,12 @@ final class SourceResolver implements SourceResolverInterface
      * contents via AddressSourceResolver instead of returning the event itself.
      */
     private const DELEGATABLE_KINDS = [
+        3,                          // contacts list
         777,                        // spell
         30880,                      // expression
         30003, 30004, 30005, 30006, // curation sets
         10003,                      // bookmarks
+        39089,                      // follow packs
     ];
 
     /** @return NormalizedItem[] */

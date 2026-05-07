@@ -12,6 +12,7 @@ use App\ExpressionBundle\Model\Clause\TextClause;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
 use App\ExpressionBundle\Parser\VariableResolver;
+use App\ExpressionBundle\Source\ReferenceResolver;
 
 /**
  * Evaluates clauses against NormalizedItems with NIP-EX absence semantics.
@@ -23,6 +24,7 @@ final class ClauseEvaluator
 {
     public function __construct(
         private readonly VariableResolver $variableResolver,
+        private readonly ReferenceResolver $referenceResolver,
     ) {}
 
     public function evaluate(ClauseInterface $clause, NormalizedItem $item, RuntimeContext $ctx): bool
@@ -71,7 +73,7 @@ final class ClauseEvaluator
 
     private function evalMatch(MatchClause $c, NormalizedItem $item, RuntimeContext $ctx): bool
     {
-        $resolved = $this->expandValues($c->resolvedValues, $ctx);
+        $resolved = $this->expandValues($c->resolvedValues, $ctx, $c->namespace, $c->selector);
 
         if ($c->namespace === 'prop') {
             $value = $item->getProperty($c->selector);
@@ -96,7 +98,7 @@ final class ClauseEvaluator
 
     private function evalNot(NotClause $c, NormalizedItem $item, RuntimeContext $ctx): bool
     {
-        $resolved = $this->expandValues($c->resolvedValues, $ctx);
+        $resolved = $this->expandValues($c->resolvedValues, $ctx, $c->namespace, $c->selector);
 
         if ($c->namespace === 'prop') {
             $value = $item->getProperty($c->selector);
@@ -219,12 +221,20 @@ final class ClauseEvaluator
      * @param string[] $values Raw clause values, may contain variables
      * @return string[] Expanded values
      */
-    private function expandValues(array $values, RuntimeContext $ctx): array
+    private function expandValues(array $values, RuntimeContext $ctx, string $namespace, string $selector): array
     {
         $expanded = [];
+        $domain = $namespace === 'prop' && $selector === 'pubkey'
+            ? 'pubkey'
+            : ($namespace === 'tag' ? 'tag' : null);
+
         foreach ($values as $value) {
             if ($this->variableResolver->isVariable($value)) {
                 foreach ($this->variableResolver->resolve($value, $ctx) as $v) {
+                    $expanded[] = $v;
+                }
+            } elseif ($domain !== null && $this->isAddressReference($value)) {
+                foreach ($this->referenceResolver->resolveForDomain($value, $domain) as $v) {
                     $expanded[] = $v;
                 }
             } else {
@@ -232,6 +242,11 @@ final class ClauseEvaluator
             }
         }
         return $expanded;
+    }
+
+    private function isAddressReference(string $value): bool
+    {
+        return (bool) preg_match('/^\d+:[a-fA-F0-9]{64}:.*$/', $value);
     }
 }
 

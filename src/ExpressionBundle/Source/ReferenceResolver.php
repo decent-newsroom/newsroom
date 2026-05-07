@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\ExpressionBundle\Source;
 
 use App\ExpressionBundle\Exception\InvalidArgumentException;
-use App\ExpressionBundle\Model\NormalizedItem;
-use App\ExpressionBundle\Model\RuntimeContext;
+use App\ExpressionBundle\Exception\UnresolvedRefException;
 use App\Repository\EventRepository;
 
 /**
- * Resolves NIP-FX `in` references: follow packs (kind 39089) and interest sets (kind 30015).
+ * Resolves NIP-FX `in` references for pubkey/tag domains.
  */
 final class ReferenceResolver
 {
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly PubkeyListSourceResolver $pubkeyListSourceResolver,
     ) {}
 
     /**
@@ -28,7 +28,7 @@ final class ReferenceResolver
 
         return match ($domain) {
             'pubkey' => match ($kind) {
-                39089 => $this->extractPubkeysFromFollowPack($reference),
+                3, 39089 => $this->extractPubkeysFromReference($kind, $pubkey, $d),
                 default => throw new InvalidArgumentException("Kind {$kind} not valid for pubkey domain"),
             },
             'tag' => match ($kind) {
@@ -40,21 +40,13 @@ final class ReferenceResolver
     }
 
     /** @return string[] */
-    private function extractPubkeysFromFollowPack(string $reference): array
+    private function extractPubkeysFromReference(int $kind, string $pubkey, string $d): array
     {
-        [$kind, $pubkey, $d] = explode(':', $reference, 3);
-        $event = $this->eventRepository->findByNaddr((int) $kind, $pubkey, $d);
-        if ($event === null) {
+        try {
+            return $this->pubkeyListSourceResolver->resolvePubkeysByAddress("{$kind}:{$pubkey}:{$d}");
+        } catch (UnresolvedRefException) {
             return [];
         }
-
-        $pubkeys = [];
-        foreach ($event->getTags() as $tag) {
-            if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
-                $pubkeys[] = $tag[1];
-            }
-        }
-        return $pubkeys;
     }
 
     /** @return string[] */

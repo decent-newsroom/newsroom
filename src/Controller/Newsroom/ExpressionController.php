@@ -77,6 +77,20 @@ class ExpressionController extends AbstractController
                 ],
             ],
             [
+                'id' => 'follow-pack-latest-longform',
+                'title' => 'Latest longform from follow pack',
+                'content' => 'Start from any article source, then keep authors listed in a follow-pack coordinate (39089:pubkey:d-tag).',
+                'tags' => [
+                    ['op', 'all'],
+                    ['input', 'a', ''],
+                    ['match', 'prop', 'pubkey', '39089:<pubkey>:<d-tag>'],
+                    ['match', 'prop', 'kind', '30023'],
+                    ['op', 'distinct'],
+                    ['op', 'sort', 'prop', 'created_at', 'desc'],
+                    ['op', 'slice', '0', '30'],
+                ],
+            ],
+            [
                 'id' => 'combine-sources',
                 'title' => 'Combine two sources',
                 'content' => 'Combine two sources and take the top 20 newest items.',

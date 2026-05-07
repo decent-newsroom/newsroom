@@ -16,11 +16,13 @@ use Psr\Log\LoggerInterface;
 final class AddressSourceResolver
 {
     private const LIST_KINDS = [30003, 30004, 30005, 30006, 10003];
+    private const PUBKEY_LIST_KINDS = [3, 39089];
 
     public function __construct(
         private readonly ExpressionSourceResolver $expressionResolver,
         private readonly SpellSourceResolver $spellResolver,
         private readonly ListSourceResolver $listResolver,
+        private readonly PubkeyListSourceResolver $pubkeyListResolver,
         private readonly GenericEventResolver $genericEventResolver,
         private readonly LoggerInterface $logger,
     ) {}
@@ -46,6 +48,7 @@ final class AddressSourceResolver
             'expression' => $this->expressionResolver->resolve($address, $ctx),
             'spell'      => $this->spellResolver->resolve($address, $ctx),
             'list'       => $this->listResolver->resolve($address, $ctx),
+            'pubkey_list' => $this->pubkeyListResolver->resolve($address, $ctx),
             'generic'    => $this->genericEventResolver->resolve($address, $ctx),
         };
     }
@@ -70,6 +73,7 @@ final class AddressSourceResolver
             'expression' => $this->expressionResolver->executeEvent($event, $ctx),
             'spell'      => $this->spellResolver->executeEvent($event, $ctx),
             'list'       => $this->listResolver->executeEvent($event, $ctx),
+            'pubkey_list' => $this->pubkeyListResolver->executeEvent($event, $ctx),
             'generic'    => [new NormalizedItem($event)],
         };
     }
@@ -80,6 +84,7 @@ final class AddressSourceResolver
             $kind === 30880 => 'expression',
             $kind === 777   => 'spell',
             in_array($kind, self::LIST_KINDS, true) => 'list',
+            in_array($kind, self::PUBKEY_LIST_KINDS, true) => 'pubkey_list',
             default         => 'generic',
         };
     }
