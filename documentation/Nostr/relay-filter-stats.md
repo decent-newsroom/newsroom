@@ -25,7 +25,7 @@ content the relay operator should not see. Built by
 | `kinds` | `kinds=[1,30023]` — actual kinds, sorted, deduped |
 | `authors` | `authors=N12` — count only, never hex pubkeys |
 | `ids` | `ids=N3` — count only |
-| `#e`, `#p`, `#t`, `#a`, `#d`, `#k`, … | `#t=N4` — tag key + count only, never values |
+| `#e`, `#p`, `#t`, `#a`, `#A`, `#d`, `#k`, … | `#t=N4` — tag key (case-preserved) + count only, never values; `#A` and `#a` are separate buckets |
 | `since`, `until` | presence flag only (`since`, `until`) — never timestamp |
 | `limit` | `limit=50` — exact value (common limits form natural buckets) |
 | `search` | `search` — presence flag only |

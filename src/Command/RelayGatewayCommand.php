@@ -126,6 +126,8 @@ class RelayGatewayCommand extends Command
      *   events: array,
      *   deadline: int,
      *   done: bool,
+     *   startedAt?: float,
+     *   filterSigs?: array<int, string>,
      * }>
      */
     private array $pendingQueries = [];
@@ -949,7 +951,11 @@ class RelayGatewayCommand extends Command
     private function handleQueryRequest(array $data, string $correlationId): void
     {
         $relayUrls = json_decode($data['relays'] ?? '[]', true) ?: [];
-        $filter = json_decode($data['filter'] ?? '{}', true) ?: [];
+        $filters = json_decode($data['filters'] ?? '[]', true) ?: [];
+        if (!is_array($filters) || $filters === []) {
+            $legacyFilter = json_decode($data['filter'] ?? '{}', true) ?: [];
+            $filters = is_array($legacyFilter) && $legacyFilter !== [] ? [$legacyFilter] : [];
+        }
         $pubkey = $data['pubkey'] ?? '';
         $pubkey = $pubkey !== '' ? $pubkey : null;
         $timeout = (int) ($data['timeout'] ?? 15);
@@ -961,23 +967,30 @@ class RelayGatewayCommand extends Command
             $relayUrls,
         )));
 
-        // Summarise the filter for logging
+        // Summarise filters for logging
         $filterSummary = [];
-        if (isset($filter['kinds'])) {
-            $filterSummary['kinds'] = $filter['kinds'];
-        }
-        if (isset($filter['authors'])) {
-            $filterSummary['authors'] = count($filter['authors']) . ' author(s)';
-        }
-        if (isset($filter['ids'])) {
-            $filterSummary['ids'] = count($filter['ids']) . ' id(s)';
-        }
-        if (isset($filter['limit'])) {
-            $filterSummary['limit'] = $filter['limit'];
-        }
-        foreach ($filter as $k => $v) {
-            if (str_starts_with($k, '#') && is_array($v)) {
-                $filterSummary[$k] = count($v) . ' value(s)';
+        $filterSummary['filter_count'] = count($filters);
+        foreach ($filters as $idx => $filter) {
+            if (!is_array($filter)) {
+                continue;
+            }
+            $label = 'f' . $idx;
+            if (isset($filter['kinds'])) {
+                $filterSummary[$label . '.kinds'] = $filter['kinds'];
+            }
+            if (isset($filter['authors'])) {
+                $filterSummary[$label . '.authors'] = count($filter['authors']) . ' author(s)';
+            }
+            if (isset($filter['ids'])) {
+                $filterSummary[$label . '.ids'] = count($filter['ids']) . ' id(s)';
+            }
+            if (isset($filter['limit'])) {
+                $filterSummary[$label . '.limit'] = $filter['limit'];
+            }
+            foreach ($filter as $k => $v) {
+                if (str_starts_with($k, '#') && is_array($v)) {
+                    $filterSummary[$label . '.' . $k] = count($v) . ' value(s)';
+                }
             }
         }
 
@@ -1035,35 +1048,50 @@ class RelayGatewayCommand extends Command
                 $subscription = new Subscription();
                 $subscriptionId = $subscription->setId();
 
-                $filterObj = new Filter();
-                if (isset($filter['kinds'])) {
-                    $filterObj->setKinds($filter['kinds']);
-                }
-                if (isset($filter['authors'])) {
-                    $filterObj->setAuthors($filter['authors']);
-                }
-                if (isset($filter['limit'])) {
-                    $filterObj->setLimit($filter['limit']);
-                }
-                if (isset($filter['since'])) {
-                    $filterObj->setSince($filter['since']);
-                }
-                if (isset($filter['until'])) {
-                    $filterObj->setUntil($filter['until']);
-                }
-                if (isset($filter['ids'])) {
-                    $filterObj->setIds($filter['ids']);
-                }
-                // NIP-01 tag filters: #e, #p, #t, #d, #a, etc.
-                foreach ($filter as $key => $value) {
-                    if (str_starts_with($key, '#') && strlen($key) === 2 && is_array($value)) {
-                        $filterObj->setTag($key, $value);
+                $filterObjects = [];
+                $filterSignatures = [];
+
+                foreach ($filters as $filter) {
+                    if (!is_array($filter)) {
+                        continue;
                     }
+
+                    $filterObj = new Filter();
+                    if (isset($filter['kinds'])) {
+                        $filterObj->setKinds($filter['kinds']);
+                    }
+                    if (isset($filter['authors'])) {
+                        $filterObj->setAuthors($filter['authors']);
+                    }
+                    if (isset($filter['limit'])) {
+                        $filterObj->setLimit($filter['limit']);
+                    }
+                    if (isset($filter['since'])) {
+                        $filterObj->setSince($filter['since']);
+                    }
+                    if (isset($filter['until'])) {
+                        $filterObj->setUntil($filter['until']);
+                    }
+                    if (isset($filter['ids'])) {
+                        $filterObj->setIds($filter['ids']);
+                    }
+                    // NIP-01 tag filters: #e, #p, #t, #d, #a, etc.
+                    foreach ($filter as $key => $value) {
+                        if (str_starts_with($key, '#') && strlen($key) === 2 && is_array($value)) {
+                            $filterObj->setTag($key, $value);
+                        }
+                    }
+
+                    $filterObjects[] = $filterObj;
+                    $filterSignatures[] = $this->filterStatsStore->signature($filter);
                 }
 
-                $reqPayload = (new RequestMessage($subscriptionId, [$filterObj]))->generate();
+                if ($filterObjects === []) {
+                    throw new \RuntimeException('Query request has no usable filters');
+                }
 
-                $filterSignature = $this->filterStatsStore->signature($filter);
+                $reqPayload = (new RequestMessage($subscriptionId, $filterObjects))->generate();
+                $filterSignatures = array_values(array_unique($filterSignatures));
 
                 $this->pendingQueries[$subscriptionId] = [
                     'correlationId' => $correlationId,
@@ -1073,13 +1101,15 @@ class RelayGatewayCommand extends Command
                     'deadline'      => $deadline,
                     'done'          => false,
                     'startedAt'     => microtime(true),
-                    'filterSig'     => $filterSignature,
+                    'filterSigs'    => $filterSignatures,
                 ];
 
                 // Track that this filter shape was sent to this relay.
                 // EOSE / timeout outcomes are recorded later in completeQuery /
                 // completeQueryWithError / sweepTimedOutPending.
-                $this->filterStatsStore->recordRequest($relayUrl, $filterSignature);
+                foreach ($filterSignatures as $signature) {
+                    $this->filterStatsStore->recordRequest($relayUrl, $signature);
+                }
                 $registeredCount++;
 
                 // If the connection is mid-AUTH, defer the REQ.
@@ -1626,13 +1656,17 @@ class RelayGatewayCommand extends Command
         );
 
         // Per-filter latency / event-count stats
-        if (isset($pending['startedAt'], $pending['filterSig'])) {
-            $this->filterStatsStore->recordEose(
-                $pending['relayUrl'],
-                $pending['filterSig'],
-                (int) ((microtime(true) - $pending['startedAt']) * 1000),
-                count($pending['events']),
-            );
+        if (isset($pending['startedAt'], $pending['filterSigs']) && is_array($pending['filterSigs'])) {
+            $latencyMs = (int) ((microtime(true) - $pending['startedAt']) * 1000);
+            $eventCount = count($pending['events']);
+            foreach ($pending['filterSigs'] as $signature) {
+                $this->filterStatsStore->recordEose(
+                    $pending['relayUrl'],
+                    $signature,
+                    $latencyMs,
+                    $eventCount,
+                );
+            }
         }
 
         $correlationId = $pending['correlationId'];
@@ -1666,8 +1700,10 @@ class RelayGatewayCommand extends Command
         // Don't send CLOSE — the relay initiated the close
         $this->healthStore->recordFailure($pending['relayUrl']);
 
-        if (isset($pending['filterSig'])) {
-            $this->filterStatsStore->recordTimeout($pending['relayUrl'], $pending['filterSig']);
+        if (isset($pending['filterSigs']) && is_array($pending['filterSigs'])) {
+            foreach ($pending['filterSigs'] as $signature) {
+                $this->filterStatsStore->recordTimeout($pending['relayUrl'], $signature);
+            }
         }
 
         $correlationId = $pending['correlationId'];
@@ -1805,8 +1841,10 @@ class RelayGatewayCommand extends Command
                 'relay'           => $pending['relayUrl'],
             ]);
 
-            if (isset($pending['filterSig'])) {
-                $this->filterStatsStore->recordTimeout($pending['relayUrl'], $pending['filterSig']);
+            if (isset($pending['filterSigs']) && is_array($pending['filterSigs'])) {
+                foreach ($pending['filterSigs'] as $signature) {
+                    $this->filterStatsStore->recordTimeout($pending['relayUrl'], $signature);
+                }
             }
 
             // Send CLOSE if possible

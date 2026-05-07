@@ -68,12 +68,12 @@ class FetchHighlightsHandler
                     $context = null;
                     foreach ($nostrEvent->tags ?? [] as $tag) {
                         if (is_array($tag) && count($tag) >= 2) {
-                            if (in_array($tag[0], ['a', 'A'])) {
-                                // Check for article reference (kind 30023)
-                                if (str_starts_with($tag[1] ?? '', '30023:')) {
-                                    $articleCoordinate = $tag[1];
-                                }
+                        if (in_array($tag[0], ['a', 'A'])) {
+                            // Check for article reference (kind 30023)
+                            if (str_starts_with($tag[1] ?? '', '30023:')) {
+                                $articleCoordinate = $tag[1];
                             }
+                        }
                             // Extract context if available (quoted text)
                             if ($tag[0] === 'context' && isset($tag[1])) {
                                 $context = $tag[1];

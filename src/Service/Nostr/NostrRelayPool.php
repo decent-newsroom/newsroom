@@ -197,12 +197,12 @@ class NostrRelayPool implements RelayPoolInterface
             // External relays: route through gateway
             if (!empty($externalUrls)) {
                 $message = $messageBuilder();
-                $filter = $this->extractFilterFromPayload($message->generate());
+                $filters = $this->extractFiltersFromPayload($message->generate());
 
                 // Cap gateway query timeout to stay within the messenger worker's
                 // 15s execution limit. The gateway client adds +2s grace internally.
                 $gatewayTimeout = min($timeout, 8);
-                $gatewayResult = $this->gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
+                $gatewayResult = $this->gatewayClient->query($externalUrls, $filters, $pubkey, $gatewayTimeout);
 
                 $gatewayErrors = $gatewayResult['errors'] ?? [];
 
@@ -379,13 +379,23 @@ class NostrRelayPool implements RelayPoolInterface
      * Best-effort extraction of filter parameters from a generated REQ payload.
      * The gateway needs the filter as an associative array.
      */
-    private function extractFilterFromPayload(string $payload): array
+    private function extractFiltersFromPayload(string $payload): array
     {
         $decoded = json_decode($payload, true);
         // REQ format: ["REQ", subscriptionId, filter1, filter2, ...]
-        if (is_array($decoded) && ($decoded[0] ?? '') === 'REQ' && isset($decoded[2])) {
-            return $decoded[2];
+        if (is_array($decoded) && ($decoded[0] ?? '') === 'REQ') {
+            $filters = [];
+            for ($i = 2; isset($decoded[$i]); $i++) {
+                if (is_array($decoded[$i])) {
+                    $filters[] = $decoded[$i];
+                }
+            }
+
+            if ($filters !== []) {
+                return $filters;
+            }
         }
+
         return [];
     }
 

@@ -32,38 +32,39 @@ class FetchCommentsHandler
     {
         $coordinate = $message->getCoordinate();
         $authorPubkey = $message->getAuthorPubkey();
+        $dbComments = [];
 
         // Step 1: Check cache first (fast path)
         $cached = $this->redisCacheService->getCommentsPayload($coordinate);
         if ($cached) {
             $this->publish($coordinate, $cached['comments'], $cached['profiles']);
             $this->logger->debug('Published cached comments', ['coordinate' => $coordinate]);
-            return;
-        }
+            $dbComments = $this->eventRepository->findCommentsByCoordinate($coordinate);
+        } else {
+            // Step 2: Get comments from database (stale-while-revalidate)
+            $dbComments = $this->eventRepository->findCommentsByCoordinate($coordinate);
 
-        // Step 2: Get comments from database (stale-while-revalidate)
-        $dbComments = $this->eventRepository->findCommentsByCoordinate($coordinate);
+            if (!empty($dbComments)) {
+                // We have DB comments - publish them immediately
+                $comments = $this->convertEventsToObjects($dbComments);
+                [$profiles, $maxTs] = $this->hydrateProfilesAndTs($comments);
 
-        if (!empty($dbComments)) {
-            // We have DB comments - publish them immediately
-            $comments = $this->convertEventsToObjects($dbComments);
-            [$profiles, $maxTs] = $this->hydrateProfilesAndTs($comments);
+                $payload = [
+                    'comments'  => $comments,
+                    'profiles'  => $profiles,
+                    'max_ts'    => $maxTs,
+                    'stored_at' => time(),
+                ];
 
-            $payload = [
-                'comments'  => $comments,
-                'profiles'  => $profiles,
-                'max_ts'    => $maxTs,
-                'stored_at' => time(),
-            ];
+                // Cache for quick subsequent access
+                $this->redisCacheService->setCommentsPayload($coordinate, $payload, self::CACHE_TTL);
+                $this->publish($coordinate, $comments, $profiles);
 
-            // Cache for quick subsequent access
-            $this->redisCacheService->setCommentsPayload($coordinate, $payload, self::CACHE_TTL);
-            $this->publish($coordinate, $comments, $profiles);
-
-            $this->logger->info('Published comments from database', [
-                'coordinate' => $coordinate,
-                'count' => count($comments)
-            ]);
+                $this->logger->info('Published comments from database', [
+                    'coordinate' => $coordinate,
+                    'count' => count($comments)
+                ]);
+            }
         }
 
         // Step 3: Refresh from relays (async/background refresh)

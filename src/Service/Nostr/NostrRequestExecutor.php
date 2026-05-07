@@ -94,9 +94,17 @@ class NostrRequestExecutor
         $payload   = $request->getPayload();
 
         $decoded = json_decode($payload, true);
-        $filter  = (is_array($decoded) && ($decoded[0] ?? '') === 'REQ' && isset($decoded[2]))
-            ? $decoded[2]
-            : [];
+        $filters = [];
+        if (is_array($decoded) && ($decoded[0] ?? '') === 'REQ') {
+            for ($i = 2; isset($decoded[$i]); $i++) {
+                if (is_array($decoded[$i])) {
+                    $filters[] = $decoded[$i];
+                }
+            }
+        }
+        if ($filters === []) {
+            $filters = [[]];
+        }
 
         $localRelay   = $this->nostrDefaultRelay ?: null;
         // PROJECT is the public wss:// alias for the same physical relay as LOCAL.
@@ -125,7 +133,8 @@ class NostrRequestExecutor
             foreach ($localUrls as $url) {
                 $localRelaySet->addRelay($this->relayPool->getRelay($url));
             }
-            $msg          = new RequestMessage((new Subscription())->getId(), [self::buildFilterFromArray($filter)]);
+            $filterObjects = array_map([self::class, 'buildFilterFromArray'], $filters);
+            $msg          = new RequestMessage((new Subscription())->getId(), $filterObjects);
             $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger);
             $results      += $localRequest->send();
         }
@@ -135,7 +144,7 @@ class NostrRequestExecutor
         // for the messenger worker's 15s execution limit.  Targeted hint-relay
         // queries pass a higher value so slow relays have time to EOSE.
         if (!empty($externalUrls)) {
-            $gatewayResult = $gatewayClient->query($externalUrls, $filter, $pubkey, $gatewayTimeout);
+            $gatewayResult = $gatewayClient->query($externalUrls, $filters, $pubkey, $gatewayTimeout);
 
             if (!empty($gatewayResult['errors'])) {
                 $this->logger->warning('Gateway returned errors for external relays', [

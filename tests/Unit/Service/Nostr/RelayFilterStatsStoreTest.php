@@ -80,6 +80,25 @@ class RelayFilterStatsStoreTest extends TestCase
         $this->assertStringNotContainsString('def1', $sig);
     }
 
+    public function testSignatureNormalizesUppercaseTagKeys(): void
+    {
+        $store = $this->makeStore($this->createMock(\Redis::class));
+
+        $upper = $store->signature([
+            'kinds' => [1111, 9735],
+            '#A' => ['30023:pubkey:slug'],
+        ]);
+
+        $lower = $store->signature([
+            'kinds' => [1111, 9735],
+            '#a' => ['30023:pubkey:slug'],
+        ]);
+
+        $this->assertSame($upper, $lower);
+        $this->assertStringContainsString('#a=N1', $upper);
+        $this->assertStringNotContainsString('#A=', $upper);
+    }
+
     public function testSignatureForEmptyFilterIsEmpty(): void
     {
         $store = $this->makeStore($this->createMock(\Redis::class));

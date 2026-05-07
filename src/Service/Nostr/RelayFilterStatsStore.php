@@ -81,11 +81,13 @@ class RelayFilterStatsStore
             $parts[] = 'ids=N' . count($filter['ids']);
         }
 
-        // Tag filters — preserve key names (#e, #p, #t, #a, #d, #k, …) + count
+        // Tag filters — preserve key names (#e, #p, #t, #a, #A, #d, #k, …) + count.
+        // Case is intentionally kept: #A and #a are different NIP-01 tag filters
+        // that hit different relay indexes and will have different performance profiles.
         $tagKeys = [];
         foreach ($filter as $key => $value) {
             if (is_string($key) && str_starts_with($key, '#') && strlen($key) === 2 && is_array($value)) {
-                $tagKeys[$key] = count($value);
+                $tagKeys[$key] = ($tagKeys[$key] ?? 0) + count($value);
             }
         }
         ksort($tagKeys);

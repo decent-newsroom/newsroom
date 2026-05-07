@@ -24,6 +24,7 @@ class SocialEventService
         private readonly NostrRelayPool       $relayPool,
         private readonly LoggerInterface      $logger,
         private readonly ?string              $nostrDefaultRelay = null,
+        private readonly ?UserRelayListService $userRelayListService = null,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -136,26 +137,53 @@ class SocialEventService
             $pubkey = $authorPubkey;
         }
 
+        $relayUrls = [];
         if ($this->nostrDefaultRelay) {
-            $authorRelays = [$this->nostrDefaultRelay];
-            $this->logger->info('Using local relay for comments fetch', ['relay' => $this->nostrDefaultRelay]);
-        } elseif ($pubkey) {
-            $authorRelays = $this->relaySetFactory->forAuthor($pubkey)->getRelays()
-                ? array_map(fn($r) => $r->getUrl(), $this->relaySetFactory->forAuthor($pubkey)->getRelays())
-                : [];
-            $this->logger->info('Using author relays for comments fetch', [
-                'ref'         => $ref,
-                'relay_count' => count($authorRelays),
-            ]);
-        } else {
-            // No pubkey hint for a plain event id — fall back to default relay pool
-            $authorRelays = array_values(array_filter(
-                array_map(fn($r) => is_object($r) ? $r->getUrl() : (string) $r, $this->relayPool->getDefaultRelays() ?? [])
-            ));
-            $this->logger->info('Using default relays for comments fetch (no pubkey)', [
-                'ref'         => $ref,
-                'relay_count' => count($authorRelays),
-            ]);
+            $relayUrls[] = $this->nostrDefaultRelay;
+        }
+
+        if ($pubkey) {
+            try {
+                if ($this->userRelayListService !== null) {
+                    $authorRelays = $this->userRelayListService->getRelaysForAuthorContent($pubkey, 5);
+                } else {
+                    $relaySet = $this->relaySetFactory->forAuthor($pubkey);
+                    $authorRelays = $relaySet->getRelays()
+                        ? array_map(fn($r) => $r->getUrl(), $relaySet->getRelays())
+                        : [];
+                }
+
+                foreach ($authorRelays as $relay) {
+                    if (!in_array($relay, $relayUrls, true)) {
+                        $relayUrls[] = $relay;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to get author relays for comment fetch', [
+                    'ref' => $ref,
+                    'pubkey' => $pubkey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach ($this->relayPool->getDefaultRelays() ?? [] as $relay) {
+            $relayUrl = is_object($relay) ? $relay->getUrl() : (string) $relay;
+            if ($relayUrl !== '' && !in_array($relayUrl, $relayUrls, true)) {
+                $relayUrls[] = $relayUrl;
+            }
+        }
+
+        $relayUrls = array_slice($relayUrls, 0, 6);
+
+        $this->logger->info('Using relays for comments fetch', [
+            'ref' => $ref,
+            'relay_count' => count($relayUrls),
+            'has_pubkey_hint' => $pubkey !== null,
+        ]);
+
+        if ($relayUrls === []) {
+            return [];
         }
 
         $subscription   = new Subscription();
@@ -177,7 +205,7 @@ class SocialEventService
 
         $requestMessage = new RequestMessage($subscriptionId, $filters);
         $responses      = $this->relayPool->sendToRelays(
-            $authorRelays,
+            $relayUrls,
             fn() => $requestMessage,
             10,
             $subscriptionId
@@ -265,7 +293,7 @@ class SocialEventService
 
     /**
      * Get highlights (kind 9802) for a specific article coordinate.
-     * Queries both the local relay and default relays for broader coverage.
+     * Fans out to the local relay, default relays, and the article author's relays for broader coverage.
      */
     public function getHighlightsForArticle(string $articleCoordinate, int $limit = 100): array
     {
@@ -291,8 +319,28 @@ class SocialEventService
                 $relayUrls[] = $relay;
             }
         }
-        // Limit to 3 relays to keep it fast
-        $relayUrls = array_slice($relayUrls, 0, 3);
+
+        // Fan out to the article author's relays (extracted from the coordinate: kind:pubkey:slug)
+        $parts = explode(':', $articleCoordinate, 3);
+        if (count($parts) === 3 && $this->userRelayListService !== null) {
+            $authorPubkey = $parts[1];
+            try {
+                $authorRelays = $this->userRelayListService->getRelaysForAuthorContent($authorPubkey, 5);
+                foreach ($authorRelays as $relay) {
+                    if (!in_array($relay, $relayUrls)) {
+                        $relayUrls[] = $relay;
+                    }
+                }
+            } catch (\Exception $e) {
+                $this->logger->warning('Failed to get author relays for highlight fanout', [
+                    'pubkey' => $authorPubkey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Cap at 6 relays to keep fetching reasonably fast
+        $relayUrls = array_slice($relayUrls, 0, 6);
 
         if (empty($relayUrls)) {
             $this->logger->warning('No relays available for highlights fetch', ['coordinate' => $articleCoordinate]);

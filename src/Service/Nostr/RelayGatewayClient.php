@@ -34,22 +34,36 @@ class RelayGatewayClient
     ) {}
 
     /**
-     * Send a filter to relays via the gateway and wait for results.
+     * Send one or more REQ filters to relays via the gateway and wait for results.
      *
      * @param string[] $relayUrls Relay URLs to query
-     * @param array    $filter    Nostr filter (kinds, authors, limit, etc.)
+     * @param array    $filters   Either a single filter map or a list of filter maps
      * @param ?string  $pubkey    User pubkey — gateway uses user connection if available
      * @param int      $timeout   Max wait time in seconds
      * @return array{events: array, errors: array<string, string>}
      */
-    public function query(array $relayUrls, array $filter, ?string $pubkey = null, int $timeout = 15): array
+    public function query(array $relayUrls, array $filters, ?string $pubkey = null, int $timeout = 15): array
     {
         $correlationId = Uuid::v4()->toRfc4122();
+
+        $filterList = isset($filters[0]) && is_array($filters[0])
+            ? array_values(array_filter($filters, 'is_array'))
+            : [$filters];
+
+        $kinds = [];
+        foreach ($filterList as $filter) {
+            if (isset($filter['kinds']) && is_array($filter['kinds'])) {
+                $kinds = array_merge($kinds, array_map('intval', $filter['kinds']));
+            }
+        }
+        $kinds = array_values(array_unique($kinds));
+        sort($kinds);
 
         $this->logger->debug('RelayGatewayClient: sending query', [
             'correlation_id' => $correlationId,
             'relays' => $relayUrls,
-            'filter_kinds' => $filter['kinds'] ?? [],
+            'filter_count' => count($filterList),
+            'filter_kinds' => $kinds,
             'pubkey' => $pubkey ? substr($pubkey, 0, 8) . '...' : null,
             'timeout' => $timeout,
         ]);
@@ -60,7 +74,9 @@ class RelayGatewayClient
                 'id' => $correlationId,
                 'action' => 'query',
                 'relays' => json_encode($relayUrls),
-                'filter' => json_encode($filter),
+                // Keep both fields for compatibility with old gateway code paths.
+                'filter' => json_encode($filterList[0] ?? []),
+                'filters' => json_encode($filterList),
                 'pubkey' => $pubkey ?? '',
                 'timeout' => (string) $timeout,
             ]);

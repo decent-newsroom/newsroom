@@ -125,6 +125,10 @@ final class Comments
     public function loadComments(#[LiveArg] string $payload): void
     {
         $data = json_decode($payload, true);
+        if (!is_array($data)) {
+            $this->loading = false;
+            return;
+        }
 
         // If your handler doesn’t compute zaps/links yet, reuse your helpers here:
         $this->list            = $data['comments'] ?? [];
@@ -133,7 +137,7 @@ final class Comments
             return;
         }
 
-        $this->authorsMetadata = $data['profiles'] ?? [];
+        $this->authorsMetadata = $this->normalizeMetadata($data['profiles'] ?? []);
 
         $this->parseZaps();
         $this->parseNostrLinks();
@@ -325,6 +329,8 @@ final class Comments
                 $normalized[$pubkey] = $meta->toStdClass();
             } elseif ($meta instanceof \stdClass) {
                 $normalized[$pubkey] = $meta;
+            } elseif (is_array($meta)) {
+                $normalized[$pubkey] = (object) $meta;
             } else {
                 $normalized[$pubkey] = null;
             }
