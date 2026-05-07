@@ -10,6 +10,8 @@ use App\Service\GenericEventProjector;
 use App\Service\HighlightService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
+use App\Message\PrefetchNostrEmbedsMessage;
+use App\Service\EmbedReferenceExtractor;
 use App\Service\ReadingListNavigationService;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
@@ -19,6 +21,7 @@ use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 class ArticleController  extends AbstractController
@@ -308,6 +311,8 @@ class ArticleController  extends AbstractController
         NostrClient $nostrClient,
         GenericEventProjector $genericEventProjector,
         ArticleEventProjector $articleEventProjector,
+        EmbedReferenceExtractor $embedExtractor,
+        MessageBusInterface $bus,
         $npub = null,
         $vanity = null
     ): Response
@@ -416,6 +421,32 @@ class ArticleController  extends AbstractController
             }
         }
         $canonical = $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $article->getSlug()], 0);
+
+        // ── Async prefetch of unresolved nostr embeds in article content ──────
+        // Any nostr: references in the article that weren't in the local DB at
+        // conversion time are sitting as placeholder divs in processedHtml.
+        // Dispatch a message so the worker can batch-fetch them from relays; on
+        // subsequent visits they will render as rich cards server-side.
+        try {
+            $refs = $embedExtractor->extractFromHtml($htmlContent);
+            if (!empty($refs['eventIds']) || !empty($refs['coordinates'])) {
+                $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
+                $bus->dispatch(new PrefetchNostrEmbedsMessage(
+                    $articleCoordinate,
+                    $refs['eventIds'],
+                    $refs['coordinates'],
+                    $refs['relayHints'],
+                ));
+                $logger->info('Dispatched embed prefetch for article', [
+                    'coordinate'  => $articleCoordinate,
+                    'event_ids'   => count($refs['eventIds']),
+                    'coordinates' => count($refs['coordinates']),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Non-critical — transport may be temporarily unavailable
+            $logger->debug('Could not dispatch embed prefetch', ['error' => $e->getMessage()]);
+        }
         $highlights = [];
         try {
             $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();

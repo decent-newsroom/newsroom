@@ -17,6 +17,12 @@ Phase 2 — Template render time (resolve_nostr_embeds → Molecules:NostrEmbed)
   ├─ Event now in DB/Redis → rich card HTML (same templates)
   └─ Still missing         → placeholder with Stimulus controller
 
+Phase 2b — Async bulk prefetch (PrefetchNostrEmbedsMessage → worker)
+  └─ ArticleController dispatches a Messenger message with all placeholder refs
+     → PrefetchNostrEmbedsHandler batch-fetches by ID + coordinate from relays
+     → Projects via GenericEventProjector (+ ArticleEventProjector for longform)
+     → Next page view renders the embeds fully in Phase 1/2
+
 Phase 3 — Client-side (nostr--deferred-embed Stimulus controller)
   └─ Calls /api/preview/ to fetch and render the event
 ```
@@ -95,3 +101,6 @@ The `nostr--deferred-embed` Stimulus controller (`assets/controllers/nostr/defer
 | `src/Util/CommonMark/Converter.php` | Emits deferred embed divs; no relay calls |
 | `src/Util/CommonMark/NostrSchemeExtension/NostrSchemeParser.php` | Simplified: only uses prefetched data, falls through for unresolved |
 | `assets/controllers/nostr/deferred_embed_controller.js` | Client-side fallback via `/api/preview/` |
+| `src/Service/EmbedReferenceExtractor.php` | Parses processed HTML for deferred embed placeholders → event IDs + coordinates |
+| `src/Message/PrefetchNostrEmbedsMessage.php` | Message carrying unresolved embed refs |
+| `src/MessageHandler/PrefetchNostrEmbedsHandler.php` | Worker: batch relay fetch + projection |
