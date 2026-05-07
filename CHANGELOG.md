@@ -23,6 +23,7 @@ Metrics.
 - [Bug] Follow-pack expression semantics now match `$contacts` semantics. A follow-pack coordinate (`39089:pubkey:d-tag`) is no longer treated as a special source that fetches longform events; instead, when used in `match/not` pubkey clauses it expands to the pack's `p`-tag pubkeys (same value-expansion model as `$contacts`).
 - [Improvement] Clarified the expression builder follow-pack template to avoid old source-model ambiguity. In `ExpressionController`, template copy now explicitly describes follow packs as a pubkey author filter over an existing event source, and the builder placeholders now distinguish source-address inputs from follow-pack coordinate values used in `match prop pubkey` clauses. Updated `documentation/Expressions/follow-pack-longform-expression.md` accordingly.
 - [Improvement] The follow-pack author-filter expression template now ships with a default source input: the Decent Newsroom recent-articles spell (`nevent1qqs9sv8skzupa9s9dfss273lkw05l3dwne4wve5x0xy048fxnjnwklqzyr28tnjt89m4qufs7sk8lp35dmundqq08tn56hk0szyjsrxury37jqcyqqqqxzgv05wdu`).
+- [Improvement] Follow-pack listing now prioritizes packs authored by the logged-in user at the top of `/follow-packs`, while preserving the existing article-count sort within own/global groups.
 
 
 ## v0.0.36

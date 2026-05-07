@@ -10,6 +10,7 @@ use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisCacheService;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 use swentel\nostr\Key\Key;
 
@@ -26,6 +27,7 @@ final class FollowPackList
         private readonly EntityManagerInterface $em,
         private readonly ArticleRepository $articleRepository,
         private readonly RedisCacheService $redisCacheService,
+        private readonly Security $security,
     ) {}
 
     /**
@@ -44,6 +46,16 @@ final class FollowPackList
      */
     public function getPacks(): array
     {
+        $currentUserPubkey = null;
+        $user = $this->security->getUser();
+        if ($user) {
+            try {
+                $currentUserPubkey = (new Key())->convertToHex($user->getUserIdentifier());
+            } catch (\Throwable) {
+                // Keep default ordering for anonymous/unresolvable identities.
+            }
+        }
+
         // 1. Fetch all follow pack events
         $events = $this->em->getRepository(Event::class)->findBy(
             ['kind' => KindsEnum::FOLLOW_PACK->value],
@@ -116,12 +128,20 @@ final class FollowPackList
             );
             if ($totalArticles > self::MIN_ARTICLE_COUNT) {
                 $pack['articleCount'] = $totalArticles;
+                $pack['isOwn'] = $currentUserPubkey !== null && $pack['event']->getPubkey() === $currentUserPubkey;
                 $qualifiedPacks[] = $pack;
             }
         }
 
-        // 6. Sort by article count descending
-        usort($qualifiedPacks, fn($a, $b) => $b['articleCount'] <=> $a['articleCount']);
+        // 6. Sort by ownership first, then by article count descending.
+        usort($qualifiedPacks, static function (array $a, array $b): int {
+            $ownershipOrder = ((int) $b['isOwn']) <=> ((int) $a['isOwn']);
+            if ($ownershipOrder !== 0) {
+                return $ownershipOrder;
+            }
+
+            return $b['articleCount'] <=> $a['articleCount'];
+        });
 
         // 7. Resolve author metadata
         $authorPubkeys = array_unique(array_map(
