@@ -1,21 +1,21 @@
-# Follow pack longform expression source
+# Follow pack author-filter expression template
 
-## What this adds
+## What this does
 
-Follow-pack coordinates (`39089:pubkey:d-tag`) are now expanded the same way as `$contacts`: into pubkey lists used in clause value matching.
+Follow-pack coordinates (`39089:pubkey:d-tag`) are expanded like `$contacts`: into pubkey lists used by clause value matching.
 
-This keeps semantics aligned with runtime-variable expansion instead of introducing a dedicated source type.
+The template is an **author filter** over an existing event source. It is not a direct "follow-pack as article source" template.
 
 ## Expression builder template
 
-The expression builder includes a template named **Latest longform from follow pack**.
+The expression builder includes a template named **Longform filtered by follow-pack authors**.
 
 Template tags:
 
 ```json
 [
   ["op", "all"],
-  ["input", "a", "<source-coordinate-or-expression>"],
+  ["input", "e", "nevent1qqs9sv8skzupa9s9dfss273lkw05l3dwne4wve5x0xy048fxnjnwklqzyr28tnjt89m4qufs7sk8lp35dmundqq08tn56hk0szyjsrxury37jqcyqqqqxzgv05wdu"],
   ["match", "prop", "pubkey", "39089:<pubkey>:<d-tag>"],
   ["match", "prop", "kind", "30023"],
   ["op", "distinct"],
@@ -24,19 +24,16 @@ Template tags:
 ]
 ```
 
+The default input is the Decent Newsroom "recent articles" spell (kind `777`) referenced by `nevent`.
+
 Sorting uses the required `created_at` property, so ordering is stable even when `published_at` tags are absent.
 
 ## Runtime behavior
 
-- The expression source (`input`) supplies candidate events.
-- In `match`/`not` clauses on `prop pubkey`, values like `39089:pubkey:d-tag` are resolved to `p` tag pubkeys from that follow-pack event.
-- Matching then runs exactly like `$contacts` expansion: author pubkey equals any expanded pubkey value.
-
-### Pubkey-list sources
-
-- If an expression `input` points directly to a follow-pack (`a 39089:...`) or contacts list (`a 3:<pubkey>:`), the source is expanded as a pubkey list instead of a generic single event.
-- Event-id inputs that resolve to kind `39089` or kind `3` are delegated through the same path.
-- Kind `3` coordinates with an empty identifier segment (`3:<pubkey>:`) are supported for both clause-value expansion and `in` normalizer references.
+- The `input` clause should point to an event source (for example an expression, spell, or list that yields articles/events).
+- In `match`/`not` clauses on `prop pubkey`, values like `39089:pubkey:d-tag` resolve to `p`-tag pubkeys from the follow-pack event.
+- Matching then behaves exactly like `$contacts`: item `pubkey` matches any expanded pubkey value.
+- If `input` points directly to `39089:...` or `3:<pubkey>:`, the source expands to pubkey-list items (not longform article events), which is usually not what this template intends.
 
 ## Notes
 

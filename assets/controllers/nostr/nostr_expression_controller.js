@@ -881,7 +881,7 @@ export default class extends Controller {
                  value="${this._esc(inputValue)}"
                  data-action="input->nostr--nostr-expression#updateClause"
                  data-stage-index="${stageIdx}" data-clause-index="${clauseIdx}" data-field="value"
-                 placeholder="${inputType === 'e' ? 'Event ID or nevent/note' : '30880:pubkey:d-tag or naddr'}" />
+                 placeholder="${inputType === 'e' ? 'Event ID or nevent/note' : 'Source address (e.g. 30880:pubkey:d-tag or naddr)'}" />
           <button class="btn btn-sm btn-danger"
                   data-action="click->nostr--nostr-expression#removeClause"
                   data-stage-index="${stageIdx}" data-clause-index="${clauseIdx}">&times;</button>
@@ -917,7 +917,7 @@ export default class extends Controller {
                  value="${this._esc(value)}"
                  data-action="input->nostr--nostr-expression#updateClause"
                  data-stage-index="${stageIdx}" data-clause-index="${clauseIdx}" data-field="value"
-                 placeholder="Value(s) — comma-separated or $contacts, $me, $interests" />
+                 placeholder="Value(s) — comma-separated, $contacts/$me/$interests, or 39089:pubkey:d-tag when selector=pubkey" />
           <button class="btn btn-sm btn-danger"
                   data-action="click->nostr--nostr-expression#removeClause"
                   data-stage-index="${stageIdx}" data-clause-index="${clauseIdx}">&times;</button>

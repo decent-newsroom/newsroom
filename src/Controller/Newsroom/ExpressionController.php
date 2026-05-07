@@ -78,11 +78,11 @@ class ExpressionController extends AbstractController
             ],
             [
                 'id' => 'follow-pack-latest-longform',
-                'title' => 'Latest longform from follow pack',
-                'content' => 'Start from any article source, then keep authors listed in a follow-pack coordinate (39089:pubkey:d-tag).',
+                'title' => 'Longform filtered by follow-pack authors',
+                'content' => 'Use an article/event source as input (spell, expression, list), then match authors against a follow-pack coordinate (39089:pubkey:d-tag).',
                 'tags' => [
                     ['op', 'all'],
-                    ['input', 'a', ''],
+                    ['input', 'e', 'nevent1qqs9sv8skzupa9s9dfss273lkw05l3dwne4wve5x0xy048fxnjnwklqzyr28tnjt89m4qufs7sk8lp35dmundqq08tn56hk0szyjsrxury37jqcyqqqqxzgv05wdu'],
                     ['match', 'prop', 'pubkey', '39089:<pubkey>:<d-tag>'],
                     ['match', 'prop', 'kind', '30023'],
                     ['op', 'distinct'],
