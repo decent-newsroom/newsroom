@@ -67,9 +67,15 @@
                 <header>
                     <button class="close" data-action="click->sidebar-toggle#close" aria-label="{{ 'nav.closeRightSidebar'|trans }}">✕</button>
                 </header>
-                <div class="d-flex gap-3 center mt-3 mb-3">
-                    <a class="btn" href="{{ path('blog_journey_landing') }}">{{ 'nav.startBlog'|trans }}</a>
-                </div>
+                {% if app.user %}
+                    <div class="d-flex gap-3 center mt-3 mb-3">
+                        <a class="btn" href="{{ path('mag_wizard_setup') }}">{{ 'nav.startBlog'|trans }}</a>
+                    </div>
+                {% else %}
+                    <div class="mt-3 mb-3">
+                        {% include 'blog-journey/_login_cta_card.html.twig' %}
+                    </div>
+                {% endif %}
                 {% block aside %}
                     {# Contribution invitation section #}
                     {% if contribution_npub and contribution_lud16 %}

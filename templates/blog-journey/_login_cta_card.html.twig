@@ -1,0 +1,10 @@
+<div class="journey-card" data-controller="utility--login-modal">
+    <h2>{{ 'journey.setup.loginHeading'|trans }}</h2>
+    <p>{{ 'journey.setup.loginDescription'|trans }}</p>
+
+    <div class="journey-login-actions">
+        <twig:Atoms:Button {{ ...stimulus_action('utility--login-modal', 'openDialog') }} tag="a">{{ 'auth.login'|trans }}</twig:Atoms:Button>
+    </div>
+    <twig:LoginModal />
+</div>
+

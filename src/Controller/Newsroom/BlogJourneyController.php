@@ -41,33 +41,31 @@ class BlogJourneyController extends AbstractController
     }
 
     /**
-     * Entry point: log in (if needed), dispatch article sync,
+     * Entry point: dispatch article sync for authenticated users,
      * then hand off to the magazine wizard.
      */
     #[Route('/setup', name: 'setup')]
     public function setup(Request $request): Response
     {
-        if (!$this->isGranted('ROLE_USER')) {
-            return $this->render('blog-journey/setup-login.html.twig');
-        }
-
         // Mark session so the magazine wizard knows the user came from the blog journey
         $request->getSession()->set(self::SESSION_JOURNEY_FLAG, true);
 
-        // Dispatch background article sync from relays
-        try {
-            $key = new Key();
-            $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
+        // Dispatch background article sync only for authenticated users
+        if ($this->isGranted('ROLE_USER')) {
+            try {
+                $key = new Key();
+                $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
 
-            if ($pubkeyHex) {
-                $this->messageBus->dispatch(
-                    new FetchAuthorArticlesMessage($pubkeyHex, 0)
-                );
+                if ($pubkeyHex) {
+                    $this->messageBus->dispatch(
+                        new FetchAuthorArticlesMessage($pubkeyHex, 0)
+                    );
+                }
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to dispatch article sync in blog journey', [
+                    'error' => $e->getMessage(),
+                ]);
             }
-        } catch (\Throwable $e) {
-            $this->logger->warning('Failed to dispatch article sync in blog journey', [
-                'error' => $e->getMessage(),
-            ]);
         }
 
         return $this->redirectToRoute('mag_wizard_setup');

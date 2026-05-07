@@ -12,7 +12,7 @@ The magazine wizard is a 6-step flow: **Magazine → Categories → Articles →
 |-------|------|-------------|
 | `/start-blog` | `start_blog` | Redirect to blog journey landing |
 | `/blog/start` | `blog_journey_landing` | Marketing landing page |
-| `/blog/setup` | `blog_journey_setup` | Login, dispatch sync, redirect to magazine wizard |
+| `/blog/setup` | `blog_journey_setup` | Dispatch sync (if authenticated), redirect to magazine wizard |
 | `/magazine/wizard/setup` | `mag_wizard_setup` | Step 1: Magazine metadata |
 | `/magazine/wizard/categories` | `mag_wizard_categories` | Step 2: Categories |
 | `/magazine/wizard/articles` | `mag_wizard_articles` | Step 3: Articles |
@@ -27,7 +27,7 @@ The magazine wizard is a 6-step flow: **Magazine → Categories → Articles →
 
 **`BlogJourneyController`** — landing page + entry point only:
 - `landing()` — marketing page
-- `setup()` — login prompt (if unauthenticated), dispatches `FetchAuthorArticlesMessage`, redirects to `mag_wizard_setup`
+- `setup()` — dispatches `FetchAuthorArticlesMessage` for authenticated users, redirects to `mag_wizard_setup`
 
 **`MagazineWizardController`** — the full 6-step wizard:
 - Steps 1–4: Magazine setup, categories, articles, review & sign (unchanged)
@@ -39,7 +39,7 @@ The magazine wizard is a 6-step flow: **Magazine → Categories → Articles →
 
 **Blog journey** (`templates/blog-journey/`):
 - `landing.html.twig` — marketing page
-- `setup-login.html.twig` — login prompt (uses `magazine/_wizard_steps.html.twig`)
+- `_login_cta_card.html.twig` — reusable login/start-creating CTA card (rendered in the global sidebar for anonymous users)
 
 **Magazine wizard** (`templates/magazine/`):
 - `_wizard_steps.html.twig` — 6-step progress indicator
@@ -67,9 +67,8 @@ After a successful Sign & Publish on the review step, the `nostr_index_sign_cont
 /blog/start (landing page)
     ↓ "Get Started"
 /blog/setup
-    ├── Not logged in → show login prompt
-    └── Logged in → dispatch sync, redirect ↓
-/magazine/wizard/setup (step 1)
+    └── dispatch sync (if logged in), redirect ↓
+/magazine/wizard/setup (step 1)  ← sidebar shows login CTA for anonymous visitors
     ↓
 /magazine/wizard/categories (step 2)
     ↓

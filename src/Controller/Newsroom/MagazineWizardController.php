@@ -10,9 +10,7 @@ use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\MagazineCategoriesType;
 use App\Form\MagazineSetupType;
-use App\Message\ProjectMagazineMessage;
 use App\Service\Graph\EventIngestionListener;
-use App\Service\MagazineProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
@@ -27,7 +25,6 @@ use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -44,9 +41,7 @@ class MagazineWizardController extends AbstractController
     private const SESSION_KEY = 'mag_wizard';
 
     public function __construct(
-        private readonly MessageBusInterface $messageBus,
         private readonly ReadingListManager $readingListManager,
-        private readonly MagazineProjector $magazineProjector,
         private readonly PublicationSubdomainService $subdomainService,
         private readonly LoggerInterface $logger,
     ) {
@@ -82,7 +77,6 @@ class MagazineWizardController extends AbstractController
         return $this->render('magazine/magazine_setup.html.twig', [
             'form' => $form->createView(),
             'draft' => $draft,
-            'isLoggedIn' => $this->isGranted('ROLE_USER'),
             'isNewDraft' => $isNewDraft,
             'skipSubdomain' => $this->hasActiveSubdomainSubscription(),
         ]);
@@ -392,15 +386,6 @@ class MagazineWizardController extends AbstractController
             return new JsonResponse(['error' => 'Missing d tag/slug'], 400);
         }
 
-        // Determine if this is a top-level magazine index (references 30040 categories)
-        $isTopLevelMagazine = false;
-        foreach ($signedEvent['tags'] as $tag) {
-            if (($tag[0] ?? null) === 'a' && isset($tag[1]) && str_starts_with((string)$tag[1], '30040:')) {
-                $isTopLevelMagazine = true;
-                break;
-            }
-        }
-
         // Save to persistence as Event entity
         try {
             $event = new \App\Entity\Event();
@@ -469,24 +454,6 @@ class MagazineWizardController extends AbstractController
             // Non-fatal: event is saved locally, relay publishing is best-effort
         }
 
-        // Project magazine entity synchronously so it's immediately available
-        if ($isTopLevelMagazine) {
-            try {
-                $this->magazineProjector->projectMagazine($slug);
-                $logger->info('Magazine projected synchronously', ['slug' => $slug]);
-            } catch (\Throwable $e) {
-                $logger->warning('Synchronous magazine projection failed, dispatching async', [
-                    'slug' => $slug,
-                    'error' => $e->getMessage(),
-                ]);
-                // Fall back to async projection
-                try {
-                    $this->messageBus->dispatch(new ProjectMagazineMessage($slug));
-                } catch (\Throwable $e2) {
-                    // Non-fatal: projection will be picked up by cron
-                }
-            }
-        }
 
         return new JsonResponse(['ok' => true]);
     }
