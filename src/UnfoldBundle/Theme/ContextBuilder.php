@@ -2,6 +2,7 @@
 
 namespace App\UnfoldBundle\Theme;
 
+use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\UnfoldBundle\Config\SiteConfig;
 use App\UnfoldBundle\Content\CategoryData;
@@ -20,6 +21,7 @@ class ContextBuilder
         private readonly MarkdownConverterInterface $converter,
         private readonly CacheItemPoolInterface $cache,
         private readonly RedisCacheService $redisCacheService,
+        private readonly EventRepository $eventRepository,
     ) {}
 
     /**
@@ -195,6 +197,9 @@ class ContextBuilder
             $lud06 = !empty($lud06) ? $lud06[0] : null;
         }
 
+        // Fetch comments
+        $comments = $this->buildCommentsContext($post->coordinate);
+
         return [
             'id' => $post->coordinate,
             'slug' => $post->slug,
@@ -218,6 +223,7 @@ class ContextBuilder
                 'lud06' => $lud06,
                 'splits' => $post->zapSplits,
             ],
+            'comments' => $comments,
         ];
     }
 
@@ -280,5 +286,179 @@ class ContextBuilder
             return nl2br($html);
         }
     }
-}
 
+    /**
+     * Fetch and build comments context for a post coordinate
+     *
+     * @param string $coordinate Article coordinate (kind:pubkey:identifier)
+     * @return array Array of comment objects
+     */
+    private function buildCommentsContext(string $coordinate): array
+    {
+        try {
+            $events = $this->eventRepository->findCommentsByCoordinate($coordinate);
+
+            if (empty($events)) {
+                return [];
+            }
+
+            // Extract unique pubkeys for metadata fetch
+            $pubkeys = array_unique(array_filter(array_map(
+                fn($event) => $event->getPubkey(),
+                $events
+            )));
+
+            // Fetch all author metadata at once
+            $metadataMap = [];
+            if (!empty($pubkeys)) {
+                $metadataArray = $this->redisCacheService->getMultipleMetadata($pubkeys);
+                foreach ($metadataArray as $pubkey => $metadata) {
+                    $metadataMap[$pubkey] = $metadata;
+                }
+            }
+
+            // Build comments array
+            $comments = [];
+            foreach ($events as $event) {
+                $pubkey = $event->getPubkey();
+                $metadata = $metadataMap[$pubkey] ?? null;
+
+                $commentData = [
+                    'id' => $event->getId(),
+                    'kind' => $event->getKind(),
+                    'pubkey' => $pubkey,
+                    'content' => $event->getContent(),
+                    'created_at' => $event->getCreatedAt(),
+                    'created_at_formatted' => date('F j, Y', $event->getCreatedAt()),
+                    'author' => [
+                        'name' => $metadata?->displayName ?: $metadata?->name ?: substr($pubkey, 0, 8) . '…',
+                        'pic' => $metadata?->picture,
+                        'pubkey' => $pubkey,
+                    ],
+                ];
+
+                // Handle zaps (kind 9735)
+                if ((int) $event->getKind() === 9735) {
+                    $commentData['is_zap'] = true;
+                    $commentData['zap_amount'] = $this->extractZapAmount($event);
+                    $commentData['zap_pubkey'] = $this->extractZapPubkey($event);
+                } else {
+                    $commentData['is_zap'] = false;
+                }
+
+                $comments[] = $commentData;
+            }
+
+            // Sort by created_at descending
+            usort($comments, fn($a, $b) => $b['created_at'] - $a['created_at']);
+
+            return $comments;
+        } catch (\Throwable $e) {
+            // DB unavailable or other error – return empty list
+            return [];
+        }
+    }
+
+    /**
+     * Extract zap amount from a kind 9735 event (in sats)
+     */
+    private function extractZapAmount(object $event): ?int
+    {
+        $tags = $event->getTags() ?? [];
+        if (!is_array($tags)) {
+            return null;
+        }
+
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            if ($tag[0] === 'description') {
+                try {
+                    $description = json_decode($tag[1], true);
+                    if (is_array($description) && isset($description['tags'])) {
+                        // Look for amount tag in the description
+                        foreach ($description['tags'] as $dtag) {
+                            if (is_array($dtag) && count($dtag) >= 2 && $dtag[0] === 'amount') {
+                                $msats = (int) $dtag[1];
+                                return intdiv($msats, 1000); // Convert millisats to sats
+                            }
+                        }
+                    }
+
+                    // Fallback: check for bolt11 in description
+                    if (is_array($description) && isset($description['bolt11'])) {
+                        return $this->parseBolt11ToSats($description['bolt11']);
+                    }
+                } catch (\Throwable) {
+                    // Ignore JSON decode errors
+                }
+            }
+
+            // Check for bolt11 tag at top level
+            if ($tag[0] === 'bolt11') {
+                return $this->parseBolt11ToSats($tag[1]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract zapper pubkey from a kind 9735 event
+     */
+    private function extractZapPubkey(object $event): ?string
+    {
+        $tags = $event->getTags() ?? [];
+        if (!is_array($tags)) {
+            return null;
+        }
+
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            if ($tag[0] === 'description') {
+                try {
+                    $description = json_decode($tag[1], true);
+                    if (is_array($description) && isset($description['pubkey'])) {
+                        return $description['pubkey'];
+                    }
+                } catch (\Throwable) {
+                    // Ignore JSON decode errors
+                }
+            }
+
+            if ($tag[0] === 'P') {
+                return $tag[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Simple BOLT11 invoice parser to extract sats amount
+     */
+    private function parseBolt11ToSats(string $bolt11): ?int
+    {
+        // Match pattern: ln + amount + rest
+        // Amount format: [0-9]+[munp]? where m=milli, u=micro, n=nano, p=pico
+        if (preg_match('/^lnbc?(\d+)([munp])?/i', strtolower($bolt11), $matches)) {
+            $amount = (int) $matches[1];
+            $unit = $matches[2] ?? '';
+
+            return match ($unit) {
+                'm' => intdiv($amount, 1000), // millis to sats
+                'u' => 0, // micros → too small to be sats
+                'n' => 0, // nanos → too small
+                'p' => 0, // picos → too small
+                default => $amount, // no unit = sats
+            };
+        }
+
+        return null;
+    }
+}

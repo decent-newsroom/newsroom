@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Unreleased
+
+- [Feature] Comments now display on UnfoldBundle (hosted magazine subdomain) post pages. Comments (kind 1111) and zap receipts (kind 9735) are fetched from the local database and displayed below the article content with author metadata (name, picture) and timestamps. Zaps are highlighted and show the sats amount. See `documentation/Unfold/comments.md`.
+
+
 ## v0.0.38
 Usability and styles.
 

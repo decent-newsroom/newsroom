@@ -105,6 +105,35 @@
             </div>
             {{/if}}
             {{/if}}
+
+            {{#if post.comments}}
+            <section style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Comments ({{post.comments.length}})</h2>
+                <div class="comments-list">
+                    {{#each post.comments}}
+                    <div class="comment" style="margin-bottom: 1.5rem; padding: 1rem; background: #f9f9f9; border-left: 3px solid {{#if this.is_zap}}#ffd700{{else}}#ddd{{/if}};">
+                        <div class="comment-author" style="display: flex; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem;">
+                            {{#if this.author.pic}}
+                            <img src="{{this.author.pic}}" alt="{{this.author.name}}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                            {{/if}}
+                            <span style="font-weight: 600;">{{this.author.name}}</span>
+                            {{#if this.is_zap}}
+                            <span style="font-size: 0.85rem; color: #666;">&middot; ⚡ zap</span>
+                            {{#if this.zap_amount}}<span style="font-weight: 600; color: #f59e0b;">{{this.zap_amount}} sat</span>{{/if}}
+                            {{/if}}
+                        </div>
+                        <div class="comment-date" style="font-size: 0.85rem; color: #999; margin-bottom: 0.75rem;">
+                            {{this.created_at_formatted}}
+                        </div>
+                        <div class="comment-content" style="color: #333; line-height: 1.6;">
+                            {{this.content}}
+                        </div>
+                    </div>
+                    {{/each}}
+                </div>
+            </section>
+            {{/if}}
+
         </article>
     </main>
 
