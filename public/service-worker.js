@@ -60,7 +60,7 @@ const CACHE_STRATEGIES = {
   },
   // Static pages
   pages: {
-    pattern: /^https?.*\/(about|roadmap|tos|landing|unfold)$/,
+    pattern: /^https?.*\/(about|roadmap|tos|unfold)$/,
     strategy: 'staleWhileRevalidate',
     cacheName: STATIC_CACHE,
     maxAge: 24 * 60 * 60 * 1000 // 1 day

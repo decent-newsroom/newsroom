@@ -3,6 +3,7 @@
 ## v0.0.38
 Usability and styles.
 
+- [Removal] The `/landing` route has been permanently removed along with its template.
 - [Improvement] Updated the magazine setup login prompt copy across all supported locales to emphasize personalization: "Sign in with your Nostr identity to personalize your experience."
 - [Feature] Article and follow-pack share dropdowns now include a "Copy Coordinate" option. For articles, the coordinate format is `30023:pubkey:slug`; for follow packs, it's `39089:pubkey:d-tag`. This allows technical users to reference events and coordinate addresses directly without relying on Nostr address encoding.
 

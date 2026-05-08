@@ -86,12 +86,6 @@ class StaticController extends AbstractController
         return $this->render('static/manifest.webmanifest.twig', [], new Response('', 200, ['Content-Type' => 'application/manifest+json']));
     }
 
-    #[Route('/landing', name: 'landing')]
-    public function landing(): Response
-    {
-        return $this->render('static/landing.html.twig');
-    }
-
     #[Route('/unfold', name: 'unfold')]
     public function unfold(): Response
     {
@@ -113,7 +107,6 @@ class StaticController extends AbstractController
             '/pricing',
             '/roadmap',
             '/tos',
-            '/landing',
             '/unfold',
             '/start-blog',
         ];
