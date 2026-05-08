@@ -879,14 +879,6 @@ follow_pack:
     description_label: 'Descrizione'
     description_placeholder: 'Una breve descrizione di questo follow pack...'
 
-# ── Follow Pack View page ──────────────────────────────────────────
-followPackView:
-    by: 'Curato da'
-    noArticles: 'Nessun articolo da questo gruppo ancora.'
-    members: 'Scrittori'
-    viewArticles: 'Visualizza articoli di questo gruppo →'
-    shareNewsroomLink: 'Link Newsroom'
-    shareNaddr: 'Naddr'
 
 # ── Pagina Follow Packs ───────────────────────────────────────────
 followPacks:
