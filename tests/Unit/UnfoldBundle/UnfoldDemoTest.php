@@ -2,6 +2,8 @@
 
 namespace App\Tests\Unit\UnfoldBundle;
 
+use App\Entity\Event;
+use App\Repository\EventRepository;
 use App\UnfoldBundle\Config\SiteConfig;
 use App\UnfoldBundle\Content\CategoryData;
 use App\UnfoldBundle\Content\PostData;
@@ -22,11 +24,17 @@ class UnfoldDemoTest extends TestCase
 {
     private HandlebarsRenderer $renderer;
     private ContextBuilder $contextBuilder;
+    private EventRepository $eventRepository;
 
     protected function setUp(): void
     {
         $projectDir = dirname(__DIR__, 3);
-        $this->renderer = new HandlebarsRenderer(new NullLogger(), $projectDir);
+        $kernelCacheDir = sys_get_temp_dir() . '/unfold-test-cache-' . uniqid('', true);
+        if (!is_dir($kernelCacheDir)) {
+            mkdir($kernelCacheDir, 0777, true);
+        }
+
+        $this->renderer = new HandlebarsRenderer(new NullLogger(), $projectDir, $kernelCacheDir);
 
         // Create a mock Converter that performs basic HTML escaping
         $converter = $this->createMock(MarkdownConverterInterface::class);
@@ -54,8 +62,12 @@ class UnfoldDemoTest extends TestCase
         // Mock Redis cache service (used for author metadata + creator lightning address)
         $redisCacheService = $this->createMock(RedisCacheService::class);
         $redisCacheService->method('getMetadata')->willReturn(new UserMetadata());
+        $redisCacheService->method('getMultipleMetadata')->willReturn([]);
 
-        $this->contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService);
+        $this->eventRepository = $this->createMock(EventRepository::class);
+        $this->eventRepository->method('findCommentsByCoordinate')->willReturn([]);
+
+        $this->contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $this->eventRepository);
     }
 
     public function testRenderHomePageWithDefaultTheme(): void
@@ -189,6 +201,233 @@ class UnfoldDemoTest extends TestCase
         echo "\n\n=== RENDERED POST PAGE (first 2000 chars) ===\n";
         echo substr($html, 0, 2000);
         echo "\n...\n";
+    }
+
+    public function testRenderPostPageShowsZeroCommentCountWhenThreadContainsOnlyZaps(): void
+    {
+        $this->renderer->setTheme('default');
+
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->method('isHit')->willReturn(false);
+        $cacheItem->method('set')->willReturnSelf();
+        $cacheItem->method('expiresAfter')->willReturnSelf();
+
+        $cache = $this->createMock(CacheItemPoolInterface::class);
+        $cache->method('getItem')->willReturn($cacheItem);
+        $cache->method('save')->willReturn(true);
+
+        $converter = $this->createMock(MarkdownConverterInterface::class);
+        $converter->method('convertToHTML')->willReturn('Content');
+
+        $siteConfig = new SiteConfig(
+            naddr: 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu35yyt0mwjjh8pcz4zprhxegz69t4wr9t74vk6zne58wzh0waycrqsqqqa28pjfdhz',
+            title: 'Demo Magazine',
+            description: 'A demonstration magazine',
+            logo: null,
+            categories: [],
+            pubkey: 'abc123def456',
+            theme: 'default',
+        );
+
+        $post = new PostData(
+            slug: 'hello-world',
+            title: 'Hello World: Welcome to Our Magazine',
+            summary: 'This is the first article in our brand new magazine.',
+            content: 'Content',
+            image: null,
+            publishedAt: strtotime('2026-01-09 10:30:00'),
+            pubkey: 'abc123def456',
+            coordinate: '30023:abc123:hello-world',
+        );
+
+        $zap = new Event();
+        $zap->setId(str_repeat('a', 64));
+        $zap->setKind(9735);
+        $zap->setPubkey(str_repeat('b', 64));
+        $zap->setContent('Nice article');
+        $zap->setCreatedAt(strtotime('2026-01-10 12:00:00'));
+        $zap->setTags([
+            ['description', json_encode([
+                'pubkey' => str_repeat('b', 64),
+                'tags' => [
+                    ['amount', '21000'],
+                ],
+            ], JSON_THROW_ON_ERROR)],
+        ]);
+        $zap->setSig('sig');
+
+        $redisCacheService = $this->createMock(RedisCacheService::class);
+        $redisCacheService->method('getMetadata')->willReturn(new UserMetadata());
+        $redisCacheService->method('getMultipleMetadata')->willReturn([]);
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository
+            ->expects($this->once())
+            ->method('findCommentsByCoordinate')
+            ->with('30023:abc123:hello-world')
+            ->willReturn([$zap]);
+
+        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+
+        $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
+        $html = $this->renderer->render('post', $context);
+
+        $this->assertSame(0, $context['post']['comments_count']);
+        $this->assertTrue($context['post']['has_thread_activity']);
+        $this->assertStringContainsString('Comments (0)', $html);
+        $this->assertStringNotContainsString('Comments ()', $html);
+    }
+
+    public function testRenderPostPageShowsOneCommentCountWhenThreadContainsOnlyComments(): void
+    {
+        $this->renderer->setTheme('default');
+
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->method('isHit')->willReturn(false);
+        $cacheItem->method('set')->willReturnSelf();
+        $cacheItem->method('expiresAfter')->willReturnSelf();
+
+        $cache = $this->createMock(CacheItemPoolInterface::class);
+        $cache->method('getItem')->willReturn($cacheItem);
+        $cache->method('save')->willReturn(true);
+
+        $converter = $this->createMock(MarkdownConverterInterface::class);
+        $converter->method('convertToHTML')->willReturn('Content');
+
+        $siteConfig = new SiteConfig(
+            naddr: 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu35yyt0mwjjh8pcz4zprhxegz69t4wr9t74vk6zne58wzh0waycrqsqqqa28pjfdhz',
+            title: 'Demo Magazine',
+            description: 'A demonstration magazine',
+            logo: null,
+            categories: [],
+            pubkey: 'abc123def456',
+            theme: 'default',
+        );
+
+        $post = new PostData(
+            slug: 'hello-world',
+            title: 'Hello World: Welcome to Our Magazine',
+            summary: 'This is the first article in our brand new magazine.',
+            content: 'Content',
+            image: null,
+            publishedAt: strtotime('2026-01-09 10:30:00'),
+            pubkey: 'abc123def456',
+            coordinate: '30023:abc123:hello-world',
+        );
+
+        $comment = new Event();
+        $comment->setId(str_repeat('c', 64));
+        $comment->setKind(1111);
+        $comment->setPubkey(str_repeat('d', 64));
+        $comment->setContent('Great write-up');
+        $comment->setCreatedAt(strtotime('2026-01-10 13:00:00'));
+        $comment->setTags([]);
+        $comment->setSig('sig');
+
+        $redisCacheService = $this->createMock(RedisCacheService::class);
+        $redisCacheService->method('getMetadata')->willReturn(new UserMetadata());
+        $redisCacheService->method('getMultipleMetadata')->willReturn([]);
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository
+            ->expects($this->once())
+            ->method('findCommentsByCoordinate')
+            ->with('30023:abc123:hello-world')
+            ->willReturn([$comment]);
+
+        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+
+        $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
+        $html = $this->renderer->render('post', $context);
+
+        $this->assertSame(1, $context['post']['comments_count']);
+        $this->assertTrue($context['post']['has_thread_activity']);
+        $this->assertStringContainsString('Comments (1)', $html);
+        $this->assertStringNotContainsString('Comments (0)', $html);
+    }
+
+    public function testRenderPostPageShowsNonZapCountWhenThreadContainsCommentAndZap(): void
+    {
+        $this->renderer->setTheme('default');
+
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->method('isHit')->willReturn(false);
+        $cacheItem->method('set')->willReturnSelf();
+        $cacheItem->method('expiresAfter')->willReturnSelf();
+
+        $cache = $this->createMock(CacheItemPoolInterface::class);
+        $cache->method('getItem')->willReturn($cacheItem);
+        $cache->method('save')->willReturn(true);
+
+        $converter = $this->createMock(MarkdownConverterInterface::class);
+        $converter->method('convertToHTML')->willReturn('Content');
+
+        $siteConfig = new SiteConfig(
+            naddr: 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu35yyt0mwjjh8pcz4zprhxegz69t4wr9t74vk6zne58wzh0waycrqsqqqa28pjfdhz',
+            title: 'Demo Magazine',
+            description: 'A demonstration magazine',
+            logo: null,
+            categories: [],
+            pubkey: 'abc123def456',
+            theme: 'default',
+        );
+
+        $post = new PostData(
+            slug: 'hello-world',
+            title: 'Hello World: Welcome to Our Magazine',
+            summary: 'This is the first article in our brand new magazine.',
+            content: 'Content',
+            image: null,
+            publishedAt: strtotime('2026-01-09 10:30:00'),
+            pubkey: 'abc123def456',
+            coordinate: '30023:abc123:hello-world',
+        );
+
+        $comment = new Event();
+        $comment->setId(str_repeat('e', 64));
+        $comment->setKind(1111);
+        $comment->setPubkey(str_repeat('f', 64));
+        $comment->setContent('Interesting perspective');
+        $comment->setCreatedAt(strtotime('2026-01-10 11:00:00'));
+        $comment->setTags([]);
+        $comment->setSig('sig');
+
+        $zap = new Event();
+        $zap->setId(str_repeat('a', 64));
+        $zap->setKind(9735);
+        $zap->setPubkey(str_repeat('b', 64));
+        $zap->setContent('Nice article');
+        $zap->setCreatedAt(strtotime('2026-01-10 12:00:00'));
+        $zap->setTags([
+            ['description', json_encode([
+                'pubkey' => str_repeat('b', 64),
+                'tags' => [
+                    ['amount', '21000'],
+                ],
+            ], JSON_THROW_ON_ERROR)],
+        ]);
+        $zap->setSig('sig');
+
+        $redisCacheService = $this->createMock(RedisCacheService::class);
+        $redisCacheService->method('getMetadata')->willReturn(new UserMetadata());
+        $redisCacheService->method('getMultipleMetadata')->willReturn([]);
+
+        $eventRepository = $this->createMock(EventRepository::class);
+        $eventRepository
+            ->expects($this->once())
+            ->method('findCommentsByCoordinate')
+            ->with('30023:abc123:hello-world')
+            ->willReturn([$comment, $zap]);
+
+        $contextBuilder = new ContextBuilder($converter, $cache, $redisCacheService, $eventRepository);
+
+        $context = $contextBuilder->buildPostContext($siteConfig, [], $post);
+        $html = $this->renderer->render('post', $context);
+
+        $this->assertSame(1, $context['post']['comments_count']);
+        $this->assertTrue($context['post']['has_thread_activity']);
+        $this->assertStringContainsString('Comments (1)', $html);
+        $this->assertStringNotContainsString('Comments (2)', $html);
     }
 
     public function testAssetPathsAreCorrect(): void

@@ -197,8 +197,12 @@ class ContextBuilder
             $lud06 = !empty($lud06) ? $lud06[0] : null;
         }
 
-        // Fetch comments
+        // Fetch comments and related zaps
         $comments = $this->buildCommentsContext($post->coordinate);
+        $commentsCount = count(array_filter(
+            $comments,
+            static fn (array $item): bool => !($item['is_zap'] ?? false)
+        ));
 
         return [
             'id' => $post->coordinate,
@@ -224,6 +228,8 @@ class ContextBuilder
                 'splits' => $post->zapSplits,
             ],
             'comments' => $comments,
+            'comments_count' => $commentsCount,
+            'has_thread_activity' => [] !== $comments,
         ];
     }
 
