@@ -294,6 +294,7 @@ articleActions:
     share: 'Deli'
     copyLink: 'Kopiraj povezavo'
     copyNaddr: 'Kopiraj Nostr naslov'
+    copyCoordinate: 'Kopiraj koordinate'
     broadcast: 'Oddaj na releje'
     highlights: 'Označbe'
 
@@ -727,6 +728,15 @@ spellView:
 webPreview:
     loadCta: 'Naloži predogled'
     loadNotice: 'Kliknite za prenos predogleda z %host%. Stik bo vzpostavljen s tujim strežnikom.'
+# ── Follow Pack view ────────────────────────────
+followPackView:
+    by: 'Kuriral'
+    noArticles: 'Še ni člankov iz te skupine.'
+    members: 'Pisci'
+    viewArticles: 'Ogled člankov iz te skupine →'
+    shareNewsroomLink: 'Newsroom povezava'
+    shareNaddr: 'Naddr'
+    shareCoordinate: 'Koordinata'
 # ── Updates Center ──────────────────────────────────────────
 updates:
     pageTitle: 'Updates'

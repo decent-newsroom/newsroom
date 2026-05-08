@@ -943,6 +943,7 @@ followPackView:
     viewArticles: 'View articles from this group →'
     shareNewsroomLink: 'Newsroom Link'
     shareNaddr: 'Naddr'
+    shareCoordinate: 'Coordinate'
 
 # ── Follow Packs listing page ─────────────────────────────────────
 followPacks:

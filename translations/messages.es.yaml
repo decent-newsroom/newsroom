@@ -294,6 +294,7 @@ articleActions:
     share: 'Compartir'
     copyLink: 'Copiar enlace'
     copyNaddr: 'Copiar dirección Nostr'
+    copyCoordinate: 'Copiar coordinada'
     broadcast: 'Transmitir a relays'
     highlights: 'Resaltados'
 
@@ -728,6 +729,15 @@ webPreview:
     loadCta: 'Cargar vista previa'
     loadNotice: 'Haz clic para obtener una vista previa de %host%. Se contactará un servidor de terceros.'
 
+# ── Follow Pack view ────────────────────────────
+followPackView:
+    by: 'Curado por'
+    noArticles: 'Sin artículos de este grupo aún.'
+    members: 'Escritores'
+    viewArticles: 'Ver artículos de este grupo →'
+    shareNewsroomLink: 'Enlace de Newsroom'
+    shareNaddr: 'Naddr'
+    shareCoordinate: 'Coordinada'
 # ── Updates Center ──────────────────────────────────────────
 updates:
     pageTitle: 'Updates'

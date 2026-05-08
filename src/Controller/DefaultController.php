@@ -557,6 +557,7 @@ class DefaultController extends AbstractController
             'authorsMetadata' => $authorsMetadataStd,
             'packDtag' => $dtag,
             'authorNpub' => $nip19->encodeNpub($pubkey),
+            'authorPubkey' => $pubkey,
             'authorProfile' => $authorProfile,
             'pager' => $pager,
         ]);
