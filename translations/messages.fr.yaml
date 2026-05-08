@@ -584,7 +584,7 @@ journey:
         heading: 'Créez votre magazine'
         tagline: 'Connectez-vous pour commencer'
         loginHeading: 'Connectez-vous pour commencer'
-        loginDescription: 'Connectez-vous avec votre identité Nostr pour que nous puissions trouver vos articles et configurer votre magazine.'
+        loginDescription: 'Connectez-vous avec votre identité Nostr pour personnaliser votre expérience.'
 
 # ── Sélecteur de langue ────────────────────────────────────────────────
 language:

@@ -598,7 +598,7 @@ journey:
         heading: 'Erstellen Sie Ihr Magazin'
         tagline: 'Melden Sie sich an, um loszulegen'
         loginHeading: 'Anmelden, um loszulegen'
-        loginDescription: 'Melden Sie sich mit Ihrer Nostr-Identität an, damit wir Ihre Artikel finden und Ihr Magazin einrichten können.'
+        loginDescription: 'Melden Sie sich mit Ihrer Nostr-Identität an, um Ihr Erlebnis zu personalisieren.'
 
 # ── Sprachumschalter ──────────────────────────────────────────────────────
 language:

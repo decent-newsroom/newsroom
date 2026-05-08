@@ -584,7 +584,7 @@ journey:
         heading: 'Crea tu revista'
         tagline: 'Inicia sesión para empezar'
         loginHeading: 'Inicia sesión para empezar'
-        loginDescription: 'Inicia sesión con tu identidad Nostr para que podamos encontrar tus artículos y configurar tu revista.'
+        loginDescription: 'Inicia sesión con tu identidad de Nostr para personalizar tu experiencia.'
 
 # ── Selector de idioma ─────────────────────────────────────────────────────────
 language:

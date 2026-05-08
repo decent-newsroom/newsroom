@@ -845,7 +845,7 @@ journey:
         heading: 'Crea la tua rivista'
         tagline: 'Accedi per iniziare'
         loginHeading: 'Accedi per iniziare'
-        loginDescription: 'Accedi con la tua identità Nostr così possiamo trovare i tuoi articoli e configurare la tua rivista.'
+        loginDescription: 'Accedi con la tua identità Nostr per personalizzare la tua esperienza.'
 
 # ── Follow Pack (profile sidebar recommendation list) ──────────────
 follow_pack:

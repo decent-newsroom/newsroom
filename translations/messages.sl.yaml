@@ -584,7 +584,7 @@ journey:
         heading: 'Ustvarite svojo revijo'
         tagline: 'Prijavite se za začetek'
         loginHeading: 'Prijavite se za začetek'
-        loginDescription: 'Prijavite se s svojo Nostr identiteto, da bomo lahko našli vaše članke in postavili vašo revijo.'
+        loginDescription: 'Prijavite se s svojo Nostr identiteto, da prilagodite svojo izkušnjo.'
 
 # ── Preklopnik jezika ─────────────────────────────────────────────
 language:
@@ -757,12 +757,12 @@ updates:
         remove: 'Unsubscribe'
         removeConfirm: 'Remove this subscription?'
         sourceType:
-            npub: 'Author'
-            publication: 'Publication'
+            npub: 'Avtor'
+            publication: 'Publikacija'
             nip51Set: 'NIP-51 set'
     toast:
-        newArticle: 'New article'
-        newPublication: 'New publication'
+        newArticle: 'Nov članek'
+        newPublication: 'Nova publikacija'
     errors:
-        invalidInput: 'Could not recognize that identifier.'
-        alreadySubscribed: 'You are already subscribed to that source.'
+        invalidInput: 'Neprepoznan format.'
+        alreadySubscribed: 'Že prijavljen.'

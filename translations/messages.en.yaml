@@ -901,7 +901,7 @@ journey:
         heading: 'Create Your Magazine'
         tagline: 'Log in to get started'
         loginHeading: 'Log In to Get Started'
-        loginDescription: 'Sign in with your Nostr identity so we can find your articles and set up your magazine.'
+        loginDescription: 'Sign in with your Nostr identity to personalize your experience.'
 
 # ── Follow Pack (profile sidebar recommendation list) ──────────────
 follow_pack:
@@ -1061,4 +1061,3 @@ updatesPro:
     required:
         nip51Sets: 'NIP-51 set subscriptions require Updates Pro.'
         cap: 'You have reached the free subscription limit. Upgrade to Updates Pro for unlimited subscriptions.'
-
