@@ -27,7 +27,18 @@
             <div class="metric-card {% if metrics.content.error|default(false) %}metric-error{% endif %}">
                 <div class="metric-value">{{ metrics.content.total_articles|number_format }}</div>
                 <div class="metric-label">Total Articles</div>
-                <div class="metric-subtitle">(unique by slug)</div>
+                <div class="metric-subtitle">(unique by author + slug)</div>
+            </div>
+            <div class="metric-card {% if metrics.content.redundant_revisions|default(0) > 0 %}metric-error{% endif %}">
+                <div class="metric-value">{{ metrics.content.redundant_revisions|default(0)|number_format }}</div>
+                <div class="metric-label">Redundant Revisions</div>
+                <div class="metric-subtitle">
+                    {% if metrics.content.redundant_revisions|default(0) > 0 %}
+                        rows beyond NIP-01 latest — run <code>articles:purge-revisions</code>
+                    {% else %}
+                        Postgres is in sync (one row per coordinate)
+                    {% endif %}
+                </div>
             </div>
             <div class="metric-card">
                 <div class="metric-value">{{ metrics.content.articles_last_24h|number_format }}</div>

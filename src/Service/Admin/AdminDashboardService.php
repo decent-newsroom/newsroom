@@ -61,14 +61,66 @@ class AdminDashboardService
 
                 $conn = $this->em->getConnection();
 
-                // Total unique articles (by slug)
-                $totalArticlesQuery = "SELECT COUNT(DISTINCT slug) FROM article WHERE slug IS NOT NULL AND slug NOT LIKE '%/%'";
+                // Total unique articles, deduplicated by NIP-01 coordinate
+                // (pubkey, kind, slug). The previous COUNT(DISTINCT slug)
+                // collapsed every cross-author slug collision (e.g. 200
+                // authors all with a "hello-world" or "about" article) into
+                // a single count, dramatically under-reporting the real
+                // article corpus. Two different authors with the same slug
+                // are two different parameterized-replaceable events, not a
+                // duplicate, so the correct dedup key is the full coordinate.
+                // Drafts (kind 30024) are excluded — they are private working
+                // copies and the public-facing dashboard should not surface
+                // them. Slugs containing '/' are excluded to match the
+                // existing ES-indexable filter.
+                $totalArticlesQuery = "
+                    SELECT COUNT(*) FROM (
+                        SELECT 1
+                        FROM article
+                        WHERE slug IS NOT NULL
+                          AND slug NOT LIKE '%/%'
+                          AND kind = 30023
+                          AND pubkey IS NOT NULL
+                        GROUP BY pubkey, kind, slug
+                    ) t";
                 $totalArticles = (int) $conn->executeQuery($totalArticlesQuery)->fetchOne();
 
-                // Recent articles
-                $last24hQuery = "SELECT COUNT(DISTINCT slug) FROM article WHERE created_at >= NOW() - INTERVAL '24 hours' AND slug IS NOT NULL AND slug NOT LIKE '%/%'";
-                $last7dQuery = "SELECT COUNT(DISTINCT slug) FROM article WHERE created_at >= NOW() - INTERVAL '7 days' AND slug IS NOT NULL AND slug NOT LIKE '%/%'";
-                $last30dQuery = "SELECT COUNT(DISTINCT slug) FROM article WHERE created_at >= NOW() - INTERVAL '30 days' AND slug IS NOT NULL AND slug NOT LIKE '%/%'";
+                // Raw row count — surfaces revision overflow at a glance.
+                // In a clean DB this equals total_articles. The gap is the
+                // number of redundant revisions waiting for a purge run.
+                $totalRowsQuery = "
+                    SELECT COUNT(*) FROM article
+                    WHERE slug IS NOT NULL
+                      AND slug NOT LIKE '%/%'
+                      AND kind = 30023";
+                $totalRows = (int) $conn->executeQuery($totalRowsQuery)->fetchOne();
+                $redundantRevisions = max(0, $totalRows - $totalArticles);
+
+                // Recent articles — same coordinate-aware dedup.
+                $last24hQuery = "
+                    SELECT COUNT(*) FROM (
+                        SELECT 1 FROM article
+                        WHERE created_at >= NOW() - INTERVAL '24 hours'
+                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
+                          AND kind = 30023 AND pubkey IS NOT NULL
+                        GROUP BY pubkey, kind, slug
+                    ) t";
+                $last7dQuery = "
+                    SELECT COUNT(*) FROM (
+                        SELECT 1 FROM article
+                        WHERE created_at >= NOW() - INTERVAL '7 days'
+                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
+                          AND kind = 30023 AND pubkey IS NOT NULL
+                        GROUP BY pubkey, kind, slug
+                    ) t";
+                $last30dQuery = "
+                    SELECT COUNT(*) FROM (
+                        SELECT 1 FROM article
+                        WHERE created_at >= NOW() - INTERVAL '30 days'
+                          AND slug IS NOT NULL AND slug NOT LIKE '%/%'
+                          AND kind = 30023 AND pubkey IS NOT NULL
+                        GROUP BY pubkey, kind, slug
+                    ) t";
 
                 $articlesLast24h = (int) $conn->executeQuery($last24hQuery)->fetchOne();
                 $articlesLast7d = (int) $conn->executeQuery($last7dQuery)->fetchOne();
@@ -80,6 +132,8 @@ class AdminDashboardService
 
                 return [
                     'total_articles' => $totalArticles,
+                    'total_article_rows' => $totalRows,
+                    'redundant_revisions' => $redundantRevisions,
                     'articles_last_24h' => $articlesLast24h,
                     'articles_last_7d' => $articlesLast7d,
                     'articles_last_30d' => $articlesLast30d,
@@ -91,6 +145,8 @@ class AdminDashboardService
             $this->logger->error('Failed to get content stats', ['error' => $e->getMessage()]);
             return [
                 'total_articles' => 0,
+                'total_article_rows' => 0,
+                'redundant_revisions' => 0,
                 'articles_last_24h' => 0,
                 'articles_last_7d' => 0,
                 'articles_last_30d' => 0,
