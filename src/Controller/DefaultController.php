@@ -229,29 +229,40 @@ class DefaultController extends AbstractController
         $cachedView = $viewStore->fetchLatestArticles();
 
         if ($cachedView !== null) {
-            // Redis view data already matches template expectations!
-            // Just extract articles and profiles - NO MAPPING NEEDED
             $articles = [];
             $authorsMetadata = [];
 
             foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    // Skip articles from user-muted pubkeys
-                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
-                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
-                        continue;
-                    }
-                    // Skip articles without slug or title (incomplete records)
-                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
-                        continue;
-                    }
-                    $articles[] = (object) $baseObject['article'];
-                }
                 if (isset($baseObject['profiles'])) {
                     foreach ($baseObject['profiles'] as $pubkey => $profile) {
                         $authorsMetadata[$pubkey] = (object) $profile;
                     }
                 }
+            }
+
+            foreach ($cachedView as $baseObject) {
+                if (!isset($baseObject['article'])) {
+                    continue;
+                }
+
+                $articlePayload = $baseObject['article'];
+                $articlePubkey = $articlePayload['pubkey'] ?? null;
+
+                if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                    continue;
+                }
+
+                $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+
+                if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
+                    continue;
+                }
+
+                if (empty($articlePayload['slug']) || empty($articlePayload['title'])) {
+                    continue;
+                }
+
+                $articles[] = (object) $articlePayload;
             }
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
@@ -275,6 +286,12 @@ class DefaultController extends AbstractController
             }
             $authorPubkeys = array_unique($authorPubkeys);
             $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
+            $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadata, $exclusionPolicy): bool {
+                $authorMetadata = $authorsMetadata[$article->getPubkey()] ?? null;
+
+                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+            }));
         }
 
         // Convert UserMetadata objects to stdClass for template compatibility
@@ -336,28 +353,40 @@ class DefaultController extends AbstractController
         $cachedView = $viewStore->fetchLatestArticles();
 
         if ($cachedView !== null) {
-            // Use cached articles - already filtered and with metadata
             $articles = [];
             $authorsMetadata = [];
 
             foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    // Skip articles from user-muted pubkeys
-                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
-                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
-                        continue;
-                    }
-                    // Skip articles without slug or title (incomplete records)
-                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
-                        continue;
-                    }
-                    $articles[] = (object) $baseObject['article'];
-                }
                 if (isset($baseObject['profiles'])) {
                     foreach ($baseObject['profiles'] as $pubkey => $profile) {
                         $authorsMetadata[$pubkey] = (object) $profile;
                     }
                 }
+            }
+
+            foreach ($cachedView as $baseObject) {
+                if (!isset($baseObject['article'])) {
+                    continue;
+                }
+
+                $articlePayload = $baseObject['article'];
+                $articlePubkey = $articlePayload['pubkey'] ?? null;
+
+                if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                    continue;
+                }
+
+                $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+
+                if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
+                    continue;
+                }
+
+                if (empty($articlePayload['slug']) || empty($articlePayload['title'])) {
+                    continue;
+                }
+
+                $articles[] = (object) $articlePayload;
             }
         } else {
             // Cache miss: fall back to database search (fast, non-blocking).
@@ -376,6 +405,12 @@ class DefaultController extends AbstractController
             }
             $authorPubkeys = array_unique($authorPubkeys);
             $authorsMetadata = $redisCacheService->getMultipleMetadata($authorPubkeys);
+
+            $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadata, $exclusionPolicy): bool {
+                $authorMetadata = $authorsMetadata[$article->getPubkey()] ?? null;
+
+                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+            }));
         }
 
         // Convert UserMetadata objects to stdClass for template compatibility

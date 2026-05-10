@@ -41,7 +41,7 @@ class CacheLatestArticlesCommand extends Command
             'limit',
             'l',
             InputOption::VALUE_OPTIONAL,
-            'Target number of human articles to cache (will fetch a larger pool and filter bots)',
+            'Target number of human articles to cache (will fetch a larger pool and filter bots/spam)',
             self::TARGET_ARTICLES
         );
     }
@@ -147,7 +147,7 @@ class CacheLatestArticlesCommand extends Command
         }
 
         if ($excludedCount > 0) {
-            $output->writeln(sprintf('<comment>Excluded %d bot/RSS articles from latest feed</comment>', $excludedCount));
+            $output->writeln(sprintf('<comment>Excluded %d bot/RSS/promotional articles from latest feed</comment>', $excludedCount));
         }
 
         if (empty($baseObjects)) {
@@ -161,7 +161,7 @@ class CacheLatestArticlesCommand extends Command
 
         $output->writeln('');
         $output->writeln(sprintf('<info>✓ Successfully cached %d articles to Redis views</info>', count($baseObjects)));
-        $output->writeln(sprintf('<info>  (target: %d, excluded %d bots from %d unique authors)</info>', $target, $excludedCount, count($articlesByAuthor)));
+        $output->writeln(sprintf('<info>  (target: %d, excluded %d filtered articles from %d unique authors)</info>', $target, $excludedCount, count($articlesByAuthor)));
         $output->writeln('<info>  Key: view:articles:latest</info>');
 
         return Command::SUCCESS;

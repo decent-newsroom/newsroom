@@ -9,10 +9,12 @@ use App\Entity\Article;
 use App\Service\MutedPubkeysService;
 
 /**
- * Central policy for excluding bot-type authors from "latest articles" feeds.
+ * Central policy for excluding bot-type authors and obvious promotional spam
+ * from "latest articles" feeds.
  *
  * Contract:
- * - Input: Article entity and optionally already-fetched author metadata.
+ * - Input: Article entity or cached payload, and optionally already-fetched
+ *   author metadata.
  * - Output: true if the article should be excluded from latest feeds.
  *
  * The policy merges two exclusion sources into one list so that callers
@@ -20,9 +22,16 @@ use App\Service\MutedPubkeysService;
  * filtering in PHP after the fetch:
  *   1. Config-level deny-list (`$excludedPubkeys` parameter)
  *   2. Admin-muted users via `MutedPubkeysService`
+ *
+ * It also applies a small content heuristic to skip recurring referral-code
+ * spam that rotates pubkeys but keeps the same promotional structure.
  */
 class LatestArticlesExclusionPolicy
 {
+    private const PROMOTIONAL_SPAM_PHRASES = [
+        'referral code',
+    ];
+
     /**
      * @param string[] $excludedPubkeys Hex pubkeys to always exclude
      */
@@ -51,7 +60,38 @@ class LatestArticlesExclusionPolicy
 
     public function shouldExclude(Article $article, array|\stdClass|UserMetadata|null $authorMetadata = null): bool
     {
-        $pubkey = $article->getPubkey();
+        return $this->shouldExcludeByValues(
+            $article->getPubkey(),
+            $article->getTitle(),
+            $article->getSummary(),
+            $article->getContent(),
+            $authorMetadata,
+        );
+    }
+
+    /**
+     * Apply the same latest-feed exclusion logic to cached article payloads.
+     *
+     * @param array|\stdClass $articleData Decoded article payload from Redis
+     */
+    public function shouldExcludeArticleData(array|\stdClass $articleData, array|\stdClass|UserMetadata|null $authorMetadata = null): bool
+    {
+        return $this->shouldExcludeByValues(
+            $this->extractString($articleData, 'pubkey'),
+            $this->extractString($articleData, 'title'),
+            $this->extractString($articleData, 'summary'),
+            $this->extractString($articleData, 'content'),
+            $authorMetadata,
+        );
+    }
+
+    private function shouldExcludeByValues(
+        ?string $pubkey,
+        ?string $title,
+        ?string $summary,
+        ?string $content,
+        array|\stdClass|UserMetadata|null $authorMetadata = null,
+    ): bool {
         if ($pubkey && in_array($pubkey, $this->excludedPubkeys, true)) {
             return true;
         }
@@ -63,7 +103,7 @@ class LatestArticlesExclusionPolicy
             }
         }
 
-        return false;
+        return $this->containsPromotionalSpam($title, $summary, $content);
     }
 
     private function normalizeMetadata(array|\stdClass|UserMetadata|null $authorMetadata): ?UserMetadata
@@ -82,6 +122,47 @@ class LatestArticlesExclusionPolicy
                 return UserMetadata::fromStdClass($std);
             }
         }
+        return null;
+    }
+
+    private function containsPromotionalSpam(?string $title, ?string $summary, ?string $content): bool
+    {
+        foreach ([$title, $summary, $content] as $field) {
+            if (null === $field || '' === trim($field)) {
+                continue;
+            }
+
+            $normalizedField = strtolower($field);
+            foreach (self::PROMOTIONAL_SPAM_PHRASES as $phrase) {
+                if (str_contains($normalizedField, $phrase)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function extractString(array|\stdClass $data, string $property): ?string
+    {
+        if (is_array($data)) {
+            $value = $data[$property] ?? null;
+        } else {
+            if (!isset($data->$property)) {
+                return null;
+            }
+
+            $value = $data->$property;
+        }
+
+        if (is_array($value)) {
+            return !empty($value) ? (string) $value[0] : null;
+        }
+
+        if (is_string($value) && '' !== $value) {
+            return $value;
+        }
+
         return null;
     }
 }

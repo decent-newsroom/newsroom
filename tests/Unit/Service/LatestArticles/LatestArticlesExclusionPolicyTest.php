@@ -64,6 +64,37 @@ class LatestArticlesExclusionPolicyTest extends TestCase
         self::assertFalse($policy->shouldExclude($article, $meta));
     }
 
+    public function testExcludesReferralCodeSpamArticles(): void
+    {
+        $policy = new LatestArticlesExclusionPolicy(
+            mutedPubkeysService: $this->createMutedService(),
+        );
+
+        $article = new Article();
+        $article->setPubkey('author');
+        $article->setTitle('Skinrave Referral Code SKINRAVE2026 — 2026 Bonus Activation Guide');
+        $article->setSummary('Complete walkthrough on how to claim the welcome bonus with step-by-step tips.');
+        $article->setContent('Using referral code SKINRAVE2026 unlocks the full welcome bonus when signing up.');
+
+        self::assertTrue($policy->shouldExclude($article));
+    }
+
+    public function testExcludesReferralCodeSpamCachedPayload(): void
+    {
+        $policy = new LatestArticlesExclusionPolicy(
+            mutedPubkeysService: $this->createMutedService(),
+        );
+
+        $payload = [
+            'pubkey' => 'author',
+            'title' => 'CSGORoll Referral Code ROLLBONUS2026 — 2026 Bonus Activation Guide',
+            'summary' => 'Complete walkthrough on how to claim the welcome bonus with step-by-step tips.',
+            'content' => 'Using referral code ROLLBONUS2026 unlocks the full welcome bonus when signing up.',
+        ];
+
+        self::assertTrue($policy->shouldExcludeArticleData($payload));
+    }
+
     public function testGetAllExcludedPubkeysMergesConfigAndMuted(): void
     {
         $policy = new LatestArticlesExclusionPolicy(

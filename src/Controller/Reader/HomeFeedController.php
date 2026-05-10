@@ -81,25 +81,38 @@ class HomeFeedController extends AbstractController
         $cachedView = $viewStore->fetchLatestArticles();
 
         if ($cachedView !== null) {
-            $articles = [];
             $authorsMetadata = [];
+            $articles = [];
+
             foreach ($cachedView as $baseObject) {
-                if (isset($baseObject['article'])) {
-                    // Skip articles from user-muted pubkeys
-                    $articlePubkey = $baseObject['article']['pubkey'] ?? null;
-                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
-                        continue;
-                    }
-                    // Skip articles without slug or title (incomplete records)
-                    if (empty($baseObject['article']['slug']) || empty($baseObject['article']['title'])) {
-                        continue;
-                    }
-                    $articles[] = (object) $baseObject['article'];
-                }
                 if (isset($baseObject['profiles'])) {
                     foreach ($baseObject['profiles'] as $pubkey => $profile) {
                         $authorsMetadata[$pubkey] = (object) $profile;
                     }
+                }
+            }
+
+            foreach ($cachedView as $baseObject) {
+                if (isset($baseObject['article'])) {
+                    $articlePayload = $baseObject['article'];
+                    $articlePubkey = $articlePayload['pubkey'] ?? null;
+
+                    if ($articlePubkey && in_array($articlePubkey, $userMutedPubkeys, true)) {
+                        continue;
+                    }
+
+                    $authorMetadata = $articlePubkey ? ($authorsMetadata[$articlePubkey] ?? null) : null;
+
+                    if ($exclusionPolicy->shouldExcludeArticleData($articlePayload, $authorMetadata)) {
+                        continue;
+                    }
+
+                    // Skip articles without slug or title (incomplete records)
+                    if (empty($articlePayload['slug']) || empty($articlePayload['title'])) {
+                        continue;
+                    }
+
+                    $articles[] = (object) $articlePayload;
                 }
             }
         } else {
@@ -125,6 +138,13 @@ class HomeFeedController extends AbstractController
             foreach ($metaRaw as $pk => $m) {
                 $authorsMetadata[$pk] = $m instanceof UserMetadata ? $m->toStdClass() : $m;
             }
+
+            // Re-apply the shared policy after author metadata has been resolved.
+            $articles = array_values(array_filter($articles, function (Article $article) use ($authorsMetadata, $exclusionPolicy): bool {
+                $authorMetadata = $authorsMetadata[$article->getPubkey()] ?? null;
+
+                return !$exclusionPolicy->shouldExclude($article, $authorMetadata);
+            }));
         }
 
         return $this->render('home/tabs/_latest.html.twig', [
