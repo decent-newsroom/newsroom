@@ -12,6 +12,7 @@ use App\Service\HighlightService;
 use App\Message\PrefetchNostrEmbedsMessage;
 use App\Service\EmbedReferenceExtractor;
 use App\Service\ReadingListNavigationService;
+use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
