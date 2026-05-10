@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Util\CommonMark\Converter;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use nostriphant\NIP19\Bech32;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -35,6 +36,7 @@ class ProcessArticleHtmlCommand extends Command
             ->addOption('timeout', 't', InputOption::VALUE_REQUIRED, 'Maximum seconds per article before skipping (default: 60)', 60)
             ->addOption('math-only', null, InputOption::VALUE_NONE, 'Only reprocess articles whose content contains a $ sign (useful after math-delimiter changes)')
             ->addOption('naddr', null, InputOption::VALUE_REQUIRED, 'Process only the article identified by the given naddr1… bech32 string')
+            ->addOption('npub', null, InputOption::VALUE_REQUIRED, 'Process only articles authored by this npub (or hex pubkey)')
             ->setHelp(
                 'This command processes content to HTML for articles and caches the result in the database. ' .
                 'By default, it only processes articles that are missing processed HTML, newest first. ' .
@@ -56,12 +58,27 @@ class ProcessArticleHtmlCommand extends Command
         $timeout = max(5, (int) $input->getOption('timeout'));
         $mathOnly = (bool) $input->getOption('math-only');
         $naddr = $input->getOption('naddr');
+        $npubInput = $input->getOption('npub');
 
         $io->title('Article HTML Processing');
 
         // If --naddr is provided, resolve it to a single article and process only that one.
         if ($naddr !== null) {
             return $this->processNaddr($io, $naddr, $deleteFailed, $timeout);
+        }
+
+        // Resolve --npub to a hex pubkey filter.
+        $pubkeyHex = null;
+        if ($npubInput !== null) {
+            try {
+                $pubkeyHex = NostrKeyUtil::isHexPubkey($npubInput)
+                    ? $npubInput
+                    : NostrKeyUtil::npubToHex($npubInput);
+            } catch (\Throwable $e) {
+                $io->error('Could not resolve npub to a hex pubkey: ' . $e->getMessage());
+                return Command::FAILURE;
+            }
+            $io->info(sprintf('Filtering to pubkey: %s', $pubkeyHex));
         }
 
         if ($deleteFailed) {
@@ -83,6 +100,11 @@ class ProcessArticleHtmlCommand extends Command
 
         // Fetch IDs only to avoid hydrating full entities (raw JSON fields can be huge).
         $sql = 'SELECT id FROM article WHERE content IS NOT NULL';
+        $params = [];
+        if ($pubkeyHex !== null) {
+            $sql .= ' AND pubkey = :pubkey';
+            $params['pubkey'] = $pubkeyHex;
+        }
         if ($mathOnly) {
             $sql .= " AND content LIKE '%\$%'";
         } elseif (!$force) {
@@ -93,7 +115,7 @@ class ProcessArticleHtmlCommand extends Command
             $sql .= ' LIMIT ' . (int) $limit;
         }
 
-        $articleIds = $conn->fetchFirstColumn($sql);
+        $articleIds = $conn->fetchFirstColumn($sql, $params);
         $total = count($articleIds);
 
         if ($total === 0) {
