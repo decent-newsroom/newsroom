@@ -127,7 +127,20 @@ class RevalidateProfileCacheHandler
         // sidebar.
         $viewData = [];
 
-        $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
+        try {
+            $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
+            $this->logger->debug('Found articles for pubkey during revalidation', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'count' => count($articles),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to find articles during cache revalidation', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'error' => $e->getMessage(),
+            ]);
+            return ['articles' => []];
+        }
+
         $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
 
         foreach ($articles as $article) {
@@ -144,7 +157,10 @@ class RevalidateProfileCacheHandler
                         $viewData[] = $normalized['article'];
                     }
                 } catch (\Exception $e) {
-                    $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
+                    $this->logger->warning('Failed to build article view during revalidation', [
+                        'articleId' => $article->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
         }
@@ -159,7 +175,17 @@ class RevalidateProfileCacheHandler
             }
         }
 
-        return ['articles' => array_values($slugMap)];
+        $result = ['articles' => array_values($slugMap)];
+
+        if (empty($result['articles']) && !empty($articles)) {
+            $this->logger->warning('Articles found but none could be normalized during revalidation', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'articlesFound' => count($articles),
+                'articlesNormalized' => count($result['articles']),
+            ]);
+        }
+
+        return $result;
     }
 
     private function buildMediaData(string $pubkey): array

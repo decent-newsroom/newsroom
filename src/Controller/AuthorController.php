@@ -848,79 +848,96 @@ class AuthorController extends AbstractController
         $templateData = [];
 
         if (in_array($tab, $cacheableTabs)) {
-            $cacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
+            // Special case for articles tab: Always query database to ensure articles
+            // are shown even if cache is stale/invalidated while async jobs are pending.
+            // Cache is still used for speed (via Redis), but DB is the source of truth.
+            if ($tab === 'articles') {
+                // No owner bypass for articles tab - consistency matters more than avoiding a DB query
+                $templateData = $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch);
 
-            // Owners viewing their own profile always see freshly-computed data.
-            // The profile-tab cache has a 24h hard TTL and, if ever populated
-            // empty (e.g. right after signup or before the first relay-worker
-            // projection), it would otherwise mask a user's own articles for up
-            // to a day. The editor sidebar hits Postgres directly for the same
-            // reason — this keeps the two views consistent.
-            // Also bypass when the client explicitly signals a pending Mercure update.
-            $bypassCache = $isOwner || $request->query->has('refresh');
+                // Store the fresh data for subsequent requests
+                $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
 
-            if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
-                // Guard against a poisoned empty cache: if the critical payload
-                // for the requested tab is empty, treat it as a cache miss and
-                // rebuild synchronously. This heals profiles whose cache was
-                // populated before the Article projection settled and which
-                // would otherwise hide articles for up to 24h even though the
-                // articles are visible in Discover and via direct links.
-                $cachedIsEmpty = $this->isEmptyCachedTabPayload($tab, $cacheResult['data']);
+                // Dispatch background revalidation to pull fresh data from relays if needed
+                try {
+                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed to dispatch profile revalidation for articles tab', ['error' => $e->getMessage()]);
+                }
+            } else {
+                // All other tabs use cached-with-fallback pattern
+                $cacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
 
-                if ($cachedIsEmpty) {
+                // Owners viewing their own profile always see freshly-computed data.
+                // The profile-tab cache has a 24h hard TTL and, if ever populated
+                // empty (e.g. right after signup or before the first relay-worker
+                // projection), it would otherwise mask a user's own articles for up
+                // to a day. The editor sidebar hits Postgres directly for the same
+                // reason — this keeps the two views consistent.
+                // Also bypass when the client explicitly signals a pending Mercure update.
+                $bypassCache = $isOwner || $request->query->has('refresh');
+
+                if (!$bypassCache && $cacheResult['isCached'] && $cacheResult['data'] !== null) {
+                    // Guard against a poisoned empty cache: if the critical payload
+                    // for the requested tab is empty, treat it as a cache miss and
+                    // rebuild synchronously. This heals profiles whose cache was
+                    // populated before the Article projection settled and which
+                    // would otherwise hide articles for up to 24h even though the
+                    // articles are visible in Discover and via direct links.
+                    $cachedIsEmpty = $this->isEmptyCachedTabPayload($tab, $cacheResult['data']);
+
+                    if ($cachedIsEmpty) {
+                        $templateData = match($tab) {
+                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+                            'media' => $this->getMediaTabData($pubkey, $redisCacheService),
+                            'highlights' => $this->getHighlightsTabData($pubkey, $em),
+                            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
+                            default => [],
+                        };
+
+                        $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
+
+                        try {
+                            $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                        } catch (\Throwable $e) {
+                            $this->logger->warning('Failed to dispatch profile revalidation after empty-cache rebuild', ['error' => $e->getMessage()]);
+                        }
+                    } else {
+                        // Use cached data for instant response - convert arrays to objects for Twig
+                        $templateData = $this->hydrateTemplateData($cacheResult['data']);
+
+                        // If stale, trigger background revalidation
+                        if ($cacheResult['isStale']) {
+                            try {
+                                $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                                $this->logger->debug('Profile cache stale, dispatched revalidation', [
+                                    'pubkey' => substr($pubkey, 0, 8),
+                                    'tab' => $tab,
+                                ]);
+                            } catch (\Throwable $e) {
+                                $this->logger->warning('Failed to dispatch profile revalidation', ['error' => $e->getMessage()]);
+                            }
+                        }
+                    }
+                } else {
+                    // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
                     $templateData = match($tab) {
                         'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
-                        'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
                         'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                         'highlights' => $this->getHighlightsTabData($pubkey, $em),
                         'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
                         default => [],
                     };
 
+                    // Cache the data for next request
                     $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
 
+                    // Dispatch background revalidation to get fresh data from relays
                     try {
                         $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
                     } catch (\Throwable $e) {
-                        $this->logger->warning('Failed to dispatch profile revalidation after empty-cache rebuild', ['error' => $e->getMessage()]);
+                        $this->logger->warning('Failed to dispatch profile revalidation on cache miss', ['error' => $e->getMessage()]);
                     }
-                } else {
-                    // Use cached data for instant response - convert arrays to objects for Twig
-                    $templateData = $this->hydrateTemplateData($cacheResult['data']);
-
-                    // If stale, trigger background revalidation
-                    if ($cacheResult['isStale']) {
-                        try {
-                            $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
-                            $this->logger->debug('Profile cache stale, dispatched revalidation', [
-                                'pubkey' => substr($pubkey, 0, 8),
-                                'tab' => $tab,
-                            ]);
-                        } catch (\Throwable $e) {
-                            $this->logger->warning('Failed to dispatch profile revalidation', ['error' => $e->getMessage()]);
-                        }
-                    }
-                }
-            } else {
-                // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
-                $templateData = match($tab) {
-                    'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
-                    'articles' => $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch),
-                    'media' => $this->getMediaTabData($pubkey, $redisCacheService),
-                    'highlights' => $this->getHighlightsTabData($pubkey, $em),
-                    'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
-                    default => [],
-                };
-
-                // Cache the data for next request
-                $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
-
-                // Dispatch background revalidation to get fresh data from relays
-                try {
-                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to dispatch profile revalidation on cache miss', ['error' => $e->getMessage()]);
                 }
             }
         } else {
@@ -974,7 +991,9 @@ class AuthorController extends AbstractController
     }
 
     /**
-     * Get articles for the articles tab
+     * Get articles for the articles tab.
+     * Always queries the database directly to ensure articles are shown
+     * even if the async cache refresh is pending.
      */
     private function getArticlesTabData(
         string $pubkey,
@@ -984,6 +1003,16 @@ class AuthorController extends AbstractController
         ArticleSearchInterface $articleSearch
     ): array {
         $articles = $this->getAuthorArticles($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch);
+
+        // Guard: if we somehow got no articles, this is likely a transient issue
+        // (e.g., search index lag, database sync delay). Log it for debugging.
+        if (empty($articles)) {
+            $this->logger->warning('No articles found for pubkey during sync article tab load', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'isOwner' => $isOwner,
+            ]);
+        }
+
         return ['articles' => $articles];
     }
 
@@ -1515,6 +1544,7 @@ class AuthorController extends AbstractController
 
     /**
      * Helper to get author articles (used by both unified profile and tab)
+     * Always queries the database directly - cache is bypassed for articles tab reliability.
      */
     private function getAuthorArticles(
         string $pubkey,
@@ -1532,7 +1562,20 @@ class AuthorController extends AbstractController
         // the article editor sidebar which queries Postgres directly.
         $viewData = [];
 
-        $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
+        try {
+            $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
+            $this->logger->debug('Found articles for pubkey', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'count' => count($articles),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Failed to find articles by pubkey', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+
         // Always filter out drafts for the articles tab (drafts live in their own tab).
         $articles = $this->filterAndDeduplicateArticles($articles, false);
 
@@ -1545,9 +1588,20 @@ class AuthorController extends AbstractController
                         $viewData[] = (object) $normalized['article'];
                     }
                 } catch (\Exception $e) {
-                    $this->logger->warning('Failed to build article view', ['error' => $e->getMessage()]);
+                    $this->logger->warning('Failed to build article view', [
+                        'articleId' => $article->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
+        }
+
+        if (empty($viewData) && !empty($articles)) {
+            $this->logger->warning('Articles found but none could be normalized for display', [
+                'pubkey' => substr($pubkey, 0, 8),
+                'articlesFound' => count($articles),
+                'articlesNormalized' => count($viewData),
+            ]);
         }
 
         return $viewData;
