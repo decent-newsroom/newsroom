@@ -366,6 +366,7 @@ articleActions:
     share: 'Share'
     copyLink: 'Copy Link'
     copyNaddr: 'Copy Nostr Address'
+    copyCoordinate: 'Copy Coordinate'
     broadcast: 'Broadcast to Relays'
     highlights: 'Highlights'
 
