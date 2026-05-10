@@ -96,6 +96,12 @@ class ReplaceableEventCleanupService
      * Tie-break follows NIP-01: on equal created_at, the lexicographically lower
      * event id wins; all others are removed.
      *
+     * Uses ORM `EntityManager::remove()` (NOT a bulk DQL DELETE) so the FOS
+     * Elastica Doctrine listener fires `postRemove` on each deleted revision
+     * and evicts the corresponding document from the Elasticsearch index.
+     * A bulk DQL DELETE bypasses lifecycle events entirely, which is the
+     * historical reason ES accumulated ghost revisions of long-running authors.
+     *
      * Must be called AFTER the new article is flushed.
      */
     public function removeOlderArticleRevisions(Article $newArticle, EntityManagerInterface $em): int
@@ -111,7 +117,8 @@ class ReplaceableEventCleanupService
         try {
             $qb = $em->createQueryBuilder();
 
-            $qb->delete(Article::class, 'a')
+            $qb->select('a')
+                ->from(Article::class, 'a')
                 ->where('a.pubkey = :pubkey')
                 ->andWhere('a.kind = :kind')
                 ->andWhere('a.slug = :slug')
@@ -133,9 +140,18 @@ class ReplaceableEventCleanupService
                 ->setParameter('currentEventId', $newArticle->getEventId() ?? '')
                 ->setParameter('createdAt', $newArticle->getCreatedAt());
 
-            $deleted = $qb->getQuery()->execute();
+            /** @var Article[] $stale */
+            $stale = $qb->getQuery()->getResult();
+
+            $deleted = 0;
+            foreach ($stale as $oldArticle) {
+                $em->remove($oldArticle);
+                $deleted++;
+            }
 
             if ($deleted > 0) {
+                $em->flush();
+
                 $this->logger->debug('Cleaned up older article revisions', [
                     'pubkey' => substr($pubkey, 0, 16) . '...',
                     'kind' => $kind instanceof \BackedEnum ? $kind->value : $kind,
@@ -145,7 +161,7 @@ class ReplaceableEventCleanupService
                 ]);
             }
 
-            return (int) $deleted;
+            return $deleted;
         } catch (\Throwable $e) {
             $this->logger->warning('Failed to clean up older article revisions', [
                 'pubkey' => substr($pubkey, 0, 16) . '...',

@@ -9,6 +9,7 @@ use App\Enum\AuthorContentType;
 use App\Factory\ArticleFactory;
 use App\Message\FetchAuthorContentMessage;
 use App\Repository\EventRepository;
+use App\Service\ArticleEventProjector;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrRelayPool;
@@ -47,6 +48,7 @@ class FetchAuthorContentHandler
         private readonly EventIngestionListener $eventIngestionListener,
         private readonly Converter $converter,
         private readonly RedisViewStore $viewStore,
+        private readonly ArticleEventProjector $articleEventProjector,
     ) {}
 
     public function __invoke(FetchAuthorContentMessage $message): void
@@ -319,14 +321,25 @@ class FetchAuthorContentHandler
                 switch ($contentType) {
                     case AuthorContentType::ARTICLES:
                     case AuthorContentType::DRAFTS:
+                        // Route through ArticleEventProjector so the same
+                        // NIP-01 ordering guard, ES-aware revision cleanup,
+                        // and graph-table sync that the strfry subscription
+                        // worker uses also run on author-refresh fetches.
+                        // The projector is idempotent on event-id duplicates
+                        // and silently drops stale revisions, so passing
+                        // every event through it is safe.
+                        try {
+                            $this->articleEventProjector->projectArticleFromEvent($event, 'author-refresh');
+                        } catch (\Throwable $e) {
+                            $this->logger->warning('Failed to project article during author refresh', [
+                                'event_id' => $event->id ?? 'unknown',
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+
+                        // For UI streaming we still serialize what we just saw.
                         $article = $this->articleFactory->createFromLongFormContentEvent($event);
                         if ($article) {
-                            $this->saveArticle($article);
-
-                            // Update graph layer so current_record stays in sync.
-                            try {
-                                $this->eventIngestionListener->processRawEvent($event);
-                            } catch (\Throwable) {}
 
                             $processedData[] = $this->serializeArticle($article);
                         }
@@ -360,39 +373,6 @@ class FetchAuthorContentHandler
         return $processedData;
     }
 
-    private function saveArticle($article): void
-    {
-        $existing = $this->eventRepository->findOneBy(['eventId' => $article->getEventId()]);
-        if (!$existing) {
-            // Pre-process markdown to HTML so it's ready in the DB
-            if ($article->getContent() && !$article->getProcessedHtml()) {
-                try {
-                    $tags = null;
-                    $raw = $article->getRaw();
-                    if (is_object($raw) && isset($raw->tags)) {
-                        $tags = $raw->tags;
-                    } elseif (is_array($raw) && isset($raw['tags'])) {
-                        $tags = $raw['tags'];
-                    }
-                    $processedHtml = $this->converter->convertToHTML(
-                        $article->getContent(),
-                        null,
-                        $article->getKind()?->value,
-                        $tags,
-                    );
-                    $article->setProcessedHtml($processedHtml);
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to process article HTML during author content fetch', [
-                        'event_id' => $article->getEventId(),
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            $this->eventRepository->getEntityManager()->persist($article);
-            $this->eventRepository->getEntityManager()->flush();
-        }
-    }
 
     private function saveMediaEvent(object $event): void
     {

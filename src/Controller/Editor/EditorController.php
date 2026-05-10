@@ -15,6 +15,7 @@ use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\Nostr\UserRelayListService;
+use App\Service\ReplaceableEventCleanupService;
 use App\Service\UserRolePromoter;
 use App\Util\CommonMark\Converter;
 use App\Util\NostrKeyUtil;
@@ -278,6 +279,7 @@ class EditorController extends AbstractController
         UserRolePromoter $userRolePromoter,
         EventIngestionListener $eventIngestionListener,
         Converter $converter,
+        ReplaceableEventCleanupService $replaceableEventCleanupService,
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -347,6 +349,22 @@ class EditorController extends AbstractController
             // Save to database
             $entityManager->persist($article);
             $entityManager->flush();
+
+            // NIP-01 replaceable-event hygiene: drop older revisions of this
+            // (pubkey, kind, slug) tuple from both Postgres and Elasticsearch.
+            // Without this every editor save would leave the prior revision
+            // alive in the DB and ES — the dominant cause of revision overflow
+            // on writers who edit frequently. The cleanup service uses ORM
+            // `remove()` so the FOS Elastica listener fires postRemove and
+            // the index stays in sync.
+            try {
+                $replaceableEventCleanupService->removeOlderArticleRevisions($article, $entityManager);
+            } catch (\Throwable $e) {
+                $logger->warning('Failed to clean up older article revisions on publish', [
+                    'event_id' => $article->getEventId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Update graph layer tables (parsed_reference + current_record)
             try {

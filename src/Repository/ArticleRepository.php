@@ -422,6 +422,35 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find every revision (Article row) for a given coordinate (pubkey, kind, slug).
+     * Used to enforce NIP-01 replaceable-event ordering before persisting a new
+     * revision so we never accumulate duplicate rows for the same (author, kind, d-tag).
+     *
+     * Result is ordered newest-first per NIP-01 tie-break (createdAt DESC, then
+     * eventId ASC — lower lexicographic event id wins on equal createdAt).
+     *
+     * @return Article[]
+     */
+    public function findAllRevisionsByCoordinate(string $pubkey, KindsEnum $kind, string $slug): array
+    {
+        if ($pubkey === '' || $slug === '') {
+            return [];
+        }
+
+        return $this->createQueryBuilder('a')
+            ->where('a.pubkey = :pubkey')
+            ->andWhere('a.kind = :kind')
+            ->andWhere('a.slug = :slug')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', $kind)
+            ->setParameter('slug', $slug)
+            ->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.eventId', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Get article counts grouped by tags
      *
      * @param array $tags Array of tags to count

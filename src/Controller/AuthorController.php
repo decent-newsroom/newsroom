@@ -17,6 +17,7 @@ use App\Service\Cache\RedisViewStore;
 use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Nostr\NostrClient;
+use App\Repository\ArticleRepository;
 use App\Service\Search\ArticleSearchInterface;
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
@@ -43,6 +44,7 @@ class AuthorController extends AbstractController
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly VanityNameService $vanityNameService,
         private readonly CacheItemPoolInterface $cache,
+        private readonly ArticleRepository $articleRepository,
     ) {}
 
     /**
@@ -1515,7 +1517,7 @@ class AuthorController extends AbstractController
         RedisViewFactory $viewFactory,
         object $author
     ): array {
-        $allArticles = $articleSearch->findByPubkey($pubkey, 100, 0);
+        $allArticles = $this->articleRepository->findByPubkey($pubkey, 100, 0);
         $drafts = [];
 
         foreach ($allArticles as $article) {
@@ -1553,17 +1555,20 @@ class AuthorController extends AbstractController
         RedisViewFactory $viewFactory,
         ArticleSearchInterface $articleSearch
     ): array {
-        // Note: the legacy `view:user:articles:<pubkey>` Redis key is NOT a
+        // The legacy `view:user:articles:<pubkey>` Redis key is NOT a
         // reliable source for an author's own articles — it was historically
         // reused to cache reading-list contents (articles the user saved,
         // authored by others). Reading from it here would either be empty
         // (typical case) or actively poison the profile with unrelated
-        // articles. Always read from the search/DB layer so behaviour matches
-        // the article editor sidebar which queries Postgres directly.
+        // articles. Always read from Postgres directly via ArticleRepository
+        // — bypassing ArticleSearchInterface so an Elasticsearch backend
+        // that lags or misses documents (the dominant cause of empty profile
+        // tabs while feeds and direct article pages render fine) cannot
+        // mask articles that exist in the DB.
         $viewData = [];
 
         try {
-            $articles = $articleSearch->findByPubkey($pubkey, 500, 0);
+            $articles = $this->articleRepository->findByPubkey($pubkey, 500, 0);
             $this->logger->debug('Found articles for pubkey', [
                 'pubkey' => substr($pubkey, 0, 8),
                 'count' => count($articles),

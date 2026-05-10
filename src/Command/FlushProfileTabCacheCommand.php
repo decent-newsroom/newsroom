@@ -90,7 +90,6 @@ class FlushProfileTabCacheCommand extends Command
     {
         $io->caution('Flushing ALL profile tab caches. This will cause DB queries on next visit for every profile.');
 
-        $cursor = null;
         $deleted = 0;
         $patterns = [
             'view:profile:tab:*',
@@ -99,13 +98,15 @@ class FlushProfileTabCacheCommand extends Command
 
         try {
             foreach ($patterns as $pattern) {
-                do {
-                    [$cursor, $keys] = $this->redis->scan($cursor ?? 0, ['match' => $pattern, 'count' => 100]);
+                $iterator = null;
+
+                // phpredis expects the iterator variable by reference.
+                while (($keys = $this->redis->scan($iterator, $pattern, 100)) !== false) {
                     if (!empty($keys)) {
                         $this->redis->del(...$keys);
                         $deleted += count($keys);
                     }
-                } while ($cursor !== false && $cursor !== '0' && $cursor !== 0);
+                }
             }
         } catch (\Throwable $e) {
             $io->error('Failed to flush cache: ' . $e->getMessage());
@@ -117,4 +118,3 @@ class FlushProfileTabCacheCommand extends Command
         return Command::SUCCESS;
     }
 }
-

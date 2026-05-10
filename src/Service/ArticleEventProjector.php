@@ -79,6 +79,96 @@ class ArticleEventProjector
             // Create Article entity from the event using the factory
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
 
+            // ─── NIP-01 ordering guard ──────────────────────────────────────
+            // Parameterized-replaceable events are addressed by (pubkey, kind,
+            // d-tag). Before persisting, look at every existing revision for
+            // this coordinate and apply NIP-01 replaceability semantics:
+            //   1. If any existing revision is *newer* (created_at >, or
+            //      created_at = with lexicographically lower event id), the
+            //      incoming event is stale — drop it silently. Without this
+            //      guard a late-arriving older revision (slow relay, backfill
+            //      command, RSS importer reaching back in time) is happily
+            //      persisted alongside the current revision, accumulating
+            //      duplicate rows in Postgres and ghost docs in Elasticsearch.
+            //   2. If existing revisions are all *older*, remove them BEFORE
+            //      persisting the new one. Doing the remove first means each
+            //      stale row goes through Doctrine's `postRemove` lifecycle,
+            //      which fires the FOS Elastica listener and evicts the doc
+            //      from the ES index. The new revision then triggers
+            //      `postPersist` so ES sees only the latest.
+            $articleKind = $article->getKind();
+            $articleSlug = $article->getSlug();
+            $articlePubkey = $article->getPubkey();
+            $articleCreatedAt = $article->getCreatedAt();
+            $articleEventId = $article->getEventId() ?? '';
+
+            if ($articleKind && $articleSlug && $articlePubkey && $articleCreatedAt) {
+                /** @var \App\Repository\ArticleRepository $articleRepo */
+                $articleRepo = $em->getRepository(Article::class);
+                $existingRevisions = $articleRepo->findAllRevisionsByCoordinate(
+                    $articlePubkey,
+                    $articleKind,
+                    $articleSlug,
+                );
+
+                $newerExists = false;
+                $olderRevisions = [];
+
+                foreach ($existingRevisions as $existing) {
+                    $existingCreatedAt = $existing->getCreatedAt();
+                    $existingEventId = $existing->getEventId() ?? '';
+
+                    if ($existingCreatedAt === null) {
+                        // Treat unknown timestamp as older — let the new event win.
+                        $olderRevisions[] = $existing;
+                        continue;
+                    }
+
+                    // NIP-01: newer createdAt wins; on equal createdAt the
+                    // lexicographically lower event id wins.
+                    if ($existingCreatedAt > $articleCreatedAt) {
+                        $newerExists = true;
+                        break;
+                    }
+                    if ($existingCreatedAt == $articleCreatedAt
+                        && $existingEventId !== ''
+                        && strcmp($existingEventId, $articleEventId) < 0
+                    ) {
+                        $newerExists = true;
+                        break;
+                    }
+
+                    $olderRevisions[] = $existing;
+                }
+
+                if ($newerExists) {
+                    $this->logger->debug('Skipping stale article revision (newer revision already in DB)', [
+                        'event_id' => $articleEventId,
+                        'pubkey' => substr($articlePubkey, 0, 16) . '...',
+                        'kind' => $articleKind->value,
+                        'slug' => $articleSlug,
+                        'relay' => $relayUrl,
+                    ]);
+                    return;
+                }
+
+                if (!empty($olderRevisions)) {
+                    foreach ($olderRevisions as $stale) {
+                        $em->remove($stale);
+                    }
+                    $em->flush();
+
+                    $this->logger->info('Removed older article revisions before persisting new one', [
+                        'pubkey' => substr($articlePubkey, 0, 16) . '...',
+                        'kind' => $articleKind->value,
+                        'slug' => $articleSlug,
+                        'removed_count' => count($olderRevisions),
+                        'new_event_id' => $articleEventId,
+                    ]);
+                }
+            }
+            // ────────────────────────────────────────────────────────────────
+
             // Process markdown content to HTML for performance optimization
             if ($article->getContent()) {
                 try {
@@ -114,16 +204,37 @@ class ArticleEventProjector
                 'relay' => $relayUrl
             ]);
 
-            $em->persist($article);
-            $em->flush();
+            try {
+                $em->persist($article);
+                $em->flush();
+            } catch (\Doctrine\DBAL\Exception\UniqueConstraintViolationException $e) {
+                // Race condition: a concurrent worker persisted the same
+                // event id (or coordinate) between our pre-persist guard and
+                // our flush. Treat as already-ingested and continue silently
+                // — the winning row carries the same event so neither side
+                // loses information.
+                $this->logger->debug('Concurrent ingestion of same article — yielding to other writer', [
+                    'event_id' => $articleEventId,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->managerRegistry->resetManager();
+                return;
+            }
 
             $this->logger->info('Article successfully saved to database', [
                 'event_id' => $article->getEventId(),
                 'db_id' => $article->getId()
             ]);
 
-            // Clean up older revisions of the same article (same pubkey + slug/d-tag)
-            $this->cleanupService->removeOlderArticleRevisions($article, $em instanceof \Doctrine\ORM\EntityManagerInterface ? $em : $this->managerRegistry->getManager());
+            // Defensive cleanup: any older revisions that slipped past the
+            // pre-persist guard (e.g. inserted by a different writer between
+            // our findAllRevisionsByCoordinate() call and our flush) are
+            // removed here. Uses ORM remove() so the FOS Elastica listener
+            // fires postRemove for each stale row.
+            $this->cleanupService->removeOlderArticleRevisions(
+                $article,
+                $em instanceof \Doctrine\ORM\EntityManagerInterface ? $em : $this->managerRegistry->getManager()
+            );
 
             // Update graph layer tables (parsed_reference + current_record)
             // so the graph stays in sync without needing backfill/audit repair.

@@ -12,10 +12,10 @@ use App\Enum\KindsEnum;
 use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
+use App\Repository\ArticleRepository;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Service\Search\ArticleSearchInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -32,7 +32,7 @@ class RevalidateProfileCacheHandler
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
         private readonly RedisCacheService $redisCacheService,
-        private readonly ArticleSearchInterface $articleSearch,
+        private readonly ArticleRepository $articleRepository,
         private readonly EntityManagerInterface $em,
         private readonly MessageBusInterface $messageBus,
         private readonly UserRelayListService $userRelayListService,
@@ -119,16 +119,17 @@ class RevalidateProfileCacheHandler
 
     private function buildArticlesData(string $pubkey, bool $isOwner): array
     {
-        // The legacy `view:user:articles:<pubkey>` Redis key has been used for
-        // reading-list contents (articles saved by this user, authored by
-        // others) — it is not a reliable cache of the author's own articles.
-        // Always read from the DB-backed search service here so background
-        // revalidation matches the synchronous controller path and the editor
-        // sidebar.
+        // Always read from Postgres directly via ArticleRepository so
+        // background revalidation matches the synchronous controller path
+        // and the editor sidebar. Going through ArticleSearchInterface here
+        // would route to Elasticsearch when enabled, which can lag behind
+        // ingestion or miss documents and silently cache an empty payload —
+        // the dominant cause of empty profile tabs even though feeds and
+        // direct article pages render fine.
         $viewData = [];
 
         try {
-            $articles = $this->articleSearch->findByPubkey($pubkey, 500, 0);
+            $articles = $this->articleRepository->findByPubkey($pubkey, 500, 0);
             $this->logger->debug('Found articles for pubkey during revalidation', [
                 'pubkey' => substr($pubkey, 0, 8),
                 'count' => count($articles),
@@ -251,7 +252,7 @@ class RevalidateProfileCacheHandler
 
     private function buildDraftsData(string $pubkey): array
     {
-        $allArticles = $this->articleSearch->findByPubkey($pubkey, 100, 0);
+        $allArticles = $this->articleRepository->findByPubkey($pubkey, 100, 0);
         $authorMetadata = $this->redisCacheService->getMetadata($pubkey);
         $drafts = [];
 
