@@ -66,9 +66,13 @@
         {% if author.website is defined and author.website %}
             {% set website = author.website is iterable ? author.website|first : author.website %}
             {% if website is not empty %}
+                {% set websiteLabel = website|replace({'https://': '', 'http://': ''}) %}
+                {% if websiteLabel starts with 'www.' %}
+                    {% set websiteLabel = websiteLabel|slice(4) %}
+                {% endif %}
                 <div class="mt-2">
                     <a href="{{ website }}" target="_blank" rel="noopener noreferrer">
-                        {{ website|regex_replace('/^https?:\\/\\/(www\\.)?/', '')|regex_replace('/\\/$/', '') }}
+                        {{ websiteLabel|trim('/') }}
                     </a>
                 </div>
             {% endif %}

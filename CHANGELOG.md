@@ -16,6 +16,7 @@ Usability and styles.
 - [Improvement] Updated the magazine setup login prompt copy across all supported locales to emphasize personalization: "Sign in with your Nostr identity to personalize your experience."
 - [Feature] Article and follow-pack share dropdowns now include a "Copy Coordinate" option. For articles, the coordinate format is `30023:pubkey:slug`; for follow packs, it's `39089:pubkey:d-tag`. This allows technical users to reference events and coordinate addresses directly without relying on Nostr address encoding.
 - [Feature] Settings -> Profile now supports multiple NIP-05 identifiers. The profile editor offers repeatable NIP-05 inputs, publishes each value as its own `nip05` tag, and stores metadata `nip05` content as an array while preserving immediate User entity updates as a normalized comma-separated value.
+- [Bug] Fixed author profile rendering crash in `templates/partial/_author-section.html.twig` caused by unsupported Twig `regex_replace` filter usage when formatting the website label. The template now uses built-in Twig string operations (`replace`, `starts with`, `slice`, `trim`) to produce the same display text without requiring extra Twig extensions.
 
 
 ## v0.0.37
