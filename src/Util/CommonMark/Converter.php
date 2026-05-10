@@ -720,6 +720,10 @@ class Converter implements MarkdownConverterInterface
         // CommonMark recognises them as flanking delimiters.
         $markdown = $this->normalizeEmphasisWhitespace($markdown);
 
+        // Disable lazy blockquote continuation so a non-quoted next line
+        // becomes a normal paragraph without requiring a blank line.
+        $markdown = $this->normalizeBlockquoteBoundaries($markdown);
+
         // CommonMark flanking rules: a closing ** (or *) preceded by punctuation
         // is only right-flanking if the next char is whitespace or punctuation.
         // So "**#**word" won't close because '#' is punctuation and 'w' is not.
@@ -779,6 +783,42 @@ class Converter implements MarkdownConverterInterface
         $html = $this->restoreMathPlaceholders($html);
 
         return $this->processNostrLinks($html);
+    }
+
+    /**
+     * Prevent CommonMark lazy continuation from extending blockquotes.
+     */
+    private function normalizeBlockquoteBoundaries(string $content): string
+    {
+        if (!str_contains($content, '>')) {
+            return $content;
+        }
+
+        $lines = explode("\n", $content);
+        $normalized = [];
+        $lastIndex = count($lines) - 1;
+
+        foreach ($lines as $index => $line) {
+            $normalized[] = $line;
+
+            if ($index >= $lastIndex) {
+                continue;
+            }
+
+            if (!preg_match('/^\s{0,3}>\s?.+$/', $line)) {
+                continue;
+            }
+
+            $nextLine = $lines[$index + 1];
+
+            // When the next line is plain text (not blank and not quoted),
+            // insert a blank line so the quote terminates explicitly.
+            if ($nextLine !== '' && !preg_match('/^\s{0,3}>\s?/', $nextLine)) {
+                $normalized[] = '';
+            }
+        }
+
+        return implode("\n", $normalized);
     }
 
     private function processNostrLinks(string $content): string

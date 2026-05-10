@@ -5,6 +5,7 @@ Usability and styles.
 
 - [Feature] Comments now display on UnfoldBundle post pages. Comments (kind 1111) and zap receipts (kind 9735) are fetched from the local database and displayed below the article content with author metadata (name, picture) and timestamps. Zaps are highlighted and show the sats amount. See `documentation/Unfold/comments.md`.
 - [Bug] UnfoldBundle post pages no longer render an empty `Comments ()` label for zap-only threads. The post context now exposes an explicit non-zap `comments_count` and a dedicated thread-activity flag, so zap-only activity renders as `Comments (0)` instead of a blank count.
+- [Bug] Fixed markdown conversion for quote boundaries in Nostr content. The converter now decodes fully JSON-escaped newline payloads (literal `\n`) and inserts an explicit paragraph break after single-line blockquotes when followed by plain text, preventing CommonMark lazy blockquote continuation from swallowing the next paragraph.
 - [Removal] The `/landing` route has been permanently removed along with its template.
 - [Improvement] Updated the magazine setup login prompt copy across all supported locales to emphasize personalization: "Sign in with your Nostr identity to personalize your experience."
 - [Feature] Article and follow-pack share dropdowns now include a "Copy Coordinate" option. For articles, the coordinate format is `30023:pubkey:slug`; for follow packs, it's `39089:pubkey:d-tag`. This allows technical users to reference events and coordinate addresses directly without relying on Nostr address encoding.
