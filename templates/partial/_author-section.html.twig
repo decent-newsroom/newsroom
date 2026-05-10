@@ -62,5 +62,16 @@
                 {{ author.about|markdown_to_html|mentionify|linkify  }}
             {% endif %}
         </div>
+
+        {% if author.website is defined and author.website %}
+            {% set website = author.website is iterable ? author.website|first : author.website %}
+            {% if website is not empty %}
+                <div class="mt-2">
+                    <a href="{{ website }}" target="_blank" rel="noopener noreferrer">
+                        {{ website|regex_replace('/^https?:\\/\\/(www\\.)?/', '')|regex_replace('/\\/$/', '') }}
+                    </a>
+                </div>
+            {% endif %}
+        {% endif %}
     </section>
 </div>
