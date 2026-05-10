@@ -1,0 +1,64 @@
+/**
+ * Article In Publications Sidebar Widget
+ * Shows which magazines or reading-list categories contain the current article.
+ */
+
+.article-in-publications {
+    margin-bottom: var(--spacing-4);
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border, #e0e0e0);
+    background: var(--color-bg-subtle, var(--color-bg));
+}
+
+.article-in-publications__heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-mid);
+    margin: 0 0 var(--spacing-2);
+}
+
+.article-in-publications__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.article-in-publications__item {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.25em;
+}
+
+.article-in-publications__mag-link {
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.article-in-publications__mag-link:hover {
+    text-decoration: underline;
+}
+
+.article-in-publications__sep {
+    color: var(--color-text-mid);
+    font-size: 0.8em;
+}
+
+.article-in-publications__cat-link {
+    color: var(--color-text-mid);
+    text-decoration: none;
+    font-size: 0.85em;
+}
+
+.article-in-publications__cat-link:hover {
+    text-decoration: underline;
+    color: var(--color-text);
+}
+

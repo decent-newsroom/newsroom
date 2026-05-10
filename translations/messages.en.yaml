@@ -355,6 +355,7 @@ article:
     announceNote: 'Announce your article'
     announceNoteHint: 'Write a short note to let people know about your new article. The link is included automatically.'
     publishNote: 'Sign & Publish Note'
+    inPublications: 'Included in'
 
 common:
     dismiss: 'Dismiss'

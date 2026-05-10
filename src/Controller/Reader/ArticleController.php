@@ -5,11 +5,10 @@ namespace App\Controller\Reader;
 use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Service\ArticleEventProjector;
+use App\Service\ArticlePublicationIndexer;
 use App\Service\Cache\RedisCacheService;
 use App\Service\GenericEventProjector;
 use App\Service\HighlightService;
-use App\Service\Nostr\NostrClient;
-use App\Service\Nostr\NostrEventParser;
 use App\Message\PrefetchNostrEmbedsMessage;
 use App\Service\EmbedReferenceExtractor;
 use App\Service\ReadingListNavigationService;
@@ -313,6 +312,7 @@ class ArticleController  extends AbstractController
         ArticleEventProjector $articleEventProjector,
         EmbedReferenceExtractor $embedExtractor,
         MessageBusInterface $bus,
+        ArticlePublicationIndexer $publicationIndexer,
         $npub = null,
         $vanity = null
     ): Response
@@ -462,6 +462,17 @@ class ArticleController  extends AbstractController
             $listNav = $readingListNavigation->findNavigation($navCoordinate);
         } catch (\Exception $e) {}
 
+        // Find which publications (magazines / reading-list categories) include this article
+        $publications = [];
+        try {
+            $publications = $publicationIndexer->findPublicationsForArticle(
+                $article->getPubkey(),
+                $article->getSlug(),
+            );
+        } catch (\Throwable $e) {
+            $logger->debug('Could not look up publications for article', ['error' => $e->getMessage()]);
+        }
+
         try {
             return $this->render('pages/article.html.twig', [
                 'article' => $article,
@@ -473,6 +484,7 @@ class ArticleController  extends AbstractController
                 'highlights' => $highlights,
                 'advancedMetadata' => $advancedMetadata,
                 'listNav' => $listNav,
+                'publications' => $publications,
             ]);
         } catch (\Throwable $e) {
             $logger->critical('ARTICLE RENDER CRASHED', [

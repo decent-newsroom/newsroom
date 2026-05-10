@@ -11,6 +11,7 @@ use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Graph\RecordIdentityService;
+use App\Service\ArticlePublicationIndexer;
 use App\Service\Nostr\Projector\RelayDiscoveryEventProjector;
 use App\Service\Update\UpdateMatcher;
 use Doctrine\ORM\EntityManagerInterface;
@@ -41,6 +42,7 @@ class GenericEventProjector
         private readonly EventDeletionService $eventDeletionService,
         private readonly MessageBusInterface $messageBus,
         private readonly RelayDiscoveryEventProjector $relayDiscoveryProjector,
+        private readonly ArticlePublicationIndexer $publicationIndexer,
     ) {
     }
 
@@ -238,6 +240,18 @@ class GenericEventProjector
                 $this->relayDiscoveryProjector->onProjected($entity);
             } catch (\Throwable $e) {
                 $this->logger->warning('NIP-66: relay discovery projection failed', [
+                    'event_id' => $entity->getId(),
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Maintain article-in-publication reverse index for kind 30040 events.
+        if ((int) $event->kind === KindsEnum::PUBLICATION_INDEX->value) {
+            try {
+                $this->publicationIndexer->indexPublicationEvent($entity);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed to update article-in-publication index', [
                     'event_id' => $entity->getId(),
                     'error'    => $e->getMessage(),
                 ]);

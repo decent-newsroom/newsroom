@@ -418,7 +418,26 @@
 {% endblock %}
 
 {% block aside %}
-
-{#    <h1>Suggestions</h1>#}
-{#    <twig:Organisms:CardList :list="suggestions" />#}
+    {% if publications is defined and publications|length > 0 %}
+        <div class="article-in-publications">
+            <h3 class="article-in-publications__heading">{{ 'article.inPublications'|trans }}</h3>
+            <ul class="article-in-publications__list">
+                {% for pub in publications %}
+                    <li class="article-in-publications__item">
+                        <a class="article-in-publications__mag-link"
+                           href="{{ path('magazine-index', {mag: pub.magazine_slug}) }}">
+                            {{ pub.magazine_title ?? pub.magazine_slug }}
+                        </a>
+                        {% if pub.category_slug %}
+                            <span class="article-in-publications__sep">›</span>
+                            <a class="article-in-publications__cat-link"
+                               href="{{ path('magazine-category', {mag: pub.magazine_slug, slug: pub.category_slug}) }}">
+                                {{ pub.category_title ?? pub.category_slug }}
+                            </a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
 {% endblock %}

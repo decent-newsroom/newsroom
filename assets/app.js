@@ -44,6 +44,7 @@ import './styles/03-components/suggest-note.css';
 import './styles/03-components/article-nav.css';
 import './styles/03-components/related-articles.css';
 import './styles/03-components/article-actions-dropdown.css';
+import './styles/03-components/article-in-publications.css';
 import './styles/03-components/magazine-preview.css';
 import './styles/03-components/featured-unfold.css';
 import './styles/03-components/follow-pack.css';
