@@ -132,6 +132,26 @@ class PurgeArticleRevisionsCommand extends Command
                     continue;
                 }
 
+                // Authoritative NIP-01 ordering applied in PHP so we don't depend
+                // on database-specific NULLS FIRST/LAST defaults: newer createdAt
+                // wins; on equal createdAt the lexicographically lower event id
+                // wins; rows with NULL createdAt are treated as oldest (and
+                // therefore always lose to any row with a real timestamp).
+                usort($revisions, static function (Article $a, Article $b): int {
+                    $aT = $a->getCreatedAt()?->getTimestamp();
+                    $bT = $b->getCreatedAt()?->getTimestamp();
+                    if ($aT !== $bT) {
+                        if ($aT === null) {
+                            return 1; // a is older
+                        }
+                        if ($bT === null) {
+                            return -1; // b is older
+                        }
+                        return $bT <=> $aT; // newer first
+                    }
+                    return strcmp($a->getEventId() ?? '', $b->getEventId() ?? '');
+                });
+
                 // findAllRevisionsByCoordinate already orders by NIP-01 winner
                 // first (createdAt DESC, eventId ASC). Keep [0], remove the rest.
                 $kept = $revisions[0];
