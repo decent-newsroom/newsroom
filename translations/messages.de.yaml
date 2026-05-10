@@ -662,6 +662,8 @@ settings:
         themeLight: 'Hell'
         themeSpace: 'Space'
         language: 'Sprache'
+    profile:
+        addNip05: '+ NIP-05 hinzufügen'
 
 # ── Follow Packs Seite ────────────────────────────────────────────
 followPacks:

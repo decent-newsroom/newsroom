@@ -186,6 +186,30 @@
     margin-top: var(--spacing-2);
 }
 
+.settings-multi-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.settings-multi-field__row {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.settings-multi-field__row input {
+    flex: 1;
+}
+
+.settings-multi-field__remove {
+    flex-shrink: 0;
+    min-width: 40px;
+}
+
+.settings-multi-field__add {
+    width: fit-content;
+}
+
 /* ===== Status Messages ===== */
 .settings-status {
     font-size: 0.9rem;

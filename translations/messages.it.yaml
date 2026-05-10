@@ -731,6 +731,7 @@ settings:
         bannerUrl: 'URL immagine banner'
         lightningAddress: 'Indirizzo Lightning'
         website: 'Sito web'
+        addNip05: '+ Aggiungi NIP-05'
         signAndPublish: 'Firma e pubblica profilo'
         rawJson: 'Evento profilo grezzo (kind 0)'
     relays:

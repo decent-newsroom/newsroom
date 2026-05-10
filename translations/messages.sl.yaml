@@ -648,6 +648,8 @@ settings:
         themeLight: 'Svetla'
         themeSpace: 'Vesolje'
         language: 'Jezik'
+    profile:
+        addNip05: '+ Dodaj NIP-05'
 
 # ── Stran Follow Packs ────────────────────────────────────────────
 followPacks:

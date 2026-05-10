@@ -768,6 +768,7 @@ settings:
         bannerUrl: 'Banner Image URL'
         lightningAddress: 'Lightning Address'
         website: 'Website'
+        addNip05: '+ Add NIP-05'
         signAndPublish: 'Sign & Publish Profile'
         rawJson: 'Raw Profile Event (kind 0)'
     relays:

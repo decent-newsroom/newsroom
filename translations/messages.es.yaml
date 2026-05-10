@@ -648,6 +648,8 @@ settings:
         themeLight: 'Claro'
         themeSpace: 'Espacio'
         language: 'Idioma'
+    profile:
+        addNip05: '+ Agregar NIP-05'
 
 # ── Página de Follow Packs ────────────────────────────────────────
 followPacks:

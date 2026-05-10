@@ -12,7 +12,7 @@ import { getSigner } from './signer_manager.js';
 export default class extends Controller {
   static targets = [
     'displayName', 'name', 'about', 'picture', 'banner',
-    'nip05', 'lud16', 'website', 'publishButton'
+    'nip05List', 'nip05Input', 'lud16', 'website', 'publishButton'
   ];
 
   static values = {
@@ -53,10 +53,10 @@ export default class extends Controller {
         about: this.hasAboutTarget ? this.aboutTarget.value.trim() : '',
         picture: this.hasPictureTarget ? this.pictureTarget.value.trim() : '',
         banner: this.hasBannerTarget ? this.bannerTarget.value.trim() : '',
-        nip05: this.hasNip05Target ? this.nip05Target.value.trim() : '',
         lud16: this.hasLud16Target ? this.lud16Target.value.trim() : '',
         website: this.hasWebsiteTarget ? this.websiteTarget.value.trim() : '',
       };
+      const nip05Values = this.collectNip05Values();
 
       // Start from existing content (preserves unknown fields like bot, pronouns, etc.)
       const existingContent = this.hasExistingContentValue ? { ...this.existingContentValue } : {};
@@ -71,8 +71,14 @@ export default class extends Controller {
         }
       }
 
+      if (nip05Values.length > 0) {
+        contentObj.nip05 = nip05Values;
+      } else {
+        delete contentObj.nip05;
+      }
+
       // Build tags — preserve existing unknown tags, override form-managed ones
-      const formFieldKeys = new Set(Object.keys(formFields));
+      const formFieldKeys = new Set([...Object.keys(formFields), 'nip05']);
 
       // Start with existing tags, keeping only those NOT managed by the form
       const tags = (this.hasExistingTagsValue ? this.existingTagsValue : [])
@@ -83,6 +89,10 @@ export default class extends Controller {
         if (value) {
           tags.push([key, value]);
         }
+      }
+
+      for (const nip05Value of nip05Values) {
+        tags.push(['nip05', nip05Value]);
       }
 
 
@@ -116,6 +126,68 @@ export default class extends Controller {
         this.publishButtonTarget.disabled = false;
       }
     }
+  }
+
+  addNip05Field(event) {
+    event.preventDefault();
+    if (!this.hasNip05ListTarget) {
+      return;
+    }
+
+    const row = this.createNip05Row('');
+    this.nip05ListTarget.appendChild(row);
+    const input = row.querySelector('[data-nostr--nostr-settings-profile-target="nip05Input"]');
+    input?.focus();
+  }
+
+  removeNip05Field(event) {
+    event.preventDefault();
+    const row = event.currentTarget.closest('.settings-multi-field__row');
+    if (!row || !this.hasNip05ListTarget) {
+      return;
+    }
+
+    row.remove();
+
+    // Keep one empty row so users can always enter a value.
+    if (this.nip05InputTargets.length === 0) {
+      this.nip05ListTarget.appendChild(this.createNip05Row(''));
+    }
+  }
+
+  collectNip05Values() {
+    const values = [];
+
+    for (const input of this.nip05InputTargets) {
+      const value = input.value.trim();
+      if (value && !values.includes(value)) {
+        values.push(value);
+      }
+    }
+
+    return values;
+  }
+
+  createNip05Row(value) {
+    const row = document.createElement('div');
+    row.className = 'settings-multi-field__row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = value;
+    input.placeholder = 'you@example.com';
+    input.setAttribute('data-nostr--nostr-settings-profile-target', 'nip05Input');
+
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.className = 'btn btn--secondary settings-multi-field__remove';
+    removeButton.setAttribute('data-action', 'click->nostr--nostr-settings-profile#removeNip05Field');
+    removeButton.textContent = '-';
+
+    row.appendChild(input);
+    row.appendChild(removeButton);
+
+    return row;
   }
 
   async sendToBackend(signedEvent) {

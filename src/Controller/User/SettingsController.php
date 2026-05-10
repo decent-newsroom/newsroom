@@ -365,14 +365,25 @@ class SettingsController extends AbstractController
     {
         // Extract from tags first (primary), then content JSON (fallback)
         $fields = [];
+        $nip05Values = [];
         foreach ($signedEvent['tags'] ?? [] as $tag) {
             if (is_array($tag) && count($tag) >= 2) {
+                if ('nip05' === $tag[0] && is_string($tag[1]) && '' !== trim($tag[1])) {
+                    $nip05Values[] = trim($tag[1]);
+                    continue;
+                }
+
                 $fields[$tag[0]] = $tag[1];
             }
         }
 
         $content = json_decode($signedEvent['content'] ?? '{}', true);
         if (is_array($content)) {
+            $nip05Values = array_values(array_unique([
+                ...$nip05Values,
+                ...$this->normalizeNip05Values($content['nip05'] ?? null),
+            ]));
+
             // Tags take priority — only fill in fields not already set from tags
             $fields = array_merge($content, $fields);
         }
@@ -392,8 +403,10 @@ class SettingsController extends AbstractController
         if (isset($fields['banner'])) {
             $user->setBanner($fields['banner']);
         }
-        if (isset($fields['nip05'])) {
-            $user->setNip05($fields['nip05']);
+        if (!empty($nip05Values)) {
+            $user->setNip05(implode(', ', $nip05Values));
+        } elseif (isset($fields['nip05'])) {
+            $user->setNip05(is_string($fields['nip05']) ? $fields['nip05'] : null);
         }
         if (isset($fields['lud16'])) {
             $user->setLud16($fields['lud16']);
@@ -566,9 +579,61 @@ class SettingsController extends AbstractController
             'picture'      => $user->getPicture() ?? '',
             'banner'       => $user->getBanner() ?? '',
             'nip05'        => $user->getNip05() ?? '',
+            'nip05_values' => $this->parseCommaSeparatedValues($user->getNip05()),
             'lud16'        => $user->getLud16() ?? '',
             'website'      => $user->getWebsite() ?? '',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parseCommaSeparatedValues(?string $value): array
+    {
+        if (null === $value || '' === trim($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach (explode(',', $value) as $candidate) {
+            $candidate = trim($candidate);
+            if ('' === $candidate || in_array($candidate, $normalized, true)) {
+                continue;
+            }
+
+            $normalized[] = $candidate;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeNip05Values(mixed $value): array
+    {
+        if (is_string($value)) {
+            return $this->parseCommaSeparatedValues($value);
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($value as $candidate) {
+            if (!is_string($candidate)) {
+                continue;
+            }
+
+            foreach ($this->parseCommaSeparatedValues($candidate) as $identifier) {
+                if (!in_array($identifier, $normalized, true)) {
+                    $normalized[] = $identifier;
+                }
+            }
+        }
+
+        return $normalized;
     }
 
     /**

@@ -80,11 +80,29 @@
         </div>
 
         <div class="settings-form__group">
-            <label for="profile-nip05">NIP-05</label>
-            <input type="text" id="profile-nip05"
-                   data-nostr--nostr-settings-profile-target="nip05"
-                   value="{{ profile.nip05 }}"
-                   placeholder="you@example.com">
+            <label>NIP-05</label>
+            <div class="settings-multi-field" data-nostr--nostr-settings-profile-target="nip05List">
+                {% set nip05Values = profile.nip05_values|default([]) %}
+                {% if nip05Values is empty %}
+                    {% set nip05Values = [''] %}
+                {% endif %}
+
+                {% for nip05Value in nip05Values %}
+                    <div class="settings-multi-field__row">
+                        <input type="text"
+                               data-nostr--nostr-settings-profile-target="nip05Input"
+                               value="{{ nip05Value }}"
+                               placeholder="you@example.com">
+                        <button type="button"
+                                class="btn btn--secondary settings-multi-field__remove"
+                                data-action="click->nostr--nostr-settings-profile#removeNip05Field">-</button>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button type="button"
+                    class="btn btn--secondary settings-multi-field__add"
+                    data-action="click->nostr--nostr-settings-profile#addNip05Field">{{ 'settings.profile.addNip05'|trans }}</button>
         </div>
 
         <div class="settings-form__group">
