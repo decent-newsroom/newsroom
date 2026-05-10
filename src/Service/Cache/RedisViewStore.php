@@ -165,15 +165,19 @@ class RedisViewStore
      * Determine whether the primary payload for a given tab is empty.
      * Used to apply a short TTL so transient empty results don't poison the
      * 24h profile cache.
+     *
+     * For the overview tab, we check recentArticles OR the rest being empty —
+     * this prevents a cache entry with media/highlights but no articles from
+     * getting a 24h TTL and hiding articles from the overview for a day.
      */
     private function isEmptyTabPayload(string $tab, array $data): bool
     {
         return match ($tab) {
             'articles' => empty($data['articles']),
             'overview' => empty($data['recentArticles'])
-                && empty($data['recentMedia'])
-                && empty($data['recentHighlights'])
-                && empty($data['authorMagazines']),
+                || (empty($data['recentMedia'])
+                    && empty($data['recentHighlights'])
+                    && empty($data['authorMagazines'])),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),

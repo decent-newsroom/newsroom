@@ -1705,15 +1705,21 @@ class AuthorController extends AbstractController
      * An empty payload is treated as a cache miss so a poisoned entry cannot
      * hide articles that are visible elsewhere (Discover, direct links) for
      * up to 24 hours.
+     *
+     * For the overview tab, we treat it as empty if recentArticles is empty
+     * (even if other content like media/highlights exists), because a profile
+     * with articles showing elsewhere should always show them in the overview.
+     * Using OR for recentArticles prevents stale caches with empty articles
+     * but non-empty media from poisoning the overview for up to 24h.
      */
     private function isEmptyCachedTabPayload(string $tab, array $data): bool
     {
         return match ($tab) {
             'articles' => empty($data['articles']),
             'overview' => empty($data['recentArticles'])
-                && empty($data['recentMedia'])
-                && empty($data['recentHighlights'])
-                && empty($data['authorMagazines']),
+                || (empty($data['recentMedia'])
+                    && empty($data['recentHighlights'])
+                    && empty($data['authorMagazines'])),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),
