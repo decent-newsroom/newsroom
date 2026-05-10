@@ -102,6 +102,18 @@ class QualityCheckArticlesCommand extends Command
             return false;
         }
 
+        // Skip articles where title begins with
+        // EA://NEWS
+        if (str_starts_with(trim($title), 'EA://NEWS')) {
+            return false;
+        }
+
+        // Skip articles that contain 'referral code' in the title, case insensitive
+        if (str_contains(strtolower($title), 'referral code')) {
+            return false;
+        }
+
+
         // Skip articles with stringified JSON content (malformed kind 30023 events)
         if ($content && (str_starts_with(trim($content), '{') || str_starts_with(trim($content), '['))) {
             // Try to decode JSON - if it succeeds, it's likely stringified JSON instead of proper content
