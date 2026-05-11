@@ -1,21 +1,4 @@
 <div class="w-container">
-    <div class="article-actions">
-        {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
-            <form method="post" action="{{ path('updates_subscriptions_add') }}" class="d-inline">
-                <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
-                <input type="hidden" name="identifier" value="{{ pubkey }}" />
-                <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
-                <button type="submit" class="btn btn-outline-primary">{{ 'updates.subscription.addSubmit'|trans }}</button>
-            </form>
-            <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
-        {% endif %}
-        {% if author.lud16 is defined and author.lud16 %}
-            <twig:Molecules:ZapButton
-                recipientPubkey="{{ pubkey }}"
-                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-            />
-        {% endif %}
-    </div>
     <section class="p-0">
         <h1>
             <twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub>
@@ -23,15 +6,6 @@
                 <span class="tag">bot</span>
             {% endif %}
         </h1>
-
-        <div class="flex flex-row gap-2 flex-wrap mb-2">
-            <div class="mt-1 d-inline"
-                 data-controller="utility--copy-to-clipboard"
-                 data-utility--copy-to-clipboard-text-value="{{ npub }}">
-                <button class="btn btn-sm btn-secondary"
-                        data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy npub</button>
-            </div>
-        </div>
 
         {% if author.nip05 is defined and author.nip05 is not empty %}
             {% set nip05Values = [] %}
@@ -78,4 +52,48 @@
             {% endif %}
         {% endif %}
     </section>
+    <div class="article-actions">
+        {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
+            <form method="post" action="{{ path('updates_subscriptions_add') }}" class="d-inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
+                <input type="hidden" name="identifier" value="{{ pubkey }}" />
+                <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
+                <button type="submit" class="btn btn-outline-primary">{{ 'updates.subscription.addSubmit'|trans }}</button>
+            </form>
+            <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
+        {% endif %}
+        {% if author.lud16 is defined and author.lud16 %}
+            <twig:Molecules:ZapButton
+                recipientPubkey="{{ pubkey }}"
+                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+            />
+        {% endif %}
+        {% if app.user and app.user.userIdentifier == (pubkey|hex_to_npub) %}
+            <a href="{{ path('settings') }}" class="btn btn-outline-secondary">Settings</a>
+        {% endif %}
+        <div class="position-relative d-inline-block"
+             data-controller="utility--share-dropdown">
+            <button class="btn btn-outline-secondary"
+                    type="button"
+                    data-action="click->utility--share-dropdown#toggle"
+                    aria-label="More actions">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                     viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <circle cx="12" cy="5" r="2"/>
+                    <circle cx="12" cy="12" r="2"/>
+                    <circle cx="12" cy="19" r="2"/>
+                </svg>
+            </button>
+            <div data-utility--share-dropdown-target="menu"
+                 class="dropdown-menu dropdown-menu-end"
+                 style="display:none;position:absolute;z-index:1000;min-width:180px;">
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->utility--share-dropdown#copy"
+                        data-copy="{{ npub }}">
+                    Copy npub
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
