@@ -132,11 +132,12 @@ export default class extends Controller {
         let imageHtml = '';
         if (firstImageUrl) {
             imageHtml = `
-                <div class="masonry-image-container">
-                    <img src="${this.escapeHtml(firstImageUrl)}"
+                <div class="masonry-image-container" data-controller="media--image-loader">
+                    <img data-src="${this.escapeHtml(firstImageUrl)}"
                          alt="${this.escapeHtml(imageAlt || title || (isVideo ? 'Video' : 'Picture'))}"
                          class="masonry-image"
-                         loading="lazy" />
+                         data-media--image-loader-target="image"
+                         onerror="this.closest('.masonry-item').style.display='none'" />
                     ${isVideo ? `
                         <div class="video-overlay">
                             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="white" opacity="0.9">

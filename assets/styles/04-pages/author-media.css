@@ -32,15 +32,9 @@
 
 .masonry-grid {
     /* Simple CSS column masonry */
-    column-count: 3;
+    column-count: 2;
     column-gap: 1.5rem;
     margin: 2rem 0;
-}
-
-@media (max-width: 1200px) {
-    .masonry-grid {
-        column-count: 2;
-    }
 }
 
 @media (max-width: 768px) {
@@ -227,7 +221,6 @@
 }
 
 .video-no-preview {
-    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
     min-height: 200px;
     display: flex;
     align-items: center;

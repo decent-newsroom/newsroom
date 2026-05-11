@@ -57,7 +57,7 @@
 {% block body %}
     <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" :isOwner="isOwner|default(false)" />
 
-    <section class="mb-5">
+    <section class="w-container mb-5">
         {# Display chapters if available #}
         {% if chapters is defined and chapters is not empty %}
             <div class="mb-5">
