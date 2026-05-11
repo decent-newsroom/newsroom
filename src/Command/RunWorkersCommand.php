@@ -12,16 +12,20 @@ use Symfony\Component\Process\Process;
 /**
  * Messenger consumer worker for async and async_low_priority queues.
  *
- * Runs two Symfony Messenger consumer processes:
- *   - async: high-priority content fetches (articles, comments, media, magazines)
- *   - async_low_priority: gateway persistence, login warmup, relay lists
+ * Runs three Symfony Messenger consumer processes in parallel:
+ *   - async: strictly user-facing fetches (comments, author articles/content,
+ *     event-from-relays). Short queue, fast turnaround.
+ *   - async_low_priority: all background work — fan-out notifications,
+ *     media discovery, magazine projection, embed prefetch, highlights,
+ *     gateway persistence, login warmup, relay lists. High-volume but not
+ *     user-blocking; dedicated consumer keeps it from starving `async`.
  *   - async_expressions: user-initiated expression evaluation (isolated so a
- *     backlog on `async` never delays the loading page)
+ *     backlog on `async` never delays the loading page).
  *
  * Relay subscriptions run in a separate service (worker-relay) via app:run-relay-workers.
  * Profile work runs in worker-profiles via app:run-profile-workers.
  *
- * Both consumers run in parallel and are automatically restarted on failure.
+ * All consumers restart automatically on failure.
  */
 #[AsCommand(
     name: 'app:run-workers',
@@ -36,16 +40,17 @@ class RunWorkersCommand extends Command
     {
         $this
             ->setHelp(
-                'Runs Symfony Messenger consumers for the async and async_low_priority queues.' . "\n\n" .
-                'Consumers:' . "\n" .
-                '  - async: High-priority content fetches (articles, comments, media, magazines)' . "\n" .
-                '  - async_low_priority: Gateway persistence, login warmup, relay lists' . "\n" .
-                '  - async_expressions: User-initiated expression evaluation' . "\n\n" .
-                'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
-                'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
-                'The relay gateway runs as a separate Docker service (relay-gateway).' . "\n" .
-                'Both consumers restart automatically on failure.'
-            );
+                    'Runs Symfony Messenger consumers for the async and async_low_priority queues.' . "\n\n" .
+                    'Consumers:' . "\n" .
+                    '  - async: User-facing fetches (comments, author articles/content, event-from-relays)' . "\n" .
+                    '  - async_low_priority: Background work (fan-out notifications, media, magazines, embeds,' . "\n" .
+                    '                        highlights, gateway persistence, login warmup, relay lists)' . "\n" .
+                    '  - async_expressions: User-initiated expression evaluation' . "\n\n" .
+                    'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
+                    'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
+                    'The relay gateway runs as a separate Docker service (relay-gateway).' . "\n" .
+                    'All consumers restart automatically on failure.'
+                );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -63,19 +68,19 @@ class RunWorkersCommand extends Command
 
         $workers = [
             'messenger' => [
-                'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async',
-                    '-vv', '--memory-limit=256M', '--time-limit=3600',
+                    'command' => [
+                        'php', 'bin/console', 'messenger:consume', 'async',
+                        '-vv', '--memory-limit=256M', '--time-limit=3600',
+                    ],
+                    'description' => 'Messenger consumer (async: comments, author articles/content, event-from-relays)',
                 ],
-                'description' => 'Messenger consumer (async: articles, comments, media, magazines)',
-            ],
-            'messenger-low' => [
-                'command' => [
-                    'php', 'bin/console', 'messenger:consume', 'async_low_priority',
-                    '-vv', '--memory-limit=128M', '--time-limit=3600',
+                'messenger-low' => [
+                    'command' => [
+                        'php', 'bin/console', 'messenger:consume', 'async_low_priority',
+                        '-vv', '--memory-limit=192M', '--time-limit=3600',
+                    ],
+                    'description' => 'Messenger consumer (async_low_priority: fan-out, media, magazines, embeds, highlights, warmup)',
                 ],
-                'description' => 'Messenger consumer (async_low_priority: gateway persistence, login warmup)',
-            ],
             'messenger-expressions' => [
                 'command' => [
                     'php', 'bin/console', 'messenger:consume', 'async_expressions',

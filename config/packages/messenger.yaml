@@ -27,14 +27,16 @@ framework:
                     delete_after_reject: true
             
             
-            # Low-priority transport for login warmup, gateway persistence, relay lists
+            # Low-priority transport for background tasks (fan-out notifications, media,
+            # magazine projection, embed prefetch, highlights, gateway persistence,
+            # login warmup, relay lists). High-volume but not user-blocking.
             async_low_priority:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     stream: '%kernel.environment%:messenger:async_low'
                     group: '%kernel.environment%-low'
                     consumer: 'consumer-%kernel.environment%-low-%env(default::HOSTNAME)%'
-                    stream_max_entries: 5000
+                    stream_max_entries: 20000
                     redeliver_timeout: 600
                     delete_after_ack: true
                     delete_after_reject: true
@@ -90,18 +92,33 @@ framework:
         routing:
             # Route your messages to the transports
             # --- High priority: fast, user-facing content fetches ---
+            # These messages are triggered directly by user actions and the user may be
+            # waiting on Mercure for the result. Keep them on `async` so they are not
+            # starved by high-volume background work.
             'App\Message\FetchCommentsMessage': async
             'App\Message\FetchAuthorArticlesMessage': async
             'App\Message\FetchAuthorContentMessage': async
-            'App\Message\FetchMediaEventsMessage': async
-            'App\Message\FetchMissingCurationMediaMessage': async
             'App\Message\FetchEventFromRelaysMessage': async
             'App\Message\EvaluateExpressionMessage': async_expressions
             'App\Message\EvaluateSpellMessage': async_expressions
-            'App\Message\ProjectMagazineMessage': async
-            # Updates fan-out: ingested event → per-user delivery + Mercure push
-            'App\Message\FanOutUpdateMessage': async
-            # --- Low priority: login warmup, gateway persistence, relay lists ---
+            # --- Low priority: background tasks + login warmup + relay lists ---
+            # Fan-out: ingested event → per-user Update row + Mercure push notification.
+            # High volume (one message per subscriber per ingested event); the dedicated
+            # `async_low_priority` consumer is typically idle so real-time delivery is
+            # preserved while keeping the `async` queue clear for user-facing fetches.
+            'App\Message\FanOutUpdateMessage': async_low_priority
+            # Media discovery cron (app:cache-media-discovery, runs every 6 h) — no user waiting.
+            'App\Message\FetchMediaEventsMessage': async_low_priority
+            # Background cover-image fill triggered from author pages — not user-blocking.
+            'App\Message\FetchMissingCurationMediaMessage': async_low_priority
+            # Background magazine projection — not user-blocking.
+            'App\Message\ProjectMagazineMessage': async_low_priority
+            # Article embed pre-fetch on article view — background, user is not waiting.
+            'App\Message\PrefetchNostrEmbedsMessage': async_low_priority
+            # Highlights fetch from HighlightsController — saves to DB, no Mercure result.
+            'App\Message\FetchHighlightsMessage': async_low_priority
+            # Gateway event persistence — dispatched by relay gateway, background.
+            'App\Message\PersistGatewayEventsMessage': async_low_priority
             # Relay list warming on login - fetch from network and persist to DB
             'App\Message\UpdateRelayListMessage': async_low_priority
             # Gateway connection warming - open persistent WebSocket connections for user
