@@ -704,8 +704,13 @@ class SettingsController extends AbstractController
         }
 
         $existingFollowPacks = [];
+        $seenDTags = [];
         foreach ($followPacks as $pack) {
             $dTag = $pack->getSlug() ?? '';
+            if (isset($seenDTags[$dTag])) {
+                continue;
+            }
+            $seenDTags[$dTag] = true;
             $title = '';
             $packImage = null;
             $packDescription = null;
@@ -851,8 +856,14 @@ class SettingsController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $packs = array_map(function (EventEntity $e) {
+        $packs = [];
+        $seenDTags = [];
+        foreach ($followPacks as $e) {
             $dTag = $e->getSlug() ?? '';
+            if (isset($seenDTags[$dTag])) {
+                continue;
+            }
+            $seenDTags[$dTag] = true;
             $title = '';
             $pTags = [];
             foreach ($e->getTags() as $tag) {
@@ -863,14 +874,14 @@ class SettingsController extends AbstractController
                     $pTags[] = $tag[1];
                 }
             }
-            return [
+            $packs[] = [
                 'coordinate' => KindsEnum::FOLLOW_PACK->value . ':' . $e->getPubkey() . ':' . $dTag,
                 'dTag' => $dTag,
                 'title' => $title,
                 'memberCount' => count($pTags),
                 'createdAt' => $e->getCreatedAt(),
             ];
-        }, $followPacks);
+        }
 
         return new JsonResponse([
             'selectedCoordinate' => $coordinate,
