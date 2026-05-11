@@ -64,6 +64,11 @@ class VisitorAnalyticsController extends AbstractController
         // Zap invoice statistics
         $zapInvoiceStats = $visitRepository->getZapInvoiceStats();
 
+        // Bot traffic statistics
+        $botVsHumanStats = $visitRepository->getBotVsHumanStats();
+        $topBotUserAgents = $visitRepository->getTopBotUserAgents(20, new \DateTimeImmutable('-7 days'));
+        $botVisitsPerDayLast30Days = $visitRepository->getBotVisitsPerDay(30);
+
         // Subdomain analytics
         $subdomainVisitsLast24Hours = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-24 hours'));
         $subdomainVisitsLast7Days = $visitRepository->countSubdomainVisitsSince(new \DateTimeImmutable('-7 days'));
@@ -97,6 +102,9 @@ class VisitorAnalyticsController extends AbstractController
             'topArticlesLast24Hours' => $topArticlesLast24Hours,
             'articlePublishStats' => $articlePublishStats,
             'zapInvoiceStats' => $zapInvoiceStats,
+            'botVsHumanStats' => $botVsHumanStats,
+            'topBotUserAgents' => $topBotUserAgents,
+            'botVisitsPerDayLast30Days' => $botVisitsPerDayLast30Days,
             'subdomainVisitsLast24Hours' => $subdomainVisitsLast24Hours,
             'subdomainVisitsLast7Days' => $subdomainVisitsLast7Days,
             'totalSubdomainVisits' => $totalSubdomainVisits,

@@ -200,6 +200,7 @@ class VisitRepository extends ServiceEntityRepository
         $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
                 FROM visit
                 WHERE visited_at >= :from
+                AND is_bot = false
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
                 {$assetClauses}
@@ -232,7 +233,7 @@ class VisitRepository extends ServiceEntityRepository
     public function getRecentVisits(int $limit = 10): array
     {
         $qb = $this->createQueryBuilder('v')
-            ->select('v.route, v.sessionId, v.referer, v.visitedAt')
+            ->select('v.route, v.sessionId, v.referer, v.userAgent, v.visitedAt')
             ->orderBy('v.visitedAt', 'DESC')
             ->setMaxResults($limit);
 
@@ -381,6 +382,7 @@ class VisitRepository extends ServiceEntityRepository
                     SELECT COUNT(id) AS cnt
                     FROM visit
                     WHERE session_id IS NOT NULL
+                    AND is_bot = false
                     AND route <> :apiRoot
                     AND route NOT LIKE :apiPrefix
                     {$assetClauses}
@@ -730,6 +732,7 @@ class VisitRepository extends ServiceEntityRepository
                 FROM visit
                 WHERE visited_at >= :from
                 AND subdomain IS NOT NULL
+                AND is_bot = false
                 AND route <> :apiRoot
                 AND route NOT LIKE :apiPrefix
                 {$assetClauses}
@@ -782,9 +785,12 @@ class VisitRepository extends ServiceEntityRepository
     {
         $this->addCondition($qb, sprintf('%s.route <> :trackedVisitApiRoot', $alias));
         $this->addCondition($qb, sprintf('%s.route NOT LIKE :trackedVisitApiPrefix', $alias));
+        // Exclude bot traffic from all analytics by default
+        $this->addCondition($qb, sprintf('%s.isBot = :notBot', $alias));
 
         $qb->setParameter('trackedVisitApiRoot', self::TRACKED_VISIT_API_ROOT);
         $qb->setParameter('trackedVisitApiPrefix', self::TRACKED_VISIT_API_PREFIX);
+        $qb->setParameter('notBot', false);
 
         // Exclude asset routes
         foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
@@ -799,6 +805,105 @@ class VisitRepository extends ServiceEntityRepository
             $this->addCondition($qb, sprintf('%s.route NOT LIKE :%s', $alias, $param));
             $qb->setParameter($param, $prefix);
         }
+    }
+
+    // ── Bot traffic analytics ─────────────────────────────────────────────
+
+    /**
+     * Returns the total number of bot-flagged visits since the given datetime (or all time).
+     */
+    public function countBotVisitsSince(?\DateTimeImmutable $since = null): int
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('COUNT(v.id)')
+            ->where('v.isBot = :isBot')
+            ->setParameter('isBot', true);
+
+        if ($since) {
+            $qb->andWhere('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * Returns the top User-Agent strings from bot visits (last N days).
+     */
+    public function getTopBotUserAgents(int $limit = 20, ?\DateTimeImmutable $since = null): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.userAgent, COUNT(v.id) as count')
+            ->where('v.isBot = :isBot')
+            ->andWhere('v.userAgent IS NOT NULL')
+            ->setParameter('isBot', true)
+            ->groupBy('v.userAgent')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        if ($since) {
+            $qb->andWhere('v.visitedAt >= :since')
+               ->setParameter('since', $since, Types::DATETIME_IMMUTABLE);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns bot visits per day for the last N days.
+     */
+    public function getBotVisitsPerDay(int $days = 30): array
+    {
+        $from = (new \DateTimeImmutable())->modify("-{$days} days");
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = "SELECT DATE(visited_at) as day, COUNT(id) as count
+                FROM visit
+                WHERE is_bot = true
+                AND visited_at >= :from
+                GROUP BY day
+                ORDER BY day ASC";
+
+        return $conn->executeQuery($sql, ['from' => $from->format('Y-m-d H:i:s')])->fetchAllAssociative();
+    }
+
+    /**
+     * Returns bot-vs-human visit counts for the last 24 h, 7 d and 30 d.
+     */
+    public function getBotVsHumanStats(): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $periods = [
+            'last_24_hours' => '-24 hours',
+            'last_7_days'   => '-7 days',
+            'last_30_days'  => '-30 days',
+        ];
+
+        $result = [];
+        foreach ($periods as $key => $modifier) {
+            $from = (new \DateTimeImmutable($modifier))->format('Y-m-d H:i:s');
+            $row  = $conn->executeQuery(
+                "SELECT
+                    COUNT(*) FILTER (WHERE is_bot = true)  AS bot,
+                    COUNT(*) FILTER (WHERE is_bot = false) AS human
+                 FROM visit WHERE visited_at >= :from",
+                ['from' => $from]
+            )->fetchAssociative();
+
+            $bot   = (int) ($row['bot']   ?? 0);
+            $human = (int) ($row['human'] ?? 0);
+            $total = $bot + $human;
+
+            $result[$key] = [
+                'bot'        => $bot,
+                'human'      => $human,
+                'total'      => $total,
+                'bot_pct'    => $total > 0 ? round($bot / $total * 100, 1) : 0.0,
+            ];
+        }
+
+        return $result;
     }
 
     private function applyRefererPresenceFilter(QueryBuilder $qb, string $alias = 'v'): void

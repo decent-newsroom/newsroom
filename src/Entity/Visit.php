@@ -29,12 +29,26 @@ class Visit
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $subdomain = null;
 
-    public function __construct(string $route, ?string $sessionId = null, ?string $referer = null, ?string $subdomain = null)
-    {
+    #[ORM\Column(length: 512, nullable: true)]
+    private ?string $userAgent = null;
+
+    #[ORM\Column(options: ['default' => false])]
+    private bool $isBot = false;
+
+    public function __construct(
+        string $route,
+        ?string $sessionId = null,
+        ?string $referer = null,
+        ?string $subdomain = null,
+        ?string $userAgent = null,
+        bool $isBot = false,
+    ) {
         $this->route = $route;
         $this->sessionId = $sessionId;
         $this->referer = $referer;
         $this->subdomain = $subdomain;
+        $this->userAgent = $userAgent;
+        $this->isBot = $isBot;
         $this->visitedAt = new \DateTimeImmutable();
     }
 
@@ -89,6 +103,28 @@ class Visit
     public function setSubdomain(?string $subdomain): self
     {
         $this->subdomain = $subdomain;
+        return $this;
+    }
+
+    public function getUserAgent(): ?string
+    {
+        return $this->userAgent;
+    }
+
+    public function setUserAgent(?string $userAgent): self
+    {
+        $this->userAgent = $userAgent;
+        return $this;
+    }
+
+    public function isBot(): bool
+    {
+        return $this->isBot;
+    }
+
+    public function setIsBot(bool $isBot): self
+    {
+        $this->isBot = $isBot;
         return $this;
     }
 }

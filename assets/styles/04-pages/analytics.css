@@ -6,10 +6,25 @@
 
 .analytics-card {
     background: lightgray;
-    border-radius: 8px;
     padding: var(--spacing-4);
     margin-bottom: var(--spacing-4);
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.analytics-card--wide {
+    flex: 2;
+}
+
+.analytics-summary-row {
+    display: flex;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.analytics-summary-row .analytics-card {
+    flex: 1;
+    min-width: 220px;
 }
 
 .analytics-table {
@@ -35,3 +50,30 @@
     font-size: 0.9rem;
     color: var(--color-text-mid);
 }
+
+.analytics-note {
+    font-size: 0.85rem;
+    color: var(--color-text-mid);
+}
+
+.analytics-stats {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-2);
+}
+
+.analytics-stats li {
+    padding: var(--spacing-1) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-stats li:last-child {
+    border-bottom: none;
+}
+
+/* Highlight alarming bot share percentages */
+.analytics-alert {
+    color: var(--color-error, #c0392b);
+    font-weight: 700;
+}
+

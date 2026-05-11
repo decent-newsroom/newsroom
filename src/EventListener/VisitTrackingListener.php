@@ -6,6 +6,7 @@ namespace App\EventListener;
 
 use App\Entity\Visit;
 use App\Repository\VisitRepository;
+use App\Service\Analytics\BotDetector;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -57,6 +58,7 @@ class VisitTrackingListener
 
     public function __construct(
         private readonly VisitRepository $visitRepository,
+        private readonly BotDetector $botDetector,
         private readonly ?LoggerInterface $logger = null,
     ) {
     }
@@ -100,7 +102,23 @@ class VisitTrackingListener
                 }
             }
 
-            $visit = new Visit($route, $visitorId, $request->headers->get('referer'), $request->attributes->get('_unfold_subdomain'));
+            $rawUserAgent = $request->headers->get('user-agent');
+            $userAgent    = $this->botDetector->sanitize($rawUserAgent);
+            $isBot        = $this->botDetector->isBot($rawUserAgent);
+
+            // Bots do not receive a tracking cookie — no point setting one.
+            if ($isBot) {
+                $this->newVisitorId = null;
+            }
+
+            $visit = new Visit(
+                $route,
+                $visitorId,
+                $request->headers->get('referer'),
+                $request->attributes->get('_unfold_subdomain'),
+                $userAgent,
+                $isBot,
+            );
             $this->visitRepository->save($visit);
         } catch (\Throwable $e) {
             $this->logger?->warning('VisitTrackingListener: failed to record visit', [
