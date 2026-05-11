@@ -16,27 +16,7 @@
                    data-action="click->content--home-tabs#switchTab">
                     {{ 'home_feed.tab.articles'|trans }}
                 </a>
-                <a href="{{ path('home_feed_tab', {tab: 'media'}) }}"
-                   class="tab-link"
-                   data-content--home-tabs-target="tab"
-                   data-tab="media"
-                   data-action="click->content--home-tabs#switchTab">
-                    {{ 'home_feed.tab.media'|trans }}
-                </a>
-                <a href="{{ path('home_feed_tab', {tab: 'podcasts'}) }}"
-                   class="tab-link hidden"
-                   data-content--home-tabs-target="tab"
-                   data-tab="podcasts"
-                   data-action="click->content--home-tabs#switchTab">
-                    {{ 'home_feed.tab.podcasts'|trans }}
-                </a>
-                <a href="{{ path('home_feed_tab', {tab: 'newsbots'}) }}"
-                   class="tab-link hidden"
-                   data-content--home-tabs-target="tab"
-                   data-tab="newsbots"
-                   data-action="click->content--home-tabs#switchTab">
-                    {{ 'home_feed.tab.newsbots'|trans }}
-                </a>
+
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">

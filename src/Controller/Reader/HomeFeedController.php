@@ -7,13 +7,11 @@ namespace App\Controller\Reader;
 use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\User;
-use App\Enum\FollowPackPurpose;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Service\FollowPackService;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
@@ -30,7 +28,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|podcasts|newsbots|discussed|foryou|articles|media'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -41,7 +39,6 @@ class HomeFeedController extends AbstractController
         EventRepository $eventRepository,
         NostrClient $nostrClient,
         UserProfileService $userProfileService,
-        FollowPackService $followPackService,
         UserMuteListService $userMuteListService,
         MutedPubkeysService $mutedPubkeysService,
         LoggerInterface $logger,
@@ -50,8 +47,6 @@ class HomeFeedController extends AbstractController
             'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
             'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
             'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
-            'podcasts' => $this->followPackTab(FollowPackPurpose::PODCASTS, $followPackService),
-            'newsbots' => $this->followPackTab(FollowPackPurpose::NEWS_BOTS, $followPackService),
             'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
             'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
             'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
@@ -284,18 +279,6 @@ class HomeFeedController extends AbstractController
         ]);
     }
 
-    private function followPackTab(
-        FollowPackPurpose $purpose,
-        FollowPackService $followPackService,
-    ): Response {
-        $result = $followPackService->getArticlesForPurpose($purpose);
-
-        return $this->render('home/tabs/_followpack.html.twig', [
-            'articles' => $result['articles'],
-            'authorsMetadata' => $result['authorsMetadata'],
-            'purpose' => $purpose,
-        ]);
-    }
 
     private function discussedTab(
         ArticleRepository $articleRepository,
