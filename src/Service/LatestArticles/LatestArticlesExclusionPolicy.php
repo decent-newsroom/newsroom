@@ -32,6 +32,11 @@ class LatestArticlesExclusionPolicy
         'referral code',
     ];
 
+    private const EXCLUDED_TITLE_PREFIXES = [
+        'EA://INTEL',
+        'EA://NEWS',
+    ];
+
     /**
      * @param string[] $excludedPubkeys Hex pubkeys to always exclude
      */
@@ -103,6 +108,10 @@ class LatestArticlesExclusionPolicy
             }
         }
 
+        if ($this->hasBotTitlePrefix($title)) {
+            return true;
+        }
+
         return $this->containsPromotionalSpam($title, $summary, $content);
     }
 
@@ -123,6 +132,21 @@ class LatestArticlesExclusionPolicy
             }
         }
         return null;
+    }
+
+    private function hasBotTitlePrefix(?string $title): bool
+    {
+        if (null === $title || '' === $title) {
+            return false;
+        }
+
+        foreach (self::EXCLUDED_TITLE_PREFIXES as $prefix) {
+            if (str_starts_with($title, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function containsPromotionalSpam(?string $title, ?string $summary, ?string $content): bool
