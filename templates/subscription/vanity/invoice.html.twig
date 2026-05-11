@@ -59,7 +59,7 @@
                     {# Payment Status Check #}
                     <div id="payment-status" style="margin-bottom: var(--spacing-3);"
                          data-controller="utility--payment-status"
-                         data-utility--payment-status-check-url-value="{{ path('vanity_check_payment', {id: vanityName.id}) }}"
+                         data-utility--payment-status-check-url-value="{{ path('vanity_check_payment') }}"
                          data-utility--payment-status-redirect-url-value="{{ path('vanity_settings') }}"
                          data-utility--payment-status-interval-value="30000">
                         <button type="button" class="btn btn-secondary" data-action="utility--payment-status#check" style="margin-bottom: var(--spacing-2);">

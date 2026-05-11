@@ -4,10 +4,10 @@ namespace App\Enum;
 
 enum VanityNamePaymentType: string
 {
-    case SUBSCRIPTION = 'subscription';   // @deprecated Recurring payment (no longer issued to users)
-    case ONE_TIME = 'one_time';           // @deprecated Lifetime payment (no longer issued to users)
+    case SUBSCRIPTION = 'subscription';   // Recurring 3-month payment
+    case ONE_TIME = 'one_time';           // Lifetime one-time payment
     case ADMIN_GRANTED = 'admin_granted'; // Free grant by admin
-    case FREE = 'free';                   // Free self-registration (default for all new registrations)
+    case FREE = 'free';                   // @deprecated Legacy free self-registration (no longer issued to users)
 
     public function isLifetime(): bool
     {
@@ -27,8 +27,8 @@ enum VanityNamePaymentType: string
     public function getPriceInSats(): int
     {
         return match ($this) {
-            self::SUBSCRIPTION => 5000,    // @deprecated
-            self::ONE_TIME => 100000,      // @deprecated
+            self::SUBSCRIPTION => 5000,    // 5,000 sats per quarter
+            self::ONE_TIME => 100000,      // 100,000 sats lifetime
             self::ADMIN_GRANTED => 0,
             self::FREE => 0,
         };
@@ -37,10 +37,10 @@ enum VanityNamePaymentType: string
     public function getDurationInDays(): ?int
     {
         return match ($this) {
-            self::SUBSCRIPTION => 90,      // @deprecated
+            self::SUBSCRIPTION => 90,      // 3 months per payment
             self::ONE_TIME => null,
             self::ADMIN_GRANTED => null,
-            self::FREE => null,            // Lifetime
+            self::FREE => null,
         };
     }
 }

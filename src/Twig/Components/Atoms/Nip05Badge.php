@@ -77,5 +77,14 @@ final class Nip05Badge
     {
         return !empty($this->relays);
     }
+
+    /**
+     * Returns a display-friendly version of the raw nip05 value,
+     * used when the identifier could not be verified.
+     */
+    public function getFormattedNip05(): string
+    {
+        return $this->nip05Service->formatForDisplay($this->nip05);
+    }
 }
 

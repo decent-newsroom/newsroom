@@ -426,7 +426,8 @@ class VanityNameService
         $relays = [];
 
         if ($name !== null) {
-            $vanityName = $this->repository->findActiveByVanityName($name);
+            // Include PENDING records so paid reservations resolve during the payment-confirmation window
+            $vanityName = $this->repository->findActiveOrPendingByVanityName($name);
             if ($vanityName !== null) {
                 $names[$vanityName->getVanityName()] = $vanityName->getPubkeyHex();
                 $relayList = $this->userRelayListRepository->findByPubkey($vanityName->getPubkeyHex());
@@ -436,7 +437,8 @@ class VanityNameService
                 }
             }
         } else {
-            $activeNames = $this->repository->findAllActive();
+            // Include PENDING records alongside ACTIVE in the full dump
+            $activeNames = $this->repository->findAllActiveOrPending();
 
             // Batch-load NIP-65 relay lists for all pubkeys in one query
             $pubkeys = array_map(fn($v) => $v->getPubkeyHex(), $activeNames);

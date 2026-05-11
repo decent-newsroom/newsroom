@@ -107,6 +107,31 @@ class VanityNameRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find active or pending vanity name by vanity name (for NIP-05 response).
+     * Pending names are included so paid reservations are resolvable during the
+     * payment-confirmation window before cron activates them.
+     */
+    public function findActiveOrPendingByVanityName(string $vanityName): ?VanityName
+    {
+        return $this->createQueryBuilder('v')
+            ->where('LOWER(v.vanityName) = LOWER(:name)')
+            ->andWhere('v.status IN (:statuses)')
+            ->setParameter('name', $vanityName)
+            ->setParameter('statuses', [VanityNameStatus::ACTIVE, VanityNameStatus::PENDING])
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Get all active or pending vanity names for NIP-05 full response.
+     * @return VanityName[]
+     */
+    public function findAllActiveOrPending(): array
+    {
+        return $this->findBy(['status' => [VanityNameStatus::ACTIVE, VanityNameStatus::PENDING]]);
+    }
+
+    /**
      * Find all vanity names, optionally filtered by status
      * @return VanityName[]
      */

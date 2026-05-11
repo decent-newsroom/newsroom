@@ -25,6 +25,13 @@
     cursor: help;
 }
 
+.nip05-badge.unverified {
+    background-color: var(--color-surface-raised, var(--color-bg-secondary));
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+    font-weight: 400;
+}
+
 .nip05-identifier {
     overflow-wrap: break-word;
     word-break: break-all;

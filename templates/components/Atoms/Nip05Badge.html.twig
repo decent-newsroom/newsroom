@@ -3,4 +3,9 @@
           title="Verified NIP-05 identifier{% if this.hasRelays() %} ({{ this.relays|length }} relay{{ this.relays|length > 1 ? 's' : '' }}){% endif %}">
         <span class="nip05-identifier">{{ this.displayIdentifier }}</span>
     </span>
+{% elseif this.nip05 is not empty %}
+    <span {{ attributes.defaults({ class: 'nip05-badge unverified' }) }}
+          title="NIP-05 identifier (unverified)">
+        <span class="nip05-identifier">{{ this.formattedNip05 }}</span>
+    </span>
 {% endif %}

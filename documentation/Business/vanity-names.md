@@ -67,9 +67,10 @@ According to NIP-05, the vanity name system must:
 
 | Value | Description |
 |-------|-------------|
-| subscription | Monthly/yearly recurring payment |
-| one_time | Single lifetime payment |
+| subscription | 3-month recurring payment (5,000 sats) |
+| one_time | Single lifetime payment (100,000 sats) |
 | admin_granted | Free grant by admin |
+| free | @deprecated Legacy — no longer issued to new users |
 
 ## Implementation Steps
 
@@ -198,8 +199,7 @@ config/
 ### TODO 📋
 
 1. **Profile Integration**: Show vanity URL in profile share buttons
-2. **Email/Push Notifications**: Notify users before expiration
-3. **Cron Setup**: Configure cron jobs for `vanity:check-receipts` and `vanity:process-expired`
+2. **Email/Push Notifications**: Notify users before expiration (subscription only)
 
 ## CLI Commands
 

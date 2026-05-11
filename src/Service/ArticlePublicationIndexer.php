@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\ArticleInPublication;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\ArticleInPublicationRepository;
@@ -22,11 +21,9 @@ use Psr\Log\LoggerInterface;
  *
  * Query-time resolution
  * ─────────────────────
- * A row in article_in_publication points to the kind 30040 event that DIRECTLY
- * lists the article.  That event is typically a "category" inside a top-level
- * magazine.  findPublicationsForArticle() performs a second-level look-up to
- * find the parent magazine (if any) so the sidebar can show
- * "Magazine → Category" links.
+ * Fast path:  article_in_publication index table (O(1) lookup by article coordinate).
+ * Fallback:   direct JSONB scan of the event table when the index has no entry.
+ *             The fallback is logged so operators know the index needs rebuilding.
  */
 class ArticlePublicationIndexer
 {
@@ -103,7 +100,11 @@ class ArticlePublicationIndexer
     /**
      * Return all publications that contain the given article.
      *
-     * Each entry in the returned array describes one publication context:
+     * Tries the fast AIP index first; falls back to a direct JSONB scan when
+     * the index has no entry (e.g. before the first rebuild, or for articles
+     * ingested before the feature was deployed).
+     *
+     * Each entry in the returned array:
      * [
      *   'magazine_title'    => string|null,
      *   'magazine_slug'     => string,
@@ -116,24 +117,47 @@ class ArticlePublicationIndexer
      */
     public function findPublicationsForArticle(string $articlePubkey, string $articleSlug): array
     {
-        $coordinate = "30023:{$articlePubkey}:{$articleSlug}";
-        $rows       = $this->repository->findByArticleCoordinate($coordinate);
+        // Build both possible coordinates: published (30023) and draft (30024)
+        $coordinate30023 = "30023:{$articlePubkey}:{$articleSlug}";
+        $coordinate30024 = "30024:{$articlePubkey}:{$articleSlug}";
 
-        if (empty($rows)) {
-            return [];
+        // ── Fast path: AIP index ──────────────────────────────────────────
+        $rows = array_merge(
+            $this->repository->findByArticleCoordinate($coordinate30023),
+            $this->repository->findByArticleCoordinate($coordinate30024),
+        );
+
+        if (!empty($rows)) {
+            return $this->resolveFromAipRows($rows);
         }
 
+        // ── Fallback: direct JSONB scan ───────────────────────────────────
+        $this->logger->info('ArticlePublicationIndexer: AIP miss, using direct query', [
+            'coordinate' => $coordinate30023,
+        ]);
+
+        return $this->findPublicationsDirect($articlePubkey, $articleSlug);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Internals
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Resolve AIP rows into the publication display structure.
+     *
+     * @param  \App\Entity\ArticleInPublication[] $rows
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     */
+    private function resolveFromAipRows(array $rows): array
+    {
         $results = [];
 
         foreach ($rows as $row) {
             $containerCoord = "30040:{$row->getContainerPubkey()}:{$row->getContainerDTag()}";
-
-            // Look up the parent magazine: a kind 30040 event that has an 'a' tag
-            // pointing to this container coordinate.
-            $parentData = $this->findParentMagazineData($containerCoord);
+            $parentData     = $this->findParentMagazineData($containerCoord);
 
             if ($parentData !== null) {
-                // Container is a category inside a larger magazine
                 $results[] = [
                     'magazine_title'  => $parentData['title'],
                     'magazine_slug'   => $parentData['slug'],
@@ -142,7 +166,6 @@ class ArticlePublicationIndexer
                     'category_slug'   => $row->getContainerDTag(),
                 ];
             } else {
-                // Container IS the top-level magazine (article included directly)
                 $results[] = [
                     'magazine_title'  => $row->getContainerTitle(),
                     'magazine_slug'   => $row->getContainerDTag(),
@@ -153,24 +176,97 @@ class ArticlePublicationIndexer
             }
         }
 
-        // Deduplicate by magazine_slug (an article may appear in multiple categories
-        // of the same magazine; show the magazine only once in that case).
-        $seen    = [];
-        $deduped = [];
-        foreach ($results as $item) {
-            $key = $item['magazine_slug'] . ':' . $item['magazine_pubkey'];
-            if (!isset($seen[$key])) {
-                $seen[$key] = true;
-                $deduped[]  = $item;
+        return $this->deduplicateByMagazine($results);
+    }
+
+    /**
+     * Direct JSONB query – used when the AIP index has no entry for this article.
+     * Finds every kind 30040 event whose 'a' tags reference this article's coordinate,
+     * then resolves the parent magazine for each.
+     *
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     */
+    private function findPublicationsDirect(string $articlePubkey, string $articleSlug): array
+    {
+        $conn = $this->em->getConnection();
+
+        // Look for kind 30040 events that directly include this article (either kind).
+        $sql = "
+            SELECT e.pubkey, e.tags
+            FROM   event e
+            WHERE  e.kind = :kind
+              AND  (
+                       EXISTS (
+                           SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                           WHERE  tag->>0 = 'a'
+                             AND  tag->>1 = :coord30023
+                       )
+                   OR
+                       EXISTS (
+                           SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                           WHERE  tag->>0 = 'a'
+                             AND  tag->>1 = :coord30024
+                       )
+                   )
+            ORDER BY e.created_at DESC
+        ";
+
+        $containerRows = $conn->executeQuery($sql, [
+            'kind'       => KindsEnum::PUBLICATION_INDEX->value,
+            'coord30023' => "30023:{$articlePubkey}:{$articleSlug}",
+            'coord30024' => "30024:{$articlePubkey}:{$articleSlug}",
+        ])->fetchAllAssociative();
+
+        if (empty($containerRows)) {
+            return [];
+        }
+
+        $results = [];
+
+        foreach ($containerRows as $containerRow) {
+            $tags = is_string($containerRow['tags'])
+                ? (json_decode($containerRow['tags'], true) ?? [])
+                : $containerRow['tags'];
+
+            $containerTitle  = null;
+            $containerDTag   = null;
+            foreach ($tags as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $containerTitle = (string) $tag[1];
+                }
+                if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
+                    $containerDTag = (string) $tag[1];
+                }
+            }
+
+            if ($containerDTag === null) {
+                continue;
+            }
+
+            $containerCoord = "30040:{$containerRow['pubkey']}:{$containerDTag}";
+            $parentData     = $this->findParentMagazineData($containerCoord);
+
+            if ($parentData !== null) {
+                $results[] = [
+                    'magazine_title'  => $parentData['title'],
+                    'magazine_slug'   => $parentData['slug'],
+                    'magazine_pubkey' => $parentData['pubkey'],
+                    'category_title'  => $containerTitle,
+                    'category_slug'   => $containerDTag,
+                ];
+            } else {
+                $results[] = [
+                    'magazine_title'  => $containerTitle,
+                    'magazine_slug'   => $containerDTag,
+                    'magazine_pubkey' => $containerRow['pubkey'],
+                    'category_title'  => null,
+                    'category_slug'   => null,
+                ];
             }
         }
 
-        return $deduped;
+        return $this->deduplicateByMagazine($results);
     }
-
-    // ──────────────────────────────────────────────────────────────────────
-    // Internals
-    // ──────────────────────────────────────────────────────────────────────
 
     /**
      * Find the kind 30040 event that references $categoryCoordinate in an 'a' tag.
@@ -197,7 +293,7 @@ class ArticlePublicationIndexer
 
         /** @var array{pubkey: string, tags: string|array<mixed>}|false $row */
         $row = $conn->executeQuery($sql, [
-            'kind' => KindsEnum::PUBLICATION_INDEX->value,
+            'kind'  => KindsEnum::PUBLICATION_INDEX->value,
             'coord' => $categoryCoordinate,
         ])->fetchAssociative();
 
@@ -227,6 +323,26 @@ class ArticlePublicationIndexer
             'slug'   => $slug,
             'pubkey' => $row['pubkey'],
         ];
+    }
+
+    /**
+     * Deduplicate a results list by magazine (slug + pubkey).
+     *
+     * @param  array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}> $results
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     */
+    private function deduplicateByMagazine(array $results): array
+    {
+        $seen    = [];
+        $deduped = [];
+        foreach ($results as $item) {
+            $key = $item['magazine_slug'] . ':' . $item['magazine_pubkey'];
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $deduped[]  = $item;
+            }
+        }
+        return $deduped;
     }
 }
 

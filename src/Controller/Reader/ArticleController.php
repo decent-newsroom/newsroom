@@ -472,7 +472,11 @@ class ArticleController  extends AbstractController
                 $article->getSlug(),
             );
         } catch (\Throwable $e) {
-            $logger->debug('Could not look up publications for article', ['error' => $e->getMessage()]);
+            $logger->warning('Could not look up publications for article', [
+                'error' => $e->getMessage(),
+                'pubkey' => $article->getPubkey(),
+                'slug'   => $article->getSlug(),
+            ]);
         }
 
         try {

@@ -17,85 +17,93 @@
         <div class="notice info">{{ message }}</div>
     {% endfor %}
 
-    {% if existingVanity and existingVanity.status.value == 'active' %}
-        {# User already has an active vanity name #}
-        <div class="notice success" style="max-width: 600px; margin: 0 auto var(--spacing-4);">
-            <strong>✓ You have an active vanity name!</strong><br>
-            <span style="font-size: 1.25rem; font-weight: bold;">{{ existingVanity.vanityName }}@{{ serverDomain }}</span><br>
-            {% if existingVanity.expiresAt %}
-                Expires: {{ existingVanity.expiresAt|date('F j, Y') }}
-                {% if existingVanity.daysRemaining is not null %}
-                    ({{ existingVanity.daysRemaining }} days remaining)
-                {% endif %}
-            {% else %}
-                <span class="badge bg-success">Lifetime</span>
-            {% endif %}
-        </div>
-        <div style="text-align: center;">
-            <a href="{{ path('vanity_settings') }}" class="btn">Manage Vanity Name</a>
-        </div>
-    {% else %}
-        {# Registration form #}
-        <div class="d-flex flex-column align-items-center gap-3 mb-5">
-            <strong>Reserve your vanity name and get a verified NIP-05 identity — free!</strong>
-            <p>Your vanity name will be <code>yourname@{{ serverDomain }}</code></p>
-        </div>
+    <form action="{{ path('vanity_register') }}" method="post"
+          data-controller="ui--vanity-name"
+          data-ui--vanity-name-check-url-value="{{ path('vanity_check') }}">
 
-        <div class="pricing-card" style="max-width: 480px; margin: 0 auto;">
-            <div class="pricing-details">
-                <ul class="feature-list">
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        NIP-05 verified identity
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Custom profile URL: <code>/name</code>
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Easy discovery via <code>name@{{ serverDomain }}</code>
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        Verified badge in Nostr clients
-                    </li>
-                    <li>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <strong>Free &amp; instant — no payment required</strong>
-                    </li>
-                </ul>
-
-                <form action="{{ path('vanity_register') }}" method="post"
-                      data-controller="ui--vanity-name"
-                      data-ui--vanity-name-check-url-value="{{ path('vanity_check') }}">
-                    <div class="vanity-input-group">
-                        <input type="text"
-                               name="vanity_name"
-                               class="vanity-input"
-                               placeholder="yourname"
-                               pattern="[a-zA-Z0-9\-_.]+"
-                               minlength="2"
-                               maxlength="50"
-                               required
-                               data-ui--vanity-name-target="input"
-                               data-action="input->ui--vanity-name#check">
-                        <span class="vanity-domain">@{{ serverDomain }}</span>
-                    </div>
-                    <div class="availability-status" data-ui--vanity-name-target="status"></div>
-
-                    {% if app.user %}
-                        <button type="submit" class="btn btn-subscribe"
-                                data-ui--vanity-name-target="submit"
-                                disabled>
-                            Get Vanity Name
-                        </button>
-                    {% else %}
-                        <button class="btn btn-subscribe" disabled>Login to Register</button>
-                    {% endif %}
-                </form>
+        {# Name input #}
+        <div class="mb-4" style="max-width: 540px; margin: 0 auto var(--spacing-6);">
+            <p class="text-center mb-3">Your vanity name will appear as <code>yourname@{{ serverDomain }}</code></p>
+            <div class="vanity-input-group">
+                <input type="text"
+                       name="vanity_name"
+                       class="vanity-input"
+                       placeholder="yourname"
+                       pattern="[a-zA-Z0-9\-_.]+"
+                       minlength="2"
+                       maxlength="50"
+                       required
+                       data-ui--vanity-name-target="input"
+                       data-action="input->ui--vanity-name#check">
+                <span class="vanity-domain">@{{ serverDomain }}</span>
             </div>
+            <div class="availability-status mt-1" data-ui--vanity-name-target="status"></div>
         </div>
-    {% endif %}
+
+        {# Pricing options #}
+        <div class="d-flex gap-4 justify-content-center flex-wrap mb-5">
+            {% for paymentType in paymentTypes %}
+                <label class="pricing-card" style="cursor:pointer; max-width: 320px; flex: 1;">
+                    <input type="radio"
+                           name="payment_type"
+                           value="{{ paymentType.value }}"
+                           style="position:absolute; opacity:0; pointer-events:none;"
+                           data-ui--vanity-name-target="paymentRadio"
+                           data-action="change->ui--vanity-name#selectPlan"
+                           {{ loop.first ? 'checked' : '' }}>
+                    <div class="pricing-details">
+                        <div class="pricing-amount">
+                            <span class="amount">{{ paymentType.priceInSats|number_format }}</span>
+                            <span class="unit"> sats</span>
+                        </div>
+                        <div class="pricing-label">{{ paymentType.label }}</div>
+
+                        <ul class="feature-list mt-3">
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                NIP-05 verified identity
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Custom profile URL: <code>/name</code>
+                            </li>
+                            <li>
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                Verified badge in Nostr clients
+                            </li>
+                            {% if paymentType.value == 'subscription' %}
+                                <li>
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    Valid for 3 months · renew anytime
+                                </li>
+                            {% else %}
+                                <li>
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M16.667 5L7.5 14.167 3.333 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    <strong>Lifetime — pay once, keep forever</strong>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </label>
+            {% endfor %}
+        </div>
+
+        {# Submit #}
+        <div style="text-align:center;">
+            {% if app.user %}
+                <button type="submit" class="btn btn-subscribe"
+                        data-ui--vanity-name-target="submit"
+                        disabled>
+                    Reserve &amp; Pay via Lightning
+                </button>
+            {% else %}
+                <a href="{{ path('login') }}" class="btn btn-subscribe">Sign in to Register</a>
+            {% endif %}
+            <p class="text-muted mt-2" style="font-size:0.85rem;">
+                Payments processed via Lightning (BOLT11). Name reserved instantly; activated once payment is confirmed (usually within minutes).
+            </p>
+        </div>
+
+    </form>
 </div>
 {% endblock %}
