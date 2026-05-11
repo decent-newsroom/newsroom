@@ -24,10 +24,16 @@ export default class extends Controller {
     copy(event) {
         const el = event.currentTarget;
         const text = el.dataset.copy;
+        const label = el.dataset.copyLabel || 'Copied!';
         navigator.clipboard.writeText(text).then(() => {
-            const orig = el.innerHTML;
-            el.innerHTML = 'Copied!';
-            setTimeout(() => { el.innerHTML = orig; }, 1200);
+            if (typeof window.showToast === 'function') {
+                window.showToast(label, 'success', 2000);
+            } else {
+                const orig = el.innerHTML;
+                el.innerHTML = 'Copied!';
+                setTimeout(() => { el.innerHTML = orig; }, 1200);
+            }
+            this.menuTarget.style.display = 'none';
         });
     }
 }

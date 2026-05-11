@@ -54,7 +54,7 @@
     </section>
     <div class="article-actions">
         {% if app.user and app.user.userIdentifier == (pubkey|hex_to_npub) %}
-            <a href="{{ path('settings') }}" class="btn btn-outline-secondary">Settings</a>
+            <a href="{{ path('settings') }}" class="btn">Settings</a>
         {% elseif app.user %}
             <twig:Molecules:SubscribeButton :pubkey="pubkey" />
             <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
@@ -67,7 +67,7 @@
         {% endif %}
         <div class="dropdown"
              data-controller="utility--share-dropdown">
-            <button class="btn btn-outline-secondary"
+            <button class="btn menu"
                     type="button"
                     data-utility--share-dropdown-target="button"
                     data-action="click->utility--share-dropdown#toggle"
@@ -87,7 +87,8 @@
                 <button class="dropdown-item"
                         type="button"
                         data-action="click->utility--share-dropdown#copy"
-                        data-copy="{{ npub }}">
+                        data-copy="{{ npub }}"
+                        data-copy-label="npub copied">
                     Copy npub
                 </button>
             </div>

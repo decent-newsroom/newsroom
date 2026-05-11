@@ -202,3 +202,12 @@ button.dropdown-item:disabled {
         transform: translateY(-50%) rotate(360deg);
     }
 }
+
+.dropdown button.menu {
+    padding: 0.5em 1.5em;
+}
+
+.dropdown button.menu svg {
+    width: 22px;
+    height: 22px;
+}
