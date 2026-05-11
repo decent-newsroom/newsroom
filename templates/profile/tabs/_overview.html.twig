@@ -53,17 +53,19 @@
         {# Recent Highlights Section #}
         {% if recentHighlights|default([])|length > 0 %}
             <div class="overview-section">
-                <div class="highlights-preview">
-                    {% for highlight in recentHighlights %}
-                        <blockquote class="highlight-item compact">
-                            <p>{{ highlight.content|length > 200 ? highlight.content|slice(0, 200) ~ '...' : highlight.content }}</p>
-                            {% if highlight.sourceUrl %}
-                                <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener">
-                                    Source →
-                                </a>
-                            {% endif %}
-                        </blockquote>
-                    {% endfor %}
+                <div class="w-container">
+                    <div class="highlights-preview">
+                        {% for highlight in recentHighlights %}
+                            <blockquote class="highlight-item compact">
+                                <p>{{ highlight.content|length > 200 ? highlight.content|slice(0, 200) ~ '...' : highlight.content }}</p>
+                                {% if highlight.sourceUrl %}
+                                    <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener">
+                                        Source →
+                                    </a>
+                                {% endif %}
+                            </blockquote>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         {% endif %}
