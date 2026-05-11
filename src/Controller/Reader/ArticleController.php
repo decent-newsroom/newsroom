@@ -87,7 +87,7 @@ class ArticleController  extends AbstractController
 
 
 
-    #[Route('/article/d/{slug}/draft', name: 'draft-slug', requirements: ['slug' => '.+'])]
+    #[Route('/article/d/{slug}/draft', name: 'draft-slug', requirements: ['slug' => '.+'], priority: 10)]
     public function draftSlug($slug, EntityManagerInterface $entityManager): Response
     {
         // Drafts require authentication
@@ -127,7 +127,7 @@ class ArticleController  extends AbstractController
      * @param EntityManagerInterface $entityManager
      * @return Response
      */
-    #[Route('/article/d/{slug}', name: 'article-slug', requirements: ['slug' => '.+'])]
+    #[Route('/article/d/{slug}', name: 'article-slug', requirements: ['slug' => '.+'], priority: 10)]
     public function disambiguation($slug, EntityManagerInterface $entityManager): Response
     {
         $slug = urldecode($slug);
