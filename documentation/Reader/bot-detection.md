@@ -72,3 +72,22 @@ Add new patterns to `BotDetector::BOT_PATTERNS`. The array is case-insensitive s
 - Detection is UA-string based only. A sophisticated bot that spoofs a realistic browser UA will not be caught. For stricter enforcement, pair this with rate-limiting at the reverse-proxy (Caddy) level.
 - Historical visits (before this feature was deployed) have `is_bot = false` (the column default), meaning they are counted as human traffic regardless. Run a one-time backfill if precise historical numbers matter.
 
+## Caddy-level hard-block (probe paths)
+
+A second, complementary defence is configured in `frankenphp/Caddyfile`. Caddy matches a curated blocklist of known **scanner / attacker probe paths** via a single `path_regexp` matcher and responds with `404` before FrankenPHP even starts a PHP worker. No Symfony routing, no DB write, no visit-tracking overhead at all.
+
+Covered patterns (see `@blockProbes` in the Caddyfile for the exact regex):
+
+| Category | Examples |
+|---|---|
+| Env / secrets files | `/.env`, `/.env.local`, `/.env.production`, … |
+| VCS metadata | `/.git/*`, `/.svn/*`, `/.hg/*` |
+| Server config | `/.htaccess`, `/.htpasswd`, `/web.config` |
+| PHP info / install | `/phpinfo.php`, `/info.php`, `/install.php`, … |
+| Composer manifests | `/composer.json`, `/composer.lock` |
+| WordPress probes | `/wp-login.php`, `/xmlrpc.php`, `/wp-admin/*`, … |
+| Admin tools | `/adminer.php`, `/phpmyadmin/*` |
+| Spring actuator | `/actuator/*` |
+
+To add more paths, extend the regex in the `@blockProbes path_regexp` line in `frankenphp/Caddyfile`.
+
