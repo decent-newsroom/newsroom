@@ -860,11 +860,18 @@ class AuthorController extends AbstractController
                 // Store the fresh data for subsequent requests
                 $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
 
-                // Dispatch background revalidation to pull fresh data from relays if needed
-                try {
-                    $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Failed to dispatch profile revalidation for articles tab', ['error' => $e->getMessage()]);
+                // Only dispatch background revalidation when the cached relay data is
+                // actually stale (or there is no cached relay stamp yet).  Previously
+                // this was unconditional, producing one RevalidateProfileCacheMessage
+                // per page view and cascading into one FetchAuthorContentMessage on the
+                // async queue for every visit — the dominant cause of queue build-up.
+                $articlesTabCacheResult = $viewStore->fetchProfileTabData($pubkey, $tab);
+                if ($articlesTabCacheResult['isStale'] || !$articlesTabCacheResult['isCached']) {
+                    try {
+                        $messageBus->dispatch(new RevalidateProfileCacheMessage($pubkey, $tab, $isOwner));
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Failed to dispatch profile revalidation for articles tab', ['error' => $e->getMessage()]);
+                    }
                 }
             } else {
                 // All other tabs use cached-with-fallback pattern

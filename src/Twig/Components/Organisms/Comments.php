@@ -5,6 +5,7 @@ namespace App\Twig\Components\Organisms;
 use App\Message\FetchCommentsMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\DispatchThrottle;
 use App\Service\Nostr\NostrLinkParser;
 use App\Util\Nip22TagParser;
 use Symfony\Component\Messenger\Exception\ExceptionInterface;
@@ -58,11 +59,19 @@ final class Comments
     public array $parentPreview = [];
     public bool  $loading = true;
 
+    /**
+     * How long to suppress duplicate FetchCommentsMessage dispatches for the
+     * same coordinate.  Matches the CACHE_TTL in FetchCommentsHandler (30 s)
+     * so at most one relay refresh happens per cache cycle.
+     */
+    private const DISPATCH_THROTTLE_TTL = 60; // seconds
+
     public function __construct(
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisCacheService $redisCacheService,
         private readonly EventRepository $eventRepository,
         private readonly MessageBusInterface $bus,
+        private readonly DispatchThrottle $dispatchThrottle,
     ) {}
 
     /**
@@ -114,8 +123,13 @@ final class Comments
         $this->loading = false;
 
         // ── 2. Async relay refresh (may push Mercure update later) ────
+        // Throttled: at most one dispatch per coordinate per DISPATCH_THROTTLE_TTL
+        // seconds.  This prevents every concurrent page view of a popular article
+        // from stacking duplicate FetchCommentsMessage entries in the async queue.
         try {
-            $this->bus->dispatch(new FetchCommentsMessage($current, $this->authorPubkey));
+            if ($this->dispatchThrottle->acquire('comments_fetch', $current, self::DISPATCH_THROTTLE_TTL)) {
+                $this->bus->dispatch(new FetchCommentsMessage($current, $this->authorPubkey));
+            }
         } catch (\Throwable) {
             // transport unavailable (Redis down, etc.) – not critical
         }

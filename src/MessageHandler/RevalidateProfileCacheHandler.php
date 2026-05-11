@@ -13,6 +13,7 @@ use App\Message\FetchAuthorContentMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\ReadModel\RedisView\RedisViewFactory;
 use App\Repository\ArticleRepository;
+use App\Service\DispatchThrottle;
 use App\Service\Nostr\UserRelayListService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
@@ -28,6 +29,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 class RevalidateProfileCacheHandler
 {
+    /**
+     * How long (seconds) to suppress duplicate FetchAuthorContentMessage
+     * dispatches for the same pubkey.  One relay fetch every 5 minutes is
+     * more than enough to keep profile tabs fresh.
+     */
+    private const CONTENT_FETCH_THROTTLE_TTL = 300;
+
     public function __construct(
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
@@ -37,6 +45,7 @@ class RevalidateProfileCacheHandler
         private readonly MessageBusInterface $messageBus,
         private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
+        private readonly DispatchThrottle $dispatchThrottle,
     ) {}
 
     public function __invoke(RevalidateProfileCacheMessage $message): void
@@ -52,15 +61,25 @@ class RevalidateProfileCacheHandler
         ]);
 
         try {
-            // Dispatch async fetch to get fresh data from relays
-            $relays = $this->userRelayListService->getRelaysForFetching($pubkey);
-            $this->messageBus->dispatch(new FetchAuthorContentMessage(
-                $pubkey,
-                $isOwner ? AuthorContentType::cases() : AuthorContentType::publicTypes(),
-                0,
-                $isOwner,
-                $relays
-            ));
+            // Dispatch async fetch to get fresh data from relays — throttled so
+            // a burst of RevalidateProfileCacheMessage for the same pubkey
+            // (e.g. multiple tabs viewed in quick succession) only produces
+            // ONE FetchAuthorContentMessage on the async queue.
+            if ($this->dispatchThrottle->acquire('author_content_fetch', $pubkey, self::CONTENT_FETCH_THROTTLE_TTL)) {
+                $relays = $this->userRelayListService->getRelaysForFetching($pubkey);
+                $this->messageBus->dispatch(new FetchAuthorContentMessage(
+                    $pubkey,
+                    $isOwner ? AuthorContentType::cases() : AuthorContentType::publicTypes(),
+                    0,
+                    $isOwner,
+                    $relays
+                ));
+            } else {
+                $this->logger->debug('FetchAuthorContentMessage throttled — skipping relay fetch', [
+                    'pubkey' => substr($pubkey, 0, 8),
+                    'tab'    => $tab,
+                ]);
+            }
 
             // Rebuild cache based on tab
             $data = match($tab) {

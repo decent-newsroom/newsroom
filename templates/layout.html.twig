@@ -67,7 +67,8 @@
                     <button class="close" data-action="click->sidebar-toggle#close" aria-label="{{ 'nav.closeRightSidebar'|trans }}">✕</button>
                 </header>
                 {% if app.user %}
-                    <div class="d-flex gap-3 center mt-3 mb-3">
+                    <div class="d-flex gap-3 center mt-3 mb-3 p-3 ln-section--reader">
+                        <div class="text-center">Turn your articles into a publication.</div>
                         <a class="btn" href="{{ path('mag_wizard_setup') }}">{{ 'nav.startBlog'|trans }}</a>
                     </div>
                 {% else %}
