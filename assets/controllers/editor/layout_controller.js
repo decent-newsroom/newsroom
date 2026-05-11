@@ -1,5 +1,7 @@
 import {Controller} from '@hotwired/stimulus';
 import { deltaToMarkdown, markdownToDelta } from './conversion.js';
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
+import { hasRealMath, normalizeDollarMathInTextNodes } from '../utility/katex_controller.js';
 
 export default class extends Controller {
     static targets = [
@@ -309,7 +311,22 @@ export default class extends Controller {
         // Body (markdown to HTML via backend)
         let html = '<p><em>Loading preview...</em></p>';
         this.previewBodyTarget.innerHTML = html;
-        if (markdownInput) {
+
+        // Resolve the markdown to send: when Quill is the active source, convert
+        // the current delta to markdown on the fly so the preview is always fresh.
+        let markdownContent = '';
+        if (this.state.active_source === 'quill' && this.state.content_delta) {
+            markdownContent = this.deltaToNMD(this.state.content_delta);
+        } else if (markdownInput) {
+            // CodeMirror may not sync back to the textarea value in real-time
+            if (markdownInput._codemirror) {
+                markdownContent = markdownInput._codemirror.state.doc.toString();
+            } else {
+                markdownContent = markdownInput.value || '';
+            }
+        }
+
+        if (markdownContent || markdownInput) {
             try {
                 const response = await fetch('/editor/markdown/preview', {
                     method: 'POST',
@@ -317,7 +334,7 @@ export default class extends Controller {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ markdown: markdownInput.value || '' })
+                    body: JSON.stringify({ markdown: markdownContent })
                 });
                 if (response.ok) {
                     const data = await response.json();
@@ -329,6 +346,22 @@ export default class extends Controller {
                 html = '<p><em>Error loading preview.</em></p>';
             }
             this.previewBodyTarget.innerHTML = html;
+
+            // Render math expressions (KaTeX). The server pipeline converts math to
+            // \(…\) / $$…$$ but the static preview div has no utility--katex controller,
+            // so we must trigger rendering manually after injecting HTML.
+            if (hasRealMath(this.previewBodyTarget.textContent || '')) {
+                normalizeDollarMathInTextNodes(this.previewBodyTarget);
+                renderMathInElement(this.previewBodyTarget, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true },
+                    ],
+                    throwOnError: false,
+                    ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'annotation'],
+                });
+            }
         } else {
             this.previewBodyTarget.innerHTML = '<p><em>No content yet. Start writing your article!</em></p>';
         }

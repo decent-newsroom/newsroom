@@ -18,7 +18,7 @@ import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
  */
 
 // Heuristic: does the text contain real LaTeX math (not just currency)?
-function hasRealMath(text) {
+export function hasRealMath(text) {
     if (!text) return false;
     const t = text;
 
@@ -70,7 +70,7 @@ const SKIP_TAGS = /^(pre|code|script|style|textarea|annotation|svg|math)$/i;
  *
  * Currency ($10.50, $19.99) and non-math $ pairs are left untouched.
  */
-function normalizeDollarMathInTextNodes(root) {
+export function normalizeDollarMathInTextNodes(root) {
     // TeX whitespace rule: opening $ not followed by whitespace, closing $
     // not preceded by whitespace.  Same regex as the server-side step 6.
     const re = /(?<![\\$\d])\$([^\s$](?:[^$]*?[^\s$])?)\$(?![\d$])/g;
