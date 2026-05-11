@@ -54,9 +54,9 @@
                         {% if s.sourceType.value == 'npub' %}
                             <span class="subscription-item__value"><twig:Molecules:UserFromNpub ident="{{ s.sourceValue }}" /></span>
                         {% elseif s.sourceType.value == 'publication' %}
-                            <span class="subscription-item__value">{{ coordinateTitles[s.sourceValue] ?? (s.sourceValue|split(':')|last) }}</span>
+                            <span class="subscription-item__value">{{ sourceTitles[s.sourceValue] ?? (s.sourceValue|split(':')|last) }}</span>
                         {% else %}
-                            <span class="subscription-item__value">{{ s.label ?: (s.sourceValue|split(':')|last) }}</span>
+                            <span class="subscription-item__value">{{ sourceTitles[s.sourceValue] ?? (s.sourceValue|split(':')|last) }}</span>
                         {% endif %}
                     </div>
                     <form method="post" action="{{ path('updates_subscriptions_remove', {id: s.id}) }}"

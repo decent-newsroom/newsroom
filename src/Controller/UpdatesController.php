@@ -8,6 +8,7 @@ use App\Entity\Magazine;
 use App\Entity\UpdateSubscription;
 use App\Entity\User;
 use App\Enum\UpdateSourceTypeEnum;
+use App\Repository\EventRepository;
 use App\Repository\UpdateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\Update\UpdateAccessService;
@@ -36,6 +37,7 @@ class UpdatesController extends AbstractController
         private readonly UpdateProService $proService,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly EventRepository $eventRepository,
     ) {
     }
 
@@ -87,27 +89,59 @@ class UpdatesController extends AbstractController
         $user = $this->getUser();
         $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
 
-        // Resolve magazine titles for PUBLICATION subscriptions (coordinate → title map).
-        $coordinateTitles = [];
+        // Resolve display titles for PUBLICATION and NIP51_SET subscriptions.
+        // Map: coordinate (kind:pubkey:d) → human-readable title string.
+        $sourceTitles = [];
         $magazineRepo = $this->em->getRepository(Magazine::class);
         foreach ($subscriptions as $sub) {
-            if ($sub->getSourceType() !== UpdateSourceTypeEnum::PUBLICATION) {
+            $type = $sub->getSourceType();
+            if ($type !== UpdateSourceTypeEnum::PUBLICATION && $type !== UpdateSourceTypeEnum::NIP51_SET) {
                 continue;
             }
-            $parts = explode(':', $sub->getSourceValue(), 3);
+            $coordinate = $sub->getSourceValue();
+            $parts = explode(':', $coordinate, 3);
             if (count($parts) !== 3) {
                 continue;
             }
-            [, $pubkey, $slug] = $parts;
-            $magazine = $magazineRepo->findOneBy(['pubkey' => $pubkey, 'slug' => $slug]);
-            if ($magazine?->getTitle() !== null) {
-                $coordinateTitles[$sub->getSourceValue()] = $magazine->getTitle();
+            [, $pubkey, $dTag] = $parts;
+
+            if ($type === UpdateSourceTypeEnum::PUBLICATION) {
+                // Try Magazine entity first (has a proper title column).
+                $magazine = $magazineRepo->findOneBy(['pubkey' => $pubkey, 'slug' => $dTag]);
+                if ($magazine?->getTitle() !== null) {
+                    $sourceTitles[$coordinate] = $magazine->getTitle();
+                    continue;
+                }
+                // Fallback: look up the raw kind 30040 event and read its title tag.
+                $kind = (int) $parts[0];
+                $event = $this->eventRepository->findByNaddr($kind, $pubkey, $dTag);
+                if ($event !== null && $event->getTitle() !== null) {
+                    $sourceTitles[$coordinate] = $event->getTitle();
+                }
+            } elseif ($type === UpdateSourceTypeEnum::NIP51_SET) {
+                $kind = (int) $parts[0];
+                $event = $this->eventRepository->findByNaddr($kind, $pubkey, $dTag);
+                if ($event !== null) {
+                    // Prefer 'title' tag; fall back to 'name' tag; last resort: d-tag.
+                    $title = $event->getTitle();
+                    if ($title === null) {
+                        foreach ($event->getTags() as $tag) {
+                            if (is_array($tag) && ($tag[0] ?? '') === 'name' && isset($tag[1])) {
+                                $title = (string) $tag[1];
+                                break;
+                            }
+                        }
+                    }
+                    if ($title !== null) {
+                        $sourceTitles[$coordinate] = $title;
+                    }
+                }
             }
         }
 
         return $this->render('updates/subscriptions.html.twig', [
             'subscriptions' => $subscriptions,
-            'coordinateTitles' => $coordinateTitles,
+            'sourceTitles' => $sourceTitles,
             'isPro' => $this->accessService->isPro($user),
             'freeCap' => $this->accessService->getFreeCap(),
             'currentCount' => $this->subscriptionRepository->countActiveForUser($user),
