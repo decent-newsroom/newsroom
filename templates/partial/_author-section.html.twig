@@ -53,30 +53,27 @@
         {% endif %}
     </section>
     <div class="article-actions">
-        {% if app.user and app.user.userIdentifier != (pubkey|hex_to_npub) %}
-            <form method="post" action="{{ path('updates_subscriptions_add') }}" class="d-inline">
-                <input type="hidden" name="_token" value="{{ csrf_token('update-subscribe') }}" />
-                <input type="hidden" name="identifier" value="{{ pubkey }}" />
-                <input type="hidden" name="redirect_to" value="{{ app.request.requestUri }}" />
-                <button type="submit" class="btn btn-outline-primary">{{ 'updates.subscription.addSubmit'|trans }}</button>
-            </form>
-            <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
-        {% endif %}
-        {% if author.lud16 is defined and author.lud16 %}
-            <twig:Molecules:ZapButton
-                recipientPubkey="{{ pubkey }}"
-                recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-            />
-        {% endif %}
         {% if app.user and app.user.userIdentifier == (pubkey|hex_to_npub) %}
             <a href="{{ path('settings') }}" class="btn btn-outline-secondary">Settings</a>
+        {% elseif app.user %}
+            <twig:Molecules:SubscribeButton :pubkey="pubkey" />
+            <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
+            {% if author.lud16 is defined and author.lud16 %}
+                <twig:Molecules:ZapButton
+                    recipientPubkey="{{ pubkey }}"
+                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+                />
+            {% endif %}
         {% endif %}
-        <div class="position-relative d-inline-block"
+        <div class="dropdown"
              data-controller="utility--share-dropdown">
             <button class="btn btn-outline-secondary"
                     type="button"
+                    data-utility--share-dropdown-target="button"
                     data-action="click->utility--share-dropdown#toggle"
-                    aria-label="More actions">
+                    aria-label="More actions"
+                    aria-haspopup="true"
+                    aria-expanded="false">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
                      viewBox="0 0 24 24" fill="currentColor" stroke="none">
                     <circle cx="12" cy="5" r="2"/>

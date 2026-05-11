@@ -757,6 +757,7 @@ updates:
         addLabel: 'Subscribe to'
         addPlaceholder: 'npub1… / naddr1… / hex pubkey / kind:pubkey:d'
         addSubmit: 'Subscribe'
+        subscribed: 'Suscrito'
         remove: 'Unsubscribe'
         removeConfirm: 'Remove this subscription?'
         sourceType:

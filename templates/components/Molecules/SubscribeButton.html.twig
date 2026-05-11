@@ -1,0 +1,20 @@
+<div {{ attributes }}>
+    {% if error is not empty %}
+        <a href="{{ path('updates_pro_index') }}" class="btn btn-outline-secondary">{{ error|trans }}</a>
+    {% elseif subscribed %}
+        <button type="button"
+                class="btn btn-outline-secondary"
+                data-action="live#action"
+                data-live-action-param="toggle">
+            {{ 'updates.subscription.subscribed'|trans }}
+        </button>
+    {% else %}
+        <button type="button"
+                class="btn btn-outline-primary"
+                data-action="live#action"
+                data-live-action-param="toggle">
+            {{ 'updates.subscription.addSubmit'|trans }}
+        </button>
+    {% endif %}
+</div>
+
