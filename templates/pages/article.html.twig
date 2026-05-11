@@ -312,6 +312,7 @@
             pubkey: article.pubkey,
             kind: 30023
         } %}
+        <div class="flex flex-row gap-2 flex-wrap mb-2">
         <details class="comment-form-toggle">
             <summary class="btn btn-primary comment-form-toggle__cta">{{ 'comments.writeCta'|trans }}</summary>
             <twig:Organisms:CommentForm
@@ -326,6 +327,20 @@
                     kind: 30023
                 }" />
         </details>
+
+        {% if author.lud16 is defined and author.lud16 %}
+            {% if zapSplits is defined and zapSplits|length > 0 %}
+                <twig:Molecules:ZapButton
+                    recipientPubkey="{{ article.pubkey }}"
+                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
+                    :zapSplits="zapSplits" />
+            {% else %}
+                <twig:Molecules:ZapButton
+                    recipientPubkey="{{ article.pubkey }}"
+                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
+            {% endif %}
+        {% endif %}
+        </div>
 
         <twig:Organisms:Comments
             current="30023:{{ article.pubkey }}:{{ article.slug|e }}"
