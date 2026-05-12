@@ -35,6 +35,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
+use App\Service\Nostr\NostrClient;
 use App\Service\UserMuteListService;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
@@ -211,6 +212,7 @@ class DefaultController extends AbstractController
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
         UserMuteListService $userMuteListService,
+        NostrClient $nostrClient,
     ): Response
     {
         // ── Resolve user-level mute list (kind 10000, NIP-51) ──
@@ -312,10 +314,24 @@ class DefaultController extends AbstractController
             $mainTopicsMap[$key] = $name;
         }
 
+        // Check if the logged-in user has a known interests list (kind 10015)
+        $hasInterests = false;
+        $user = $this->getUser();
+        if ($user !== null) {
+            try {
+                $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $interests = $nostrClient->getUserInterests($pubkeyHex);
+                $hasInterests = !empty($interests);
+            } catch (\Throwable) {
+                // Non-critical — proceed without interests
+            }
+        }
+
         return $this->render('pages/discover.html.twig', [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
             'mainTopicsMap' => $mainTopicsMap,
+            'hasInterests' => $hasInterests,
         ]);
     }
 

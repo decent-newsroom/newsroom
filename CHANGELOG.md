@@ -3,6 +3,7 @@
 ## v0.0.38
 Usability and styles.
 
+- [Improvement] Replaced the topic pills strip on the discover page with a single "My Interests" pill. The full list of topic category pills has been removed; logged-in users who have a published interests list (kind 10015) now see a single pill linking to `/my-interests`.
 - [Improvement] Deprecated the topics list in the aside sidebar. The `ForumAside` Twig component (and its PHP class) have been removed; all templates that previously rendered it now have an empty aside block.
 - [Improvement] Removed icons for login options, adjusted the hints.
 - [Bug] Fixed async queue flooding that caused the `async` transport to accumulate thousands of messages within hours. Three compounding dispatch-without-deduplication patterns were addressed: (1) `Comments::mount()` now uses a 60-second Redis NX throttle (via new `DispatchThrottle` service) so a popular article receiving many concurrent page views enqueues at most one `FetchCommentsMessage` per minute instead of one per visitor. (2) `RevalidateProfileCacheHandler` now applies a 5-minute Redis NX throttle before dispatching `FetchAuthorContentMessage`, preventing a burst of profile-tab revalidations for the same author from fan出 into dozens of relay-fetch jobs on `async`. (3) `AuthorController` articles tab previously dispatched `RevalidateProfileCacheMessage` unconditionally on every page view; it now checks `viewStore->fetchProfileTabData()` first and only dispatches when the cached entry is absent or stale.

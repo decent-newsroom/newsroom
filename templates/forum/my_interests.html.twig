@@ -1,5 +1,4 @@
 {% extends 'layout.html.twig' %}
-{% import 'macros/interest_set_card.html.twig' as iset %}
 
 {% block body %}
     <twig:Atoms:PageHeading heading="My Interests"/>
@@ -39,7 +38,7 @@
                 </h3>
                 <p class="text-muted">
                     Select tags from the popular topics below, or add your own custom tags.
-                    Your interests will be published as a kind 10015 event to Nostr.
+                    Your interests will be published as a <code>kind:10015</code> event.
                 </p>
 
                 {# Selected tags display #}
@@ -106,51 +105,40 @@
 
     {# ── Existing interests display ── #}
     {% if userInterests %}
-        <div class="subcategories-grid">
-            {% for catKey, category in userInterests %}
-                {% for subKey, sub in category.subcategories %}
-                    {% if catKey == 'isets' %}
-                        {{ iset.interest_set_card(catKey, subKey, sub) }}
-                    {% else %}
-                        <div class="sub-card">
-                            <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
-                            <div class="d-flex flex-row">
-                                <div class="tags m-0">
-                                    {% for tag in sub.tags %}
-                                        <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
-                                    {% endfor %}
-                                </div>
-                                <div class="count">{{ sub.count|default(0) }}</div>
-                            </div>
-                        </div>
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
-        </div>
-
-        {% if articles is not empty %}
-            <section class="d-flex gap-3 center ln-section--newsstand">
-                <div class="container mt-5 mb-3">
-                    <h2>Latest from your interests</h2>
-                </div>
-            </section>
-
-            <div class="articles-list">
-                {% for article in articles %}
-                    <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+        <div class="topics-strip">
+            <div class="topics-buttons d-flex flex-row flex-wrap gap-2">
+                {% for catKey, category in userInterests %}
+                    {% for subKey, sub in category.subcategories %}
+                        {% if catKey != 'isets' %}
+                            <a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}"
+                               class="btn btn-outline-primary btn-sm">
+                                {{ sub.name }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
                 {% endfor %}
             </div>
+        </div>
 
-            {% if pager.getNbPages() > 1 %}
-                <twig:Atoms:Pagination :pager="pager" route="my_interests" />
+        <div class="w-container">
+            {% if articles is not empty %}
+                <div class="article-list">
+                    {% for article in articles %}
+                        <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+                    {% endfor %}
+                </div>
+
+                {% if pager.getNbPages() > 1 %}
+                    <twig:Atoms:Pagination :pager="pager" route="my_interests" />
+                {% endif %}
             {% endif %}
-        {% endif %}
+        </div>
     {% else %}
         <div class="container mt-5 mb-5">
             <p>You haven't published an interests list yet.</p>
             <p class="text-muted">
-                Use the editor above to select your interests and publish them to Nostr.
-                Your interests will appear as tag-based topic cards with related articles.
+                Use the editor above to select your interests and publish them.
+                You will then see articles related to those interests here, and they will also be used to personalize your main feed.
             </p>
             <div class="cta-row mt-3">
                 <a class="btn btn--primary" href="{{ path('forum') }}">Browse all topics</a>

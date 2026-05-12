@@ -3,7 +3,7 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ topic.name }}" tagline="{{ tags|keys|join(', ') }}"/>
 
-    <div class="articles-list">
+    <div class="article-list">
         {% for article in articles %}
             <twig:Molecules:ArticlePreview :article="article"  npub="{{ article.pubkey|toNpub }}" />
         {% endfor %}

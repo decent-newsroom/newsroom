@@ -58,14 +58,16 @@
         </div>
     </section>
 
-    {# Main Topics (visible on small screens when sidebar is hidden) #}
+    {# Main Topics #}
     <section class="w-container d-md-none mb-3">
         <div class="discover-section topics-strip">
             {% if mainTopicsMap is defined and mainTopicsMap is not empty %}
                 <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
-                    <a href="{{ path('forum') }}"
-                       class="btn btn-outline-primary btn-sm"
-                    >{{ 'text.all'|trans }}</a>
+                    {% if app.user and hasInterests %}
+                        <a href="{{ path('my_interests') }}" class="btn btn-outline-primary btn-sm">
+                            {{ 'nav.myInterests'|trans }}
+                        </a>
+                    {% endif %}
                     {% for key, name in mainTopicsMap %}
                         <a href="{{ path('forum_main_topic', { topic: key }) }}"
                            class="btn btn-outline-primary btn-sm">

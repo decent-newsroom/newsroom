@@ -16,7 +16,7 @@
     </div>
 
     {% if articles is not empty %}
-        <div class="articles-list" style="margin-top: 3rem;">
+        <div class="article-list" style="margin-top: 3rem;">
             <h2 style="margin: 0 var(--spacing-3) 1rem;">Recent Articles</h2>
             {% for article in articles %}
                 <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
