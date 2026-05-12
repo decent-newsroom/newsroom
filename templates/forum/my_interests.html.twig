@@ -105,20 +105,24 @@
 
     {# ── Existing interests display ── #}
     {% if userInterests %}
-        <div class="topics-strip">
-            <div class="topics-buttons d-flex flex-row flex-wrap gap-2">
-                {% for catKey, category in userInterests %}
-                    {% for subKey, sub in category.subcategories %}
-                        {% if catKey != 'isets' %}
-                            <a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}"
-                               class="btn btn-outline-primary btn-sm">
-                                {{ sub.name }}
-                            </a>
-                        {% endif %}
+        <section class="w-container mb-1">
+            <div class="topics-strip">
+                <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
+                    {% for catKey, category in userInterests %}
+                        {% for subKey, sub in category.subcategories %}
+                            {% if catKey != 'isets' %}
+                                {% for tag in sub.tags %}
+                                    <a href="{{ path('forum_tag', {'tag': tag}) }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        #{{ tag }}
+                                    </a>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
+                </div>
             </div>
-        </div>
+        </section>
 
         <div class="w-container">
             {% if articles is not empty %}
