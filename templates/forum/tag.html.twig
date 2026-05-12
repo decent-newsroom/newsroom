@@ -3,15 +3,17 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ tag|capitalize }}" />
 
-    {% if articles is empty %}
-        <p>{{ 'topics.noArticles'|trans }}</p>
-    {% else %}
-        <twig:Organisms:CardList :list="articles" class="article-list" />
-    {% endif %}
+    <div class="w-container">
+        {% if articles is empty %}
+            <p>{{ 'topics.noArticles'|trans }}</p>
+        {% else %}
+            <twig:Organisms:CardList :list="articles" class="article-list" />
+        {% endif %}
 
-    {% if pager.getNbPages() > 1 %}
-        <twig:Atoms:Pagination :pager="pager" route="forum_tag" :routeParams="{tag: tag}" />
-    {% endif %}
+        {% if pager.getNbPages() > 1 %}
+            <twig:Atoms:Pagination :pager="pager" route="forum_tag" :routeParams="{tag: tag}" />
+        {% endif %}
+    </div>
 {% endblock %}
 
 {% block aside %}{% endblock %}

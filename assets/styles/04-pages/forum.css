@@ -217,6 +217,7 @@ align-self: flex-end;
 
 .interests-editor-wrapper {
     margin: 0 var(--spacing-3);
+    text-align: center;
 }
 
 .interests-editor {
