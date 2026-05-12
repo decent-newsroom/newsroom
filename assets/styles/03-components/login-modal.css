@@ -108,17 +108,9 @@
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-1);
-    background: none;
-    border: 0;
     cursor: pointer;
     font-size: 0.85rem;
-    color: var(--color-text-muted);
-    padding: 0;
     margin-bottom: var(--spacing-3);
-}
-
-.login-modal__back:hover {
-    color: var(--color-text);
 }
 
 /* ── Status ─────────────────────────────────────────────────────────────── */
