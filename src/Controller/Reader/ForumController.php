@@ -179,6 +179,63 @@ class ForumController extends AbstractController
         ]);
     }
 
+    /**
+     * Interest Set view – renders articles for a specific kind:30015 interest set.
+     * Accessible via /my-interests/set/{pubkey}/{dTag}.
+     */
+    #[Route('/my-interests/set/{pubkey}/{dTag}', name: 'interest_set_view', requirements: ['pubkey' => '[0-9a-f]{64}', 'dTag' => '.+'])]
+    public function interestSetView(
+        string $pubkey,
+        string $dTag,
+        ArticleSearchInterface $articleSearch,
+        NostrClient $nostrClient,
+        Request $request,
+    ): Response {
+        /** @var \App\Entity\User $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('my_interests');
+        }
+
+        // Fetch the interest set event from local DB (owned or followed)
+        $sets = $nostrClient->getUserInterestSets(NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+        $set = null;
+        foreach ($sets as $s) {
+            if ($s['pubkey'] === $pubkey && $s['dTag'] === $dTag) {
+                $set = $s;
+                break;
+            }
+        }
+
+        if ($set === null) {
+            throw $this->createNotFoundException('Interest set not found.');
+        }
+
+        $tags = array_values(array_unique(array_map('strtolower', $set['tags'])));
+        $page = max(1, (int) $request->query->get('page', 1));
+        $perPage = 20;
+        $articles = [];
+
+        if (!empty($tags) && $articleSearch->isAvailable()) {
+            try {
+                $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0);
+                $articles = $this->deduplicateArticles($articles);
+            } catch (\Throwable) {
+            }
+        }
+
+        $pager = new Pagerfanta(new ArrayAdapter($articles));
+        $pager->setMaxPerPage($perPage);
+        $pager->setCurrentPage($page);
+        $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
+
+        return $this->render('forum/interest_set.html.twig', [
+            'set' => $set,
+            'articles' => $articlesPage,
+            'pager' => $pager,
+        ]);
+    }
+
     #[Route('/forum/main/{topic}', name: 'forum_main_topic')]
     public function mainTopic(
         string $topic,

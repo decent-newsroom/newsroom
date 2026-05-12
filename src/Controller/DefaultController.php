@@ -315,13 +315,16 @@ class DefaultController extends AbstractController
         }
 
         // Check if the logged-in user has a known interests list (kind 10015)
+        // and fetch their named interest sets (kind 30015)
         $hasInterests = false;
+        $interestSets = [];
         $user = $this->getUser();
         if ($user !== null) {
             try {
                 $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
                 $interests = $nostrClient->getUserInterests($pubkeyHex);
                 $hasInterests = !empty($interests);
+                $interestSets = $nostrClient->getUserInterestSets($pubkeyHex);
             } catch (\Throwable) {
                 // Non-critical — proceed without interests
             }
@@ -332,6 +335,7 @@ class DefaultController extends AbstractController
             'authorsMetadata' => $authorsMetadataStd,
             'mainTopicsMap' => $mainTopicsMap,
             'hasInterests' => $hasInterests,
+            'interestSets' => $interestSets,
         ]);
     }
 

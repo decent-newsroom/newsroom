@@ -3,6 +3,7 @@
 ## v0.0.38
 Usability and styles.
 
+- [Feature] Named interest sets (kind:30015) now appear as pills on the discover page. Logged-in users whose local DB contains kind:30015 sets (owned or followed) see a pill per set after the "My Interests" pill; each links to a new `/my-interests/set/{pubkey}/{dTag}` page that renders the set's tag strip and a paginated article list.
 - [Improvement] Replaced the topic pills strip on the discover page with a single "My Interests" pill. The full list of topic category pills has been removed; logged-in users who have a published interests list (kind 10015) now see a single pill linking to `/my-interests`.
 - [Improvement] Deprecated the topics list in the aside sidebar. The `ForumAside` Twig component (and its PHP class) have been removed; all templates that previously rendered it now have an empty aside block.
 - [Improvement] Removed icons for login options, adjusted the hints.

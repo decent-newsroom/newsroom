@@ -68,6 +68,14 @@
                             {{ 'nav.myInterests'|trans }}
                         </a>
                     {% endif %}
+                    {% if app.user and interestSets is defined %}
+                        {% for set in interestSets %}
+                            <a href="{{ path('interest_set_view', { pubkey: set.pubkey, dTag: set.dTag }) }}"
+                               class="btn btn-outline-primary btn-sm">
+                                {{ set.title }}
+                            </a>
+                        {% endfor %}
+                    {% endif %}
                     {% for key, name in mainTopicsMap %}
                         <a href="{{ path('forum_main_topic', { topic: key }) }}"
                            class="btn btn-outline-primary btn-sm">

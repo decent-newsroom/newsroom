@@ -1,0 +1,36 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ set.title }} — {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ set.title }}"/>
+
+    <section class="w-container mb-3">
+        <div class="discover-section topics-strip">
+            <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
+                {% for tag in set.tags %}
+                    <a href="{{ path('forum_tag', {'tag': tag}) }}" class="btn btn-outline-primary btn-sm">#{{ tag }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {% if articles is not empty %}
+        <div class="articles-list">
+            {% for article in articles %}
+                <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+            {% endfor %}
+        </div>
+
+        {% if pager.getNbPages() > 1 %}
+            <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{pubkey: set.pubkey, dTag: set.dTag}" />
+        {% endif %}
+    {% else %}
+        <div class="container mt-5 mb-5">
+            <p>No articles found for this interest set.</p>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block aside %}{% endblock %}
+
