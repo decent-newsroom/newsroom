@@ -70,7 +70,7 @@
                     {% endif %}
                     {% if app.user and interestSets is defined %}
                         {% for set in interestSets %}
-                            <a href="{{ path('interest_set_view', { pubkey: set.pubkey, dTag: set.dTag }) }}"
+                            <a href="{{ path('interest_set_view', { dTag: set.dTag }) }}"
                                class="btn btn-outline-primary btn-sm">
                                 {{ set.title }}
                             </a>

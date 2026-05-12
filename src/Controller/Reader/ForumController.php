@@ -180,28 +180,27 @@ class ForumController extends AbstractController
     }
 
     /**
-     * Interest Set view – renders articles for a specific kind:30015 interest set.
-     * Accessible via /my-interests/set/{pubkey}/{dTag}.
+     * Interest Set view – renders articles for a specific kind:30015 interest set
+     * belonging to the currently logged-in user.
      */
-    #[Route('/my-interests/set/{pubkey}/{dTag}', name: 'interest_set_view', requirements: ['pubkey' => '[0-9a-f]{64}', 'dTag' => '.+'])]
+    #[Route('/my-interests/set/{dTag}', name: 'interest_set_view', requirements: ['dTag' => '.+'])]
     public function interestSetView(
-        string $pubkey,
         string $dTag,
         ArticleSearchInterface $articleSearch,
         NostrClient $nostrClient,
         Request $request,
     ): Response {
-        /** @var \App\Entity\User $user */
+        /** @var User $user */
         $user = $this->getUser();
         if (!$user) {
             return $this->redirectToRoute('my_interests');
         }
 
-        // Fetch the interest set event from local DB (owned or followed)
-        $sets = $nostrClient->getUserInterestSets(NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $sets = $nostrClient->getUserInterestSets($pubkeyHex);
         $set = null;
         foreach ($sets as $s) {
-            if ($s['pubkey'] === $pubkey && $s['dTag'] === $dTag) {
+            if ($s['dTag'] === $dTag) {
                 $set = $s;
                 break;
             }

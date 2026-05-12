@@ -23,7 +23,7 @@
         </div>
 
         {% if pager.getNbPages() > 1 %}
-            <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{pubkey: set.pubkey, dTag: set.dTag}" />
+            <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{dTag: set.dTag}" />
         {% endif %}
     {% else %}
         <div class="container mt-5 mb-5">
