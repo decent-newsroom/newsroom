@@ -3,19 +3,21 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ topic.name }}" tagline="{{ tags|keys|join(', ') }}"/>
 
-    <div class="article-list">
-        {% for article in articles %}
-            <twig:Molecules:ArticlePreview :article="article"  npub="{{ article.pubkey|toNpub }}" />
-        {% endfor %}
+    <div class="w-container">
+        <div class="article-list">
+            {% for article in articles %}
+                <twig:Molecules:ArticlePreview :article="article"  npub="{{ article.pubkey|toNpub }}" />
+            {% endfor %}
+        </div>
+
+        {% if articles is empty %}
+            <p>No articles found for this tag.</p>
+        {% endif %}
+
+        {% if pager.getNbPages() > 1 %}
+            <twig:Atoms:Pagination :pager="pager" route="forum_topic" :routeParams="{key: categoryKey ~ '-' ~ subcategoryKey}" />
+        {% endif %}
     </div>
-
-    {% if articles is empty %}
-        <p>No articles found for this tag.</p>
-    {% endif %}
-
-    {% if pager.getNbPages() > 1 %}
-        <twig:Atoms:Pagination :pager="pager" route="forum_topic" :routeParams="{key: categoryKey ~ '-' ~ subcategoryKey}" />
-    {% endif %}
 {% endblock %}
 
 {% block aside %}{% endblock %}

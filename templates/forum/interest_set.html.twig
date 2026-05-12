@@ -15,21 +15,23 @@
         </div>
     </section>
 
-    {% if articles is not empty %}
-        <div class="articles-list">
-            {% for article in articles %}
-                <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
-            {% endfor %}
-        </div>
+    <div class="w-container">
+        {% if articles is not empty %}
+            <div class="articles-list">
+                {% for article in articles %}
+                    <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+                {% endfor %}
+            </div>
 
-        {% if pager.getNbPages() > 1 %}
-            <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{dTag: set.dTag}" />
+            {% if pager.getNbPages() > 1 %}
+                <twig:Atoms:Pagination :pager="pager" route="interest_set_view" :routeParams="{dTag: set.dTag}" />
+            {% endif %}
+        {% else %}
+            <div class="container mt-5 mb-5">
+                <p>No articles found for this interest set.</p>
+            </div>
         {% endif %}
-    {% else %}
-        <div class="container mt-5 mb-5">
-            <p>No articles found for this interest set.</p>
-        </div>
-    {% endif %}
+    </div>
 {% endblock %}
 
 {% block aside %}{% endblock %}

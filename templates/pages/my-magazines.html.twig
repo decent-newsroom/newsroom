@@ -18,9 +18,9 @@
             <a class="btn btn-primary" href="{{ path('mag_wizard_setup') }}">{{ 'text.createNew'|trans }}</a>
         </div>
     </section>
-    <section class="mb-5">
+    <div class="w-container mb-5 mt-5">
         <twig:Organisms:ZineList :pubkey="pubkey" />
-    </section>
+    </div>
 
 {% endblock %}
 

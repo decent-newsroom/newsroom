@@ -15,18 +15,20 @@
         {% endif %}
     </div>
 
-    {% if articles is not empty %}
-        <div class="article-list" style="margin-top: 3rem;">
-            <h2 style="margin: 0 var(--spacing-3) 1rem;">Recent Articles</h2>
-            {% for article in articles %}
-                <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
-            {% endfor %}
-        </div>
+    <div class="w-container">
+        {% if articles is not empty %}
+            <div class="article-list" style="margin-top: 3rem;">
+                <h2 style="margin: 0 var(--spacing-3) 1rem;">Recent Articles</h2>
+                {% for article in articles %}
+                    <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
+                {% endfor %}
+            </div>
 
-        {% if pager.getNbPages() > 1 %}
-            <twig:Atoms:Pagination :pager="pager" route="forum_main_topic" :routeParams="{topic: categoryKey}" />
+            {% if pager.getNbPages() > 1 %}
+                <twig:Atoms:Pagination :pager="pager" route="forum_main_topic" :routeParams="{topic: categoryKey}" />
+            {% endif %}
         {% endif %}
-    {% endif %}
+    </div>
 {% endblock %}
 
 {% block aside %}{% endblock %}
