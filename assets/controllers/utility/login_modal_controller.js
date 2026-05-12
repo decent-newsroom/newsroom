@@ -96,7 +96,7 @@ export default class extends Controller {
       if (this.hasAmberDeepLinkTarget) this.amberDeepLinkTarget.style.display = '';
     } else {
       if (titleEl) titleEl.textContent = 'Primal';
-      if (hintEl)  hintEl.textContent  = 'Open Primal on your device and scan the QR code, or copy the connection string.';
+      if (hintEl)  hintEl.textContent  = 'Open Primal on your device, choose Remote Login in the menu, then scan the QR code, or copy the connection string.';
       if (this.hasAmberDeepLinkTarget) this.amberDeepLinkTarget.style.display = 'none';
     }
   }
