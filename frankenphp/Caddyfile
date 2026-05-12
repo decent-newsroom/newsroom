@@ -68,8 +68,13 @@
 	#   - WordPress probes             (wp-login.php, xmlrpc.php, wp-admin/*, …)
 	#   - Common admin tools           (adminer.php, phpmyadmin/*)
 	#   - Spring Boot actuator         (/actuator/*)
+	#
+	# Uses `handle @blockProbes` so Caddy's subroute ordering guarantees this
+	# fires BEFORE the catch-all `handle {}` block below.
 	@blockProbes path_regexp blockProbes ^/(\.env.*|\.git(/.*)?|\.svn(/.*)?|\.hg(/.*)?|\.htaccess|\.htpasswd|web\.config|phpinfo\.php|info\.php|install\.php|setup\.php|config\.php|admin\.php|composer\.(json|lock)|wp-login\.php|xmlrpc\.php|wp-admin(/.*)?|wp-content(/.*)?|wp-includes(/.*)?|wlwmanifest\.xml|adminer\.php|phpmyadmin(/.*)?|actuator(/.*)?)(\/.*)?$
-	respond @blockProbes 404
+	handle @blockProbes {
+		respond 404
+	}
 
 	# Main application (handles both main site and Unfold subdomains via Symfony routing)
 	handle {
