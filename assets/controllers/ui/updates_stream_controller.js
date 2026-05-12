@@ -75,7 +75,7 @@ export default class extends Controller {
         header.className = 'update-item__header';
         const kind = document.createElement('span');
         kind.className = 'update-item__kind';
-        kind.textContent = payload.kind === 30040 ? 'New publication' : 'New article';
+        kind.textContent = payload.kind === 30040 ? 'Publication updated' : 'New article';
         header.appendChild(kind);
         li.appendChild(header);
 

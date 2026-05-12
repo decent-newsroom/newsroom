@@ -59,7 +59,7 @@
                             <span class="subscription-item__value">{{ sourceTitles[s.sourceValue] ?? (s.sourceValue|split(':')|last) }}</span>
                         {% endif %}
                     </div>
-                    <form method="post" action="{{ path('updates_subscriptions_remove', {id: s.id}) }}"
+                    <form method="post" class="mb-0" action="{{ path('updates_subscriptions_remove', {id: s.id}) }}"
                           onsubmit="return confirm('{{ 'updates.subscription.removeConfirm'|trans }}');">
                         <input type="hidden" name="_token" value="{{ csrf_token('update-unsubscribe') }}" />
                         <button type="submit" class="btn btn-sm">{{ 'updates.subscription.remove'|trans }}</button>

@@ -49,6 +49,9 @@ class UpdatesController extends AbstractController
         $raw = $this->updateRepository->findRecentForUser($user, 200);
         $subscriptions = $this->subscriptionRepository->findActiveForUser($user);
 
+        // Count unread before marking them as read/seen.
+        $unread = $this->updateRepository->countUnreadForUser($user);
+
         // Opening the page marks all updates as seen and read.
         $this->updateRepository->markAllSeen($user);
         $this->updateRepository->markAllRead($user);
@@ -75,7 +78,7 @@ class UpdatesController extends AbstractController
         return $this->render('updates/index.html.twig', [
             'updates' => $items,
             'subscriptions' => $subscriptions,
-            'unread' => $this->updateRepository->countUnreadForUser($user),
+            'unread' => $unread,
             'isPro' => $this->accessService->isPro($user),
             'freeCap' => $this->accessService->getFreeCap(),
             'proSubscription' => $this->proService->getSubscription($user->getUserIdentifier()),
