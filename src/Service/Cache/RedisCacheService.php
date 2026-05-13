@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Service\Cache;
 
 use App\Dto\UserMetadata;
+use App\Entity\User;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Repository\UserEntityRepository;
@@ -14,7 +15,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -37,6 +37,21 @@ class RedisCacheService
     public function setViewStore(RedisViewStore $viewStore): void
     {
         $this->viewStore = $viewStore;
+    }
+
+    /**
+     * We treat either display_name or a non-fallback name as usable profile metadata.
+     */
+    private function hasUsableUserMetadata(User $user): bool
+    {
+        if (!empty($user->getDisplayName())) {
+            return true;
+        }
+
+        $name = $user->getName();
+        $npub = $user->getNpub();
+
+        return !empty($name) && $name !== $npub;
     }
 
     /**
@@ -84,7 +99,7 @@ class RedisCacheService
             $npub = NostrKeyUtil::hexToNpub($pubkey);
             $user = $this->userRepository->findOneBy(['npub' => $npub]);
 
-            if ($user && $user->getDisplayName()) {
+            if ($user && $this->hasUsableUserMetadata($user)) {
                 // User exists in database with metadata
                 $this->logger->debug('Retrieved metadata from database', ['pubkey' => substr($pubkey, 0, 8)]);
                 return UserMetadata::fromUserEntity($user);
@@ -162,7 +177,7 @@ class RedisCacheService
 
                 $foundPubkeys = [];
                 foreach ($users as $user) {
-                    if ($user->getDisplayName()) {
+                    if ($this->hasUsableUserMetadata($user)) {
                         $pubkey = NostrKeyUtil::npubToHex($user->getNpub());
                         $result[$pubkey] = UserMetadata::fromUserEntity($user);
                         $foundPubkeys[] = $pubkey;
@@ -449,9 +464,7 @@ class RedisCacheService
 
     public function setMetadata(\swentel\nostr\Event\Event $event): void
     {
-        $key = new Key();
-        $npub = $key->convertPublicKeyToBech32($event->getPublicKey());
-        $cacheKey = '0_' . $npub;
+        $cacheKey = $this->getUserCacheKey($event->getPublicKey());
         try {
             $item = $this->npubCache->getItem($cacheKey);
             $item->set(json_decode($event->getContent()));
