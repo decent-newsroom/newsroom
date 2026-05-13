@@ -4,10 +4,12 @@
 
 {% block body %}
 <div class="relay-feed-index">
-    <header class="relay-feed-index__header">
-        <h1>{{ 'relay_feed.title'|trans }}</h1>
-        <p class="relay-feed-index__subtitle">{{ 'relay_feed.subtitle'|trans }}</p>
-    </header>
+    <twig:Atoms:PageHeading
+        heading="{{ 'relay_feed.title'|trans }}"
+        tagline="{{ 'relay_feed.subtitle'|trans }}"
+    />
+
+    {# ── Open a feed ───────────────────────────────────────────── #}
 
     {% if error is defined and error %}
         <div class="notice notice--error">{{ error|trans }}</div>
@@ -35,5 +37,69 @@
             </div>
         </div>
     </form>
+
+    {# ── Suggest a relay ───────────────────────────────────────── #}
+
+    <section class="relay-feed-index__suggest">
+        <h2 class="relay-feed-index__suggest-heading">{{ 'relay_feed.suggest.title'|trans }}</h2>
+        <p class="relay-feed-index__suggest-intro">
+            {{ 'relay_feed.suggest.intro'|trans }}
+            {% for r in recipients %}
+                <twig:Molecules:UserFromNpub :ident="r" />{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {{ 'relay_feed.suggest.will_be_notified'|trans }}
+        </p>
+
+        {#
+            Same pattern as feedback/form.html.twig — nostr--nostr-single-sign reads
+            the textarea value as event content before signing.
+        #}
+        <form
+            data-controller="nostr--nostr-single-sign"
+            data-nostr--nostr-single-sign-event-value='{{ {
+                "kind": 24,
+                "tags": [
+                    *recipients|map(r => ["p", r]),
+                    ["t", "relay-feeds"],
+                    ["client", "Decent Newsroom"]
+                ],
+                "content": ""
+            }|json_encode(constant('JSON_UNESCAPED_SLASHES')) }}'
+            data-nostr--nostr-single-sign-publish-url-value="{{ path('api_nostr_publish') }}"
+            data-nostr--nostr-single-sign-redirect-url-value="{{ path('relay_feed_index') }}"
+            data-nostr--nostr-single-sign-csrf-token-value="{{ csrf_token('relay_suggest') }}"
+            data-action="submit->nostr--nostr-single-sign#signAndPublish"
+        >
+            <div data-nostr--nostr-single-sign-target="status"></div>
+
+            <div class="form-group">
+                <label for="relay-suggest-message">{{ 'relay_feed.suggest.message_label'|trans }}</label>
+                <textarea
+                    id="relay-suggest-message"
+                    class="form-control"
+                    rows="4"
+                    placeholder="{{ 'relay_feed.suggest.message_placeholder'|trans }}"
+                    required
+                    data-action="input->nostr--nostr-single-sign#preparePreview"
+                ></textarea>
+            </div>
+
+            <div class="actions">
+                <button
+                    type="submit"
+                    class="button button--primary"
+                    data-nostr--nostr-single-sign-target="publishButton"
+                >
+                    {{ 'relay_feed.suggest.submit'|trans }}
+                </button>
+            </div>
+
+            <details class="relay-feed-index__preview-details">
+                <summary>{{ 'feedback.preview'|trans }}</summary>
+                <pre data-nostr--nostr-single-sign-target="computedPreview" class="bg-light p-2"></pre>
+            </details>
+        </form>
+    </section>
+
 </div>
 {% endblock %}

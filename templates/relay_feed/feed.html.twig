@@ -8,7 +8,7 @@
      data-content--relay-feed-topic-value="{{ mercure_topic }}"
      data-content--relay-feed-keepalive-url-value="{{ path('relay_feed_keepalive', { key: relay_key }) }}"
 >
-    <header class="relay-feed__header">
+    <div class="relay-feed__header">
         <div class="relay-feed__meta">
             <a href="{{ path('relay_feed_index') }}" class="relay-feed__back">
                 ← {{ 'relay_feed.back'|trans }}
@@ -22,16 +22,18 @@
             </span>
             {{ 'relay_feed.articles_cached'|trans }}
         </div>
-    </header>
+    </div>
 
-    <div class="article-list" data-content--relay-feed-target="list">
-        {% for article in articles %}
-            {% include 'relay_feed/_card.html.twig' with { article: article } %}
-        {% else %}
-            <div class="relay-feed__empty" data-content--relay-feed-target="empty">
-                <p>{{ 'relay_feed.waiting'|trans }}</p>
-            </div>
-        {% endfor %}
+    <div class="w-container">
+        <div class="article-list" data-content--relay-feed-target="list">
+            {% for article in articles %}
+                {% include 'relay_feed/_card.html.twig' with { article: article } %}
+            {% else %}
+                <div class="relay-feed__empty" data-content--relay-feed-target="empty">
+                    <p>{{ 'relay_feed.waiting'|trans }}</p>
+                </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endblock %}

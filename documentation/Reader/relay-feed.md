@@ -5,11 +5,13 @@
 
 ## Overview
 
-Relay feeds let visitors browse the live kind:30023 article stream from a curated set of Nostr relays — without going through the application's ingestion, QA, or content-parsing pipelines. Articles are displayed as lightweight raw cards (title, summary, cover image). Full parsing is deferred until the user actually clicks to read.
+Relay feeds let visitors browse the live kind:30023 article stream from a curated set of Nostr relays — without going through the application's ingestion, QA, or content-parsing pipelines. Articles are displayed as lightweight raw cards (title, summary, cover image) using the shared `.card` component. Full parsing is deferred until the user actually clicks to read.
 
 ### Available relays
 
-To avoid over-extending server resources, relay feed subscriptions are restricted to the project relay and the configured content relays (`relay_registry.content_relays` in `services.yaml`). The index page presents these as a dropdown — arbitrary relay URLs are not accepted. Any URL that is not on the allowlist is rejected server-side with a validation error.
+Feed subscriptions are restricted to the configured project relay and content relays (`relay_registry.project_relays` + `relay_registry.content_relays` in `services.yaml`). The index page presents these as a `<select>` dropdown — arbitrary relay URLs are not accepted. Any URL not on the allowlist is rejected server-side with a validation error.
+
+To add or remove a relay from the dropdown, edit the lists in `config/services.yaml`.
 
 ## Architecture
 
@@ -18,17 +20,19 @@ To avoid over-extending server resources, relay feed subscriptions are restricte
 ```
 Browser                      Symfony Worker                Redis / Mercure
 ──────                       ──────────────                ───────────────
-GET /relay-feed              -                             -
-  └─ renders form
+GET /relay-feed
+  └─ renders dropdown (allowed_relays from RelayRegistry)
 POST /relay-feed
-  └─ makeKey(url)            -                             setex relay_feed:url:{key}
+  └─ allowlist check (RelayUrlNormalizer)
+  └─ makeKey(normalizedUrl)  -                             setex relay_feed:url:{key}
   └─ markActive(key)         -                             setex relay_feed:active:{key}  TTL 10 min
   └─ dispatch StartRelayFeedMessage → async_low_priority
   └─ redirect to /relay-feed/{key}
 
 [async_low_priority worker]
                              isActive? → YES
-                             connect to wss://relay_url
+                             resolveToLocalUrl(relayUrl)   (project URL → internal Docker URL)
+                             connect via WebSocket
                              subscribe kind:30023 (last 24h)
                              ─── per event ────────────────
                              alreadySeen? → skip
@@ -46,7 +50,7 @@ GET /relay-feed/{key}
 
 [EventSource → /.well-known/mercure?topic=/relay-feed/{key}]
   ← Mercure SSE ─────────────────────────────────────────────────
-  new card → prepend to list (max 100 visible)
+  new card → prepend to .article-list (max 100 visible)
 
 POST /relay-feed/{key}/keepalive   (every 5 min from Stimulus)
   └─ markActive(key)         -                             refresh TTL
@@ -59,8 +63,8 @@ POST /relay-feed/{key}/keepalive   (every 5 min from Stimulus)
 | `RelayFeedBufferService` | `src/Service/Nostr/RelayFeedBufferService.php` | Redis buffer: URL store, buffer list, seen set, active flag |
 | `StartRelayFeedMessage` | `src/Message/StartRelayFeedMessage.php` | Messenger message carrying relay URL + key |
 | `StartRelayFeedHandler` | `src/MessageHandler/StartRelayFeedHandler.php` | WebSocket subscription loop, Mercure publisher, self-re-dispatch |
-| `RelayFeedController` | `src/Controller/Reader/RelayFeedController.php` | HTTP routes: index form, start, show, keepalive |
-| Twig templates | `templates/relay_feed/` | UI: form, feed page, article card partial |
+| `RelayFeedController` | `src/Controller/Reader/RelayFeedController.php` | HTTP routes: index (dropdown), start (POST + allowlist check), show, keepalive |
+| Twig templates | `templates/relay_feed/` | `index.html.twig` (form), `feed.html.twig` (live feed), `_card.html.twig` (card partial) |
 | Stimulus controller | `assets/controllers/content/relay_feed_controller.js` | EventSource subscription, card rendering, keepalive ping |
 | CSS | `assets/styles/04-pages/relay-feed.css` | Page scaffold only (header, indicator, form). Cards use the shared `.card` system. |
 
@@ -75,11 +79,11 @@ POST /relay-feed/{key}/keepalive   (every 5 min from Stimulus)
 
 ### Relay key
 
-The key is `substr(sha1(normalizedUrl), 0, 16)` — a deterministic 16-char hex string used in route parameters, Mercure topics, and all Redis keys.
+`substr(sha1(normalizedUrl), 0, 16)` — a deterministic 16-char hex string used in route parameters, Mercure topics, and all Redis keys.
 
 ### Mercure topic
 
-`/relay-feed/{key}` — **public** (not private), so no subscriber JWT is required. The Mercure hub is configured with `anonymous`, meaning unauthenticated `EventSource` connections can receive events on public topics.
+`/relay-feed/{key}` — **public** (not private), so no subscriber JWT is required. The Mercure hub has `anonymous` enabled, meaning unauthenticated `EventSource` connections receive events on public topics without a cookie or authorization header.
 
 ### Handler window
 
@@ -89,9 +93,13 @@ The handler runs for ~4.5 minutes per dispatch. Before exiting it checks the `re
 
 The transport is `async_low_priority` with `redeliver_timeout: 600`, giving the 4.5-min window comfortable margin.
 
+### Project relay resolution
+
+When the project relay's public hostname (e.g. `wss://relay.decentnewsroom.com`) is selected, `StartRelayFeedHandler` calls `RelayRegistry::resolveToLocalUrl()` before opening the WebSocket. This converts the public URL to the internal Docker hostname (`strfry`), avoiding an unnecessary external round-trip.
+
 ### Card rendering
 
-Both the server-side Twig partial (`templates/relay_feed/_card.html.twig`) and the Stimulus controller's `_prependCard()` method produce identical `.card` markup — the same structure used by the `Molecules:Card` component elsewhere in the app. This means relay feed cards inherit all existing `.card`, `.card-header`, `.card-body`, `.card-footer`, and `.article-list` styles with no extra CSS. `relay-feed.css` contains only the page scaffold (header, live indicator, relay selector form).
+Both the server-side Twig partial (`templates/relay_feed/_card.html.twig`) and the Stimulus controller's `_prependCard()` method produce identical `.card` markup — the same structure used by the `Molecules:Card` component across the app. The list container uses `.article-list`. No card-specific CSS exists in `relay-feed.css`.
 
 ### Raw card data
 
@@ -113,7 +121,7 @@ Cards contain only metadata extracted from event tags — **no content parsing, 
 
 ### Deferred ingestion
 
-When a visitor clicks **Read**, the link resolves to `/article/{naddr}`. The existing `ArticleController` handles the "article not found → async fetch" flow: it dispatches `FetchEventFromRelaysMessage`, which goes through the full ingestion pipeline (signature verify, QA, HTML parsing, database persistence).
+When a visitor clicks a card, the link resolves to `/article/{naddr}`. The existing `ArticleController` handles the "article not found → async fetch" flow: it dispatches `FetchEventFromRelaysMessage`, which goes through the full ingestion pipeline (signature verify, QA, HTML parsing, database persistence).
 
 ## Configuration
 
@@ -121,13 +129,4 @@ No additional environment variables are required. The feature uses the existing:
 - `MERCURE_URL` / `MERCURE_JWT_SECRET` for hub publishing
 - `MESSENGER_TRANSPORT_DSN` (Redis Streams) for async dispatch
 
-The available relay list is driven by `relay_registry.project_relays` and `relay_registry.content_relays` in `config/services.yaml`. To add or remove a relay from the dropdown, edit those lists.
-
 The `StartRelayFeedMessage` is routed to `async_low_priority` in `config/packages/messenger.yaml`.
-
-
-
-
-
-
-

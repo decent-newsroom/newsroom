@@ -1075,3 +1075,10 @@ relay_feed:
     back: 'Back to relay list'
     articles_cached: 'articles'
     waiting: 'Waiting for articles…'
+    suggest:
+        title: 'Suggest a Relay'
+        intro: 'Know a relay with great long-form content? Send a public Nostr note to suggest it.'
+        will_be_notified: 'will be notified.'
+        message_label: 'Your message'
+        message_placeholder: "I'd like to suggest adding this relay:\n\nwss://relay.example.com\n\n(optional reason)"
+        submit: 'Send suggestion'

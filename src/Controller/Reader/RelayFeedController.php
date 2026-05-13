@@ -8,6 +8,7 @@ use App\Enum\RelayPurpose;
 use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
+use App\Util\NostrKeyUtil;
 use App\Util\RelayUrlNormalizer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,11 +36,25 @@ use Symfony\Component\Routing\Attribute\Route;
 class RelayFeedController extends AbstractController
 {
     #[Route('/relay-feed', name: 'relay_feed_index', methods: ['GET'])]
-    public function index(RelayRegistry $relays): Response
+    public function index(RelayRegistry $relays, NostrKeyUtil $keyUtil): Response
     {
         return $this->render('relay_feed/index.html.twig', [
             'allowed_relays' => $this->allowedRelays($relays),
+            'recipients'     => [
+                $keyUtil->npubToHex('npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'),
+                $keyUtil->npubToHex('npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'),
+            ],
         ]);
+    }
+
+    /**
+     * Relay suggestion form — sends a public kind-1 note to the platform operators.
+     * @deprecated Suggestion form is now embedded in the index page; redirect for backwards compatibility.
+     */
+    #[Route('/relay-feed/suggest', name: 'relay_feed_suggest', methods: ['GET'])]
+    public function suggest(): Response
+    {
+        return $this->redirectToRoute('relay_feed_index');
     }
 
     /**
