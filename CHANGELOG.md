@@ -10,6 +10,7 @@ Essayist.
 - [Feature] Reserved `essayist.decentnewsroom.com` as the public WebSocket endpoint for the Essayist relay (`wss://essayist.decentnewsroom.com`). Caddy routes this host directly to `strfry-essayist:7779` via the new `@essayistRelay` matcher in `frankenphp/Caddyfile`. Controlled by `ESSAYIST_RELAY_DOMAIN` env var (defaults to `essayist.localhost` in development).
 - [Docs] Defined Essayist pre-public-launch read model: during Phase 0, reads are served exclusively through a gated Decent Newsroom feed page (`/essayist`) backed by server-side relay queries; the relay URL is not publicly advertised. Access to the feed page requires `ROLE_ESSAYIST_SUPPORTER`, earned by supporting an approved writer. Renamed `ROLE_ESSAYIST_READER` to `ROLE_ESSAYIST_SUPPORTER` throughout the implementation notes to match the access model.
 
+
 ## v0.0.38
 Usability and styles.
 
