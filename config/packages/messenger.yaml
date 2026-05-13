@@ -85,9 +85,24 @@ framework:
                     delay: 10000
                     multiplier: 2
             
-            # https://symfony.com/doc/current/messenger.html#transport-configuration
-            # failed: 'doctrine://default?queue_name=failed'
-            # sync: 'sync://'
+            # Dedicated transport for relay feed subscriptions.
+            # Each StartRelayFeedMessage handler blocks for ~4.5 minutes (open WebSocket loop).
+            # Keeping these on async_low_priority would starve all other background work for
+            # that duration and make new feeds wait up to 4.5 min before their first event.
+            # Three parallel consumers run on this transport (see app:run-workers) so up to
+            # three feeds can run concurrently without queuing behind each other.
+            async_relay_feeds:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    stream: '%kernel.environment%:messenger:async_relay_feeds'
+                    group: '%kernel.environment%-relay-feeds'
+                    consumer: 'consumer-%kernel.environment%-relay-feeds-%env(default::HOSTNAME)%'
+                    stream_max_entries: 500
+                    redeliver_timeout: 600
+                    delete_after_ack: true
+                    delete_after_reject: true
+                retry_strategy:
+                    max_retries: 0
 
         routing:
             # Route your messages to the transports
@@ -132,11 +147,10 @@ framework:
             # NIP-66 monitor events fetch — triggered on trust, also available via CLI
             'App\Message\FetchRelayMonitorEventsMessage': async_low_priority
             # Relay feed: time-bounded WebSocket subscription that pushes raw article
-            # cards to Mercure and a Redis rolling buffer. Runs ~5 min per invocation
-            # and re-dispatches itself while there are active viewers.  Placed on
-            # async_low_priority (redeliver_timeout=600 s) so the 4.5-min window
-            # is well within the threshold.
-            'App\Message\StartRelayFeedMessage': async_low_priority
+            # cards to Mercure and a Redis rolling buffer. Runs ~4.5 min per invocation
+            # and re-dispatches itself while there are active viewers. Isolated on its
+            # own transport so long-running subscriptions never block async_low_priority.
+            'App\Message\StartRelayFeedMessage': async_relay_feeds
             # --- Profiles: heavy background work, isolated to avoid blocking ---
             # Profile updates - relay calls, can be slow
             'App\Message\UpdateProfileProjectionMessage': async_profiles

@@ -12,7 +12,7 @@ use Symfony\Component\Process\Process;
 /**
  * Messenger consumer worker for async and async_low_priority queues.
  *
- * Runs three Symfony Messenger consumer processes in parallel:
+ * Runs consumer processes in parallel:
  *   - async: strictly user-facing fetches (comments, author articles/content,
  *     event-from-relays). Short queue, fast turnaround.
  *   - async_low_priority: all background work — fan-out notifications,
@@ -21,6 +21,9 @@ use Symfony\Component\Process\Process;
  *     user-blocking; dedicated consumer keeps it from starving `async`.
  *   - async_expressions: user-initiated expression evaluation (isolated so a
  *     backlog on `async` never delays the loading page).
+ *   - async_relay_feeds (×3): relay feed WebSocket subscriptions. Each handler
+ *     blocks for ~4.5 min, so three parallel consumers allow three feeds to run
+ *     concurrently without queuing behind each other or blocking any other queue.
  *
  * Relay subscriptions run in a separate service (worker-relay) via app:run-relay-workers.
  * Profile work runs in worker-profiles via app:run-profile-workers.
@@ -45,7 +48,8 @@ class RunWorkersCommand extends Command
                     '  - async: User-facing fetches (comments, author articles/content, event-from-relays)' . "\n" .
                     '  - async_low_priority: Background work (fan-out notifications, media, magazines, embeds,' . "\n" .
                     '                        highlights, gateway persistence, login warmup, relay lists)' . "\n" .
-                    '  - async_expressions: User-initiated expression evaluation' . "\n\n" .
+                    '  - async_expressions: User-initiated expression evaluation' . "\n" .
+                    '  - async_relay_feeds (×3): Relay feed WebSocket subscriptions (4.5 min each, 3 concurrent)' . "\n\n" .
                     'Relay subscriptions run in worker-relay (app:run-relay-workers).' . "\n" .
                     'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
                     'The relay gateway runs as a separate Docker service (relay-gateway).' . "\n" .
@@ -87,6 +91,30 @@ class RunWorkersCommand extends Command
                     '-vv', '--memory-limit=192M', '--time-limit=3600',
                 ],
                 'description' => 'Messenger consumer (async_expressions: user-initiated expression evaluation)',
+            ],
+            // Three parallel consumers for relay feeds.
+            // Each StartRelayFeedMessage blocks ~4.5 min (open WebSocket), so three
+            // workers means three feeds can run concurrently with no queuing delay.
+            'relay-feed-1' => [
+                'command' => [
+                    'php', 'bin/console', 'messenger:consume', 'async_relay_feeds',
+                    '-vv', '--memory-limit=128M', '--time-limit=3600',
+                ],
+                'description' => 'Relay feed consumer 1 (async_relay_feeds)',
+            ],
+            'relay-feed-2' => [
+                'command' => [
+                    'php', 'bin/console', 'messenger:consume', 'async_relay_feeds',
+                    '-vv', '--memory-limit=128M', '--time-limit=3600',
+                ],
+                'description' => 'Relay feed consumer 2 (async_relay_feeds)',
+            ],
+            'relay-feed-3' => [
+                'command' => [
+                    'php', 'bin/console', 'messenger:consume', 'async_relay_feeds',
+                    '-vv', '--memory-limit=128M', '--time-limit=3600',
+                ],
+                'description' => 'Relay feed consumer 3 (async_relay_feeds)',
             ],
         ];
 

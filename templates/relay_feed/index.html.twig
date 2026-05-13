@@ -44,10 +44,6 @@
         <h2 class="relay-feed-index__suggest-heading">{{ 'relay_feed.suggest.title'|trans }}</h2>
         <p class="relay-feed-index__suggest-intro">
             {{ 'relay_feed.suggest.intro'|trans }}
-            {% for r in recipients %}
-                <twig:Molecules:UserFromNpub :ident="r" />{% if not loop.last %}, {% endif %}
-            {% endfor %}
-            {{ 'relay_feed.suggest.will_be_notified'|trans }}
         </p>
 
         {#
@@ -72,7 +68,7 @@
         >
             <div data-nostr--nostr-single-sign-target="status"></div>
 
-            <div class="form-group">
+            <div class="input-group">
                 <label for="relay-suggest-message">{{ 'relay_feed.suggest.message_label'|trans }}</label>
                 <textarea
                     id="relay-suggest-message"

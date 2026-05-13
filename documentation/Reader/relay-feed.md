@@ -26,10 +26,10 @@ POST /relay-feed
   └─ allowlist check (RelayUrlNormalizer)
   └─ makeKey(normalizedUrl)  -                             setex relay_feed:url:{key}
   └─ markActive(key)         -                             setex relay_feed:active:{key}  TTL 10 min
-  └─ dispatch StartRelayFeedMessage → async_low_priority
+  └─ dispatch StartRelayFeedMessage → async_relay_feeds
   └─ redirect to /relay-feed/{key}
 
-[async_low_priority worker]
+[async_relay_feeds worker  (one of three parallel consumers)]
                              isActive? → YES
                              resolveToLocalUrl(relayUrl)   (project URL → internal Docker URL)
                              connect via WebSocket
@@ -91,7 +91,7 @@ The handler runs for ~4.5 minutes per dispatch. Before exiting it checks the `re
 - **Set** → re-dispatch `StartRelayFeedMessage` to keep the subscription alive.
 - **Expired** (no viewers for >10 min) → exit without re-dispatching.
 
-The transport is `async_low_priority` with `redeliver_timeout: 600`, giving the 4.5-min window comfortable margin.
+The transport is `async_relay_feeds` (`redeliver_timeout: 600`), giving the 4.5-min window comfortable margin. Three parallel consumers run on this transport (spawned by `app:run-workers` as `relay-feed-1/2/3`), so up to three feeds can run concurrently without queuing behind each other or blocking the `async_low_priority` queue.
 
 ### Project relay resolution
 
@@ -129,4 +129,8 @@ No additional environment variables are required. The feature uses the existing:
 - `MERCURE_URL` / `MERCURE_JWT_SECRET` for hub publishing
 - `MESSENGER_TRANSPORT_DSN` (Redis Streams) for async dispatch
 
-The `StartRelayFeedMessage` is routed to `async_low_priority` in `config/packages/messenger.yaml`.
+The `StartRelayFeedMessage` is routed to `async_relay_feeds` in `config/packages/messenger.yaml`. Three parallel consumers for this transport are started by `app:run-workers` (keys `relay-feed-1`, `relay-feed-2`, `relay-feed-3`).
+
+### Relay suggestion
+
+The index page (`/relay-feed`) also embeds a public relay-suggestion form below the relay selector. It publishes a kind-1 Nostr note tagging the platform operators (same `nostr--nostr-single-sign` pattern as the feedback form, no custom controller). Recipients are resolved from npubs in `RelayFeedController::recipients()`. The suggestion carries a `["t", "nostr-relay"]` tag.

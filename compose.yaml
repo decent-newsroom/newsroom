@@ -15,7 +15,7 @@
 #   - php: FrankenPHP (Symfony app + Caddy web server + Mercure)
 #   - database: PostgreSQL database
 #   - cron: Scheduled tasks (background jobs)
-#   - worker: Messenger consumers (async + async_low_priority queues)
+#   - worker: Messenger consumers (async + async_low_priority + async_relay_feeds queues)
 #   - worker-relay: Local relay subscriptions (articles, media, magazines)
 #   - worker-profiles: Profile refresh daemon + async_profiles queue
 #   - relay-gateway: Persistent relay connection pool with NIP-42 AUTH
