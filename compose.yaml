@@ -48,6 +48,7 @@ services:
         ELASTICSEARCH_ENABLED: ${ELASTICSEARCH_ENABLED:-false}
         CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
         RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
+        ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -289,6 +290,30 @@ services:
 #        - "7778:7778"
 ###< strfry-chat relay ###
 
+###> strfry-essayist relay (writer-first, longform only) ###
+#
+# Activate with: docker compose --profile essayist up -d
+# Requires: ESSAYIST_POLICY_TOKEN set in .env (shared secret for the write-policy API)
+#
+  strfry-essayist:
+    image: dockurr/strfry:latest
+    profiles: [essayist]
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - ./strfry relay /etc/strfry.conf
+    volumes:
+        - ./docker/strfry-essayist/strfry.conf:/etc/strfry.conf:ro
+        - ./docker/strfry-essayist/write-policy.sh:/app/write-policy.sh:ro
+        - strfry_essayist_data:/var/lib/strfry
+    ports:
+        - "7779:7779"  # ws://localhost:7779  (wss://relay.essayist.example.com in prod)
+    environment:
+        APP_INTERNAL_URL: http://php
+        ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
+###< strfry-essayist relay ###
+
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
 
@@ -307,4 +332,8 @@ volumes:
 ###> strfry-chat relay ###
 #  strfry_chat_data:
 ###< strfry-chat relay ###
+
+###> strfry-essayist relay ###
+  strfry_essayist_data:
+###< strfry-essayist relay ###
 

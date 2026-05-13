@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.0.39
+Essayist.
+
+- [Feature] Added Essayist relay (`strfry-essayist`): a dedicated strfry instance on port 7779 with a writer-first write policy. Only approved Essayist writers (pubkeys in the `ESSAYIST_WRITERS` follow pack) can publish, and only kind 30023 (published longform articles) is accepted. All other pubkeys and kinds are rejected with a descriptive message. Activate with `docker compose --profile essayist up -d`.
+- [Feature] Added internal writer-approval API endpoint `GET /api/internal/essayist/writer/{pubkey}`. Called by the strfry-essayist write-policy.sh script on every incoming `EVENT`, protected by a shared bearer token (`ESSAYIST_POLICY_TOKEN`). Returns `{"approved": true/false}` based on follow pack membership.
+- [Feature] Added `FollowPackPurpose::ESSAYIST_WRITERS` enum case. Insert a `follow_pack_source` row pointing at the kind:39089 coordinate published under the Decent Newsroom npub to activate the approved-writer list.
+
 ## v0.0.38
 Usability and styles.
 

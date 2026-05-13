@@ -12,12 +12,14 @@ enum FollowPackPurpose: string
 {
     case PODCASTS = 'podcasts';
     case NEWS_BOTS = 'news_bots';
+    case ESSAYIST_WRITERS = 'essayist_writers';
 
     public function label(): string
     {
         return match ($this) {
             self::PODCASTS => 'Podcasts',
             self::NEWS_BOTS => 'News Bots',
+            self::ESSAYIST_WRITERS => 'Essayist Writers',
         };
     }
 }
