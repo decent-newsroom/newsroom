@@ -48,12 +48,22 @@
 	}
 
 
-	# Nostr relay WebSocket proxy
-	@relay host {$RELAY_DOMAIN:relay.localhost}
-	handle @relay {
-		encode zstd gzip
-		reverse_proxy strfry:7777
-	}
+        # Nostr relay WebSocket proxy
+        @relay host {$RELAY_DOMAIN:relay.localhost}
+        handle @relay {
+                encode zstd gzip
+                reverse_proxy strfry:7777
+        }
+
+        # Essayist writer-first relay WebSocket proxy
+        # Production: essayist.decentnewsroom.com  →  strfry-essayist:7779
+        # Activated only when the `essayist` Docker profile is running.
+        # Configure: ESSAYIST_RELAY_DOMAIN=essayist.decentnewsroom.com
+        @essayistRelay host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
+        handle @essayistRelay {
+                encode zstd gzip
+                reverse_proxy strfry-essayist:7779
+        }
 
 	# ── Block scanner / attacker probe paths ─────────────────────────────────────
 	# Caddy responds immediately with 404; PHP is never invoked, no Symfony routing,

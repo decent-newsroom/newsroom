@@ -847,7 +847,38 @@ The main strfry relay (port 7777) is unchanged and continues to be read-only for
 1. Add their hex pubkey to the kind 39089 follow pack event published under the Decent Newsroom npub.
 2. The strfry relay will accept their events on the next incoming `EVENT` (no restart needed).
 
-**In production**, reverse-proxy port 7779 to a subdomain (e.g. `wss://relay.essayist.example.com`) via Caddy.
+#### Public subdomain — `essayist.decentnewsroom.com`
+
+The Essayist relay is exposed publicly at:
+
+```
+wss://essayist.decentnewsroom.com
+```
+
+Caddy routes the host `essayist.decentnewsroom.com` directly to `strfry-essayist:7779` via the `@essayistRelay` matcher in `frankenphp/Caddyfile`. No separate nginx or proxy config is needed.
+
+**Environment variables:**
+
+| Variable | Default (dev) | Production value |
+|---|---|---|
+| `ESSAYIST_RELAY_DOMAIN` | `essayist.localhost` | `essayist.decentnewsroom.com` |
+| `ESSAYIST_POLICY_TOKEN` | `changeme` | random 32-byte hex secret |
+
+**Production `.env` excerpt:**
+```dotenv
+ESSAYIST_RELAY_DOMAIN=essayist.decentnewsroom.com
+ESSAYIST_POLICY_TOKEN=<output of: php -r "echo bin2hex(random_bytes(32));"> 
+```
+
+**DNS:** add a CNAME record `essayist.decentnewsroom.com → decentnewsroom.com` (same host, Caddy handles routing by `Host:` header). TLS is handled automatically by Caddy/Let's Encrypt when `SERVER_NAME` includes the wildcard `*.decentnewsroom.com`, or by the upstream proxy.
+
+**Local development:**
+
+```
+ws://essayist.localhost
+```
+
+Browsers resolve `*.localhost` without a hosts-file entry in modern operating systems.
 
 ### 3. No writer application entity
 
@@ -887,5 +918,23 @@ Once approved writers are collected, publish a kind 39089 event from the Decent 
 
 ## NIP-11 relay information
 
-If a dedicated Essayist relay is launched (see gap 2 above), publish a NIP-11 relay information document declaring it as writer-first with a description, `pubkey`, and `limitation` fields. This is the standard way for a Nostr relay to declare access terms.
+The Essayist relay publishes a NIP-11 relay information document at `https://essayist.decentnewsroom.com` (HTTP `GET` with `Accept: application/nostr+json`). The document is generated automatically by strfry from `docker/strfry-essayist/strfry.conf`:
+
+```json
+{
+  "name": "Essayist",
+  "description": "A writer-first relay for longform work on Nostr. Publishing requires approval. Reading is open.",
+  "pubkey": "d475ce4b3977507130f42c7f86346ef936800f3ae74d5ecf8089280cdc1923e9",
+  "contact": "decentnewsroom.com",
+  "supported_nips": [1, 2, 9, 11, 12, 15, 16, 20, 22],
+  "software": "strfry",
+  "limitation": {
+    "payment_required": false,
+    "auth_required": false,
+    "restricted_writes": true
+  }
+}
+```
+
+`restricted_writes: true` signals to clients that write access requires prior approval. Readers (subscribers) are unrestricted.
 

@@ -49,6 +49,7 @@ services:
         CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
         RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-false}
         ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
+        ESSAYIST_RELAY_DOMAIN: ${ESSAYIST_RELAY_DOMAIN:-essayist.localhost}
     volumes:
       - caddy_data:/data
       - caddy_config:/config
