@@ -313,5 +313,54 @@ class UserRelayListServiceTest extends TestCase
         $this->assertLessThan($followsIdx, $userIdx, 'User relays should come before follows pool');
         $this->assertLessThan($registryIdx, $followsIdx, 'Follows pool should come before registry defaults');
     }
+
+    public function testSeedFromPublishedRelayListEventPersistsAndCachesParsedRelays(): void
+    {
+        $hex = str_repeat('1', 64);
+        $createdAt = time();
+
+        $event = [
+            'kind' => 10002,
+            'pubkey' => $hex,
+            'created_at' => $createdAt,
+            'tags' => [
+                ['r', 'wss://relay.write-only.example', 'write'],
+                ['r', 'wss://relay.read-only.example', 'read'],
+                ['r', 'wss://relay.both.example'],
+            ],
+        ];
+
+        $this->relayListRepository->expects($this->once())
+            ->method('findByPubkey')
+            ->with($hex)
+            ->willReturn(null);
+
+        $this->em->expects($this->once())->method('persist');
+        $this->em->expects($this->once())->method('flush');
+
+        $cacheItem = $this->createMock(CacheItemInterface::class);
+        $cacheItem->expects($this->once())->method('set');
+        $cacheItem->expects($this->once())->method('expiresAfter')
+            ->with($this->isType('int'));
+
+        $this->cache->expects($this->once())
+            ->method('getItem')
+            ->willReturn($cacheItem);
+        $this->cache->expects($this->once())
+            ->method('save')
+            ->with($cacheItem)
+            ->willReturn(true);
+
+        $result = $this->service->seedFromPublishedRelayListEvent($event);
+
+        $this->assertNotNull($result);
+        $this->assertSame(['wss://relay.read-only.example', 'wss://relay.both.example'], $result['read']);
+        $this->assertSame(['wss://relay.write-only.example', 'wss://relay.both.example'], $result['write']);
+        $this->assertSame(
+            ['wss://relay.write-only.example', 'wss://relay.read-only.example', 'wss://relay.both.example'],
+            $result['all']
+        );
+        $this->assertSame($createdAt, $result['created_at']);
+    }
 }
 

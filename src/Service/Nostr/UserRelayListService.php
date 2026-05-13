@@ -396,6 +396,76 @@ class UserRelayListService
         }
     }
 
+    /**
+     * Seed relay-list cache + DB immediately from a freshly signed kind 10002 event.
+     *
+     * @param array{id?: mixed, pubkey?: mixed, created_at?: mixed, kind?: mixed, tags?: mixed} $signedEvent
+     * @return array{read: string[], write: string[], all: string[], created_at: ?int}|null
+     */
+    public function seedFromPublishedRelayListEvent(array $signedEvent): ?array
+    {
+        if ((int) ($signedEvent['kind'] ?? -1) !== KindsEnum::RELAY_LIST->value) {
+            return null;
+        }
+
+        $pubkey = (string) ($signedEvent['pubkey'] ?? '');
+        if ($pubkey === '') {
+            return null;
+        }
+
+        $createdAt = (int) ($signedEvent['created_at'] ?? time());
+        $tags = is_array($signedEvent['tags'] ?? null) ? $signedEvent['tags'] : [];
+
+        $relayList = [
+            'read' => [],
+            'write' => [],
+            'all' => [],
+            'created_at' => $createdAt,
+        ];
+
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? '') !== 'r') {
+                continue;
+            }
+
+            $relayUrl = $tag[1] ?? null;
+            if (!is_string($relayUrl) || !$this->isValidRelay($relayUrl)) {
+                continue;
+            }
+
+            $marker = $tag[2] ?? null;
+            if ($marker === 'read') {
+                $relayList['read'][] = $relayUrl;
+            } elseif ($marker === 'write') {
+                $relayList['write'][] = $relayUrl;
+            } else {
+                // No marker means both read + write.
+                $relayList['read'][] = $relayUrl;
+                $relayList['write'][] = $relayUrl;
+            }
+            $relayList['all'][] = $relayUrl;
+        }
+
+        $relayList['read'] = array_values(array_unique($relayList['read']));
+        $relayList['write'] = array_values(array_unique($relayList['write']));
+        $relayList['all'] = array_values(array_unique($relayList['all']));
+
+        if (empty($relayList['all'])) {
+            return null;
+        }
+
+        $hex = $this->toHex($pubkey);
+        $this->persistToDatabase($hex, $relayList);
+        $this->writeCache($hex, $relayList);
+
+        $this->logger->info('UserRelayListService: seeded relay list from freshly published event', [
+            'pubkey' => substr($hex, 0, 8),
+            'relay_count' => count($relayList['all']),
+        ]);
+
+        return $relayList;
+    }
+
     // ------------------------------------------------------------------
     // Resolution layers
     // ------------------------------------------------------------------

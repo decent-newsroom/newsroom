@@ -269,13 +269,34 @@ class SettingsController extends AbstractController
 
             $userProfileService->persistUserEvent((object) $signedEvent);
 
-            // Invalidate relay list cache when publishing a kind 10002 event
+            $pubkey = $signedEvent['pubkey'];
+
             if ((int) $signedEvent['kind'] === KindsEnum::RELAY_LIST->value) {
-                $userRelayListService->invalidate($signedEvent['pubkey']);
+                // Seed cache/DB from the just-signed event so publish fanout uses
+                // the newly declared write relays immediately.
+                $seededRelayList = $userRelayListService->seedFromPublishedRelayListEvent($signedEvent);
+                $declaredRelays = $seededRelayList['write'] ?? $seededRelayList['all'] ?? [];
+                $relays = [];
+
+                $localRelay = $this->relayRegistry->getLocalRelay();
+                if ($localRelay !== null) {
+                    $relays[] = $localRelay;
+                }
+
+                foreach ($declaredRelays as $relayUrl) {
+                    if (!in_array($relayUrl, $relays, true)) {
+                        $relays[] = $relayUrl;
+                    }
+                }
+
+                // Safety fallback when the signed event has no valid relay tags.
+                if (empty($declaredRelays)) {
+                    $relays = $userRelayListService->getRelaysForPublishing($pubkey);
+                }
+            } else {
+                $relays = $userRelayListService->getRelaysForPublishing($pubkey);
             }
 
-            $pubkey = $signedEvent['pubkey'];
-            $relays = $userRelayListService->getRelaysForPublishing($pubkey);
             $relayResults = $nostrClient->publishEvent($eventObj, $relays);
 
             $successCount = 0;
