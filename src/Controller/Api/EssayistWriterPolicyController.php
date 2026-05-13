@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
-use App\Enum\FollowPackPurpose;
-use App\Service\FollowPackService;
+use App\Enum\RolesEnum;
+use App\Repository\UserEntityRepository;
+use App\Util\NostrKeyUtil;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,14 +25,14 @@ use Symfony\Component\Routing\Attribute\Route;
 final class EssayistWriterPolicyController extends AbstractController
 {
     public function __construct(
-        private readonly FollowPackService $followPackService,
+        private readonly UserEntityRepository $userRepository,
         #[Autowire(env: 'ESSAYIST_POLICY_TOKEN')]
         private readonly string $policyToken,
     ) {
     }
 
     /**
-     * Check whether a hex pubkey belongs to the approved Essayist writers pack.
+     * Check whether a hex pubkey belongs to an Essayist author (has ROLE_ESSAYIST_AUTHOR).
      *
      * Called by docker/strfry-essayist/write-policy.sh on every incoming EVENT.
      *
@@ -39,7 +40,7 @@ final class EssayistWriterPolicyController extends AbstractController
      * Authorization: Bearer <ESSAYIST_POLICY_TOKEN>
      *
      * Response:
-     *   {"approved": true}  — writer is in the approved pack, accept the event
+     *   {"approved": true}  — writer has ROLE_ESSAYIST_AUTHOR, accept the event
      *   {"approved": false} — writer is not approved, reject the event
      */
     #[Route('/writer/{pubkey}', name: 'api_essayist_writer_policy', methods: ['GET'])]
@@ -58,11 +59,16 @@ final class EssayistWriterPolicyController extends AbstractController
             return new JsonResponse(['approved' => false, 'reason' => 'invalid pubkey format']);
         }
 
-        $approvedPubkeys = $this->followPackService->getPubkeysForPurpose(
-            FollowPackPurpose::ESSAYIST_WRITERS
-        );
+        // Convert hex pubkey to npub to query the user
+        try {
+            $npub = NostrKeyUtil::hexToNpub($pubkey);
+        } catch (\InvalidArgumentException) {
+            return new JsonResponse(['approved' => false, 'reason' => 'invalid pubkey']);
+        }
 
-        $approved = in_array($pubkey, $approvedPubkeys, true);
+        // Check if user with this npub has ROLE_ESSAYIST_AUTHOR
+        $user = $this->userRepository->findOneBy(['npub' => $npub]);
+        $approved = $user && in_array(RolesEnum::ESSAYIST_AUTHOR->value, $user->getRoles(), true);
 
         return new JsonResponse(['approved' => $approved]);
     }

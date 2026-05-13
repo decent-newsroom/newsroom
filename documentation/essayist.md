@@ -804,15 +804,14 @@ The first test should be small and direct:
 
 ## What is already built and can be reused directly
 
-### Follow pack infrastructure (kind 39089)
+### Role-based author whitelist
 
-The founding writer pack described in the plan maps directly to an existing system:
+The founding writer pack is managed entirely through the role system:
 
-- `FollowPackSource` entity stores a coordinate pointing to a kind 39089 event.
-- `FollowPackService` resolves that coordinate to a list of hex pubkeys, fetches their articles, and resolves their metadata.
-- `FollowPackPurpose` enum lists the configured packs (`PODCASTS`, `NEWS_BOTS`).
-
-**Required work:** ~~add `ESSAYIST_WRITERS` to `FollowPackPurpose` and point it at the published kind 39089 event coordinate.~~ `FollowPackPurpose::ESSAYIST_WRITERS` has been added. Point it at the published kind 39089 coordinate by inserting a row in `follow_pack_source`.
+- `ROLE_ESSAYIST_AUTHOR` is assigned to approved writers via `user:elevate <npub> ROLE_ESSAYIST_AUTHOR`.
+- The relay write-policy checks whether an incoming author pubkey holds this role.
+- The founding writer list is not published as a public kind 39089 event; it remains proprietary to the instance.
+- No separate `EssayistApplication` entity or `FollowPackSource` integration is needed.
 
 ### Writer article history check
 
@@ -865,8 +864,8 @@ Fix receipt detection separately as part of the existing backlog item before aut
 The Essayist relay is a dedicated strfry instance in `docker/strfry-essayist/`:
 
 - **`strfry.conf`** — port 7779, NIP-11 info declares `name = "Essayist"`.
-- **`write-policy.sh`** — rejects all writes except from pubkeys returned by the approval API. Accepted kinds: 30023 (published longform articles only). Identity and draft events (0, 3, 10002, 30024) should be fetched from the author's own relays.
-- **`GET /api/internal/essayist/writer/{pubkey}`** — internal API called by the write policy on every incoming `EVENT`. Checks whether the hex pubkey is in the `ESSAYIST_WRITERS` follow pack. Protected by a shared bearer token (`ESSAYIST_POLICY_TOKEN` env var).
+- **`write-policy.sh`** — rejects all writes except from pubkeys with `ROLE_ESSAYIST_AUTHOR`. Accepted kinds: 30023 (published longform articles only). Identity and draft events (0, 3, 10002, 30024) should be fetched from the author's own relays.
+- **`GET /api/internal/essayist/writer/{pubkey}`** — internal API called by the write policy on every incoming `EVENT`. Checks whether the hex pubkey belongs to a user with `ROLE_ESSAYIST_AUTHOR`. Protected by a shared bearer token (`ESSAYIST_POLICY_TOKEN` env var).
 - **Docker profile `essayist`** — activate with `docker compose --profile essayist up -d`. Not running by default.
 
 The main strfry relay (port 7777) is unchanged and continues to be read-only for all content.
@@ -883,8 +882,8 @@ strfry itself has no built-in read-gating mechanism; access control at this phas
 
 **Phase 2 (public launch):** the relay URL is published, NIP-11 discovery is activated, and clients can subscribe directly. `ROLE_ESSAYIST_SUPPORTER` continues to be the gate for the curated Decent Newsroom feed page, but the relay is no longer hidden.
 
-**Adding a writer** once `EssayistApplication` is approved:
-1. Add their hex pubkey to the kind 39089 follow pack event published under the Decent Newsroom npub.
+**Adding a writer** once approved:
+1. Run: `docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_AUTHOR`
 2. The strfry relay will accept their events on the next incoming `EVENT` (no restart needed).
 
 #### Public subdomain — `essayist.decentnewsroom.com`
@@ -932,16 +931,25 @@ There is no database entity or form for founding writer applications yet. The cl
 
 The following covers the "Required" items from Section 3 with the fewest new parts:
 
-1. **`EssayistApplication` entity + migration + admin CRUD** — follows the pattern of `ActiveIndexingSubscription`.
-2. **`FollowPackPurpose::ESSAYIST_WRITERS`** — one enum case, one `FollowPackSource` row in the database.
-3. **`ROLE_ESSAYIST_SUPPORTER` in `RolesEnum`** — one enum case; `user:elevate` grants it. This is the role earned by supporting an approved writer. It gates the Decent Newsroom feed page during the pre-public-launch phase.
-4. **Relay feed page: `/essayist`** — a Symfony controller that queries `strfry-essayist` (via `NostrClient` pointed at `ws://strfry-essayist:7779`) for kind 30023 events, renders them with existing article card components, and is access-controlled by `ROLE_ESSAYIST_SUPPORTER`. Unauthenticated or ungated users are redirected to the Essayist landing page.
-5. **Landing page controller + template** — uses existing `UserFromNpub` and `ZapButton` Twig components for writer cards. Publicly accessible.
-6. **Writer application form** — standard Symfony form, stores an `EssayistApplication`.
-7. **Admin section: `/admin/essayist`** — lists applications, shows article counts from `FollowPackService`, has "Approve writer" button (adds to follow pack) and "Grant supporter access" button (sets `ROLE_ESSAYIST_SUPPORTER` on a reader's `User` row).
-8. **Article count auto-check** — on application review page, call `FollowPackService::getArticlesForPubkeys([$npub])` and count articles in the last 90 days. Flag if under five.
+1. **`ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` in `RolesEnum`** — two enum cases:
+   - `ROLE_ESSAYIST_AUTHOR`: granted to approved writers via `user:elevate`. Controls relay write access.
+   - `ROLE_ESSAYIST_SUPPORTER`: granted to readers who support an approved writer. Gates the Decent Newsroom feed page during the pre-public-launch phase.
 
-**Explicitly defer until receipt detection works:** automated role grant on payment. Until then, admin clicks "Grant supporter access" after manual verification.
+2. **Relay write-policy endpoint: `/api/internal/essayist/writer/{pubkey}`** — queries the `User` entity to check if the given pubkey has `ROLE_ESSAYIST_AUTHOR`. Returns 200 if authorized, 403 otherwise. Protected by bearer token (`ESSAYIST_POLICY_TOKEN`).
+
+3. **Relay feed page: `/essayist`** — a Symfony controller that queries `strfry-essayist` (via `NostrClient` pointed at `ws://strfry-essayist:7779`) for kind 30023 events, renders them with existing article card components, and is access-controlled by `ROLE_ESSAYIST_SUPPORTER`. Unauthenticated or ungated users are redirected to the Essayist landing page.
+
+4. **Landing page controller + template** — uses existing `UserFromNpub` and `ZapButton` Twig components for writer cards (once a writer is approved, they can be listed in the landing page template or fetched from the relay feed to display recent articles). Publicly accessible but shows full writer list only to supporters.
+
+5. **Admin dashboard command:** existing `user:elevate` command is used to grant both roles:
+   ```bash
+   docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_AUTHOR
+   docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_SUPPORTER
+   ```
+
+6. **No separate application tracking table needed.** Writers apply via email, form, or direct approach; admin reviews their pubkey and recent articles manually (or with a quick `FollowPackService::getArticlesForPubkeys()` check if desired), then grants the role.
+
+**Explicitly defer until receipt detection works:** automated role grant on payment. Until then, admin manually verifies each payment and runs `user:elevate` to grant `ROLE_ESSAYIST_SUPPORTER`.
 
 **Relay URL advertising:** do not add `wss://essayist.decentnewsroom.com` to any NIP-65 relay list or link it in the UI until Phase 1 public launch begins.
 
@@ -953,9 +961,9 @@ The `UnfoldBundle` supports hosted subdomains (`essayist.example.com`). If Essay
 
 ---
 
-## Follow pack publication
+## Writer whitelist is not published
 
-Once approved writers are collected, publish a kind 39089 event from the Decent Newsroom npub listing their pubkeys. This makes the founding pack portable and visible in Nostr clients. Store the event coordinate in `FollowPackSource` with purpose `ESSAYIST_WRITERS`. The `FollowPackService` will resolve it automatically.
+The founding writer list is stored only as user roles (`ROLE_ESSAYIST_AUTHOR`) in the local database. It is not published as a public Nostr event (kind 39089), which keeps the curation proprietary to your instance and prevents easy cloning by competitors.
 
 ---
 
