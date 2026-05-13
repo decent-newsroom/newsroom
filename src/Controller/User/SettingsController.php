@@ -192,6 +192,15 @@ class SettingsController extends AbstractController
             $pubkey = $signedEvent['pubkey'];
             $relays = $userRelayListService->getRelaysForPublishing($pubkey);
 
+            // Always include configured profile relays (e.g. purplepag.es)
+            // so kind:0 metadata is discoverable even when the user's own
+            // relay list is sparse or stale.
+            foreach ($this->relayRegistry->getProfileRelays() as $profileRelay) {
+                if (!in_array($profileRelay, $relays, true)) {
+                    $relays[] = $profileRelay;
+                }
+            }
+
             $logger->info('Publishing profile metadata event', [
                 'event_id' => $signedEvent['id'],
                 'pubkey' => $pubkey,
