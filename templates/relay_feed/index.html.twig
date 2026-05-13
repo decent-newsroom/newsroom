@@ -59,7 +59,7 @@
             data-nostr--nostr-single-sign-event-value='{{ {
                 "kind": 24,
                 "tags": [
-                    *recipients|map(r => ["p", r]),
+                    ...recipients|map(r => ["p", r]),
                     ["t", "relay-feeds"],
                     ["client", "Decent Newsroom"]
                 ],
