@@ -1,0 +1,123 @@
+/* ------------------------------------------------------------------
+   Relay Feed page  (relay_feed/index.html.twig, relay_feed/feed.html.twig)
+   Cards use the shared .card / .card-header / .card-body / .card-footer
+   system; the list uses .article-list. Only page-level scaffold lives here.
+   ------------------------------------------------------------------ */
+
+/* Index page — relay selector form */
+.relay-feed-index {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: var(--spacing-8) var(--spacing-4);
+}
+
+.relay-feed-index__header {
+    margin-bottom: var(--spacing-6);
+}
+
+.relay-feed-index__subtitle {
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-2);
+}
+
+.relay-feed-index__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+}
+
+.relay-feed-index__input-row {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.relay-feed-index__select,
+.relay-feed-index__input {
+    flex: 1;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------------
+   Feed page scaffold
+   ------------------------------------------------------------------ */
+.relay-feed {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+    padding: var(--spacing-4);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.relay-feed__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.relay-feed__meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.relay-feed__back {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+.relay-feed__back:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
+.relay-feed__title {
+    font-size: 1rem;
+    font-family: var(--font-mono, monospace);
+    word-break: break-all;
+    margin: 0;
+}
+
+.relay-feed__status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.relay-feed__indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+
+.relay-feed__indicator--live {
+    background-color: var(--color-success, #3a3);
+    border-color: var(--color-success, #3a3);
+}
+
+.relay-feed__indicator--offline {
+    background-color: var(--color-text-muted);
+}
+
+.relay-feed__empty {
+    padding: var(--spacing-8) 0;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+.relay-feed__count {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+

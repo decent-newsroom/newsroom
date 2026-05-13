@@ -1,0 +1,41 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relay Feed — Decent Newsroom{% endblock %}
+
+{% block main %}
+<div class="relay-feed-index">
+    <header class="relay-feed-index__header">
+        <h1>{{ 'relay_feed.title'|trans }}</h1>
+        <p class="relay-feed-index__subtitle">{{ 'relay_feed.subtitle'|trans }}</p>
+    </header>
+
+    {% if error is defined and error %}
+        <div class="notice notice--error">{{ error|trans }}</div>
+    {% endif %}
+
+    <form class="relay-feed-index__form" method="post" action="{{ path('relay_feed_start') }}">
+        <div class="form-group">
+            <label for="relay_url">{{ 'relay_feed.relay_url_label'|trans }}</label>
+            <div class="relay-feed-index__input-row">
+                <select
+                    id="relay_url"
+                    name="relay_url"
+                    class="relay-feed-index__select"
+                    required
+                >
+                    {% for url in allowed_relays %}
+                        <option value="{{ url }}"{% if relay_url is defined and relay_url == url %} selected{% endif %}>
+                            {{ url }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="button button--primary">
+                    {{ 'relay_feed.start_button'|trans }}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+

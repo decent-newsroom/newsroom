@@ -103,6 +103,36 @@ If yes, grant access.
 
 # 4. Launch Model
 
+## Phase 0: Pre-Public Launch — Decent Newsroom Gated Feed
+
+Before the relay is advertised publicly, Essayist content is available exclusively through a dedicated feed page on Decent Newsroom (`decentnewsroom.com/essayist`). The raw relay URL (`wss://essayist.decentnewsroom.com`) is not published or linked anywhere during this phase.
+
+### How it works
+
+- Writers approved to the founding pack publish their longform articles (kind 30023) directly to the Essayist relay. The write policy enforces approval.
+- Decent Newsroom reads from the Essayist relay on the **server side** and renders the feed page. Readers never hold the relay URL.
+- The feed page is behind a **`ROLE_ESSAYIST_SUPPORTER` role gate**. Only logged-in users who have been granted this role can view it.
+- A user earns `ROLE_ESSAYIST_SUPPORTER` by supporting an approved writer and having that support verified (manually by admin during launch; automated once zap receipt detection is fixed).
+
+### What this achieves
+
+- **Writers** get a real publication surface immediately, without waiting for the public launch campaign.
+- **Reader access** is meaningful and scarce from day one — it costs something, even before the relay URL is public.
+- **The relay** accumulates a body of content before anyone can connect to it directly. When the relay is eventually advertised, it is not empty.
+- **Decent Newsroom** controls the entire read experience during this phase. There is no risk of someone scraping the relay and publishing the content elsewhere before launch.
+
+### What this requires technically
+
+- A relay feed page controller at `/essayist` (or `/essayist/feed`) that subscribes to `strfry-essayist` internally and renders articles using the existing card components.
+- Route protected by `ROLE_ESSAYIST_SUPPORTER` (redirect to landing/support page if not granted).
+- The relay subdomain (`wss://essayist.decentnewsroom.com`) remains functional but is not linked or included in NIP-11 `relay_list` events until Phase 2.
+
+### Transition to Phase 1
+
+Once the founding pack has enough credible writers and the first supporters have read access, the relay URL is published and the public campaign begins. Existing supporters retain their role. New supporters are onboarded through the same flow.
+
+---
+
 ## Phase 1: Curated Seed Cohort
 
 Privately invite a small number of writers into the founding pack.
@@ -808,7 +838,7 @@ The existing admin dashboard (`/admin`) follows a consistent pattern of sections
 
 ### User role grant
 
-The `user:elevate` CLI command sets roles on the `User` entity. `ROLE_ESSAYIST_READER` can be added to the `RolesEnum` without a new entity, letting admins grant access the same way they grant `ROLE_ADMIN`.
+The `user:elevate` CLI command sets roles on the `User` entity. `ROLE_ESSAYIST_SUPPORTER` can be added to the `RolesEnum` without a new entity, letting admins grant access the same way they grant `ROLE_ADMIN`. This role gates the Decent Newsroom relay feed page during the pre-public-launch phase.
 
 ---
 
@@ -841,7 +871,17 @@ The Essayist relay is a dedicated strfry instance in `docker/strfry-essayist/`:
 
 The main strfry relay (port 7777) is unchanged and continues to be read-only for all content.
 
-**Read access** (subscribing to articles on the Essayist relay) is open — strfry has no read-gating. Anyone can read. Only writes are gated.
+**Read access — pre-public-launch phase:**
+
+During the pre-public-launch phase (Phase 0), reads are **not** served by exposing the relay URL to clients. Instead:
+
+- Decent Newsroom reads from `strfry-essayist` **server-side** and renders content on a gated feed page (`/essayist`).
+- The feed page requires `ROLE_ESSAYIST_SUPPORTER`. Anonymous users and logged-in users without the role are redirected to the landing/support page.
+- The relay WebSocket URL (`wss://essayist.decentnewsroom.com`) is kept unlisted — not linked in the UI, not published in NIP-65 relay lists, not included in NIP-11 discovery. It is technically accessible to anyone who guesses it, but it is not advertised.
+
+strfry itself has no built-in read-gating mechanism; access control at this phase is entirely at the Decent Newsroom application layer.
+
+**Phase 2 (public launch):** the relay URL is published, NIP-11 discovery is activated, and clients can subscribe directly. `ROLE_ESSAYIST_SUPPORTER` continues to be the gate for the curated Decent Newsroom feed page, but the relay is no longer hidden.
 
 **Adding a writer** once `EssayistApplication` is approved:
 1. Add their hex pubkey to the kind 39089 follow pack event published under the Decent Newsroom npub.
@@ -894,13 +934,16 @@ The following covers the "Required" items from Section 3 with the fewest new par
 
 1. **`EssayistApplication` entity + migration + admin CRUD** — follows the pattern of `ActiveIndexingSubscription`.
 2. **`FollowPackPurpose::ESSAYIST_WRITERS`** — one enum case, one `FollowPackSource` row in the database.
-3. **`ROLE_ESSAYIST_READER` in `RolesEnum`** — one enum case; `user:elevate` grants it.
-4. **Landing page controller + template** — uses existing `UserFromNpub` and `ZapButton` Twig components for writer cards.
-5. **Writer application form** — standard Symfony form, stores an `EssayistApplication`.
-6. **Admin section: `/admin/essayist`** — lists applications, shows article counts from `FollowPackService`, has "Approve" button that calls `user:elevate` equivalent programmatically.
-7. **Article count auto-check** — on application review page, call `FollowPackService::getArticlesForPubkeys([$npub])` and count articles in the last 90 days. Flag if under five.
+3. **`ROLE_ESSAYIST_SUPPORTER` in `RolesEnum`** — one enum case; `user:elevate` grants it. This is the role earned by supporting an approved writer. It gates the Decent Newsroom feed page during the pre-public-launch phase.
+4. **Relay feed page: `/essayist`** — a Symfony controller that queries `strfry-essayist` (via `NostrClient` pointed at `ws://strfry-essayist:7779`) for kind 30023 events, renders them with existing article card components, and is access-controlled by `ROLE_ESSAYIST_SUPPORTER`. Unauthenticated or ungated users are redirected to the Essayist landing page.
+5. **Landing page controller + template** — uses existing `UserFromNpub` and `ZapButton` Twig components for writer cards. Publicly accessible.
+6. **Writer application form** — standard Symfony form, stores an `EssayistApplication`.
+7. **Admin section: `/admin/essayist`** — lists applications, shows article counts from `FollowPackService`, has "Approve writer" button (adds to follow pack) and "Grant supporter access" button (sets `ROLE_ESSAYIST_SUPPORTER` on a reader's `User` row).
+8. **Article count auto-check** — on application review page, call `FollowPackService::getArticlesForPubkeys([$npub])` and count articles in the last 90 days. Flag if under five.
 
-**Explicitly defer until receipt detection works:** automated access grant on payment.
+**Explicitly defer until receipt detection works:** automated role grant on payment. Until then, admin clicks "Grant supporter access" after manual verification.
+
+**Relay URL advertising:** do not add `wss://essayist.decentnewsroom.com` to any NIP-65 relay list or link it in the UI until Phase 1 public launch begins.
 
 ---
 
@@ -936,5 +979,7 @@ The Essayist relay publishes a NIP-11 relay information document at `https://ess
 }
 ```
 
-`restricted_writes: true` signals to clients that write access requires prior approval. Readers (subscribers) are unrestricted.
+`restricted_writes: true` signals to clients that write access requires prior approval. Readers (subscribers) are unrestricted at the relay layer.
+
+> **Phase 0 note:** during the pre-public-launch phase, the relay URL is intentionally unlisted. The NIP-11 document exists and is technically fetchable, but `wss://essayist.decentnewsroom.com` is not published in any NIP-65 relay list, not linked in the Decent Newsroom UI, and not included in any public relay discovery index. Read access during this phase is exclusively through the gated Decent Newsroom feed page (`/essayist`). The NIP-11 document is activated for public discovery at Phase 1 launch.
 

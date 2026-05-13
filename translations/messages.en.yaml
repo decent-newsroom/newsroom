@@ -1065,3 +1065,13 @@ updatesPro:
     required:
         nip51Sets: 'NIP-51 set subscriptions require Updates Pro.'
         cap: 'You have reached the free subscription limit. Upgrade to Updates Pro for unlimited subscriptions.'
+
+relay_feed:
+    title: 'Relay Feed'
+    subtitle: 'Browse the live article stream from a Nostr relay.'
+    relay_url_label: 'Relay'
+    start_button: 'Open Feed'
+    error_not_allowed: 'That relay is not available for feed subscriptions.'
+    back: 'Back to relay list'
+    articles_cached: 'articles'
+    waiting: 'Waiting for articles…'

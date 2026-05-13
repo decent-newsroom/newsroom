@@ -131,6 +131,12 @@ framework:
             'App\Message\FetchRelayInformationMessage': async_low_priority
             # NIP-66 monitor events fetch — triggered on trust, also available via CLI
             'App\Message\FetchRelayMonitorEventsMessage': async_low_priority
+            # Relay feed: time-bounded WebSocket subscription that pushes raw article
+            # cards to Mercure and a Redis rolling buffer. Runs ~5 min per invocation
+            # and re-dispatches itself while there are active viewers.  Placed on
+            # async_low_priority (redeliver_timeout=600 s) so the 4.5-min window
+            # is well within the threshold.
+            'App\Message\StartRelayFeedMessage': async_low_priority
             # --- Profiles: heavy background work, isolated to avoid blocking ---
             # Profile updates - relay calls, can be slow
             'App\Message\UpdateProfileProjectionMessage': async_profiles
