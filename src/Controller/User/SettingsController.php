@@ -207,8 +207,10 @@ class SettingsController extends AbstractController
                 'relay_count' => count($relays),
             ]);
 
-            // Publish to relays
-            $relayResults = $nostrClient->publishEvent($eventObj, $relays);
+            // Publish to relays with a short timeout so the HTTP request doesn't hang.
+            // Profile metadata is already persisted to the DB, so the publish is
+            // best-effort — failing relays won't block the response.
+            $relayResults = $nostrClient->publishEvent($eventObj, $relays, 10);
 
             $successCount = 0;
             $failCount = 0;
@@ -288,11 +290,21 @@ class SettingsController extends AbstractController
                 $relays = [];
 
                 $localRelay = $this->relayRegistry->getLocalRelay();
-                if ($localRelay !== null) {
+                $hasLocal = $localRelay !== null;
+                if ($hasLocal) {
                     $relays[] = $localRelay;
                 }
 
                 foreach ($declaredRelays as $relayUrl) {
+                    // Skip the project relay — it is the same physical strfry instance
+                    // as the local relay (ws://strfry:7777) but accessed via the public
+                    // hostname (wss://relay.decentnewsroom.com). Trying to open an
+                    // external WebSocket to the public hostname from inside Docker either
+                    // hangs or fails, and is redundant since the local relay is already
+                    // in the list.
+                    if ($hasLocal && $this->relayRegistry->isProjectRelay($relayUrl)) {
+                        continue;
+                    }
                     if (!in_array($relayUrl, $relays, true)) {
                         $relays[] = $relayUrl;
                     }
@@ -306,7 +318,10 @@ class SettingsController extends AbstractController
                 $relays = $userRelayListService->getRelaysForPublishing($pubkey);
             }
 
-            $relayResults = $nostrClient->publishEvent($eventObj, $relays);
+            // Publish to relays with a short timeout so the HTTP request doesn't hang.
+            // Events are already persisted to the DB, so the publish is
+            // best-effort — failing relays won't block the response.
+            $relayResults = $nostrClient->publishEvent($eventObj, $relays, 10);
 
             $successCount = 0;
             foreach ($relayResults as $result) {

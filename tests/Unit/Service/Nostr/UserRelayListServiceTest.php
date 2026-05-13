@@ -330,13 +330,15 @@ class UserRelayListServiceTest extends TestCase
             ],
         ];
 
-        $this->relayListRepository->expects($this->once())
-            ->method('findByPubkey')
-            ->with($hex)
-            ->willReturn(null);
-
-        $this->em->expects($this->once())->method('persist');
-        $this->em->expects($this->once())->method('flush');
+        // persistToDatabase now uses native SQL via the DBAL connection.
+        // Mock the connection so executeStatement returns 1 (upserted).
+        $conn = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $conn->expects($this->once())
+            ->method('executeStatement')
+            ->willReturn(1);
+        $this->em->expects($this->once())
+            ->method('getConnection')
+            ->willReturn($conn);
 
         $cacheItem = $this->createMock(CacheItemInterface::class);
         $cacheItem->expects($this->once())->method('set');

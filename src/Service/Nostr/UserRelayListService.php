@@ -626,55 +626,62 @@ class UserRelayListService
     // ------------------------------------------------------------------
 
     /**
-     * Persist relay list to the user_relay_list table.
-     * Only updates if the new data is newer than what's already stored.
+     * Persist relay list to the user_relay_list table via a native upsert.
+     *
+     * Uses INSERT … ON CONFLICT (pubkey) DO UPDATE so that a stale PSR-6
+     * cache hit, a desynchronised Postgres sequence (common after db
+     * restores / bulk imports), or a concurrent write from an async worker
+     * cannot produce a duplicate-key error.  The "only update if newer"
+     * guard is enforced in the WHERE clause of the upsert itself.
      */
     private function persistToDatabase(string $hex, array $relayList): void
     {
         try {
-            $existing = $this->relayListRepository->findByPubkey($hex);
             $newCreatedAt = $relayList['created_at'] ?? time();
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
-            // Only update if newer
-            if ($existing && ($existing->getCreatedAt() >= $newCreatedAt)) {
-                $this->logger->debug('UserRelayListService: DB already has newer relay list', [
-                    'pubkey' => substr($hex, 0, 8),
-                    'db_created_at' => $existing->getCreatedAt(),
-                    'new_created_at' => $newCreatedAt,
-                ]);
-                return;
-            }
+            $readJson  = json_encode($relayList['read']  ?? [], JSON_UNESCAPED_SLASHES);
+            $writeJson = json_encode($relayList['write'] ?? [], JSON_UNESCAPED_SLASHES);
 
-            if ($existing) {
-                $existing->setReadRelays($relayList['read'] ?? []);
-                $existing->setWriteRelays($relayList['write'] ?? []);
-                $existing->setCreatedAt($newCreatedAt);
-                $existing->touch();
-                $this->em->flush();
+            // Native upsert: insert a new row or update an existing one for
+            // this pubkey — but ONLY when the incoming event is newer.
+            // This bypasses both the Doctrine identity map and the sequence
+            // altogether, making sequence desync a non-issue.
+            $conn = $this->em->getConnection();
+            $affected = $conn->executeStatement(
+                'INSERT INTO user_relay_list (pubkey, read_relays, write_relays, created_at, updated_at)
+                 VALUES (:pubkey, :read, :write, :created_at, :updated_at)
+                 ON CONFLICT (pubkey) DO UPDATE
+                   SET read_relays  = EXCLUDED.read_relays,
+                       write_relays = EXCLUDED.write_relays,
+                       created_at   = EXCLUDED.created_at,
+                       updated_at   = EXCLUDED.updated_at
+                 WHERE user_relay_list.created_at < EXCLUDED.created_at',
+                [
+                    'pubkey'     => $hex,
+                    'read'       => $readJson,
+                    'write'      => $writeJson,
+                    'created_at' => $newCreatedAt,
+                    'updated_at' => $now,
+                ],
+            );
 
-                $this->logger->debug('UserRelayListService: updated relay list in DB', [
-                    'pubkey' => substr($hex, 0, 8),
+            if ($affected > 0) {
+                $this->logger->debug('UserRelayListService: upserted relay list in DB', [
+                    'pubkey'      => substr($hex, 0, 8),
                     'relay_count' => count($relayList['all'] ?? []),
                 ]);
             } else {
-                $entity = new UserRelayList();
-                $entity->setPubkey($hex);
-                $entity->setReadRelays($relayList['read'] ?? []);
-                $entity->setWriteRelays($relayList['write'] ?? []);
-                $entity->setCreatedAt($newCreatedAt);
-
-                $this->em->persist($entity);
-                $this->em->flush();
-
-                $this->logger->info('UserRelayListService: persisted new relay list to DB', [
-                    'pubkey' => substr($hex, 0, 8),
-                    'relay_count' => count($relayList['all'] ?? []),
+                $this->logger->debug('UserRelayListService: DB already has newer relay list, skipped', [
+                    'pubkey'      => substr($hex, 0, 8),
+                    'new_created_at' => $newCreatedAt,
                 ]);
             }
+
         } catch (\Exception $e) {
             $this->logger->warning('UserRelayListService: DB write failed', [
                 'pubkey' => substr($hex, 0, 8),
-                'error' => $e->getMessage(),
+                'error'  => $e->getMessage(),
             ]);
         }
     }
