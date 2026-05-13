@@ -40,22 +40,10 @@ class RelayFeedController extends AbstractController
     {
         return $this->render('relay_feed/index.html.twig', [
             'allowed_relays' => $this->allowedRelays($relays),
-            'recipients'     => [
-                $keyUtil->npubToHex('npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'),
-                $keyUtil->npubToHex('npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'),
-            ],
+            'recipients'     => $this->recipients($keyUtil),
         ]);
     }
 
-    /**
-     * Relay suggestion form — sends a public kind-1 note to the platform operators.
-     * @deprecated Suggestion form is now embedded in the index page; redirect for backwards compatibility.
-     */
-    #[Route('/relay-feed/suggest', name: 'relay_feed_suggest', methods: ['GET'])]
-    public function suggest(): Response
-    {
-        return $this->redirectToRoute('relay_feed_index');
-    }
 
     /**
      * Start a relay feed subscription.
@@ -68,6 +56,7 @@ class RelayFeedController extends AbstractController
         RelayFeedBufferService $buffer,
         MessageBusInterface $bus,
         RelayRegistry $relays,
+        NostrKeyUtil $keyUtil,
     ): Response {
         $relayUrl    = trim((string) $request->get('relay_url', ''));
         $allowed     = $this->allowedRelays($relays);
@@ -86,6 +75,7 @@ class RelayFeedController extends AbstractController
                 'error'          => 'relay_feed.error_not_allowed',
                 'relay_url'      => $relayUrl,
                 'allowed_relays' => $allowed,
+                'recipients'     => $this->recipients($keyUtil),
             ]);
         }
 
@@ -150,6 +140,15 @@ class RelayFeedController extends AbstractController
         $buffer->markActive($key);
 
         return new JsonResponse(['ok' => true]);
+    }
+
+    /** @return string[] */
+    private function recipients(NostrKeyUtil $keyUtil): array
+    {
+        return [
+            $keyUtil->npubToHex('npub1ez09adke4vy8udk3y2skwst8q5chjgqzym9lpq4u58zf96zcl7kqyry2lz'),
+            $keyUtil->npubToHex('npub1636uujeewag8zv8593lcvdrwlymgqre6uax4anuq3y5qehqey05sl8qpl4'),
+        ];
     }
 
     /**
