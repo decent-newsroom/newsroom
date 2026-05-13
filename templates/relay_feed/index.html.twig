@@ -3,11 +3,12 @@
 {% block title %}Relay Feed — Decent Newsroom{% endblock %}
 
 {% block body %}
-<div class="relay-feed-index">
-    <twig:Atoms:PageHeading
-        heading="{{ 'relay_feed.title'|trans }}"
-        tagline="{{ 'relay_feed.subtitle'|trans }}"
-    />
+<twig:Atoms:PageHeading
+    heading="{{ 'relay_feed.title'|trans }}"
+    tagline="{{ 'relay_feed.subtitle'|trans }}"
+/>
+
+<div class="w-container">
 
     {# ── Open a feed ───────────────────────────────────────────── #}
 

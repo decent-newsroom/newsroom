@@ -1,5 +1,8 @@
 <div class="card">
     <div class="metadata">
+        {% if article.pubkey is defined and article.pubkey %}
+            <p class="m-0">by <twig:Molecules:UserFromNpub :ident="article.pubkey" /></p>
+        {% endif %}
         {% if article.created_at is defined and article.created_at %}
             <span><small>{{ article.created_at|date('F j Y', 'UTC') }}</small></span>
         {% endif %}

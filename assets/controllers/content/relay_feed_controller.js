@@ -89,7 +89,7 @@ export default class extends Controller {
      * Uses the same .card / .card-header / .card-body / .card-footer structure
      * as the server-side Card component so no extra CSS is needed.
      *
-     * @param {{ id:string, pubkey:string, created_at:number, title:string, summary:string, image:string, naddr:string }} card
+     * @param {{ id:string, pubkey:string, npub?:string, created_at:number, title:string, summary:string, image:string, naddr:string }} card
      */
     _prependCard(card) {
         // Remove the "waiting" empty state on first card
@@ -101,6 +101,8 @@ export default class extends Controller {
         const summary = card.summary || '';
         const image   = card.image   || '';
         const naddr   = card.naddr   || '';
+        const pubkey  = card.pubkey  || '';
+        const npub    = card.npub    || '';
         const time    = card.created_at ? new Date(card.created_at * 1000) : null;
 
         const timeIso   = time ? time.toISOString() : '';
@@ -110,11 +112,17 @@ export default class extends Controller {
 
         const articleUrl = naddr ? `/article/${naddr}` : null;
 
+        const shortHex = pubkey ? `${pubkey.slice(0, 8)}...` : '';
+        const authorHtml = npub
+            ? `<p class="m-0">by <a href="/p/${this._escape(npub)}" data-turbo-frame="_top">${this._escape(npub.slice(0, 12))}...</a></p>`
+            : (shortHex ? `<p class="m-0">by ${this._escape(shortHex)}</p>` : '');
+
         const cardEl = document.createElement('div');
         cardEl.className = 'card';
 
         cardEl.innerHTML = `
             <div class="metadata">
+                ${authorHtml}
                 ${timeIso ? `<span><small><time datetime="${timeIso}">${timeLabel}</time></small></span>` : ''}
             </div>
             ${articleUrl ? `<a href="${articleUrl}" data-turbo-frame="_top">` : ''}
@@ -187,6 +195,4 @@ export default class extends Controller {
             .replace(/'/g, '&#39;');
     }
 }
-
-
 

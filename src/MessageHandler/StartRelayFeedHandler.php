@@ -8,6 +8,7 @@ use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
 use App\Util\NostrPhp\RelaySubscriptionHandler;
+use App\Util\NostrKeyUtil;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Filter\Filter;
@@ -184,7 +185,7 @@ final class StartRelayFeedHandler
      * Extract a minimal article card from a raw Nostr event.
      * Returns null if required fields (id, pubkey, d-tag) are missing.
      *
-     * @return array{id:string, pubkey:string, created_at:int, title:string, summary:string, image:string, d_tag:string, naddr:string, relay:string}|null
+     * @return array{id:string, pubkey:string, npub:string, created_at:int, title:string, summary:string, image:string, d_tag:string, naddr:string, relay:string}|null
      */
     private function extractCard(object $event, string $relayUrl): ?array
     {
@@ -228,9 +229,17 @@ final class StartRelayFeedHandler
             // Non-fatal; clicking the card will just open a 404 that triggers async fetch
         }
 
+        $npub = '';
+        try {
+            $npub = NostrKeyUtil::hexToNpub((string) $pubkey);
+        } catch (\Throwable) {
+            // Non-fatal; UI falls back to short hex pubkey
+        }
+
         return [
             'id'         => (string) $id,
             'pubkey'     => (string) $pubkey,
+            'npub'       => $npub,
             'created_at' => (int) $createdAt,
             'title'      => $title,
             'summary'    => $summary,
@@ -241,7 +250,3 @@ final class StartRelayFeedHandler
         ];
     }
 }
-
-
-
-

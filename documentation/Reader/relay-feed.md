@@ -101,6 +101,10 @@ When the project relay's public hostname (e.g. `wss://relay.decentnewsroom.com`)
 
 Both the server-side Twig partial (`templates/relay_feed/_card.html.twig`) and the Stimulus controller's `_prependCard()` method produce identical `.card` markup — the same structure used by the `Molecules:Card` component across the app. The list container uses `.article-list`. No card-specific CSS exists in `relay-feed.css`.
 
+Author bylines are shown on both buffered and live cards:
+- **Buffered/server-rendered cards** use `<twig:Molecules:UserFromNpub>` with `article.pubkey`, which resolves profile metadata and links to the author page.
+- **Live Mercure cards** use `npub` from the payload for a direct `/p/{npub}` author link, with a short hex pubkey fallback if `npub` is unavailable.
+
 ### Raw card data
 
 Cards contain only metadata extracted from event tags — **no content parsing, no database writes, no QA**:
@@ -109,6 +113,7 @@ Cards contain only metadata extracted from event tags — **no content parsing, 
 {
   "id":         "hex event id",
   "pubkey":     "hex pubkey",
+  "npub":       "npub1...",
   "created_at": 1234567890,
   "title":      "Article Title",
   "summary":    "Short description",
