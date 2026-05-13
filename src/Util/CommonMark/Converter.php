@@ -4,7 +4,6 @@ namespace App\Util\CommonMark;
 
 use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
-use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Util\AsciiDoc\AsciiDocConverter;
@@ -57,7 +56,6 @@ class Converter implements MarkdownConverterInterface
         private readonly TwigEnvironment $twig,
         private readonly NostrKeyUtil $nostrKeyUtil,
         private readonly ArticleFactory $articleFactory,
-        private readonly ArticleRepository $articleRepository,
         private readonly AsciiDocConverter $asciidocConverter,
         private readonly EventRepository $eventRepository,
     ) {}
@@ -645,14 +643,14 @@ class Converter implements MarkdownConverterInterface
         foreach ($lines as &$line) {
             // ** bold **: relocate interior whitespace (** is never a list marker)
             $line = preg_replace_callback(
-                '/\*\*(.+?)\*\*/',
+                '/(?<!\*)\*\*(?!\*)(.+?)(?<!\*)\*\*(?!\*)/',
                 static fn(array $m) => $relocateEmphasis($m, '**'),
                 $line,
             ) ?? $line;
 
             // __ bold __: relocate interior whitespace
             $line = preg_replace_callback(
-                '/__(.+?)__/',
+                '/(?<!_)__(?!_)(.+?)(?<!_)__(?!_)/',
                 static fn(array $m) => $relocateEmphasis($m, '__'),
                 $line,
             ) ?? $line;
@@ -994,7 +992,7 @@ class Converter implements MarkdownConverterInterface
 
             // Opt-in to card if data-embed="1" or class contains "nostr-card" or "embed"
             if (preg_match('~\bdata-embed\s*=\s*("1"|\'1\'|1)\b~i', $attrsAll) ||
-                preg_match('~\bclass\s*=\s*("|\')[^"\']*\b(nostr-card|embed)\b[^"\']*\1~i', $attrsAll)) {
+                preg_match('~\bclass\s*=\s*(["\'])[^"\']*\b(nostr-card|embed)\b[^"\']*\1~i', $attrsAll)) {
                 $preferInline = false;
             }
 

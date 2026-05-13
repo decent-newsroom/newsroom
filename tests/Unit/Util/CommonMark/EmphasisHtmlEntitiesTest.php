@@ -21,7 +21,6 @@ class EmphasisHtmlEntitiesTest extends TestCase
         $this->converter = $ref->newInstanceWithoutConstructor();
 
         $this->normalizeEmphasisWhitespace = $ref->getMethod('normalizeEmphasisWhitespace');
-        $this->normalizeEmphasisWhitespace->setAccessible(true);
     }
 
     private function normalize(string $content): string
@@ -45,6 +44,13 @@ class EmphasisHtmlEntitiesTest extends TestCase
         $expected = '**Here is a link** ';
 
         $this->assertSame($expected, $this->normalize($input));
+    }
+
+    public function testAdjacentStrongAndItalicRunsArePreserved(): void
+    {
+        $input = '> These are the **records of the *****generations***** of Noah**. Noah was a righteous man, **blameless in his *****generation***. Noah walked with God. (Genesis 6:9) {emphasis mine}';
+
+        $this->assertSame($input, $this->normalize($input));
     }
 
     public function testOverzealousEmphasisFullSample(): void
