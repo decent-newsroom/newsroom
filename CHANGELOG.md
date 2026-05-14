@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Bug] Fixed `/subscription/vanity` failing for anonymous visitors. The Twig template used a non-existent `login` route in the signed-out CTA; it now points to the correct `app_login` route.
 - [Improvement] Removed the redundant writer-requirements intro sentence from the Essayist landing page and deleted the now-unused `essayist.landing.requirements.intro` translation key across all locales.
 - [Improvement] Removed the redundant second sentence in the Essayist model section and deleted the now-unused `essayist.landing.model.paragraph2` translation key across all locales.
 - [Bug] Fixed stale users still seeing `ws://strfry:7777` in the editor relays panel after the initial fix. Existing `User.relays` values are now normalized on editor load via `UserRelayListService::normalizeRelayListForDisplay()`, which rewrites internal local relay URLs to the public project relay URL and deduplicates entries.
