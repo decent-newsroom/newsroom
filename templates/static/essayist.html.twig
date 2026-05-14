@@ -34,6 +34,62 @@
             </div>
         </section>
 
+        <section class="essayist-section essayist-section--muted">
+            <div class="essayist-shell essayist-grid-two">
+                <div>
+                    <p class="essayist-eyebrow">{{ 'essayist.landing.signup.eyebrow'|trans }}</p>
+                    <h2>{{ 'essayist.landing.signup.heading'|trans }}</h2>
+                    <p class="essayist-copy">{{ 'essayist.landing.signup.intro'|trans({'%min%': essayistMinArticles}) }}</p>
+                </div>
+                <div>
+                    {% if essayistSignupStatus %}
+                        <div class="essayist-alert {{ essayistSignupStatus in ['request_created'] ? 'essayist-alert--success' : 'essayist-alert--error' }}">
+                            {{ ('essayist.landing.signup.status.' ~ essayistSignupStatus)|trans }}
+                        </div>
+                    {% endif %}
+
+                    {% if not app.user %}
+                        <p class="essayist-copy">{{ 'essayist.landing.signup.anonBody'|trans }}</p>
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.signup.anonCta'|trans }}</a>
+                        </div>
+                    {% elseif essayist and essayist.isAuthor %}
+                        <p class="essayist-copy">{{ 'essayist.landing.signup.authorBody'|trans }}</p>
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="{{ path('editor-create') }}">{{ 'essayist.landing.signup.authorCta'|trans }}</a>
+                        </div>
+                    {% elseif essayist and essayist.isCandidate %}
+                        <p class="essayist-copy">{{ 'essayist.landing.signup.candidateBody'|trans }}</p>
+                    {% elseif essayist %}
+                        <ul class="essayist-list essayist-list--compact">
+                            <li>
+                                {{ essayist.hasEnoughArticles
+                                    ? 'essayist.landing.signup.requirementArticlesMet'|trans({'%count%': essayist.articleCount, '%min%': essayistMinArticles})
+                                    : 'essayist.landing.signup.requirementArticlesMissing'|trans({'%count%': essayist.articleCount, '%min%': essayistMinArticles})
+                                }}
+                            </li>
+                            <li>
+                                {{ essayist.hasLud16
+                                    ? 'essayist.landing.signup.requirementLud16Met'|trans
+                                    : 'essayist.landing.signup.requirementLud16Missing'|trans
+                                }}
+                            </li>
+                        </ul>
+
+                        {% if essayist.isEligible %}
+                            <p class="essayist-copy">{{ 'essayist.landing.signup.eligibleBody'|trans }}</p>
+                            <form method="post" action="{{ path('app_static_essayist_request_writer') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_writer') }}">
+                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.signup.requestCta'|trans }}</button>
+                            </form>
+                        {% else %}
+                            <p class="essayist-copy">{{ 'essayist.landing.signup.ineligibleBody'|trans }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
         <section class="essayist-section">
             <div class="essayist-shell essayist-grid-two">
                 <div>

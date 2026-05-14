@@ -62,7 +62,7 @@ The first implementation should include only what is needed to test real interes
 
 * Essayist landing page.
 * Nostr login or signup (already built).
-* Writer self-request flow (logged-in writers can request `ROLE_ESSAYIST_AUTHOR`).
+* Writer self-request flow (logged-in writers can request `ROLE_ESSAYIST_CANDIDATE`).
 * Pre-check for existing articles before allowing request.
 * Manual writer approval (admin reviews and runs `user:elevate`).
 * Essayist feed page (gated by `ROLE_ESSAYIST_SUPPORTER`).

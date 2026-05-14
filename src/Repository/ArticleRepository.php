@@ -349,6 +349,27 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Count unique longform articles for one author, deduplicated by slug.
+     */
+    public function countDeduplicatedLongformByPubkey(string $pubkey): int
+    {
+        if ('' === trim($pubkey)) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(DISTINCT a.slug)')
+            ->where('a.pubkey = :pubkey')
+            ->andWhere('a.kind = :kind')
+            ->andWhere('a.slug IS NOT NULL')
+            ->andWhere('a.title IS NOT NULL')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', KindsEnum::LONGFORM)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * Find all deduplicated articles for a set of pubkeys, sorted by newest.
      * Uses PostgreSQL DISTINCT ON to keep only the latest revision per coordinate.
      *

@@ -2,13 +2,13 @@
 
 ## Overview
 
-Adds a public static explainer page for Essayist at `/essayist`.
+Adds a public explainer page for Essayist at `/essayist` with a working writer signup request action.
 
-The page is intentionally static for now. It explains the writer-first launch model, shows the current phase, lists writer requirements, and includes a timeline for how Essayist opens.
+The page explains the writer-first launch model, shows the current phase, lists writer requirements, includes a timeline, and lets logged-in users request writer access when eligibility checks pass.
 
 ## Purpose
 
-The page gives Essayist a public home before the interactive writer-request flow and supporter flow are fully implemented.
+The page gives Essayist a public home while also implementing the first interactive piece: writer self-request.
 
 It is designed to:
 
@@ -16,12 +16,15 @@ It is designed to:
 - show that reader/supporter access is coming later;
 - communicate the moderation standard;
 - set expectations with a visible launch timeline.
+- enable candidate self-enrollment through role assignment.
 
-## Route
+## Routes
 
 - **Path:** `/essayist`
 - **Controller:** `App\Controller\StaticController::essayist()`
 - **Template:** `templates/static/essayist.html.twig`
+- **POST:** `/essayist/request-writer-access`
+- **Controller:** `App\Controller\StaticController::requestEssayistWriterAccess()`
 
 The route is also included in `/api/static-routes`.
 
@@ -39,6 +42,25 @@ The landing page contains:
    - founding pack growth;
    - reader support opening.
 7. **Next steps CTA** — sign in / write / read changelog.
+
+## Writer signup flow
+
+When a logged-in user submits writer signup:
+
+1. POST to `/essayist/request-writer-access` with CSRF token.
+2. Backend checks current roles:
+   - already author → no-op
+   - already candidate → no-op
+3. Eligibility checks run:
+   - at least 3 deduplicated kind `30023` articles by author pubkey
+   - `lud16` present on the user profile
+4. If eligible, assign `ROLE_ESSAYIST_CANDIDATE` to the user.
+5. Redirect back to `/essayist` with a status code shown in-page.
+
+Role assignment remains moderation-first:
+
+- self-request assigns **candidate** role only;
+- moderators still promote to `ROLE_ESSAYIST_AUTHOR`.
 
 ## Styling
 
@@ -67,11 +89,7 @@ Keys were added to:
 
 ## Notes
 
-This page does **not** yet implement:
-
-- the writer self-request POST action;
-- candidate role assignment;
-- supporter signup/payment flow.
+Supporter signup/payment flow is still pending. The landing page currently covers writer self-request only.
 
 It is an explainer page first, with copy aligned to the current Essayist launch model.
 
