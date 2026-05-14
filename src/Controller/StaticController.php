@@ -92,6 +92,12 @@ class StaticController extends AbstractController
         return $this->render('static/unfold.html.twig');
     }
 
+    #[Route('/essayist', name: 'app_static_essayist')]
+    public function essayist(): Response
+    {
+        return $this->render('static/essayist.html.twig');
+    }
+
     #[Route('/start-blog', name: 'start_blog')]
     public function startBlog(): Response
     {
@@ -104,6 +110,7 @@ class StaticController extends AbstractController
         $staticRoutes = [
             '/about',
             '/changelog',
+            '/essayist',
             '/pricing',
             '/roadmap',
             '/tos',

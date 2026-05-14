@@ -1,0 +1,149 @@
+.essayist-page {
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.essayist-shell {
+    width: min(960px, calc(100vw - 2rem));
+    margin: 0 auto;
+}
+
+.essayist-hero,
+.essayist-section,
+.essayist-status {
+    padding: var(--spacing-5) 0;
+}
+
+.essayist-section--muted {
+    background: var(--color-bg-light);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.essayist-section--timeline {
+    border-top: 1px solid var(--color-border);
+}
+
+.essayist-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.8rem;
+    color: var(--color-text-mid);
+    margin: 0 0 var(--spacing-2);
+}
+
+.essayist-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    line-height: 1.05;
+    margin: 0 0 var(--spacing-3);
+    max-width: 12ch;
+}
+
+.essayist-lede,
+.essayist-copy,
+.essayist-note,
+.essayist-status__item p,
+.essayist-timeline__content p {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-text-mid);
+}
+
+.essayist-lede {
+    max-width: 62ch;
+    margin: 0 0 var(--spacing-3);
+}
+
+.essayist-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+.essayist-grid-two {
+    display: grid;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    gap: var(--spacing-4);
+    align-items: start;
+}
+
+.essayist-status {
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.essayist-status__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-3);
+}
+
+.essayist-status__item {
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-3);
+    background: var(--color-bg);
+}
+
+.essayist-status__label,
+.essayist-timeline__step {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-mid);
+    margin-bottom: var(--spacing-2);
+}
+
+.essayist-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.essayist-list li {
+    margin-bottom: var(--spacing-2);
+    line-height: 1.6;
+}
+
+.essayist-note {
+    margin-top: var(--spacing-3);
+    padding-top: var(--spacing-2);
+    border-top: 1px solid var(--color-border);
+}
+
+.essayist-timeline {
+    margin-top: var(--spacing-4);
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.essayist-timeline__item {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: var(--spacing-3);
+    padding-bottom: var(--spacing-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.essayist-timeline__item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.essayist-timeline__content h3,
+.essayist-section h2 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-2);
+}
+
+@media (max-width: 720px) {
+    .essayist-grid-two,
+    .essayist-status__grid,
+    .essayist-timeline__item {
+        grid-template-columns: 1fr;
+    }
+
+    .essayist-timeline__step {
+        margin-bottom: 0;
+    }
+}
+

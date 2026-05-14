@@ -61,16 +61,17 @@ The first implementation should include only what is needed to test real interes
 ## Required
 
 * Essayist landing page.
-* Nostr login or signup.
-* Founding writer application form.
-* Manual writer approval.
-* Founding writer pack page.
-* Public follow pack or exportable list of approved writers.
+* Nostr login or signup (already built).
+* Writer self-request flow (logged-in writers can request `ROLE_ESSAYIST_AUTHOR`).
+* Pre-check for existing articles before allowing request.
+* Manual writer approval (admin reviews and runs `user:elevate`).
+* Essayist feed page (gated by `ROLE_ESSAYIST_SUPPORTER`).
+* Public feed of approved writers' articles.
 * Contribution page where a reader chooses an approved writer.
 * Payment or zap flow to that writer.
 * Manual or semi-automatic receipt verification.
 * Access flag once support is verified.
-* Basic admin view for applications, recipients, payments, and access grants.
+* Basic admin view for pending writer requests and access grants.
 
 ## Optional but Useful
 
@@ -103,112 +104,92 @@ If yes, grant access.
 
 # 4. Launch Model
 
-## Phase 0: Pre-Public Launch — Decent Newsroom Gated Feed
+## Phase 1: Public Writer Signup
 
-Before the relay is advertised publicly, Essayist content is available exclusively through a dedicated feed page on Decent Newsroom (`decentnewsroom.com/essayist`). The raw relay URL (`wss://essayist.decentnewsroom.com`) is not published or linked anywhere during this phase.
+The landing page at `decentnewsroom.com/essayist` is live from day one. Writers self-apply; readers see the page but the supporter access flow is marked **coming soon**.
+
+The self-serve signup on the landing page is the primary recruitment channel from the start.
 
 ### How it works
 
-- Writers approved to the founding pack publish their longform articles (kind 30023) directly to the Essayist relay. The write policy enforces approval.
-- Decent Newsroom reads from the Essayist relay on the **server side** and renders the feed page. Readers never hold the relay URL.
-- The feed page is behind a **`ROLE_ESSAYIST_SUPPORTER` role gate**. Only logged-in users who have been granted this role can view it.
-- A user earns `ROLE_ESSAYIST_SUPPORTER` by supporting an approved writer and having that support verified (manually by admin during launch; automated once zap receipt detection is fixed).
+- The landing page is **publicly accessible** with no login gate.
+- Writers log in with their Nostr key and click **"Request Writer Access"**.
+- The system checks eligibility (≥ 3 deduplicated kind 30023 articles known to DN, Lightning address in profile) and assigns `ROLE_ESSAYIST_CANDIDATE` if both pass.
+- Moderators review candidates in `/admin/essayist` and promote approved writers to `ROLE_ESSAYIST_AUTHOR` via `user:elevate`.
+- Approved writers can immediately publish kind 30023 articles to the Essayist relay (`wss://essayist.decentnewsroom.com`).
+- The reader/supporter section on the landing page is visible but shows **"Coming soon — reader access is launching shortly"**. No payment flow is active yet.
+- The relay WebSocket URL is not yet linked or published.
 
 ### What this achieves
 
-- **Writers** get a real publication surface immediately, without waiting for the public launch campaign.
-- **Reader access** is meaningful and scarce from day one — it costs something, even before the relay URL is public.
-- **The relay** accumulates a body of content before anyone can connect to it directly. When the relay is eventually advertised, it is not empty.
-- **Decent Newsroom** controls the entire read experience during this phase. There is no risk of someone scraping the relay and publishing the content elsewhere before launch.
-
-### What this requires technically
-
-- A relay feed page controller at `/essayist` (or `/essayist/feed`) that subscribes to `strfry-essayist` internally and renders articles using the existing card components.
-- Route protected by `ROLE_ESSAYIST_SUPPORTER` (redirect to landing/support page if not granted).
-- The relay subdomain (`wss://essayist.decentnewsroom.com`) remains functional but is not linked or included in NIP-11 `relay_list` events until Phase 2.
-
-### Transition to Phase 1
-
-Once the founding pack has enough credible writers and the first supporters have read access, the relay URL is published and the public campaign begins. Existing supporters retain their role. New supporters are onboarded through the same flow.
-
----
-
-## Phase 1: Curated Seed Cohort
-
-Privately invite a small number of writers into the founding pack.
-
-This is not a neutral market-discovered whitelist. It is a curated seed group. That is acceptable as long as it is stated clearly.
-
-### Goal
-
-Start with enough credible writers that readers have real people to support.
-
-### Target
-
-* 5 to 10 credible founding writers for a quiet test.
-* 10 to 25 founding writers for a public launch.
+- **Writers** can discover and apply publicly without needing a private invitation.
+- **Relay content** accumulates a real body of essays before reader access opens.
+- **Reader interest** can be gauged by landing page visits and sign-ins before the supporter flow is built.
 
 ### Writer Criteria
 
-A founding writer should have:
+A writer applying during Phase 1 must satisfy:
 
-* a Nostr pubkey;
-* existing longform work;
-* a working payment endpoint;
-* willingness to be listed publicly;
-* at least five eligible articles from the last three months, or an operator-approved equivalent body of work;
-* at least one article old enough to show they were not created only for the campaign.
+* a Nostr pubkey (logged in to DN);
+* **at least 3 deduplicated longform articles** (kind 30023) known to Decent Newsroom — counted by unique `(pubkey, slug)` pairs;
+* a working Lightning address (`lud16`) in their Nostr profile;
+* articles must be **genuine Nostr content** — full essays published natively, not excerpts or summaries linking out to an external site.
 
-The article rule can be strict for open applications and more flexible for invited writers, but the distinction should be clear.
+Moderators reserve the right to reject a candidate or downgrade an already-approved writer at any time.
 
-## Phase 2: Public Interest Test
+### Target
 
-After the founding pack exists, publish the Essayist landing page.
+* 5 to 10 approved writers before opening reader access.
+* 10 to 25 approved writers for a strong Phase 2 launch.
 
-The page should invite three actions:
+### Transition to Phase 2
 
-* writers can apply;
-* readers can choose writers they would support;
-* readers can make a small founding contribution if the payment flow is ready.
+Once enough approved writers have published content and the supporter access flow is ready, the "coming soon" section is replaced with the live reader signup. Existing writers retain their roles.
+
+---
+
+## Phase 2: Reader Supporter Access
+
+The supporter access flow goes live. Readers can support an approved writer and receive `ROLE_ESSAYIST_SUPPORTER`, unlocking the gated Decent Newsroom feed page (`/essayist/feed`).
+
+- Access grant remains manual during this phase (admin verifies payment, runs `user:elevate <npub> ROLE_ESSAYIST_SUPPORTER`).
+- Relay URL (`wss://essayist.decentnewsroom.com`) is published in the UI; NIP-11 discovery activated.
+- Automated supporter role grant can be enabled once zap receipt detection is working.
 
 ### Goal
 
-Measure actual interest, not applause.
+Measure actual reader support: do people pay to access writer-first content?
 
 ### Strong Signals
 
+* writer logs in and self-applies;
+* writer passes eligibility and is approved;
 * reader signs in with Nostr;
 * reader chooses a writer to support;
-* reader makes a support payment;
-* writer applies with real work;
-* writer verifies payout endpoint;
-* curator proposes a useful pack.
+* reader makes a support payment.
 
 ### Weak Signals
 
 * likes;
 * reposts;
-* comments saying “interesting”;
 * anonymous visits;
 * vague waitlist signup.
 
 ## Phase 3: Launch Decision
 
-Run the public interest test for 14 to 21 days.
-
-At the end, choose one of four outcomes:
+After running the public interest test for 14 to 21 days, choose one of four outcomes:
 
 ### Launch
 
-Enough writers and reader support exist. Open Essayist access.
+Enough writers and readers exist. Open Essayist access broadly.
 
 ### Small Pilot
 
-Some interest exists, but not enough for a full public launch. Run a private pilot with the founding writers and first supporters.
+Some interest, not enough for a full launch. Run a private pilot with founding writers and first supporters.
 
 ### Reposition
 
-Writers are interested but readers are not paying. Reframe as a follow-pack, magazine, or discovery project first.
+Writers are engaged but readers are not paying. Reframe as a follow-pack, magazine, or discovery project first.
 
 ### Pause
 
@@ -224,7 +205,6 @@ For a small but meaningful launch:
 * 25 reader sign-ins.
 * 10 readers choosing at least one writer to support.
 * 5 actual support payments.
-* 1 public founding writer pack.
 
 For a stronger launch:
 
@@ -232,7 +212,6 @@ For a stronger launch:
 * 50 reader sign-ins.
 * 20 readers choosing writers.
 * 10 actual support payments.
-* 3 viable follow packs.
 
 The exact numbers can change. The important thing is to define a threshold before interpreting the results.
 
@@ -384,18 +363,15 @@ The founding pack is the first set of writers readers can support to unlock acce
 
 ## Application Requirements
 
-To apply, submit:
+To apply, you need:
 
-* your Nostr pubkey;
-* at least five eligible longform articles;
-* at least one article older than thirty-nine days or published before the campaign announcement;
-* your main topics or language;
-* a short bio;
-* a payment endpoint for support.
+* a Nostr account (logged in);
+* at least 3 longform articles published on Nostr (kind 30023) that Decent Newsroom has already discovered;
+* a Lightning address set in your Nostr profile.
 
 ## Note on Review
 
-The founding pack is manually reviewed. The goal is not to judge taste from above. The goal is to start with real writers, real work, and a recipient pool readers can trust.
+The founding pack is manually reviewed. Articles must be genuine Nostr content — full essays published natively, not excerpts that link out to another site. Moderators reserve the right to reject candidates or downgrade approved writers at any time.
 
 ## Writer CTA
 
@@ -471,59 +447,53 @@ I’m testing a writer-first Nostr relay called Essayist.
 
 The launch premise is simple: the first money should go to writers.
 
-During the first launch period, the relay operator fee is waived. Readers get access by supporting at least one approved writer from the founding pack.
+Phase 1 is live: writers can now apply publicly at `decentnewsroom.com/essayist`.
 
-Writers with an existing body of longform work can apply to join the founding pack. Approved writers will be listed publicly and may be included in follow packs by topic, language, or editorial focus.
+If you have at least 3 genuine longform essays already known to Decent Newsroom and a Lightning address in your Nostr profile, you can request writer access. Reader/supporter access is coming soon after the first group of writers is approved and publishing.
 
-This is not a normal waitlist. I want to see whether readers will actually support writers before I build a heavier subscription system.
+This is not a normal waitlist. The first step is getting real writers and real essays onto the relay before opening the supporter flow.
 
 ## Announcement Option B
 
 Essayist is a small experiment in writer-first publishing on Nostr.
 
-Instead of launching with an empty relay and asking people to pay the platform, I’m starting with writers.
+Instead of launching with an empty relay and asking people to pay the platform, I’m starting with writers in public.
 
-The operator fee is waived during launch. To get access, readers support an approved writer directly.
+Writers can now apply directly at `decentnewsroom.com/essayist`. If you already publish real essays on Nostr and have a Lightning address in your profile, you can request access to publish on Essayist.
 
-First step: assemble the founding writer pack.
-
-Writers can apply with existing longform work. Readers can browse the pack and choose who they would support.
-
-If enough support appears, the relay opens.
+Reader access is not live yet. That opens after the first approved writers are in place and publishing.
 
 ## Announcement Option C
 
 Launching soon: Essayist.
 
-A Nostr relay for essays where access begins by supporting writers.
+A Nostr relay for essays where the first phase is public writer signup.
 
-The first launch period waives the operator fee. Readers support approved writers from the founding pack. Writers apply with existing work. Follow packs make the recipient pool visible.
+Writers can apply now. Reader/supporter access is coming soon, once there is a real founding pack and real essays on the relay.
 
-The test is simple: will readers fund writers before there is a platform economy around them?
+The test is still the same: can a writer-first relay begin with real writing before there is a platform economy around it?
 
 ---
 
-# 13. Private Writer Invitation
+# 13. Public Writer Outreach
 
 ## Short Version
 
-I’m putting together a founding writer pack for Essayist, a writer-first Nostr relay for longform work.
+Essayist is open for writer applications.
 
-The launch model is simple: during the first period, the relay operator fee is waived. Readers get access by supporting approved writers directly. The founding pack is the first group of writers readers can choose from.
+If you already publish genuine longform essays on Nostr, Decent Newsroom knows at least 3 of them, and your profile has a Lightning address, you can apply at `decentnewsroom.com/essayist`.
 
-I’m inviting a small number of writers with existing work before opening public applications. Would you be interested in being listed as one of the founding writers?
+Writer applications are public. Reader/supporter access comes next, after the first group of approved writers is publishing.
 
 ## Longer Version
 
-I’m preparing a small launch experiment called Essayist.
+I’m preparing a small public launch experiment called Essayist.
 
-It is a Nostr relay for longform writing, but the launch model is different from a normal paid platform. During the first launch period, the relay operator fee is waived. Readers get access by supporting approved writers directly.
+It is a writer-first relay for longform writing on Nostr. The first phase is not a reader paywall. The first phase is getting credible writers onto the relay publicly, so there is real work there before supporter access opens.
 
-That means I need a credible founding writer pack before testing reader demand. I’m inviting a small group of writers with existing work to be listed as launch-eligible recipients.
+If you already publish real essays natively on Nostr — not excerpts, not link-dumps — and Decent Newsroom has discovered at least 3 of them, you can request writer access on the landing page. Moderators review applications and approve writers who fit the editorial standard.
 
-Being listed would mean readers can discover your work and support you as part of the access flow. It does not require exclusivity, and the goal is not to lock content into a platform. The goal is to test whether a writer-first relay can start with direct support instead of empty signups.
-
-Would you want to be included in the founding pack?
+The goal is not exclusivity. The goal is to build a credible founding pack in public, then open the supporter flow once there is something worth supporting.
 
 ---
 
@@ -533,11 +503,11 @@ Would you want to be included in the founding pack?
 
 I’m working on Essayist: a writer-first Nostr relay for longform work.
 
-The launch premise is simple:
+Phase 1 is simple:
 
-The first money should go to writers.
+Writers first.
 
-During launch, the operator fee is waived. Readers get access by supporting approved writers from the founding pack.
+Public writer signup opens first. Reader/supporter access comes after there is a real founding pack and real essays on the relay.
 
 More soon.
 
@@ -545,29 +515,28 @@ More soon.
 
 Looking for founding writers for Essayist.
 
-Essayist is a writer-first Nostr relay where launch access begins by supporting approved writers.
+Essayist is a writer-first Nostr relay opening with public writer signup.
 
-If you have existing longform work, a Nostr pubkey, and a payment endpoint, you can apply for the founding pack.
+If DN already knows at least 3 of your longform Nostr essays and your profile has a Lightning address, you can apply at `decentnewsroom.com/essayist`.
 
-The goal is to start with real writers, not empty accounts.
+The standard is simple: real essays on Nostr, not excerpts, not link-dumps.
 
-## Post 3: Reader Call
+## Post 3: Reader Heads-Up
 
-Would you support a writer to access a writer-first relay?
+Essayist is opening in two steps.
 
-That is the core Essayist test.
+Step 1: public writer signup.
+Step 2: reader/supporter access.
 
-During launch, the operator fee is waived. Readers choose an approved writer from the founding pack, support them directly, and get access.
+The supporter side is not live yet. First I want real writers and real essays on the relay. Then I’ll open the support flow.
 
-If that does not interest people, I should know before overbuilding it.
+## Post 4: Editorial Standard
 
-## Post 4: Follow Pack
+Essayist is not for article excerpts that just point elsewhere.
 
-The Essayist whitelist will not be hidden admin state.
+To get approved, writers need genuine Nostr essays already known to Decent Newsroom.
 
-Approved writers will be published into follow packs so readers can inspect, follow, and support them.
-
-The first pack is the founding writer pack. Later packs can be organized by topic, language, region, or publication.
+The goal is to build a relay of native longform writing, not a feed of outbound links.
 
 ## Post 5: Launch Logic
 
@@ -575,8 +544,9 @@ Essayist starts with a constraint:
 
 No empty platform economy.
 
-First, assemble writers with existing work.
-Then, ask readers to support them.
+First, open writer signup publicly.
+Then, approve real essayists and let them publish.
+Then, open reader/supporter access.
 Only then decide whether the relay should grow.
 
 The point is not to collect signups. The point is to test support.
@@ -589,94 +559,80 @@ The point is not to collect signups. The point is to test support.
 
 * Introducing Essayist: a writer-first relay for longform work
 * The first money should go to writers
-* Help test Essayist, a Nostr relay for essays
-* Writers wanted for the Essayist founding pack
-* Would you support writers to access a relay?
+* Writers wanted for Essayist
+* Public writer signup is open for Essayist
+* Essayist is opening in two steps
 
 ## Email Body
 
-I’m preparing a small launch experiment called Essayist.
+I’m opening a public writer-signup phase for Essayist.
 
-Essayist is a writer-first Nostr relay for longform publishing. The launch premise is simple: the first money should go to writers.
+Essayist is a writer-first Nostr relay for longform publishing. The idea is still the same: the first money should go to writers. But the rollout is now in two steps.
 
-During the first launch period, the relay operator fee will be waived. Readers will get access by supporting at least one approved writer from the founding pack.
+First, writers apply publicly and begin publishing. Then, once there is a credible founding pack and real essays on the relay, the supporter/reader flow opens.
 
-That means the first step is not a broad platform launch. The first step is assembling a credible founding writer pack.
+If you already publish genuine longform essays on Nostr, Decent Newsroom knows at least 3 of them, and your profile has a Lightning address, you can request writer access at `decentnewsroom.com/essayist`.
 
-Writers can apply with existing longform work, a Nostr pubkey, and a payment endpoint. Approved writers will be listed publicly and may be included in follow packs by topic, language, region, or editorial focus.
+Moderators review applications. The standard is native Nostr writing — not excerpts, not link-dumps, not placeholder accounts.
 
-Readers can browse the founding pack, choose who they would support, and help decide whether this should become a larger publishing relay.
-
-The test is deliberately simple:
-
-Will readers support writers before there is a full platform economy around them?
-
-If the answer is yes, Essayist opens more broadly. If the answer is no, that is useful to know before building too much.
+Reader access is marked coming soon for now. I want to open that only after the writer side is real.
 
 ---
 
 # 16. Launch Timeline
 
-## Week 0: Internal Setup
-
-Prepare the minimum system.
+## Week 0: Preparation
 
 Tasks:
 
-* create Essayist landing page;
-* define founding writer criteria;
-* create writer application form;
-* create admin review view;
-* create founding writer pack page;
-* create reader interest/support flow;
-* write FAQ;
-* prepare private writer invitation;
-* prepare launch posts.
+* create Essayist landing page with writer self-request flow;
+* define eligibility criteria (done: 3 articles + Lightning address);
+* create admin review view (`/admin/essayist`);
+* deploy `strfry-essayist` relay (`--profile essayist`);
+* write FAQ copy;
+* prepare public announcement posts.
 
-## Week 1: Private Writer Seeding
+## Week 1: Public Writer Signup Opens
 
-Invite the first writers directly.
+Publish the landing page and announce publicly.
 
 Goals:
 
-* get 5 to 10 credible writers to agree;
-* verify payment endpoints;
-* collect bios and article links;
-* create the first founding pack.
-
-Do not publicly launch reader support until there is at least a small credible pack.
-
-## Week 2: Public Writer Applications
-
-Open applications publicly.
-
-Goals:
-
-* test writer-side demand;
-* expand the founding pack;
-* collect topic and language metadata;
-* prepare follow packs.
+* first writers discover the page and self-apply;
+* admin reviews first candidates and approves genuine writers;
+* relay begins accumulating real content.
 
 Marketing focus:
 
-* “Writers wanted for Essayist founding pack.”
+* "Writers wanted for the Essayist founding pack — apply at decentnewsroom.com/essayist."
 
-## Week 3: Reader Interest Page
+Do not open reader supporter access until at least 5 approved writers have published articles.
 
-Open reader signups and pack browsing.
+## Week 2–3: Build the Founding Pack
+
+Continue reviewing and approving writers.
 
 Goals:
 
-* see who signs in;
-* see which writers readers choose;
-* collect pledge or support intent;
-* optionally accept small founding contributions.
+* reach 10+ approved writers with published essays on the relay;
+* confirm articles are genuine Nostr content (not excerpts/link-dumps);
+* prepare the reader access flow.
+
+## Week 4: Reader Access Opens
+
+Replace the "coming soon" section with the live supporter flow.
+
+Goals:
+
+* first readers sign in and choose writers to support;
+* admin manually verifies payments and grants `ROLE_ESSAYIST_SUPPORTER`;
+* publish relay URL for clients that want direct access.
 
 Marketing focus:
 
-* “Would you support a writer to access a writer-first relay?”
+* "Would you support a writer to access a writer-first relay?"
 
-## Week 4: Decision Point
+## Week 5–6: Decision Point
 
 Review the data.
 
@@ -686,28 +642,14 @@ Questions:
 * Did readers choose anyone to support?
 * Did any sats move?
 * Which copy confused people?
-* Which packs got attention?
-* Is there enough signal for a pilot or launch?
+* Is there enough signal for a full launch?
 
 Possible decisions:
 
-* open a small pilot;
+* open a full public launch;
 * continue recruiting writers;
-* run another reader test;
-* reposition as follow-pack discovery first;
+* reposition as a follow-pack discovery project;
 * pause.
-
-## Weeks 5–8: Pilot or Public Launch
-
-If the signal is strong enough, launch the first access period.
-
-Launch rule:
-
-* operator fee waived;
-* support one approved writer;
-* receive access;
-* publish follow pack;
-* report aggregate support.
 
 ---
 
@@ -781,12 +723,12 @@ Avoid overclaiming. The launch is an experiment. That makes it easier to explain
 # 20. Immediate Next Steps
 
 1. Choose the exact founding writer criteria.
-2. Write the private invite message.
-3. Invite 5 to 10 writers manually.
-4. Build the landing page with three actions: browse, apply, support.
+2. Finalize the public writer-call copy.
+3. Publish the landing page with writer self-signup and reader "coming soon".
+4. Approve the first 5 to 10 credible writers.
 5. Create the founding writer pack page.
-6. Publish the writer call.
-7. Open reader interest only after the first pack exists.
+6. Publish the public writer call.
+7. Open reader/supporter access only after the first pack exists.
 8. Run the test for 14 to 21 days.
 9. Decide based on support behavior, not compliments.
 
@@ -815,7 +757,36 @@ The founding writer pack is managed entirely through the role system:
 
 ### Writer article history check
 
-`FollowPackService::getArticlesForPubkeys()` already queries articles by pubkey with ordering and deduplication. The "at least five eligible articles from the last three months" rule can be enforced automatically against the local database during writer application review, without new queries.
+`ArticleRepository` can count deduplicated kind 30023 articles per pubkey grouped by `(pubkey, slug)` to get the unique article count. The eligibility threshold is **3 deduplicated articles**. This check is done server-side in the landing page controller (non-blocking, cached briefly per user). No new queries needed beyond what `ArticleRepository` already supports.
+
+### Eligibility requirements
+
+To request writer access (`ROLE_ESSAYIST_CANDIDATE`), a logged-in user must satisfy **both**:
+
+1. **≥ 3 deduplicated articles** (kind 30023) known to Decent Newsroom — grouped by `(pubkey, slug)` so republished revisions don't inflate the count
+2. **Lightning address present** — `User::$lud16` must be non-empty (populated from kind 0 metadata on login)
+
+These are checked in the landing page controller on every page load. The self-request button is rendered disabled with a clear explanation if either check fails.
+
+**Content quality — moderator review (not automated):**
+
+Passing the automated checks does not guarantee approval. Moderators review each candidate's article history before granting `ROLE_ESSAYIST_AUTHOR`. Disqualifying content includes:
+
+- Excerpts or summaries that redirect the reader to an external site (e.g., RSS-imported snippets)
+- Bot-generated or AI-only posts
+- Link-dump articles with minimal original content
+
+Moderators may also **downgrade** an already-approved writer (removing `ROLE_ESSAYIST_AUTHOR` and optionally restoring `ROLE_ESSAYIST_CANDIDATE`, or removing both) if published content no longer meets the standard. There is no automatic enforcement; this is an editorial discretion reserved by the relay operator.
+
+### All writer metadata is already in the `User` entity
+
+When a writer logs in via NIP-07/NIP-46, their `User` record is created/updated with:
+
+- **pubkey** (hex) — account identifier
+- **lud16** — Lightning address for zaps/payments (required by the model)
+- **metadata** (from kind 0) — name, display_name, picture, nip05, about, etc. (cached in Redis)
+
+The admin reviewing a pending request sees the pubkey, article count, and publication time; the `user:elevate` command needs only the pubkey. No dedicated "bio", "topics", or "payment endpoint" fields are required — they flow from the existing profile metadata and the articles already published.
 
 ### ZapButton component
 
@@ -825,7 +796,7 @@ The founding writer pack is managed entirely through the role system:
 
 ### Lightning address storage
 
-`User::$lud16` already stores the lightning address for each logged-in user. This is the payment endpoint required by the writer application rules.
+`User::$lud16` already stores the lightning address for each logged-in user. This is automatically populated when the user logs in via NIP-07/NIP-46 (from kind 0 metadata) and is the only payment endpoint needed for the Essayist model.
 
 ### Nostr login
 
@@ -870,17 +841,11 @@ The Essayist relay is a dedicated strfry instance in `docker/strfry-essayist/`:
 
 The main strfry relay (port 7777) is unchanged and continues to be read-only for all content.
 
-**Read access — pre-public-launch phase:**
+**Read access — Phase 1 (writer signup, supporter access coming soon):**
 
-During the pre-public-launch phase (Phase 0), reads are **not** served by exposing the relay URL to clients. Instead:
+During Phase 1, the relay URL is not linked in the UI, but the relay is live and writers with `ROLE_ESSAYIST_AUTHOR` can publish to it. Reads are served server-side via the Decent Newsroom feed page (`/essayist/feed`), gated by `ROLE_ESSAYIST_SUPPORTER`. No clients connect directly to the relay yet.
 
-- Decent Newsroom reads from `strfry-essayist` **server-side** and renders content on a gated feed page (`/essayist`).
-- The feed page requires `ROLE_ESSAYIST_SUPPORTER`. Anonymous users and logged-in users without the role are redirected to the landing/support page.
-- The relay WebSocket URL (`wss://essayist.decentnewsroom.com`) is kept unlisted — not linked in the UI, not published in NIP-65 relay lists, not included in NIP-11 discovery. It is technically accessible to anyone who guesses it, but it is not advertised.
-
-strfry itself has no built-in read-gating mechanism; access control at this phase is entirely at the Decent Newsroom application layer.
-
-**Phase 2 (public launch):** the relay URL is published, NIP-11 discovery is activated, and clients can subscribe directly. `ROLE_ESSAYIST_SUPPORTER` continues to be the gate for the curated Decent Newsroom feed page, but the relay is no longer hidden.
+**Phase 2 (reader access opens):** the relay URL is published in the UI, NIP-11 discovery is activated, and clients can subscribe directly. `ROLE_ESSAYIST_SUPPORTER` continues to gate the curated DN feed page.
 
 **Adding a writer** once approved:
 1. Run: `docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_AUTHOR`
@@ -906,7 +871,7 @@ Caddy routes the host `essayist.decentnewsroom.com` directly to `strfry-essayist
 **Production `.env` excerpt:**
 ```dotenv
 ESSAYIST_RELAY_DOMAIN=essayist.decentnewsroom.com
-ESSAYIST_POLICY_TOKEN=<output of: php -r "echo bin2hex(random_bytes(32));"> 
+ESSAYIST_POLICY_TOKEN="<output of: php -r 'echo bin2hex(random_bytes(32));'>"
 ```
 
 **DNS:** add a CNAME record `essayist.decentnewsroom.com → decentnewsroom.com` (same host, Caddy handles routing by `Host:` header). TLS is handled automatically by Caddy/Let's Encrypt when `SERVER_NAME` includes the wildcard `*.decentnewsroom.com`, or by the upstream proxy.
@@ -919,11 +884,23 @@ ws://essayist.localhost
 
 Browsers resolve `*.localhost` without a hosts-file entry in modern operating systems.
 
-### 3. No writer application entity
+### 3. Writer self-request flow (simplified)
 
-There is no database entity or form for founding writer applications yet. The closest existing pattern is `ActiveIndexingSubscription` (npub + status fields + review metadata).
+Writers do not fill out a form. Instead:
 
-**Required work:** create `EssayistApplication` entity (npub, status: pending/approved/rejected, bio, topics, submitted_at, reviewed_at, reviewer_notes), a migration, a Symfony form, and an admin list view.
+1. A logged-in writer visits `/essayist` landing page.
+2. If they have no `ROLE_ESSAYIST_AUTHOR` or `ROLE_ESSAYIST_CANDIDATE`, a button appears: **"Request Writer Access"**.
+3. Clicking it runs two eligibility checks:
+   - Does our DB contain **at least 3 deduplicated articles** (kind 30023, grouped by `(pubkey, slug)`) from this pubkey?
+   - Does the user's profile have a **Lightning address** (`lud16` populated in `User`)?
+4. If **both pass** → system assigns `ROLE_ESSAYIST_CANDIDATE` to the user immediately (via PHP controller action) and they see confirmation: "Your request is in the queue."
+5. If **either fails** → the button is disabled and explains which requirement is missing (no articles / not enough articles / no Lightning address).
+
+Admin reviews candidates in `/admin/essayist` by looking at users with `ROLE_ESSAYIST_CANDIDATE`. For each candidate:
+- View their article count and publication history
+- Approve by running: `docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_AUTHOR`
+
+The `user:elevate` command handles role transitions (removes CANDIDATE, adds AUTHOR).
 
 ---
 
@@ -931,27 +908,120 @@ There is no database entity or form for founding writer applications yet. The cl
 
 The following covers the "Required" items from Section 3 with the fewest new parts:
 
-1. **`ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` in `RolesEnum`** — two enum cases:
-   - `ROLE_ESSAYIST_AUTHOR`: granted to approved writers via `user:elevate`. Controls relay write access.
+1. **`ROLE_ESSAYIST_CANDIDATE`, `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` in `RolesEnum`** — three enum cases:
+   - `ROLE_ESSAYIST_CANDIDATE`: assigned when a logged-in writer self-requests access (if they have published articles). Queued for admin review.
+   - `ROLE_ESSAYIST_AUTHOR`: granted to approved writers via `user:elevate` (replaces `ROLE_ESSAYIST_CANDIDATE`). Controls relay write access.
    - `ROLE_ESSAYIST_SUPPORTER`: granted to readers who support an approved writer. Gates the Decent Newsroom feed page during the pre-public-launch phase.
 
-2. **Relay write-policy endpoint: `/api/internal/essayist/writer/{pubkey}`** — queries the `User` entity to check if the given pubkey has `ROLE_ESSAYIST_AUTHOR`. Returns 200 if authorized, 403 otherwise. Protected by bearer token (`ESSAYIST_POLICY_TOKEN`).
+2. **Relay write-policy endpoint: `/api/internal/essayist/writer/{pubkey}`** — queries the `User` entity to check if the given pubkey has `ROLE_ESSAYIST_AUTHOR`. Returns `{"approved": true/false}` based on role. Protected by bearer token (`ESSAYIST_POLICY_TOKEN`). ✅ Already implemented.
 
-3. **Relay feed page: `/essayist`** — a Symfony controller that queries `strfry-essayist` (via `NostrClient` pointed at `ws://strfry-essayist:7779`) for kind 30023 events, renders them with existing article card components, and is access-controlled by `ROLE_ESSAYIST_SUPPORTER`. Unauthenticated or ungated users are redirected to the Essayist landing page.
+3. **Landing page: `/essayist`** — publicly accessible page with:
+   - Hero section (headline, subheadline, CTAs)
+   - Writer self-request button (visible to logged-in users without the role)
+   - Pre-check logic (both conditions must pass for the button to be active):
+     1. `ArticleRepository::countDeduplicatedByPubkey(pubkey, kind: 30023) >= 3`
+     2. `$user->getLud16() !== null` (Lightning address present in profile)
+   - If eligible: "Request Writer Access" button is active
+   - If not eligible: button is disabled with an explanation of which check(s) failed
+   - FAQ section (reuse existing copy from docs)
+   - Link to `/essayist/feed` for approved readers
 
-4. **Landing page controller + template** — uses existing `UserFromNpub` and `ZapButton` Twig components for writer cards (once a writer is approved, they can be listed in the landing page template or fetched from the relay feed to display recent articles). Publicly accessible but shows full writer list only to supporters.
+4. **Feed page: `/essayist/feed`** — a Symfony controller that:
+   - Requires `ROLE_ESSAYIST_SUPPORTER` (redirect unauthenticated users to landing)
+   - Queries `strfry-essayist` (via `NostrClient` pointed at `ws://strfry-essayist:7779`) for kind 30023 events
+   - Renders with existing `CardList` organism + article cards
+   - Pagination support
 
-5. **Admin dashboard command:** existing `user:elevate` command is used to grant both roles:
-   ```bash
-   docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_AUTHOR
-   docker compose exec php bin/console user:elevate <npub> ROLE_ESSAYIST_SUPPORTER
-   ```
+5. **Writer request tracking** — built into the role system:
+   - No separate log table needed; state is tracked via `ROLE_ESSAYIST_CANDIDATE`
+   - When a writer clicks "Request Access", the controller checks for articles and (if present) assigns the role via PHP
+   - Admin views users with `ROLE_ESSAYIST_CANDIDATE` in `/admin/essayist`
+   - Admin approval runs `user:elevate <npub> ROLE_ESSAYIST_AUTHOR` (which removes CANDIDATE and adds AUTHOR)
 
-6. **No separate application tracking table needed.** Writers apply via email, form, or direct approach; admin reviews their pubkey and recent articles manually (or with a quick `FollowPackService::getArticlesForPubkeys()` check if desired), then grants the role.
+6. **Admin section** — add `/admin/essayist` with two simple views:
+   - Pending writer candidates (query users with `ROLE_ESSAYIST_CANDIDATE`, display npub, article count, approval button)
+   - Approved writers (query users with `ROLE_ESSAYIST_AUTHOR`, display npub, approval date, action to remove role)
+   - Readers with access (query users with `ROLE_ESSAYIST_SUPPORTER`, display npub, access date, action to revoke)
+
+7. **No form or log table needed.** State is tracked entirely by the role system. All writer metadata is already in `User` (npub, lud16, metadata).
 
 **Explicitly defer until receipt detection works:** automated role grant on payment. Until then, admin manually verifies each payment and runs `user:elevate` to grant `ROLE_ESSAYIST_SUPPORTER`.
 
 **Relay URL advertising:** do not add `wss://essayist.decentnewsroom.com` to any NIP-65 relay list or link it in the UI until Phase 1 public launch begins.
+
+---
+
+## Writer Self-Request Flow (Detailed)
+
+### Landing Page (`/essayist`)
+
+When a logged-in writer without `ROLE_ESSAYIST_AUTHOR` or `ROLE_ESSAYIST_CANDIDATE` visits the landing page:
+
+```
+┌─────────────────────────────────────────┐
+│ Essayist Landing Page                   │
+├─────────────────────────────────────────┤
+│ Hero Section                            │
+│ "A writer-first relay for essays"       │
+│ "Support writers. Enter the relay."      │
+│                                         │
+│ [Browse Founding Writers] [Request Access] │
+├─────────────────────────────────────────┤
+│ How It Works (static copy)              │
+│ Why Essayist Exists (static copy)       │
+│ FAQ (static copy)                       │
+└─────────────────────────────────────────┘
+```
+
+**States:**
+
+- **Unauthenticated user**: **[Request Access]** button links to login.
+- **Authenticated user without either role**: Button state depends on eligibility checks:
+  - **Eligibility check 1**: `ArticleRepository::countDeduplicatedByPubkey(pubkey)` ≥ 3 (kind 30023, grouped by `pubkey + slug`)
+  - **Eligibility check 2**: `User::$lud16` is not null/empty
+  - If **both pass**: button is active — on click → POST to `/essayist/request-access` → assigns `ROLE_ESSAYIST_CANDIDATE` → shows "Your request has been submitted for review."
+  - If **check 1 fails**: button is disabled, tooltip: "You need at least 3 articles known to Decent Newsroom. Publish your work on Nostr and check back once it has been discovered."
+  - If **check 2 fails**: button is disabled, tooltip: "Add a Lightning address to your Nostr profile first. This is required to receive reader support."
+  - If **both fail**: show the most actionable message (no articles takes priority).
+- **Authenticated user with `ROLE_ESSAYIST_CANDIDATE`**: Shows "Your request is pending review. Check back soon."
+- **Authenticated user with `ROLE_ESSAYIST_AUTHOR`**: Shows "You are approved. [Start publishing]" (link to editor).
+
+### Admin Review Flow
+
+Admin visits `/admin/essayist`:
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ Admin: Essayist Writers                                           │
+├─────────────────────────────── ──────────────────────────────────┤
+│ Pending Candidates           │ Approved Writers                  │
+│ (ROLE_ESSAYIST_CANDIDATE)    │ (ROLE_ESSAYIST_AUTHOR)           │
+├──────────────────────────────┼───────────────────────────────────┤
+│ npub:abc123…                 │ npub:xyz789…                      │
+│ Articles: 7                  │ Approved: 2 weeks ago             │
+│ Requested: 3 days ago        │ [Details] [Revoke]                │
+│ [Details] [Approve]          │                                   │
+│                              │ npub:def456…                      │
+│ npub:def456…                 │ Approved: 1 day ago               │
+│ Articles: 0                  │ [Details] [Revoke]                │
+│ Requested: 1 day ago         │                                   │
+│ [Can't approve - no articles]│                                   │
+└──────────────────────────────┴───────────────────────────────────┘
+```
+
+**Admin workflow:**
+1. View pending candidates in the left panel
+2. Click **[Details]** to see article list, check that articles are genuine Nostr content (not excerpts/links)
+3. Click **[Approve]** to run: `user:elevate <npub> ROLE_ESSAYIST_AUTHOR`
+   - System removes `ROLE_ESSAYIST_CANDIDATE` and adds `ROLE_ESSAYIST_AUTHOR`
+   - Writer immediately gains relay write access
+   - Candidate moves from left panel to right panel
+4. Click **[Reject]** to remove the `ROLE_ESSAYIST_CANDIDATE` role entirely, without promoting
+5. For already-**approved** writers: click **[Downgrade]** or **[Revoke]** to remove `ROLE_ESSAYIST_AUTHOR`
+   - Downgrade: removes AUTHOR, restores CANDIDATE (pending re-review)
+   - Revoke: removes AUTHOR entirely (no relay access, not in queue)
+
+Admin clicks **[Approve]** → backend runs `user:elevate <npub> ROLE_ESSAYIST_AUTHOR` → updates log entry with timestamp and admin pubkey → relays the change.
 
 ---
 
@@ -989,5 +1059,5 @@ The Essayist relay publishes a NIP-11 relay information document at `https://ess
 
 `restricted_writes: true` signals to clients that write access requires prior approval. Readers (subscribers) are unrestricted at the relay layer.
 
-> **Phase 0 note:** during the pre-public-launch phase, the relay URL is intentionally unlisted. The NIP-11 document exists and is technically fetchable, but `wss://essayist.decentnewsroom.com` is not published in any NIP-65 relay list, not linked in the Decent Newsroom UI, and not included in any public relay discovery index. Read access during this phase is exclusively through the gated Decent Newsroom feed page (`/essayist`). The NIP-11 document is activated for public discovery at Phase 1 launch.
+> **Phase 1 note:** during Phase 1 (writer signup), the relay URL is not linked in the UI and not published in any NIP-65 relay list. The NIP-11 document is technically fetchable at `https://essayist.decentnewsroom.com`, but not advertised. Writer access via the relay is live; reader access is served through the gated DN feed page. The relay URL is published and NIP-11 discovery activated at Phase 2 (reader access launch).
 

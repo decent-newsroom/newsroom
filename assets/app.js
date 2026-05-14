@@ -72,6 +72,7 @@ import './styles/04-pages/author-media.css';
 import './styles/04-pages/forum.css';
 import './styles/04-pages/highlights.css';
 import './styles/04-pages/discover.css';
+import './styles/04-pages/essayist.css';
 import './styles/04-pages/subscription.css';
 import './styles/04-pages/magazine-wizard.css';
 import './styles/04-pages/my-content.css';
