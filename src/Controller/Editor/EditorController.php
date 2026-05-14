@@ -99,8 +99,11 @@ class EditorController extends AbstractController
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Use UserRelayListService — stale-while-revalidate, fast on cache hit
-                $relays = $userRelayListService->getRelayList($currentPubkey);
+                // Use UserRelayListService — stale-while-revalidate, fast on cache hit.
+                // Use getRelayListForDisplay() so public relay URLs (wss://relay.decentnewsroom.com)
+                // are preserved in the user entity; the internal Docker address must never reach
+                // the browser or be stored as a user-facing relay URL.
+                $relays = $userRelayListService->getRelayListForDisplay($currentPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();
@@ -212,8 +215,9 @@ class EditorController extends AbstractController
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Use UserRelayListService — stale-while-revalidate, fast on cache hit
-                $relays = $userRelayListService->getRelayList($currentPubkey);
+                // Use UserRelayListService — stale-while-revalidate, fast on cache hit.
+                // Use getRelayListForDisplay() so public relay URLs are preserved in the user entity.
+                $relays = $userRelayListService->getRelayListForDisplay($currentPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $entityManager->flush();

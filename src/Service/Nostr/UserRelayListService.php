@@ -98,6 +98,59 @@ class UserRelayListService
     }
 
     /**
+     * Get the structured relay list for a pubkey WITHOUT remapping the project
+     * relay to the internal Docker hostname.
+     *
+     * Use this whenever the relay list is shown to the user or stored in a context
+     * that is accessible to frontend code (e.g. the User entity's `relays` field
+     * rendered in the editor panel). The internal ws://strfry:7777 address is not
+     * reachable from a browser and must never appear in the UI.
+     *
+     * @return array{read: string[], write: string[], all: string[], created_at: ?int}
+     */
+    public function getRelayListForDisplay(string $pubkeyOrNpub): array
+    {
+        $hex = $this->toHex($pubkeyOrNpub);
+
+        $cached = $this->fromCache($hex);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $dbResult = $this->fromDatabase($hex);
+        if ($dbResult !== null) {
+            $this->writeCache($hex, $dbResult);
+            return $dbResult;
+        }
+
+        $networkResult = $this->fromNetwork($hex);
+        if ($networkResult !== null) {
+            return $networkResult;
+        }
+
+        // Fallback: use the public project URL, not the internal local relay
+        $fallbacks = $this->relayRegistry->getFallbackRelays();
+        // Replace any internal local relay in fallbacks with the public project URL
+        $publicUrl = $this->relayRegistry->getProjectRelay();
+        if ($publicUrl !== null) {
+            $fallbacks = array_map(
+                fn(string $url) => $this->relayRegistry->isProjectRelay($url) || $url === $this->relayRegistry->getLocalRelay()
+                    ? $publicUrl
+                    : $url,
+                $fallbacks
+            );
+            $fallbacks = array_values(array_unique($fallbacks));
+        }
+
+        return [
+            'read' => $fallbacks,
+            'write' => $fallbacks,
+            'all' => $fallbacks,
+            'created_at' => null,
+        ];
+    }
+
+    /**
      * Get a flat array of relay URLs for a pubkey (backward-compatible).
      *
      * @return string[]

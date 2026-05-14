@@ -339,7 +339,10 @@ class UpdateProfileProjectionHandler
             // Use UserRelayListService with revalidation to fetch, persist to DB, and cache relays
             // This is async so network calls are safe here
             $this->userRelayListService->revalidate($pubkeyHex);
-            $relays = $this->userRelayListService->getRelayList($pubkeyHex);
+            // Use getRelayListForDisplay() — the user entity is read by frontend code
+            // (editor panel, JS publishing); it must contain public relay URLs, never
+            // the internal ws://strfry:7777 Docker hostname.
+            $relays = $this->userRelayListService->getRelayListForDisplay($pubkeyHex);
 
             if (empty($relays['all'])) {
                 $this->logger->debug('No relay list found for user', [

@@ -49,8 +49,10 @@ class UserMetadataSyncService
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
-                // Use UserRelayListService — cache-only for fast sync
-                $relays = $this->userRelayListService->getRelayList($hexPubkey);
+                // Use getRelayListForDisplay() — cache-only for fast sync.
+                // Stores public relay URLs in the user entity; the internal Docker
+                // hostname must never be persisted here as it would leak into the UI.
+                $relays = $this->userRelayListService->getRelayListForDisplay($hexPubkey);
                 if (!empty($relays['all'])) {
                     $user->setRelays($relays);
                     $this->logger->debug("Synced relays for user: {$npub}", [
