@@ -1,4 +1,18 @@
 <div class="w-container">
+    {% set nip05Values = [] %}
+    {% if author.nip05 is defined and author.nip05 is not empty %}
+        {% for rawNip05 in (author.nip05 is iterable ? author.nip05 : [author.nip05]) %}
+            {% if rawNip05 is not empty %}
+                {% for candidateNip05 in rawNip05|split(',') %}
+                    {% set normalizedNip05 = candidateNip05|trim %}
+                    {% if normalizedNip05 is not empty and normalizedNip05 not in nip05Values %}
+                        {% set nip05Values = nip05Values|merge([normalizedNip05]) %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
     <section class="p-0">
         <h1>
             <twig:Atoms:NameOrNpub :author="author" :npub="npub"></twig:Atoms:NameOrNpub>
@@ -7,29 +21,15 @@
             {% endif %}
         </h1>
 
-        {% if author.nip05 is defined and author.nip05 is not empty %}
-            {% set nip05Values = [] %}
-            {% for rawNip05 in (author.nip05 is iterable ? author.nip05 : [author.nip05]) %}
-                {% if rawNip05 is not empty %}
-                    {% for candidateNip05 in rawNip05|split(',') %}
-                        {% set normalizedNip05 = candidateNip05|trim %}
-                        {% if normalizedNip05 is not empty and normalizedNip05 not in nip05Values %}
-                            {% set nip05Values = nip05Values|merge([normalizedNip05]) %}
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-            {% endfor %}
-
-            {% if nip05Values is not empty %}
-                <div class="nip05-badge-list">
-                    {% for nip05Value in nip05Values %}
-                        <twig:Atoms:Nip05Badge
-                            nip05="{{ nip05Value }}"
-                            :npub="npub"
-                        />
-                    {% endfor %}
-                </div>
-            {% endif %}
+        {% if nip05Values is not empty %}
+            <div class="nip05-badge-list">
+                {% for nip05Value in nip05Values %}
+                    <twig:Atoms:Nip05Badge
+                        nip05="{{ nip05Value }}"
+                        :npub="npub"
+                    />
+                {% endfor %}
+            </div>
         {% endif %}
         <div class="mt-2">
             {% if author.about is defined and author.about %}
@@ -55,6 +55,9 @@
     <div class="article-actions">
         {% if app.user and app.user.userIdentifier == (pubkey|hex_to_npub) %}
             <a href="{{ path('settings') }}" class="btn">Settings</a>
+            {% if nip05Values is empty %}
+                <a href="{{ path('vanity_index') }}" class="btn btn--outline">Get NIP-05</a>
+            {% endif %}
         {% elseif app.user %}
             <twig:Molecules:SubscribeButton :pubkey="pubkey" />
             <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
