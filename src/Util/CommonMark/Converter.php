@@ -698,6 +698,95 @@ class Converter implements MarkdownConverterInterface
     }
 
     /**
+     * Pre-convert sequences of 5 adjacent asterisks (*****) to explicit HTML.
+     *
+     * Some Nostr clients write ***** to mean "bold+italic" placed directly
+     * adjacent to an outer **bold** span.  CommonMark treats the entire run of
+     * five asterisks as a single delimiter and cannot reliably parse it.
+     *
+     * Four arrangements are handled (most-specific first so rules do not
+     * shadow one another):
+     *   1. **outer *****inner***** outer** → <strong>outer<em>inner</em>outer</strong>
+     *   2. **outer *****inner***           → <strong>outer<em>inner</em></strong>
+     *   3. *****inner*****                 → <strong><em>inner</em></strong>
+     *   4. *****inner***                   → <strong><em>inner</em></strong>
+     *
+     * Code spans and fenced blocks are protected from modification.
+     */
+    private function preConvertAdjacentStarEmphasis(string $content): string
+    {
+        if (!str_contains($content, '*****')) {
+            return $content;
+        }
+
+        // Protect code regions so we do not mangle code spans.
+        $codeBlocks = [];
+        $protectCode = function (array $m) use (&$codeBlocks): string {
+            $codeBlocks[] = $m[0];
+            return "\x00STAREMPH" . (count($codeBlocks) - 1) . "\x00";
+        };
+        // Fenced code blocks (closed)
+        $content = preg_replace_callback(
+            '/^(`{3,}|~{3,})[^\n]*\n.*?^\1\s*$/ms',
+            $protectCode,
+            $content,
+        ) ?? $content;
+        // Fenced code blocks (unclosed / end of string)
+        $content = preg_replace_callback(
+            '/^(`{3,}|~{3,})[^\n]*\n.*\z/ms',
+            $protectCode,
+            $content,
+        ) ?? $content;
+        // Multi-char backtick spans
+        $content = preg_replace_callback(
+            '/(`{2,})(?!`)(.+?)(?<!`)\1(?!`)/s',
+            $protectCode,
+            $content,
+        ) ?? $content;
+        // Single-char backtick spans
+        $content = preg_replace_callback('/`[^`\n]+`/', $protectCode, $content) ?? $content;
+
+        // Rule 1: **outer *****inner***** outer** → <strong>outer<em>inner</em>outer</strong>
+        $content = preg_replace(
+            '/(?<!\*)\*{2}(?!\*)(.+?)(?<!\*)\*{5}(?!\*)(.+?)(?<!\*)\*{5}(?!\*)(.+?)(?<!\*)\*{2}(?!\*)/',
+            '<strong>$1<em>$2</em>$3</strong>',
+            $content,
+        ) ?? $content;
+
+        // Rule 2: **outer *****inner*** → <strong>outer<em>inner</em></strong>
+        $content = preg_replace(
+            '/(?<!\*)\*{2}(?!\*)(.+?)(?<!\*)\*{5}(?!\*)(.+?)(?<!\*)\*{3}(?!\*)/',
+            '<strong>$1<em>$2</em></strong>',
+            $content,
+        ) ?? $content;
+
+        // Rule 3: standalone *****inner***** → <strong><em>inner</em></strong>
+        $content = preg_replace(
+            '/(?<!\*)\*{5}(?!\*)(.+?)(?<!\*)\*{5}(?!\*)/',
+            '<strong><em>$1</em></strong>',
+            $content,
+        ) ?? $content;
+
+        // Rule 4: standalone *****inner*** → <strong><em>inner</em></strong>
+        $content = preg_replace(
+            '/(?<!\*)\*{5}(?!\*)(.+?)(?<!\*)\*{3}(?!\*)/',
+            '<strong><em>$1</em></strong>',
+            $content,
+        ) ?? $content;
+
+        // Restore protected code blocks.
+        if (!empty($codeBlocks)) {
+            $content = preg_replace_callback(
+                '/\x00STAREMPH(\d+)\x00/',
+                static fn(array $m) => $codeBlocks[(int) $m[1]],
+                $content,
+            ) ?? $content;
+        }
+
+        return $content;
+    }
+
+    /**
      * Convert Markdown to HTML (original method)
      * @throws CommonMarkException
      */
@@ -721,6 +810,17 @@ class Converter implements MarkdownConverterInterface
         // Disable lazy blockquote continuation so a non-quoted next line
         // becomes a normal paragraph without requiring a blank line.
         $markdown = $this->normalizeBlockquoteBoundaries($markdown);
+
+        // Some Nostr clients (e.g. Obsidian, Coracle) write ***** to express
+        // bold+italic text in close proximity to an outer ** bold span.
+        // CommonMark sees ***** as a single 5-star delimiter run and cannot
+        // reliably close it, producing broken output.  Pre-convert all four
+        // arrangements to explicit HTML before CommonMark is involved:
+        //   1. **outer *****inner***** outer** → outer bold with italic inner
+        //   2. **outer *****inner***           → bold outer, bold+italic inner
+        //   3. *****inner*****                 → standalone bold+italic
+        //   4. *****inner***                   → standalone bold+italic (unbalanced)
+        $markdown = $this->preConvertAdjacentStarEmphasis($markdown);
 
         // CommonMark flanking rules: a closing ** (or *) preceded by punctuation
         // is only right-flanking if the next char is whitespace or punctuation.
