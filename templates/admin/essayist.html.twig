@@ -1,0 +1,370 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Essayist Administration{% endblock %}
+
+{% block body %}
+<div class="admin-essayist">
+    <div class="admin-header">
+        <h1>Essayist Administration</h1>
+        <a href="{{ path('admin_dashboard') }}" class="btn btn-sm">← Dashboard</a>
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="notice {{ label }}">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
+    {# ── Pending Candidates ──────────────────────────────────────── #}
+    <section class="essayist-admin-section">
+        <h2>Pending Writer Candidates
+            <span class="essayist-count">{{ candidates|length }}</span>
+        </h2>
+        <p class="essayist-admin-hint">
+            Users who clicked "Request Writer Access" on the Essayist landing page and passed the
+            automated eligibility checks (≥ 3 articles + Lightning address). Review their article
+            history before approving.
+        </p>
+
+        {% if candidates is empty %}
+            <p class="essayist-admin-empty">No pending candidates.</p>
+        {% else %}
+            <table class="essayist-table">
+                <thead>
+                    <tr>
+                        <th>Writer</th>
+                        <th>Npub</th>
+                        <th>Articles (DN)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in candidates %}
+                        <tr>
+                            <td class="essayist-user-cell">
+                                {% if entry.metadata and entry.metadata.picture is defined and entry.metadata.picture %}
+                                    <img src="{{ entry.metadata.picture }}" alt="avatar" class="essayist-avatar">
+                                {% else %}
+                                    <span class="essayist-avatar essayist-avatar--placeholder">
+                                        <twig:ux:icon name="iconoir:user" style="width:20px;height:20px;" />
+                                    </span>
+                                {% endif %}
+                                {% if entry.metadata %}
+                                    <a href="{{ path('author-profile', { npub: entry.npub }) }}" target="_blank">
+                                        <twig:Atoms:NameOrNpub :author="entry.metadata" :npub="entry.npub" />
+                                    </a>
+                                {% else %}
+                                    {{ entry.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td><code class="essayist-code">{{ entry.npub|shortenNpub }}</code></td>
+                            <td>
+                                <strong>{{ entry.articleCount }}</strong>
+                                {% if entry.articleCount >= 3 %}
+                                    <span class="essayist-badge essayist-badge--ok">✓ eligible</span>
+                                {% else %}
+                                    <span class="essayist-badge essayist-badge--warn">below threshold</span>
+                                {% endif %}
+                            </td>
+                            <td class="essayist-actions-cell">
+                                <form action="{{ path('admin_essayist_approve', { id: entry.user.id }) }}"
+                                      method="post"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Approve {{ entry.npub|shortenNpub }} as Essayist author?');">
+                                    <button type="submit" class="btn btn-sm btn--primary">Approve</button>
+                                </form>
+                                <form action="{{ path('admin_essayist_reject', { id: entry.user.id }) }}"
+                                      method="post"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Reject this candidate? The request will be removed.');">
+                                    <button type="submit" class="btn btn-sm btn--danger">Reject</button>
+                                </form>
+                                <a href="{{ path('author-profile', { npub: entry.npub }) }}"
+                                   target="_blank"
+                                   class="btn btn-sm">View profile</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    {# ── Approved Authors ────────────────────────────────────────── #}
+    <section class="essayist-admin-section">
+        <h2>Approved Authors
+            <span class="essayist-count">{{ authors|length }}</span>
+        </h2>
+        <p class="essayist-admin-hint">
+            Writers with <code>ROLE_ESSAYIST_AUTHOR</code>. They can publish to the Essayist relay
+            (<code>wss://essayist.decentnewsroom.com</code>). Use Downgrade to move back to the
+            candidate queue, or Revoke to remove relay access entirely.
+        </p>
+
+        {% if authors is empty %}
+            <p class="essayist-admin-empty">No approved authors yet.</p>
+        {% else %}
+            <table class="essayist-table">
+                <thead>
+                    <tr>
+                        <th>Writer</th>
+                        <th>Npub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in authors %}
+                        <tr>
+                            <td class="essayist-user-cell">
+                                {% if entry.metadata and entry.metadata.picture is defined and entry.metadata.picture %}
+                                    <img src="{{ entry.metadata.picture }}" alt="avatar" class="essayist-avatar">
+                                {% else %}
+                                    <span class="essayist-avatar essayist-avatar--placeholder">
+                                        <twig:ux:icon name="iconoir:user" style="width:20px;height:20px;" />
+                                    </span>
+                                {% endif %}
+                                {% if entry.metadata %}
+                                    <a href="{{ path('author-profile', { npub: entry.npub }) }}" target="_blank">
+                                        <twig:Atoms:NameOrNpub :author="entry.metadata" :npub="entry.npub" />
+                                    </a>
+                                {% else %}
+                                    {{ entry.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td><code class="essayist-code">{{ entry.npub|shortenNpub }}</code></td>
+                            <td class="essayist-actions-cell">
+                                <form action="{{ path('admin_essayist_downgrade_author', { id: entry.user.id }) }}"
+                                      method="post"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Move {{ entry.npub|shortenNpub }} back to the candidate queue?');">
+                                    <button type="submit" class="btn btn-sm">Downgrade</button>
+                                </form>
+                                <form action="{{ path('admin_essayist_revoke_author', { id: entry.user.id }) }}"
+                                      method="post"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Revoke author access from {{ entry.npub|shortenNpub }}? This removes relay write access.');">
+                                    <button type="submit" class="btn btn-sm btn--danger">Revoke</button>
+                                </form>
+                                <a href="{{ path('author-profile', { npub: entry.npub }) }}"
+                                   target="_blank"
+                                   class="btn btn-sm">View profile</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    {# ── Supporters ──────────────────────────────────────────────── #}
+    <section class="essayist-admin-section">
+        <h2>Readers with Supporter Access
+            <span class="essayist-count">{{ supporters|length }}</span>
+        </h2>
+        <p class="essayist-admin-hint">
+            Users with <code>ROLE_ESSAYIST_SUPPORTER</code>. Manually grant access once you have
+            verified a reader has supported an approved writer.
+        </p>
+
+        {# Grant form #}
+        <form action="{{ path('admin_essayist_grant_supporter') }}" method="post" class="essayist-grant-form">
+            <input type="text"
+                   name="npub"
+                   class="essayist-input"
+                   placeholder="npub1…"
+                   required
+                   pattern="npub1.*"
+                   title="Must be a valid npub starting with npub1">
+            <button type="submit" class="btn btn--primary">Grant supporter access</button>
+        </form>
+
+        {% if supporters is empty %}
+            <p class="essayist-admin-empty">No supporters yet.</p>
+        {% else %}
+            <table class="essayist-table">
+                <thead>
+                    <tr>
+                        <th>Reader</th>
+                        <th>Npub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in supporters %}
+                        <tr>
+                            <td class="essayist-user-cell">
+                                {% if entry.metadata and entry.metadata.picture is defined and entry.metadata.picture %}
+                                    <img src="{{ entry.metadata.picture }}" alt="avatar" class="essayist-avatar">
+                                {% else %}
+                                    <span class="essayist-avatar essayist-avatar--placeholder">
+                                        <twig:ux:icon name="iconoir:user" style="width:20px;height:20px;" />
+                                    </span>
+                                {% endif %}
+                                {% if entry.metadata %}
+                                    <twig:Atoms:NameOrNpub :author="entry.metadata" :npub="entry.npub" />
+                                {% else %}
+                                    {{ entry.npub|shortenNpub }}
+                                {% endif %}
+                            </td>
+                            <td><code class="essayist-code">{{ entry.npub|shortenNpub }}</code></td>
+                            <td class="essayist-actions-cell">
+                                <form action="{{ path('admin_essayist_revoke_supporter', { id: entry.user.id }) }}"
+                                      method="post"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('Revoke supporter access from {{ entry.npub|shortenNpub }}?');">
+                                    <button type="submit" class="btn btn-sm btn--danger">Revoke</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+</div>
+
+<style>
+.admin-essayist {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.essayist-admin-section {
+    margin-bottom: 3rem;
+    border-top: 2px solid var(--color-border, #e0e0e0);
+    padding-top: 1.5rem;
+}
+
+.essayist-admin-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.essayist-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.4rem;
+    background: var(--color-accent, #0066cc);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.essayist-admin-hint {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #666);
+    margin-bottom: 1rem;
+}
+
+.essayist-admin-empty {
+    color: var(--color-text-secondary, #888);
+    font-style: italic;
+}
+
+.essayist-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.essayist-table th,
+.essayist-table td {
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border, #e0e0e0);
+    vertical-align: middle;
+}
+
+.essayist-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary, #666);
+}
+
+.essayist-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.essayist-avatar {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.essayist-avatar--placeholder {
+    background: var(--color-bg-light, #f4f4f4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.essayist-code {
+    font-size: 0.8rem;
+}
+
+.essayist-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    margin-left: 0.25rem;
+}
+
+.essayist-badge--ok {
+    background: var(--color-success-bg, #d4edda);
+    color: var(--color-success, #155724);
+}
+
+.essayist-badge--warn {
+    background: var(--color-warning-bg, #fff3cd);
+    color: var(--color-warning-text, #856404);
+}
+
+.essayist-actions-cell {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.essayist-grant-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.essayist-input {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--color-border, #ccc);
+    font-size: 0.875rem;
+    min-width: 280px;
+}
+
+.btn--danger {
+    color: var(--color-error, #dc3545);
+    border-color: var(--color-error, #dc3545);
+}
+
+.btn--danger:hover {
+    background: var(--color-error, #dc3545);
+    color: #fff;
+}
+</style>
+{% endblock %}
+

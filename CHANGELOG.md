@@ -3,6 +3,8 @@
 ## v0.0.39
 Essayist.
 
+- [Feature] Added `/admin/essayist` administration page. Admins can review pending writer candidates (ROLE_ESSAYIST_CANDIDATE) with article counts, approve or reject them, manage approved authors (ROLE_ESSAYIST_AUTHOR) with downgrade/revoke actions, and manually grant or revoke supporter access (ROLE_ESSAYIST_SUPPORTER). Linked from the admin dashboard.
+
 - [Feature] Implemented Essayist writer self-signup on `/essayist`. Logged-in users can submit a writer request; backend verifies CSRF token, requires at least 3 deduplicated longform articles known to DN plus a `lud16` Lightning address, and assigns `ROLE_ESSAYIST_CANDIDATE` on success. Added in-page signup status messages, eligibility indicators, and a dedicated POST route (`/essayist/request-writer-access`).
 - [Feature] Added a public static Essayist landing page at `/essayist` with a launch explainer and timeline. The page introduces the writer-first rollout, shows writer requirements and moderation rules, marks reader/supporter access as coming soon, and gives Essayist a public home before the interactive signup flow is implemented. Added page styles in `assets/styles/04-pages/essayist.css`, wired them in `assets/app.js`, and documented the feature in `documentation/Newsroom/essayist-landing-page.md`.
 - [Bug] Fixed editor relays panel displaying the internal Docker address (`ws://strfry:7777`) instead of the public project relay URL (`wss://relay.decentnewsroom.com`) when a user has that relay in their kind 10002 list. Added `UserRelayListService::getRelayListForDisplay()` which resolves relay lists without remapping the project relay to the local hostname.
