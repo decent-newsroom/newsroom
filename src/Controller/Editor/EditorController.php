@@ -94,8 +94,16 @@ class EditorController extends AbstractController
             $key = new Key();
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
 
-            // Ensure user has relays - fetch if missing or empty
-            $storedRelays = $user->getRelays();
+            // Ensure user has relays - fetch if missing or empty.
+            // Also self-heal legacy stored values so internal local relay URLs
+            // never leak to the editor UI.
+            $storedRelays = $user->getRelays() ?? [];
+            $normalizedStoredRelays = $userRelayListService->normalizeRelayListForDisplay($storedRelays);
+            if ($normalizedStoredRelays !== $storedRelays) {
+                $user->setRelays($normalizedStoredRelays);
+                $entityManager->flush();
+                $storedRelays = $normalizedStoredRelays;
+            }
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {
@@ -210,8 +218,16 @@ class EditorController extends AbstractController
         if ($user) {
             $currentPubkey = $key->convertToHex($user->getUserIdentifier());
 
-            // Ensure user has relays - fetch if missing or empty
-            $storedRelays = $user->getRelays();
+            // Ensure user has relays - fetch if missing or empty.
+            // Also self-heal legacy stored values so internal local relay URLs
+            // never leak to the editor UI.
+            $storedRelays = $user->getRelays() ?? [];
+            $normalizedStoredRelays = $userRelayListService->normalizeRelayListForDisplay($storedRelays);
+            if ($normalizedStoredRelays !== $storedRelays) {
+                $user->setRelays($normalizedStoredRelays);
+                $entityManager->flush();
+                $storedRelays = $normalizedStoredRelays;
+            }
             $hasValidRelays = !empty($storedRelays['write']) || !empty($storedRelays['all']);
 
             if (!$hasValidRelays) {

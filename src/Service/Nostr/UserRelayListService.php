@@ -151,6 +151,52 @@ class UserRelayListService
     }
 
     /**
+     * Normalize a relay list for UI/frontend use by replacing internal local relay
+     * URLs with the public project relay URL.
+     *
+     * @param array{read?: mixed, write?: mixed, all?: mixed, created_at?: mixed} $relayList
+     * @return array{read: string[], write: string[], all: string[], created_at: ?int}
+     */
+    public function normalizeRelayListForDisplay(array $relayList): array
+    {
+        $projectRelay = $this->relayRegistry->getProjectRelay();
+        $localRelay = $this->relayRegistry->getLocalRelay();
+
+        $normalize = function (mixed $urls) use ($projectRelay, $localRelay): array {
+            if (!is_array($urls)) {
+                return [];
+            }
+
+            $result = [];
+            foreach ($urls as $url) {
+                if (!is_string($url) || $url === '') {
+                    continue;
+                }
+
+                $mapped = $url;
+                if ($projectRelay !== null && $localRelay !== null && RelayUrlNormalizer::equals($url, $localRelay)) {
+                    $mapped = $projectRelay;
+                }
+
+                if (!in_array($mapped, $result, true)) {
+                    $result[] = $mapped;
+                }
+            }
+
+            return $result;
+        };
+
+        $createdAt = $relayList['created_at'] ?? null;
+
+        return [
+            'read' => $normalize($relayList['read'] ?? []),
+            'write' => $normalize($relayList['write'] ?? []),
+            'all' => $normalize($relayList['all'] ?? []),
+            'created_at' => is_int($createdAt) ? $createdAt : null,
+        ];
+    }
+
+    /**
      * Get a flat array of relay URLs for a pubkey (backward-compatible).
      *
      * @return string[]

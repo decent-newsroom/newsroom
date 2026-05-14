@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Bug] Fixed stale users still seeing `ws://strfry:7777` in the editor relays panel after the initial fix. Existing `User.relays` values are now normalized on editor load via `UserRelayListService::normalizeRelayListForDisplay()`, which rewrites internal local relay URLs to the public project relay URL and deduplicates entries.
 - [Feature] Added a profile-owner CTA on author pages: when your profile has no `nip05` value set, a `Get NIP-05` button is shown next to Settings and links to vanity-name signup (`vanity_index`).
 - [Feature] Added `/admin/essayist` administration page. Admins can review pending writer candidates (ROLE_ESSAYIST_CANDIDATE) with article counts, approve or reject them, manage approved authors (ROLE_ESSAYIST_AUTHOR) with downgrade/revoke actions, and manually grant or revoke supporter access (ROLE_ESSAYIST_SUPPORTER). Linked from the admin dashboard.
 - [Feature] Implemented Essayist writer self-signup on `/essayist`. Logged-in users can submit a writer request; backend verifies CSRF token, requires at least 3 deduplicated longform articles known to DN plus a `lud16` Lightning address, and assigns `ROLE_ESSAYIST_CANDIDATE` on success. Added in-page signup status messages, eligibility indicators, and a dedicated POST route (`/essayist/request-writer-access`).
