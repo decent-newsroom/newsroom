@@ -3,6 +3,8 @@
 ## v0.0.39
 Essayist.
 
+- [Improvement] Removed the redundant writer-requirements intro sentence from the Essayist landing page and deleted the now-unused `essayist.landing.requirements.intro` translation key across all locales.
+- [Improvement] Removed the redundant second sentence in the Essayist model section and deleted the now-unused `essayist.landing.model.paragraph2` translation key across all locales.
 - [Bug] Fixed stale users still seeing `ws://strfry:7777` in the editor relays panel after the initial fix. Existing `User.relays` values are now normalized on editor load via `UserRelayListService::normalizeRelayListForDisplay()`, which rewrites internal local relay URLs to the public project relay URL and deduplicates entries.
 - [Feature] Added a profile-owner CTA on author pages: when your profile has no `nip05` value set, a `Get NIP-05` button is shown next to Settings and links to vanity-name signup (`vanity_index`).
 - [Feature] Added `/admin/essayist` administration page. Admins can review pending writer candidates (ROLE_ESSAYIST_CANDIDATE) with article counts, approve or reject them, manage approved authors (ROLE_ESSAYIST_AUTHOR) with downgrade/revoke actions, and manually grant or revoke supporter access (ROLE_ESSAYIST_SUPPORTER). Linked from the admin dashboard.

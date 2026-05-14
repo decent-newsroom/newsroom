@@ -104,14 +104,14 @@ essayist:
         title: 'Essayist'
         hero:
             eyebrow: 'Writer-first relay'
-            heading: 'Essayist starts with writers, not with a paywall.'
-            lede: 'Essayist is a public explainer page for a writer-first longform relay on Nostr. Phase 1 opens writer signup first. Reader support opens after there is a real founding pack and real essays on the relay.'
+            heading: 'Essayist starts with community, not with a paywall.'
+            lede: 'Essayist is a value-for-value longform relay on Nostr. Phase 1 opens writer signup. Reader support opens after there is a pool of essays on the relay.'
             primaryCtaAnon: 'Sign in to follow the launch'
             primaryCtaLoggedIn: 'See the launch timeline'
             secondaryCta: 'See writer requirements'
         status:
             writerLabel: 'Phase 1 now'
-            writerBody: 'Writers can prepare to apply through this landing page model: real essays on Nostr, reviewed by moderators, published to the relay once approved.'
+            writerBody: 'Writers can apply through this landing page model: real essays on Nostr, reviewed by moderators, published to the relay once approved.'
             readerLabel: 'Supporters next'
             readerBody: 'Reader access is coming soon. Supporter signup opens after the first approved writers have published essays on Essayist.'
         signup:
@@ -140,12 +140,10 @@ essayist:
         model:
             eyebrow: 'Why this page exists'
             heading: 'No empty platform economy.'
-            paragraph1: 'Essayist is testing a simple sequence: first gather real writers, then open supporter access, then measure whether readers actually support writer-first publishing.'
-            paragraph2: 'This page explains the model in public so writers know what is being built and readers know why access is not open yet.'
+            paragraph1: 'Essayist is testing a simple sequence: first gather real writers, then open supporter access, then measure whether readers actually support v4v publishing.'
         requirements:
             eyebrow: 'Writer requirements'
             heading: 'Who should apply'
-            intro: 'A writer application should already look real before moderation starts.'
             item1: 'At least 3 deduplicated longform articles already known to Decent Newsroom.'
             item2: 'A Lightning address in your Nostr profile.'
             item3: 'Native Nostr essays, not excerpts, summaries, or link-dumps.'
@@ -549,7 +547,7 @@ featuredArticles:
     tagline: 'Ultimi dai nostri scrittori in evidenza'
     noArticles: 'Nessun articolo dagli scrittori in evidenza ancora.'
 
-# ── Editor page ───────────────────────────────────────────────────
+#── Editor page ───────────────────────────────────────────────────
 editor:
     nostrIdentityRequired: 'Un''identità Nostr è necessaria per pubblicare articoli.'
     uploadImage: 'Carica immagine'
