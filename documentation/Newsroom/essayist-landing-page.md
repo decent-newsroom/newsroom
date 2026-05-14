@@ -2,94 +2,63 @@
 
 ## Overview
 
-Adds a public explainer page for Essayist at `/essayist` with a working writer signup request action.
+Public explainer and join page for Essayist at `/essayist`.
 
-The page explains the writer-first launch model, shows the current phase, lists writer requirements, includes a timeline, and lets logged-in users request writer access when eligibility checks pass.
+The page explains the pool model, shows the current active member count, walks visitors through the four access steps, and lets logged-in users signal their intent to join.
 
 ## Purpose
 
-The page gives Essayist a public home while also implementing the first interactive piece: writer self-request.
-
-It is designed to:
-
-- explain the public writer-signup-first rollout;
-- show that reader/supporter access is coming later;
-- communicate the moderation standard;
-- set expectations with a visible launch timeline.
-- enable candidate self-enrollment through role assignment.
+- Explain how pool membership works (contribute → access, 30 days, renew).
+- Show the live member count.
+- Let any logged-in user submit a join request (no eligibility checks).
+- Gate the CTA by user state: anon / logged-in / pending / member.
 
 ## Routes
 
-- **Path:** `/essayist`
-- **Controller:** `App\Controller\StaticController::essayist()`
-- **Template:** `templates/static/essayist.html.twig`
-- **POST:** `/essayist/request-writer-access`
-- **Controller:** `App\Controller\StaticController::requestEssayistWriterAccess()`
+- **GET `/essayist`** — `App\Controller\StaticController::essayist()`
+- **POST `/essayist/request-access`** — `App\Controller\StaticController::requestEssayistAccess()`
+- Template: `templates/static/essayist.html.twig`
 
-The route is also included in `/api/static-routes`.
+The route is included in `/api/static-routes`.
 
 ## Page Structure
 
-The landing page contains:
+1. **Hero** — headline, lede, CTA (state-dependent).
+2. **Pool status** — member count + renewal period.
+3. **How it works** — four numbered steps.
+4. **Join CTA** — state-dependent: anon → login, logged in → request, pending → waiting message, member → feed link.
+5. **Model explainer** — why money flows to members, not the platform.
+6. **FAQ** — five common questions.
 
-1. **Hero** — short explanation of Essayist and primary calls to action.
-2. **Current status** — writer phase live, reader/supporter phase coming soon.
-3. **Model explainer** — why Essayist opens with writers first.
-4. **Writer requirements** — 3 deduplicated essays known to DN, Lightning address, native Nostr longform.
-5. **Moderation section** — moderators review and can downgrade approved writers.
-6. **Timeline** — three launch stages:
-   - public writer signup;
-   - founding pack growth;
-   - reader support opening.
-7. **Next steps CTA** — sign in / write / read changelog.
+## Join request flow
 
-## Writer signup flow
+1. Logged-in user clicks "Request membership" and POSTs to `/essayist/request-access` with CSRF token.
+2. Backend checks:
+   - Not already `ROLE_ESSAYIST_MEMBER` → redirect with `already_member`.
+   - Not already `ROLE_ESSAYIST_CANDIDATE` → redirect with `already_pending`.
+3. Assigns `ROLE_ESSAYIST_CANDIDATE` (pending verification).
+4. Admin verifies payment and grants `ROLE_ESSAYIST_MEMBER` via `user:elevate <npub> ROLE_ESSAYIST_MEMBER`.
 
-When a logged-in user submits writer signup:
+No eligibility checks (articles, Lightning address). Anyone with a Nostr account can signal intent to join.
 
-1. POST to `/essayist/request-writer-access` with CSRF token.
-2. Backend checks current roles:
-   - already author → no-op
-   - already candidate → no-op
-3. Eligibility checks run:
-   - at least 3 deduplicated kind `30023` articles by author pubkey
-   - `lud16` present on the user profile
-4. If eligible, assign `ROLE_ESSAYIST_CANDIDATE` to the user.
-5. Redirect back to `/essayist` with a status code shown in-page.
+## Template variables
 
-Role assignment remains moderation-first:
-
-- self-request assigns **candidate** role only;
-- moderators still promote to `ROLE_ESSAYIST_AUTHOR`.
+| Variable | Type | Description |
+|---|---|---|
+| `isMember` | `bool` | User has `ROLE_ESSAYIST_MEMBER` |
+| `isPending` | `bool` | User has `ROLE_ESSAYIST_CANDIDATE` |
+| `memberCount` | `int` | Count of users with `ROLE_ESSAYIST_MEMBER` |
+| `joinStatus` | `string\|null` | Status code from redirect after POST |
 
 ## Styling
 
 - **Stylesheet:** `assets/styles/04-pages/essayist.css`
-- Imported in `assets/app.js`
-
-The styling follows project constraints:
-
-- no inline styles;
-- no rounded edges;
-- no shading / box shadows;
-- simple bordered blocks and timeline rows.
+- No inline styles, no rounded edges, no shading.
 
 ## Translation keys
 
-The page uses the `essayist.landing.*` translation namespace.
+The page uses the `essayist.landing.*` namespace.
 
-Keys were added to:
+Keys: `hero.*`, `status.*`, `how.*`, `join.*`, `model.*`, `faq.*`.
 
-- `translations/messages.en.yaml`
-- `translations/messages.de.yaml`
-- `translations/messages.es.yaml`
-- `translations/messages.fr.yaml`
-- `translations/messages.sl.yaml`
-- `translations/messages.it.yaml`
-
-## Notes
-
-Supporter signup/payment flow is still pending. The landing page currently covers writer self-request only.
-
-It is an explainer page first, with copy aligned to the current Essayist launch model.
-
+All five language files must be kept in sync: `en`, `de`, `es`, `fr`, `sl`, `it`.

@@ -114,6 +114,58 @@
     border-top: 1px solid var(--color-border);
 }
 
+.essayist-status__count {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0 0 var(--spacing-2);
+    line-height: 1;
+}
+
+.essayist-steps {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.essayist-steps li {
+    margin-bottom: var(--spacing-3);
+    line-height: 1.6;
+}
+
+.essayist-steps li strong {
+    display: block;
+    margin-bottom: var(--spacing-1);
+}
+
+.essayist-steps li p {
+    margin: 0;
+    color: var(--color-text-mid);
+    line-height: 1.7;
+}
+
+.essayist-faq {
+    margin: 0;
+}
+
+.essayist-faq dt {
+    font-weight: bold;
+    margin-top: var(--spacing-3);
+    margin-bottom: var(--spacing-1);
+}
+
+.essayist-faq dt:first-child {
+    margin-top: 0;
+}
+
+.essayist-faq dd {
+    margin: 0 0 var(--spacing-2);
+    color: var(--color-text-mid);
+    line-height: 1.7;
+}
+
+.essayist-section form {
+    margin-top: var(--spacing-2);
+}
+
 .essayist-alert {
     margin-bottom: var(--spacing-3);
     border: 1px solid var(--color-border);
@@ -129,9 +181,6 @@
     border-color: var(--color-error);
 }
 
-.essayist-section form {
-    margin-top: var(--spacing-2);
-}
 
 .essayist-timeline {
     margin-top: var(--spacing-4);

@@ -11,12 +11,14 @@
                 <p class="essayist-lede">{{ 'essayist.landing.hero.lede'|trans }}</p>
 
                 <div class="essayist-actions">
-                    {% if app.user %}
-                        <a class="btn btn--primary" href="#essayist-timeline">{{ 'essayist.landing.hero.primaryCtaLoggedIn'|trans }}</a>
+                    {% if isMember %}
+                        <a class="btn btn--primary" href="#">{{ 'essayist.landing.hero.ctaMember'|trans }}</a>
+                    {% elseif app.user %}
+                        <a class="btn btn--primary" href="#essayist-join">{{ 'essayist.landing.hero.ctaLoggedIn'|trans }}</a>
                     {% else %}
-                        <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.hero.primaryCtaAnon'|trans }}</a>
+                        <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.hero.ctaAnon'|trans }}</a>
                     {% endif %}
-                    <a class="btn" href="#essayist-requirements">{{ 'essayist.landing.hero.secondaryCta'|trans }}</a>
+                    <a class="btn" href="#essayist-how">{{ 'essayist.landing.hero.secondaryCta'|trans }}</a>
                 </div>
             </div>
         </section>
@@ -24,73 +26,83 @@
         <section class="essayist-status">
             <div class="essayist-shell essayist-status__grid">
                 <div class="essayist-status__item">
-                    <div class="essayist-status__label">{{ 'essayist.landing.status.writerLabel'|trans }}</div>
-                    <p>{{ 'essayist.landing.status.writerBody'|trans }}</p>
+                    <div class="essayist-status__label">{{ 'essayist.landing.status.memberLabel'|trans }}</div>
+                    <p class="essayist-status__count">{{ memberCount }}</p>
+                    <p>{{ 'essayist.landing.status.memberBody'|trans }}</p>
                 </div>
                 <div class="essayist-status__item">
-                    <div class="essayist-status__label">{{ 'essayist.landing.status.readerLabel'|trans }}</div>
-                    <p>{{ 'essayist.landing.status.readerBody'|trans }}</p>
+                    <div class="essayist-status__label">{{ 'essayist.landing.status.renewalLabel'|trans }}</div>
+                    <p>{{ 'essayist.landing.status.renewalBody'|trans }}</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="essayist-how" class="essayist-section essayist-section--muted">
+            <div class="essayist-shell essayist-grid-two">
+                <div>
+                    <p class="essayist-eyebrow">{{ 'essayist.landing.how.eyebrow'|trans }}</p>
+                    <h2>{{ 'essayist.landing.how.heading'|trans }}</h2>
+                </div>
+                <div>
+                    <ol class="essayist-steps">
+                        <li>
+                            <strong>{{ 'essayist.landing.how.step1.title'|trans }}</strong>
+                            <p>{{ 'essayist.landing.how.step1.body'|trans }}</p>
+                        </li>
+                        <li>
+                            <strong>{{ 'essayist.landing.how.step2.title'|trans }}</strong>
+                            <p>{{ 'essayist.landing.how.step2.body'|trans }}</p>
+                        </li>
+                        <li>
+                            <strong>{{ 'essayist.landing.how.step3.title'|trans }}</strong>
+                            <p>{{ 'essayist.landing.how.step3.body'|trans }}</p>
+                        </li>
+                        <li>
+                            <strong>{{ 'essayist.landing.how.step4.title'|trans }}</strong>
+                            <p>{{ 'essayist.landing.how.step4.body'|trans }}</p>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section id="essayist-join" class="essayist-section">
+            <div class="essayist-shell essayist-grid-two">
+                <div>
+                    <p class="essayist-eyebrow">{{ 'essayist.landing.join.eyebrow'|trans }}</p>
+                    <h2>{{ 'essayist.landing.join.heading'|trans }}</h2>
+                </div>
+                <div>
+                    {% if joinStatus %}
+                        <div class="essayist-alert {{ joinStatus in ['request_created'] ? 'essayist-alert--success' : 'essayist-alert--info' }}">
+                            {{ ('essayist.landing.join.status.' ~ joinStatus)|trans }}
+                        </div>
+                    {% endif %}
+
+                    {% if isMember %}
+                        <p class="essayist-copy">{{ 'essayist.landing.join.memberBody'|trans }}</p>
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="#">{{ 'essayist.landing.join.memberCta'|trans }}</a>
+                        </div>
+                    {% elseif isPending %}
+                        <p class="essayist-copy">{{ 'essayist.landing.join.pendingBody'|trans }}</p>
+                    {% elseif app.user %}
+                        <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans }}</p>
+                        <form method="post" action="{{ path('app_static_essayist_request_access') }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
+                            <button type="submit" class="btn btn--primary">{{ 'essayist.landing.join.requestCta'|trans }}</button>
+                        </form>
+                    {% else %}
+                        <p class="essayist-copy">{{ 'essayist.landing.join.anonBody'|trans }}</p>
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.join.anonCta'|trans }}</a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </section>
 
         <section class="essayist-section essayist-section--muted">
-            <div class="essayist-shell essayist-grid-two">
-                <div>
-                    <p class="essayist-eyebrow">{{ 'essayist.landing.signup.eyebrow'|trans }}</p>
-                    <h2>{{ 'essayist.landing.signup.heading'|trans }}</h2>
-                    <p class="essayist-copy">{{ 'essayist.landing.signup.intro'|trans({'%min%': essayistMinArticles}) }}</p>
-                </div>
-                <div>
-                    {% if essayistSignupStatus %}
-                        <div class="essayist-alert {{ essayistSignupStatus in ['request_created'] ? 'essayist-alert--success' : 'essayist-alert--error' }}">
-                            {{ ('essayist.landing.signup.status.' ~ essayistSignupStatus)|trans }}
-                        </div>
-                    {% endif %}
-
-                    {% if not app.user %}
-                        <p class="essayist-copy">{{ 'essayist.landing.signup.anonBody'|trans }}</p>
-                        <div class="essayist-actions">
-                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.signup.anonCta'|trans }}</a>
-                        </div>
-                    {% elseif essayist and essayist.isAuthor %}
-                        <p class="essayist-copy">{{ 'essayist.landing.signup.authorBody'|trans }}</p>
-                        <div class="essayist-actions">
-                            <a class="btn btn--primary" href="{{ path('editor-create') }}">{{ 'essayist.landing.signup.authorCta'|trans }}</a>
-                        </div>
-                    {% elseif essayist and essayist.isCandidate %}
-                        <p class="essayist-copy">{{ 'essayist.landing.signup.candidateBody'|trans }}</p>
-                    {% elseif essayist %}
-                        <ul class="essayist-list essayist-list--compact">
-                            <li>
-                                {{ essayist.hasEnoughArticles
-                                    ? 'essayist.landing.signup.requirementArticlesMet'|trans({'%count%': essayist.articleCount, '%min%': essayistMinArticles})
-                                    : 'essayist.landing.signup.requirementArticlesMissing'|trans({'%count%': essayist.articleCount, '%min%': essayistMinArticles})
-                                }}
-                            </li>
-                            <li>
-                                {{ essayist.hasLud16
-                                    ? 'essayist.landing.signup.requirementLud16Met'|trans
-                                    : 'essayist.landing.signup.requirementLud16Missing'|trans
-                                }}
-                            </li>
-                        </ul>
-
-                        {% if essayist.isEligible %}
-                            <p class="essayist-copy">{{ 'essayist.landing.signup.eligibleBody'|trans }}</p>
-                            <form method="post" action="{{ path('app_static_essayist_request_writer') }}">
-                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_writer') }}">
-                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.signup.requestCta'|trans }}</button>
-                            </form>
-                        {% else %}
-                            <p class="essayist-copy">{{ 'essayist.landing.signup.ineligibleBody'|trans }}</p>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-        </section>
-
-        <section class="essayist-section">
             <div class="essayist-shell essayist-grid-two">
                 <div>
                     <p class="essayist-eyebrow">{{ 'essayist.landing.model.eyebrow'|trans }}</p>
@@ -102,87 +114,29 @@
             </div>
         </section>
 
-        <section id="essayist-requirements" class="essayist-section essayist-section--muted">
-            <div class="essayist-shell essayist-grid-two">
-                <div>
-                    <p class="essayist-eyebrow">{{ 'essayist.landing.requirements.eyebrow'|trans }}</p>
-                    <h2>{{ 'essayist.landing.requirements.heading'|trans }}</h2>
-                </div>
-                <div>
-                    <ul class="essayist-list">
-                        <li>{{ 'essayist.landing.requirements.item1'|trans }}</li>
-                        <li>{{ 'essayist.landing.requirements.item2'|trans }}</li>
-                        <li>{{ 'essayist.landing.requirements.item3'|trans }}</li>
-                        <li>{{ 'essayist.landing.requirements.item4'|trans }}</li>
-                    </ul>
-                    <p class="essayist-note">{{ 'essayist.landing.requirements.note'|trans }}</p>
-                </div>
-            </div>
-        </section>
-
         <section class="essayist-section">
             <div class="essayist-shell essayist-grid-two">
                 <div>
-                    <p class="essayist-eyebrow">{{ 'essayist.landing.moderation.eyebrow'|trans }}</p>
-                    <h2>{{ 'essayist.landing.moderation.heading'|trans }}</h2>
+                    <p class="essayist-eyebrow">{{ 'essayist.landing.faq.eyebrow'|trans }}</p>
+                    <h2>{{ 'essayist.landing.faq.heading'|trans }}</h2>
                 </div>
                 <div>
-                    <ul class="essayist-list">
-                        <li>{{ 'essayist.landing.moderation.item1'|trans }}</li>
-                        <li>{{ 'essayist.landing.moderation.item2'|trans }}</li>
-                        <li>{{ 'essayist.landing.moderation.item3'|trans }}</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
+                    <dl class="essayist-faq">
+                        <dt>{{ 'essayist.landing.faq.q1'|trans }}</dt>
+                        <dd>{{ 'essayist.landing.faq.a1'|trans }}</dd>
 
-        <section id="essayist-timeline" class="essayist-section essayist-section--timeline">
-            <div class="essayist-shell">
-                <p class="essayist-eyebrow">{{ 'essayist.landing.timeline.eyebrow'|trans }}</p>
-                <h2>{{ 'essayist.landing.timeline.heading'|trans }}</h2>
+                        <dt>{{ 'essayist.landing.faq.q2'|trans }}</dt>
+                        <dd>{{ 'essayist.landing.faq.a2'|trans }}</dd>
 
-                <div class="essayist-timeline">
-                    <article class="essayist-timeline__item">
-                        <div class="essayist-timeline__step">{{ 'essayist.landing.timeline.phase1.step'|trans }}</div>
-                        <div class="essayist-timeline__content">
-                            <h3>{{ 'essayist.landing.timeline.phase1.heading'|trans }}</h3>
-                            <p>{{ 'essayist.landing.timeline.phase1.body'|trans }}</p>
-                        </div>
-                    </article>
-                    <article class="essayist-timeline__item">
-                        <div class="essayist-timeline__step">{{ 'essayist.landing.timeline.phase2.step'|trans }}</div>
-                        <div class="essayist-timeline__content">
-                            <h3>{{ 'essayist.landing.timeline.phase2.heading'|trans }}</h3>
-                            <p>{{ 'essayist.landing.timeline.phase2.body'|trans }}</p>
-                        </div>
-                    </article>
-                    <article class="essayist-timeline__item">
-                        <div class="essayist-timeline__step">{{ 'essayist.landing.timeline.phase3.step'|trans }}</div>
-                        <div class="essayist-timeline__content">
-                            <h3>{{ 'essayist.landing.timeline.phase3.heading'|trans }}</h3>
-                            <p>{{ 'essayist.landing.timeline.phase3.body'|trans }}</p>
-                        </div>
-                    </article>
-                </div>
-            </div>
-        </section>
+                        <dt>{{ 'essayist.landing.faq.q3'|trans }}</dt>
+                        <dd>{{ 'essayist.landing.faq.a3'|trans }}</dd>
 
-        <section class="essayist-section essayist-section--muted">
-            <div class="essayist-shell essayist-grid-two">
-                <div>
-                    <p class="essayist-eyebrow">{{ 'essayist.landing.next.eyebrow'|trans }}</p>
-                    <h2>{{ 'essayist.landing.next.heading'|trans }}</h2>
-                </div>
-                <div>
-                    <p class="essayist-copy">{{ 'essayist.landing.next.body'|trans }}</p>
-                    <div class="essayist-actions">
-                        {% if app.user %}
-                            <a class="btn btn--primary" href="{{ path('editor-create') }}">{{ 'essayist.landing.next.primaryCtaLoggedIn'|trans }}</a>
-                        {% else %}
-                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.next.primaryCtaAnon'|trans }}</a>
-                        {% endif %}
-                        <a class="btn" href="{{ path('app_static_changelog') }}">{{ 'essayist.landing.next.secondaryCta'|trans }}</a>
-                    </div>
+                        <dt>{{ 'essayist.landing.faq.q4'|trans }}</dt>
+                        <dd>{{ 'essayist.landing.faq.a4'|trans }}</dd>
+
+                        <dt>{{ 'essayist.landing.faq.q5'|trans }}</dt>
+                        <dd>{{ 'essayist.landing.faq.a5'|trans }}</dd>
+                    </dl>
                 </div>
             </div>
         </section>

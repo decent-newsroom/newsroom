@@ -52,6 +52,17 @@ class UserEntityRepository extends ServiceEntityRepository
         $sql = "SELECT COUNT(*) FROM app_user WHERE roles::text != '[]' AND roles::text != 'null' AND roles IS NOT NULL";
         return (int) $conn->fetchOne($sql);
     }
+
+    /**
+     * Count users that hold a specific role.
+     * @throws Exception
+     */
+    public function countByRole(string $role): int
+    {
+        $conn = $this->entityManager->getConnection();
+        $sql  = 'SELECT COUNT(*) FROM app_user WHERE roles::text LIKE :role';
+        return (int) $conn->fetchOne($sql, ['role' => '%' . $role . '%']);
+    }
     public function __construct(ManagerRegistry $registry, private readonly EntityManagerInterface $entityManager)
     {
         parent::__construct($registry, User::class);

@@ -6,8 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Enum\RolesEnum;
-use App\Repository\ArticleRepository;
-use App\Util\NostrKeyUtil;
+use App\Repository\UserEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
@@ -20,7 +19,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class StaticController extends AbstractController
 {
-    private const ESSAYIST_MIN_ARTICLES = 3;
 
     /**
      * Lightweight healthcheck endpoint used by Docker HEALTHCHECK and load balancers.
@@ -101,96 +99,48 @@ class StaticController extends AbstractController
     }
 
     #[Route('/essayist', name: 'app_static_essayist', methods: ['GET'])]
-    public function essayist(Request $request, ArticleRepository $articleRepository): Response
+    public function essayist(Request $request, UserEntityRepository $userRepository): Response
     {
         $user = $this->getUser();
-        $eligibility = null;
-
-        if ($user instanceof User) {
-            $eligibility = $this->buildEssayistEligibility($user, $articleRepository);
-        }
+        $roles = $user instanceof User ? $user->getRoles() : [];
 
         return $this->render('static/essayist.html.twig', [
-            'essayist' => $eligibility,
-            'essayistMinArticles' => self::ESSAYIST_MIN_ARTICLES,
-            'essayistSignupStatus' => $request->query->get('signup_status'),
+            'isMember'    => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
+            'isPending'   => in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true),
+            'memberCount' => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
+            'joinStatus'  => $request->query->get('join_status'),
         ]);
     }
 
-    #[Route('/essayist/request-writer-access', name: 'app_static_essayist_request_writer', methods: ['POST'])]
-    public function requestEssayistWriterAccess(
+    #[Route('/essayist/request-access', name: 'app_static_essayist_request_access', methods: ['POST'])]
+    public function requestEssayistAccess(
         Request $request,
-        ArticleRepository $articleRepository,
         EntityManagerInterface $entityManager,
     ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
-            return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'login_required']);
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
         }
 
         $token = (string) $request->request->get('_token', '');
-        if (!$this->isCsrfTokenValid('essayist_request_writer', $token)) {
-            return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'invalid_csrf']);
+        if (!$this->isCsrfTokenValid('essayist_request_access', $token)) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'invalid_csrf']);
         }
 
         $roles = $user->getRoles();
-        if (in_array(RolesEnum::ESSAYIST_AUTHOR->value, $roles, true)) {
-            return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'already_author']);
+        if (in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'already_member']);
         }
 
         if (in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true)) {
-            return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'already_candidate']);
-        }
-
-        $eligibility = $this->buildEssayistEligibility($user, $articleRepository);
-        if (!($eligibility['isEligible'] ?? false)) {
-            return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'missing_requirements']);
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'already_pending']);
         }
 
         $user->addRole(RolesEnum::ESSAYIST_CANDIDATE->value);
         $entityManager->persist($user);
         $entityManager->flush();
 
-        return $this->redirectToRoute('app_static_essayist', ['signup_status' => 'request_created']);
-    }
-
-    /**
-     * Evaluate writer self-signup eligibility for Essayist.
-     *
-     * @return array{
-     *     isAuthor: bool,
-     *     isCandidate: bool,
-     *     hasLud16: bool,
-     *     articleCount: int,
-     *     hasEnoughArticles: bool,
-     *     isEligible: bool
-     * }
-     */
-    private function buildEssayistEligibility(User $user, ArticleRepository $articleRepository): array
-    {
-        $roles = $user->getRoles();
-        $isAuthor = in_array(RolesEnum::ESSAYIST_AUTHOR->value, $roles, true);
-        $isCandidate = in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true);
-
-        $articleCount = 0;
-        try {
-            $pubkeyHex = NostrKeyUtil::npubToHex((string) $user->getNpub());
-            $articleCount = $articleRepository->countDeduplicatedLongformByPubkey($pubkeyHex);
-        } catch (\InvalidArgumentException) {
-            $articleCount = 0;
-        }
-
-        $hasLud16 = '' !== trim((string) ($user->getLud16() ?? ''));
-        $hasEnoughArticles = $articleCount >= self::ESSAYIST_MIN_ARTICLES;
-
-        return [
-            'isAuthor' => $isAuthor,
-            'isCandidate' => $isCandidate,
-            'hasLud16' => $hasLud16,
-            'articleCount' => $articleCount,
-            'hasEnoughArticles' => $hasEnoughArticles,
-            'isEligible' => !$isAuthor && !$isCandidate && $hasLud16 && $hasEnoughArticles,
-        ];
+        return $this->redirectToRoute('app_static_essayist', ['join_status' => 'request_created']);
     }
 
     #[Route('/start-blog', name: 'start_blog')]
