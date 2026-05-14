@@ -36,7 +36,7 @@
     font-size: clamp(2rem, 5vw, 3.5rem);
     line-height: 1.05;
     margin: 0 0 var(--spacing-3);
-    max-width: 12ch;
+    max-width: 14ch;
 }
 
 .essayist-lede,
