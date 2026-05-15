@@ -120,17 +120,20 @@ essayist:
             renewalBody: 'Contribuer ce mois vous donne accès le mois suivant. Renouvelez chaque mois pour rester.'
         how:
             eyebrow: 'Comment ça fonctionne'
-            heading: 'Quatre étapes'
+            heading: 'Cinq étapes'
             step1:
                 title: 'Se connecter'
                 body: "Utilisez votre clé Nostr. Aucun compte séparé n'est nécessaire."
             step2:
+                title: 'Payer les frais de relais'
+                body: "Des frais d'initialisation uniques de 100 sats ajoutent votre clé publique au relais. Les early birds s'inscrivant avant le 1.6.2026 sont exemptés de ces frais."
+            step3:
                 title: 'Contribuer au pool'
                 body: "Choisissez parmi les membres actuels et envoyez 2000 sats à quelqu'un."
-            step3:
+            step4:
                 title: "Obtenir un mois d'accès"
                 body: 'Une fois votre contribution vérifiée, votre clé publique a un accès complet : écrire sur le relais, lire le fil.'
-            step4:
+            step5:
                 title: 'Renouveler pour rester'
                 body: "L'adhésion dure un mois. Contribuez à nouveau pour renouveler. Si vous laissez expirer, votre accès prend fin jusqu'à ce que vous contribuiez à nouveau."
         join:
@@ -164,7 +167,7 @@ essayist:
             eyebrow: 'Le modèle'
             heading: 'Le pool se finance lui-même.'
             paragraph1: "L'argent circule entre les membres, pas à travers une plateforme. Tous ceux qui participent sont à la fois des bénéficiaires potentiels et des contributeurs. L'opérateur du relais facilite l'accès et maintient le relais en fonctionnement — il n'agit pas comme gardien éditorial."
-            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le 31.6.2026."
+            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le 31.5.2026."
         faq:
             eyebrow: 'FAQ'
             heading: 'Questions fréquentes'
@@ -175,7 +178,7 @@ essayist:
             q3: "Que se passe-t-il si j'arrête de payer ?"
             a3: 'Votre accès expire. Vous pouvez rejoindre à nouveau à tout moment en contribuant à nouveau.'
             q4: "Qui décide de ce qu'il est acceptable de publier ?"
-            a4: 'Personne de façon centralisée. Vous publiez ce que vous voulez. Les autres membres peuvent vous mettre en sourdine.'
+            a4: 'Personne de façon centralisée. Vous publiez ce que vous voulez.'
             q5: 'Est-ce un mur payant ?'
             a5: "Pas au sens centré sur la plateforme. Aucun argent ne passe par la plateforme. Il va aux autres membres."
 

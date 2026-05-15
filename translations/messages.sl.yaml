@@ -120,17 +120,20 @@ essayist:
             renewalBody: 'Prispevek ta mesec vam zagotavlja dostop za naslednji mesec. Obnavljajte vsak mesec, da ostanete.'
         how:
             eyebrow: 'Kako deluje'
-            heading: 'Štirje koraki'
+            heading: 'Pet korakov'
             step1:
                 title: 'Prijavite se'
                 body: 'Uporabite svoj Nostr ključ. Ločen račun ni potreben.'
             step2:
+                title: 'Plačajte pristojbino za podomrežnik'
+                body: 'Enkratna pristopnina 100 satov doda vaš javni ključ na podomrežnik. Zgodnji prijavitelji pred 1.6.2026 so oproščeni te pristojbine.'
+            step3:
                 title: 'Prispevajte v sklad'
                 body: 'Izberite med trenutnimi člani in nekomu pošljite 2000 satov.'
-            step3:
+            step4:
                 title: 'Pridobite mesec dostopa'
                 body: 'Ko je vaš prispevek preverjen, ima vaš javni ključ popoln dostop: pisanje na podomrežnik, branje objav.'
-            step4:
+            step5:
                 title: 'Obnovite za ostanje'
                 body: 'Članstvo traja en mesec. Prispevajte znova za obnovo. Če zamudite, se vaš dostop konča, dokler ne prispevate znova.'
         join:
@@ -164,7 +167,7 @@ essayist:
             eyebrow: 'Model'
             heading: 'Sklad se financira sam.'
             paragraph1: 'Denar teče med člani, ne skozi platformo. Vsi, ki sodelujejo, so tako potencialni prejemniki kot prispevniki. Upravljavec podomrežnika olajša dostop in vzdržuje delovanje — ne deluje kot uredniški nadzornik.'
-            paragraph2: 'Podomrežnik zaračuna enkratno pristopnino v višini 100 satov za vstop v skupino. Pristopnina je odpuščena za zgodnje prijave, ki se prijavijo pred 31.6.2026.'
+            paragraph2: 'Podomrežnik zaračuna enkratno pristopnino v višini 100 satov za vstop v skupino. Pristopnina je odpuščena za zgodnje prijave, ki se prijavijo pred 31.5.2026.'
         faq:
             eyebrow: 'Pogosta vprašanja'
             heading: 'Pogosta vprašanja'
@@ -175,9 +178,9 @@ essayist:
             q3: 'Kaj se zgodi, če preneham plačevati?'
             a3: 'Vaš dostop poteče. Kadarkoli se lahko znova pridružite z novim prispevkom.'
             q4: 'Kdo odloča, kaj je primerno za objavo?'
-            a4: 'Nihče centralno. Objavljate, kar želite. Drugi člani vas lahko utišajo.'
-            q5: 'Je to plačilna pregrada?'
-            a5: 'Ne v smislu platformocentričnosti. Nič denarja ne gre skozi platformo. Gre drugim članom.'
+            a4: 'Nihče centralno. Objavljate, kar želite.'
+            q5: 'Je to zaklenjena vsebina?'
+            a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom.'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

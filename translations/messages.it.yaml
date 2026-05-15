@@ -120,17 +120,20 @@ essayist:
             renewalBody: 'Contribuire questo mese ti dà accesso per il mese successivo. Rinnova ogni mese per rimanere.'
         how:
             eyebrow: 'Come funziona'
-            heading: 'Quattro passi'
+            heading: 'Cinque passi'
             step1:
                 title: 'Accedi'
                 body: 'Usa la tua chiave Nostr. Non è necessario un account separato.'
             step2:
+                title: 'Paga la tariffa del relay'
+                body: "Una tariffa di inizializzazione una tantum di 100 sat aggiunge la tua chiave pubblica al relay. Gli early bird che si iscrivono prima del 1.6.2026 sono esentati da questa tariffa."
+            step3:
                 title: 'Contribuisci al pool'
                 body: 'Scegli tra i membri attuali e invia a qualcuno 2000 sats.'
-            step3:
+            step4:
                 title: 'Ottieni un mese di accesso'
                 body: 'Una volta verificato il tuo contributo, la tua chiave pubblica ha accesso completo: scrivi sul relay, leggi il feed.'
-            step4:
+            step5:
                 title: 'Rinnova per restare'
                 body: "L'abbonamento dura un mese. Contribuisci di nuovo per rinnovare. Se smetti, il tuo accesso termina finché non contribuisci di nuovo."
         join:
@@ -164,7 +167,7 @@ essayist:
             eyebrow: 'Il modello'
             heading: 'Il pool si sostiene da solo.'
             paragraph1: "Il denaro scorre tra i membri, non attraverso una piattaforma. Tutti i partecipanti sono sia potenziali destinatari che contributori. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
-            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per entrare nel pool. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del 31.6.2026."
+            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per entrare nel pool. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del 31.5.2026."
         faq:
             eyebrow: 'FAQ'
             heading: 'Domande frequenti'
@@ -175,7 +178,7 @@ essayist:
             q3: 'Cosa succede se smetto di pagare?'
             a3: 'Il tuo accesso scade. Puoi riunirti in qualsiasi momento contribuendo di nuovo.'
             q4: 'Chi decide cosa è accettabile pubblicare?'
-            a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare.'
+            a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi.'
             q5: 'È un paywall?'
             a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro passa attraverso la piattaforma. Va agli altri membri.'
 

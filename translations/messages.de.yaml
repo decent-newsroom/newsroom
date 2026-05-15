@@ -120,17 +120,20 @@ essayist:
             renewalBody: 'Ein Beitrag in diesem Monat gewährt Ihnen Zugang für den nächsten Monat. Erneuern Sie jeden Monat, um dabei zu bleiben.'
         how:
             eyebrow: 'So funktioniert es'
-            heading: 'Vier Schritte'
+            heading: 'Fünf Schritte'
             step1:
                 title: 'Anmelden'
                 body: 'Verwenden Sie Ihren Nostr-Schlüssel. Kein separates Konto erforderlich.'
             step2:
+                title: 'Relay-Gebühr bezahlen'
+                body: 'Eine einmalige Einrichtungsgebühr von 100 Sats fügt Ihren öffentlichen Schlüssel dem Relay hinzu. Early Birds, die sich vor dem 1.6.2026 anmelden, sind von dieser Gebühr befreit.'
+            step3:
                 title: 'Zum Pool beitragen'
                 body: 'Wählen Sie unter den aktuellen Mitgliedern und senden Sie jemandem 2000 Sats.'
-            step3:
+            step4:
                 title: 'Einen Monat Zugang erhalten'
                 body: 'Sobald Ihr Beitrag verifiziert wurde, hat Ihr öffentlicher Schlüssel vollen Zugang: auf den Relay schreiben, den Feed lesen.'
-            step4:
+            step5:
                 title: 'Erneuern, um dabei zu bleiben'
                 body: 'Die Mitgliedschaft gilt einen Monat lang. Leisten Sie erneut einen Beitrag, um zu erneuern. Wenn Sie pausieren, endet Ihr Zugang, bis Sie erneut beitragen.'
         join:
@@ -164,7 +167,7 @@ essayist:
             eyebrow: 'Das Modell'
             heading: 'Der Pool trägt sich selbst.'
             paragraph1: 'Geld fließt zwischen den Mitgliedern, nicht durch eine Plattform. Jeder, der teilnimmt, ist sowohl potenzieller Empfänger als auch Beitragender. Der Relay-Betreiber erleichtert den Zugang und hält den Relay am Laufen €" er fungiert nicht als redaktioneller Schiedsrichter.'
-            paragraph2: 'Das Relay erhebt eine einmalige Einrichtungsgebühr von 100 Sats, um in den Pool aufgenommen zu werden. Die Gebühr entfällt für Early Birds, die sich vor dem 31.6.2026 anmelden.'
+            paragraph2: 'Das Relay erhebt eine einmalige Einrichtungsgebühr von 100 Sats, um in den Pool aufgenommen zu werden. Die Gebühr entfällt für Early Birds, die sich vor dem 31.5.2026 anmelden.'
         faq:
             eyebrow: 'FAQ'
             heading: 'Häufige Fragen'
@@ -175,7 +178,7 @@ essayist:
             q3: 'Was passiert, wenn ich aufhöre zu zahlen?'
             a3: 'Ihr Zugang läuft ab. Sie können jederzeit erneut beitreten, indem Sie wieder beitragen.'
             q4: 'Wer entscheidet, was veröffentlicht werden darf?'
-            a4: 'Niemand zentral. Sie veröffentlichen, was Sie möchten. Andere Mitglieder können Sie stumm schalten.'
+            a4: 'Niemand zentral. Sie veröffentlichen, was Sie möchten.'
             q5: 'Ist das eine Bezahlschranke?'
             a5: 'Nicht im plattformzentrierten Sinne. Kein Geld fließt durch die Plattform. Es geht an die anderen Mitglieder.'
 

@@ -120,17 +120,20 @@ essayist:
             renewalBody: 'Contribuir este mes te otorga acceso para el próximo mes. Renueva cada mes para mantenerte.'
         how:
             eyebrow: 'Cómo funciona'
-            heading: 'Cuatro pasos'
+            heading: 'Cinco pasos'
             step1:
                 title: 'Iniciar sesión'
                 body: 'Usa tu clave Nostr. No se necesita una cuenta separada.'
             step2:
+                title: 'Pagar la tarifa del relay'
+                body: 'Una tarifa de inicialización única de 100 sats añade tu clave pública al relay. Los early birds que se inscriban antes del 1.6.2026 están exentos de esta tarifa.'
+            step3:
                 title: 'Contribuir al pool'
                 body: 'Elige entre los miembros actuales y envía a alguien 2000 sats.'
-            step3:
+            step4:
                 title: 'Obtener un mes de acceso'
                 body: 'Una vez verificada tu contribución, tu clave pública tiene acceso completo: escribe en el relay, lee el feed.'
-            step4:
+            step5:
                 title: 'Renueva para seguir'
                 body: 'La membresía dura un mes. Contribuye de nuevo para renovar. Si no lo haces, tu acceso termina hasta que vuelvas a contribuir.'
         join:
@@ -164,7 +167,7 @@ essayist:
             eyebrow: 'El modelo'
             heading: 'El pool se sostiene a sí mismo.'
             paragraph1: 'El dinero fluye entre los miembros, no a través de una plataforma. Todos los que participan son tanto posibles receptores como contribuyentes. El operador del relay facilita el acceso y mantiene el relay funcionando — no actúa como guardián editorial.'
-            paragraph2: 'El relay cobra una tarifa de inicialización única de 100 sats para entrar al pool. La tarifa inicial está exenta para los early birds que se inscriban antes del 31.6.2026.'
+            paragraph2: 'El relay cobra una tarifa de inicialización única de 100 sats para entrar al pool. La tarifa inicial está exenta para los early birds que se inscriban antes del 31.5.2026.'
         faq:
             eyebrow: 'Preguntas frecuentes'
             heading: 'Preguntas comunes'
@@ -175,7 +178,7 @@ essayist:
             q3: '¿Qué pasa si dejo de pagar?'
             a3: 'Tu acceso expira. Puedes volver a unirte en cualquier momento contribuyendo de nuevo.'
             q4: '¿Quién decide qué se puede publicar?'
-            a4: 'Nadie de forma centralizada. Publicas lo que quieras. Otros miembros pueden silenciarte.'
+            a4: 'Nadie de forma centralizada. Publicas lo que quieras.'
             q5: '¿Es esto un muro de pago?'
             a5: 'No en el sentido centrado en la plataforma. Ningún dinero pasa por la plataforma. Va a los otros miembros.'
 
