@@ -132,7 +132,7 @@ essayist:
                 body: 'Usa la tua chiave Nostr. Non è necessario un account separato.'
             step2:
                 title: 'Paga la tariffa del relay'
-                body: "Una tariffa di inizializzazione una tantum di 100 sat aggiunge la tua chiave pubblica al relay. Gli early bird che si iscrivono prima del 1.6.2026 sono esentati da questa tariffa."
+                body: "Una tariffa di inizializzazione una tantum di 100 sat aggiunge la tua chiave pubblica al relay. Gli early bird che si iscrivono prima del %deadline% sono esentati da questa tariffa."
             step3:
                 title: 'Contribuisci al pool'
                 body: 'Scegli tra i membri attuali e invia a qualcuno 2000 sats.'
@@ -147,7 +147,7 @@ essayist:
             heading: "Richiedi l'accesso"
             anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento anticipato al pool."
             anonCta: 'Accedi'
-            loggedInBody: "Clicca qui sotto per segnalare la tua intenzione di unirti e ottenere il primo mese gratuito. Il feed del relay sarà attivo dall'1.6.2026."
+            loggedInBody: "Clicca qui sotto per segnalare la tua intenzione di unirti e ottenere il primo mese gratuito. Il feed del relay sarà attivo dal %launch_date%."
             requestCta: 'Richiedi abbonamento'
             memberBody: 'Il tuo abbonamento è attivo. Puoi scrivere sul relay e leggere il feed.'
             memberCta: 'Apri il feed'
@@ -158,22 +158,22 @@ essayist:
                 already_pending: 'La tua richiesta è già in attesa di verifica.'
                 invalid_csrf: 'Richiesta fallita a causa di un token di sicurezza non valido. Riprova.'
                 login_required: "Accedi prima per richiedere l'abbonamento."
-                early_bird_claimed: 'Sei dentro per giugno. Il relay va online il 1° giugno — benvenuto nel pool.'
+                early_bird_claimed: 'Sei dentro per giugno. Il relay va online il %launch_date% — benvenuto nel pool.'
                 already_early_bird: 'Hai già rivendicato il tuo posto per accesso anticipato.'
-            opensHint: 'Apre il 1.6.2026'
+            opensHint: 'Apre il %launch_date%'
         earlybird:
             eyebrow: 'Accesso Anticipato'
             heading: 'Giugno è nostro regalo.'
-            body: 'Il relay va online il 1° giugno 2026. Iscriviti ora e ottieni tutto il mese di giugno gratuitamente — nessun costo, nessun obbligo. Rivendica il tuo posto e sarai nel pool dal primo giorno.'
-            deadline: 'Accesso gratuito disponibile fino al 31 maggio 2026.'
+            body: 'Il relay va online il %launch_date%. Iscriviti ora e ottieni tutto il mese di giugno gratuitamente — nessun costo, nessun obbligo. Rivendica il tuo posto e sarai nel pool dal primo giorno.'
+            deadline: 'Accesso gratuito disponibile fino al %deadline%.'
             ctaClaim: 'Rivendica il tuo giugno gratuito'
             ctaAnon: 'Accedi per rivendicare il tuo posto'
-            confirmedBody: 'Sei dentro. A presto il 1° giugno.'
+            confirmedBody: 'Sei dentro. A presto il %launch_date%.'
         model:
             eyebrow: 'Il modello'
             heading: 'Il pool si sostiene da solo.'
             paragraph1: "Il denaro scorre tra i membri, non attraverso una piattaforma. Tutti i partecipanti sono sia potenziali destinatari che contributori. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
-            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per entrare nel pool. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del 31.5.2026."
+            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per entrare nel pool. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del %deadline%."
         faq:
             eyebrow: 'FAQ'
             heading: 'Domande frequenti'

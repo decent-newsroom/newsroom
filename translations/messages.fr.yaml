@@ -132,7 +132,7 @@ essayist:
                 body: "Utilisez votre clé Nostr. Aucun compte séparé n'est nécessaire."
             step2:
                 title: 'Payer les frais de relais'
-                body: "Des frais d'initialisation uniques de 100 sats ajoutent votre clé publique au relais. Les early birds s'inscrivant avant le 1.6.2026 sont exemptés de ces frais."
+                body: "Des frais d'initialisation uniques de 100 sats ajoutent votre clé publique au relais. Les early birds s'inscrivant avant le %deadline% sont exemptés de ces frais."
             step3:
                 title: 'Contribuer au pool'
                 body: "Choisissez parmi les membres actuels et envoyez 2000 sats à quelqu'un."
@@ -147,7 +147,7 @@ essayist:
             heading: "Demander l'accès"
             anonBody: 'Connectez-vous avec votre compte Nostr pour demander une adhésion anticipée au pool.'
             anonCta: 'Se connecter'
-            loggedInBody: 'Cliquez ci-dessous pour signaler votre intention de rejoindre et obtenir le premier mois gratuit. Le fil du relais sera lancé le 1.6.2026.'
+            loggedInBody: 'Cliquez ci-dessous pour signaler votre intention de rejoindre et obtenir le premier mois gratuit. Le fil du relais sera lancé le %launch_date%.'
             requestCta: "Demander l'adhésion"
             memberBody: 'Votre adhésion est active. Vous pouvez écrire sur le relais et lire le fil.'
             memberCta: 'Ouvrir le fil'
@@ -158,22 +158,22 @@ essayist:
                 already_pending: 'Votre demande est déjà en attente de vérification.'
                 invalid_csrf: "La demande a échoué en raison d'un jeton de sécurité invalide. Veuillez réessayer."
                 login_required: "Veuillez d'abord vous connecter pour demander une adhésion."
-                early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le 1er juin — bienvenue dans le pool."
+                early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le %launch_date% — bienvenue dans le pool."
                 already_early_bird: "Vous avez déjà réclamé votre accès anticipé."
-            opensHint: 'Ouvre le 1.6.2026'
+            opensHint: 'Ouvre le %launch_date%'
         earlybird:
             eyebrow: 'Accès anticipé'
             heading: 'Juin est pour vous.'
-            body: "Le relais est mis en ligne le 1er juin 2026. Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement — sans frais, sans engagement. Réclamez simplement votre place et vous êtes dans le pool dès le premier jour."
-            deadline: "Accès gratuit disponible jusqu'au 31 mai 2026."
+            body: "Le relais est mis en ligne le %launch_date%. Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement — sans frais, sans engagement. Réclamez simplement votre place et vous êtes dans le pool dès le premier jour."
+            deadline: "Accès gratuit disponible jusqu'au %deadline%."
             ctaClaim: 'Réclamer votre juin gratuit'
             ctaAnon: 'Connectez-vous pour réclamer votre place'
-            confirmedBody: 'Vous êtes inscrit. À bientôt le 1er juin.'
+            confirmedBody: 'Vous êtes inscrit. À bientôt le %launch_date%.'
         model:
             eyebrow: 'Le modèle'
             heading: 'Le pool se finance lui-même.'
             paragraph1: "L'argent circule entre les membres, pas à travers une plateforme. Tous ceux qui participent sont à la fois des bénéficiaires potentiels et des contributeurs. L'opérateur du relais facilite l'accès et maintient le relais en fonctionnement — il n'agit pas comme gardien éditorial."
-            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le 31.5.2026."
+            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le %deadline%."
         faq:
             eyebrow: 'FAQ'
             heading: 'Questions fréquentes'

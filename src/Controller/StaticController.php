@@ -105,11 +105,13 @@ class StaticController extends AbstractController
         $roles = $user instanceof User ? $user->getRoles() : [];
 
         return $this->render('static/essayist.html.twig', [
-            'isMember'    => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
-            'isPending'   => in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true),
-            'isEarlyBird' => in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true),
-            'memberCount' => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
-            'joinStatus'  => $request->query->get('join_status'),
+            'isMember'         => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
+            'isPending'        => in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true),
+            'isEarlyBird'      => in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true),
+            'memberCount'      => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
+            'joinStatus'       => $request->query->get('join_status'),
+            'launchDate'       => new \DateTimeImmutable('2026-06-01'),
+            'earlyBirdDeadline'=> new \DateTimeImmutable('2026-05-31'),
         ]);
     }
 

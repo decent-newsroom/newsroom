@@ -3,6 +3,8 @@
 {% block title %}{{ 'essayist.landing.title'|trans }} | {{ brand_name }}{% endblock %}
 
 {% block body %}
+    {%- set fmt_launch   = launchDate|format_date('long') -%}
+    {%- set fmt_deadline = earlyBirdDeadline|format_date('long') -%}
     <main class="essayist-page">
         <section class="essayist-hero">
             <div class="essayist-shell">
@@ -34,7 +36,7 @@
                 #}
                 <div class="essayist-status__item"
                      data-controller="ui--countdown"
-                     data-ui--countdown-target-value="2026-06-01T00:00:00">
+                     data-ui--countdown-target-value="{{ launchDate|date('c') }}">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.countdownLabel'|trans }}</div>
                     <div class="essayist-countdown">
                         <span class="essayist-countdown__unit">
@@ -57,7 +59,7 @@
                             <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownSeconds'|trans }}</span>
                         </span>
                     </div>
-                    <p>{{ 'essayist.landing.status.countdownBody'|trans }}</p>
+                    <p>{{ 'essayist.landing.status.countdownBody'|trans({'%launch_date%': fmt_launch, '%deadline%': fmt_deadline}) }}</p>
                 </div>
                 <div class="essayist-status__item">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.renewalLabel'|trans }}</div>
@@ -71,12 +73,12 @@
                 <div>
                     <p class="essayist-eyebrow essayist-eyebrow--accent">{{ 'essayist.landing.earlybird.eyebrow'|trans }}</p>
                     <h2>{{ 'essayist.landing.earlybird.heading'|trans }}</h2>
-                    <p class="essayist-earlybird__deadline">{{ 'essayist.landing.earlybird.deadline'|trans }}</p>
+                    <p class="essayist-earlybird__deadline">{{ 'essayist.landing.earlybird.deadline'|trans({'%deadline%': fmt_deadline}) }}</p>
                 </div>
                 <div>
                     {% if joinStatus == 'early_bird_claimed' %}
                         <div class="essayist-alert essayist-alert--success">
-                            {{ 'essayist.landing.join.status.early_bird_claimed'|trans }}
+                            {{ 'essayist.landing.join.status.early_bird_claimed'|trans({'%launch_date%': fmt_launch}) }}
                         </div>
                     {% elseif joinStatus == 'already_early_bird' %}
                         <div class="essayist-alert essayist-alert--info">
@@ -84,10 +86,10 @@
                         </div>
                     {% endif %}
 
-                    <p class="essayist-copy">{{ 'essayist.landing.earlybird.body'|trans }}</p>
+                    <p class="essayist-copy">{{ 'essayist.landing.earlybird.body'|trans({'%launch_date%': fmt_launch}) }}</p>
 
                     {% if isEarlyBird or (isMember and isEarlyBird) %}
-                        <p class="essayist-earlybird__confirmed">{{ 'essayist.landing.earlybird.confirmedBody'|trans }}</p>
+                        <p class="essayist-earlybird__confirmed">{{ 'essayist.landing.earlybird.confirmedBody'|trans({'%launch_date%': fmt_launch}) }}</p>
                     {% elseif app.user %}
                         <form method="post" action="{{ path('app_static_essayist_early_bird') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
@@ -116,7 +118,7 @@
                         </li>
                         <li>
                             <strong>{{ 'essayist.landing.how.step2.title'|trans }}</strong>
-                            <p>{{ 'essayist.landing.how.step2.body'|trans }}</p>
+                            <p>{{ 'essayist.landing.how.step2.body'|trans({'%deadline%': fmt_deadline}) }}</p>
                         </li>
                         <li>
                             <strong>{{ 'essayist.landing.how.step3.title'|trans }}</strong>
@@ -156,17 +158,17 @@
                     {% elseif isPending %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.pendingBody'|trans }}</p>
                     {% elseif app.user %}
-                        <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans }}</p>
+                        <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans({'%launch_date%': fmt_launch}) }}</p>
                         <form method="post" action="{{ path('app_static_essayist_request_access') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
                             <button type="submit" class="btn btn--primary" disabled>{{ 'essayist.landing.join.requestCta'|trans }}</button>
-                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans }}</p>
+                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans({'%launch_date%': fmt_launch}) }}</p>
                         </form>
                     {% else %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.anonBody'|trans }}</p>
                         <div class="essayist-actions">
                             <a class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.anonCta'|trans }}</a>
-                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans }}</p>
+                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans({'%launch_date%': fmt_launch}) }}</p>
                         </div>
                     {% endif %}
                 </div>
@@ -181,7 +183,7 @@
                 </div>
                 <div class="essayist-copy">
                     <p>{{ 'essayist.landing.model.paragraph1'|trans }}</p>
-                    <p>{{ 'essayist.landing.model.paragraph2'|trans }}</p>
+                    <p>{{ 'essayist.landing.model.paragraph2'|trans({'%deadline%': fmt_deadline}) }}</p>
                 </div>
             </div>
         </section>

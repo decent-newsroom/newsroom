@@ -65,6 +65,7 @@
         "symfony/yaml": "7.4.*",
         "tkijewski/php-lnurl": "*",
         "twig/extra-bundle": "^2.12|^3.0",
+        "twig/intl-extra": "*",
         "twig/markdown-extra": "^3.21",
         "twig/string-extra": "^3.21",
         "twig/twig": "^3.15",
