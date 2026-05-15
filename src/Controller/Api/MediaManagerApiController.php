@@ -8,7 +8,11 @@ use App\Dto\NormalizedMedia;
 use App\Service\Media\MediaProviderRegistry;
 use App\Service\Media\MediaPublisher;
 use App\Service\Media\MediaRelayQueryService;
+use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\UserRelayListService;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
+use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +30,8 @@ class MediaManagerApiController extends AbstractController
         private readonly MediaProviderRegistry $providerRegistry,
         private readonly MediaRelayQueryService $relayQueryService,
         private readonly MediaPublisher $mediaPublisher,
+        private readonly NostrClient $nostrClient,
+        private readonly UserRelayListService $userRelayListService,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -217,6 +223,68 @@ class MediaManagerApiController extends AbstractController
             ]);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * Receive a signed media event (kind 20/21/22) and publish it to relays.
+     */
+    #[Route('/publish/event', name: 'api_media_publish_event', methods: ['POST'])]
+    public function publishSignedEvent(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        if (!$data || !isset($data['event'])) {
+            return new JsonResponse(['success' => false, 'error' => 'Missing signed event'], 400);
+        }
+
+        $signedEvent = $data['event'];
+        $kind = $signedEvent['kind'] ?? null;
+
+        if (!in_array($kind, [20, 21, 22], true)) {
+            return new JsonResponse(['success' => false, 'error' => 'Only kinds 20, 21, 22 are accepted'], 400);
+        }
+
+        try {
+            $eventObj = NostrEvent::fromVerified((object) $signedEvent);
+            if (!$eventObj->verify()) {
+                return new JsonResponse(['success' => false, 'error' => 'Event signature verification failed'], 400);
+            }
+        } catch (\Throwable $e) {
+            return new JsonResponse(['success' => false, 'error' => 'Invalid event: ' . $e->getMessage()], 400);
+        }
+
+        $pubkeyHex = $signedEvent['pubkey'] ?? '';
+        try {
+            $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to get relays for media publish', ['error' => $e->getMessage()]);
+            $relays = $this->userRelayListService->getFallbackRelays();
+        }
+
+        try {
+            $results = $this->nostrClient->publishEvent($eventObj, $relays, 15);
+
+            $successCount = 0;
+            foreach ($results as $result) {
+                $ok = is_object($result)
+                    ? (bool) ($result->isSuccess ?? $result->status ?? false)
+                    : (bool) ($result['ok'] ?? false);
+                if ($ok) {
+                    $successCount++;
+                }
+            }
+
+            return new JsonResponse([
+                'success' => true,
+                'relayCount' => count($results),
+                'successCount' => $successCount,
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to publish media event to relays', [
+                'kind' => $kind,
+                'error' => $e->getMessage(),
+            ]);
+            return new JsonResponse(['success' => false, 'error' => 'Relay publishing failed: ' . $e->getMessage()], 500);
         }
     }
 

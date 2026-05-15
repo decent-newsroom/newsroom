@@ -19,7 +19,7 @@ export default class extends Controller {
         // Metadata form
         'title', 'content', 'alt', 'hashtags', 'clientTag',
         // Actions / result
-        'submitBtn', 'draftResult', 'draftJson'
+        'submitBtn', 'draftResult', 'draftJson', 'signBtn'
     ];
 
     static values = {
@@ -306,9 +306,57 @@ export default class extends Controller {
     async signAndPublish() {
         if (!this.draft) { alert('No draft available'); return; }
 
-        this.dispatch('signAndPublish', {
-            detail: { draft: this.draft, kind: this.kindValue }
-        });
+        this._toast('Connecting to signer…', 'info');
+
+        let signer, pubkey;
+        try {
+            signer = await getSigner();
+            pubkey = await signer.getPublicKey();
+        } catch (e) {
+            this._toast('No Nostr signer available: ' + e.message, 'danger');
+            return;
+        }
+
+        if (this.hasSignBtnTarget) this.signBtnTarget.disabled = true;
+
+        try {
+            const eventToSign = { ...this.draft, pubkey };
+
+            this._toast('Requesting signature…', 'info');
+            const signedEvent = await signer.signEvent(eventToSign);
+
+            this._toast('Publishing to relays…', 'info');
+            const res = await fetch('/api/media/publish/event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ event: signedEvent }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok && data.success) {
+                const relayInfo = data.successCount !== undefined
+                    ? ` (${data.successCount}/${data.relayCount} relays)`
+                    : '';
+                this._toast('Published successfully' + relayInfo + '!', 'success');
+            } else {
+                this._toast('Publish failed: ' + (data.error || `HTTP ${res.status}`), 'danger');
+            }
+        } catch (err) {
+            console.error('[media-publish] signAndPublish error:', err);
+            this._toast('Error: ' + err.message, 'danger');
+        } finally {
+            if (this.hasSignBtnTarget) this.signBtnTarget.disabled = false;
+        }
+    }
+
+    _toast(message, type = 'info', duration = 4000) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type, duration);
+        }
     }
 
     // =====================================================================
