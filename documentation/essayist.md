@@ -12,11 +12,11 @@ To join, you send a small amount of sats distributed among the current members. 
 
 ## Short Version
 
-Essayist is a Nostr relay for longform writing. To get in, you pay a small monthly contribution that is distributed among the people already participating. Once you are in, you can write and read freely. The community self-polices through muting.
+Essayist is a Nostr relay for longform writing. To get in, you pay a small monthly contribution to someone in the pool. Once you are in, you can write and read freely. The community self-polices through muting.
 
 ## Even Shorter Version
 
-Pay your share into the pool. Publish or read. Do not be annoying or no one will see you.
+Pay your share to someone in the pool. Publish or read. Do not be annoying or no one will see you.
 
 ## One-Line Pitch
 
@@ -24,7 +24,7 @@ Pay your share into the pool. Publish or read. Do not be annoying or no one will
 
 ## Member Explanation
 
-To access Essayist, you make a small contribution distributed among the current pool of members. This renews monthly. While your membership is active, you can publish longform articles to the relay and read everything on it. If someone is disruptive, other members mute them. The relay operator does not need to police content.
+To access Essayist, you make a small contribution to someone in the current pool of members. This renews monthly. While your membership is active, you can publish longform articles to the relay and read everything on it. If someone is disruptive, other members mute them. The relay operator does not need to police content.
 
 ---
 
@@ -44,7 +44,7 @@ Money flows between members, not to a platform. Everyone who participates is bot
 * Nostr login (already built).
 * Contribution flow: logged-in user chooses an amount, sends sats distributed across current pool members.
 * Manual or semi-automatic verification of contribution.
-* Access flag (`ROLE_ESSAYIST_MEMBER`) granted once contribution is verified, valid for 30 days.
+* Access flag (`ROLE_ESSAYIST_MEMBER`) granted once contribution is verified, valid for the next month.
 * Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
 * Relay write access also gated by `ROLE_ESSAYIST_MEMBER` (same role, no separate author check).
 * Basic admin view for pending access requests and active members.
@@ -53,9 +53,8 @@ Money flows between members, not to a platform. Everyone who participates is bot
 
 * Public member count.
 * Contribution history visible to the contributor.
-* Automatic role expiry after 30 days (cron job removes lapsed access).
+* Automatic role expiry (cron job removes lapsed access).
 * Landing page showing recent articles from the relay (public preview).
-* Email capture for non-Nostr users.
 
 ## Defer
 
@@ -71,7 +70,7 @@ The first version only needs to answer:
 
 **Did this person contribute to the pool this month?**
 
-If yes, grant access.
+If yes, grant access for next month.
 
 ---
 
@@ -84,7 +83,7 @@ There is a single role. It grants:
 - read access to the gated DN feed page (`/essayist/feed`);
 - write access to the Essayist relay (`wss://essayist.decentnewsroom.com`).
 
-A member is anyone who has made a valid monthly contribution and whose 30-day window has not expired.
+A member is anyone who has made a valid monthly contribution and whose access window has not expired.
 
 ## Contribution
 
@@ -95,125 +94,14 @@ Mechanics:
 1. Visitor logs in with their Nostr key.
 2. They are shown the current pool size, the required contribution amount, and a payment interface.
 3. They pay. Manual verification for now (admin runs `user:elevate <npub> ROLE_ESSAYIST_MEMBER`).
-4. Access is active for 30 days from the verified payment date.
+4. Access is active for the current month and the next.
 5. At expiry, access lapses. The member can renew by contributing again.
 
 ## Content Enforcement
 
-None. The relay accepts all kind 30023 (and other allowed kinds) from any member pubkey. No editorial review. No quality gate. If a member publishes content that others dislike, the community mutes them. A muted member still technically has access but has no effective audience.
+None. The relay accepts all kind 30023 from any member pubkey. No editorial review. No quality gate. If a member publishes content that others dislike, the community mutes them. A muted member still technically has access but has no effective audience.
 
----
-
-# 5. Landing Page Structure
-
-## Hero
-
-Headline, subheadline, and one primary call to action.
-
-Primary CTA:
-
-**Join the Pool**
-
-## What Essayist Is
-
-A short explanation of the model: a relay funded by its own members.
-
-## How It Works
-
-1. Log in with your Nostr key.
-2. Make a small monthly contribution to the current pool members.
-3. Get access: publish and read freely for 30 days.
-4. Renew each month to stay in.
-
-## Current Members
-
-Show a count of active members and optionally their avatars or npubs (public by default; operator can suppress).
-
-## Why This Exists
-
-Explain the problem: most publishing platforms funnel money to the platform. Essayist routes the entry cost directly to the participants.
-
-## FAQ
-
-Answer objections clearly.
-
----
-
-# 6. Landing Page Copy
-
-## Hero
-
-### Headline
-
-**A relay that pays its members.**
-
-### Subheadline
-
-Essayist is a Nostr relay for longform writing. To get access, you make a small monthly contribution distributed among the people already in the pool. Publish, read, and participate freely. The community handles the rest.
-
-### CTA Button
-
-**Join the Pool**
-
----
-
-# 7. "How It Works" Copy
-
-### 1. Log in
-
-Use your Nostr key. No separate account needed.
-
-### 2. Contribute to the pool
-
-Pay a small fixed amount in sats. It goes directly to the current active members, split among them.
-
-### 3. Get one month of access
-
-Once your contribution is verified, your pubkey has full access: write to the relay, read the feed.
-
-### 4. Renew to stay in
-
-Membership lasts 30 days. Contribute again to renew. If you lapse, your access ends until you re-contribute.
-
-### 5. The community enforces itself
-
-No moderators. No content review. If someone is disruptive, members mute them. That is all.
-
----
-
-# 8. FAQ Copy
-
-## What is Essayist?
-
-Essayist is a Nostr relay for longform writing where monthly access fees go directly to existing members instead of to a platform.
-
-## What does "pool" mean?
-
-Everyone who has active access is in the pool. When a new person joins, their contribution is split among all current members.
-
-## How much does it cost?
-
-A small monthly amount in sats, set by the operator. This may be adjusted as the pool grows.
-
-## Can I just read without posting?
-
-Yes. Access is access. You are not required to publish anything. If you only want to read, you still need to contribute. You will also receive a share of future contributions as long as your membership is active.
-
-## What happens if I stop paying?
-
-Your access expires after 30 days. You can re-join at any time by contributing again.
-
-## Who decides what is acceptable to publish?
-
-Nobody centrally. You publish what you want. Other members can mute you. A muted member still has access but has no effective audience on Essayist. The relay operator may remove access in extreme cases (e.g., illegal content under applicable law), but there is no editorial standard to meet.
-
-## Is this a paywall?
-
-Not in the platform-first sense. No money goes through the platform. It goes to the other members.
-
-## What if someone is disruptive?
-
-Mute them. Essayist does not have a moderation queue, a content review board, or an appeals process. The relay is self-governing through muting.
+The relay operator reserves the right to delete content for legal reasons.
 
 ---
 
@@ -249,7 +137,7 @@ No curation. No approval. The relay and its members govern by muting.
 
 A single role is needed:
 
-- **`ROLE_ESSAYIST_MEMBER`**: granted when a contribution is verified. Grants both read access to the DN feed page and write access to the relay. Expires after 30 days.
+- **`ROLE_ESSAYIST_MEMBER`**: granted when a contribution is verified. Grants both read access to the DN feed page and write access to the relay. Expires end of next month.
 
 The previous `ROLE_ESSAYIST_CANDIDATE`, `ROLE_ESSAYIST_AUTHOR`, and `ROLE_ESSAYIST_SUPPORTER` roles are not used in this model and should not be created (or should be removed if already present).
 
@@ -265,8 +153,7 @@ The previous `ROLE_ESSAYIST_CANDIDATE`, `ROLE_ESSAYIST_AUTHOR`, and `ROLE_ESSAYI
 
 ### ZapButton component
 
-`ZapButton.php` (Twig Live Component, `Molecules/`) can be used to generate the contribution payment. For the pool split, the zap target should be a list of current member pubkeys weighted by their share. Manual verification remains the fallback until zap receipt detection is working.
-
+`ZapButton.php` (Twig Live Component, `Molecules/`) can be used to generate the contribution payment. Show a list of current member pubkeys and let the members choose. Make zap receipts work.
 ### Admin role grant
 
 The `user:elevate` CLI command sets roles on the `User` entity. `ROLE_ESSAYIST_MEMBER` can be granted exactly like any other role. Manual process: admin verifies contribution, runs `user:elevate <npub> ROLE_ESSAYIST_MEMBER`.
@@ -294,7 +181,7 @@ The existing write-policy endpoint checks `ROLE_ESSAYIST_AUTHOR`. Update it to c
 
 ### 3. Role expiry
 
-There is currently no mechanism to automatically remove `ROLE_ESSAYIST_MEMBER` after 30 days. This can be managed manually at first and automated later via a cron command that checks when the role was last granted and removes expired access.
+There is currently no mechanism to automatically remove `ROLE_ESSAYIST_MEMBER` when expired. This can be managed manually at first and automated later via a cron command that checks when the role was last granted and removes expired access.
 
 ---
 

@@ -3,8 +3,8 @@
 # Essayist relay write policy
 # =============================================================================
 #
-# Accepts EVENT writes only from approved Essayist writers.
-# Approval is checked against the Newsroom app API.
+# Accepts EVENT writes only from active Essayist members (ROLE_ESSAYIST_MEMBER).
+# Membership is checked against the Newsroom app API.
 #
 # Allowed kinds:
 #   30023 - longform article (NIP-23)
@@ -72,7 +72,7 @@ while IFS= read -r line; do
     if check_approved "$PUBKEY"; then
         printf '{"action":"accept"}\n'
     else
-        printf '{"action":"reject","msg":"writer not approved on Essayist — apply at decentnewsroom.com/essayist"}\n'
+    printf '{"action":"reject","msg":"active Essayist membership required — join at decentnewsroom.com/essayist"}\n'
     fi
 done
 

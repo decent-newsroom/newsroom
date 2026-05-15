@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Bug] Fixed Essayist write-policy API endpoint checking `ROLE_ESSAYIST_AUTHOR` instead of `ROLE_ESSAYIST_MEMBER`. Early-bird members (and future pool contributors) could not publish to the relay despite holding the correct role. Updated `EssayistWriterPolicyController` and the `write-policy.sh` rejection message to use `ROLE_ESSAYIST_MEMBER`.
 - [Feature] Relay feeds now respect the logged-in user's NIP-51 mute list (kind 10000). Articles from muted pubkeys are filtered out on page load (server-side) and also suppressed as they arrive via live Mercure updates (client-side in the Stimulus controller).
 - [Bug] Fixed the "Sign & Publish" button in the media manager's Create Picture/Video modal doing nothing. The `signAndPublish()` method was only dispatching a Stimulus event with no listener. It now uses `getSigner()` to obtain the user's pubkey, injects it into the draft, signs the event, and POSTs the signed event to a new `/api/media/publish/event` endpoint which verifies the signature and publishes to the user's write relays. Added a status indicator in the draft section for feedback.
 - [Improvement] Deprecated article-count and Lightning address eligibility requirements for `ROLE_ESSAYIST_CANDIDATE`. The regular join path is disabled until 1.6.2026 and will be gated solely on the one-time 100-sat relay initialization fee going forward. No code changes were needed — requirements had already been removed from the controller; docs and changelog updated to reflect the new policy.

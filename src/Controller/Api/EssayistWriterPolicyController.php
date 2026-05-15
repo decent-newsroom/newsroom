@@ -32,7 +32,7 @@ final class EssayistWriterPolicyController extends AbstractController
     }
 
     /**
-     * Check whether a hex pubkey belongs to an Essayist author (has ROLE_ESSAYIST_AUTHOR).
+     * Check whether a hex pubkey holds an active Essayist membership (ROLE_ESSAYIST_MEMBER).
      *
      * Called by docker/strfry-essayist/write-policy.sh on every incoming EVENT.
      *
@@ -40,8 +40,8 @@ final class EssayistWriterPolicyController extends AbstractController
      * Authorization: Bearer <ESSAYIST_POLICY_TOKEN>
      *
      * Response:
-     *   {"approved": true}  — writer has ROLE_ESSAYIST_AUTHOR, accept the event
-     *   {"approved": false} — writer is not approved, reject the event
+     *   {"approved": true}  — writer has ROLE_ESSAYIST_MEMBER, accept the event
+     *   {"approved": false} — writer is not a member, reject the event
      */
     #[Route('/writer/{pubkey}', name: 'api_essayist_writer_policy', methods: ['GET'])]
     public function check(string $pubkey, Request $request): JsonResponse
@@ -66,9 +66,9 @@ final class EssayistWriterPolicyController extends AbstractController
             return new JsonResponse(['approved' => false, 'reason' => 'invalid pubkey']);
         }
 
-        // Check if user with this npub has ROLE_ESSAYIST_AUTHOR
+        // Check if user with this npub has ROLE_ESSAYIST_MEMBER
         $user = $this->userRepository->findOneBy(['npub' => $npub]);
-        $approved = $user && in_array(RolesEnum::ESSAYIST_AUTHOR->value, $user->getRoles(), true);
+        $approved = $user && in_array(RolesEnum::ESSAYIST_MEMBER->value, $user->getRoles(), true);
 
         return new JsonResponse(['approved' => $approved]);
     }
