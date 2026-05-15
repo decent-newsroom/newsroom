@@ -126,12 +126,14 @@
                         <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans }}</p>
                         <form method="post" action="{{ path('app_static_essayist_request_access') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
-                            <button type="submit" class="btn btn--primary">{{ 'essayist.landing.join.requestCta'|trans }}</button>
+                            <button type="submit" class="btn btn--primary" disabled>{{ 'essayist.landing.join.requestCta'|trans }}</button>
+                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans }}</p>
                         </form>
                     {% else %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.anonBody'|trans }}</p>
                         <div class="essayist-actions">
-                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.join.anonCta'|trans }}</a>
+                            <a class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.anonCta'|trans }}</a>
+                            <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans }}</p>
                         </div>
                     {% endif %}
                 </div>

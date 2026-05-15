@@ -151,6 +151,7 @@ essayist:
                 login_required: 'Please sign in first to request membership.'
                 early_bird_claimed: 'You are in for June. The relay goes live on 1 June — welcome to the pool.'
                 already_early_bird: 'You have already claimed your early access spot.'
+            opensHint: 'Opens 1.6.2026'
         earlybird:
             eyebrow: 'Early Access'
             heading: 'June is on us.'

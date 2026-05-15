@@ -166,6 +166,20 @@
     margin-top: var(--spacing-2);
 }
 
+.essayist-join__opens-hint {
+    margin: var(--spacing-1) 0 0;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    letter-spacing: 0.04em;
+}
+
+.btn[disabled],
+.btn--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .essayist-alert {
     margin-bottom: var(--spacing-3);
     border: 1px solid var(--color-border);
@@ -182,7 +196,6 @@
 }
 
 .essayist-section--earlybird {
-    border-top: 2px solid var(--color-accent-strong);
     border-bottom: 1px solid var(--color-border);
 }
 

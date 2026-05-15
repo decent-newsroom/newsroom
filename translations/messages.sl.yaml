@@ -151,6 +151,7 @@ essayist:
                 login_required: 'Najprej se prijavite, da zahtevate članstvo.'
                 early_bird_claimed: 'Ste noter za junij. Podomrežnik se zažene 1. junija — dobrodošli v skupini.'
                 already_early_bird: 'Vaše mesto za zgodnji dostop je že rezervirano.'
+            opensHint: 'Odpre se 1.6.2026'
         earlybird:
             eyebrow: 'Zgodnji dostop'
             heading: 'Junij je na nas.'

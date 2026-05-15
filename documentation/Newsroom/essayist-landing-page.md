@@ -16,7 +16,8 @@ The page explains the pool model, shows the current active member count, walks v
 ## Routes
 
 - **GET `/essayist`** — `App\Controller\StaticController::essayist()`
-- **POST `/essayist/request-access`** — `App\Controller\StaticController::requestEssayistAccess()`
+- **POST `/essayist/request-access`** — `App\Controller\StaticController::requestEssayistAccess()` *(opens 1.6.2026; CTA disabled until then)*
+- **POST `/essayist/early-bird`** — `App\Controller\StaticController::claimEarlyBird()` *(available until 31.5.2026)*
 - Template: `templates/static/essayist.html.twig`
 
 The route is included in `/api/static-routes`.
@@ -25,21 +26,28 @@ The route is included in `/api/static-routes`.
 
 1. **Hero** — headline, lede, CTA (state-dependent).
 2. **Pool status** — member count + renewal period.
-3. **How it works** — four numbered steps.
-4. **Join CTA** — state-dependent: anon → login, logged in → request, pending → waiting message, member → feed link.
-5. **Model explainer** — why money flows to members, not the platform.
-6. **FAQ** — five common questions.
+3. **Early bird** — promo section; logged-in users claim free June access with one click. Disabled/confirmed once claimed.
+4. **How it works** — four numbered steps.
+5. **Join CTA** — disabled until 1.6.2026; will accept requests gated on the relay initialization fee only.
+6. **Model explainer** — why money flows between members, not through the platform.
+7. **FAQ** — five common questions.
 
-## Join request flow
+## Join request flow (opens 1.6.2026)
 
-1. Logged-in user clicks "Request membership" and POSTs to `/essayist/request-access` with CSRF token.
+1. Logged-in user clicks "Request access" and POSTs to `/essayist/request-access` with CSRF token.
 2. Backend checks:
    - Not already `ROLE_ESSAYIST_MEMBER` → redirect with `already_member`.
    - Not already `ROLE_ESSAYIST_CANDIDATE` → redirect with `already_pending`.
 3. Assigns `ROLE_ESSAYIST_CANDIDATE` (pending verification).
-4. Admin verifies payment and grants `ROLE_ESSAYIST_MEMBER` via `user:elevate <npub> ROLE_ESSAYIST_MEMBER`.
+4. Admin verifies relay initialization fee payment and grants `ROLE_ESSAYIST_MEMBER`.
 
-No eligibility checks (articles, Lightning address). Anyone with a Nostr account can signal intent to join.
+**No eligibility requirements** (no minimum article count, no Lightning address check). The only gate is the one-time 100-sat relay initialization fee, collected outside this flow.
+
+## Early bird flow (active until 31.5.2026)
+
+1. Logged-in user clicks "Claim your free June" and POSTs to `/essayist/early-bird` with CSRF token.
+2. Backend checks: not already `ROLE_ESSAYIST_EARLY_BIRD` → redirect with `already_early_bird`.
+3. Assigns both `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER`. No charge, no approval step.
 
 ## Template variables
 
@@ -47,6 +55,7 @@ No eligibility checks (articles, Lightning address). Anyone with a Nostr account
 |---|---|---|
 | `isMember` | `bool` | User has `ROLE_ESSAYIST_MEMBER` |
 | `isPending` | `bool` | User has `ROLE_ESSAYIST_CANDIDATE` |
+| `isEarlyBird` | `bool` | User has `ROLE_ESSAYIST_EARLY_BIRD` |
 | `memberCount` | `int` | Count of users with `ROLE_ESSAYIST_MEMBER` |
 | `joinStatus` | `string\|null` | Status code from redirect after POST |
 

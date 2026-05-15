@@ -151,6 +151,7 @@ essayist:
                 login_required: "Veuillez d'abord vous connecter pour demander une adhésion."
                 early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le 1er juin — bienvenue dans le pool."
                 already_early_bird: "Vous avez déjà réclamé votre accès anticipé."
+            opensHint: 'Ouvre le 1.6.2026'
         earlybird:
             eyebrow: 'Accès anticipé'
             heading: 'Juin est pour vous.'
