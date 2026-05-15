@@ -147,7 +147,7 @@ essayist:
             heading: 'Request access'
             anonBody: 'Sign in with your Nostr account to request early-bird pool membership.'
             anonCta: 'Sign in'
-            loggedInBody: 'Click below to signal your intent to join and get first month free access. Relay feed goes live %launch_date%.'
+            loggedInBody: 'Click below to request membership. Relay feed goes live %launch_date%.'
             requestCta: 'Request membership'
             memberBody: 'Your membership is active. You can write to the relay and read the feed.'
             memberCta: 'Open the feed'

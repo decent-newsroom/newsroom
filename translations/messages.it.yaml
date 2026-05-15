@@ -147,7 +147,7 @@ essayist:
             heading: "Richiedi l'accesso"
             anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento anticipato al pool."
             anonCta: 'Accedi'
-            loggedInBody: "Clicca qui sotto per segnalare la tua intenzione di unirti e ottenere il primo mese gratuito. Il feed del relay sarà attivo dal %launch_date%."
+            loggedInBody: "Clicca qui sotto per richiedere l'iscrizione. Il feed del relay sarà attivo dal %launch_date%."
             requestCta: 'Richiedi abbonamento'
             memberBody: 'Il tuo abbonamento è attivo. Puoi scrivere sul relay e leggere il feed.'
             memberCta: 'Apri il feed'

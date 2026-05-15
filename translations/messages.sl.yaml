@@ -147,7 +147,7 @@ essayist:
             heading: 'Zahtevaj dostop'
             anonBody: 'Prijavite se z računom Nostr, da pridobite zgodnje članstvo v skupnosti.'
             anonCta: 'Prijavite se'
-            loggedInBody: 'Kliknite spodaj, da sporočite namen pridružitve in pridobite prvi mesec brezplačno. Objave podomrežnika se aktivirajo %launch_date%.'
+            loggedInBody: 'Kliknite spodaj, da zaprosite za članstvo. Objave podomrežnika se aktivirajo %launch_date%.'
             requestCta: 'Pridobi članstvo'
             memberBody: 'Vaše članstvo je aktivno. Lahko pišete na podomrežnik in berete objave.'
             memberCta: 'Odpri objave'

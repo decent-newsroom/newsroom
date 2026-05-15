@@ -147,7 +147,7 @@ essayist:
             heading: "Demander l'accès"
             anonBody: 'Connectez-vous avec votre compte Nostr pour demander une adhésion anticipée au pool.'
             anonCta: 'Se connecter'
-            loggedInBody: 'Cliquez ci-dessous pour signaler votre intention de rejoindre et obtenir le premier mois gratuit. Le fil du relais sera lancé le %launch_date%.'
+            loggedInBody: 'Cliquez ci-dessous pour demander une adhésion. Le fil du relais sera lancé le %launch_date%.'
             requestCta: "Demander l'adhésion"
             memberBody: 'Votre adhésion est active. Vous pouvez écrire sur le relais et lire le fil.'
             memberCta: 'Ouvrir le fil'

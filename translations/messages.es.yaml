@@ -147,7 +147,7 @@ essayist:
             heading: 'Solicitar acceso'
             anonBody: 'Inicia sesión con tu cuenta Nostr para solicitar membresía anticipada al pool.'
             anonCta: 'Iniciar sesión'
-            loggedInBody: 'Haz clic abajo para indicar tu intención de unirte y obtener el primer mes gratis. El feed del relay se activa el %launch_date%.'
+            loggedInBody: 'Haz clic abajo para solicitar membresía. El feed del relay se activa el %launch_date%.'
             requestCta: 'Solicitar membresía'
             memberBody: 'Tu membresía está activa. Puedes escribir en el relay y leer el feed.'
             memberCta: 'Abrir el feed'

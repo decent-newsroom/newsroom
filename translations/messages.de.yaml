@@ -147,7 +147,7 @@ essayist:
             heading: 'Zugang beantragen'
             anonBody: 'Melden Sie sich mit Ihrem Nostr-Konto an, um eine Early-Bird-Pool-Mitgliedschaft zu beantragen.'
             anonCta: 'Anmelden'
-            loggedInBody: 'Klicken Sie unten, um Ihre Beitrittsabsicht zu signalisieren und einen kostenlosen ersten Monat zu erhalten. Der Relay-Feed geht am %launch_date% live.'
+            loggedInBody: 'Klicken Sie unten, um eine Mitgliedschaft zu beantragen. Der Relay-Feed geht am %launch_date% live.'
             requestCta: 'Mitgliedschaft beantragen'
             memberBody: 'Ihre Mitgliedschaft ist aktiv. Sie können auf den Relay schreiben und den Feed lesen.'
             memberCta: 'Feed öffnen'
