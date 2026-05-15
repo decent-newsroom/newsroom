@@ -153,6 +153,7 @@ essayist:
             eyebrow: 'Das Modell'
             heading: 'Der Pool trägt sich selbst.'
             paragraph1: 'Geld fließt zwischen den Mitgliedern, nicht durch eine Plattform. Jeder, der teilnimmt, ist sowohl potenzieller Empfänger als auch Beitragender. Der Relay-Betreiber erleichtert den Zugang und hält den Relay am Laufen €" er fungiert nicht als redaktioneller Schiedsrichter.'
+            paragraph2: 'Das Relay erhebt eine einmalige Einrichtungsgebühr von 100 Sats, um in den Pool aufgenommen zu werden. Die Gebühr entfällt für Early Birds, die sich vor dem 31.6.2026 anmelden.'
         faq:
             eyebrow: 'FAQ'
             heading: 'Häufige Fragen'

@@ -153,6 +153,7 @@ essayist:
             eyebrow: 'The model'
             heading: 'The pool supports itself.'
             paragraph1: 'Money flows between members, not through a platform. Everyone who participates is both a potential recipient and a contributor. The relay operator facilitates access and keeps the relay running — they do not act as editorial gatekeeper.'
+            paragraph2: 'Relay charges a one-time initialization fee of 100 sats to get you into the pool. The initial fee is waived for the early birds, who apply before 31.6.2026.'
         faq:
             eyebrow: 'FAQ'
             heading: 'Common questions'

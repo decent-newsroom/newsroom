@@ -153,6 +153,7 @@ essayist:
             eyebrow: 'Model'
             heading: 'Sklad se financira sam.'
             paragraph1: 'Denar teče med člani, ne skozi platformo. Vsi, ki sodelujejo, so tako potencialni prejemniki kot prispevniki. Upravljavec podomrežnika olajša dostop in vzdržuje delovanje — ne deluje kot uredniški nadzornik.'
+            paragraph2: 'Podomrežnik zaračuna enkratno pristopnino v višini 100 satov za vstop v skupino. Pristopnina je odpuščena za zgodnje prijave, ki se prijavijo pred 31.6.2026.'
         faq:
             eyebrow: 'Pogosta vprašanja'
             heading: 'Pogosta vprašanja'

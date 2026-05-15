@@ -153,6 +153,7 @@ essayist:
             eyebrow: 'El modelo'
             heading: 'El pool se sostiene a sí mismo.'
             paragraph1: 'El dinero fluye entre los miembros, no a través de una plataforma. Todos los que participan son tanto posibles receptores como contribuyentes. El operador del relay facilita el acceso y mantiene el relay funcionando — no actúa como guardián editorial.'
+            paragraph2: 'El relay cobra una tarifa de inicialización única de 100 sats para entrar al pool. La tarifa inicial está exenta para los early birds que se inscriban antes del 31.6.2026.'
         faq:
             eyebrow: 'Preguntas frecuentes'
             heading: 'Preguntas comunes'

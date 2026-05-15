@@ -153,6 +153,7 @@ essayist:
             eyebrow: 'Le modèle'
             heading: 'Le pool se finance lui-même.'
             paragraph1: "L'argent circule entre les membres, pas à travers une plateforme. Tous ceux qui participent sont à la fois des bénéficiaires potentiels et des contributeurs. L'opérateur du relais facilite l'accès et maintient le relais en fonctionnement — il n'agit pas comme gardien éditorial."
+            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le 31.6.2026."
         faq:
             eyebrow: 'FAQ'
             heading: 'Questions fréquentes'
