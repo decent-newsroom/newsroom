@@ -255,7 +255,10 @@ class MediaManagerApiController extends AbstractController
 
         $pubkeyHex = $signedEvent['pubkey'] ?? '';
         try {
-            $relays = $this->userRelayListService->getRelaysForPublishing($pubkeyHex);
+            // Cache → DB only; no network fetch, no registry fallback broadening.
+            // Falls back to local relay only when the user has no stored relay list.
+            $relays = $this->userRelayListService->getWriteRelaysCacheOrDb($pubkeyHex)
+                   ?? $this->userRelayListService->getFallbackRelays();
         } catch (\Exception $e) {
             $this->logger->warning('Failed to get relays for media publish', ['error' => $e->getMessage()]);
             $relays = $this->userRelayListService->getFallbackRelays();

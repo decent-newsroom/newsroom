@@ -414,6 +414,45 @@ class UserRelayListService
     }
 
     /**
+     * Resolve write relays using cache first, DB second.
+     * No network fetch, no registry fallback — returns null when nothing is stored.
+     *
+     * Intended for non-interactive publishing paths (e.g. media event publish)
+     * where we want the user's own relays but must not block on network I/O.
+     *
+     * @return string[]|null  Null means no stored relay list was found at all.
+     */
+    public function getWriteRelaysCacheOrDb(string $pubkeyOrNpub): ?array
+    {
+        $hex = $this->toHex($pubkeyOrNpub);
+
+        $data = $this->fromCache($hex) ?? $this->fromDatabase($hex);
+        if ($data === null) {
+            return null;
+        }
+
+        $writeRelays = $data['write'] ?? $data['all'] ?? [];
+        $local       = $this->relayRegistry->getLocalRelay();
+        $hasLocal    = $local !== null;
+
+        $relays = [];
+        if ($local) {
+            $relays[] = $local;
+        }
+
+        foreach ($writeRelays as $relay) {
+            if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                continue; // skip project-relay alias when local is already present
+            }
+            if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
+                $relays[] = $relay;
+            }
+        }
+
+        return $relays ?: null;
+    }
+
+    /**
      * Get the "top reputable" relays for an author — relays that are both
      * in the user's declared list AND in the registry's content relays.
      * Falls back to content relays if no overlap or no relay list found.
