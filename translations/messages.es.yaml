@@ -184,7 +184,7 @@ essayist:
             q3: '¿Qué pasa si dejo de pagar?'
             a3: 'Tu acceso expira. Puedes volver a unirte en cualquier momento contribuyendo de nuevo.'
             q4: '¿Quién decide qué se puede publicar?'
-            a4: 'Nadie de forma centralizada. Publicas lo que quieras.'
+            a4: 'El operador del relay puede eliminar contenido y/o el acceso en casos extremos (p. ej., contenido ilegal según la legislación aplicable), pero no hay ningún estándar editorial que cumplir.'
             q5: '¿Es esto un muro de pago?'
             a5: 'No en el sentido centrado en la plataforma. Ningún dinero pasa por la plataforma. Va a los otros miembros. Qué se publica aquí, y cuándo, es decisión de cada autor. Si eligen dar a los miembros de Essayist acceso anticipado antes de publicar en otro lugar, el relay se convierte en una capa de primer acceso — un paywall por elección, no por diseño.'
             q6: '¿Puedo simplemente intercambiar zaps con un amigo?'

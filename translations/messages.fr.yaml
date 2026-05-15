@@ -184,7 +184,7 @@ essayist:
             q3: "Que se passe-t-il si j'arrête de payer ?"
             a3: 'Votre accès expire. Vous pouvez rejoindre à nouveau à tout moment en contribuant à nouveau.'
             q4: "Qui décide de ce qu'il est acceptable de publier ?"
-            a4: 'Personne de façon centralisée. Vous publiez ce que vous voulez.'
+            a4: "L'opérateur du relais peut supprimer du contenu et/ou l'accès dans des cas extrêmes (par ex., contenu illégal en vertu de la loi applicable), mais il n'y a pas de norme éditoriale à respecter."
             q5: 'Est-ce un mur payant ?'
             a5: "Pas au sens centré sur la plateforme. Aucun argent ne passe par la plateforme. Il va aux autres membres. Ce qui est publié ici, et quand, relève entièrement du choix de chaque auteur. S'ils décident d'accorder aux membres Essayist un accès anticipé avant de publier ailleurs, le relais devient une couche d'accès prioritaire — un paywall par choix, non par conception."
             q6: 'Puis-je simplement échanger des zaps avec un ami ?'

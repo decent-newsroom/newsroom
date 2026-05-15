@@ -184,7 +184,7 @@ essayist:
             q3: 'Kaj se zgodi, če preneham plačevati?'
             a3: 'Vaš dostop poteče. Kadarkoli se lahko znova pridružite z novim prispevkom.'
             q4: 'Kdo odloča, kaj je primerno za objavo?'
-            a4: 'Nihče centralno. Objavljate, kar želite.'
+            a4: 'Upravljavec releja lahko v skrajnih primerih (npr. nezakonita vsebina po veljavni zakonodaji) odstrani vsebino in/ali dostop, vendar ni uredniških standardov, ki bi jih bilo treba izpolnjevati.'
             q5: 'Je to zaklenjena vsebina?'
             a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom. Kaj se tukaj objavi in kdaj, je odločitev vsakega avtorja. Če se odločijo dati članom Essayist zgodnji dostop pred objavo drugje, postane podomrežnik plast prvega dostopa — plačilni zid po izbiri, ne po zasnovi.'
             q6: 'Ali lahko preprosto izmenjam zape s prijateljem?'

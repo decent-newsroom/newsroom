@@ -184,7 +184,7 @@ essayist:
             q3: 'What happens if I stop paying?'
             a3: 'Your access expires. You can re-join at any time by contributing again.'
             q4: 'Who decides what is acceptable to publish?'
-            a4: 'Nobody centrally. You publish what you want.'
+            a4: 'The relay operator may remove content and/or access in extreme cases (e.g., illegal content under applicable law), but there is no editorial standard to meet.'
             q5: 'Is this a paywall?'
             a5: 'Not in the platform-first sense. No money goes through the platform. It goes to the other members. What gets published here, and when, is each author''s call. If they choose to give Essayist members early access before publishing elsewhere, the relay becomes a first-access layer — a paywall by choice, not by design.'
             q6: 'Can I just swap zaps with a friend?'

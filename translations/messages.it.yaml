@@ -184,7 +184,7 @@ essayist:
             q3: 'Cosa succede se smetto di pagare?'
             a3: 'Il tuo accesso scade. Puoi riunirti in qualsiasi momento contribuendo di nuovo.'
             q4: 'Chi decide cosa è accettabile pubblicare?'
-            a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi.'
+            a4: "L'operatore del relay può rimuovere contenuti e/o l'accesso in casi estremi (ad es., contenuti illegali ai sensi della legge applicabile), ma non vi è alcuno standard editoriale da soddisfare."
             q5: 'È un paywall?'
             a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro passa attraverso la piattaforma. Va agli altri membri. Cosa viene pubblicato qui, e quando, è una scelta di ogni autore. Se decidono di dare agli iscritti Essayist accesso anticipato prima di pubblicare altrove, il relay diventa uno strato di primo accesso — un paywall per scelta, non per design.'
             q6: 'Posso semplicemente scambiare zap con un amico?'

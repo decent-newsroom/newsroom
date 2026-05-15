@@ -184,7 +184,7 @@ essayist:
             q3: 'Was passiert, wenn ich aufhöre zu zahlen?'
             a3: 'Ihr Zugang läuft ab. Sie können jederzeit erneut beitreten, indem Sie wieder beitragen.'
             q4: 'Wer entscheidet, was veröffentlicht werden darf?'
-            a4: 'Niemand zentral. Sie veröffentlichen, was Sie möchten.'
+            a4: 'Der Relay-Betreiber kann Inhalte und/oder den Zugang in extremen Fällen entfernen (z. B. illegale Inhalte nach geltendem Recht), aber es gibt keinen redaktionellen Standard, dem man entsprechen muss.'
             q5: 'Ist das eine Bezahlschranke?'
             a5: 'Nicht im plattformzentrierten Sinne. Kein Geld fließt durch die Plattform. Es geht an die anderen Mitglieder. Was hier veröffentlicht wird und wann, entscheidet jeder Autor selbst. Wenn sie Essayist-Mitgliedern frühen Zugang gewähren, bevor sie woanders veröffentlichen, wird der Relay zu einer First-Access-Schicht — eine Bezahlschranke aus freier Wahl, nicht durch Design.'
             q6: 'Kann ich einfach Zaps mit einem Freund tauschen?'
