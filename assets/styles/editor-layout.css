@@ -204,7 +204,7 @@ main.editor-layout {
     flex-shrink: 0;
     position: sticky;
     top: -16px;
-    background: white;
+    background: var(--background, #ffffff);
     z-index: 100;
 }
 
@@ -825,6 +825,7 @@ main.editor-layout {
 }
 
 /* Dark theme support */
+[data-theme="dark"] .editor-layout,
 [data-theme="dark"] .editor-shell {
     --background: #1f2937;
     --surface: #111827;

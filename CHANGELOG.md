@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Bug] Fixed dark mode in the editor: the dark theme CSS overrides were scoped to `.editor-shell` but the actual element uses `.editor-layout`, so variables were never applied. Also fixed the Quill toolbar having a hardcoded `background: white` instead of using the CSS variable.
 - [Bug] Fixed article publishing from the editor failing to publish to the project relay (`wss://relay.decentnewsroom.com`). The relay list stored in the `User` entity (populated via `getRelayListForDisplay()`) contains the public project relay URL; when that list was passed directly to `NostrClient::publishEvent()`, the project relay was kept alongside the local relay, causing Docker to open an external WebSocket to itself (which hangs). `publishEvent()` now filters out project relay URLs whenever the local relay is present, mirroring the same guard already applied in `getRelaysForPublishing()`.
 - [Bug] Fixed `/subscription/vanity` failing for anonymous visitors. The Twig template used a non-existent `login` route in the signed-out CTA; it now points to the correct `app_login` route.
 - [Improvement] Removed the redundant writer-requirements intro sentence from the Essayist landing page and deleted the now-unused `essayist.landing.requirements.intro` translation key across all locales.
