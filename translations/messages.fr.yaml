@@ -114,7 +114,7 @@ essayist:
             memberLabel: 'Membres actifs'
             memberBody: 'Personnes actuellement dans le pool. Leur mois est actif ; elles peuvent lire et publier.'
             renewalLabel: 'Adhésion'
-            renewalBody: 'L'adhésion dure 30 jours à compter de votre contribution vérifiée. Renouvelez chaque mois pour rester.'
+            renewalBody: "L'adhésion dure 30 jours à compter de votre contribution vérifiée. Renouvelez chaque mois pour rester."
         how:
             eyebrow: 'Comment ça marche'
             heading: 'Quatre étapes'
@@ -125,14 +125,14 @@ essayist:
                 title: 'Contribuer au pool'
                 body: 'Payez un petit montant fixe en sats. Il va directement aux membres actifs actuels, réparti entre eux.'
             step3:
-                title: 'Obtenir un mois d'accès'
-                body: 'Une fois votre contribution vérifiée, votre pubkey dispose d'un accès complet : écrire sur le relay, lire le fil.'
+                title: "Obtenir un mois d'accès"
+                body: "Une fois votre contribution vérifiée, votre pubkey dispose d'un accès complet : écrire sur le relay, lire le fil."
             step4:
                 title: 'Renouveler pour rester'
-                body: 'L'adhésion dure 30 jours. Contribuez à nouveau pour renouveler. Si elle expire, votre accès se termine jusqu'à ce que vous contribuiez à nouveau.'
+                body: "L'adhésion dure 30 jours. Contribuez à nouveau pour renouveler. Si elle expire, votre accès se termine jusqu'à ce que vous contribuiez à nouveau."
         join:
             eyebrow: 'Rejoindre le pool'
-            heading: 'Demander l'accès'
+            heading: "Demander l'accès"
             anonBody: 'Connectez-vous avec votre compte Nostr pour demander une adhésion au pool.'
             anonCta: 'Se connecter'
             loggedInBody: 'Cliquez ci-dessous pour signaler votre intention de rejoindre. Une fois votre contribution vérifiée, votre accès sera activé.'
@@ -144,23 +144,23 @@ essayist:
                 request_created: 'Demande reçue. Nous activerons votre accès une fois votre contribution vérifiée.'
                 already_member: 'Votre adhésion est déjà active.'
                 already_pending: 'Votre demande est déjà en attente de vérification.'
-                invalid_csrf: 'Échec de la demande en raison d'un jeton de sécurité invalide. Veuillez réessayer.'
-                login_required: 'Veuillez d'abord vous connecter pour demander une adhésion.'
+                invalid_csrf: "Échec de la demande en raison d'un jeton de sécurité invalide. Veuillez réessayer."
+                login_required: "Veuillez d'abord vous connecter pour demander une adhésion."
         model:
             eyebrow: 'Le modèle'
-            heading: 'Le pool s'autofinance.'
-            paragraph1: 'L'argent circule entre les membres, pas vers une plateforme. Chaque participant est à la fois bénéficiaire potentiel et contributeur. L'opérateur du relay facilite l'accès et maintient le relay en fonctionnement — il n'agit pas comme gardien éditorial.'
+            heading: "Le pool s'autofinance."
+            paragraph1: "L'argent circule entre les membres, pas vers une plateforme. Chaque participant est à la fois bénéficiaire potentiel et contributeur. L'opérateur du relay facilite l'accès et maintient le relay en fonctionnement — il n'agit pas comme gardien éditorial."
         faq:
             eyebrow: 'FAQ'
             heading: 'Questions fréquentes'
             q1: 'Que signifie « pool » ?'
             a1: 'Toute personne ayant un accès actif est dans le pool. Quand une nouvelle personne rejoint, sa contribution est répartie entre tous les membres actuels.'
             q2: 'Puis-je seulement lire sans publier ?'
-            a2: 'Oui. L'accès est l'accès. Vous n'êtes pas obligé de publier quoi que ce soit. Vous recevrez quand même une part des contributions futures tant que votre adhésion est active.'
-            q3: 'Que se passe-t-il si j'arrête de payer ?'
+            a2: "Oui. L'accès est l'accès. Vous n'êtes pas obligé de publier quoi que ce soit. Vous recevrez quand même une part des contributions futures tant que votre adhésion est active."
+            q3: "Que se passe-t-il si j'arrête de payer ?"
             a3: 'Votre accès expire après 30 jours. Vous pouvez rejoindre à nouveau à tout moment en contribuant.'
-            q4: 'Qui décide de ce qu'il est acceptable de publier ?'
-            a4: 'Personne de manière centralisée. Vous publiez ce que vous voulez. Les autres membres peuvent vous mettre en sourdine. L'opérateur peut supprimer l'accès dans des cas extrêmes (ex. contenu illégal), mais il n'y a pas de norme éditoriale à respecter.'
+            q4: "Qui décide de ce qu'il est acceptable de publier ?"
+            a4: "Personne de manière centralisée. Vous publiez ce que vous voulez. Les autres membres peuvent vous mettre en sourdine. L'opérateur peut supprimer l'accès dans des cas extrêmes (ex. contenu illégal), mais il n'y a pas de norme éditoriale à respecter."
             q5: 'Est-ce un paywall ?'
             a5: 'Pas dans le sens centré sur la plateforme. Aucun argent ne va à la plateforme. Il va aux autres membres.'
 
