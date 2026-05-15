@@ -133,4 +133,10 @@
     color: var(--color-text);
 }
 
+@media (max-width: 1024px) {
+    .relay-feed__header {
+        top: var(--header-height);
+    }
+}
+
 
