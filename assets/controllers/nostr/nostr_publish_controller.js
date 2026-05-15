@@ -394,6 +394,10 @@ export default class extends Controller {
     const existingSlug = (this.element.dataset.slug || '').trim();
     const slug = existingSlug || this.generateSlug(String(title));
 
+    // Preserve the original published_at timestamp (first-publish date).
+    // Empty string means new article — will be set to now on first publish.
+    const publishedAt = parseInt(this.element.dataset.publishedAt || '', 10) || null;
+
     // Update slug field with generated slug if it was generated (not from container dataset)
     if (!existingSlug && slug) {
       const slugInput = document.querySelector('input[name="editor[slug]"]');
@@ -414,7 +418,8 @@ export default class extends Controller {
       addClientTag,
       advancedMetadata,
       pubkey,
-      loginMethod
+      loginMethod,
+      publishedAt,
     };
   }
 
@@ -526,10 +531,13 @@ export default class extends Controller {
     }
 
     // Create tags array
+    // published_at: preserved from first publish; only set to now on brand-new articles.
+    // created_at (event field) always reflects the revision timestamp (set below).
+    const publishedAtTimestamp = formData.publishedAt || Math.floor(Date.now() / 1000);
     const tags = [
       ['d', formData.slug],
       ['title', formData.title],
-      ['published_at', Math.floor(Date.now() / 1000).toString()],
+      ['published_at', publishedAtTimestamp.toString()],
     ];
 
     let kind = 30023; // Default kind for long-form content

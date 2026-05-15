@@ -294,7 +294,7 @@
     <div {{ stimulus_controller('nostr--nostr-publish', {
         publishUrl: path('api-article-publish'),
         pubkey: app.user ? app.user.userIdentifier|toHex : '<pubkey>'
-    }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}">
+    }) }} data-nostr--nostr-publish-target="form" data-slug="{{ article.slug|default('') }}" data-published-at="{{ article.publishedAt ? article.publishedAt.timestamp : '' }}">
         <div data-nostr--nostr-publish-target="status"
              style="position: fixed;top: 65px;right: 10px;"
         ></div>
