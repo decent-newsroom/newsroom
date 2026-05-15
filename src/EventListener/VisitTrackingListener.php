@@ -172,6 +172,11 @@ class VisitTrackingListener
             }
         }
 
+        // Relay-feed keepalive pings: /relay-feed/{key}/keepalive
+        if (preg_match('#^/relay-feed/[a-f0-9]{16}/keepalive$#', $route)) {
+            return true;
+        }
+
         return false;
     }
 }
