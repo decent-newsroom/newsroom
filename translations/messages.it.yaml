@@ -59,12 +59,15 @@ nav:
     startBlog: 'Avvia una rivista'
     readingList: 'Lista di lettura'
     article: 'Articolo'
+    expression: 'Espressione'
+    expressions: 'Espressioni'
     sendFeedback: 'Invia feedback'
     backToTop: 'Torna in cima'
     closeLeftSidebar: 'Chiudi barra laterale sinistra'
     closeRightSidebar: 'Chiudi barra laterale destra'
     theme: 'Tema'
     cycleTheme: 'Cambia tema'
+    relayFeeds: 'Feed relay'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -103,9 +106,9 @@ essayist:
     landing:
         title: 'Essayist'
         hero:
-            eyebrow: 'Relay finanziato dal pool'
-            heading: 'Un relay che paga i suoi membri.'
-            lede: 'Essayist è un relay Nostr per la scrittura lunga. Per accedere, effettui un piccolo contributo mensile distribuito tra le persone già nel pool. Pubblica, leggi e partecipa liberamente. La comunità si occupa del resto.'
+            eyebrow: 'Relay finanziato da pool'
+            heading: 'Un relay valore-per-valore per saggi.'
+            lede: "Essayist è un relay per la scrittura di formato lungo. Per ottenere l'accesso, fai un piccolo contributo mensile distribuito tra le persone già nel pool. Pubblica, leggi e partecipa liberamente."
             ctaAnon: 'Accedi per unirti'
             ctaLoggedIn: 'Unisciti al pool'
             ctaMember: 'Apri il feed'
@@ -114,7 +117,7 @@ essayist:
             memberLabel: 'Membri attivi'
             memberBody: 'Persone attualmente nel pool. Il loro mese è attivo; possono leggere e pubblicare.'
             renewalLabel: 'Abbonamento'
-            renewalBody: "L'abbonamento dura 30 giorni dal contributo verificato. Rinnova ogni mese per restare."
+            renewalBody: 'Contribuire questo mese ti dà accesso per il mese successivo. Rinnova ogni mese per rimanere.'
         how:
             eyebrow: 'Come funziona'
             heading: 'Quattro passi'
@@ -123,44 +126,44 @@ essayist:
                 body: 'Usa la tua chiave Nostr. Non è necessario un account separato.'
             step2:
                 title: 'Contribuisci al pool'
-                body: 'Paga un piccolo importo fisso in satoshi. Va direttamente ai membri attivi attuali, diviso tra loro.'
+                body: 'Scegli tra i membri attuali e invia a qualcuno 2000 sats.'
             step3:
                 title: 'Ottieni un mese di accesso'
-                body: 'Una volta verificato il tuo contributo, la tua pubkey ha accesso completo: scrivere sul relay, leggere il feed.'
+                body: 'Una volta verificato il tuo contributo, la tua chiave pubblica ha accesso completo: scrivi sul relay, leggi il feed.'
             step4:
                 title: 'Rinnova per restare'
-                body: "L'abbonamento dura 30 giorni. Contribuisci di nuovo per rinnovare. Se scade, il tuo accesso termina finché non contribuisci di nuovo."
+                body: "L'abbonamento dura un mese. Contribuisci di nuovo per rinnovare. Se smetti, il tuo accesso termina finché non contribuisci di nuovo."
         join:
             eyebrow: 'Unisciti al pool'
             heading: "Richiedi l'accesso"
-            anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento al pool."
+            anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento anticipato al pool."
             anonCta: 'Accedi'
-            loggedInBody: 'Clicca qui sotto per segnalare la tua intenzione di unirti. Una volta verificato il tuo contributo, il tuo accesso verrà attivato.'
+            loggedInBody: "Clicca qui sotto per segnalare la tua intenzione di unirti e ottenere il primo mese gratuito. Il feed del relay sarà attivo dall'1.6.2026."
             requestCta: 'Richiedi abbonamento'
             memberBody: 'Il tuo abbonamento è attivo. Puoi scrivere sul relay e leggere il feed.'
             memberCta: 'Apri il feed'
-            pendingBody: 'La tua richiesta è in attesa di verifica. Una volta confermato il tuo contributo, il tuo accesso verrà attivato.'
+            pendingBody: 'Il tuo stato di abbonamento è in attesa di verifica. Una volta confermato il tuo contributo, il tuo accesso verrà attivato.'
             status:
-                request_created: 'Richiesta ricevuta. Attiveremo il tuo accesso una volta verificato il tuo contributo.'
+                request_created: 'Richiesta ricevuta.'
                 already_member: 'Il tuo abbonamento è già attivo.'
                 already_pending: 'La tua richiesta è già in attesa di verifica.'
                 invalid_csrf: 'Richiesta fallita a causa di un token di sicurezza non valido. Riprova.'
-                login_required: "Accedi prima di richiedere l'abbonamento."
+                login_required: "Accedi prima per richiedere l'abbonamento."
         model:
             eyebrow: 'Il modello'
             heading: 'Il pool si sostiene da solo.'
-            paragraph1: "Il denaro scorre tra i membri, non verso una piattaforma. Ogni partecipante è allo stesso tempo potenziale beneficiario e contributore. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
+            paragraph1: "Il denaro scorre tra i membri, non attraverso una piattaforma. Tutti i partecipanti sono sia potenziali destinatari che contributori. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
         faq:
             eyebrow: 'FAQ'
             heading: 'Domande frequenti'
             q1: 'Cosa significa "pool"?'
-            a1: 'Tutti coloro che hanno accesso attivo sono nel pool. Quando una nuova persona si unisce, il suo contributo viene diviso tra tutti i membri attuali.'
+            a1: 'Tutti coloro che hanno accesso attivo sono nel pool.'
             q2: 'Posso solo leggere senza pubblicare?'
-            a2: "Sì. L'accesso è l'accesso. Non sei obbligato a pubblicare nulla. Riceverai comunque una quota dei contributi futuri finché il tuo abbonamento è attivo."
+            a2: "Sì. L'accesso è accesso. Non sei obbligato a pubblicare nulla."
             q3: 'Cosa succede se smetto di pagare?'
-            a3: 'Il tuo accesso scade dopo 30 giorni. Puoi riunirti in qualsiasi momento contribuendo di nuovo.'
+            a3: 'Il tuo accesso scade. Puoi riunirti in qualsiasi momento contribuendo di nuovo.'
             q4: 'Chi decide cosa è accettabile pubblicare?'
-            a4: "Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare te. L'operatore può rimuovere l'accesso in casi estremi (es. contenuti illegali), ma non c'è uno standard editoriale da rispettare."
+            a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare.'
             q5: 'È un paywall?'
             a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro va alla piattaforma. Va agli altri membri.'
 

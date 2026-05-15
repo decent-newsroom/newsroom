@@ -67,6 +67,7 @@ nav:
     closeRightSidebar: 'Close right sidebar'
     theme: 'Theme'
     cycleTheme: 'Switch theme'
+    relayFeeds: 'Relay feeds'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -106,8 +107,8 @@ essayist:
         title: 'Essayist'
         hero:
             eyebrow: 'Pool-funded relay'
-            heading: 'A relay that pays its members.'
-            lede: 'Essayist is a Nostr relay for longform writing. To get access, you make a small monthly contribution distributed among the people already in the pool. Publish, read, and participate freely. The community handles the rest.'
+            heading: 'A value-for-value relay for essays.'
+            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution distributed among the people already in the pool. Publish, read, and participate freely.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Join the pool'
             ctaMember: 'Open the feed'
@@ -116,7 +117,7 @@ essayist:
             memberLabel: 'Active members'
             memberBody: 'People currently in the pool. Their month is active; they can read and publish.'
             renewalLabel: 'Membership'
-            renewalBody: 'Membership lasts 30 days from your verified contribution. Renew each month to stay in.'
+            renewalBody: 'Contributing this month grants you access for next month. Renew each month to stay in.'
         how:
             eyebrow: 'How it works'
             heading: 'Four steps'
@@ -125,25 +126,25 @@ essayist:
                 body: 'Use your Nostr key. No separate account needed.'
             step2:
                 title: 'Contribute to the pool'
-                body: 'Pay a small fixed amount in sats. It goes directly to the current active members, split among them.'
+                body: 'Choose among current members and zap someone 2000 sats.'
             step3:
                 title: 'Get one month of access'
                 body: 'Once your contribution is verified, your pubkey has full access: write to the relay, read the feed.'
             step4:
                 title: 'Renew to stay in'
-                body: 'Membership lasts 30 days. Contribute again to renew. If you lapse, your access ends until you re-contribute.'
+                body: 'Membership lasts one month. Contribute again to renew. If you lapse, your access ends until you re-contribute.'
         join:
             eyebrow: 'Join the pool'
             heading: 'Request access'
-            anonBody: 'Sign in with your Nostr account to request pool membership.'
+            anonBody: 'Sign in with your Nostr account to request early-bird pool membership.'
             anonCta: 'Sign in'
-            loggedInBody: 'Click below to signal your intent to join. Once your contribution is verified, your access will be activated.'
+            loggedInBody: 'Click below to signal your intent to join and get first month free access. Relay feed goes live 1.6.2026.'
             requestCta: 'Request membership'
             memberBody: 'Your membership is active. You can write to the relay and read the feed.'
             memberCta: 'Open the feed'
-            pendingBody: 'Your request is pending verification. Once your contribution is confirmed, your access will be activated.'
+            pendingBody: 'Your membership status is pending verification. Once your contribution is confirmed, your access will be activated.'
             status:
-                request_created: 'Request received. We will activate your access once your contribution is verified.'
+                request_created: 'Request received.'
                 already_member: 'Your membership is already active.'
                 already_pending: 'Your request is already pending verification.'
                 invalid_csrf: 'Request failed due to an invalid security token. Please try again.'
@@ -151,18 +152,18 @@ essayist:
         model:
             eyebrow: 'The model'
             heading: 'The pool supports itself.'
-            paragraph1: 'Money flows between members, not to a platform. Everyone who participates is both a potential recipient and a contributor. The relay operator facilitates access and keeps the relay running — they do not act as editorial gatekeeper.'
+            paragraph1: 'Money flows between members, not through a platform. Everyone who participates is both a potential recipient and a contributor. The relay operator facilitates access and keeps the relay running — they do not act as editorial gatekeeper.'
         faq:
             eyebrow: 'FAQ'
             heading: 'Common questions'
             q1: 'What does "pool" mean?'
-            a1: 'Everyone who has active access is in the pool. When a new person joins, their contribution is split among all current members.'
+            a1: 'Everyone who has active access is in the pool.'
             q2: 'Can I just read without posting?'
-            a2: 'Yes. Access is access. You are not required to publish anything. You will still receive a share of future contributions as long as your membership is active.'
+            a2: 'Yes. Access is access. You are not required to publish anything.'
             q3: 'What happens if I stop paying?'
-            a3: 'Your access expires after 30 days. You can re-join at any time by contributing again.'
+            a3: 'Your access expires. You can re-join at any time by contributing again.'
             q4: 'Who decides what is acceptable to publish?'
-            a4: 'Nobody centrally. You publish what you want. Other members can mute you. The relay operator may remove access in extreme cases (e.g. illegal content), but there is no editorial standard to meet.'
+            a4: 'Nobody centrally. You publish what you want. Other members can mute you. '
             q5: 'Is this a paywall?'
             a5: 'Not in the platform-first sense. No money goes to the platform. It goes to the other members.'
 
