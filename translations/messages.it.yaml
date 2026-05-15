@@ -114,7 +114,7 @@ essayist:
             memberLabel: 'Membri attivi'
             memberBody: 'Persone attualmente nel pool. Il loro mese è attivo; possono leggere e pubblicare.'
             renewalLabel: 'Abbonamento'
-            renewalBody: 'L'abbonamento dura 30 giorni dal contributo verificato. Rinnova ogni mese per restare.'
+            renewalBody: "L'abbonamento dura 30 giorni dal contributo verificato. Rinnova ogni mese per restare."
         how:
             eyebrow: 'Come funziona'
             heading: 'Quattro passi'
@@ -129,11 +129,11 @@ essayist:
                 body: 'Una volta verificato il tuo contributo, la tua pubkey ha accesso completo: scrivere sul relay, leggere il feed.'
             step4:
                 title: 'Rinnova per restare'
-                body: 'L'abbonamento dura 30 giorni. Contribuisci di nuovo per rinnovare. Se scade, il tuo accesso termina finché non contribuisci di nuovo.'
+                body: "L'abbonamento dura 30 giorni. Contribuisci di nuovo per rinnovare. Se scade, il tuo accesso termina finché non contribuisci di nuovo."
         join:
             eyebrow: 'Unisciti al pool'
-            heading: 'Richiedi l'accesso'
-            anonBody: 'Accedi con il tuo account Nostr per richiedere l'abbonamento al pool.'
+            heading: "Richiedi l'accesso"
+            anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento al pool."
             anonCta: 'Accedi'
             loggedInBody: 'Clicca qui sotto per segnalare la tua intenzione di unirti. Una volta verificato il tuo contributo, il tuo accesso verrà attivato.'
             requestCta: 'Richiedi abbonamento'
@@ -145,22 +145,22 @@ essayist:
                 already_member: 'Il tuo abbonamento è già attivo.'
                 already_pending: 'La tua richiesta è già in attesa di verifica.'
                 invalid_csrf: 'Richiesta fallita a causa di un token di sicurezza non valido. Riprova.'
-                login_required: 'Accedi prima di richiedere l'abbonamento.'
+                login_required: "Accedi prima di richiedere l'abbonamento."
         model:
             eyebrow: 'Il modello'
             heading: 'Il pool si sostiene da solo.'
-            paragraph1: 'Il denaro scorre tra i membri, non verso una piattaforma. Ogni partecipante è allo stesso tempo potenziale beneficiario e contributore. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale.'
+            paragraph1: "Il denaro scorre tra i membri, non verso una piattaforma. Ogni partecipante è allo stesso tempo potenziale beneficiario e contributore. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
         faq:
             eyebrow: 'FAQ'
             heading: 'Domande frequenti'
             q1: 'Cosa significa "pool"?'
             a1: 'Tutti coloro che hanno accesso attivo sono nel pool. Quando una nuova persona si unisce, il suo contributo viene diviso tra tutti i membri attuali.'
             q2: 'Posso solo leggere senza pubblicare?'
-            a2: 'Sì. L'accesso è l'accesso. Non sei obbligato a pubblicare nulla. Riceverai comunque una quota dei contributi futuri finché il tuo abbonamento è attivo.'
+            a2: "Sì. L'accesso è l'accesso. Non sei obbligato a pubblicare nulla. Riceverai comunque una quota dei contributi futuri finché il tuo abbonamento è attivo."
             q3: 'Cosa succede se smetto di pagare?'
             a3: 'Il tuo accesso scade dopo 30 giorni. Puoi riunirti in qualsiasi momento contribuendo di nuovo.'
             q4: 'Chi decide cosa è accettabile pubblicare?'
-            a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare te. L'operatore può rimuovere l'accesso in casi estremi (es. contenuti illegali), ma non c'è uno standard editoriale da rispettare.'
+            a4: "Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare te. L'operatore può rimuovere l'accesso in casi estremi (es. contenuti illegali), ma non c'è uno standard editoriale da rispettare."
             q5: 'È un paywall?'
             a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro va alla piattaforma. Va agli altri membri.'
 
