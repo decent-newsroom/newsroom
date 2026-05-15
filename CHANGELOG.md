@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Improvement] Extracted Essayist public routes (`/essayist`, `/essayist/early-bird`, `/essayist/request-access`) from `StaticController` into a dedicated `EssayistController`. Route names and all templates are unchanged.
 - [Bug] Fixed Essayist join button being permanently disabled. The controller now passes `isLaunched` (true when current date ≥ 2026-06-01). The logged-in submit button and the anonymous CTA both enable automatically on launch day; the "opens on" hint is hidden once the relay is live, and the anonymous CTA becomes a login link instead of a dead button.
 - [Improvement] Removed `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` from `RolesEnum` and all admin tooling. `approveCandidate()` now grants `ROLE_ESSAYIST_MEMBER` directly instead of `ROLE_ESSAYIST_AUTHOR`. The Approved Authors and Supporters sections have been removed from the admin template.
 - [Bug] Fixed Essayist write-policy API endpoint checking `ROLE_ESSAYIST_AUTHOR` instead of `ROLE_ESSAYIST_MEMBER`. Early-bird members (and future pool contributors) could not publish to the relay despite holding the correct role. Updated `EssayistWriterPolicyController` and the `write-policy.sh` rejection message to use `ROLE_ESSAYIST_MEMBER`.
