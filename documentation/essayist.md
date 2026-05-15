@@ -209,7 +209,7 @@ Nobody centrally. You publish what you want. Other members can mute you. A muted
 
 ## Is this a paywall?
 
-Not in the platform-first sense. No money goes to the platform. It goes to the other members.
+Not in the platform-first sense. No money goes through the platform. It goes to the other members.
 
 ## What if someone is disruptive?
 

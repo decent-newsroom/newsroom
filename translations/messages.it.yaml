@@ -166,7 +166,7 @@ essayist:
             q4: 'Chi decide cosa è accettabile pubblicare?'
             a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi. Gli altri membri possono silenziare.'
             q5: 'È un paywall?'
-            a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro va alla piattaforma. Va agli altri membri.'
+            a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro passa attraverso la piattaforma. Va agli altri membri.'
 
 # ── Install prompt ────────────────────────────────────────────────
 install:

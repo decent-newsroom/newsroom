@@ -166,7 +166,7 @@ essayist:
             q4: 'Kdo odloča, kaj je primerno za objavo?'
             a4: 'Nihče centralno. Objavljate, kar želite. Drugi člani vas lahko utišajo.'
             q5: 'Je to plačilna pregrada?'
-            a5: 'Ne v smislu platformocentričnosti. Nič denarja ne gre platformi. Gre drugim članom.'
+            a5: 'Ne v smislu platformocentričnosti. Nič denarja ne gre skozi platformo. Gre drugim članom.'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

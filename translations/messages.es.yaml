@@ -166,7 +166,7 @@ essayist:
             q4: '¿Quién decide qué se puede publicar?'
             a4: 'Nadie de forma centralizada. Publicas lo que quieras. Otros miembros pueden silenciarte.'
             q5: '¿Es esto un muro de pago?'
-            a5: 'No en el sentido centrado en la plataforma. Ningún dinero va a la plataforma. Va a los otros miembros.'
+            a5: 'No en el sentido centrado en la plataforma. Ningún dinero pasa por la plataforma. Va a los otros miembros.'
 
 # ── Instalación ────────────────────────────────────────────────────
 install:
