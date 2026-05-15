@@ -187,9 +187,9 @@ The feed page at `/essayist/feed` (gated by `ROLE_ESSAYIST_MEMBER`, querying `st
 
 `EssayistAdminController` now loads and manages `ROLE_ESSAYIST_MEMBER` users. The Members section is shown first on `/admin/essayist`, with a grant-by-npub form, a table of active members (Early Bird badge where applicable), and a per-user revoke action.
 
-### 5. Join button is date-conditional
+### 5. Join button is date-conditional ✓ Fixed
 
-The "Request Access" button in the join section has a hardcoded `disabled` HTML attribute. It should be conditional on whether the current date has passed the launch date so it enables automatically after the relay goes live.
+The controller now computes `isLaunched` (comparing current time against the `2026-06-01` launch date) and passes it to the template. The submit button and anonymous CTA are enabled when `isLaunched` is true; the "opens on" hint is suppressed. The anonymous CTA becomes a login link post-launch instead of a permanently disabled button.
 
 ---
 
