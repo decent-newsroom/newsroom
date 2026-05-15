@@ -149,6 +149,16 @@ essayist:
                 already_pending: 'Ihre Anfrage wartet bereits auf Verifizierung.'
                 invalid_csrf: 'Anfrage fehlgeschlagen – ungültiges Sicherheitstoken. Bitte versuchen Sie es erneut.'
                 login_required: 'Bitte melden Sie sich zuerst an, um Mitgliedschaft zu beantragen.'
+                early_bird_claimed: 'Sie sind für den Juni dabei. Das Relay geht am 1. Juni live — willkommen im Pool.'
+                already_early_bird: 'Sie haben Ihren Early-Access-Platz bereits beansprucht.'
+        earlybird:
+            eyebrow: 'Früher Zugang'
+            heading: 'Der Juni geht auf uns.'
+            body: 'Das Relay geht am 1. Juni 2026 online. Melden Sie sich jetzt an und erhalten Sie den gesamten Juni kostenlos — keine Gebühr, keine Verpflichtung. Einfach Ihren Platz sichern und Sie sind vom ersten Tag an im Pool.'
+            deadline: 'Kostenloser Zugang bis zum 31. Mai 2026 verfügbar.'
+            ctaClaim: 'Kostenlosen Juni sichern'
+            ctaAnon: 'Anmelden und Platz sichern'
+            confirmedBody: 'Sie sind dabei. Bis zum 1. Juni.'
         model:
             eyebrow: 'Das Modell'
             heading: 'Der Pool trägt sich selbst.'

@@ -149,6 +149,16 @@ essayist:
                 already_pending: 'Your request is already pending verification.'
                 invalid_csrf: 'Request failed due to an invalid security token. Please try again.'
                 login_required: 'Please sign in first to request membership.'
+                early_bird_claimed: 'You are in for June. The relay goes live on 1 June — welcome to the pool.'
+                already_early_bird: 'You have already claimed your early access spot.'
+        earlybird:
+            eyebrow: 'Early Access'
+            heading: 'June is on us.'
+            body: 'The relay goes live on 1 June 2026. Sign up now and get the whole of June for free — no charge, no obligation. Just claim your spot and you are in the pool from day one.'
+            deadline: 'Free access available until 31 May 2026.'
+            ctaClaim: 'Claim your free June'
+            ctaAnon: 'Sign in to claim your spot'
+            confirmedBody: 'You are in. See you on 1 June.'
         model:
             eyebrow: 'The model'
             heading: 'The pool supports itself.'

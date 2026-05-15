@@ -149,6 +149,16 @@ essayist:
                 already_pending: 'Vaša zahteva že čaka na preverjanje.'
                 invalid_csrf: 'Zahteva ni uspela zaradi neveljavnega varnostnega žetona. Poskusite znova.'
                 login_required: 'Najprej se prijavite, da zahtevate članstvo.'
+                early_bird_claimed: 'Ste noter za junij. Podomrežnik se zažene 1. junija — dobrodošli v skupini.'
+                already_early_bird: 'Vaše mesto za zgodnji dostop je že rezervirano.'
+        earlybird:
+            eyebrow: 'Zgodnji dostop'
+            heading: 'Junij je na nas.'
+            body: 'Podomrežnik se zažene 1. junija 2026. Prijavite se zdaj in dobite ves junij brezplačno — brez stroškov, brez obveznosti. Samo rezervirajte svoje mesto in ste v skupini od prvega dne.'
+            deadline: 'Brezplačen dostop na voljo do 31. maja 2026.'
+            ctaClaim: 'Zahtevajte brezplačen junij'
+            ctaAnon: 'Prijavite se in rezervirajte mesto'
+            confirmedBody: 'Ste noter. Se vidimo 1. junija.'
         model:
             eyebrow: 'Model'
             heading: 'Sklad se financira sam.'

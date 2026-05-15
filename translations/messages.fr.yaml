@@ -149,6 +149,16 @@ essayist:
                 already_pending: 'Votre demande est déjà en attente de vérification.'
                 invalid_csrf: "La demande a échoué en raison d'un jeton de sécurité invalide. Veuillez réessayer."
                 login_required: "Veuillez d'abord vous connecter pour demander une adhésion."
+                early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le 1er juin — bienvenue dans le pool."
+                already_early_bird: "Vous avez déjà réclamé votre accès anticipé."
+        earlybird:
+            eyebrow: 'Accès anticipé'
+            heading: 'Juin est pour vous.'
+            body: "Le relais est mis en ligne le 1er juin 2026. Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement — sans frais, sans engagement. Réclamez simplement votre place et vous êtes dans le pool dès le premier jour."
+            deadline: "Accès gratuit disponible jusqu'au 31 mai 2026."
+            ctaClaim: 'Réclamer votre juin gratuit'
+            ctaAnon: 'Connectez-vous pour réclamer votre place'
+            confirmedBody: 'Vous êtes inscrit. À bientôt le 1er juin.'
         model:
             eyebrow: 'Le modèle'
             heading: 'Le pool se finance lui-même.'

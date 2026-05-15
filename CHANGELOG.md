@@ -3,6 +3,8 @@
 ## v0.0.39
 Essayist.
 
+- [Feature] Added Early Bird section to the Essayist landing page. The relay goes live on 1 June 2026; logged-in users can claim free access for the whole of June with a single click. Sign-up assigns `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER` with no payment required. Offer available until 31 May 2026. Translated into all six supported locales.
+
 - [Bug] Fixed `published_at` / `created_at` semantics in the editor. `published_at` was always overwritten with the current timestamp on every save, which broke the "first published" date shown on articles. It is now preserved from the existing article record and only set to the current time on the very first publish. `created_at` (the Nostr event field) continues to always reflect the current revision timestamp.
 - [Bug] Fixed dark mode in the editor: the dark theme CSS overrides were scoped to `.editor-shell` but the actual element uses `.editor-layout`, so variables were never applied. Also fixed the Quill toolbar having a hardcoded `background: white` instead of using the CSS variable.
 - [Bug] Fixed article publishing from the editor failing to publish to the project relay (`wss://relay.decentnewsroom.com`). The relay list stored in the `User` entity (populated via `getRelayListForDisplay()`) contains the public project relay URL; when that list was passed directly to `NostrClient::publishEvent()`, the project relay was kept alongside the local relay, causing Docker to open an external WebSocket to itself (which hangs). `publishEvent()` now filters out project relay URLs whenever the local relay is present, mirroring the same guard already applied in `getRelaysForPublishing()`.

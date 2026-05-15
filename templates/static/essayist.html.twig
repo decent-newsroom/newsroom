@@ -37,6 +37,42 @@
             </div>
         </section>
 
+        <section id="essayist-earlybird" class="essayist-section essayist-section--earlybird">
+            <div class="essayist-shell essayist-grid-two">
+                <div>
+                    <p class="essayist-eyebrow essayist-eyebrow--accent">{{ 'essayist.landing.earlybird.eyebrow'|trans }}</p>
+                    <h2>{{ 'essayist.landing.earlybird.heading'|trans }}</h2>
+                    <p class="essayist-earlybird__deadline">{{ 'essayist.landing.earlybird.deadline'|trans }}</p>
+                </div>
+                <div>
+                    {% if joinStatus == 'early_bird_claimed' %}
+                        <div class="essayist-alert essayist-alert--success">
+                            {{ 'essayist.landing.join.status.early_bird_claimed'|trans }}
+                        </div>
+                    {% elseif joinStatus == 'already_early_bird' %}
+                        <div class="essayist-alert essayist-alert--info">
+                            {{ 'essayist.landing.join.status.already_early_bird'|trans }}
+                        </div>
+                    {% endif %}
+
+                    <p class="essayist-copy">{{ 'essayist.landing.earlybird.body'|trans }}</p>
+
+                    {% if isEarlyBird or (isMember and isEarlyBird) %}
+                        <p class="essayist-earlybird__confirmed">{{ 'essayist.landing.earlybird.confirmedBody'|trans }}</p>
+                    {% elseif app.user %}
+                        <form method="post" action="{{ path('app_static_essayist_early_bird') }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
+                            <button type="submit" class="btn btn--primary">{{ 'essayist.landing.earlybird.ctaClaim'|trans }}</button>
+                        </form>
+                    {% else %}
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
         <section id="essayist-how" class="essayist-section essayist-section--muted">
             <div class="essayist-shell essayist-grid-two">
                 <div>

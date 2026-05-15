@@ -107,9 +107,38 @@ class StaticController extends AbstractController
         return $this->render('static/essayist.html.twig', [
             'isMember'    => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
             'isPending'   => in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true),
+            'isEarlyBird' => in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true),
             'memberCount' => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
             'joinStatus'  => $request->query->get('join_status'),
         ]);
+    }
+
+    #[Route('/essayist/early-bird', name: 'app_static_essayist_early_bird', methods: ['POST'])]
+    public function claimEarlyBird(
+        Request $request,
+        EntityManagerInterface $entityManager,
+    ): Response {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
+        }
+
+        $token = (string) $request->request->get('_token', '');
+        if (!$this->isCsrfTokenValid('essayist_early_bird', $token)) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'invalid_csrf']);
+        }
+
+        $roles = $user->getRoles();
+        if (in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true)) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'already_early_bird']);
+        }
+
+        $user->addRole(RolesEnum::ESSAYIST_EARLY_BIRD->value);
+        $user->addRole(RolesEnum::ESSAYIST_MEMBER->value);
+        $entityManager->persist($user);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_static_essayist', ['join_status' => 'early_bird_claimed']);
     }
 
     #[Route('/essayist/request-access', name: 'app_static_essayist_request_access', methods: ['POST'])]

@@ -177,8 +177,33 @@
     border-color: var(--color-success);
 }
 
-.essayist-alert--error {
-    border-color: var(--color-error);
+.essayist-alert--info {
+    border-color: var(--color-info);
+}
+
+.essayist-section--earlybird {
+    border-top: 2px solid var(--color-accent-strong);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.essayist-eyebrow--accent {
+    color: var(--color-accent-strong);
+}
+
+.essayist-earlybird__deadline {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-2);
+}
+
+.essayist-earlybird__confirmed {
+    color: var(--color-success);
+    font-weight: bold;
+    margin-top: var(--spacing-2);
+}
+
+.essayist-section--earlybird form {
+    margin-top: var(--spacing-2);
 }
 
 
