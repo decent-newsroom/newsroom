@@ -25,10 +25,39 @@
 
         <section class="essayist-status">
             <div class="essayist-shell essayist-status__grid">
+                {# Early bird: show countdown. Restore member count box below once relay goes live.
                 <div class="essayist-status__item">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.memberLabel'|trans }}</div>
                     <p class="essayist-status__count">{{ memberCount }}</p>
                     <p>{{ 'essayist.landing.status.memberBody'|trans }}</p>
+                </div>
+                #}
+                <div class="essayist-status__item"
+                     data-controller="ui--countdown"
+                     data-ui--countdown-target-value="2026-06-01T00:00:00">
+                    <div class="essayist-status__label">{{ 'essayist.landing.status.countdownLabel'|trans }}</div>
+                    <div class="essayist-countdown">
+                        <span class="essayist-countdown__unit">
+                            <span class="essayist-status__count" data-ui--countdown-days-target></span>
+                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownDays'|trans }}</span>
+                        </span>
+                        <span class="essayist-countdown__sep">:</span>
+                        <span class="essayist-countdown__unit">
+                            <span class="essayist-status__count" data-ui--countdown-hours-target></span>
+                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownHours'|trans }}</span>
+                        </span>
+                        <span class="essayist-countdown__sep">:</span>
+                        <span class="essayist-countdown__unit">
+                            <span class="essayist-status__count" data-ui--countdown-minutes-target></span>
+                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownMinutes'|trans }}</span>
+                        </span>
+                        <span class="essayist-countdown__sep">:</span>
+                        <span class="essayist-countdown__unit">
+                            <span class="essayist-status__count" data-ui--countdown-seconds-target></span>
+                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownSeconds'|trans }}</span>
+                        </span>
+                    </div>
+                    <p>{{ 'essayist.landing.status.countdownBody'|trans }}</p>
                 </div>
                 <div class="essayist-status__item">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.renewalLabel'|trans }}</div>

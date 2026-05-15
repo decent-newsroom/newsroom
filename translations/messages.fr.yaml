@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Relais financé par pool'
             heading: 'Un relais valeur-pour-valeur pour les essais.'
-            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle répartie entre les personnes déjà dans le pool. Publiez, lisez et participez librement."
+            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle répartie entre les personnes déjà dans le pool."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Rejoindre le pool'
             ctaMember: 'Ouvrir le fil'
@@ -118,6 +118,12 @@ essayist:
             memberBody: 'Personnes actuellement dans le pool. Leur mois est actif ; elles peuvent lire et publier.'
             renewalLabel: 'Adhésion'
             renewalBody: 'Contribuer ce mois vous donne accès le mois suivant. Renouvelez chaque mois pour rester.'
+            countdownLabel: 'Le relais sera en ligne dans'
+            countdownBody: "Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement."
+            countdownDays: 'j'
+            countdownHours: 'h'
+            countdownMinutes: 'min'
+            countdownSeconds: 's'
         how:
             eyebrow: 'Comment ça fonctionne'
             heading: 'Cinq étapes'

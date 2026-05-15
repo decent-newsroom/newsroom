@@ -121,6 +121,39 @@
     line-height: 1;
 }
 
+.essayist-countdown {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    margin: 0 0 var(--spacing-2);
+}
+
+.essayist-countdown__unit {
+    display: flex;
+    align-items: baseline;
+    gap: 0.2rem;
+}
+
+.essayist-countdown__unit .essayist-status__count {
+    margin: 0;
+}
+
+.essayist-countdown__unit-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.essayist-countdown__sep {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-text-muted);
+    line-height: 1;
+    margin-bottom: 0.15rem;
+}
+
 .essayist-steps {
     margin: 0;
     padding-left: 1.25rem;

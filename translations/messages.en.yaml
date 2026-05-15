@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Pool-funded relay'
             heading: 'A value-for-value relay for essays.'
-            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution distributed among the people already in the pool. Publish, read, and participate freely.'
+            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution distributed among the people already in the pool.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Join the pool'
             ctaMember: 'Open the feed'
@@ -118,6 +118,12 @@ essayist:
             memberBody: 'People currently in the pool. Their month is active; they can read and publish.'
             renewalLabel: 'Membership'
             renewalBody: 'Contributing this month grants you access for next month. Renew each month to stay in.'
+            countdownLabel: 'Relay goes live in'
+            countdownBody: 'Sign up now and get the whole of June for free.'
+            countdownDays: 'd'
+            countdownHours: 'h'
+            countdownMinutes: 'm'
+            countdownSeconds: 's'
         how:
             eyebrow: 'How it works'
             heading: 'Five steps'
