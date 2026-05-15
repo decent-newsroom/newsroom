@@ -4,19 +4,11 @@
 
 **Essayist is a Nostr relay for longform writing where access works by contributing to the people already in the pool.**
 
-To join, you send a small amount of sats distributed among the current members. That grants you one month of access. You can read. You can post. No approval required. No content gating. If you irritate people, they mute you, and you lose your audience. That is the only enforcement.
+To join, you send a small amount of sats to someone in the pool. That grants you access for the next month. You can read. You can post. No approval required. No content gating. If you irritate people, they mute you, and you lose your audience. That is the only enforcement.
 
 ---
 
 # 1. The Simple Explanation
-
-## Short Version
-
-Essayist is a Nostr relay for longform writing. To get in, you pay a small monthly contribution to someone in the pool. Once you are in, you can write and read freely. The community self-polices through muting.
-
-## Even Shorter Version
-
-Pay your share to someone in the pool. Publish or read. Do not be annoying or no one will see you.
 
 ## One-Line Pitch
 
@@ -36,41 +28,33 @@ Money flows between members, not to a platform. Everyone who participates is bot
 
 ---
 
-# 3. Minimal Product Scope
+# 3. Product Scope
 
 ## Required
 
-* Essayist landing page explaining the pool model.
-* Nostr login (already built).
-* Contribution flow: logged-in user chooses an amount, sends sats distributed across current pool members.
-* Manual or semi-automatic verification of contribution.
-* Access flag (`ROLE_ESSAYIST_MEMBER`) granted once contribution is verified, valid for the next month.
+* Essayist landing page explaining the pool model. ✓ Built
+* Nostr login. ✓ Already existed
+* Contribution flow: logged-in user sends sats to someone in the pool, access is verified and granted.
+* Manual verification fallback (admin grants `ROLE_ESSAYIST_MEMBER` via CLI or admin panel). ✓ Built
+* `ROLE_ESSAYIST_MEMBER` granted once contribution is verified, valid through end of next month.
 * Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
-* Relay write access also gated by `ROLE_ESSAYIST_MEMBER` (same role, no separate author check).
-* Basic admin view for pending access requests and active members.
+* Relay write access gated by `ROLE_ESSAYIST_MEMBER`. ✓ Built
+* Admin view: pending requests + active members + grant/revoke. ✓ Built
 
 ## Optional but Useful
 
-* Public member count.
-* Contribution history visible to the contributor.
-* Automatic role expiry (cron job removes lapsed access).
-* Landing page showing recent articles from the relay (public preview).
+* Public member count. ✓ Shown on landing page
+* Role expiry cron (removes lapsed membership automatically).
+* Landing page showing recent public articles from the relay.
 
 ## Defer
 
-* Algorithmic allocation.
+* Algorithmic sat allocation.
 * Cashu mint.
 * Complex ledger.
 * Automatic cartel detection.
 * Many access tiers.
 * Public audit system.
-* Curated writer packs.
-
-The first version only needs to answer:
-
-**Did this person contribute to the pool this month?**
-
-If yes, grant access for next month.
 
 ---
 
@@ -78,34 +62,40 @@ If yes, grant access for next month.
 
 ## One Role: `ROLE_ESSAYIST_MEMBER`
 
-There is a single role. It grants:
+There is a single access role. It grants:
 
 - read access to the gated DN feed page (`/essayist/feed`);
 - write access to the Essayist relay (`wss://essayist.decentnewsroom.com`).
 
-A member is anyone who has made a valid monthly contribution and whose access window has not expired.
+Both reading and writing require active membership. The relay is not intended for public access.
 
 ## Contribution
 
-The contribution is a small fixed amount of sats (set by the operator; suggested starting value: 1000–5000 sats per month). It is distributed among the current pool of active members at the time of payment. The split is even or proportional — operator decides the initial rule.
+The contribution is a small fixed amount of sats (suggested 1 000–5 000 sats/month). It goes to a current active member chosen via the landing page interface. The split is even or proportional — operator decides.
 
 Mechanics:
 
 1. Visitor logs in with their Nostr key.
-2. They are shown the current pool size, the required contribution amount, and a payment interface.
-3. They pay. Manual verification for now (admin runs `user:elevate <npub> ROLE_ESSAYIST_MEMBER`).
+2. They see the current member count, the required contribution, and a payment interface.
+3. They pay. Manual verification for now — admin runs `user:elevate <npub> ROLE_ESSAYIST_MEMBER`.
 4. Access is active for the current month and the next.
-5. At expiry, access lapses. The member can renew by contributing again.
+5. At expiry, access lapses. Renew by contributing again.
 
 ## Content Enforcement
 
-None. The relay accepts all kind 30023 from any member pubkey. No editorial review. No quality gate. If a member publishes content that others dislike, the community mutes them. A muted member still technically has access but has no effective audience.
-
-The relay operator reserves the right to delete content for legal reasons.
+None. The relay accepts all kind 30023 from any member pubkey. No editorial review. No quality gate. If a member publishes content that others dislike, the community mutes them. The relay operator reserves the right to delete content for legal reasons.
 
 ---
 
-# 9. Public Announcement Copy
+# 5. Early Bird (pre-launch offer)
+
+The relay goes live **1 June 2026**. Until **31 May 2026**, logged-in users can claim free membership for June with a single click on the landing page. This assigns both `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER`. No payment required for the early-bird period.
+
+After the deadline, the claim button disappears. The early-bird section remains visible.
+
+---
+
+# 6. Public Announcement Copy
 
 ## Option A
 
@@ -127,75 +117,88 @@ No curation. No approval. The relay and its members govern by muting.
 
 ---
 
-# 10. Technical Implementation Notes
-
-> This section bridges the concept above with the actual state of the Newsroom codebase.
+# 7. Technical Implementation
 
 ---
 
 ## Roles
 
-A single role is needed:
+Three roles are in use:
 
-- **`ROLE_ESSAYIST_MEMBER`**: granted when a contribution is verified. Grants both read access to the DN feed page and write access to the relay. Expires end of next month.
-- **`ROLE_ESSAYIST_EARLY_BIRD`**: supplementary badge for users who claimed free June access before the launch. These users also hold `ROLE_ESSAYIST_MEMBER`.
-- **`ROLE_ESSAYIST_CANDIDATE`**: transitional flag set when a logged-in user clicks "Request Access" before the relay goes live. Removed when an admin approves (grants `ROLE_ESSAYIST_MEMBER`) or rejects.
+| Role | Purpose |
+|---|---|
+| `ROLE_ESSAYIST_MEMBER` | Active membership — relay write access + gated feed read. |
+| `ROLE_ESSAYIST_EARLY_BIRD` | Supplementary badge for pre-launch free June access. Also holds `ROLE_ESSAYIST_MEMBER`. |
+| `ROLE_ESSAYIST_CANDIDATE` | Transitional flag: user has clicked "Request Access" and is awaiting admin approval. Removed on approve (→ `ROLE_ESSAYIST_MEMBER`) or reject. |
 
-The roles `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` have been removed from `RolesEnum` and from all admin tooling. They were part of an earlier writer-approval model that was superseded by the pool/contribution model before any users were assigned those roles.
-
-## What is already built and can be reused directly
-
-### Relay write-policy endpoint
-
-**`GET /api/internal/essayist/writer/{pubkey}`** — already implemented. Checks whether a hex pubkey holds the required role. For the simplified model, update this endpoint to check `ROLE_ESSAYIST_MEMBER` instead of `ROLE_ESSAYIST_AUTHOR`. No structural changes needed beyond the role name.
-
-### Nostr login
-
-`NostrAuthenticator` (NIP-07 / NIP-46) is already implemented. No separate login flow needed.
-
-### ZapButton component
-
-`ZapButton.php` (Twig Live Component, `Molecules/`) can be used to generate the contribution payment. Show a list of current member pubkeys and let the members choose. Make zap receipts work.
-### Admin role grant
-
-The `user:elevate` CLI command sets roles on the `User` entity. `ROLE_ESSAYIST_MEMBER` can be granted exactly like any other role. Manual process: admin verifies contribution, runs `user:elevate <npub> ROLE_ESSAYIST_MEMBER`.
-
-### Admin dashboard pattern
-
-The existing admin dashboard follows a consistent pattern. An Essayist section should be added here with:
-- Pending access requests (users who have initiated payment but not yet been verified)
-- Active members (users with `ROLE_ESSAYIST_MEMBER`, sorted by expiry)
-- Action to grant or revoke membership
+The roles `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` were part of an earlier writer-approval model and have been **removed** from `RolesEnum` and all admin tooling. No users were ever assigned them.
 
 ---
 
-## Critical gaps that block the launch model
+## Controllers
 
-### 1. Relay write-policy check ✓ Fixed
-
-The existing write-policy endpoint previously checked `ROLE_ESSAYIST_AUTHOR`. It now checks `ROLE_ESSAYIST_MEMBER`. The internal API contract did not change; only the role name checked server-side changed.
-
-### 2. Role expiry
-
-There is currently no mechanism to automatically remove `ROLE_ESSAYIST_MEMBER` after 30 days. This can be managed manually at first and automated later via a cron command that checks when the role was last granted and removes expired access.
-
-### 3. Gated feed page
-
-The feed page at `/essayist/feed` (gated by `ROLE_ESSAYIST_MEMBER`, querying `strfry-essayist` for kind 30023, rendered with `CardList`) does not yet exist.
-
-### 4. Admin panel covers old role set only ✓ Fixed
-
-`EssayistAdminController` now loads and manages `ROLE_ESSAYIST_MEMBER` users. The Members section is shown first on `/admin/essayist`, with a grant-by-npub form, a table of active members (Early Bird badge where applicable), and a per-user revoke action.
-
-### 5. Join button is date-conditional ✓ Fixed
-
-The controller now computes `isLaunched` (comparing current time against the `2026-06-01` launch date) and passes it to the template. The submit button and anonymous CTA are enabled when `isLaunched` is true; the "opens on" hint is suppressed. The anonymous CTA becomes a login link post-launch instead of a permanently disabled button.
+| Controller | Routes | Purpose |
+|---|---|---|
+| `App\Controller\EssayistController` | `GET /essayist`, `POST /essayist/early-bird`, `POST /essayist/request-access` | Public landing page and pre-launch sign-up flows |
+| `App\Controller\Administration\EssayistAdminController` | `/admin/essayist/*` | Admin management of members and candidates |
+| `App\Controller\Api\EssayistWriterPolicyController` | `GET /api/internal/essayist/writer/{pubkey}` | Internal bearer-token endpoint called by `write-policy.sh` |
 
 ---
 
-## Note on zap receipt detection
+## What is built
 
-Zap receipts (kind 9735) are now fully fetched, persisted, and displayed. `SocialEventService::getComments()` co-fetches kinds `[1111, 9735]` in a single subscription; `CommentEventProjector` persists them; `Comments::parseZaps()` renders amounts and sender identities. The `ZapButton` Live Component handles NIP-57 invoice creation with split-payment support. No blocking issues remain on this front.
+### Landing page (`/essayist`) ✓
+
+Publicly accessible. Sections:
+- Hero with state-aware CTA (member / logged-in pre-launch / logged-in post-launch / anon)
+- Countdown to launch / member count after launch
+- Early-bird offer (visible until 31 May 2026)
+- How it works
+- Join section — submit button is **date-conditional**: disabled + "opens on" hint before launch; enabled form post-launch; anon gets a login link post-launch
+- Model explanation
+- FAQ
+
+### Relay write-policy ✓
+
+`GET /api/internal/essayist/writer/{pubkey}` checks `ROLE_ESSAYIST_MEMBER` and returns `{"approved": true/false}`. Protected by bearer token (`ESSAYIST_POLICY_TOKEN`). Called by `write-policy.sh` on every incoming `EVENT`. Only kind 30023 passes the kind filter.
+
+> **Note on reads:** strfry's `write-policy.sh` plugin only intercepts `EVENT` messages — it has no hook into `REQ` (subscription/read) messages. Write gating is enforced at the relay protocol level. Read gating is enforced at the app layer (`/essayist/feed` is role-gated) and by keeping the relay WSS URL out of public listings. Full NIP-42 read-level enforcement at the relay protocol layer is a future improvement.
+
+### Admin panel (`/admin/essayist`) ✓
+
+Two sections:
+1. **Active Members** — lists `ROLE_ESSAYIST_MEMBER` holders; shows Early Bird badge; grant-by-npub form; per-user revoke.
+2. **Pending Candidates** — lists `ROLE_ESSAYIST_CANDIDATE` holders with article count on DN; approve (→ member) or reject.
+
+### Zap infrastructure ✓
+
+`ZapButton.php` (Twig Live Component) handles NIP-57 invoice creation with single and split-payment support. Zap receipts (kind 9735) are co-fetched with comments via `SocialEventService::getComments()` (kinds `[1111, 9735]`), persisted by `CommentEventProjector`, and rendered by `Comments::parseZaps()`.
+
+---
+
+## Open gaps
+
+### 1. Contribution flow UI — not yet built
+
+The member-funded payment flow is not wired into the landing page. Access is granted entirely manually. To implement:
+- Show a `ZapButton` on the join section targeting a selected current member's pubkey
+- On payment, admin verifies the zap receipt and grants `ROLE_ESSAYIST_MEMBER`
+- Future: automate via zap receipt matching (see `SubscriptionZapReceiptWorkerCommand` / `VanityNameZapReceiptWorkerCommand` for the pattern)
+
+### 2. Gated feed page (`/essayist/feed`) — not yet built
+
+Add to `EssayistController`:
+- `GET /essayist/feed`, guarded by `#[IsGranted('ROLE_ESSAYIST_MEMBER')]`
+- Query `strfry-essayist` (port 7779) for kind 30023
+- Render using existing `CardList` organism
+
+### 3. Role expiry — not yet automated
+
+`ROLE_ESSAYIST_MEMBER` is assigned but never removed automatically. Manage manually for now. Planned: cron command that reads a `membership_granted_at` timestamp and strips the role after 30 days.
+
+### 4. NIP-42 relay-level read enforcement — not yet implemented
+
+Currently, any client that knows the WSS URL can subscribe and read all articles from `strfry-essayist`. The `write-policy.sh` plugin only intercepts `EVENT` messages, not `REQ`. To enforce read access at the relay protocol layer, strfry NIP-42 AUTH needs to be wired in — either via a separate auth plugin or strfry's native `writePolicy` + `auth` mechanisms. Until then, read gating relies on the `/essayist/feed` app page (role-gated) and the relay URL not being publicly advertised.
 
 ---
 
@@ -203,24 +206,20 @@ Zap receipts (kind 9735) are now fully fetched, persisted, and displayed. `Socia
 
 ### Essayist relay (`strfry-essayist`)
 
-The Essayist relay is a dedicated strfry instance in `docker/strfry-essayist/`:
+Docker profile `essayist` — activate with `docker compose --profile essayist up -d`.
 
-- **`strfry.conf`** — port 7779, NIP-11 info declares `name = "Essayist"`.
-- **`write-policy.sh`** — rejects writes from pubkeys without `ROLE_ESSAYIST_MEMBER`. Accepted kinds: 30023 and any other longform kinds supported by the pool. Reads are open (any subscriber).
-- **`GET /api/internal/essayist/writer/{pubkey}`** — internal API called by the write policy on every incoming `EVENT`. Checks `ROLE_ESSAYIST_MEMBER`. Protected by bearer token (`ESSAYIST_POLICY_TOKEN` env var).
-- **Docker profile `essayist`** — activate with `docker compose --profile essayist up -d`.
+| File | Purpose |
+|---|---|
+| `docker/strfry-essayist/strfry.conf` | Port 7779, NIP-11 metadata |
+| `docker/strfry-essayist/write-policy.sh` | Calls internal API; accepts kind 30023 from members only |
 
-### Public subdomain
+### Caddy routing
 
-```
-wss://essayist.decentnewsroom.com
-```
-
-Caddy routes `essayist.decentnewsroom.com` to `strfry-essayist:7779` via the `@essayistRelay` matcher in `frankenphp/Caddyfile`.
+`frankenphp/Caddyfile` contains `@essayistRelay` matcher routing `{$ESSAYIST_RELAY_DOMAIN}` → `strfry-essayist:7779` via WebSocket reverse proxy.
 
 ### Environment variables
 
-| Variable | Default (dev) | Production value |
+| Variable | Dev default | Production |
 |---|---|---|
 | `ESSAYIST_RELAY_DOMAIN` | `essayist.localhost` | `essayist.decentnewsroom.com` |
 | `ESSAYIST_POLICY_TOKEN` | `changeme` | random 32-byte hex secret |
@@ -232,38 +231,17 @@ Caddy routes `essayist.decentnewsroom.com` to `strfry-essayist:7779` via the `@e
 ```json
 {
   "name": "Essayist",
-  "description": "A Nostr relay for longform writing. Monthly membership fee goes to current members. Write and read freely.",
+  "description": "A members-only Nostr relay for longform writing. Monthly membership fee goes directly to current members. Both reading and writing require active membership.",
   "pubkey": "d475ce4b3977507130f42c7f86346ef936800f3ae74d5ecf8089280cdc1923e9",
   "contact": "decentnewsroom.com",
   "supported_nips": [1, 2, 9, 11, 12, 15, 16, 20, 22],
   "software": "strfry",
   "limitation": {
     "payment_required": false,
-    "auth_required": false,
+    "auth_required": true,
     "restricted_writes": true
   }
 }
 ```
 
-`restricted_writes: true` signals to clients that write access requires active membership. Reads are unrestricted at the relay layer.
-
----
-
-## Suggested minimal technical scope
-
-1. **`ROLE_ESSAYIST_MEMBER` in `RolesEnum`** — one enum case. Grants relay write access and gated feed read access. ✓ Done
-
-2. **Update write-policy endpoint** — now checks `ROLE_ESSAYIST_MEMBER`. ✓ Done
-
-3. **Landing page: `/essayist`** — publicly accessible:
-   - Hero: headline, subheadline, CTA
-   - How it works (four steps above)
-   - Current member count (public)
-   - Contribution interface (ZapButton or manual invoice display)
-   - FAQ
-
-4. **Feed page: `/essayist/feed`** — gated by `ROLE_ESSAYIST_MEMBER`. Queries `strfry-essayist` for kind 30023 events. Renders with existing `CardList` organism.
-
-5. **Admin section: `/admin/essayist`** — pending requests + active members + grant/revoke actions.
-
-6. **No separate writer/reader distinction.** No application queue. No editorial review. No content quality check.
+`auth_required: true` and `restricted_writes: true` signal to clients that both reading and writing require active membership. Write gating is enforced at the relay protocol level via `write-policy.sh`. Read gating is currently enforced at the app layer only — full NIP-42 relay-level read enforcement is a future improvement (see open gap #4).
