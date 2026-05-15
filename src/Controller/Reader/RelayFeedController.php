@@ -8,6 +8,7 @@ use App\Enum\RelayPurpose;
 use App\Message\StartRelayFeedMessage;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\RelayRegistry;
+use App\Service\UserMuteListService;
 use App\Util\NostrKeyUtil;
 use App\Util\RelayUrlNormalizer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -102,6 +103,7 @@ class RelayFeedController extends AbstractController
     public function show(
         string $key,
         RelayFeedBufferService $buffer,
+        UserMuteListService $muteListService,
     ): Response {
         $relayUrl = $buffer->getRelayUrl($key);
 
@@ -112,13 +114,33 @@ class RelayFeedController extends AbstractController
         // Renew the active flag so the handler keeps re-dispatching.
         $buffer->markActive($key);
 
+        // ── Resolve user-level mute list (kind 10000, NIP-51) ──
+        $mutedPubkeys = [];
+        $user = $this->getUser();
+        if ($user !== null) {
+            try {
+                $pubkeyHex    = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                $mutedPubkeys = $muteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical — proceed without user mutes
+            }
+        }
+
+        // Filter buffered articles server-side so muted authors are hidden on page load.
         $articles = $buffer->getBuffer($key);
+        if ($mutedPubkeys !== []) {
+            $mutedSet = array_flip($mutedPubkeys);
+            $articles = array_values(
+                array_filter($articles, fn(array $a) => !isset($mutedSet[$a['pubkey'] ?? '']))
+            );
+        }
 
         return $this->render('relay_feed/feed.html.twig', [
-            'relay_url'    => $relayUrl,
-            'relay_key'    => $key,
-            'articles'     => $articles,
-            'mercure_topic' => '/relay-feed/' . $key,
+            'relay_url'      => $relayUrl,
+            'relay_key'      => $key,
+            'articles'       => $articles,
+            'mercure_topic'  => '/relay-feed/' . $key,
+            'muted_pubkeys'  => $mutedPubkeys,
         ]);
     }
 

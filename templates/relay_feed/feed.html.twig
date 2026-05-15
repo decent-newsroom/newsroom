@@ -7,6 +7,7 @@
      data-controller="content--relay-feed"
      data-content--relay-feed-topic-value="{{ mercure_topic }}"
      data-content--relay-feed-keepalive-url-value="{{ path('relay_feed_keepalive', { key: relay_key }) }}"
+     data-content--relay-feed-muted-pubkeys-value="{{ muted_pubkeys|json_encode }}"
 >
     <div class="relay-feed__header">
         <div class="relay-feed__meta">

@@ -13,6 +13,7 @@ export default class extends Controller {
     static values = {
         topic:        String,
         keepaliveUrl: String,
+        mutedPubkeys: Array,
     };
 
     static targets = ['list', 'count', 'indicator', 'empty'];
@@ -70,6 +71,12 @@ export default class extends Controller {
         this.es.onmessage = (event) => {
             try {
                 const card = JSON.parse(event.data);
+
+                // Skip articles from muted authors (live updates).
+                if (card.pubkey && this.mutedPubkeysValue.includes(card.pubkey)) {
+                    return;
+                }
+
                 this._prependCard(card);
             } catch (e) {
                 console.warn('[relay-feed] Failed to parse Mercure message', e);

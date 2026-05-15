@@ -3,6 +3,7 @@
 ## v0.0.39
 Essayist.
 
+- [Feature] Relay feeds now respect the logged-in user's NIP-51 mute list (kind 10000). Articles from muted pubkeys are filtered out on page load (server-side) and also suppressed as they arrive via live Mercure updates (client-side in the Stimulus controller).
 - [Bug] Fixed the "Sign & Publish" button in the media manager's Create Picture/Video modal doing nothing. The `signAndPublish()` method was only dispatching a Stimulus event with no listener. It now uses `getSigner()` to obtain the user's pubkey, injects it into the draft, signs the event, and POSTs the signed event to a new `/api/media/publish/event` endpoint which verifies the signature and publishes to the user's write relays. Added a status indicator in the draft section for feedback.
 - [Improvement] Deprecated article-count and Lightning address eligibility requirements for `ROLE_ESSAYIST_CANDIDATE`. The regular join path is disabled until 1.6.2026 and will be gated solely on the one-time 100-sat relay initialization fee going forward. No code changes were needed — requirements had already been removed from the controller; docs and changelog updated to reflect the new policy.
 - [Feature] Added Early Bird section to the Essayist landing page. The relay goes live on 1 June 2026; logged-in users can claim free access for the whole of June with a single click. Sign-up assigns `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER` with no payment required. Offer available until 31 May 2026. Translated into all six supported locales.
