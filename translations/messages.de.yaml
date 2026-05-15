@@ -187,6 +187,8 @@ essayist:
             a4: 'Niemand zentral. Sie veröffentlichen, was Sie möchten.'
             q5: 'Ist das eine Bezahlschranke?'
             a5: 'Nicht im plattformzentrierten Sinne. Kein Geld fließt durch die Plattform. Es geht an die anderen Mitglieder. Was hier veröffentlicht wird und wann, entscheidet jeder Autor selbst. Wenn sie Essayist-Mitgliedern frühen Zugang gewähren, bevor sie woanders veröffentlichen, wird der Relay zu einer First-Access-Schicht — eine Bezahlschranke aus freier Wahl, nicht durch Design.'
+            q6: 'Kann ich einfach Zaps mit einem Freund tauschen?'
+            a6: 'Das kannst du. Aber das hier ist ein Value-for-Value-Experiment. Behandle es entsprechend.'
 
 # ── Installationshinweis ───────────────────────────────────────────
 install:

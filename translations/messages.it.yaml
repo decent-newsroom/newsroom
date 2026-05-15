@@ -187,6 +187,8 @@ essayist:
             a4: 'Nessuno in modo centralizzato. Pubblichi ciò che vuoi.'
             q5: 'È un paywall?'
             a5: 'Non nel senso centrato sulla piattaforma. Nessun denaro passa attraverso la piattaforma. Va agli altri membri. Cosa viene pubblicato qui, e quando, è una scelta di ogni autore. Se decidono di dare agli iscritti Essayist accesso anticipato prima di pubblicare altrove, il relay diventa uno strato di primo accesso — un paywall per scelta, non per design.'
+            q6: 'Posso semplicemente scambiare zap con un amico?'
+            a6: 'Puoi. Ma questo è un esperimento di valore per valore. Trattalo di conseguenza.'
 
 # ── Install prompt ────────────────────────────────────────────────
 install:

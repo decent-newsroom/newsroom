@@ -187,6 +187,8 @@ essayist:
             a4: 'Nihče centralno. Objavljate, kar želite.'
             q5: 'Je to zaklenjena vsebina?'
             a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom. Kaj se tukaj objavi in kdaj, je odločitev vsakega avtorja. Če se odločijo dati članom Essayist zgodnji dostop pred objavo drugje, postane podomrežnik plast prvega dostopa — plačilni zid po izbiri, ne po zasnovi.'
+            q6: 'Ali lahko preprosto izmenjam zape s prijateljem?'
+            a6: 'Lahko. Toda to je eksperiment vrednost za vrednost. Ravnaj z njim v skladu s tem.'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:
