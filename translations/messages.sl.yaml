@@ -186,7 +186,7 @@ essayist:
             q4: 'Kdo odloča, kaj je primerno za objavo?'
             a4: 'Nihče centralno. Objavljate, kar želite.'
             q5: 'Je to zaklenjena vsebina?'
-            a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom.'
+            a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom. Kaj se tukaj objavi in kdaj, je odločitev vsakega avtorja. Če se odločijo dati članom Essayist zgodnji dostop pred objavo drugje, postane podomrežnik plast prvega dostopa — plačilni zid po izbiri, ne po zasnovi.'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

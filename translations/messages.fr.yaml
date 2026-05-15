@@ -186,7 +186,7 @@ essayist:
             q4: "Qui décide de ce qu'il est acceptable de publier ?"
             a4: 'Personne de façon centralisée. Vous publiez ce que vous voulez.'
             q5: 'Est-ce un mur payant ?'
-            a5: "Pas au sens centré sur la plateforme. Aucun argent ne passe par la plateforme. Il va aux autres membres."
+            a5: "Pas au sens centré sur la plateforme. Aucun argent ne passe par la plateforme. Il va aux autres membres. Ce qui est publié ici, et quand, relève entièrement du choix de chaque auteur. S'ils décident d'accorder aux membres Essayist un accès anticipé avant de publier ailleurs, le relais devient une couche d'accès prioritaire — un paywall par choix, non par conception."
 
 # ── Installation ───────────────────────────────────────────────────
 install:
