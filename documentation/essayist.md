@@ -138,8 +138,10 @@ No curation. No approval. The relay and its members govern by muting.
 A single role is needed:
 
 - **`ROLE_ESSAYIST_MEMBER`**: granted when a contribution is verified. Grants both read access to the DN feed page and write access to the relay. Expires end of next month.
+- **`ROLE_ESSAYIST_EARLY_BIRD`**: supplementary badge for users who claimed free June access before the launch. These users also hold `ROLE_ESSAYIST_MEMBER`.
+- **`ROLE_ESSAYIST_CANDIDATE`**: transitional flag set when a logged-in user clicks "Request Access" before the relay goes live. Removed when an admin approves (grants `ROLE_ESSAYIST_MEMBER`) or rejects.
 
-The previous `ROLE_ESSAYIST_CANDIDATE`, `ROLE_ESSAYIST_AUTHOR`, and `ROLE_ESSAYIST_SUPPORTER` roles are not used in this model and should not be created (or should be removed if already present).
+The roles `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` have been removed from `RolesEnum` and from all admin tooling. They were part of an earlier writer-approval model that was superseded by the pool/contribution model before any users were assigned those roles.
 
 ## What is already built and can be reused directly
 
@@ -169,19 +171,31 @@ The existing admin dashboard follows a consistent pattern. An Essayist section s
 
 ## Critical gaps that block the launch model
 
-### 1. Zap receipt detection is not working
+### 1. Relay write-policy check ✓ Fixed
 
-The project backlog notes: "Apparently no zaps are ever found on relays. Review."
+The existing write-policy endpoint previously checked `ROLE_ESSAYIST_AUTHOR`. It now checks `ROLE_ESSAYIST_MEMBER`. The internal API contract did not change; only the role name checked server-side changed.
 
-Until this is fixed, access granting is a manual admin step. The landing page shows the invoice; the admin approves once satisfied. Fix receipt detection separately before automating the gate.
+### 2. Role expiry
 
-### 2. Relay write-policy check
+There is currently no mechanism to automatically remove `ROLE_ESSAYIST_MEMBER` after 30 days. This can be managed manually at first and automated later via a cron command that checks when the role was last granted and removes expired access.
 
-The existing write-policy endpoint checks `ROLE_ESSAYIST_AUTHOR`. Update it to check `ROLE_ESSAYIST_MEMBER`. The internal API contract does not change; only the role name checked server-side changes.
+### 3. Gated feed page
 
-### 3. Role expiry
+The feed page at `/essayist/feed` (gated by `ROLE_ESSAYIST_MEMBER`, querying `strfry-essayist` for kind 30023, rendered with `CardList`) does not yet exist.
 
-There is currently no mechanism to automatically remove `ROLE_ESSAYIST_MEMBER` when expired. This can be managed manually at first and automated later via a cron command that checks when the role was last granted and removes expired access.
+### 4. Admin panel covers old role set only ✓ Fixed
+
+`EssayistAdminController` now loads and manages `ROLE_ESSAYIST_MEMBER` users. The Members section is shown first on `/admin/essayist`, with a grant-by-npub form, a table of active members (Early Bird badge where applicable), and a per-user revoke action.
+
+### 5. Join button is date-conditional
+
+The "Request Access" button in the join section has a hardcoded `disabled` HTML attribute. It should be conditional on whether the current date has passed the launch date so it enables automatically after the relay goes live.
+
+---
+
+## Note on zap receipt detection
+
+Zap receipts (kind 9735) are now fully fetched, persisted, and displayed. `SocialEventService::getComments()` co-fetches kinds `[1111, 9735]` in a single subscription; `CommentEventProjector` persists them; `Comments::parseZaps()` renders amounts and sender identities. The `ZapButton` Live Component handles NIP-57 invoice creation with split-payment support. No blocking issues remain on this front.
 
 ---
 
@@ -237,9 +251,9 @@ Caddy routes `essayist.decentnewsroom.com` to `strfry-essayist:7779` via the `@e
 
 ## Suggested minimal technical scope
 
-1. **`ROLE_ESSAYIST_MEMBER` in `RolesEnum`** — one enum case. Grants relay write access and gated feed read access.
+1. **`ROLE_ESSAYIST_MEMBER` in `RolesEnum`** — one enum case. Grants relay write access and gated feed read access. ✓ Done
 
-2. **Update write-policy endpoint** — change internal role check from `ROLE_ESSAYIST_AUTHOR` to `ROLE_ESSAYIST_MEMBER`.
+2. **Update write-policy endpoint** — now checks `ROLE_ESSAYIST_MEMBER`. ✓ Done
 
 3. **Landing page: `/essayist`** — publicly accessible:
    - Hero: headline, subheadline, CTA

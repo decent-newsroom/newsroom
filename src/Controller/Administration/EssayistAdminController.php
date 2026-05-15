@@ -26,22 +26,75 @@ class EssayistAdminController extends AbstractController
         ArticleRepository $articleRepository,
         RedisCacheService $redisCacheService,
     ): Response {
-        $candidates = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_CANDIDATE->value);
-        $authors    = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_AUTHOR->value);
-        $supporters = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_SUPPORTER->value);
+        $members    = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_MEMBER->value, null, 500);
+        $candidates = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_CANDIDATE->value, null, 500);
 
+        $members    = $this->enrichWithMetadata($members, $redisCacheService);
         $candidates = $this->enrichWithMetadataAndArticleCount($candidates, $redisCacheService, $articleRepository);
-        $authors    = $this->enrichWithMetadata($authors, $redisCacheService);
-        $supporters = $this->enrichWithMetadata($supporters, $redisCacheService);
 
         return $this->render('admin/essayist.html.twig', [
+            'members'    => $members,
             'candidates' => $candidates,
-            'authors'    => $authors,
-            'supporters' => $supporters,
         ]);
     }
 
-    /** Approve a candidate: remove CANDIDATE, add AUTHOR */
+    /** Manually grant member role by npub */
+    #[Route('/admin/essayist/members/grant', name: 'admin_essayist_grant_member', methods: ['POST'])]
+    public function grantMember(
+        Request $request,
+        UserEntityRepository $userRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $npub = trim((string) $request->request->get('npub', ''));
+
+        if (!$npub || !str_starts_with($npub, 'npub1')) {
+            $this->addFlash('error', 'Invalid npub format. Must start with npub1.');
+            return $this->redirectToRoute('admin_essayist_index');
+        }
+
+        $user = $userRepository->findOneBy(['npub' => $npub]);
+        if (!$user) {
+            $user = new User();
+            $user->setNpub($npub);
+            $user->setRoles([RolesEnum::ESSAYIST_MEMBER->value]);
+            $em->persist($user);
+            $this->addFlash('success', sprintf('Created user and granted membership to %s.', $npub));
+        } else {
+            if (in_array(RolesEnum::ESSAYIST_MEMBER->value, $user->getRoles(), true)) {
+                $this->addFlash('warning', 'User already has membership.');
+                return $this->redirectToRoute('admin_essayist_index');
+            }
+            $user->addRole(RolesEnum::ESSAYIST_MEMBER->value);
+            $this->addFlash('success', sprintf('Granted membership to %s.', $npub));
+        }
+
+        $em->flush();
+
+        return $this->redirectToRoute('admin_essayist_index');
+    }
+
+    /** Revoke member role */
+    #[Route('/admin/essayist/members/{id}/revoke', name: 'admin_essayist_revoke_member', methods: ['POST'])]
+    public function revokeMember(
+        int $id,
+        UserEntityRepository $userRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $user = $userRepository->find($id);
+        if (!$user) {
+            $this->addFlash('error', 'User not found.');
+            return $this->redirectToRoute('admin_essayist_index');
+        }
+
+        $user->removeRole(RolesEnum::ESSAYIST_MEMBER->value);
+        $em->flush();
+
+        $this->addFlash('success', sprintf('Revoked membership for %s.', $user->getNpub()));
+
+        return $this->redirectToRoute('admin_essayist_index');
+    }
+
+    /** Approve a candidate: remove CANDIDATE, grant MEMBER */
     #[Route('/admin/essayist/candidates/{id}/approve', name: 'admin_essayist_approve', methods: ['POST'])]
     public function approveCandidate(
         int $id,
@@ -55,10 +108,10 @@ class EssayistAdminController extends AbstractController
         }
 
         $user->removeRole(RolesEnum::ESSAYIST_CANDIDATE->value);
-        $user->addRole(RolesEnum::ESSAYIST_AUTHOR->value);
+        $user->addRole(RolesEnum::ESSAYIST_MEMBER->value);
         $em->flush();
 
-        $this->addFlash('success', sprintf('Approved %s as Essayist author.', $user->getNpub()));
+        $this->addFlash('success', sprintf('Approved %s — membership granted.', $user->getNpub()));
 
         return $this->redirectToRoute('admin_essayist_index');
     }
@@ -80,105 +133,6 @@ class EssayistAdminController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', sprintf('Rejected candidate %s.', $user->getNpub()));
-
-        return $this->redirectToRoute('admin_essayist_index');
-    }
-
-    /** Revoke author: remove AUTHOR role entirely */
-    #[Route('/admin/essayist/authors/{id}/revoke', name: 'admin_essayist_revoke_author', methods: ['POST'])]
-    public function revokeAuthor(
-        int $id,
-        UserEntityRepository $userRepository,
-        EntityManagerInterface $em,
-    ): Response {
-        $user = $userRepository->find($id);
-        if (!$user) {
-            $this->addFlash('error', 'User not found.');
-            return $this->redirectToRoute('admin_essayist_index');
-        }
-
-        $user->removeRole(RolesEnum::ESSAYIST_AUTHOR->value);
-        $em->flush();
-
-        $this->addFlash('success', sprintf('Revoked author access for %s.', $user->getNpub()));
-
-        return $this->redirectToRoute('admin_essayist_index');
-    }
-
-    /** Downgrade author back to candidate */
-    #[Route('/admin/essayist/authors/{id}/downgrade', name: 'admin_essayist_downgrade_author', methods: ['POST'])]
-    public function downgradeAuthor(
-        int $id,
-        UserEntityRepository $userRepository,
-        EntityManagerInterface $em,
-    ): Response {
-        $user = $userRepository->find($id);
-        if (!$user) {
-            $this->addFlash('error', 'User not found.');
-            return $this->redirectToRoute('admin_essayist_index');
-        }
-
-        $user->removeRole(RolesEnum::ESSAYIST_AUTHOR->value);
-        $user->addRole(RolesEnum::ESSAYIST_CANDIDATE->value);
-        $em->flush();
-
-        $this->addFlash('success', sprintf('Downgraded %s back to candidate.', $user->getNpub()));
-
-        return $this->redirectToRoute('admin_essayist_index');
-    }
-
-    /** Manually grant supporter role by npub */
-    #[Route('/admin/essayist/supporters/grant', name: 'admin_essayist_grant_supporter', methods: ['POST'])]
-    public function grantSupporter(
-        Request $request,
-        UserEntityRepository $userRepository,
-        EntityManagerInterface $em,
-    ): Response {
-        $npub = trim((string) $request->request->get('npub', ''));
-
-        if (!$npub || !str_starts_with($npub, 'npub1')) {
-            $this->addFlash('error', 'Invalid npub format. Must start with npub1.');
-            return $this->redirectToRoute('admin_essayist_index');
-        }
-
-        $user = $userRepository->findOneBy(['npub' => $npub]);
-        if (!$user) {
-            $user = new User();
-            $user->setNpub($npub);
-            $user->setRoles([RolesEnum::ESSAYIST_SUPPORTER->value]);
-            $em->persist($user);
-            $this->addFlash('success', sprintf('Created user and granted supporter access to %s.', $npub));
-        } else {
-            if (in_array(RolesEnum::ESSAYIST_SUPPORTER->value, $user->getRoles(), true)) {
-                $this->addFlash('warning', 'User already has supporter access.');
-                return $this->redirectToRoute('admin_essayist_index');
-            }
-            $user->addRole(RolesEnum::ESSAYIST_SUPPORTER->value);
-            $this->addFlash('success', sprintf('Granted supporter access to %s.', $npub));
-        }
-
-        $em->flush();
-
-        return $this->redirectToRoute('admin_essayist_index');
-    }
-
-    /** Revoke supporter role */
-    #[Route('/admin/essayist/supporters/{id}/revoke', name: 'admin_essayist_revoke_supporter', methods: ['POST'])]
-    public function revokeSupporter(
-        int $id,
-        UserEntityRepository $userRepository,
-        EntityManagerInterface $em,
-    ): Response {
-        $user = $userRepository->find($id);
-        if (!$user) {
-            $this->addFlash('error', 'User not found.');
-            return $this->redirectToRoute('admin_essayist_index');
-        }
-
-        $user->removeRole(RolesEnum::ESSAYIST_SUPPORTER->value);
-        $em->flush();
-
-        $this->addFlash('success', sprintf('Revoked supporter access for %s.', $user->getNpub()));
 
         return $this->redirectToRoute('admin_essayist_index');
     }
