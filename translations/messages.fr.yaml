@@ -105,7 +105,7 @@ essayist:
         hero:
             eyebrow: 'Relay financé par le pool'
             heading: 'Un relay qui rémunère ses membres.'
-            lede: 'Essayist est un relay Nostr pour l'écriture longue. Pour y accéder, vous versez une petite contribution mensuelle distribuée entre les personnes déjà dans le pool. Publiez, lisez et participez librement. La communauté gère le reste.'
+            lede: "Essayist est un relay Nostr pour l'écriture longue. Pour y accéder, vous versez une petite contribution mensuelle distribuée entre les personnes déjà dans le pool. Publiez, lisez et participez librement. La communauté gère le reste."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Rejoindre le pool'
             ctaMember: 'Ouvrir le fil'
