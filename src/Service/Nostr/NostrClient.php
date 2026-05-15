@@ -46,6 +46,20 @@ class NostrClient
             $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
         } else {
             $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
+            // Remove project relay URLs (e.g. wss://relay.decentnewsroom.com) from the
+            // publish list when the local relay is present — the project relay and the
+            // local strfry container are the same physical machine, so connecting to the
+            // public hostname from inside Docker hangs.  The local relay (already in the
+            // list via ensureLocalRelayInList) handles ingestion for this machine.
+            $local = $this->relayRegistry->getLocalRelay();
+            if ($local !== null) {
+                $relays = array_values(array_filter(
+                    $relays,
+                    fn(string $url) => !$this->relayRegistry->isProjectRelay($url)
+                ));
+                // Re-ensure local relay is present (it may have been the only one)
+                $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
+            }
         }
 
         $this->logger->info('Publishing event to relays', [
