@@ -77,6 +77,7 @@ class ReadingListManager
                 30006 => 'Pictures',
                 default => 'Unknown',
             };
+            $rawType = null; // actual value of the 'type' tag, if present
 
             foreach ($tags as $t) {
                 if (is_array($t)) {
@@ -88,6 +89,9 @@ class ReadingListManager
                     }
                     if (($t[0] ?? null) === 'd') {
                         $slug = (string)$t[1];
+                    }
+                    if (($t[0] ?? null) === 'type' && isset($t[1])) {
+                        $rawType = (string)$t[1];
                     }
                     // Count all 'a' tags (coordinate references)
                     if (($t[0] ?? null) === 'a' && isset($t[1])) {
@@ -141,6 +145,7 @@ class ReadingListManager
                 'itemCount' => $itemCount,
                 'kind' => $kind,
                 'type' => $typeLabel,
+                'rawType' => $rawType,
                 'isEmpty' => !$hasAnyATags && !$hasAnyETags,
             ];
         }
@@ -228,6 +233,7 @@ class ReadingListManager
                 // Found it! Parse into CategoryDraft
                 $draft = new CategoryDraft();
                 $draft->slug = $slug;
+                $eventType = 'reading-list'; // default
 
                 foreach ($tags as $t) {
                     if (!is_array($t)) continue;
@@ -241,6 +247,7 @@ class ReadingListManager
                         'author' => $draft->author = (string)$tagValue,
                         't' => $draft->tags[] = (string)$tagValue,
                         'a' => $draft->articles[] = (string)$tagValue,
+                        'type' => $eventType = (string)$tagValue,
                         default => null,
                     };
                 }
@@ -248,6 +255,8 @@ class ReadingListManager
                 // Save to session
                 $session = $this->requestStack->getSession();
                 $session->set('read_wizard', $draft);
+                // Preserve the original event type so the review step does not clobber it
+                $session->set('read_wizard_type', $eventType);
                 $this->setSelectedListSlug($slug);
 
                 return $draft;

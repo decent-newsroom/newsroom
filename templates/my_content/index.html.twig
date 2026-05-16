@@ -60,7 +60,12 @@
                         <span class="fs-col fs-col--kind">
                             {{ item.type }}
                             {% if item.kind == 30040 %}
-                                <a href="{{ path('read_wizard_articles', {'load': item.slug}) }}" class="fs-action" title="Open composer">✎</a>
+                                {% if item.rawType == 'magazine' %}
+                                    <a href="{{ path('mag_wizard_edit', {'slug': item.slug}) }}" class="fs-action" title="Edit in magazine wizard">✎</a>
+                                {% else %}
+                                    <a href="{{ path('read_wizard_articles', {'load': item.slug}) }}" class="fs-action" title="Open composer">✎</a>
+                                    <a href="{{ path('mag_wizard_edit', {'slug': item.slug}) }}" class="fs-action" title="Edit as magazine">⊞</a>
+                                {% endif %}
                             {% endif %}
                             {% if item.slug %}
                                 {% if item.kind == 30040 %}
