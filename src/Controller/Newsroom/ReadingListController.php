@@ -78,6 +78,7 @@ class ReadingListController extends AbstractController
                 $hasMagazineReferences = false;
                 $title = null; $slug = null; $summary = null;
                 $itemCount = 0;
+                $image = null;
 
                 // Determine type label from kind
                 $typeLabel = match($kind) {
@@ -94,6 +95,7 @@ class ReadingListController extends AbstractController
                         if (($t[0] ?? null) === 'title') { $title = (string)($t[1] ?? ''); }
                         if (($t[0] ?? null) === 'summary') { $summary = (string)($t[1] ?? ''); }
                         if (($t[0] ?? null) === 'd') { $slug = (string)($t[1] ?? ''); }
+                        if (($t[0] ?? null) === 'image') { $image = (string)($t[1] ?? ''); }
 
                         // Count all 'a' tags (coordinate references)
                         if (($t[0] ?? null) === 'a' && isset($t[1])) {
@@ -128,6 +130,7 @@ class ReadingListController extends AbstractController
                     'id' => $ev->getId(),
                     'title' => $title ?: '(untitled)',
                     'summary' => $summary,
+                    'image' => $image ?: null,
                     'slug' => $slug,
                     'createdAt' => $ev->getCreatedAt(),
                     'pubkey' => $ev->getPubkey(),

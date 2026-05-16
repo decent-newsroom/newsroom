@@ -111,9 +111,10 @@ class ArticlePublicationIndexer
      *   'magazine_pubkey'   => string,
      *   'category_title'    => string|null,   // null when article is directly in the magazine
      *   'category_slug'     => string|null,
+     *   'is_reading_list'   => bool,          // true when the top-level container has type='reading-list'
      * ]
      *
-     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null, is_reading_list: bool}>
      */
     public function findPublicationsForArticle(string $articlePubkey, string $articleSlug): array
     {
@@ -147,7 +148,7 @@ class ArticlePublicationIndexer
      * Resolve AIP rows into the publication display structure.
      *
      * @param  \App\Entity\ArticleInPublication[] $rows
-     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null, is_reading_list: bool}>
      */
     private function resolveFromAipRows(array $rows): array
     {
@@ -164,14 +165,17 @@ class ArticlePublicationIndexer
                     'magazine_pubkey' => $parentData['pubkey'],
                     'category_title'  => $row->getContainerTitle(),
                     'category_slug'   => $row->getContainerDTag(),
+                    'is_reading_list' => false,
                 ];
             } else {
+                $containerType = $this->getContainerTypeTag($row->getContainerPubkey(), $row->getContainerDTag());
                 $results[] = [
                     'magazine_title'  => $row->getContainerTitle(),
                     'magazine_slug'   => $row->getContainerDTag(),
                     'magazine_pubkey' => $row->getContainerPubkey(),
                     'category_title'  => null,
                     'category_slug'   => null,
+                    'is_reading_list' => $containerType === 'reading-list',
                 ];
             }
         }
@@ -184,7 +188,7 @@ class ArticlePublicationIndexer
      * Finds every kind 30040 event whose 'a' tags reference this article's coordinate,
      * then resolves the parent magazine for each.
      *
-     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null, is_reading_list: bool}>
      */
     private function findPublicationsDirect(string $articlePubkey, string $articleSlug): array
     {
@@ -230,12 +234,16 @@ class ArticlePublicationIndexer
 
             $containerTitle  = null;
             $containerDTag   = null;
+            $containerType   = null;
             foreach ($tags as $tag) {
                 if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
                     $containerTitle = (string) $tag[1];
                 }
                 if (($tag[0] ?? '') === 'd' && isset($tag[1])) {
                     $containerDTag = (string) $tag[1];
+                }
+                if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
+                    $containerType = (string) $tag[1];
                 }
             }
 
@@ -253,6 +261,7 @@ class ArticlePublicationIndexer
                     'magazine_pubkey' => $parentData['pubkey'],
                     'category_title'  => $containerTitle,
                     'category_slug'   => $containerDTag,
+                    'is_reading_list' => false,
                 ];
             } else {
                 $results[] = [
@@ -261,6 +270,7 @@ class ArticlePublicationIndexer
                     'magazine_pubkey' => $containerRow['pubkey'],
                     'category_title'  => null,
                     'category_slug'   => null,
+                    'is_reading_list' => $containerType === 'reading-list',
                 ];
             }
         }
@@ -326,10 +336,53 @@ class ArticlePublicationIndexer
     }
 
     /**
+     * Fetch the 'type' tag value from a kind 30040 container event identified by pubkey + d-tag.
+     * Returns null when the event is not found or has no 'type' tag.
+     */
+    private function getContainerTypeTag(string $pubkey, string $dtag): ?string
+    {
+        $conn = $this->em->getConnection();
+
+        $sql = "SELECT e.tags
+                FROM   event e
+                WHERE  e.kind    = :kind
+                  AND  e.pubkey  = :pubkey
+                  AND  EXISTS (
+                      SELECT 1
+                      FROM   jsonb_array_elements(e.tags) AS tag
+                      WHERE  tag->>0 = 'd'
+                        AND  tag->>1 = :dtag
+                  )
+                ORDER BY e.created_at DESC
+                LIMIT 1";
+
+        /** @var array{tags: string|array<mixed>}|false $row */
+        $row = $conn->executeQuery($sql, [
+            'kind'   => KindsEnum::PUBLICATION_INDEX->value,
+            'pubkey' => $pubkey,
+            'dtag'   => $dtag,
+        ])->fetchAssociative();
+
+        if (!$row) {
+            return null;
+        }
+
+        $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : $row['tags'];
+
+        foreach ($tags as $tag) {
+            if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
+                return (string) $tag[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Deduplicate a results list by magazine (slug + pubkey).
      *
-     * @param  array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}> $results
-     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null}>
+     * @param  array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null, is_reading_list: bool}> $results
+     * @return array<int, array{magazine_title: string|null, magazine_slug: string, magazine_pubkey: string, category_title: string|null, category_slug: string|null, is_reading_list: bool}>
      */
     private function deduplicateByMagazine(array $results): array
     {
