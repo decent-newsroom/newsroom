@@ -566,6 +566,18 @@ class MagazineWizardController extends AbstractController
         }
     }
 
+    /**
+     * Start a new magazine — clears any existing session draft and begins fresh.
+     * All "Create magazine" entry-point links should use this route so users never
+     * accidentally continue editing a previously-created magazine.
+     */
+    #[Route('/magazine/wizard/new', name: 'mag_wizard_new')]
+    public function newMagazine(Request $request): Response
+    {
+        $this->clearDraft($request);
+        return $this->redirectToRoute('mag_wizard_setup');
+    }
+
     #[Route('/magazine/wizard/cancel', name: 'mag_wizard_cancel', methods: ['GET'])]
     public function cancel(Request $request): Response
     {

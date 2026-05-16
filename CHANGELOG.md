@@ -3,7 +3,9 @@
 ## v0.0.40
 Essayist membership gateway.
 
+- [Bug] Fixed magazine wizard always loading the previous magazine draft when navigating to the setup page. Added a `mag_wizard_new` route that clears the session draft before starting the wizard; all external "Create magazine" entry points (nav, newsstand, my-magazines, subscription pages) now point to this route. When a session draft is present and the user arrives at the setup page directly, a warning notice is shown with a "Start a new magazine instead" link to the new route.
 - [Feature] Designed `essayist-gateway`: a standalone Go WebSocket proxy that sits between Caddy and `strfry-essayist`. Every inbound connection must complete a NIP-42 AUTH handshake; the gateway verifies the kind:22242 event (signature, relay URL, challenge, timestamp) and checks active `ROLE_ESSAYIST_MEMBER` via a two-tier Redis cache / PHP API lookup before forwarding to the relay. Documented in `documentation/essayist-gateway.md`.
+
 
 ## v0.0.39
 Essayist.

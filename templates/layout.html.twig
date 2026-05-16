@@ -42,7 +42,7 @@
                 <div class="nav-section">
                     <div class="nav-section__label">{{ 'nav.create'|trans }}</div>
                     <ul class="user-nav">
-                        <li><a href="{{ path('mag_wizard_setup') }}">{{ 'nav.magazine'|trans }}</a></li>
+                        <li><a href="{{ path('mag_wizard_new') }}">{{ 'nav.magazine'|trans }}</a></li>
                         <li><a href="{{ path('reading_list_index') }}">{{ 'nav.readingList'|trans }}</a></li>
                         <li><a href="{{ path('editor-create') }}">{{ 'nav.article'|trans }}</a></li>
                         {% if app.user %}
@@ -70,7 +70,7 @@
                 {% if app.user %}
                     <div class="d-flex gap-3 center mt-3 mb-3 p-3 ln-section--reader">
                         <div class="text-center">Turn your articles into a publication.</div>
-                        <a class="btn" href="{{ path('mag_wizard_setup') }}">{{ 'nav.startBlog'|trans }}</a>
+                        <a class="btn" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
                     </div>
                 {% else %}
                     <div class="mt-3 mb-3">

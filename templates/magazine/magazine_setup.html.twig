@@ -5,6 +5,15 @@
 
     {% include 'magazine/_wizard_steps.html.twig' with { currentStep: 1 } %}
 
+    {% if not isNewDraft %}
+        <div class="notice notice--warning mb-4">
+            <p>You are continuing an existing magazine draft (<strong>{{ draft.title ?: draft.slug }}</strong>).
+                Submitting this wizard will overwrite that magazine.
+                <a href="{{ path('mag_wizard_new') }}">Start a new magazine instead</a>.
+            </p>
+        </div>
+    {% endif %}
+
     {% if not isLoggedIn %}
         <div class="notice info mb-4">
             <p>You'll need a Nostr identity to publish your magazine.
