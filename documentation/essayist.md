@@ -162,7 +162,7 @@ Publicly accessible. Sections:
 
 `GET /api/internal/essayist/writer/{pubkey}` checks `ROLE_ESSAYIST_MEMBER` and returns `{"approved": true/false}`. Protected by bearer token (`ESSAYIST_POLICY_TOKEN`). Called by `write-policy.sh` on every incoming `EVENT`. Only kind 30023 passes the kind filter.
 
-> **Note on reads:** strfry's `write-policy.sh` plugin only intercepts `EVENT` messages — it has no hook into `REQ` (subscription/read) messages. Write gating is enforced at the relay protocol level. Read gating is enforced at the app layer (`/essayist/feed` is role-gated) and by keeping the relay WSS URL out of public listings. Full NIP-42 read-level enforcement at the relay protocol layer is a future improvement.
+> **Note on reads:** strfry's `write-policy.sh` plugin only intercepts `EVENT` messages — it has no hook into `REQ` (subscription/read) messages. Write gating is enforced at the relay protocol level. Read gating is enforced at the app layer (`/essayist/feed` is role-gated) and by keeping the relay WSS URL out of public listings. Full NIP-42 read-level enforcement at the relay protocol layer is handled by `essayist-gateway` (see `documentation/essayist-gateway.md`).
 
 ### Admin panel (`/admin/essayist`) ✓
 
@@ -196,9 +196,11 @@ Add to `EssayistController`:
 
 `ROLE_ESSAYIST_MEMBER` is assigned but never removed automatically. Manage manually for now. Planned: cron command that reads a `membership_granted_at` timestamp and strips the role after 30 days.
 
-### 4. NIP-42 relay-level read enforcement — not yet implemented
+### 4. NIP-42 relay-level read enforcement — designed, implementation pending
 
-Currently, any client that knows the WSS URL can subscribe and read all articles from `strfry-essayist`. The `write-policy.sh` plugin only intercepts `EVENT` messages, not `REQ`. To enforce read access at the relay protocol layer, strfry NIP-42 AUTH needs to be wired in — either via a separate auth plugin or strfry's native `writePolicy` + `auth` mechanisms. Until then, read gating relies on the `/essayist/feed` app page (role-gated) and the relay URL not being publicly advertised.
+A dedicated `essayist-gateway` service will sit between Caddy and `strfry-essayist`, enforcing NIP-42 AUTH on every inbound connection before forwarding anything to the relay. This gates both reads (REQ) and writes (EVENT) at the WebSocket protocol layer.
+
+Full design: `documentation/essayist-gateway.md`.
 
 ---
 

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.40
+Essayist membership gateway.
+
+- [Feature] Designed `essayist-gateway`: a standalone Go WebSocket proxy that sits between Caddy and `strfry-essayist`. Every inbound connection must complete a NIP-42 AUTH handshake; the gateway verifies the kind:22242 event (signature, relay URL, challenge, timestamp) and checks active `ROLE_ESSAYIST_MEMBER` via a two-tier Redis cache / PHP API lookup before forwarding to the relay. Documented in `documentation/essayist-gateway.md`.
+
 ## v0.0.39
 Essayist.
 
