@@ -49,4 +49,10 @@ class CategoryDraft
     {
         return empty($this->title) && empty($this->existingListCoordinate);
     }
+
+    /**
+     * Optional author display name. When set, supersedes the publishing npub in bylines
+     * and is stored as an 'author' tag on the reading-list event.
+     */
+    public ?string $author = null;
 }

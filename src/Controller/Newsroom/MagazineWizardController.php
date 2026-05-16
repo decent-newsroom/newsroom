@@ -290,6 +290,7 @@ class MagazineWizardController extends AbstractController
         if ($draft->title) { $magTags[] = ['title', $draft->title]; }
         if ($draft->summary) { $magTags[] = ['summary', $draft->summary]; }
         if ($draft->imageUrl) { $magTags[] = ['image', $draft->imageUrl]; }
+        if ($draft->author) { $magTags[] = ['author', $draft->author]; }
         if ($draft->language) {
             // NIP-32 compliant language labeling using ISO-639-1
             $magTags[] = ['L', 'ISO-639-1'];
@@ -643,6 +644,7 @@ class MagazineWizardController extends AbstractController
         $draft->imageUrl = $this->getTagValue($tags, 'image') ?? '';
         $draft->language = $this->getTagValue($tags, 'l');
         $draft->tags = $this->getAllTagValues($tags, 't');
+        $draft->author = $this->getTagValue($tags, 'author');
         $draft->categories = [];
 
         // Load zap split npub from existing magazine event (admin feature)

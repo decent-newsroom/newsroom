@@ -62,6 +62,15 @@ class MagazineSetupType extends AbstractType
                 'required' => false,
                 'empty_data' => '',
             ])
+            ->add('author', TextType::class, [
+                'label' => 'Author (optional)',
+                'required' => false,
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'Display name shown in byline instead of your Nostr profile',
+                ],
+                'help' => 'When set, this name appears in the byline instead of your Nostr identity.',
+            ])
         ;
 
         if ($options['is_admin']) {

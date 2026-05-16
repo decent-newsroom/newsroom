@@ -61,7 +61,14 @@
             <h1>{{ list.title }}</h1>
             <p class="eyebrow">{{ list.summary }}</p>
         </div>
-        <div>by <twig:Molecules:UserFromNpub :ident="list.pubkey" /></div>
+        <div>by
+            {% set listAuthor = list.author %}
+            {% if listAuthor %}
+                {{ listAuthor }}
+            {% else %}
+                <twig:Molecules:UserFromNpub :ident="list.pubkey" />
+            {% endif %}
+        </div>
     </section>
 
     <div class="w-container">

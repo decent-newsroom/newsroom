@@ -17,7 +17,7 @@ final class ReadingListList
     }
 
     /**
-     * @return array<int, array{title:string, summary: ?string, image: ?string, slug:string, createdAt:int, pubkey:string, kind:int, type:string, itemCount:int}>
+     * @return array<int, array{title:string, summary: ?string, image: ?string, slug:string, createdAt:int, pubkey:string, author: ?string, kind:int, type:string, itemCount:int}>
      */
     public function getLists(): array
     {
@@ -46,6 +46,7 @@ final class ReadingListList
             $summary = null;
             $image = null;
             $slug = null;
+            $author = null;
             $itemCount = 0;
             $hasItems = false;
 
@@ -64,6 +65,7 @@ final class ReadingListList
                 if (($t[0] ?? null) === 'summary') { $summary = (string)$t[1]; }
                 if (($t[0] ?? null) === 'image') { $image = (string)$t[1]; }
                 if (($t[0] ?? null) === 'd') { $slug = (string)$t[1]; }
+                if (($t[0] ?? null) === 'author' && isset($t[1]) && $t[1] !== '') { $author = (string)$t[1]; }
                 // Count all 'a' tags (coordinate references)
                 if (($t[0] ?? null) === 'a' && isset($t[1])) {
                     $itemCount++;
@@ -112,6 +114,7 @@ final class ReadingListList
                 'slug' => $slug,
                 'createdAt' => $ev->getCreatedAt(),
                 'pubkey' => $ev->getPubkey(),
+                'author' => $author,
                 'kind' => $kind,
                 'type' => $typeLabel,
                 'itemCount' => $itemCount,

@@ -3,6 +3,7 @@
 ## v0.0.40
 Essayist membership gateway.
 
+- [Feature] Optional `author` field on magazines and reading lists: an `author` input is now available in the magazine setup wizard and the reading list setup wizard. When filled in, the value is stored as an `author` tag on the published event. Wherever a byline is displayed (magazine hero, reading list detail page, reading list card component), the plain-text `author` value supersedes the publishing npub and is shown as unlinked text. If no author override is set, the existing `UserFromNpub` profile link is shown as before.
 - [Feature] Reading list cover images: cover images stored in the `image` tag of reading list events (kind 30040) and curation sets are now displayed on the public lists page, the individual reading list detail page, and the "My Reading Lists" management page — consistent with the existing magazine and follow pack card patterns.
 - [Feature] "Included in" sidebar on article pages now links to the reading-list route (instead of the magazine-index route) when the containing kind 30040 event has a `type: reading-list` tag, giving readers a direct link back to the reading list.
 - [Improvement] Fixed Symfony validator/form deprecations: converted array-style constraint options (`NotBlank`, `Regex`, `PositiveOrZero`) to named arguments in `MediaAttachmentType` and `ZapSplitType`; added `default_protocol: null` to all `UrlType` fields in `MediaAttachmentType`, `EditorType`, and `AdvancedMetadataType`.

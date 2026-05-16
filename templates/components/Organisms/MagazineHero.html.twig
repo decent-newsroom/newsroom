@@ -76,7 +76,14 @@
                 <p class="eyebrow">{{ heroSummary }}</p>
             {% endif %}
             {% if not preview|default(false) and magazine is defined and magazine %}
-                <div>by <twig:Molecules:UserFromNpub :ident="magazine.pubkey" /></div>
+                <div>by
+                    {% set displayAuthor = this.displayAuthor %}
+                    {% if displayAuthor %}
+                        {{ displayAuthor }}
+                    {% else %}
+                        <twig:Molecules:UserFromNpub :ident="magazine.pubkey" />
+                    {% endif %}
+                </div>
             {% endif %}
 
             {# Action buttons #}

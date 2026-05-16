@@ -205,7 +205,7 @@ class ReadingListController extends AbstractController
             $request->getSession()->set('read_wizard_type', 'category');
         }
 
-        $form = $this->createForm(CategoryType::class, $draft);
+        $form = $this->createForm(CategoryType::class, $draft, ['show_author' => true]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var CategoryDraft $draft */
@@ -399,6 +399,7 @@ class ReadingListController extends AbstractController
         if ($draft->title) { $tags[] = ['title', $draft->title]; }
         if ($draft->summary) { $tags[] = ['summary', $draft->summary]; }
         if ($draft->image) { $tags[] = ['image', $draft->image]; }
+        if ($draft->author) { $tags[] = ['author', $draft->author]; }
         foreach ($draft->tags as $t) { $tags[] = ['t', $t]; }
         foreach ($draft->articles as $a) {
             if (is_string($a) && $a !== '') { $tags[] = ['a', $a]; }

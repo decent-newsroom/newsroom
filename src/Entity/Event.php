@@ -186,6 +186,20 @@ class Event
         return null;
     }
 
+    /**
+     * Get optional author override from event tags.
+     * When present, this plain-text name supersedes the publishing npub in bylines.
+     */
+    public function getAuthor(): ?string
+    {
+        foreach ($this->getTags() as $tag) {
+            if (is_array($tag) && ($tag[0] ?? '') === 'author' && isset($tag[1]) && $tag[1] !== '') {
+                return $tag[1];
+            }
+        }
+        return null;
+    }
+
     public function addTag(array $tag): static
     {
         $this->tags[] = $tag;

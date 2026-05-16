@@ -87,6 +87,18 @@ final class MagazineHero
     }
 
     /**
+     * Get the optional author override for display.
+     * Returns a plain-text author name if set, null otherwise (fallback to UserFromNpub).
+     */
+    public function getDisplayAuthor(): ?string
+    {
+        if ($this->magazine) {
+            return $this->magazine->getAuthor();
+        }
+        return null;
+    }
+
+    /**
      * Compute category tags (those whose first element/key is the letter 'a').
      * Supports multiple magazine shapes (object with getTags(), public property, or array key).
      *

@@ -65,6 +65,18 @@ class CategoryType extends AbstractType
                 'empty_data' => '',
             ]);
 
+        if ($options['show_author']) {
+            $builder->add('author', TextType::class, [
+                'label' => 'Author (optional)',
+                'required' => false,
+                'empty_data' => '',
+                'attr' => [
+                    'placeholder' => 'Display name shown in byline instead of your Nostr profile',
+                ],
+                'help' => 'When set, this name appears in the byline instead of your Nostr identity.',
+            ]);
+        }
+
         $builder->get('tags')->addModelTransformer($this->transformer);
     }
 
@@ -73,6 +85,7 @@ class CategoryType extends AbstractType
         $resolver->setDefaults([
             'data_class' => CategoryDraft::class,
             'user_lists' => [],
+            'show_author' => false,
             'constraints' => [
                 new Callback([$this, 'validateCategory']),
             ],

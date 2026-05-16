@@ -31,7 +31,13 @@
               <span class="badge bg-secondary">{{ item.type }}</span>
               <span class="badge bg-info text-dark">{{ item.itemCount }} item{{ item.itemCount != 1 ? 's' : '' }}</span>
           </div>
-          <p>by <twig:Molecules:UserFromNpub :ident="item.pubkey" /></p>
+          <p>by
+              {% if item.author is defined and item.author %}
+                  {{ item.author }}
+              {% else %}
+                  <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+              {% endif %}
+          </p>
           </div>
       </div>
       {% endfor %}

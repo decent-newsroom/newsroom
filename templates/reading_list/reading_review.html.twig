@@ -15,6 +15,9 @@
     <ul>
       <li><strong>Title:</strong> {{ draft.title }}</li>
       <li><strong>Summary:</strong> {{ draft.summary ?: '—' }}</li>
+      {% if draft.author is defined and draft.author %}
+      <li><strong>Author:</strong> {{ draft.author }}</li>
+      {% endif %}
       <li><strong>Tags:</strong> {{ draft.tags is defined and draft.tags|length ? draft.tags|join(', ') : '—' }}</li>
       <li><strong>Slug:</strong> {{ draft.slug }}</li>
     </ul>
