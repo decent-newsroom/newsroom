@@ -512,20 +512,48 @@ class MagazineWizardController extends AbstractController
      */
     #[Route('/magazine/wizard/launched', name: 'mag_wizard_launched')]
     #[IsGranted('ROLE_USER')]
-    public function launched(Request $request): Response
-    {
+    public function launched(
+        Request                $request,
+        EventIngestionListener $eventIngestionListener,
+        EntityManagerInterface $entityManager,
+    ): Response {
         $npub = $this->getUser()?->getUserIdentifier();
         $existingSubscription = null;
 
         if ($npub) {
             $subscription = $this->subdomainService->getByNpub($npub);
-            if ($subscription !== null) {
+            if ($subscription !== null &&
+                ($subscription->getStatus()->value === 'active' ||
+                 $subscription->getStatus()->value === 'pending')) {
                 $existingSubscription = $subscription;
             }
         }
 
         // Clear the blog journey flag if present
         $request->getSession()->remove('blog_journey');
+
+        // Read the just-published magazine slug from the session draft so the
+        // "View magazine" button can link directly to the new magazine.
+        $magazineSlug = null;
+        $draft = $this->getDraft($request);
+        if ($draft?->slug) {
+            $magazineSlug = $draft->slug;
+        }
+
+        // Proactively repair the graph for the just-published magazine.
+        // The api-index-publish endpoint calls processEvent() inside a non-fatal
+        // try/catch — if it silently failed, current_record is stale and the
+        // magazine won't appear in the listing. Re-running processRawEvent() here
+        // (idempotent) ensures current_record is up to date before ZineList renders.
+        if ($magazineSlug && $npub) {
+            $this->refreshMagazineGraph(
+                $magazineSlug,
+                $draft,
+                $npub,
+                $eventIngestionListener,
+                $entityManager,
+            );
+        }
 
         $skipSubdomain = $this->hasActiveSubdomainSubscription();
 
@@ -534,6 +562,7 @@ class MagazineWizardController extends AbstractController
             'existingSubscription' => $existingSubscription,
             'baseDomain' => $this->subdomainService->getBaseDomain(),
             'skipSubdomain' => $skipSubdomain,
+            'magazineSlug' => $magazineSlug,
         ]);
     }
 
@@ -671,6 +700,85 @@ class MagazineWizardController extends AbstractController
 
         $this->saveDraft($request, $draft);
         return $this->redirectToRoute('mag_wizard_setup');
+    }
+
+    /**
+     * Re-run graph ingestion for the just-published magazine and its categories.
+     *
+     * api-index-publish calls processEvent() inside a non-fatal try/catch.
+     * If that call silently failed (e.g. a constraint on parsed_reference), the
+     * current_record table is stale and the magazine won't appear in ZineList.
+     * processRawEvent() is idempotent: safe to call again here.
+     */
+    private function refreshMagazineGraph(
+        string                 $magazineSlug,
+        ?MagazineDraft         $draft,
+        string                 $npub,
+        EventIngestionListener $eventIngestionListener,
+        EntityManagerInterface $entityManager,
+    ): void {
+        try {
+            $key = new Key();
+            $pubkeyHex = $key->convertToHex($npub);
+        } catch (\Throwable) {
+            return;
+        }
+
+        // Collect all d-tags to re-process: the magazine index + every new category
+        $dTags = [$magazineSlug];
+        if ($draft) {
+            foreach ($draft->categories as $cat) {
+                if (!$cat->isExistingList() && $cat->slug) {
+                    $dTags[] = $cat->slug;
+                }
+            }
+        }
+
+        $conn = $entityManager->getConnection();
+
+        foreach ($dTags as $dTag) {
+            try {
+                $row = $conn->fetchAssociative(
+                    "SELECT id, pubkey, kind, created_at, tags, content, sig
+                     FROM event
+                     WHERE kind = 30040
+                       AND pubkey = :pubkey
+                       AND tags @> :dtag::jsonb
+                     ORDER BY created_at DESC
+                     LIMIT 1",
+                    [
+                        'pubkey' => $pubkeyHex,
+                        'dtag'   => json_encode([['d', $dTag]]),
+                    ]
+                );
+
+                if ($row === false) {
+                    continue;
+                }
+
+                $raw = new \stdClass();
+                $raw->id         = $row['id'];
+                $raw->pubkey     = $row['pubkey'];
+                $raw->kind       = (int) $row['kind'];
+                $raw->created_at = (int) $row['created_at'];
+                $raw->tags       = json_decode((string) $row['tags'], true) ?? [];
+                $raw->content    = $row['content'] ?? '';
+                $raw->sig        = $row['sig'] ?? '';
+
+                $eventIngestionListener->processRawEvent($raw);
+
+                $this->logger->debug('MagazineWizardController: graph refreshed', [
+                    'slug' => $dTag,
+                    'event_id' => substr($raw->id, 0, 16) . '...',
+                ]);
+            } catch (\Throwable $e) {
+                // Non-fatal; the list will show the previous state if this fails
+                $this->logger->warning('MagazineWizardController: graph refresh failed for slug', [
+                    'slug'  => $dTag,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     private function getTagValue(array $tags, string $name): ?string

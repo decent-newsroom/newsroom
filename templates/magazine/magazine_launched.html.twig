@@ -14,7 +14,11 @@
             <p>{{ 'wizard.launched.description'|trans }}</p>
 
             <div class="journey-actions mt-4">
-                <a class="btn btn--primary" href="{{ path('my_magazines') }}">{{ 'wizard.launched.viewMagazine'|trans }}</a>
+                {% if magazineSlug %}
+                    <a class="btn btn--primary" href="{{ path('magazine-index', {mag: magazineSlug}) }}">{{ 'wizard.launched.viewMagazine'|trans }}</a>
+                {% else %}
+                    <a class="btn btn--primary" href="{{ path('my_magazines') }}">{{ 'wizard.launched.viewMagazine'|trans }}</a>
+                {% endif %}
                 <a class="btn btn-secondary" href="{{ path('newsstand') }}">{{ 'wizard.launched.browseNewsstand'|trans }}</a>
             </div>
 
@@ -23,11 +27,10 @@
                     <h3>{{ 'wizard.launched.subdomainStatus'|trans }}</h3>
                     <p>
                         <strong>{{ existingSubscription.subdomain }}.{{ baseDomain }}</strong>
-                        —
                         {% if existingSubscription.status.value == 'active' %}
-                            <span class="badge badge--success">{{ 'wizard.launched.statusActive'|trans }}</span>
+                            — <span class="badge badge--success">{{ 'wizard.launched.statusActive'|trans }}</span>
                         {% elseif existingSubscription.status.value == 'pending' %}
-                            <span class="badge badge--warning">{{ 'wizard.launched.statusPending'|trans }}</span>
+                            — <span class="badge badge--warning">{{ 'wizard.launched.statusPending'|trans }}</span>
                         {% endif %}
                     </p>
 
@@ -59,7 +62,11 @@
             </div>
 
             <div class="journey-actions mt-4">
-                <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'wizard.launched.editMagazine'|trans }}</a>
+                {% if magazineSlug %}
+                    <a class="btn btn--primary" href="{{ path('mag_wizard_edit', {slug: magazineSlug}) }}">{{ 'wizard.launched.editMagazine'|trans }}</a>
+                {% else %}
+                    <a class="btn btn--primary" href="{{ path('mag_wizard_setup') }}">{{ 'wizard.launched.editMagazine'|trans }}</a>
+                {% endif %}
                 <a class="btn btn-secondary" href="{{ path('home') }}">{{ 'wizard.launched.goHome'|trans }}</a>
             </div>
         </div>

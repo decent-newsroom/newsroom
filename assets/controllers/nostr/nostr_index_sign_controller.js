@@ -35,7 +35,11 @@ export default class extends Controller {
       }
 
       const previewMag = JSON.parse(JSON.stringify(magSkeleton));
+      // Preserve existing-list a-tags, strip only the ones being re-built from new categories
+      const existingPreviewATags = (previewMag.tags || [])
+        .filter(t => t[0] === 'a' && !categoryCoordinates.includes(t[1]));
       previewMag.tags = (previewMag.tags || []).filter(t => t[0] !== 'a');
+      existingPreviewATags.forEach(t => previewMag.tags.push(t));
       categoryCoordinates.forEach(c => previewMag.tags.push(['a', c]));
       previewMag.pubkey = pubkey;
 
@@ -130,8 +134,16 @@ export default class extends Controller {
       this.ensureCreatedAt(magSkeleton);
       this.ensureContent(magSkeleton);
       magSkeleton.pubkey = pubkey;
-      // Remove any pre-existing 'a' to avoid duplicates, then add new ones
+
+      // Collect a-tags from existing lists (pre-built by the server into the skeleton).
+      // These reference 30040 coordinates that were NOT re-signed in this session, so we
+      // must preserve them. We only strip the coords that *were* re-signed (categoryCoordinates)
+      // to avoid duplicates, then re-add the freshly-signed ones.
+      const existingATags = (magSkeleton.tags || [])
+        .filter(t => t[0] === 'a' && !categoryCoordinates.includes(t[1]));
+
       magSkeleton.tags = (magSkeleton.tags || []).filter(t => t[0] !== 'a');
+      existingATags.forEach(t => magSkeleton.tags.push(t));
       categoryCoordinates.forEach(c => magSkeleton.tags.push(['a', c]));
 
       // 3) Sign and publish magazine (also skippable)
