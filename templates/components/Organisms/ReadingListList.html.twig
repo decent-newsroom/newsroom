@@ -25,7 +25,7 @@
               <h2 class="card-title"><a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">{{ item.title }}</a></h2>
           {% endif %}
           {% if item.summary is defined and item.summary %}
-              <p class="eyebrow">{{ item.summary }}</p>
+              <p class="eyebrow line-clamp-5">{{ item.summary }}</p>
           {% endif %}
           <div class="d-flex flex-row gap-2 align-items-center justify-content-center">
               <span class="badge bg-secondary">{{ item.type }}</span>
