@@ -43,7 +43,7 @@ class ArticleInPublication
     /**
      * d-tag (slug) of the kind 30040 event that directly lists this article.
      */
-    #[ORM\Column(length: 512)]
+    #[ORM\Column(name: 'container_d_tag', length: 512)]
     private string $containerDTag;
 
     /**

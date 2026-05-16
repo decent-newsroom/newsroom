@@ -3,6 +3,8 @@
 ## v0.0.39
 Essayist.
 
+- [Bug] Fixed `media_post_cache.kind` column overflowing for Nostr event kinds above 32 767 (e.g. kind 34235). Column type changed from `SMALLINT` to `INTEGER`.
+- [Bug] Fixed `ArticleInPublication` Doctrine mapping generating column name `container_dtag` instead of the actual DB column `container_d_tag`. Added explicit `name: 'container_d_tag'` to the ORM column attribute, resolving "could not look up publications for article" errors.
 - [Improvement] Extracted Essayist public routes (`/essayist`, `/essayist/early-bird`, `/essayist/request-access`) from `StaticController` into a dedicated `EssayistController`. Route names and all templates are unchanged.
 - [Bug] Fixed Essayist join button being permanently disabled. The controller now passes `isLaunched` (true when current date ≥ 2026-06-01). The logged-in submit button and the anonymous CTA both enable automatically on launch day; the "opens on" hint is hidden once the relay is live, and the anonymous CTA becomes a login link instead of a dead button.
 - [Improvement] Removed `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` from `RolesEnum` and all admin tooling. `approveCandidate()` now grants `ROLE_ESSAYIST_MEMBER` directly instead of `ROLE_ESSAYIST_AUTHOR`. The Approved Authors and Supporters sections have been removed from the admin template.

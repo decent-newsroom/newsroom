@@ -25,7 +25,7 @@ class MediaPostCache
     #[ORM\Column(length: 64)]
     private string $pubkey = '';
 
-    #[ORM\Column(type: Types::SMALLINT)]
+    #[ORM\Column(type: Types::INTEGER)]
     private int $kind = 0;
 
     #[ORM\Column(length: 255, nullable: true)]
