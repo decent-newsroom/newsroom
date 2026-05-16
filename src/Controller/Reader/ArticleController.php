@@ -96,8 +96,12 @@ class ArticleController  extends AbstractController
         }
 
         $slug = urldecode($slug);
-        $key = new Key();
-        $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
+        try {
+            $key = new Key();
+            $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
+        } catch (\Throwable) {
+            throw $this->createAccessDeniedException('Invalid user identifier.');
+        }
 
         // Only find drafts belonging to the current user
         $repository = $entityManager->getRepository(Article::class);
@@ -115,7 +119,11 @@ class ArticleController  extends AbstractController
         }
 
         // Redirect to the full author-draft-slug route
-        $npub = $key->convertPublicKeyToBech32($currentPubkey);
+        try {
+            $npub = $key->convertPublicKeyToBech32($currentPubkey);
+        } catch (\Throwable) {
+            throw $this->createNotFoundException('Could not encode author key.');
+        }
         return $this->redirectToRoute('author-draft-slug', ['npub' => $npub, 'slug' => $slug]);
     }
 
@@ -155,8 +163,12 @@ class ArticleController  extends AbstractController
 
         // If only one author, redirect to their most recent article (already sorted by createdAt DESC)
         if ($uniqueAuthors === 1) {
-            $key = new Key();
-            $npub = $key->convertPublicKeyToBech32($articles[0]->getPubkey());
+            try {
+                $key = new Key();
+                $npub = $key->convertPublicKeyToBech32($articles[0]->getPubkey());
+            } catch (\Throwable) {
+                throw $this->createNotFoundException('Invalid author key.');
+            }
             return $this->redirectToRoute('author-article-slug', ['npub' => $npub, 'slug' => $slug]);
         }
 
@@ -168,8 +180,13 @@ class ArticleController  extends AbstractController
             // Get the most recent article for this author (first in array due to DESC sort)
             $mostRecentArticle = $authorArticles[0];
             $uniqueArticles[] = $mostRecentArticle;
+            try {
+                $npubEncoded = $key->convertPublicKeyToBech32($pubkey);
+            } catch (\Throwable) {
+                continue; // Skip authors with malformed pubkeys
+            }
             $authors[] = [
-                'npub' => $key->convertPublicKeyToBech32($pubkey),
+                'npub' => $npubEncoded,
                 'pubkey' => $pubkey,
                 'createdAt' => $mostRecentArticle->getCreatedAt(),
             ];
@@ -209,11 +226,19 @@ class ArticleController  extends AbstractController
         $npub = $resolved['npub'];
 
         $slug = urldecode($slug);
-        $key = new Key();
-        $pubkey = $key->convertToHex($npub);
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+        } catch (\Throwable) {
+            throw $this->createNotFoundException('Invalid author identifier.');
+        }
 
         // Verify the user is the author of this draft
-        $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
+        try {
+            $currentPubkey = $key->convertToHex($this->getUser()->getUserIdentifier());
+        } catch (\Throwable) {
+            throw $this->createAccessDeniedException('Invalid user identifier.');
+        }
         if ($currentPubkey !== $pubkey) {
             throw $this->createAccessDeniedException('You can only view your own drafts.');
         }
@@ -327,8 +352,12 @@ class ArticleController  extends AbstractController
         $npub = $resolved['npub'];
 
         $slug = urldecode($slug);
-        $key = new Key();
-        $pubkey = $key->convertToHex($npub);
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+        } catch (\Throwable) {
+            throw $this->createNotFoundException('Invalid author identifier.');
+        }
         $repository = $entityManager->getRepository(Article::class);
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
 
