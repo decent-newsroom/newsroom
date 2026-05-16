@@ -20,13 +20,14 @@ class MediaAttachmentType extends AbstractType
             ->add('url', UrlType::class, [
                 'label' => 'URL',
                 'required' => true,
+                'default_protocol' => 'https',
                 'attr' => [
                     'class' => 'form-control media-attachment-url',
                     'placeholder' => 'https://example.com/media/file.mp3',
                 ],
                 'constraints' => [
-                    new Assert\NotBlank(['message' => 'URL is required']),
-                    new Assert\Url(['message' => 'Must be a valid URL']),
+                    new Assert\NotBlank(message: 'URL is required'),
+                    new Assert\Url(message: 'Must be a valid URL'),
                 ],
             ])
             ->add('mimeType', TextType::class, [
@@ -37,11 +38,11 @@ class MediaAttachmentType extends AbstractType
                     'placeholder' => 'audio/mpeg',
                 ],
                 'constraints' => [
-                    new Assert\NotBlank(['message' => 'MIME type is required']),
-                    new Assert\Regex([
-                        'pattern' => '/^[\w\-]+\/[\w\-\+\.]+$/',
-                        'message' => 'Must be a valid MIME type (e.g., audio/mpeg, image/png)',
-                    ]),
+                    new Assert\NotBlank(message: 'MIME type is required'),
+                    new Assert\Regex(
+                        pattern: '/^[\w\-]+\/[\w\-\+\.]+$/',
+                        message: 'Must be a valid MIME type (e.g., audio/mpeg, image/png)',
+                    ),
                 ],
             ]);
     }

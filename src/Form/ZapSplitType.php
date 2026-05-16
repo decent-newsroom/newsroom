@@ -25,7 +25,7 @@ class ZapSplitType extends AbstractType
                     'placeholder' => 'npub1... or hex pubkey'
                 ],
                 'constraints' => [
-                    new Assert\NotBlank(['message' => 'Recipient is required']),
+                    new Assert\NotBlank(message: 'Recipient is required'),
                 ],
             ])
             ->add('relay', TextType::class, [
@@ -36,10 +36,10 @@ class ZapSplitType extends AbstractType
                     'placeholder' => 'wss://relay.example.com'
                 ],
                 'constraints' => [
-                    new Assert\Regex([
-                        'pattern' => '/^wss:\/\/.+/',
-                        'message' => 'Relay must be a valid WebSocket URL starting with wss://'
-                    ]),
+                    new Assert\Regex(
+                        pattern: '/^wss:\/\/.+/',
+                        message: 'Relay must be a valid WebSocket URL starting with wss://'
+                    ),
                 ],
             ])
             ->add('weight', IntegerType::class, [
@@ -51,7 +51,7 @@ class ZapSplitType extends AbstractType
                     'min' => 0
                 ],
                 'constraints' => [
-                    new Assert\PositiveOrZero(['message' => 'Weight must be 0 or greater']),
+                    new Assert\PositiveOrZero(message: 'Weight must be 0 or greater'),
                 ],
             ]);
     }

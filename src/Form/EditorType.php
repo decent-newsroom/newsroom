@@ -50,6 +50,7 @@ class EditorType extends AbstractType
             ->add('image', UrlType::class, [
                 'required' => false,
                 'label' => 'Cover image URL',
+                'default_protocol' => 'https',
                 'attr' => ['class' => 'form-control']])
             ->add('topics', TextType::class, [
                 'required' => false,

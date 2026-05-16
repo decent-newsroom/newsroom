@@ -74,6 +74,7 @@ class AdvancedMetadataType extends AbstractType
                 'entry_type' => UrlType::class,
                 'entry_options' => [
                     'label' => false,
+                    'default_protocol' => 'https',
                     'attr' => [
                         'class' => 'form-control source-url',
                         'placeholder' => 'https://example.com/source-article',
