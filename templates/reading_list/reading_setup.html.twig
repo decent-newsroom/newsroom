@@ -2,6 +2,16 @@
 
 {% block body %}
     <twig:Atoms:PageHeading heading="Reading List" />
+
+    {% if not isNewDraft %}
+        <div class="notice notice--warning mb-4">
+            <p>You are continuing an existing reading list draft (<strong>{{ draft.title ?: draft.slug }}</strong>).
+                Submitting this wizard will overwrite that list.
+                <a href="{{ path('read_wizard_new') }}">Start a new reading list instead</a>.
+            </p>
+        </div>
+    {% endif %}
+
     <div class="p-2">
         {{ form_start(form, {'attr': {'data-turbo': 'false'}}) }}
         {{ form_row(form.existingListCoordinate, {'row_attr': {'class': 'hidden'}}) }}

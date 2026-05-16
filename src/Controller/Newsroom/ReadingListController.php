@@ -178,10 +178,23 @@ class ReadingListController extends AbstractController
     // Wizard Routes
     // ─────────────────────────────────────────────────────────────────────────
 
+    /**
+     * Start a new reading list — clears any existing session draft and begins fresh.
+     * All "Create reading list" entry-point links should use this route.
+     */
+    #[Route('/reading-list/wizard/new', name: 'read_wizard_new')]
+    public function newReadingList(Request $request): Response
+    {
+        $this->clearDraft($request);
+        return $this->redirectToRoute('read_wizard_setup');
+    }
+
     #[Route('/reading-list/wizard/setup', name: 'read_wizard_setup')]
     public function setup(Request $request): Response
     {
-        $draft = $this->getDraft($request) ?? new CategoryDraft();
+        $existing = $this->getDraft($request);
+        $isNewDraft = $existing === null;
+        $draft = $existing ?? new CategoryDraft();
 
         // Check if this is being created as a magazine category
         $asMagazineCategory = $request->query->getBoolean('category', false);
@@ -213,6 +226,8 @@ class ReadingListController extends AbstractController
         return $this->render('reading_list/reading_setup.html.twig', [
             'form' => $form->createView(),
             'isMagazineCategory' => $request->getSession()->get('read_wizard_type') === 'category',
+            'isNewDraft' => $isNewDraft,
+            'draft' => $draft,
         ]);
     }
 
