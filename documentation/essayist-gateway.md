@@ -37,26 +37,31 @@ Internet ─WSS─▶  Caddy  (@essayistRelay)
 ```
 [client connects]
 
-gateway → client    ["AUTH", "<challenge>"]           random 32-byte hex, per-connection
+gateway → client    ["AUTH", "<challenge>"]           32 random bytes → 64 hex chars, per-connection
 
-  while waiting for AUTH (up to 30s):
+  while waiting for AUTH (up to AUTH_TIMEOUT_SECONDS, default 10s):
     incoming REQ   → ["CLOSED",  <sub_id>,   "auth-required: membership required"]
     incoming EVENT → ["OK",      <event_id>, false, "auth-required: membership required"]
+    (frames buffered silently — see "Pre-auth Frame Buffer" below)
 
 client → gateway   ["AUTH", <kind-22242-event>]
 
   gateway verifies:
     kind == 22242
-    created_at within ±600 seconds of now
+    created_at within ±60 seconds of now
     tag ["challenge", <issued-challenge>] present and matching
     tag ["relay", <relay-url>] present; normalised URL matches RELAY_PUBLIC_URL
+      (normalisation: lowercase scheme + host, strip default ports,
+       strip trailing slash, reject path/query/fragment)
     Schnorr signature valid over event id
 
   membership check:
     1. Redis GET essayist_member:{pubkey_hex}   (TTL 600 s)
-    2. on miss: GET http://php/api/internal/essayist/writer/{pubkey}
+    2. on miss: GET {POLICY_URL_TEMPLATE with {pubkey} substituted}
                     Authorization: Bearer $ESSAYIST_POLICY_TOKEN
-       cache result in Redis for 600 s
+                    HTTP client timeout: 3 s (POLICY_HTTP_TIMEOUT_SECONDS)
+       cache approvals in Redis for REDIS_MEMBER_TTL_SECONDS (default 600 s)
+       cache rejections in Redis for REDIS_MEMBER_NEG_TTL_SECONDS (default 30 s)
 
   approved:
     gateway → client    ["OK", <event_id>, true, ""]
@@ -65,17 +70,34 @@ client → gateway   ["AUTH", <kind-22242-event>]
     start bidirectional copy loop (transparent proxy)
 
   rejected (bad sig, wrong relay, expired):
+    gateway → client    ["CLOSED", "*", "restricted: authentication failed"]
     gateway → client    ["NOTICE", "restricted: authentication failed"]
-    close connection
+    close connection immediately after flush
 
   rejected (not a member):
+    gateway → client    ["CLOSED", "*", "restricted: active Essayist membership required"]
     gateway → client    ["NOTICE", "restricted: active Essayist membership required — decentnewsroom.com/essayist"]
-    close connection after 5 s grace
+    close connection immediately after flush
 ```
+
+Machine-readable signal is the `restricted:` / `auth-required:` prefix on `CLOSED` / `OK` frames per NIP-42. The `NOTICE` carries the human-readable supplement only.
 
 ### AUTH timeout
 
-If no `AUTH` message is received within 30 seconds of the connection the gateway closes with a `NOTICE` explaining the requirement. The timeout is configurable via `AUTH_TIMEOUT_SECONDS`.
+If no `AUTH` message is received within `AUTH_TIMEOUT_SECONDS` (default `10`) of the connection the gateway sends a final `["NOTICE", "auth-required: AUTH timeout"]` and closes.
+
+### Redis failure mode
+
+If Redis is unreachable, the gateway skips the fast path and goes straight to the PHP slow path on every connection (fail-degraded, not fail-open and not fail-closed). A circuit breaker suppresses repeated Redis dials for `REDIS_BREAKER_COOLDOWN_SECONDS` (default `30`) after consecutive failures.
+
+### Revocation
+
+Revocation is push-based. The PHP app, on role grant or revoke:
+
+1. Writes / deletes the `essayist_member:{pubkey_hex}` Redis key.
+2. `PUBLISH essayist_member_revoked {pubkey_hex}` on Redis pub/sub.
+
+The gateway subscribes to `essayist_member_revoked` and closes any currently-authenticated connections whose pubkey matches. TTL-based expiry remains the safety net but is not the primary propagation path.
 
 ---
 
@@ -85,18 +107,18 @@ The gateway uses a two-tier lookup to avoid hammering the PHP app on every incom
 
 | Tier | Mechanism | TTL |
 |---|---|---|
-| Fast path | `Redis GET essayist_member:{pubkey_hex}` | 600 s |
-| Slow path | `GET /api/internal/essayist/writer/{pubkey}` | result cached in Redis |
+| Fast path | `Redis GET essayist_member:{pubkey_hex}` | `REDIS_MEMBER_TTL_SECONDS` (approvals) / `REDIS_MEMBER_NEG_TTL_SECONDS` (rejections) |
+| Slow path | `GET {POLICY_URL_TEMPLATE}` with 3 s timeout | result cached in Redis |
 
-The Redis key holds `1` (approved) or `0` (rejected). A missing key always falls through to the slow path.
+The Redis key holds `1` (approved) or `0` (rejected). A missing key always falls through to the slow path. Approvals are cached longer than rejections so that newly granted members are not held out by stale negative entries — push-based revocation (above) handles invalidation in the other direction.
 
-The PHP side can pre-warm the Redis cache whenever it grants or revokes `ROLE_ESSAYIST_MEMBER` — e.g. from `EssayistAdminController` and the CLI grant command — so the fast path is already populated before the first gateway lookup.
+The PHP side pre-warms the Redis cache whenever it grants or revokes `ROLE_ESSAYIST_MEMBER` — e.g. from `EssayistAdminController` and the CLI grant command — so the fast path is already populated before the first gateway lookup.
 
 ---
 
 ## NIP-11 Passthrough
 
-HTTP `GET` requests to the relay URL with `Accept: application/nostr+json` are reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH. This allows clients to read relay metadata (name, description, `auth_required: true`, `payment_required: false`) before initiating a WebSocket connection.
+HTTP `GET /` to the relay URL with `Accept: application/nostr+json` is reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH. Any other path, method, or `Accept` header returns `404`. This allows clients to read relay metadata (name, description, `auth_required: true`, `payment_required: true`, `payments_url`) before initiating a WebSocket connection without exposing the upstream relay's broader HTTP surface.
 
 ---
 
@@ -165,14 +187,23 @@ type ConnectionState struct {
 | `LISTEN_ADDR` | `:7780` | Address the gateway binds on |
 | `UPSTREAM_RELAY_URL` | `ws://strfry-essayist:7779` | Internal WS URL of the relay |
 | `RELAY_PUBLIC_URL` | `wss://essayist.decentnewsroom.com` | Canonical public URL; must match the `relay` tag in kind:22242 |
-| `ESSAYIST_POLICY_TOKEN` | *(required)* | Bearer token for `/api/internal/essayist/writer/{pubkey}` |
-| `PHP_APP_URL` | `http://php` | Internal base URL of the Symfony app |
-| `REDIS_URL` | `redis://:password@redis:6379` | Redis connection string |
+| `ESSAYIST_POLICY_TOKEN` | *(required, no default)* | Bearer token for the membership policy endpoint |
+| `POLICY_URL_TEMPLATE` | `http://php/api/internal/essayist/writer/{pubkey}` | Membership policy URL; `{pubkey}` is replaced with the hex pubkey |
+| `POLICY_HTTP_TIMEOUT_SECONDS` | `3` | HTTP client timeout for the slow-path membership lookup |
+| `REDIS_URL` | *(required, no default)* | Redis connection string |
 | `REDIS_MEMBER_KEY_PREFIX` | `essayist_member:` | Redis key prefix for membership cache |
-| `REDIS_MEMBER_TTL_SECONDS` | `600` | How long a cached membership result is trusted |
-| `AUTH_TIMEOUT_SECONDS` | `30` | Seconds to wait for client AUTH before closing |
-| `HEALTH_ADDR` | `:7781` | Address for the `GET /health` endpoint |
+| `REDIS_MEMBER_TTL_SECONDS` | `600` | TTL for cached **approvals** |
+| `REDIS_MEMBER_NEG_TTL_SECONDS` | `30` | TTL for cached **rejections** (short, so grants propagate fast) |
+| `REDIS_BREAKER_COOLDOWN_SECONDS` | `30` | Cooldown after consecutive Redis failures before retrying the fast path |
+| `REVOCATION_CHANNEL` | `essayist_member_revoked` | Redis pub/sub channel for push-based revocation |
+| `AUTH_TIMEOUT_SECONDS` | `10` | Seconds to wait for client AUTH before closing |
+| `CREATED_AT_TOLERANCE_SECONDS` | `60` | Allowed clock skew on kind:22242 `created_at` |
+| `MAX_CONNECTIONS` | `2000` | Global cap on concurrent WS connections |
+| `MAX_CONNECTIONS_PER_IP` | `20` | Per-IP cap on concurrent WS connections |
+| `MAX_PREAUTH_FRAME_BYTES` | `32768` | Max size of a single frame accepted before AUTH completes |
 | `MAX_BUFFER_FRAMES` | `10` | Pre-auth frames to buffer per connection |
+| `HEALTH_ADDR` | `:7781` | Address for the `GET /health` endpoint |
+| `METRICS_ADDR` | `:7782` | Address for the Prometheus `GET /metrics` endpoint |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 
 ---
@@ -198,15 +229,17 @@ essayist-gateway:
   environment:
     UPSTREAM_RELAY_URL: ws://strfry-essayist:7779
     RELAY_PUBLIC_URL: ${ESSAYIST_RELAY_PUBLIC_URL:-wss://essayist.decentnewsroom.com}
-    ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
-    PHP_APP_URL: http://php
-    REDIS_URL: redis://:${REDIS_PASSWORD:-r_password}@redis:6379
+    ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:?ESSAYIST_POLICY_TOKEN must be set}
+    POLICY_URL_TEMPLATE: http://php/api/internal/essayist/writer/{pubkey}
+    REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
   healthcheck:
     test: ["CMD", "wget", "-qO-", "http://localhost:7781/health"]
     interval: 30s
     timeout: 5s
     retries: 3
 ```
+
+Secrets (`ESSAYIST_POLICY_TOKEN`, `REDIS_PASSWORD`) are declared with `${VAR:?...}` so the container fails to start when they are missing — no `:-changeme` fallbacks.
 
 `strfry-essayist:7779` is **not** mapped to a host port when the `essayist` profile is active — the relay is only reachable from within the compose network. Remove the `ports` mapping from `strfry-essayist` in production.
 
@@ -219,6 +252,8 @@ handle @essayistRelay {
     reverse_proxy essayist-gateway:7780   # was: strfry-essayist:7779
 }
 ```
+
+Caddy's `reverse_proxy` auto-upgrades WebSocket connections; no additional `header_up Connection` / `Upgrade` directives are required.
 
 ---
 
@@ -246,9 +281,39 @@ The curl dependency and bearer-token secret are removed from the relay container
 
 ## Pre-auth Frame Buffer
 
-Some clients send a `REQ` immediately after opening a WebSocket before they receive or process the `AUTH` challenge. The gateway buffers up to `MAX_BUFFER_FRAMES` (default 10) incoming frames per connection during the auth window. On successful auth, buffered frames are replayed to the upstream relay. On auth failure or timeout, the buffer is discarded.
+Some clients send a `REQ` immediately after opening a WebSocket before they receive or process the `AUTH` challenge. The gateway silently buffers up to `MAX_BUFFER_FRAMES` (default 10) incoming frames per connection during the auth window — each frame is also subject to `MAX_PREAUTH_FRAME_BYTES`. Buffered frames are **not** answered with `CLOSED` / `OK` during the wait; they are held. On successful auth they are replayed to the upstream relay. On auth failure or timeout the buffer is discarded.
 
-This avoids confusing clients that expect their first subscription to be answered even though they must authenticate first.
+This avoids confusing clients that expect their first subscription to be answered even though they must authenticate first, while bounding pre-auth memory use.
+
+The `auth-required:` `CLOSED` / `OK` responses described in the protocol flow are sent only for frames that **exceed** the buffer cap (or arrive after auth has already failed) — i.e. when the gateway has chosen not to hold them.
+
+---
+
+## Health & Metrics
+
+### `GET /health` (`HEALTH_ADDR`)
+
+Returns `200 OK` only when:
+
+- the process is running,
+- a TCP dial to `UPSTREAM_RELAY_URL` succeeds within 1 s, and
+- a `PING` to Redis succeeds within 500 ms (when Redis breaker is closed).
+
+Otherwise returns `503` with a short JSON body indicating which dependency failed. Suitable for Docker / Kubernetes liveness + readiness probes.
+
+### `GET /metrics` (`METRICS_ADDR`)
+
+Prometheus exposition. Counters and gauges:
+
+| Metric | Type | Labels |
+|---|---|---|
+| `gateway_auth_total` | counter | `outcome` (`authed`, `rejected_sig`, `rejected_relay`, `rejected_expired`, `rejected_membership`, `timeout`) |
+| `gateway_active_connections` | gauge | — |
+| `gateway_membership_cache_total` | counter | `result` (`hit_approved`, `hit_rejected`, `miss`, `error`) |
+| `gateway_policy_request_seconds` | histogram | `outcome` (`ok`, `timeout`, `error`) |
+| `gateway_upstream_dial_failures_total` | counter | — |
+| `gateway_preauth_buffer_overflow_total` | counter | — |
+| `gateway_revocation_close_total` | counter | — |
 
 ---
 
@@ -281,9 +346,10 @@ Example log lines:
 - The gateway is the **sole** NIP-42 enforcement point for both REQ (reads) and EVENT (writes).
 - `strfry-essayist` is only reachable inside the Docker compose network; it does not listen on any host-mapped port.
 - The `ESSAYIST_POLICY_TOKEN` bearer secret is shared between the gateway and the PHP app; it is not exposed to relay clients.
-- Challenge strings are 32 bytes of cryptographically random data (Go `crypto/rand`), scoped to a single connection and discarded after use.
-- Replay attack window is bounded by the ±600 second `created_at` tolerance on kind:22242.
-- Redis membership cache is advisory; a cache miss always falls through to the authoritative PHP API. Cache entries are short-lived (10 min) so revocations propagate promptly.
+- Challenge strings are 32 bytes of cryptographically random data (Go `crypto/rand`, 64 hex chars on the wire), scoped to a single connection and discarded after use.
+- Replay attack window is bounded by the ±60 second `created_at` tolerance on kind:22242 (`CREATED_AT_TOLERANCE_SECONDS`).
+- Redis membership cache is advisory; a cache miss always falls through to the authoritative PHP API. Approvals are cached for 10 min, rejections for 30 s. Revocations propagate via Redis pub/sub (`essayist_member_revoked`) and forcibly close any matching authenticated connections.
+- `MAX_CONNECTIONS_PER_IP` and `MAX_PREAUTH_FRAME_BYTES` bound the resources a single client can consume before completing AUTH.
 
 ---
 
@@ -293,22 +359,21 @@ The gateway is designed to be repositionable as a standalone open-source tool. T
 
 1. Replace the `MembershipChecker` implementation with your own (the interface is a single method).
 2. Set `UPSTREAM_RELAY_URL` and `RELAY_PUBLIC_URL` to point at the target relay.
-3. Adjust `ESSAYIST_POLICY_TOKEN` / `PHP_APP_URL` or swap in a different HTTP membership backend.
+3. Point `POLICY_URL_TEMPLATE` at a different HTTP membership backend (or swap in a non-HTTP `MembershipChecker`).
 4. The NIP-42 verification and proxy layers require no changes.
 
-The only Essayist-specific logic is in `membership/http.go` (the URL shape of the PHP API endpoint). Everything else is relay-agnostic.
+All Essayist-specific knobs are now config — there is no hardcoded URL shape. Everything else is relay-agnostic.
 
 ---
 
 ## Open Items
 
-| Item | Status |
-|---|---|
-| Remove `ports: 7779:7779` from `strfry-essayist` in production compose | Planned |
-| PHP-side Redis pre-warming on role grant/revoke | Planned |
-| Integration test: connect without AUTH → expect CLOSED/OK reject | Planned |
-| Integration test: AUTH with invalid sig → expect NOTICE + close | Planned |
-| Integration test: AUTH with non-member pubkey → expect NOTICE + close | Planned |
-| Integration test: AUTH with valid member → expect proxied REQ/EVENT | Planned |
-| `ROLE_ESSAYIST_MEMBER` expiry cron → Redis invalidation | Planned (cron command) |
+- [x] Remove `ports: 7779:7779` from `strfry-essayist` in production compose
+- [x] PHP-side Redis pre-warming on role grant/revoke (write key + `PUBLISH essayist_member_revoked`)
+- [ ] Integration test: connect without AUTH → expect `CLOSED auth-required:` / `OK … false auth-required:` reject
+- [ ] Integration test: AUTH with invalid sig → expect `CLOSED restricted:` + `NOTICE` + close
+- [ ] Integration test: AUTH with non-member pubkey → expect `CLOSED restricted:` + `NOTICE` + close
+- [ ] Integration test: AUTH with valid member → expect proxied REQ/EVENT
+- [ ] Integration test: revocation via Redis pub/sub closes live authenticated connection
+- [ ] `ROLE_ESSAYIST_MEMBER` expiry cron → Redis invalidation (cron command)
 

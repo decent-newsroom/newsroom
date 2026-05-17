@@ -10,6 +10,11 @@ parameters:
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     relay_gateway_default: 'false'
     relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+
+    # Essayist gateway membership cache (see documentation/essayist-gateway.md).
+    essayist.membership.key_prefix: 'essayist_member:'
+    essayist.membership.positive_ttl_seconds: 600
+    essayist.membership.revocation_channel: 'essayist_member_revoked'
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:
@@ -170,6 +175,12 @@ services:
 
     # Relay Health Store — Redis-backed health persistence
     App\Service\Nostr\RelayHealthStore:
+        arguments:
+            $redis: '@Redis'
+
+    # Essayist membership cache — pre-warms essayist-gateway's Redis fast-path
+    # and pushes revocation events via Redis pub/sub.
+    App\Service\Essayist\EssayistMembershipCacheService:
         arguments:
             $redis: '@Redis'
 

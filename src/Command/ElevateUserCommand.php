@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\User;
+use App\Enum\RolesEnum;
+use App\Service\Essayist\EssayistMembershipCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -18,8 +20,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class ElevateUserCommand extends Command
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly EssayistMembershipCacheService $membershipCache,
+    ) {
         parent::__construct();
     }
 
@@ -49,6 +53,11 @@ class ElevateUserCommand extends Command
         $user->addRole($role);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
+
+        if ($role === RolesEnum::ESSAYIST_MEMBER->value) {
+            $this->membershipCache->markApproved($npub);
+        }
+
         $output->writeln(sprintf('<info>User %s elevated to role %s</info>', $npub, $role));
 
         return Command::SUCCESS;

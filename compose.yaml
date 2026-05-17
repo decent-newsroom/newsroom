@@ -296,6 +296,11 @@ services:
 # Activate with: docker compose --profile essayist up -d
 # Requires: ESSAYIST_POLICY_TOKEN set in .env (shared secret for the write-policy API)
 #
+# Topology:
+#   public WSS (Caddy) → essayist-gateway:7780 → strfry-essayist:7779
+#
+# strfry-essayist is NOT mapped to a host port — the gateway is the only ingress.
+#
   strfry-essayist:
     image: dockurr/strfry:latest
     profiles: [essayist]
@@ -308,11 +313,37 @@ services:
         - ./docker/strfry-essayist/strfry.conf:/etc/strfry.conf:ro
         - ./docker/strfry-essayist/write-policy.sh:/app/write-policy.sh:ro
         - strfry_essayist_data:/var/lib/strfry
-    ports:
-        - "7779:7779"  # ws://localhost:7779  (wss://relay.essayist.example.com in prod)
+    # NOTE: no `ports:` — relay is only reachable from essayist-gateway
+    # on the internal Docker network.
+
+  essayist-gateway:
+    build:
+      context: docker/essayist-gateway
+      dockerfile: Dockerfile
+    profiles: [essayist]
+    restart: unless-stopped
+    depends_on:
+      php:
+        condition: service_healthy
+      strfry-essayist:
+        condition: service_started
+      redis:
+        condition: service_started
     environment:
-        APP_INTERNAL_URL: http://php
-        ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
+      LISTEN_ADDR: ":7780"
+      HEALTH_ADDR: ":7781"
+      METRICS_ADDR: ":7782"
+      UPSTREAM_RELAY_URL: ws://strfry-essayist:7779
+      RELAY_PUBLIC_URL: ${ESSAYIST_RELAY_PUBLIC_URL:-wss://essayist.localhost}
+      ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:?ESSAYIST_POLICY_TOKEN must be set}
+      POLICY_URL_TEMPLATE: http://php/api/internal/essayist/writer/{pubkey}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
+      LOG_LEVEL: ${ESSAYIST_GATEWAY_LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7781/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ###< strfry-essayist relay ###
 
 ###> symfony/mercure-bundle ###

@@ -9,6 +9,7 @@ use App\Enum\RolesEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
+use App\Service\Essayist\EssayistMembershipCacheService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +21,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_ADMIN')]
 class EssayistAdminController extends AbstractController
 {
+    public function __construct(
+        private readonly EssayistMembershipCacheService $membershipCache,
+    ) {
+    }
+
     #[Route('/admin/essayist', name: 'admin_essayist_index', methods: ['GET'])]
     public function index(
         UserEntityRepository $userRepository,
@@ -70,6 +76,8 @@ class EssayistAdminController extends AbstractController
 
         $em->flush();
 
+        $this->membershipCache->markApproved($npub);
+
         return $this->redirectToRoute('admin_essayist_index');
     }
 
@@ -88,6 +96,8 @@ class EssayistAdminController extends AbstractController
 
         $user->removeRole(RolesEnum::ESSAYIST_MEMBER->value);
         $em->flush();
+
+        $this->membershipCache->markRevoked((string) $user->getNpub());
 
         $this->addFlash('success', sprintf('Revoked membership for %s.', $user->getNpub()));
 
@@ -110,6 +120,8 @@ class EssayistAdminController extends AbstractController
         $user->removeRole(RolesEnum::ESSAYIST_CANDIDATE->value);
         $user->addRole(RolesEnum::ESSAYIST_MEMBER->value);
         $em->flush();
+
+        $this->membershipCache->markApproved((string) $user->getNpub());
 
         $this->addFlash('success', sprintf('Approved %s — membership granted.', $user->getNpub()));
 

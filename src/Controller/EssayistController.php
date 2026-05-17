@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
+use App\Service\Essayist\EssayistMembershipCacheService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,8 +41,11 @@ class EssayistController extends AbstractController
     }
 
     #[Route('/early-bird', name: 'app_static_essayist_early_bird', methods: ['POST'])]
-    public function claimEarlyBird(Request $request, EntityManagerInterface $em): Response
-    {
+    public function claimEarlyBird(
+        Request $request,
+        EntityManagerInterface $em,
+        EssayistMembershipCacheService $membershipCache,
+    ): Response {
         $user = $this->getUser();
         if (!$user instanceof User) {
             return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
@@ -60,6 +64,8 @@ class EssayistController extends AbstractController
         $user->addRole(RolesEnum::ESSAYIST_MEMBER->value);
         $em->persist($user);
         $em->flush();
+
+        $membershipCache->markApproved((string) $user->getNpub());
 
         return $this->redirectToRoute('app_static_essayist', ['join_status' => 'early_bird_claimed']);
     }

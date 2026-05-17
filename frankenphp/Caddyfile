@@ -56,13 +56,14 @@
         }
 
         # Essayist writer-first relay WebSocket proxy
-        # Production: essayist.decentnewsroom.com  →  strfry-essayist:7779
+        # Production: essayist.decentnewsroom.com  →  essayist-gateway:7780  →  strfry-essayist:7779
+        # The gateway enforces NIP-42 AUTH + ROLE_ESSAYIST_MEMBER on every connection.
         # Activated only when the `essayist` Docker profile is running.
         # Configure: ESSAYIST_RELAY_DOMAIN=essayist.decentnewsroom.com
         @essayistRelay host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
         handle @essayistRelay {
                 encode zstd gzip
-                reverse_proxy strfry-essayist:7779
+                reverse_proxy essayist-gateway:7780
         }
 
 	# ── Block scanner / attacker probe paths ─────────────────────────────────────
