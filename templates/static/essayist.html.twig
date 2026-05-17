@@ -5,7 +5,7 @@
 {% block body %}
     {%- set fmt_launch   = launchDate|format_date('long') -%}
     {%- set fmt_deadline = earlyBirdDeadline|format_date('long') -%}
-    <main class="essayist-page">
+    <main class="essayist-page" data-controller="utility--login-modal">
         <section class="essayist-hero">
             <div class="essayist-shell">
                 <twig:Atoms:PageHeading heading="{{ 'essayist.landing.title'|trans }}" tagline="{{ 'essayist.landing.hero.heading'|trans }}"/>
@@ -17,7 +17,7 @@
                     {% elseif app.user %}
                         <a class="btn btn--primary" href="#essayist-join">{{ 'essayist.landing.hero.ctaLoggedIn'|trans }}</a>
                     {% else %}
-                        <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.hero.ctaAnon'|trans }}</a>
+                        <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.hero.ctaAnon'|trans }}</button>
                     {% endif %}
                     <a class="btn" href="#essayist-how">{{ 'essayist.landing.hero.secondaryCta'|trans }}</a>
                 </div>
@@ -96,7 +96,7 @@
                         </form>
                     {% else %}
                         <div class="essayist-actions">
-                            <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</a>
+                            <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</button>
                         </div>
                     {% endif %}
                 </div>
@@ -171,7 +171,7 @@
                         <p class="essayist-copy">{{ 'essayist.landing.join.anonBody'|trans }}</p>
                         <div class="essayist-actions">
                             {% if isLaunched %}
-                                <a class="btn btn--primary" href="{{ path('app_login') }}">{{ 'essayist.landing.join.anonCta'|trans }}</a>
+                                <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.join.anonCta'|trans }}</button>
                             {% else %}
                                 <a class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.anonCta'|trans }}</a>
                                 <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans({'%launch_date%': fmt_launch}) }}</p>
@@ -224,5 +224,7 @@
                 </div>
             </div>
         </section>
+
+        <twig:LoginModal />
     </main>
 {% endblock %}
