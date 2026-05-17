@@ -109,7 +109,7 @@ essayist:
             prelaunch: 'Acceso Anticipado'
             launched: 'Nuevo'
         heading:
-            prelaunch: 'Essayist se lanza el 1 de junio. Reclama acceso gratuito para todo el mes de junio.'
+            prelaunch: 'Essayist, un relay v4v para ensayos, se lanza el 1 de junio. Reclama acceso gratuito para todo el mes de junio.'
             launched: 'Essayist — un relay exclusivo para miembros de escritura larga.'
         cta:
             prelaunch: 'Reclamar tu junio gratuito'
@@ -124,6 +124,7 @@ essayist:
             ctaAnon: 'Iniciar sesión para unirse'
             ctaLoggedIn: 'Hacerse miembro'
             ctaMember: 'Visitar la página principal'
+            ctaEarlyBirdConfirmed: 'Acceso anticipado reclamado ✓'
             secondaryCta: 'Cómo funciona'
         status:
             memberLabel: 'Miembros activos'

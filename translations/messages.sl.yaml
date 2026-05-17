@@ -109,7 +109,7 @@ essayist:
             prelaunch: 'Zgodnji dostop'
             launched: 'Novost'
         heading:
-            prelaunch: 'Essayist se zažene 1. junija. Pridobite brezplačen dostop za ves junij.'
+            prelaunch: 'Essayist, v4v podomrežnik za eseje, se zažene 1. junija. Pridobite brezplačen dostop za ves junij.'
             launched: 'Essayist — podomrežnik samo za člane za daljše pisanje.'
         cta:
             prelaunch: 'Prejmite brezplačni junij'
@@ -124,6 +124,7 @@ essayist:
             ctaAnon: 'Prijavite se'
             ctaLoggedIn: 'Pridruži se skupnosti'
             ctaMember: 'Obišči začetno stran'
+            ctaEarlyBirdConfirmed: 'Zgodnji dostop zagotovljen ✓'
             secondaryCta: 'Kako deluje'
         status:
             memberLabel: 'Aktivni člani'

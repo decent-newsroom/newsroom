@@ -109,7 +109,7 @@ essayist:
             prelaunch: 'Early Access'
             launched: 'New'
         heading:
-            prelaunch: 'Essayist launches June 1. Claim free access for the whole of June.'
+            prelaunch: 'Essayist, a v4v relay for essays, launches June 1. Claim free access for the whole of June.'
             launched: 'Essayist — a members-only relay for longform writing.'
         cta:
             prelaunch: 'Claim your free June'
@@ -124,6 +124,7 @@ essayist:
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Become a member'
             ctaMember: 'Visit front page'
+            ctaEarlyBirdConfirmed: 'Early access claimed ✓'
             secondaryCta: 'How it works'
         status:
             memberLabel: 'Active members'

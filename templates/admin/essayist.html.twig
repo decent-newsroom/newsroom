@@ -76,7 +76,7 @@
                                     <span class="essayist-badge essayist-badge--ok">Early Bird</span>
                                 {% endif %}
                             </td>
-                            <td class="essayist-actions-cell">
+                            <td>
                                 <form action="{{ path('admin_essayist_revoke_member', { id: entry.user.id }) }}"
                                       method="post"
                                       style="display:inline;"
@@ -141,7 +141,7 @@
                                     <span class="essayist-badge essayist-badge--warn">below threshold</span>
                                 {% endif %}
                             </td>
-                            <td class="essayist-actions-cell">
+                            <td>
                                 <form action="{{ path('admin_essayist_approve', { id: entry.user.id }) }}"
                                       method="post"
                                       style="display:inline;"
@@ -277,12 +277,6 @@
 .essayist-badge--warn {
     background: var(--color-warning-bg, #fff3cd);
     color: var(--color-warning-text, #856404);
-}
-
-.essayist-actions-cell {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
 }
 
 .essayist-grant-form {
