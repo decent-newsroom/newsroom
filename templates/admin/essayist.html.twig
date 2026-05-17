@@ -34,7 +34,9 @@
                    required
                    pattern="npub1.*"
                    title="Must be a valid npub starting with npub1">
-            <button type="submit" class="btn btn--primary">Grant membership</button>
+            <div class="actions">
+                <button type="submit" class="btn btn--primary">Grant membership</button>
+            </div>
         </form>
 
         {% if members is empty %}
@@ -79,11 +81,8 @@
                                       method="post"
                                       style="display:inline;"
                                       onsubmit="return confirm('Revoke membership from {{ entry.npub|shortenNpub }}?');">
-                                    <button type="submit" class="btn btn-sm btn--danger">Revoke</button>
+                                    <button type="submit" class="btn btn-sm btn-secondary">Revoke</button>
                                 </form>
-                                <a href="{{ path('author-profile', { npub: entry.npub }) }}"
-                                   target="_blank"
-                                   class="btn btn-sm">View profile</a>
                             </td>
                         </tr>
                     {% endfor %}
@@ -153,7 +152,7 @@
                                       method="post"
                                       style="display:inline;"
                                       onsubmit="return confirm('Reject this candidate? The request will be removed.');">
-                                    <button type="submit" class="btn btn-sm btn--danger">Reject</button>
+                                    <button type="submit" class="btn btn-sm btn-secondary">Reject</button>
                                 </form>
                                 <a href="{{ path('author-profile', { npub: entry.npub }) }}"
                                    target="_blank"
@@ -298,16 +297,6 @@
     border: 1px solid var(--color-border, #ccc);
     font-size: 0.875rem;
     min-width: 280px;
-}
-
-.btn--danger {
-    color: var(--color-error, #dc3545);
-    border-color: var(--color-error, #dc3545);
-}
-
-.btn--danger:hover {
-    background: var(--color-error, #dc3545);
-    color: #fff;
 }
 </style>
 {% endblock %}

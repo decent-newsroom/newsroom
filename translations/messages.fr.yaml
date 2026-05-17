@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Relais financé par adhésion'
             heading: 'Un relais valeur-pour-valeur pour les essais.'
-            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à l'un des membres existants. Les membres ont également accès à une page d'accueil personnalisée — basée sur leurs favoris, abonnements et centres d'intérêt."
+            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à un membre existant de votre choix. Les membres ont également accès à une page d'accueil personnalisée — basée sur leurs favoris, abonnements et centres d'intérêt."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Devenir membre'
             ctaMember: 'Ouvrir le fil'
@@ -151,7 +151,7 @@ essayist:
             requestCta: "Demander l'adhésion"
             memberBody: "Votre adhésion est active. Vous pouvez écrire sur le relais et accéder à votre page d'accueil personnalisée."
             memberCta: 'Ouvrir le fil'
-            pendingBody: "Votre statut d'adhésion est en cours de vérification. Une fois votre contribution confirmée, votre accès sera activé."
+            pendingBody: "Votre demande est en cours d'examen. Vous serez notifié(e) une fois votre accès activé."
             status:
                 request_created: 'Demande reçue.'
                 already_member: 'Votre adhésion est déjà active.'

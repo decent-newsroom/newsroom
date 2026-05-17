@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Membership-funded relay'
             heading: 'A value-for-value relay for essays.'
-            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to one of the existing members. Members also get a personalized front page — based on their favourites, follows and interests.'
+            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to an existing member of your choice. Members also get a personalized front page — based on their favorites, follows and interests.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Become a member'
             ctaMember: 'Open the feed'
@@ -151,7 +151,7 @@ essayist:
             requestCta: 'Request membership'
             memberBody: 'Your membership is active. You can write to the relay and access your personalized front page.'
             memberCta: 'Open the feed'
-            pendingBody: 'Your membership status is pending verification. Once your contribution is confirmed, your access will be activated.'
+            pendingBody: 'Your request is pending review. You will be notified once your access has been activated.'
             status:
                 request_created: 'Request received.'
                 already_member: 'Your membership is already active.'

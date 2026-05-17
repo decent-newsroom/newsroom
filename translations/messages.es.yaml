@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Relay financiado por membresía'
             heading: 'Un relay de valor por valor para ensayos.'
-            lede: 'Essayist es un relay para escritura de formato largo. Para obtener acceso, haces una pequeña contribución mensual a uno de los miembros actuales. Los miembros también obtienen una página principal personalizada — basada en sus favoritos, seguidos e intereses.'
+            lede: 'Essayist es un relay para escritura de formato largo. Para obtener acceso, haces una pequeña contribución mensual a un miembro existente de tu elección. Los miembros también obtienen una página principal personalizada — basada en sus favoritos, seguidos e intereses.'
             ctaAnon: 'Iniciar sesión para unirse'
             ctaLoggedIn: 'Hacerse miembro'
             ctaMember: 'Abrir el feed'
@@ -151,7 +151,7 @@ essayist:
             requestCta: 'Solicitar membresía'
             memberBody: 'Tu membresía está activa. Puedes escribir en el relay y acceder a tu página principal personalizada.'
             memberCta: 'Abrir el feed'
-            pendingBody: 'El estado de tu membresía está pendiente de verificación. Una vez confirmada tu contribución, se activará tu acceso.'
+            pendingBody: 'Tu solicitud está pendiente de revisión. Se te notificará una vez que tu acceso haya sido activado.'
             status:
                 request_created: 'Solicitud recibida.'
                 already_member: 'Tu membresía ya está activa.'
