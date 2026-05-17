@@ -192,11 +192,28 @@ Add to `EssayistController`:
 - Query `strfry-essayist` (port 7779) for kind 30023
 - Render using existing `CardList` organism
 
-### 3. Role expiry — not yet automated
+### 3. Personalized members front page (`/essayist/home`) — not yet built
+
+A role-gated personalized front page, exclusive to `ROLE_ESSAYIST_MEMBER`.
+
+This is the page referenced in the landing page copy ("Members also get a personalized front page — based on their favourites, follows and interests"). It functions similarly to the main Decent Newsroom home feed but scoped to the member's own Nostr social graph.
+
+Implementation notes:
+- `GET /essayist/home` (or merge `/essayist/feed` into this), guarded by `#[IsGranted('ROLE_ESSAYIST_MEMBER')]`
+- Content sources (in priority order):
+  1. **Follows** — kind 30023 articles from pubkeys the member follows (kind 3)
+  2. **Topic interests** — kind 30023 filtered by hashtags from the member's kind 10015 interest list
+  3. **Follow packs** — kind 30023 from pubkeys in any kind 39089 follow packs the member has subscribed to
+- Source relays: `strfry-essayist` first (member-published content), then the member's NIP-65 relay list for broader coverage
+- Deduplicate by `d`-tag; prefer the most recent version
+- Render using the existing home feed tab infrastructure (Turbo Frames + `content--home-tabs` Stimulus controller) so the personalized page can have tabs (e.g. Follows / Topics / All)
+- Non-members requesting this route receive a 403 redirect to `/essayist` with a `join_status=login_required` flash
+
+### 4. Role expiry — not yet automated
 
 `ROLE_ESSAYIST_MEMBER` is assigned but never removed automatically. Manage manually for now. Planned: cron command that reads a `membership_granted_at` timestamp and strips the role after 30 days.
 
-### 4. NIP-42 relay-level read enforcement — designed, implementation pending
+### 5. NIP-42 relay-level read enforcement — designed, implementation pending
 
 A dedicated `essayist-gateway` service will sit between Caddy and `strfry-essayist`, enforcing NIP-42 AUTH on every inbound connection before forwarding anything to the relay. This gates both reads (REQ) and writes (EVENT) at the WebSocket protocol layer.
 

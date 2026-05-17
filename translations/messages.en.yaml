@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Membership-funded relay'
             heading: 'A value-for-value relay for essays.'
-            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to one of the existing members. Members also get a personalized front page — built from their follows, topics, and follow packs.'
+            lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to one of the existing members. Members also get a personalized front page — based on their favourites, follows and interests.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Become a member'
             ctaMember: 'Open the feed'
@@ -141,7 +141,7 @@ essayist:
                 body: 'Once your contribution is verified, your pubkey has full access: write to the relay and read your personalized members front page.'
             step5:
                 title: 'Renew to stay in'
-                body: 'Membership lasts one month. Contribute again to renew. If you lapse, your access ends until you re-contribute.'
+                body: 'Membership lasts one month. Contribute again to renew. If you lapse, your access ends. You can join again by following the sign-up steps.'
         join:
             eyebrow: 'Join'
             heading: 'Request access'

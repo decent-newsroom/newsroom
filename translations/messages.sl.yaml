@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Skupno financiran podomrežnik'
             heading: 'Podomrežnik vrednost-za-vrednost za eseje.'
-            lede: 'Essayist je podomrežnik za daljše pisanje. Za dostop prispevate majhen mesečni znesek enemu od obstoječih članov. Člani dobijo tudi osebno prilagojeno začetno stran — zgrajeno iz njihovih sledenju, tem in paketov sledenja.'
+            lede: 'Essayist je podomrežnik za daljše pisanje. Za dostop prispevate majhen mesečni znesek enemu od obstoječih članov. Člani dobijo tudi osebno prilagojeno začetno stran — na podlagi njihovih priljubljenih, sledenih in interesov.'
             ctaAnon: 'Prijavite se'
             ctaLoggedIn: 'Pridruži se skupnosti'
             ctaMember: 'Odpri objave'
@@ -141,7 +141,7 @@ essayist:
                 body: 'Ko je vaš prispevek preverjen, ima vaš javni ključ popoln dostop: pisanje na podomrežnik in branje vaše osebno prilagojene začetne strani za člane.'
             step5:
                 title: 'Obnovite članstvo'
-                body: 'Članstvo traja en mesec. Prispevajte znova za obnovo. Če zamudite, se vaš dostop konča, dokler ne prispevate znova.'
+                body: 'Članstvo traja en mesec. Prispevajte znova za obnovo. Če poteče, se vaš dostop konča. Znova se lahko pridružite s sledanjem korakom prijave.'
         join:
             eyebrow: 'Pridruži se skupnosti'
             heading: 'Zahtevaj dostop'

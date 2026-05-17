@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Mitgliedschaftsfinanzierter Relay'
             heading: 'Ein Value-for-Value-Relay für Essays.'
-            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag an eines der bestehenden Mitglieder. Mitglieder erhalten außerdem eine personalisierte Startseite — aufgebaut aus ihren Follows, Themen und Follow-Packs.'
+            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag an eines der bestehenden Mitglieder. Mitglieder erhalten außerdem eine personalisierte Startseite — basierend auf ihren Favoriten, Follows und Interessen.'
             ctaAnon: 'Anmelden, um beizutreten'
             ctaLoggedIn: 'Mitglied werden'
             ctaMember: 'Feed öffnen'
@@ -141,7 +141,7 @@ essayist:
                 body: 'Sobald Ihr Beitrag verifiziert wurde, hat Ihr öffentlicher Schlüssel vollen Zugang: auf den Relay schreiben und Ihre personalisierte Mitglieder-Startseite lesen.'
             step5:
                 title: 'Erneuern, um dabei zu bleiben'
-                body: 'Die Mitgliedschaft gilt einen Monat lang. Leisten Sie erneut einen Beitrag, um zu erneuern. Wenn Sie pausieren, endet Ihr Zugang, bis Sie erneut beitragen.'
+                body: 'Die Mitgliedschaft gilt einen Monat lang. Leisten Sie erneut einen Beitrag, um zu erneuern. Wenn Ihre Mitgliedschaft ausläuft, endet Ihr Zugang. Sie können erneut beitreten, indem Sie die Anmeldeschritte befolgen.'
         join:
             eyebrow: 'Beitreten'
             heading: 'Zugang beantragen'
