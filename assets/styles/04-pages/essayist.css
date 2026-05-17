@@ -175,6 +175,14 @@
     line-height: 1.7;
 }
 
+.essayist-step--waived {
+    opacity: 0.75;
+}
+
+.essayist-step--waived strong {
+    text-decoration: line-through;
+}
+
 .essayist-faq {
     margin: 0;
 }

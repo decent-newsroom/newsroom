@@ -116,7 +116,7 @@
                             <strong>{{ 'essayist.landing.how.step1.title'|trans }}</strong>
                             <p>{{ 'essayist.landing.how.step1.body'|trans }}</p>
                         </li>
-                        <li>
+                        <li{% if not isLaunched %} class="essayist-step--waived"{% endif %}>
                             <strong>{{ 'essayist.landing.how.step2.title'|trans }}</strong>
                             <p>{{ 'essayist.landing.how.step2.body'|trans({'%deadline%': fmt_deadline}) }}</p>
                         </li>
