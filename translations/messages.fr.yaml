@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Relais financé par adhésion'
             heading: 'Un relais valeur-pour-valeur pour les essais.'
-            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à l'un des membres existants."
+            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à l'un des membres existants. Les membres ont également accès à une page d'accueil personnalisée — construite à partir de leurs abonnements, sujets et listes de suivi."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Devenir membre'
             ctaMember: 'Ouvrir le fil'
@@ -138,7 +138,7 @@ essayist:
                 body: "Choisissez parmi les membres actuels et envoyez 2000 sats à quelqu'un."
             step4:
                 title: "Obtenir un mois d'accès"
-                body: 'Une fois votre contribution vérifiée, votre clé publique a un accès complet : écrire sur le relais, lire le fil.'
+                body: "Une fois votre contribution vérifiée, votre clé publique a un accès complet : écrire sur le relais et lire votre page d'accueil personnalisée pour membres."
             step5:
                 title: 'Renouveler pour rester'
                 body: "L'adhésion dure un mois. Contribuez à nouveau pour renouveler. Si vous laissez expirer, votre accès prend fin jusqu'à ce que vous contribuiez à nouveau."
@@ -149,7 +149,7 @@ essayist:
             anonCta: 'Se connecter'
             loggedInBody: 'Cliquez ci-dessous pour demander une adhésion. Le fil du relais sera lancé le %launch_date%.'
             requestCta: "Demander l'adhésion"
-            memberBody: 'Votre adhésion est active. Vous pouvez écrire sur le relais et lire le fil.'
+            memberBody: "Votre adhésion est active. Vous pouvez écrire sur le relais et accéder à votre page d'accueil personnalisée."
             memberCta: 'Ouvrir le fil'
             pendingBody: "Votre statut d'adhésion est en cours de vérification. Une fois votre contribution confirmée, votre accès sera activé."
             status:

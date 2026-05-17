@@ -138,7 +138,7 @@ essayist:
                 body: 'Elige entre los miembros actuales y envía a alguien 2000 sats.'
             step4:
                 title: 'Obtener un mes de acceso'
-                body: 'Una vez verificada tu contribución, tu clave pública tiene acceso completo: escribe en el relay, lee el feed.'
+                body: 'Una vez verificada tu contribución, tu clave pública tiene acceso completo: escribe en el relay y lee tu página principal personalizada para miembros.'
             step5:
                 title: 'Renueva para seguir'
                 body: 'La membresía dura un mes. Contribuye de nuevo para renovar. Si no lo haces, tu acceso termina hasta que vuelvas a contribuir.'
@@ -149,7 +149,7 @@ essayist:
             anonCta: 'Iniciar sesión'
             loggedInBody: 'Haz clic abajo para solicitar membresía. El feed del relay se activa el %launch_date%.'
             requestCta: 'Solicitar membresía'
-            memberBody: 'Tu membresía está activa. Puedes escribir en el relay y leer el feed.'
+            memberBody: 'Tu membresía está activa. Puedes escribir en el relay y acceder a tu página principal personalizada.'
             memberCta: 'Abrir el feed'
             pendingBody: 'El estado de tu membresía está pendiente de verificación. Una vez confirmada tu contribución, se activará tu acceso.'
             status:
