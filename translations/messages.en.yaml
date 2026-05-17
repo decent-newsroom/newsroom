@@ -111,7 +111,7 @@ essayist:
             lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to an existing member of your choice. Members also get a personalized front page — based on their favorites, follows and interests.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Become a member'
-            ctaMember: 'Open the feed'
+            ctaMember: 'Visit front page'
             secondaryCta: 'How it works'
         status:
             memberLabel: 'Active members'
@@ -150,7 +150,7 @@ essayist:
             loggedInBody: 'Click below to request membership. Relay feed goes live %launch_date%.'
             requestCta: 'Request membership'
             memberBody: 'Your membership is active. You can write to the relay and access your personalized front page.'
-            memberCta: 'Open the feed'
+            memberCta: 'Visit front page'
             pendingBody: 'Your request is pending review. You will be notified once your access has been activated.'
             status:
                 request_created: 'Request received.'

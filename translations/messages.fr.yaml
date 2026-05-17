@@ -111,7 +111,7 @@ essayist:
             lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à un membre existant de votre choix. Les membres ont également accès à une page d'accueil personnalisée — basée sur leurs favoris, abonnements et centres d'intérêt."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Devenir membre'
-            ctaMember: 'Ouvrir le fil'
+            ctaMember: "Visiter la page d'accueil"
             secondaryCta: 'Comment ça fonctionne'
         status:
             memberLabel: 'Membres actifs'
@@ -150,7 +150,7 @@ essayist:
             loggedInBody: 'Cliquez ci-dessous pour demander une adhésion. Le fil du relais sera lancé le %launch_date%.'
             requestCta: "Demander l'adhésion"
             memberBody: "Votre adhésion est active. Vous pouvez écrire sur le relais et accéder à votre page d'accueil personnalisée."
-            memberCta: 'Ouvrir le fil'
+            memberCta: "Visiter la page d'accueil"
             pendingBody: "Votre demande est en cours d'examen. Vous serez notifié(e) une fois votre accès activé."
             status:
                 request_created: 'Demande reçue.'

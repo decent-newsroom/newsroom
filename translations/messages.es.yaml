@@ -111,7 +111,7 @@ essayist:
             lede: 'Essayist es un relay para escritura de formato largo. Para obtener acceso, haces una pequeña contribución mensual a un miembro existente de tu elección. Los miembros también obtienen una página principal personalizada — basada en sus favoritos, seguidos e intereses.'
             ctaAnon: 'Iniciar sesión para unirse'
             ctaLoggedIn: 'Hacerse miembro'
-            ctaMember: 'Abrir el feed'
+            ctaMember: 'Visitar la página principal'
             secondaryCta: 'Cómo funciona'
         status:
             memberLabel: 'Miembros activos'
@@ -150,7 +150,7 @@ essayist:
             loggedInBody: 'Haz clic abajo para solicitar membresía. El feed del relay se activa el %launch_date%.'
             requestCta: 'Solicitar membresía'
             memberBody: 'Tu membresía está activa. Puedes escribir en el relay y acceder a tu página principal personalizada.'
-            memberCta: 'Abrir el feed'
+            memberCta: 'Visitar la página principal'
             pendingBody: 'Tu solicitud está pendiente de revisión. Se te notificará una vez que tu acceso haya sido activado.'
             status:
                 request_created: 'Solicitud recibida.'
