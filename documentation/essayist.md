@@ -196,7 +196,7 @@ Add to `EssayistController`:
 
 A role-gated personalized front page, exclusive to `ROLE_ESSAYIST_MEMBER`.
 
-This is the page referenced in the landing page copy ("Members also get a personalized front page — based on their favorites, follows and interests"). It functions similarly to the main Decent Newsroom home feed but scoped to the member's own Nostr social graph.
+This is the page referenced in the landing page copy ("Members also get a personalized front page based on their favorites, follows and interests"). It functions similarly to the main Decent Newsroom home feed but scoped to the member's own Nostr social graph.
 
 Implementation notes:
 - `GET /essayist/home` (or merge `/essayist/feed` into this), guarded by `#[IsGranted('ROLE_ESSAYIST_MEMBER')]`

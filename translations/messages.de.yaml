@@ -120,7 +120,7 @@ essayist:
         hero:
             eyebrow: 'Mitgliedschaftsfinanzierter Relay'
             heading: 'Ein Value-for-Value-Relay für Essays.'
-            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag an ein bestehendes Mitglied Ihrer Wahl. Mitglieder erhalten außerdem eine personalisierte Startseite — basierend auf ihren Favoriten, Follows und Interessen.'
+            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag an ein bestehendes Mitglied Ihrer Wahl. Mitglieder erhalten außerdem eine personalisierte Startseite basierend auf ihren Favoriten, Follows und Interessen.'
             ctaAnon: 'Anmelden, um beizutreten'
             ctaLoggedIn: 'Mitglied werden'
             ctaMember: 'Startseite besuchen'
