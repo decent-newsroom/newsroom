@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Pool-finanzierter Relay'
             heading: 'Ein Value-for-Value-Relay für Essays.'
-            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag, der unter den bereits im Pool befindlichen Personen verteilt wird.'
+            lede: 'Essayist ist ein Relay für Langformtexte. Um Zugang zu erhalten, leisten Sie einen kleinen monatlichen Beitrag an eines der bestehenden Mitglieder.'
             ctaAnon: 'Anmelden, um beizutreten'
             ctaLoggedIn: 'Dem Pool beitreten'
             ctaMember: 'Feed öffnen'

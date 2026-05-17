@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.41
+
+- [Bug] Fixed Essayist launch date comparison using server local time. `LAUNCH_DATE` and `EARLY_BIRD_DEADLINE` are now full RFC 3339 datetime strings anchored to midnight UTC (`2026-06-01T00:00:00+00:00` / `2026-05-31T00:00:00+00:00`), and `isLaunched` is evaluated against a UTC `now`, so the relay opens precisely at 00:00 UTC on 1 June regardless of server timezone.
+
 ## v0.0.40
 Essayist membership gateway.
 

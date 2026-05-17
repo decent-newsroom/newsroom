@@ -108,7 +108,7 @@ essayist:
         hero:
             eyebrow: 'Skupno financiran podomrežnik'
             heading: 'Podomrežnik vrednost-za-vrednost za eseje.'
-            lede: 'Essayist je podomrežnik za daljše pisanje. Za dostop prispevate majhen mesečni znesek, ki ga razdelite med osebe, ki so že v skupnosti.'
+            lede: 'Essayist je podomrežnik za daljše pisanje. Za dostop prispevate majhen mesečni znesek enemu od obstoječih članov.'
             ctaAnon: 'Prijavite se'
             ctaLoggedIn: 'Pridruži se skupnosti'
             ctaMember: 'Odpri objave'

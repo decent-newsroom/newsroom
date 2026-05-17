@@ -17,8 +17,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/essayist')]
 class EssayistController extends AbstractController
 {
-    private const LAUNCH_DATE      = '2026-06-01';
-    private const EARLY_BIRD_DEADLINE = '2026-05-31';
+    private const LAUNCH_DATE         = '2026-06-01T00:00:00+00:00';
+    private const EARLY_BIRD_DEADLINE = '2026-06-01T00:00:00+00:00';
 
     #[Route('', name: 'app_static_essayist', methods: ['GET'])]
     public function index(Request $request, UserEntityRepository $userRepository): Response
@@ -27,6 +27,7 @@ class EssayistController extends AbstractController
         $roles = $user instanceof User ? $user->getRoles() : [];
 
         $launchDate = new \DateTimeImmutable(self::LAUNCH_DATE);
+        $now        = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
         return $this->render('static/essayist.html.twig', [
             'isMember'          => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
@@ -35,7 +36,7 @@ class EssayistController extends AbstractController
             'memberCount'       => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
             'joinStatus'        => $request->query->get('join_status'),
             'launchDate'        => $launchDate,
-            'isLaunched'        => new \DateTimeImmutable() >= $launchDate,
+            'isLaunched'        => $now >= $launchDate,
             'earlyBirdDeadline' => new \DateTimeImmutable(self::EARLY_BIRD_DEADLINE),
         ]);
     }

@@ -2,9 +2,9 @@
 
 ## Working Definition
 
-**Essayist is a Nostr relay for longform writing where access works by contributing to the people already in the pool.**
+**Essayist is a Nostr relay for longform writing where access works by contributing to the existing membership.**
 
-To join, you send a small amount of sats to someone in the pool. That grants you access for the next month. You can read. You can post. No approval required. No content gating. If you irritate people, they mute you, and you lose your audience. That is the only enforcement.
+To join, you send a small amount of sats to someone in the membership. That grants you access for the next month. You can read. You can post. No approval required. No content gating. If you irritate people, they mute you, and you lose your audience. That is the only enforcement.
 
 ---
 
@@ -16,13 +16,13 @@ To join, you send a small amount of sats to someone in the pool. That grants you
 
 ## Member Explanation
 
-To access Essayist, you make a small contribution to someone in the current pool of members. This renews monthly. While your membership is active, you can publish longform articles to the relay and read everything on it. If someone is disruptive, other members mute them. The relay operator does not need to police content.
+To access Essayist, you make a small contribution to someone in the current membership. This renews monthly. While your membership is active, you can publish longform articles to the relay and read everything on it. If someone is disruptive, other members mute them. The relay operator does not need to police content.
 
 ---
 
 # 2. Core Principle
 
-**The pool supports itself.**
+**The membership supports itself.**
 
 Money flows between members, not to a platform. Everyone who participates is both a potential recipient and a contributor. The relay operator facilitates access and keeps the relay running; they do not act as editorial gatekeeper.
 
@@ -32,9 +32,9 @@ Money flows between members, not to a platform. Everyone who participates is bot
 
 ## Required
 
-* Essayist landing page explaining the pool model. ✓ Built
+* Essayist landing page explaining the membership model. ✓ Built
 * Nostr login. ✓ Already existed
-* Contribution flow: logged-in user sends sats to someone in the pool, access is verified and granted.
+* Contribution flow: logged-in user sends sats to someone in the membership, access is verified and granted.
 * Manual verification fallback (admin grants `ROLE_ESSAYIST_MEMBER` via CLI or admin panel). ✓ Built
 * `ROLE_ESSAYIST_MEMBER` granted once contribution is verified, valid through end of next month.
 * Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
@@ -89,7 +89,7 @@ None. The relay accepts all kind 30023 from any member pubkey. No editorial revi
 
 # 5. Early Bird (pre-launch offer)
 
-The relay goes live **1 June 2026**. Until **31 May 2026**, logged-in users can claim free membership for June with a single click on the landing page. This assigns both `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER`. No payment required for the early-bird period.
+The relay goes live **1 June 2026**. Until **1 June 2026**, logged-in users can claim free membership for June with a single click on the landing page. This assigns both `ROLE_ESSAYIST_EARLY_BIRD` and `ROLE_ESSAYIST_MEMBER`. No payment required for the early-bird period.
 
 After the deadline, the claim button disappears. The early-bird section remains visible.
 
@@ -99,7 +99,7 @@ After the deadline, the claim button disappears. The early-bird section remains 
 
 ## Option A
 
-Launching Essayist: a Nostr relay for longform writing where your monthly contribution goes to the people already in the pool.
+Launching Essayist: a Nostr relay for longform writing where your monthly contribution goes directly to the existing membership.
 
 No writer approval. No reader tier. One role: member. Publish, read, stay in. Mute what you do not want to see.
 

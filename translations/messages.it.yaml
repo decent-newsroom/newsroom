@@ -106,16 +106,16 @@ essayist:
     landing:
         title: 'Essayist'
         hero:
-            eyebrow: 'Relay finanziato da pool'
+            eyebrow: 'Relay finanziato dagli iscritti'
             heading: 'Un relay valore-per-valore per saggi.'
-            lede: "Essayist è un relay per la scrittura di formato lungo. Per ottenere l'accesso, fai un piccolo contributo mensile distribuito tra le persone già nel pool."
+            lede: "Essayist è un relay per la scrittura di formato lungo. Per ottenere l'accesso, fai un piccolo contributo mensile a uno dei membri esistenti."
             ctaAnon: 'Accedi per unirti'
-            ctaLoggedIn: 'Unisciti al pool'
+            ctaLoggedIn: 'Diventa membro'
             ctaMember: 'Apri il feed'
             secondaryCta: 'Come funziona'
         status:
             memberLabel: 'Membri attivi'
-            memberBody: 'Persone attualmente nel pool. Il loro mese è attivo; possono leggere e pubblicare.'
+            memberBody: 'Membri attivi. Il loro mese è attivo; possono leggere e pubblicare.'
             renewalLabel: 'Abbonamento'
             renewalBody: 'Contribuire questo mese ti dà accesso per il mese successivo. Rinnova ogni mese per rimanere.'
             countdownLabel: 'Il relay va online tra'
@@ -134,7 +134,7 @@ essayist:
                 title: 'Paga la tariffa del relay'
                 body: "Una tariffa di inizializzazione una tantum di 100 sat aggiunge la tua chiave pubblica al relay. Gli early bird che si iscrivono prima del %deadline% sono esentati da questa tariffa."
             step3:
-                title: 'Contribuisci al pool'
+                title: 'Contribuisci ai membri'
                 body: 'Scegli tra i membri attuali e invia a qualcuno 2000 sats.'
             step4:
                 title: 'Ottieni un mese di accesso'
@@ -143,9 +143,9 @@ essayist:
                 title: 'Rinnova per restare'
                 body: "L'abbonamento dura un mese. Contribuisci di nuovo per rinnovare. Se smetti, il tuo accesso termina finché non contribuisci di nuovo."
         join:
-            eyebrow: 'Unisciti al pool'
+            eyebrow: 'Iscriviti'
             heading: "Richiedi l'accesso"
-            anonBody: "Accedi con il tuo account Nostr per richiedere l'abbonamento anticipato al pool."
+            anonBody: "Accedi con il tuo account Nostr per richiedere l'iscrizione anticipata."
             anonCta: 'Accedi'
             loggedInBody: "Clicca qui sotto per richiedere l'iscrizione. Il feed del relay sarà attivo dal %launch_date%."
             requestCta: 'Richiedi abbonamento'
@@ -158,27 +158,27 @@ essayist:
                 already_pending: 'La tua richiesta è già in attesa di verifica.'
                 invalid_csrf: 'Richiesta fallita a causa di un token di sicurezza non valido. Riprova.'
                 login_required: "Accedi prima per richiedere l'abbonamento."
-                early_bird_claimed: 'Sei dentro per giugno. Il relay va online il %launch_date% — benvenuto nel pool.'
+                early_bird_claimed: 'Sei dentro per giugno. Il relay va online il %launch_date% — benvenuto tra i membri.'
                 already_early_bird: 'Hai già rivendicato il tuo posto per accesso anticipato.'
             opensHint: 'Apre il %launch_date%'
         earlybird:
             eyebrow: 'Accesso Anticipato'
             heading: 'Giugno è nostro regalo.'
-            body: 'Il relay va online il %launch_date%. Iscriviti ora e ottieni tutto il mese di giugno gratuitamente — nessun costo, nessun obbligo. Rivendica il tuo posto e sarai nel pool dal primo giorno.'
+            body: 'Il relay va online il %launch_date%. Iscriviti ora e ottieni tutto il mese di giugno gratuitamente — nessun costo, nessun obbligo. Rivendica il tuo posto e sarai membro dal primo giorno.'
             deadline: 'Accesso gratuito disponibile fino al %deadline%.'
             ctaClaim: 'Rivendica il tuo giugno gratuito'
             ctaAnon: 'Accedi per rivendicare il tuo posto'
             confirmedBody: 'Sei dentro. A presto il %launch_date%.'
         model:
             eyebrow: 'Il modello'
-            heading: 'Il pool si sostiene da solo.'
+            heading: "L'iscrizione si sostiene da sola."
             paragraph1: "Il denaro scorre tra i membri, non attraverso una piattaforma. Tutti i partecipanti sono sia potenziali destinatari che contributori. L'operatore del relay facilita l'accesso e mantiene il relay in funzione — non agisce come guardiano editoriale."
-            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per entrare nel pool. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del %deadline%."
+            paragraph2: "Il relay applica una tariffa di inizializzazione una tantum di 100 sat per diventare membro. La tariffa iniziale è azzerata per i primi iscritti che si iscrivono prima del %deadline%."
         faq:
             eyebrow: 'FAQ'
             heading: 'Domande frequenti'
-            q1: 'Cosa significa "pool"?'
-            a1: 'Tutti coloro che hanno accesso attivo sono nel pool.'
+            q1: 'Chi è membro?'
+            a1: 'Tutti coloro che hanno accesso attivo sono iscritti.'
             q2: 'Posso solo leggere senza pubblicare?'
             a2: "Sì. L'accesso è accesso. Non sei obbligato a pubblicare nulla."
             q3: 'Cosa succede se smetto di pagare?'

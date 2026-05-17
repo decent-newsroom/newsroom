@@ -106,16 +106,16 @@ essayist:
     landing:
         title: 'Essayist'
         hero:
-            eyebrow: 'Relais financé par pool'
+            eyebrow: 'Relais financé par adhésion'
             heading: 'Un relais valeur-pour-valeur pour les essais.'
-            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle répartie entre les personnes déjà dans le pool."
+            lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à l'un des membres existants."
             ctaAnon: 'Se connecter pour rejoindre'
-            ctaLoggedIn: 'Rejoindre le pool'
+            ctaLoggedIn: 'Devenir membre'
             ctaMember: 'Ouvrir le fil'
             secondaryCta: 'Comment ça fonctionne'
         status:
             memberLabel: 'Membres actifs'
-            memberBody: 'Personnes actuellement dans le pool. Leur mois est actif ; elles peuvent lire et publier.'
+            memberBody: 'Membres actifs. Leur mois est actif ; ils peuvent lire et publier.'
             renewalLabel: 'Adhésion'
             renewalBody: 'Contribuer ce mois vous donne accès le mois suivant. Renouvelez chaque mois pour rester.'
             countdownLabel: 'Le relais sera en ligne dans'
@@ -134,7 +134,7 @@ essayist:
                 title: 'Payer les frais de relais'
                 body: "Des frais d'initialisation uniques de 100 sats ajoutent votre clé publique au relais. Les early birds s'inscrivant avant le %deadline% sont exemptés de ces frais."
             step3:
-                title: 'Contribuer au pool'
+                title: 'Contribuer aux membres'
                 body: "Choisissez parmi les membres actuels et envoyez 2000 sats à quelqu'un."
             step4:
                 title: "Obtenir un mois d'accès"
@@ -143,9 +143,9 @@ essayist:
                 title: 'Renouveler pour rester'
                 body: "L'adhésion dure un mois. Contribuez à nouveau pour renouveler. Si vous laissez expirer, votre accès prend fin jusqu'à ce que vous contribuiez à nouveau."
         join:
-            eyebrow: 'Rejoindre le pool'
+            eyebrow: 'Rejoindre'
             heading: "Demander l'accès"
-            anonBody: 'Connectez-vous avec votre compte Nostr pour demander une adhésion anticipée au pool.'
+            anonBody: "Connectez-vous avec votre compte Nostr pour demander une adhésion anticipée."
             anonCta: 'Se connecter'
             loggedInBody: 'Cliquez ci-dessous pour demander une adhésion. Le fil du relais sera lancé le %launch_date%.'
             requestCta: "Demander l'adhésion"
@@ -158,27 +158,27 @@ essayist:
                 already_pending: 'Votre demande est déjà en attente de vérification.'
                 invalid_csrf: "La demande a échoué en raison d'un jeton de sécurité invalide. Veuillez réessayer."
                 login_required: "Veuillez d'abord vous connecter pour demander une adhésion."
-                early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le %launch_date% — bienvenue dans le pool."
+                early_bird_claimed: "Vous êtes inscrit pour juin. Le relais est en ligne le %launch_date% — bienvenue dans l'adhésion."
                 already_early_bird: "Vous avez déjà réclamé votre accès anticipé."
             opensHint: 'Ouvre le %launch_date%'
         earlybird:
             eyebrow: 'Accès anticipé'
             heading: 'Juin est pour vous.'
-            body: "Le relais est mis en ligne le %launch_date%. Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement — sans frais, sans engagement. Réclamez simplement votre place et vous êtes dans le pool dès le premier jour."
+            body: "Le relais est mis en ligne le %launch_date%. Inscrivez-vous maintenant et profitez de tout le mois de juin gratuitement — sans frais, sans engagement. Réclamez simplement votre place et vous êtes membre dès le premier jour."
             deadline: "Accès gratuit disponible jusqu'au %deadline%."
             ctaClaim: 'Réclamer votre juin gratuit'
             ctaAnon: 'Connectez-vous pour réclamer votre place'
             confirmedBody: 'Vous êtes inscrit. À bientôt le %launch_date%.'
         model:
             eyebrow: 'Le modèle'
-            heading: 'Le pool se finance lui-même.'
+            heading: "L'adhésion se finance elle-même."
             paragraph1: "L'argent circule entre les membres, pas à travers une plateforme. Tous ceux qui participent sont à la fois des bénéficiaires potentiels et des contributeurs. L'opérateur du relais facilite l'accès et maintient le relais en fonctionnement — il n'agit pas comme gardien éditorial."
-            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour rejoindre le pool. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le %deadline%."
+            paragraph2: "Le relais facture des frais d'initialisation uniques de 100 sats pour devenir membre. Ces frais sont dispensés pour les premiers inscrits qui s'inscrivent avant le %deadline%."
         faq:
             eyebrow: 'FAQ'
             heading: 'Questions fréquentes'
-            q1: 'Que signifie « pool » ?'
-            a1: 'Tous ceux qui ont un accès actif sont dans le pool.'
+            q1: 'Qui est membre ?'
+            a1: 'Tous ceux qui ont un accès actif sont membres.'
             q2: 'Puis-je simplement lire sans publier ?'
             a2: "Oui. L'accès est l'accès. Vous n'êtes pas obligé de publier quoi que ce soit."
             q3: "Que se passe-t-il si j'arrête de payer ?"
