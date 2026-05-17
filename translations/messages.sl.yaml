@@ -104,6 +104,17 @@ roadmap:
     tagline: 'Kam se razvija Decent Newsroom'
 
 essayist:
+    promo:
+        eyebrow:
+            prelaunch: 'Zgodnji dostop'
+            launched: 'Novost'
+        heading:
+            prelaunch: 'Essayist se zažene 1. junija. Pridobite brezplačen dostop za ves junij.'
+            launched: 'Essayist — podomrežnik samo za člane za daljše pisanje.'
+        cta:
+            prelaunch: 'Prejmite brezplačni junij'
+            launched: 'Pridružite se Essayistu'
+        learnMore: 'Izvedi več'
     landing:
         title: 'Essayist'
         hero:

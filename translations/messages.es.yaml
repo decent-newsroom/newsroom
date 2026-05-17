@@ -104,6 +104,17 @@ roadmap:
     tagline: 'Hacia dónde se dirige Decent Newsroom'
 
 essayist:
+    promo:
+        eyebrow:
+            prelaunch: 'Acceso Anticipado'
+            launched: 'Nuevo'
+        heading:
+            prelaunch: 'Essayist se lanza el 1 de junio. Reclama acceso gratuito para todo el mes de junio.'
+            launched: 'Essayist — un relay exclusivo para miembros de escritura larga.'
+        cta:
+            prelaunch: 'Reclamar tu junio gratuito'
+            launched: 'Unirse a Essayist'
+        learnMore: 'Saber más'
     landing:
         title: 'Essayist'
         hero:

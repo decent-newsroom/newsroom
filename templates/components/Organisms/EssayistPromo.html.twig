@@ -1,0 +1,30 @@
+{% if isVisible %}
+<section class="essayist-promo">
+    <div class="essayist-promo__inner">
+        <div class="essayist-promo__text">
+            {% if not isLaunched %}
+                <span class="essayist-promo__eyebrow">{{ 'essayist.promo.eyebrow.prelaunch'|trans }}</span>
+                <span class="essayist-promo__heading">{{ 'essayist.promo.heading.prelaunch'|trans }}</span>
+            {% else %}
+                <span class="essayist-promo__eyebrow">{{ 'essayist.promo.eyebrow.launched'|trans }}</span>
+                <span class="essayist-promo__heading">{{ 'essayist.promo.heading.launched'|trans }}</span>
+            {% endif %}
+        </div>
+        <div class="essayist-promo__actions">
+            {% if not isLaunched %}
+                <a href="{{ path('app_static_essayist') }}#essayist-earlybird" class="btn btn--primary btn--sm">
+                    {{ 'essayist.promo.cta.prelaunch'|trans }}
+                </a>
+            {% else %}
+                <a href="{{ path('app_static_essayist') }}#essayist-join" class="btn btn--primary btn--sm">
+                    {{ 'essayist.promo.cta.launched'|trans }}
+                </a>
+            {% endif %}
+            <a href="{{ path('app_static_essayist') }}" class="essayist-promo__learn-more">
+                {{ 'essayist.promo.learnMore'|trans }}
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
