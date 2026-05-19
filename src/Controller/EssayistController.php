@@ -7,7 +7,10 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Enum\RolesEnum;
 use App\Repository\UserEntityRepository;
+use App\Service\Cache\RedisCacheService;
+use App\Service\Essayist\EssayistFeedService;
 use App\Service\Essayist\EssayistMembershipCacheService;
+use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -33,6 +36,7 @@ class EssayistController extends AbstractController
             'isMember'          => in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true),
             'isPending'         => in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $roles, true),
             'isEarlyBird'       => in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true),
+            'isAdmin'           => in_array('ROLE_ADMIN', $roles, true),
             'memberCount'       => $userRepository->countByRole(RolesEnum::ESSAYIST_MEMBER->value),
             'joinStatus'        => $request->query->get('join_status'),
             'launchDate'        => $launchDate,
@@ -99,6 +103,53 @@ class EssayistController extends AbstractController
         $em->flush();
 
         return $this->redirectToRoute('app_static_essayist', ['join_status' => 'request_created']);
+    }
+
+    /**
+     * Members-only article feed — queries strfry-essayist for the latest kind:30023 articles.
+     * Admins can access as a preview regardless of membership status.
+     */
+    #[Route('/feed', name: 'app_essayist_feed', methods: ['GET'])]
+    public function feed(
+        EssayistFeedService $feedService,
+        RedisCacheService $redisCacheService,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
+        }
+
+        $roles   = $user->getRoles();
+        $isAdmin = in_array('ROLE_ADMIN', $roles, true);
+
+        if (!$isAdmin && !in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'access_denied']);
+        }
+
+        $articles = $feedService->fetchLatest(50);
+
+        // Resolve author metadata from Redis for avatars / display names
+        $authorsMetadata = [];
+        if (!empty($articles)) {
+            $pubkeys = array_unique(array_column($articles, 'pubkey'));
+            $pubkeys = array_filter($pubkeys, fn (string $pk): bool => NostrKeyUtil::isHexPubkey($pk));
+            if (!empty($pubkeys)) {
+                $raw = $redisCacheService->getMultipleMetadata(array_values($pubkeys));
+                foreach ($raw as $pk => $meta) {
+                    $authorsMetadata[$pk] = is_object($meta) && method_exists($meta, 'toStdClass')
+                        ? $meta->toStdClass()
+                        : $meta;
+                }
+            }
+        }
+
+        return $this->render('essayist/feed.html.twig', [
+            'articles'        => $articles,
+            'authorsMetadata' => $authorsMetadata,
+            'isAdmin'         => $isAdmin,
+        ]);
     }
 }
 

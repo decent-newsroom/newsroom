@@ -1,0 +1,36 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'essayist.feed.title'|trans }} — {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <section class="w-container">
+
+        <div class="essayist-feed-header">
+            <h1 class="essayist-feed-heading">{{ 'essayist.feed.heading'|trans }}</h1>
+            <p class="essayist-feed-subheading">{{ 'essayist.feed.subheading'|trans }}</p>
+
+            {% if isAdmin %}
+                <div class="alert alert--info essayist-feed-admin-notice">
+                    {{ 'essayist.feed.adminNotice'|trans }}
+                </div>
+            {% endif %}
+        </div>
+
+        {% if articles is empty %}
+            <div class="essayist-feed-empty">
+                <p>{{ 'essayist.feed.empty'|trans }}</p>
+                <a class="btn" href="{{ path('app_static_essayist') }}">{{ 'essayist.feed.backToLanding'|trans }}</a>
+            </div>
+        {% else %}
+            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+        {% endif %}
+
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <nav class="essayist-feed-nav">
+        <a href="{{ path('app_static_essayist') }}" class="btn btn--sm">← {{ 'essayist.feed.backToLanding'|trans }}</a>
+    </nav>
+{% endblock %}
+

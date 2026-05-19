@@ -202,6 +202,13 @@ essayist:
             a5: 'Not in the platform-first sense. No money goes through the platform. It goes to the other members. What gets published here, and when, is each author''s call. If they choose to give Essayist members early access before publishing elsewhere, the relay becomes a first-access layer — a paywall by choice, not by design.'
             q6: 'Can I just swap zaps with a friend?'
             a6: 'You can. But this is a value-for-value experiment. Treat it accordingly.'
+    feed:
+        title: 'Essayist Feed'
+        heading: 'Essayist'
+        subheading: 'Latest articles from members.'
+        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
+        backToLanding: 'About Essayist'
+        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
 
 
 # ── Install prompt ────────────────────────────────────────────────

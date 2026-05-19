@@ -1,4 +1,4 @@
-# ── General ────────────────────────────────────────────────────────
+﻿# ── General ────────────────────────────────────────────────────────
 text:
     byline: 'Por'
     search: 'Buscar artículos o pegar identificadores de Nostr...'
@@ -202,6 +202,13 @@ essayist:
             a5: 'No en el sentido centrado en la plataforma. Ningún dinero pasa por la plataforma. Va a los otros miembros. Qué se publica aquí, y cuándo, es decisión de cada autor. Si eligen dar a los miembros de Essayist acceso anticipado antes de publicar en otro lugar, el relay se convierte en una capa de primer acceso — un paywall por elección, no por diseño.'
             q6: '¿Puedo simplemente intercambiar zaps con un amigo?'
             a6: 'Puedes. Pero esto es un experimento de valor por valor. Trátalo en consecuencia.'
+    feed:
+        title: 'Essayist Feed'
+        heading: 'Essayist'
+        subheading: 'Latest articles from members.'
+        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
+        backToLanding: 'About Essayist'
+        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
 
 # ── Instalación ────────────────────────────────────────────────────
 install:

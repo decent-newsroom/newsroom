@@ -40,6 +40,10 @@ Money flows between members, not to a platform. Everyone who participates is bot
 * Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
 * Relay write access gated by `ROLE_ESSAYIST_MEMBER`. ✓ Built
 * Admin view: pending requests + active members + grant/revoke. ✓ Built
+* Editor: "Publish to Essayist" option (member-only checkbox to add Essayist relay to the publish target list).
+* Editor: "Publish ONLY to Essayist" option (member-only; restricts publish to Essayist relay only, adds NIP-70 `-` tag).
+* Article actions: "Broadcast to Essayist" (replay signed event to Essayist relay, member-only, author-only).
+* Admin preview access to all role-gated Essayist pages and flows without requiring `ROLE_ESSAYIST_MEMBER`.
 
 ## Optional but Useful
 
@@ -139,7 +143,7 @@ The roles `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` were part of an e
 
 | Controller | Routes | Purpose |
 |---|---|---|
-| `App\Controller\EssayistController` | `GET /essayist`, `POST /essayist/early-bird`, `POST /essayist/request-access` | Public landing page and pre-launch sign-up flows |
+| `App\Controller\EssayistController` | `GET /essayist`, `POST /essayist/early-bird`, `POST /essayist/request-access`, `GET /essayist/feed` *(planned)*, `GET /essayist/home` *(planned)* | Public landing page, pre-launch sign-up flows, and gated member pages |
 | `App\Controller\Administration\EssayistAdminController` | `/admin/essayist/*` | Admin management of members and candidates |
 | `App\Controller\Api\EssayistWriterPolicyController` | `GET /api/internal/essayist/writer/{pubkey}` | Internal bearer-token endpoint called by `write-policy.sh` |
 
@@ -170,6 +174,10 @@ Two sections:
 1. **Active Members** — lists `ROLE_ESSAYIST_MEMBER` holders; shows Early Bird badge; grant-by-npub form; per-user revoke.
 2. **Pending Candidates** — lists `ROLE_ESSAYIST_CANDIDATE` holders with article count on DN; approve (→ member) or reject.
 
+### Gated feed page (`/essayist/feed`) ✓
+
+`GET /essayist/feed` in `EssayistController`. Accessible to `ROLE_ESSAYIST_MEMBER` and `ROLE_ADMIN` (admin preview with banner). Queries `strfry-essayist:7779` via `EssayistFeedService`, renders with `CardList`. Author metadata resolved from Redis. Internal relay URL: `ESSAYIST_RELAY_INTERNAL_URL` env var.
+
 ### Zap infrastructure ✓
 
 `ZapButton.php` (Twig Live Component) handles NIP-57 invoice creation with single and split-payment support. Zap receipts (kind 9735) are co-fetched with comments via `SocialEventService::getComments()` (kinds `[1111, 9735]`), persisted by `CommentEventProjector`, and rendered by `Comments::parseZaps()`.
@@ -185,12 +193,9 @@ The member-funded payment flow is not wired into the landing page. Access is gra
 - On payment, admin verifies the zap receipt and grants `ROLE_ESSAYIST_MEMBER`
 - Future: automate via zap receipt matching (see `SubscriptionZapReceiptWorkerCommand` / `VanityNameZapReceiptWorkerCommand` for the pattern)
 
-### 2. Gated feed page (`/essayist/feed`) — not yet built
+### 2. Gated feed page (`/essayist/feed`) — ✓ Built
 
-Add to `EssayistController`:
-- `GET /essayist/feed`, guarded by `#[IsGranted('ROLE_ESSAYIST_MEMBER')]`
-- Query `strfry-essayist` (port 7779) for kind 30023
-- Render using existing `CardList` organism
+`GET /essayist/feed` in `EssayistController`. Manual role check: non-members/anons redirect to the landing page; `ROLE_ADMIN` bypasses the gate and sees an admin-preview banner. `EssayistFeedService` connects to `ws://strfry-essayist:7779`, queries kind:30023 until EOSE, and returns stdClass cards compatible with `CardList`. Author metadata resolved from Redis. Internal relay URL configurable via `ESSAYIST_RELAY_INTERNAL_URL` (default `ws://strfry-essayist:7779`).
 
 ### 3. Personalized members front page (`/essayist/home`) — not yet built
 
@@ -218,6 +223,48 @@ Implementation notes:
 A dedicated `essayist-gateway` service will sit between Caddy and `strfry-essayist`, enforcing NIP-42 AUTH on every inbound connection before forwarding anything to the relay. This gates both reads (REQ) and writes (EVENT) at the WebSocket protocol layer.
 
 Full design: `documentation/essayist-gateway.md`.
+
+### 6. Editor: "Publish to Essayist" option — not yet built
+
+Adds the Essayist relay (`wss://essayist.decentnewsroom.com`) as an extra publish target in the article editor alongside the user's regular NIP-65 relays.
+
+Visible only to `ROLE_ESSAYIST_MEMBER` users. Implemented as a checkbox in the publish panel of the editor. When checked, the relay URL is appended to the list of relays the signing Stimulus controller sends the EVENT to.
+
+No change to the event itself — the article is published normally and distributed to all selected relays.
+
+### 7. Editor: "Publish ONLY to Essayist" option — not yet built
+
+A separate option that restricts distribution to the Essayist relay exclusively and marks the event as protected.
+
+Behaviour:
+- The event is signed with a `-` tag added (NIP-70 "protected event" — signals that the event must not be re-broadcast by any relay that receives it).
+- The list of publish relays is replaced with `[wss://essayist.decentnewsroom.com]` only — the user's NIP-65 outbox relays are excluded.
+- Visible only to `ROLE_ESSAYIST_MEMBER` users, in the same publish panel as gap #6.
+
+Implementation notes:
+- The `-` tag should be included in the event's `tags` array as `["-"]` (NIP-70).
+- The signing Stimulus controller needs to respect an "exclusive relay list" mode: when this option is active, the relay list passed to the signer is overridden to contain only the Essayist relay URL.
+- Display a clear warning in the UI: "This article will only be visible to Essayist members and will not appear on public feeds."
+
+### 8. Article actions: "Broadcast to Essayist" — not yet built
+
+For already-published articles, adds a broadcast action (alongside the existing "Broadcast" button in the article action bar) that re-publishes the stored event to `wss://essayist.decentnewsroom.com`.
+
+Visible only to `ROLE_ESSAYIST_MEMBER` users who are the author of the article.
+
+Implementation notes:
+- Reuse the existing broadcast machinery (`ui--article-broadcast` Stimulus controller or equivalent) — pass the Essayist relay URL as a target instead of or in addition to the user's regular relays.
+- The event is not re-signed; the original signed event bytes are replayed to the relay.
+- If the article already carries a `-` tag, display a notice explaining that the relay may not re-distribute it further.
+
+### 9. Admin preview access — not yet built
+
+Admins (`ROLE_ADMIN`) should be able to access all Essayist-gated pages and flows without holding `ROLE_ESSAYIST_MEMBER`, so they can review and test the member experience.
+
+Scope:
+- `/essayist/feed` and `/essayist/home`: replace the bare `#[IsGranted('ROLE_ESSAYIST_MEMBER')]` check with an expression that also permits `ROLE_ADMIN` — e.g. `#[IsGranted('ROLE_ESSAYIST_MEMBER')]` via a Symfony security voter that grants the attribute to any user who is either a member or an admin, or directly via `#[IsGranted('ROLE_ESSAYIST_MEMBER or ROLE_ADMIN')]`.
+- The landing page state-aware CTA already reads from `$user->getRoles()`; add an `isAdmin` flag to the template context so admins see a distinct "Admin preview" notice instead of the join flow.
+- The editor options (gaps #6 and #7) and the broadcast action (gap #8) should be visible to admins regardless of membership status, labelled with an "(admin)" or preview badge so they can verify the UI without polluting their own relay write access.
 
 ---
 

@@ -15,6 +15,9 @@ parameters:
     essayist.membership.key_prefix: 'essayist_member:'
     essayist.membership.positive_ttl_seconds: 600
     essayist.membership.revocation_channel: 'essayist_member_revoked'
+    # Internal Docker URL for the strfry-essayist relay (essayist profile only).
+    essayist.relay_internal_url_default: 'ws://strfry-essayist:7779'
+    essayist.relay_internal_url: '%env(default:essayist.relay_internal_url_default:ESSAYIST_RELAY_INTERNAL_URL)%'
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:
@@ -183,6 +186,11 @@ services:
     App\Service\Essayist\EssayistMembershipCacheService:
         arguments:
             $redis: '@Redis'
+
+    # Essayist feed — fetches kind:30023 articles from strfry-essayist (internal URL).
+    App\Service\Essayist\EssayistFeedService:
+        arguments:
+            $internalRelayUrl: '%essayist.relay_internal_url%'
 
     # Per-relay filter shape stats — counts and resolution latency per filter signature
     App\Service\Nostr\RelayFilterStatsStore:

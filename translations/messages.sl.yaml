@@ -1,4 +1,4 @@
-# ── Splošno ────────────────────────────────────────────────────────
+﻿# ── Splošno ────────────────────────────────────────────────────────
 text:
     byline: 'Avtor'
     search: 'Išči članke ali prilepi Nostr identifikatorje...'
@@ -202,6 +202,13 @@ essayist:
             a5: 'Ne v smislu zaklenjene platforme. Z denarjem ne upravlja platforma. Gre direktno drugim članom. Kaj se tukaj objavi in kdaj, je odločitev vsakega avtorja. Če se odločijo dati članom Essayist zgodnji dostop pred objavo drugje, postane podomrežnik plast prvega dostopa — plačilni zid po izbiri, ne po zasnovi.'
             q6: 'Ali lahko preprosto izmenjam zape s prijateljem?'
             a6: 'Lahko. Toda to je eksperiment vrednost za vrednost. Ravnaj z njim v skladu s tem.'
+    feed:
+        title: 'Essayist Feed'
+        heading: 'Essayist'
+        subheading: 'Latest articles from members.'
+        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
+        backToLanding: 'About Essayist'
+        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

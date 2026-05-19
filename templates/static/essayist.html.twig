@@ -13,7 +13,9 @@
 
                 <div class="essayist-actions">
                     {% if isMember %}
-                        <a class="btn btn--primary btn--disabled" href="#" aria-disabled="true">{{ 'essayist.landing.hero.ctaMember'|trans }}</a>
+                        <a class="btn btn--primary" href="{{ path('app_essayist_feed') }}">{{ 'essayist.landing.hero.ctaMember'|trans }}</a>
+                    {% elseif isAdmin|default(false) %}
+                        <a class="btn btn--primary" href="{{ path('app_essayist_feed') }}">Admin preview</a>
                     {% elseif app.user %}
                         {% if isEarlyBird %}
                             <span class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.hero.ctaEarlyBirdConfirmed'|trans }}</span>

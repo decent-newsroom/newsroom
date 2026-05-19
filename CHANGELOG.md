@@ -1,7 +1,9 @@
 # CHANGELOG
 
 ## v0.0.41
+Essayist UI.
 
+- [Feature] Implemented Essayist gated feed page (`GET /essayist/feed`). Added `EssayistFeedService` that connects directly to `strfry-essayist:7779` via WebSocket, fetches kind:30023 articles until EOSE, and converts events to stdClass cards compatible with `CardList`/`Card`. The feed route performs manual role-checking: non-members/anons are redirected to the landing page with `join_status=access_denied`; `ROLE_ADMIN` bypasses the membership gate and sees an admin-preview banner. Added `essayist.relay_internal_url` parameter (env `ESSAYIST_RELAY_INTERNAL_URL`, default `ws://strfry-essayist:7779`) and wired `EssayistFeedService` in `services.yaml`. Landing page "Visit front page" CTA now links to `/essayist/feed` for members; admins get an "Admin preview" button. Added `essayist.feed.*` translation keys across all six locale files.
 - [Bug] Fixed Essayist launch date comparison using server local time. `LAUNCH_DATE` and `EARLY_BIRD_DEADLINE` are now full RFC 3339 datetime strings anchored to midnight UTC (`2026-06-01T00:00:00+00:00` / `2026-05-31T00:00:00+00:00`), and `isLaunched` is evaluated against a UTC `now`, so the relay opens precisely at 00:00 UTC on 1 June regardless of server timezone.
 
 ## v0.0.40
