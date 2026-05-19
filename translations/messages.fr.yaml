@@ -234,6 +234,9 @@ essayist:
             heading: 'Auteurs en vedette'
             andMore: '+%count% autres'
             viewAll: 'Voir tous les auteurs'
+        latestEssays:
+            heading: 'Derniers essais'
+            hint: 'Actualisation toutes les 30 secondes'
 
 # ── Installation ───────────────────────────────────────────────────
 install:

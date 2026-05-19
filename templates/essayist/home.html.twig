@@ -61,6 +61,14 @@
         <a href="{{ path('app_static_essayist') }}" class="btn btn--sm">{{ 'essayist.feed.backToLanding'|trans }}</a>
     </nav>
 
+    {# ── Latest essays widget — live via Mercure SSE ── #}
+    <div class="essayist-latest-essays-widget"
+         data-controller="content--essayist-latest"
+         data-content--essayist-latest-topic-value="{{ mercure_topic }}"
+         data-content--essayist-latest-keepalive-url-value="{{ path('app_essayist_home_keepalive') }}">
+        <twig:Atoms:LatestEssayistArticles :limit="2" />
+    </div>
+
     {% if featuredPackInfo is not null and featuredPackMembers is not empty %}
         <div class="essayist-featured-pack">
             <h3 class="essayist-featured-pack__heading">{{ 'essayist.home.featuredPack.heading'|trans }}</h3>

@@ -234,6 +234,9 @@ essayist:
             heading: 'Escritores destacados'
             andMore: '+%count% más'
             viewAll: 'Ver todos los escritores'
+        latestEssays:
+            heading: 'Últimos ensayos'
+            hint: 'Se actualiza cada 30 segundos'
 
 # ── Instalación ────────────────────────────────────────────────────
 install:

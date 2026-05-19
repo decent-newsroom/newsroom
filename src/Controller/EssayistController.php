@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Enum\FollowPackPurpose;
 use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
+use App\Message\StartRelayFeedMessage;
 use App\Repository\EventRepository;
 use App\Repository\FollowPackSourceRepository;
 use App\Repository\UserEntityRepository;
@@ -17,13 +18,16 @@ use App\Service\Essayist\EssayistFeedService;
 use App\Service\Essayist\EssayistMembershipCacheService;
 use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\UserProfileService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/essayist')]
@@ -162,11 +166,42 @@ class EssayistController extends AbstractController
     }
 
     /**
+     * Returns a Turbo Frame partial with the 2 latest Essayist relay articles.
+     * Called periodically by the content--essayist-latest Stimulus controller.
+     */
+    #[Route('/sidebar/latest', name: 'app_essayist_sidebar_latest', methods: ['GET'])]
+    public function sidebarLatest(): Response
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return new Response('<turbo-frame id="essayist-sidebar-latest"></turbo-frame>', 200, ['Content-Type' => 'text/html']);
+        }
+
+        $roles   = $user->getRoles();
+        $isAdmin = in_array('ROLE_ADMIN', $roles, true);
+
+        if (!$isAdmin && !in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)) {
+            return new Response('<turbo-frame id="essayist-sidebar-latest"></turbo-frame>', 200, ['Content-Type' => 'text/html']);
+        }
+
+        return $this->render('essayist/sidebar/_latest_articles.html.twig');
+    }
+
+    /**
      * Personalized home page for Essayist members.
      * Shows tabs: For You / Follows / Topics, plus a featured writers sidebar.
+     *
+     * Also activates (or re-activates) the live relay-feed subscription for
+     * the strfry-essayist relay so the sidebar widget can receive Mercure
+     * push updates instead of polling.
      */
     #[Route('/home', name: 'app_essayist_home', methods: ['GET'])]
     public function home(
+        EssayistFeedService $feedService,
+        RelayFeedBufferService $buffer,
+        MessageBusInterface $bus,
         FollowPackSourceRepository $followPackSourceRepository,
         FollowPackService $followPackService,
         RedisCacheService $redisCacheService,
@@ -184,6 +219,18 @@ class EssayistController extends AbstractController
         if (!$isAdmin && !in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)) {
             return $this->redirectToRoute('app_static_essayist', ['join_status' => 'access_denied']);
         }
+
+        // ── Activate the live Mercure relay-feed for strfry-essayist ──
+        // This starts (or keeps alive) a WebSocket subscription worker that
+        // streams new kind:30023 events to the Mercure topic /relay-feed/{key},
+        // which the sidebar widget subscribes to via EventSource.
+        $relayUrl    = $feedService->getRelayUrl();
+        $relayKey    = $buffer->makeKey($relayUrl);
+        $mercureTopic = '/relay-feed/' . $relayKey;
+
+        $buffer->storeRelayUrl($relayKey, $relayUrl);
+        $buffer->markActive($relayKey);
+        $bus->dispatch(new StartRelayFeedMessage($relayUrl, $relayKey));
 
         // ── Featured ESSAYIST_WRITERS follow pack ──
         $featuredPackInfo    = null;
@@ -225,7 +272,29 @@ class EssayistController extends AbstractController
             'isAdmin'             => $isAdmin,
             'featuredPackInfo'    => $featuredPackInfo,
             'featuredPackMembers' => $featuredPackMembers,
+            'mercure_topic'       => $mercureTopic,
         ]);
+    }
+
+    /**
+     * Keepalive endpoint — renews the Redis active flag so the relay-feed worker
+     * keeps re-dispatching while the essayist home page is open.
+     * Called every ~5 minutes by the content--essayist-latest Stimulus controller.
+     */
+    #[Route('/home/keepalive', name: 'app_essayist_home_keepalive', methods: ['POST'])]
+    public function homeKeepalive(
+        EssayistFeedService $feedService,
+        RelayFeedBufferService $buffer,
+    ): JsonResponse {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['ok' => false], 401);
+        }
+
+        $relayKey = $buffer->makeKey($feedService->getRelayUrl());
+        $buffer->markActive($relayKey);
+
+        return new JsonResponse(['ok' => true]);
     }
 
     /**

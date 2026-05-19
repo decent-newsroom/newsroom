@@ -234,6 +234,9 @@ essayist:
             heading: 'Autori in evidenza'
             andMore: '+%count% altri'
             viewAll: 'Vedi tutti gli autori'
+        latestEssays:
+            heading: 'Ultimi saggi'
+            hint: 'Si aggiorna ogni 30 secondi'
 
 # ── Install prompt ────────────────────────────────────────────────
 install:

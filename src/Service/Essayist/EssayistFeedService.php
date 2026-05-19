@@ -43,6 +43,15 @@ final class EssayistFeedService
      *                  Each card has: pubkey, slug, title, summary, image, kind,
      *                  topics, createdAt (\DateTimeImmutable), publishedAt (\DateTimeImmutable|null)
      */
+    /**
+     * Return the internal relay URL this service connects to.
+     * Used by the controller to derive the Mercure relay-feed key.
+     */
+    public function getRelayUrl(): string
+    {
+        return $this->internalRelayUrl;
+    }
+
     public function fetchLatest(int $limit = 50): array
     {
         $filter = new Filter();

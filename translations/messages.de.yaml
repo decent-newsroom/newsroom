@@ -234,6 +234,9 @@ essayist:
             heading: 'Ausgewählte Autoren'
             andMore: '+%count% weitere'
             viewAll: 'Alle Autoren ansehen'
+        latestEssays:
+            heading: 'Neueste Essays'
+            hint: 'Aktualisiert alle 30 Sekunden'
 
 # ── Installationshinweis ───────────────────────────────────────────
 install:

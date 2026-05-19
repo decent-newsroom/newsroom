@@ -457,3 +457,86 @@
     color: var(--color-text-muted);
     margin: var(--spacing-2) 0 0;
 }
+
+/* ── Latest essays sidebar widget ──────────────────────────────────── */
+.essayist-latest-essays-widget {
+    margin-bottom: var(--spacing-4);
+}
+
+.essayist-latest-essays {
+    padding: var(--spacing-3) 0;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--spacing-3);
+}
+
+.essayist-latest-essays__heading {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-mid);
+    margin: 0 0 var(--spacing-2);
+}
+
+.essayist-latest-essays__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+@keyframes essayist-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.essayist-latest-essays__item {
+    animation: essayist-slide-in 0.25s ease both;
+}
+
+.essayist-latest-essays__item:nth-child(2) {
+    animation-delay: 0.05s;
+}
+
+/* JS-injected items animate in fresh via the --new modifier */
+.essayist-latest-essays__item--new {
+    animation: essayist-slide-in 0.3s ease both;
+}
+
+.essayist-latest-essays__link {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-decoration: none;
+    color: var(--color-text);
+}
+
+.essayist-latest-essays__link:hover .essayist-latest-essays__title {
+    color: var(--color-accent);
+}
+
+.essayist-latest-essays__title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.35;
+    transition: color 0.1s;
+}
+
+.essayist-latest-essays__meta {
+    font-size: 0.775rem;
+    color: var(--color-text-muted);
+}
+
+.essayist-latest-essays__hint {
+    font-size: 0.725rem;
+    color: var(--color-text-muted);
+    margin: var(--spacing-2) 0 0;
+    letter-spacing: 0.02em;
+}

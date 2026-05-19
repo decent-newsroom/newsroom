@@ -234,6 +234,9 @@ essayist:
             heading: 'Featured Writers'
             andMore: '+%count% more'
             viewAll: 'View all writers'
+        latestEssays:
+            heading: 'Latest from Essayist'
+            hint: 'Refreshes every 30 seconds'
 
 
 # ── Install prompt ────────────────────────────────────────────────

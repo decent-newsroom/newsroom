@@ -234,6 +234,9 @@ essayist:
             heading: 'Izbrani pisci'
             andMore: '+%count% več'
             viewAll: 'Poglej vse pisce'
+        latestEssays:
+            heading: 'Najnovejši eseji'
+            hint: 'Osveži se vsake 30 sekund'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

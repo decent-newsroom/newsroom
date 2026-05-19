@@ -1,0 +1,26 @@
+{% if articles is not empty %}
+<div class="essayist-latest-essays">
+    <h3 class="essayist-latest-essays__heading">{{ 'essayist.home.latestEssays.heading'|trans }}</h3>
+    <ul class="essayist-latest-essays__list" data-content--essayist-latest-target="list">
+        {% for article in articles %}
+            <li class="essayist-latest-essays__item">
+                <a href="{{ path('nevent', {nevent: article.naddr}) }}"
+                   class="essayist-latest-essays__link"
+                   data-turbo-frame="_top">
+                    <span class="essayist-latest-essays__title">{{ article.title }}</span>
+                    {% if article.authorName %}
+                        <span class="essayist-latest-essays__meta">
+                            {{ article.authorName }}
+                            {% if article.createdAt is defined %}
+                                · <time datetime="{{ article.createdAt|date('c') }}">{{ article.createdAt|date('d M') }}</time>
+                            {% endif %}
+                        </span>
+                    {% endif %}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+    <p class="essayist-latest-essays__hint">{{ 'essayist.home.latestEssays.hint'|trans }}</p>
+</div>
+{% endif %}
+
