@@ -1,0 +1,92 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'essayist.home.title'|trans }} — {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <section class="w-container">
+
+        <div class="essayist-feed-header">
+            <h1 class="essayist-feed-heading">{{ 'essayist.home.heading'|trans }}</h1>
+            <p class="essayist-feed-subheading">{{ 'essayist.home.subheading'|trans }}</p>
+
+            {% if isAdmin %}
+                <div class="alert alert--info essayist-feed-admin-notice">
+                    {{ 'essayist.feed.adminNotice'|trans }}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="foryou">
+
+            <nav class="profile-tabs home-feed__tabs">
+                <a href="{{ path('app_essayist_home_tab', {tab: 'foryou'}) }}"
+                   class="tab-link active"
+                   data-content--home-tabs-target="tab"
+                   data-tab="foryou"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'essayist.home.tab.foryou'|trans }}
+                </a>
+                <a href="{{ path('app_essayist_home_tab', {tab: 'follows'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="follows"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'essayist.home.tab.follows'|trans }}
+                </a>
+                <a href="{{ path('app_essayist_home_tab', {tab: 'topics'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="topics"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'essayist.home.tab.topics'|trans }}
+                </a>
+            </nav>
+
+            <div class="home-feed__content" data-content--home-tabs-target="content">
+                <turbo-frame id="home-tab-content" src="{{ path('app_essayist_home_tab', {tab: 'foryou'}) }}" loading="lazy">
+                    <div class="home-feed__loading">
+                        <div class="spinner"></div>
+                        <p>{{ 'home_feed.loading'|trans }}</p>
+                    </div>
+                </turbo-frame>
+            </div>
+
+        </div>
+    </section>
+{% endblock %}
+
+{% block aside %}
+    <nav class="essayist-feed-nav">
+        <a href="{{ path('app_essayist_feed') }}" class="btn btn--sm">{{ 'essayist.home.nav.allArticles'|trans }}</a>
+        <a href="{{ path('app_static_essayist') }}" class="btn btn--sm">{{ 'essayist.feed.backToLanding'|trans }}</a>
+    </nav>
+
+    {% if featuredPackInfo is not null and featuredPackMembers is not empty %}
+        <div class="essayist-featured-pack">
+            <h3 class="essayist-featured-pack__heading">{{ 'essayist.home.featuredPack.heading'|trans }}</h3>
+            <ul class="essayist-featured-pack__list">
+                {% for member in featuredPackMembers|slice(0, 8) %}
+                    <li class="essayist-featured-pack__item">
+                        <a href="{{ path('author-profile', {npub: member.npub}) }}" class="essayist-featured-pack__member">
+                            {% if member.picture %}
+                                <img src="{{ member.picture }}" alt="{{ member.displayName }}" class="essayist-featured-pack__avatar" width="32" height="32" loading="lazy" />
+                            {% else %}
+                                <span class="essayist-featured-pack__avatar essayist-featured-pack__avatar--placeholder"></span>
+                            {% endif %}
+                            <span class="essayist-featured-pack__name">{{ member.displayName ?: (member.npub|slice(0, 12) ~ '…') }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if featuredPackMembers|length > 8 %}
+                <p class="essayist-featured-pack__more">
+                    {{ 'essayist.home.featuredPack.andMore'|trans({'%count%': featuredPackMembers|length - 8}) }}
+                </p>
+            {% endif %}
+            <a href="{{ path('follow_pack_view', {npub: featuredPackInfo.npub, dtag: featuredPackInfo.dtag}) }}" class="btn btn--sm mt-2">
+                {{ 'essayist.home.featuredPack.viewAll'|trans }}
+            </a>
+        </div>
+    {% endif %}
+{% endblock %}
+

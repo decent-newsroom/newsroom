@@ -203,12 +203,37 @@ essayist:
             q6: 'Posso semplicemente scambiare zap con un amico?'
             a6: 'Puoi. Ma questo è un esperimento di valore per valore. Trattalo di conseguenza.'
     feed:
-        title: 'Essayist Feed'
+        title: 'Feed Essayist'
         heading: 'Essayist'
-        subheading: 'Latest articles from members.'
-        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
-        backToLanding: 'About Essayist'
-        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+        subheading: 'Ultimi articoli dai membri.'
+        empty: 'Nessun articolo ancora. Sii il primo a pubblicare sul relay Essayist.'
+        backToLanding: 'Informazioni su Essayist'
+        adminNotice: 'Anteprima amministratore — stai visualizzando questo feed come amministratore, non come membro.'
+    home:
+        title: 'Essayist — Il tuo feed'
+        heading: 'Il tuo feed Essayist'
+        subheading: 'Articoli delle persone che segui e degli argomenti che ti interessano.'
+        accessDenied: 'Hai bisogno di un abbonamento Essayist attivo per visualizzare questa pagina.'
+        tab:
+            foryou: 'Per te'
+            follows: 'Seguiti'
+            topics: 'Argomenti'
+        foryou:
+            signInRequired: 'Accedi per vedere il tuo feed Essayist personalizzato.'
+            empty: 'Nessun articolo trovato ancora. Segui autori o configura i tuoi interessi.'
+        follows:
+            signInRequired: 'Accedi per vedere gli articoli delle persone che segui.'
+            noArticles: 'Nessuna delle persone che segui ha ancora pubblicato su Essayist'
+            noArticlesHint: 'Quando le persone che segui pubblicano sul relay Essayist, i loro articoli appariranno qui.'
+        topics:
+            signInRequired: 'Accedi per vedere articoli basati sui tuoi interessi.'
+            noArticles: 'Nessun articolo trovato corrispondente ai tuoi interessi su Essayist.'
+        nav:
+            allArticles: 'Tutti gli articoli Essayist'
+        featuredPack:
+            heading: 'Autori in evidenza'
+            andMore: '+%count% altri'
+            viewAll: 'Vedi tutti gli autori'
 
 # ── Install prompt ────────────────────────────────────────────────
 install:

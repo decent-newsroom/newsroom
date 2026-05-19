@@ -203,12 +203,37 @@ essayist:
             q6: 'Ali lahko preprosto izmenjam zape s prijateljem?'
             a6: 'Lahko. Toda to je eksperiment vrednost za vrednost. Ravnaj z njim v skladu s tem.'
     feed:
-        title: 'Essayist Feed'
+        title: 'Essayist Vir'
         heading: 'Essayist'
-        subheading: 'Latest articles from members.'
-        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
-        backToLanding: 'About Essayist'
-        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+        subheading: 'Najnovejši članki članov.'
+        empty: 'Še ni člankov. Bodi prvi, ki objavi na Essayist relejnem omrežju.'
+        backToLanding: 'O Essayist'
+        adminNotice: 'Predogled administratorja — gledate ta vir kot administrator, ne kot član.'
+    home:
+        title: 'Essayist — Tvoj vir'
+        heading: 'Tvoj Essayist vir'
+        subheading: 'Članki oseb, ki jim slediš, in teme, ki te zanimajo.'
+        accessDenied: 'Za ogled te strani potrebuješ aktivno Essayist članstvo.'
+        tab:
+            foryou: 'Zate'
+            follows: 'Sleditve'
+            topics: 'Teme'
+        foryou:
+            signInRequired: 'Prijavi se za ogled tvojega osebnega Essayist vira.'
+            empty: 'Še ni najdenih člankov. Sledi avtorjem ali nastavi svoje interese.'
+        follows:
+            signInRequired: 'Prijavi se za ogled člankov oseb, ki jim slediš.'
+            noArticles: 'Nobena od oseb, ki jim slediš, še ni objavila na Essayist'
+            noArticlesHint: 'Ko osebe, ki jim slediš, objavijo na Essayist relejnem omrežju, se bodo njihovi članki prikazali tukaj.'
+        topics:
+            signInRequired: 'Prijavi se za ogled člankov na podlagi tvojih interesov.'
+            noArticles: 'Ni najdenih člankov, ki bi ustrezali tvojim interesom na Essayist.'
+        nav:
+            allArticles: 'Vsi Essayist članki'
+        featuredPack:
+            heading: 'Izbrani pisci'
+            andMore: '+%count% več'
+            viewAll: 'Poglej vse pisce'
 
 # ── Namestitev ────────────────────────────────────────────────────
 install:

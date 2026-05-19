@@ -205,10 +205,35 @@ essayist:
     feed:
         title: 'Essayist Feed'
         heading: 'Essayist'
-        subheading: 'Latest articles from members.'
-        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
-        backToLanding: 'About Essayist'
-        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+        subheading: 'Neueste Artikel von Mitgliedern.'
+        empty: 'Noch keine Artikel. Sei der Erste, der auf dem Essayist-Relay veröffentlicht.'
+        backToLanding: 'Über Essayist'
+        adminNotice: 'Admin-Vorschau — Du siehst diesen Feed als Admin, nicht als Mitglied.'
+    home:
+        title: 'Essayist — Dein Feed'
+        heading: 'Dein Essayist-Feed'
+        subheading: 'Artikel von Personen, denen du folgst, und Themen, die dich interessieren.'
+        accessDenied: 'Du brauchst eine aktive Essayist-Mitgliedschaft, um diese Seite zu sehen.'
+        tab:
+            foryou: 'Für dich'
+            follows: 'Gefolgte'
+            topics: 'Themen'
+        foryou:
+            signInRequired: 'Melde dich an, um deinen personalisierten Essayist-Feed zu sehen.'
+            empty: 'Noch keine Artikel gefunden. Folge Autoren oder konfiguriere deine Interessen.'
+        follows:
+            signInRequired: 'Melde dich an, um Artikel von Personen zu sehen, denen du folgst.'
+            noArticles: 'Noch niemand, dem du folgst, hat auf Essayist veröffentlicht'
+            noArticlesHint: 'Sobald Personen, denen du folgst, auf dem Essayist-Relay veröffentlichen, erscheinen ihre Artikel hier.'
+        topics:
+            signInRequired: 'Melde dich an, um Artikel basierend auf deinen Interessen zu sehen.'
+            noArticles: 'Keine Artikel gefunden, die deinen Interessen auf Essayist entsprechen.'
+        nav:
+            allArticles: 'Alle Essayist-Artikel'
+        featuredPack:
+            heading: 'Ausgewählte Autoren'
+            andMore: '+%count% weitere'
+            viewAll: 'Alle Autoren ansehen'
 
 # ── Installationshinweis ───────────────────────────────────────────
 install:

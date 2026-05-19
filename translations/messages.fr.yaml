@@ -203,12 +203,37 @@ essayist:
             q6: 'Puis-je simplement changer des zaps avec un ami ?'
             a6: "Vous pouvez. Mais c'est une exprience valeur pour valeur. Traitez-la en consquence."
     feed:
-        title: 'Essayist Feed'
+        title: 'Fil Essayist'
         heading: 'Essayist'
-        subheading: 'Latest articles from members.'
-        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
-        backToLanding: 'About Essayist'
-        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+        subheading: 'Derniers articles des membres.'
+        empty: "Pas encore d'articles. Soyez le premier à publier sur le relay Essayist."
+        backToLanding: 'À propos d''Essayist'
+        adminNotice: 'Aperçu administrateur — vous consultez ce fil en tant qu''administrateur, pas en tant que membre.'
+    home:
+        title: 'Essayist — Votre fil'
+        heading: 'Votre fil Essayist'
+        subheading: 'Articles des personnes que vous suivez et des sujets qui vous intéressent.'
+        accessDenied: "Vous avez besoin d'un abonnement Essayist actif pour voir cette page."
+        tab:
+            foryou: 'Pour vous'
+            follows: 'Abonnements'
+            topics: 'Sujets'
+        foryou:
+            signInRequired: 'Connectez-vous pour voir votre fil Essayist personnalisé.'
+            empty: "Pas encore d'articles trouvés. Suivez des auteurs ou configurez vos centres d'intérêt."
+        follows:
+            signInRequired: 'Connectez-vous pour voir les articles des personnes que vous suivez.'
+            noArticles: "Aucune des personnes que vous suivez n'a encore publié sur Essayist"
+            noArticlesHint: 'Dès que les personnes que vous suivez publient sur le relay Essayist, leurs articles apparaîtront ici.'
+        topics:
+            signInRequired: 'Connectez-vous pour voir les articles basés sur vos centres d''intérêt.'
+            noArticles: 'Aucun article correspondant à vos centres d''intérêt sur Essayist.'
+        nav:
+            allArticles: 'Tous les articles Essayist'
+        featuredPack:
+            heading: 'Auteurs en vedette'
+            andMore: '+%count% autres'
+            viewAll: 'Voir tous les auteurs'
 
 # ── Installation ───────────────────────────────────────────────────
 install:

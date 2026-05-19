@@ -1,0 +1,27 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.foryou.signInRequired'|trans }}</p>
+        </div>
+    {% elseif accessDenied is defined and accessDenied %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.accessDenied'|trans }}</p>
+            <a href="{{ path('app_static_essayist') }}" class="btn btn--sm mt-2">{{ 'essayist.feed.backToLanding'|trans }}</a>
+        </div>
+    {% elseif articles is empty %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.foryou.empty'|trans }}</p>
+        </div>
+    {% else %}
+        <div class="article-list">
+            {% for article in articles %}
+                {% if article.slug is not empty and article.title is not empty %}
+                    {% set coord = article.pubkey ~ ':' ~ article.slug %}
+                    {% set labels = sourceLabels[coord]|default([]) %}
+                    <twig:Molecules:Card :article="article" :authors_metadata="authorsMetadata" :source_labels="labels" />
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</turbo-frame>
+

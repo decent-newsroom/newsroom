@@ -41,9 +41,84 @@ final class EssayistFeedService
      *
      * @return object[] Array of stdClass cards, sorted by createdAt descending.
      *                  Each card has: pubkey, slug, title, summary, image, kind,
-     *                  createdAt (\DateTimeImmutable), publishedAt (\DateTimeImmutable|null)
+     *                  topics, createdAt (\DateTimeImmutable), publishedAt (\DateTimeImmutable|null)
      */
     public function fetchLatest(int $limit = 50): array
+    {
+        $filter = new Filter();
+        $filter->setKinds([30023]);
+        $filter->setLimit($limit);
+
+        return $this->doFetch($filter);
+    }
+
+    /**
+     * Fetch kind:30023 articles from strfry-essayist filtered to the given author pubkeys.
+     *
+     * @param  string[] $pubkeys Hex pubkeys
+     * @return object[]
+     */
+    public function fetchByPubkeys(array $pubkeys, int $limit = 50): array
+    {
+        if (empty($pubkeys)) {
+            return [];
+        }
+
+        // The relay authors filter can be large; chunk to avoid protocol limits
+        $pubkeys = array_values(array_unique($pubkeys));
+
+        $filter = new Filter();
+        $filter->setKinds([30023]);
+        $filter->setLimit($limit);
+
+        try {
+            $filter->setAuthors($pubkeys);
+        } catch (\Throwable $e) {
+            $this->logger->warning('EssayistFeedService: invalid pubkeys for author filter', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+
+        return $this->doFetch($filter);
+    }
+
+    /**
+     * Fetch kind:30023 articles from strfry-essayist filtered by topic hashtags (#t tags).
+     *
+     * @param  string[] $hashtags Topic strings (without '#')
+     * @return object[]
+     */
+    public function fetchByTopics(array $hashtags, int $limit = 50): array
+    {
+        if (empty($hashtags)) {
+            return [];
+        }
+
+        $hashtags = array_values(array_unique(array_map('strtolower', $hashtags)));
+
+        $filter = new Filter();
+        $filter->setKinds([30023]);
+        $filter->setLimit($limit);
+
+        try {
+            $filter->setTags(['#t' => $hashtags]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('EssayistFeedService: invalid hashtags for tag filter', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+
+        return $this->doFetch($filter);
+    }
+
+    /**
+     * Execute a relay REQ with the given filter and return the resulting cards.
+     *
+     * @return object[]
+     */
+    private function doFetch(Filter $filter): array
     {
         if (empty($this->internalRelayUrl)) {
             $this->logger->warning('EssayistFeedService: internal relay URL not configured');
@@ -60,9 +135,6 @@ final class EssayistFeedService
             $subscription = new Subscription();
             $subId        = $subscription->setId();
 
-            $filter = new Filter();
-            $filter->setKinds([30023]);
-            $filter->setLimit($limit);
 
             $reqMsg = new RequestMessage($subId, [$filter]);
             $client->text($reqMsg->generate());
@@ -184,6 +256,7 @@ final class EssayistFeedService
         $summary     = '';
         $image       = '';
         $publishedAt = null;
+        $topics      = [];
 
         foreach ($tags as $tag) {
             if (!is_array($tag) || !isset($tag[0])) {
@@ -195,6 +268,7 @@ final class EssayistFeedService
                 'summary'      => $summary     = (string) ($tag[1] ?? ''),
                 'image'        => $image       = (string) ($tag[1] ?? ''),
                 'published_at' => $publishedAt = isset($tag[1]) ? (int) $tag[1] : null,
+                't'            => $topics[]    = strtolower((string) ($tag[1] ?? '')),
                 default        => null,
             };
         }
@@ -228,6 +302,7 @@ final class EssayistFeedService
         $card->summary     = $summary !== '' ? $summary : null;
         $card->image       = $image !== '' ? $image : null;
         $card->kind        = 30023;
+        $card->topics      = array_values(array_filter($topics));
         $card->createdAt   = (new \DateTimeImmutable())->setTimestamp((int) $createdAt);
         $card->publishedAt = $publishedAt !== null
             ? (new \DateTimeImmutable())->setTimestamp($publishedAt)

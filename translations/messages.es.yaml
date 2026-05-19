@@ -203,12 +203,37 @@ essayist:
             q6: '¿Puedo simplemente intercambiar zaps con un amigo?'
             a6: 'Puedes. Pero esto es un experimento de valor por valor. Trátalo en consecuencia.'
     feed:
-        title: 'Essayist Feed'
+        title: 'Feed de Essayist'
         heading: 'Essayist'
-        subheading: 'Latest articles from members.'
-        empty: 'No articles yet. Be the first to publish on the Essayist relay.'
-        backToLanding: 'About Essayist'
-        adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+        subheading: 'Últimos artículos de los miembros.'
+        empty: 'Aún no hay artículos. Sé el primero en publicar en el relay Essayist.'
+        backToLanding: 'Sobre Essayist'
+        adminNotice: 'Vista previa de administrador — estás viendo este feed como administrador, no como miembro.'
+    home:
+        title: 'Essayist — Tu feed'
+        heading: 'Tu feed de Essayist'
+        subheading: 'Artículos de personas que sigues y temas que te interesan.'
+        accessDenied: 'Necesitas una membresía activa de Essayist para ver esta página.'
+        tab:
+            foryou: 'Para ti'
+            follows: 'Siguiendo'
+            topics: 'Temas'
+        foryou:
+            signInRequired: 'Inicia sesión para ver tu feed personalizado de Essayist.'
+            empty: 'Aún no se encontraron artículos. Sigue a autores o configura tus intereses.'
+        follows:
+            signInRequired: 'Inicia sesión para ver artículos de personas que sigues.'
+            noArticles: 'Ninguna de las personas que sigues ha publicado en Essayist aún'
+            noArticlesHint: 'Cuando las personas que sigues publiquen en el relay Essayist, sus artículos aparecerán aquí.'
+        topics:
+            signInRequired: 'Inicia sesión para ver artículos basados en tus intereses.'
+            noArticles: 'No se encontraron artículos que coincidan con tus intereses en Essayist.'
+        nav:
+            allArticles: 'Todos los artículos de Essayist'
+        featuredPack:
+            heading: 'Escritores destacados'
+            andMore: '+%count% más'
+            viewAll: 'Ver todos los escritores'
 
 # ── Instalación ────────────────────────────────────────────────────
 install:

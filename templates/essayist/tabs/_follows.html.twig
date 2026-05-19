@@ -1,0 +1,20 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.follows.signInRequired'|trans }}</p>
+        </div>
+    {% elseif followCount is defined and followCount == 0 %}
+        <div class="alert alert-info">
+            <h4>{{ 'follows.noFollows'|trans }}</h4>
+            <p>{{ 'follows.noFollowsHint'|trans }}</p>
+        </div>
+    {% elseif articles is empty %}
+        <div class="alert alert-info">
+            <h4>{{ 'essayist.home.follows.noArticles'|trans }}</h4>
+            <p>{{ 'essayist.home.follows.noArticlesHint'|trans }}</p>
+        </div>
+    {% else %}
+        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+    {% endif %}
+</turbo-frame>
+
