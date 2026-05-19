@@ -459,6 +459,22 @@ function inlineMarkdownToOps(text, mentionNames) {
       pushText('$'); i += 1; continue;
     }
 
+    // backslash escape: \` \\ \* \[ \! \~ → emit the literal character
+    // This must come before the inline-code check so that \`nostr:...\`
+    // is not mis-parsed as a code span that starts at the backslash.
+    if (text[i] === '\\' && i + 1 < text.length) {
+      const escaped = text[i + 1];
+      if (escaped === '`' || escaped === '\\' || escaped === '*' || escaped === '[' || escaped === '!' || escaped === '~') {
+        pushText(escaped);
+        i += 2;
+        continue;
+      }
+      // Unrecognised escape or lone backslash — emit the backslash literally.
+      pushText('\\');
+      i += 1;
+      continue;
+    }
+
     // inline code: `...`
     if (text[i] === '`') {
       const end = text.indexOf('`', i + 1);

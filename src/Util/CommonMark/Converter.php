@@ -1113,9 +1113,23 @@ class Converter implements MarkdownConverterInterface
             return $content;
         }
 
+        // Track nesting depth inside <code> and <pre> elements so that nostr:
+        // references inside code blocks are never replaced with embed cards.
+        $insideProtected = 0;
+
         foreach ($parts as $i => $part) {
-            // Skip tags and empties
+            // All HTML tags: update the protected-block depth counter, then skip.
             if ($part === '' || $part[0] === '<') {
+                if (preg_match('~^<(code|pre)\b~i', $part)) {
+                    $insideProtected++;
+                } elseif (preg_match('~^</(code|pre)>~i', $part)) {
+                    $insideProtected = max(0, $insideProtected - 1);
+                }
+                continue;
+            }
+
+            // Skip text nodes that live inside <code> or <pre> elements.
+            if ($insideProtected > 0) {
                 continue;
             }
 
