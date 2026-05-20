@@ -1,44 +1,43 @@
 #syntax=docker/dockerfile:1
 
 # Versions
-FROM dunglas/frankenphp:1.12.3-php8 AS frankenphp_upstream
+# Pin to a specific digest
+FROM dunglas/frankenphp:1.12.3-php8.3 AS frankenphp_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
-# https://docs.docker.com/build/building/multi-stage/#stop-at-a-specific-build-stage
-# https://docs.docker.com/reference/compose-file/build/#target
+# https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
+# https://docs.docker.com/compose/compose-file/#target
 
 
 # Base FrankenPHP image
 FROM frankenphp_upstream AS frankenphp_base
 
-SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
-
 WORKDIR /app
 
 # persistent / runtime deps
 # hadolint ignore=DL3008
-RUN <<-EOF
-	apt-get update
-	apt-get install -y --no-install-recommends \
-		acl \
-		file \
-		gettext \
-		git \
-		bash \
-		libnss3-tools \
-		cron
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	acl \
+	file \
+	gettext \
+	git \
+        bash \
+    libnss3-tools \
+    cron \
+	&& rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
 	install-php-extensions \
 		@composer \
 		apcu \
 		intl \
 		opcache \
 		zip \
-		gmp \
-		gd \
-		redis \
-		pcntl
-	rm -rf /var/lib/apt/lists/*
-EOF
+        gmp \
+        gd \
+        redis \
+        pcntl \
+	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
 ENV COMPOSER_ALLOW_SUPERUSER=1
@@ -58,28 +57,27 @@ COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 ENTRYPOINT ["docker-entrypoint"]
 
 HEALTHCHECK --start-period=180s --interval=10s --timeout=5s --retries=5 \
-	CMD php -r 'exit(false === @file_get_contents("http://localhost:2019/metrics", context: stream_context_create(["http" => ["timeout" => 5]])) ? 1 : 0);'
+    CMD curl -f http://localhost/up || exit 1
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile" ]
 
 # Dev FrankenPHP image
 FROM frankenphp_base AS frankenphp_dev
 
-ENV APP_ENV=dev
-ENV XDEBUG_MODE=off
-ENV FRANKENPHP_WORKER_CONFIG=watch
+ENV APP_ENV=dev XDEBUG_MODE=off
 
-RUN <<-EOF
-	mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
-	install-php-extensions xdebug
-	git config --system --add safe.directory /app
-EOF
+RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
+
+RUN set -eux; \
+	install-php-extensions \
+		xdebug \
+	;
 
 COPY --link frankenphp/conf.d/20-app.dev.ini $PHP_INI_DIR/app.conf.d/
 
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 
-# Builder stage for the prod image
-FROM frankenphp_base AS frankenphp_prod_builder
+# Prod FrankenPHP image
+FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
 
@@ -87,33 +85,21 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/app.conf.d/
 
-# prevent the reinstallation of vendors at every change in the source code
+# prevent the reinstallation of vendors at every changes in the source code
 COPY --link composer.* symfony.* ./
-RUN composer install --no-cache --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
 
 # copy sources
-COPY --link --exclude=frankenphp/ . ./
+COPY --link . ./
+RUN rm -Rf frankenphp/
 
-RUN <<-EOF
-	mkdir -p var/cache var/log
-	composer dump-autoload --classmap-authoritative --no-dev
-	composer dump-env prod
-	composer run-script --no-dev post-install-cmd
-	if [ -f importmap.php ]; then
-		php bin/console asset-map:compile
-	fi
-	chmod +x bin/console
-	chmod -R g=u var
-	sync
-EOF
+RUN set -eux; \
+	composer install --no-cache --prefer-dist --no-progress --no-scripts
 
-# Prod FrankenPHP image — lean final image
-FROM frankenphp_base AS frankenphp_prod
-
-ENV APP_ENV=prod
-
-COPY --link --exclude=var --from=frankenphp_prod_builder /app /app
-COPY --chown=www-data:0 --from=frankenphp_prod_builder /app/var /app/var
-RUN chmod g=u /app/var
-
-COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/app.conf.d/
+RUN set -eux; \
+	mkdir -p var/cache var/log; \
+	sync; \
+	composer dump-autoload --classmap-authoritative --no-dev; \
+	composer dump-env prod; \
+	composer run-script --no-dev post-install-cmd; \
+	chmod +x bin/console; sync; \
+	php bin/console cache:warmup --env=prod;
