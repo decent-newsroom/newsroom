@@ -308,7 +308,14 @@ services:
     command:
       - /bin/sh
       - -c
-      - ./strfry relay /etc/strfry.conf
+      - |
+        # The write-policy script is bind-mounted read-only and may arrive
+        # without the executable bit (common on Windows hosts and on hosts
+        # where git did not preserve mode 0755). Copy it to a writable path
+        # and chmod +x there before starting strfry.
+        cp /app/write-policy.sh /usr/local/bin/essayist-write-policy.sh
+        chmod +x /usr/local/bin/essayist-write-policy.sh
+        exec ./strfry relay /etc/strfry.conf
     volumes:
         - ./docker/strfry-essayist/strfry.conf:/etc/strfry.conf:ro
         - ./docker/strfry-essayist/write-policy.sh:/app/write-policy.sh:ro
