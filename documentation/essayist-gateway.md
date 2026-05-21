@@ -32,7 +32,26 @@ Internet ─WSS─▶  Caddy  (@essayistRelay)
 
 ---
 
-## NIP-42 Protocol Flow
+## Trusted-Publisher Sidestep (server-side broadcasts)
+
+The gateway exists to authenticate **unknown** WebSocket clients. The Symfony app itself is not an unknown client — it already authenticated the user via the session and knows whether they hold `ROLE_ESSAYIST_MEMBER`. Forcing the PHP container to perform a NIP-42 handshake against the gateway for its own server-side publishes would require the app to either sign AUTH events as the user (which needs an active NIP-46 session) or fall back to an ephemeral key (which would fail the gateway's membership check anyway).
+
+To avoid that, server-side broadcasts to the Essayist relay from logged-in members publish **directly** to the internal Docker URL (`ESSAYIST_RELAY_INTERNAL_URL`, default `ws://strfry-essayist:7779`), bypassing the gateway entirely. This is implemented in `App\Controller\Api\ArticleBroadcastController`:
+
+1. The "Broadcast to Essayist" action sends the public Essayist WSS URL in the request payload.
+2. Before publishing, the controller checks `getUser()->getRoles()` for `ROLE_ESSAYIST_MEMBER`.
+3. If the role is present and the configured public URL matches the requested relay (scheme/host/port normalised), the URL is rewritten to the internal one.
+4. `NostrClient::publishEvent` then opens a plain WebSocket to `strfry-essayist:7779` on the compose network and publishes the EVENT — no AUTH challenge is sent because the relay-side `write-policy.sh` is reduced to a kind-only filter (it accepts kind 30023 from any source).
+
+Security model:
+
+- The internal URL is unreachable from outside the compose network (`strfry-essayist` has no host port mapping), so the sidestep is only available to processes that are already inside the trust boundary.
+- The strfry-side `write-policy.sh` still enforces `kind == 30023`, so a compromised PHP service cannot push arbitrary events onto the relay.
+- Anonymous and non-member clients still go through the public WSS endpoint and are still subject to full gateway AUTH + membership checks.
+
+## Original NIP-42 Protocol Flow
+
+
 
 ```
 [client connects]

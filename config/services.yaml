@@ -85,6 +85,8 @@ services:
             $baseDomain: '%base_domain%'
             $messengerTransportDsn: '%env(MESSENGER_TRANSPORT_DSN)%'
             $kernelCacheDir: '%kernel.cache_dir%'
+            $essayistRelayPublicUrl: '%essayist.relay_public_url%'
+            $essayistRelayInternalUrl: '%essayist.relay_internal_url%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

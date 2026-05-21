@@ -21,7 +21,71 @@ class ArticleBroadcastController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
         private readonly UserRelayListService $userRelayListService,
+        private readonly string $essayistRelayPublicUrl = '',
+        private readonly string $essayistRelayInternalUrl = '',
     ) {}
+
+    /**
+     * Normalise a relay URL for loose equality (scheme + host + port, no path/slash).
+     */
+    private function normaliseRelayUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['host'])) {
+            return rtrim(strtolower($url), '/');
+        }
+        $scheme = strtolower($parts['scheme'] ?? 'wss');
+        $host = strtolower($parts['host']);
+        $port = $parts['port'] ?? null;
+        // Strip default ports
+        if (($scheme === 'wss' && $port === 443) || ($scheme === 'ws' && $port === 80)) {
+            $port = null;
+        }
+        return $scheme . '://' . $host . ($port ? ':' . $port : '');
+    }
+
+    /**
+     * For logged-in users who already hold ROLE_ESSAYIST_MEMBER, rewrite any
+     * target pointing at the public Essayist relay URL to the internal Docker
+     * address (ws://strfry-essayist:7779 by default). This sidesteps the
+     * NIP-42 AUTH gateway entirely — membership has already been authenticated
+     * via the Symfony session and the internal relay is only reachable from
+     * the PHP container on the compose network. The strfry write-policy still
+     * enforces the kind-only filter as defence-in-depth.
+     */
+    private function remapEssayistRelays(array $relays): array
+    {
+        if ($this->essayistRelayInternalUrl === '' || $this->essayistRelayPublicUrl === '') {
+            return $relays;
+        }
+        $user = $this->getUser();
+        if (!$user || !in_array('ROLE_ESSAYIST_MEMBER', $user->getRoles(), true)) {
+            return $relays;
+        }
+        $publicNormalised = $this->normaliseRelayUrl($this->essayistRelayPublicUrl);
+        $remapped = false;
+        $out = [];
+        foreach ($relays as $url) {
+            if ($this->normaliseRelayUrl($url) === $publicNormalised) {
+                $out[] = $this->essayistRelayInternalUrl;
+                $remapped = true;
+            } else {
+                $out[] = $url;
+            }
+        }
+        if ($remapped) {
+            $this->logger->info('Remapped Essayist public URL to internal relay for member', [
+                'public'   => $this->essayistRelayPublicUrl,
+                'internal' => $this->essayistRelayInternalUrl,
+                'pubkey'   => substr($user->getUserIdentifier(), 0, 12) . '...',
+            ]);
+        }
+        return $out;
+    }
 
     /**
      * Broadcast an existing article to Nostr relays
@@ -65,6 +129,13 @@ class ArticleBroadcastController extends AbstractController
                     $relays = $this->userRelayListService->getFallbackRelays();
                 }
             }
+
+            // Member-only sidestep: rewrite public Essayist URL → internal Docker URL.
+            // The gateway exists to enforce NIP-42 AUTH for unknown clients; here we
+            // already trust the Symfony session and the user's ROLE_ESSAYIST_MEMBER
+            // grant, so we can publish directly to strfry-essayist on the compose
+            // network without an AUTH handshake.
+            $relays = $this->remapEssayistRelays($relays);
 
             // Find the article
             $article = null;
@@ -160,9 +231,17 @@ class ArticleBroadcastController extends AbstractController
                 'failed' => count($failedRelays)
             ]);
 
+            $totalRelays = count($results);
+            $allFailed = $totalRelays > 0 && $successCount === 0;
+
             return new JsonResponse([
-                'success' => true,
-                'message' => 'Article broadcast to relays',
+                'success' => !$allFailed,
+                'message' => $allFailed
+                    ? 'Article broadcast failed on all relays'
+                    : 'Article broadcast to relays',
+                'error' => $allFailed
+                    ? ($failedRelays[0]['error'] ?? 'All relays rejected the event')
+                    : null,
                 'article' => [
                     'id' => $article->getId(),
                     'event_id' => $event->getId(),
@@ -171,12 +250,12 @@ class ArticleBroadcastController extends AbstractController
                     'pubkey' => $article->getPubkey()
                 ],
                 'broadcast' => [
-                    'total_relays' => count($results),
+                    'total_relays' => $totalRelays,
                     'successful' => $successCount,
                     'failed' => count($failedRelays),
                     'failed_relays' => $failedRelays
                 ]
-            ]);
+            ], $allFailed ? 502 : 200);
 
         } catch (\Exception $e) {
             $this->logger->error('Failed to broadcast article', [
