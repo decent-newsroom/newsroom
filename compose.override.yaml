@@ -157,6 +157,18 @@ services:
       redis:
         condition: service_healthy
 
+  # Essayist gateway needs the local dev Redis. In prod Redis is external,
+  # so this dependency lives in the dev override only — same pattern as the
+  # other workers above.
+  essayist-gateway:
+    depends_on:
+      php:
+        condition: service_healthy
+      strfry-essayist:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
 volumes:
   redis_data:
 

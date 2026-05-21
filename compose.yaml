@@ -327,8 +327,6 @@ services:
         condition: service_healthy
       strfry-essayist:
         condition: service_started
-      redis:
-        condition: service_started
     environment:
       LISTEN_ADDR: ":7780"
       HEALTH_ADDR: ":7781"
