@@ -193,7 +193,11 @@ class ArticleBroadcastController extends AbstractController
             ]);
 
             // Publish directly to relays (bypasses gateway, uses per-relay direct connections).
-            $results = $this->nostrClient->publishEvent($event, $relays, 10);
+            // The caller already chose its target relays explicitly (either via the request
+            // payload or by falling back to the user's NIP-65 write list), so disable the
+            // automatic local-relay augmentation — otherwise "Broadcast to Essayist" would
+            // also publish to ws://strfry:7777 and report 1/2 instead of 1/1.
+            $results = $this->nostrClient->publishEvent($event, $relays, 10, ensureLocalRelay: false);
 
             // Count successful broadcasts.
             // Results are either RelayResponseOk objects (successful relay response)

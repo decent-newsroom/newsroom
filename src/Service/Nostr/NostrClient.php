@@ -40,11 +40,11 @@ class NostrClient
     // Publishing
     // =========================================================================
 
-    public function publishEvent(Event $event, array $relays, int $timeout = 30): array
+    public function publishEvent(Event $event, array $relays, int $timeout = 30, bool $ensureLocalRelay = true): array
     {
         if (empty($relays)) {
             $relays = $this->userRelayListService->getTopRelaysForAuthor($event->getPublicKey());
-        } else {
+        } elseif ($ensureLocalRelay) {
             $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
             // Remove project relay URLs (e.g. wss://relay.decentnewsroom.com) from the
             // publish list when the local relay is present — the project relay and the
@@ -61,6 +61,10 @@ class NostrClient
                 $relays = $this->relayRegistry->ensureLocalRelayInList($relays);
             }
         }
+        // else: caller explicitly opted out of local-relay augmentation — publish
+        // only to the relays it supplied. Used for targeted broadcasts where the
+        // user picked a specific destination (e.g. "Broadcast to Essayist") and
+        // does not want the event mirrored to the main content relay.
 
         $this->logger->info('Publishing event to relays', [
             'event_id'       => $event->getId(),
