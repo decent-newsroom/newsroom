@@ -13,21 +13,27 @@
 #
 # All other kinds are rejected. Identity events (0, 3, 10002) and drafts
 # (30024) should be fetched from the author's own relays.
+#
+# Implementation note: dockurr/strfry does not ship jq, so this script uses
+# POSIX shell pattern matching against strfry's minified plugin JSON. The
+# input shape from strfry is:
+#   {"event":{"id":"…","pubkey":"…","kind":<int>, …}, "type":"new", …}
+# `"kind":<int>` is numeric (no quotes around the value), so a literal
+# `"kind":30023` substring match is unambiguous.
 # =============================================================================
 
 while IFS= read -r line; do
-    KIND=$(printf '%s' "$line" | jq -r '.event.kind // empty')
-
-    if [ -z "$KIND" ]; then
-        printf '{"action":"reject","msg":"malformed event"}\n'
-        continue
-    fi
-
-    if [ "$KIND" = "30023" ]; then
-        printf '{"action":"accept"}\n'
-    else
-        printf '{"action":"reject","msg":"only published longform articles accepted on this relay (kind 30023)"}\n'
-    fi
+    case "$line" in
+        *'"kind":30023'*|*'"kind": 30023'*)
+            printf '{"action":"accept"}\n'
+            ;;
+        *'"kind":'*)
+            printf '{"action":"reject","msg":"only published longform articles accepted on this relay (kind 30023)"}\n'
+            ;;
+        *)
+            printf '{"action":"reject","msg":"malformed event"}\n'
+            ;;
+    esac
 done
 
 
