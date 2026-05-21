@@ -43,6 +43,7 @@ class GenericEventProjector
         private readonly MessageBusInterface $messageBus,
         private readonly RelayDiscoveryEventProjector $relayDiscoveryProjector,
         private readonly ArticlePublicationIndexer $publicationIndexer,
+        private readonly HighlightProjector $highlightProjector,
     ) {
     }
 
@@ -258,12 +259,24 @@ class GenericEventProjector
             }
         }
 
+        // NIP-84: project highlight events (kind 9802) into the dedicated
+        // Highlight table so they show up on the referenced article's page.
+        // Without this, highlights ingested via generic paths (gateway,
+        // follow/author content fetches, relay subscription workers) would
+        // only land in the `event` table and be invisible on the article view.
+        if ((int) $event->kind === KindsEnum::HIGHLIGHTS->value) {
+            try {
+                $this->highlightProjector->projectFromEvent($event);
+            } catch (\Throwable $e) {
+                $this->logger->warning('NIP-84: highlight projection failed', [
+                    'event_id' => $entity->getId(),
+                    'error'    => $e->getMessage(),
+                ]);
+            }
+        }
+
         return $entity;
     }
-
-    /**
-     * Check if a kind is replaceable or parameterized replaceable (NIP-01).
-     */
     private function isReplaceableOrParameterized(int $kind): bool
     {
         return $this->recordIdentityService->isReplaceable($kind)

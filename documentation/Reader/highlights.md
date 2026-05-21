@@ -10,6 +10,7 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 |-----------|------|
 | Entity | `src/Entity/Highlight.php` |
 | Service | `src/Service/HighlightService.php` |
+| Projector | `src/Service/HighlightProjector.php` |
 | Fetch command | `src/Command/FetchHighlightsCommand.php` |
 | Cache command | `src/Command/CacheLatestHighlightsCommand.php` |
 | Feed controller | `src/Controller/Reader/HighlightsController.php` |
@@ -69,3 +70,4 @@ Highlights use a two-tier read-only cache to minimise article page load latency.
 - **Query consolidation**: Replaced multiple DB queries per page load with a single `findByArticleCoordinateDeduplicated()` call using DB-level deduplication via `GROUP BY MD5(content||pubkey)`.
 - **Multi-relay queries**: Highlights are now fetched from both the local strfry relay and default relays for broader coverage.
 - **Suffix-based coordinate matching**: Exact `article_coordinate = :coord` queries missed highlights stored with a different kind prefix (e.g. `30024:` vs `30023:`). Switched all repository queries to LIKE `%:pubkey:slug` suffix matching and normalised the Redis cache key to `pubkey:slug`, making highlight-to-article mapping resilient against kind prefix differences.
+- **Generic-ingestion projection gap**: Highlight events ingested via the gateway, follow/author content fetches, or relay subscription workers were only being persisted to the generic `event` table — never to the `highlight` table the article page reads from. They appeared on `/highlights` (which reads from `event`) but not on the referenced article. `HighlightProjector` is now invoked from `GenericEventProjector` for every kind:9802 event, mirroring it idempotently into the `highlight` table and invalidating the per-article Redis cache. Coordinate extraction accepts `30023`, `30024`, `30040`, and `30041` `a`-tag prefixes so drafts and publication content are mapped too.
