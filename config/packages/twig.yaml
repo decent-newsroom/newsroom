@@ -13,6 +13,7 @@ twig:
         contribution_lud16: '%project_contribution_lud16%'
         relay_gateway_enabled: '%relay_gateway_enabled%'
         relay_registry: '@App\Service\Nostr\RelayRegistry'
+        essayist_relay_url: '%essayist.relay_public_url%'
 
 when@test:
     twig:

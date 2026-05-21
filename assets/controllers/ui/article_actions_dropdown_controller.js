@@ -177,12 +177,26 @@ export default class extends Controller {
   // ── Broadcast ───────────────────────────────────────────────
 
   async broadcast(event) {
+    return this._doBroadcast(event, null);
+  }
+
+  /**
+   * Broadcast to the Essayist relay only. Member/admin-only action wired
+   * from the dropdown — the button supplies the relay URL via
+   * `data-relays` (a single-entry array containing the Essayist WSS URL).
+   */
+  async broadcastEssayist(event) {
+    return this._doBroadcast(event, 'Essayist');
+  }
+
+  async _doBroadcast(event, targetLabel) {
     event.preventDefault();
     this.close();
 
     const btn = event.currentTarget;
     const coordinate = btn.dataset.coordinate;
     const articleId = btn.dataset.articleId;
+    const label = targetLabel || btn.dataset.targetLabel || null;
     let relays;
     try { relays = JSON.parse(btn.dataset.relays || '[]'); } catch { relays = []; }
 
@@ -197,7 +211,8 @@ export default class extends Controller {
       const data = await this.postJSON('/api/broadcast-article', payload);
 
       if (data.success) {
-        this.toast(`Broadcast to ${data.broadcast.successful}/${data.broadcast.total_relays} relays`, 'success', 5000);
+        const where = label ? ` to ${label}` : '';
+        this.toast(`Broadcast${where}: ${data.broadcast.successful}/${data.broadcast.total_relays} relays`, 'success', 5000);
       } else {
         throw new Error(data.error || 'Broadcast failed');
       }

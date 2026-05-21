@@ -505,6 +505,8 @@ articleActions:
     copyNaddr: 'Copia indirizzo Nostr'
     copyCoordinate: 'Copia coordinata'
     broadcast: 'Trasmetti ai relay'
+    broadcastEssayist: 'Trasmetti a Essayist'
+    broadcastEssayistTitle: 'Ripubblica questo articolo sul relay riservato ai membri Essayist'
     highlights: 'In evidenza'
 
 # ── Article disambiguation ────────────────────────────────────────

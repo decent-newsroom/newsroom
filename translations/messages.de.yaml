@@ -435,6 +435,8 @@ articleActions:
     copyNaddr: 'Nostr-Adresse kopieren'
     copyCoordinate: 'Koordinate kopieren'
     broadcast: 'An Relays senden'
+    broadcastEssayist: 'An Essayist senden'
+    broadcastEssayistTitle: 'Diesen Artikel erneut zum Essayist-Mitgliederrelay senden'
     highlights: 'Markierungen'
 
 # ── Artikelunterscheidung ─────────────────────────────────────────────

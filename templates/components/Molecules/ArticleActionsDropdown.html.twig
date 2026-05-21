@@ -110,6 +110,30 @@
                     {{ 'articleActions.broadcast'|trans }}
                 </button>
                 {% endif %}
+
+                {# ── Broadcast to Essayist (members + admins only) ── #}
+                {% if essayist_relay_url is defined and essayist_relay_url
+                    and (is_granted('ROLE_ESSAYIST_MEMBER') or is_granted('ROLE_ADMIN')) %}
+                <button class="dropdown-item"
+                        type="button"
+                        data-action="click->ui--article-actions-dropdown#broadcastEssayist"
+                        data-article-id="{{ article.id }}"
+                        data-coordinate="{{ coordinate }}"
+                        data-relays="{{ [essayist_relay_url]|json_encode|e('html_attr') }}"
+                        data-target-label="Essayist"
+                        title="{{ 'articleActions.broadcastEssayistTitle'|trans }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none"
+                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" class="action-icon">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    {{ 'articleActions.broadcastEssayist'|trans }}
+                    {% if not is_granted('ROLE_ESSAYIST_MEMBER') and is_granted('ROLE_ADMIN') %}
+                        <small class="badge-admin">(admin)</small>
+                    {% endif %}
+                </button>
+                {% endif %}
             {% endif %}
 
             {# ── Highlights ── #}

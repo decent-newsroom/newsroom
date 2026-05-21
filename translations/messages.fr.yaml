@@ -435,6 +435,8 @@ articleActions:
     copyNaddr: "Copier l'adresse Nostr"
     copyCoordinate: 'Copier la coordinée'
     broadcast: 'Diffuser aux relais'
+    broadcastEssayist: 'Diffuser à Essayist'
+    broadcastEssayistTitle: 'Republier cet article sur le relais membres Essayist'
     highlights: 'Surlignements'
 
 # ── Désambiguïsation d'articles ────────────────────────────────────

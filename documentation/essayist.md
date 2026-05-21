@@ -246,16 +246,36 @@ Implementation notes:
 - The signing Stimulus controller needs to respect an "exclusive relay list" mode: when this option is active, the relay list passed to the signer is overridden to contain only the Essayist relay URL.
 - Display a clear warning in the UI: "This article will only be visible to Essayist members and will not appear on public feeds."
 
-### 8. Article actions: "Broadcast to Essayist" — not yet built
+### 8. Article actions: "Broadcast to Essayist" — ✓ Built
 
-For already-published articles, adds a broadcast action (alongside the existing "Broadcast" button in the article action bar) that re-publishes the stored event to `wss://essayist.decentnewsroom.com`.
+For already-published articles, the article actions dropdown now exposes a
+"Broadcast to Essayist" item that re-publishes the stored event to
+`wss://essayist.decentnewsroom.com` (configurable via `ESSAYIST_RELAY_PUBLIC_URL`,
+default `wss://${ESSAYIST_RELAY_DOMAIN}`).
 
-Visible only to `ROLE_ESSAYIST_MEMBER` users who are the author of the article.
+Visibility: gated to `ROLE_ESSAYIST_MEMBER` or `ROLE_ADMIN` (admins see an
+`(admin)` badge for preview purposes — they may broadcast articles even if
+they are not active members).
 
-Implementation notes:
-- Reuse the existing broadcast machinery (`ui--article-broadcast` Stimulus controller or equivalent) — pass the Essayist relay URL as a target instead of or in addition to the user's regular relays.
-- The event is not re-signed; the original signed event bytes are replayed to the relay.
-- If the article already carries a `-` tag, display a notice explaining that the relay may not re-distribute it further.
+Implementation:
+- Twig global `essayist_relay_url` exposes `%essayist.relay_public_url%` to
+  templates. `templates/components/Molecules/ArticleActionsDropdown.html.twig`
+  renders the menu item only when the URL is non-empty and the viewer holds
+  one of the gating roles.
+- The button reuses the existing `POST /api/broadcast-article` endpoint with
+  an explicit `relays: ["wss://essayist…"]` payload. The original signed event
+  is replayed unchanged — no resigning, same `id` and `sig`.
+- A dedicated `broadcastEssayist` Stimulus action on
+  `ui--article-actions-dropdown` triggers the request and shows a toast such
+  as `Broadcast to Essayist: 1/1 relays`.
+- `NostrClient::publishEvent` will additionally mirror the event to the local
+  strfry relay (its standard behaviour for any explicit relay list) — this is
+  a no-op for already-ingested articles.
+
+Caveat: if the article carries an NIP-70 `-` tag, the dropdown hides the
+generic "Broadcast" action (existing behaviour) but still allows the
+Essayist-only broadcast, since pushing a protected event to the
+members-only relay matches its intent.
 
 ### 9. Admin preview access — not yet built
 

@@ -435,6 +435,8 @@ articleActions:
     copyNaddr: 'Copiar dirección Nostr'
     copyCoordinate: 'Copiar coordinada'
     broadcast: 'Transmitir a relays'
+    broadcastEssayist: 'Transmitir a Essayist'
+    broadcastEssayistTitle: 'Volver a publicar este artículo en el relay para miembros Essayist'
     highlights: 'Resaltados'
 
 # ── Desambiguación de artículos ────────────────────────────────────────

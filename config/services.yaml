@@ -18,6 +18,10 @@ parameters:
     # Internal Docker URL for the strfry-essayist relay (essayist profile only).
     essayist.relay_internal_url_default: 'ws://strfry-essayist:7779'
     essayist.relay_internal_url: '%env(default:essayist.relay_internal_url_default:ESSAYIST_RELAY_INTERNAL_URL)%'
+    # Public WSS URL for the Essayist relay, used as a broadcast target by member-only
+    # actions (e.g. "Broadcast to Essayist"). Defaults to wss://${ESSAYIST_RELAY_DOMAIN}.
+    essayist.relay_public_url_default: 'wss://essayist.localhost'
+    essayist.relay_public_url: '%env(default:essayist.relay_public_url_default:ESSAYIST_RELAY_PUBLIC_URL)%'
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:

@@ -435,6 +435,8 @@ articleActions:
     copyNaddr: 'Kopiraj Nostr naslov'
     copyCoordinate: 'Kopiraj koordinate'
     broadcast: 'Oddaj na releje'
+    broadcastEssayist: 'Oddaj na Essayist'
+    broadcastEssayistTitle: 'Ponovno objavi članek na članski rele Essayist'
     highlights: 'Označbe'
 
 # ── Razločevanje člankov ──────────────────────────────────────────
