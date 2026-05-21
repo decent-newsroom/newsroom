@@ -533,6 +533,7 @@ comments:
     publishComment: 'Pubblica commento'
     label: 'Commento'
     zap: 'Zap'
+    private: 'Privato'
 
 # ── User Menu / Auth ──────────────────────────────────────────────
 auth:

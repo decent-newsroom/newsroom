@@ -463,6 +463,7 @@ comments:
     publishComment: 'Kommentar veröffentlichen'
     label: 'Kommentar'
     zap: 'Zap'
+    private: 'Privat'
 
 # ── Benutzermenü / Authentifizierung ───────────────────────────────────
 auth:

@@ -535,6 +535,7 @@ comments:
     publishComment: 'Publish Comment'
     label: 'Comment'
     zap: 'Zap'
+    private: 'Private'
     replyingTo: 'Replying to'
     writeCta: 'Write a comment'
     reply: 'Reply'

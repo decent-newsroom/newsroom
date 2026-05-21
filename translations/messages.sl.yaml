@@ -463,6 +463,7 @@ comments:
     publishComment: 'Objavi komentar'
     label: 'Komentar'
     zap: 'Zap'
+    private: 'Zasebno'
 
 # ── Uporabniški meni / Prijava ────────────────────────────────────
 auth:
