@@ -87,6 +87,15 @@ class Article
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $advancedMetadata = null;
 
+    /**
+     * Marks the article as an Essayist-exclusive: only logged-in members
+     * (or admins) may receive it from public listings, search results, or
+     * the single-article view. The flag is purely a local serving control;
+     * it does not alter the underlying Nostr event.
+     */
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $essayistExclusive = false;
+
     public function getId(): null|int
     {
         return $this->id;
@@ -370,6 +379,17 @@ class Article
     public function setAdvancedMetadata(?array $advancedMetadata): static
     {
         $this->advancedMetadata = $advancedMetadata;
+        return $this;
+    }
+
+    public function isEssayistExclusive(): bool
+    {
+        return $this->essayistExclusive;
+    }
+
+    public function setEssayistExclusive(bool $essayistExclusive): static
+    {
+        $this->essayistExclusive = $essayistExclusive;
         return $this;
     }
 }

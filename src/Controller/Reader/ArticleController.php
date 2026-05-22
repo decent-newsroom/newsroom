@@ -4,6 +4,8 @@ namespace App\Controller\Reader;
 
 use App\Entity\Article;
 use App\Enum\KindsEnum;
+use App\Enum\RolesEnum;
+use App\Entity\User;
 use App\Service\ArticleEventProjector;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Cache\RedisCacheService;
@@ -30,6 +32,22 @@ class ArticleController  extends AbstractController
     public function __construct(
         private readonly VanityNameService $vanityNameService,
     ) {}
+
+    /**
+     * True when the current viewer is allowed to read Essayist-exclusive
+     * articles (logged-in member, candidate, early bird, or admin).
+     */
+    private function viewerCanSeeEssayistExclusive(): bool
+    {
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return false;
+        }
+        $roles = $user->getRoles();
+        return in_array('ROLE_ADMIN', $roles, true)
+            || in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)
+            || in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true);
+    }
 
     /**
      * Resolve vanity name to npub, or redirect npub to vanity if exists
@@ -398,6 +416,16 @@ class ArticleController  extends AbstractController
         }
 
         if (!$article) {
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The article could not be found.',
+                'searchQuery' => $slug
+            ]);
+        }
+
+        // Gate Essayist-exclusive articles: only logged-in members or admins
+        // may access. Everyone else gets the standard not-found view so the
+        // existence of the exclusive is not disclosed.
+        if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive()) {
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The article could not be found.',
                 'searchQuery' => $slug

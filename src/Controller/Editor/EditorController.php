@@ -10,6 +10,7 @@ use App\Enum\KindsEnum;
 use App\Factory\ArticleFactory;
 use App\Form\EditorType;
 use App\Repository\UserEntityRepository;
+use App\Repository\ArticleRepository;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\EventIngestionListener;
 use App\Service\Nostr\NostrClient;
@@ -331,6 +332,22 @@ class EditorController extends AbstractController
 
             // Create new article
             $article = $articleFactory->createFromLongFormContentEvent((object)$signedEvent);
+
+            // ── Essayist-exclusive flag ─────────────────────────────────────
+            // When the author chose "Publish ONLY to Essayist" and is actually
+            // entitled to target the Essayist relay (member or admin), flag
+            // the article as exclusive so the rest of the app never serves it
+            // to non-members. The flag is purely a local serving control; it
+            // does not alter the signed event. The author can flip it back
+            // and forth later from the article actions dropdown.
+            $publishOnlyToEssayistForm = !empty(($data['formData'] ?? [])['publishOnlyToEssayist']);
+            $canTargetEssayistAtIngest = $this->isGranted('ROLE_ESSAYIST_MEMBER')
+                || $this->isGranted('ROLE_ESSAYIST_EARLY_BIRD')
+                || $this->isGranted('ROLE_ADMIN');
+            if ($publishOnlyToEssayistForm && $canTargetEssayistAtIngest) {
+                $article->setEssayistExclusive(true);
+            }
+            // ────────────────────────────────────────────────────────────────
 
             // Parse and store advanced metadata
             $advancedMetadata = $eventParser->parseAdvancedMetadata($signedEvent['tags']);
@@ -726,5 +743,86 @@ class EditorController extends AbstractController
         }
 
         return $data;
+    }
+
+    /**
+     * Toggle the per-article Essayist-exclusive flag.
+     *
+     * Members and admins can flip this manually from the article actions
+     * dropdown — this is the same boolean that "Publish ONLY to Essayist"
+     * sets at publish time, but exposed as an after-the-fact author action
+     * so an article can be moved into or out of the exclusive bucket
+     * without re-publishing the underlying signed event.
+     *
+     * Authorization: the caller must be the article's author (pubkey match)
+     * or hold ROLE_ADMIN.
+     */
+    #[Route('/api/article/{id}/toggle-essayist-exclusive', name: 'api-article-toggle-essayist-exclusive', methods: ['POST'])]
+    public function toggleEssayistExclusive(
+        int $id,
+        EntityManagerInterface $entityManager,
+        ArticleRepository $articleRepository,
+        RedisViewStore $redisViewStore,
+        LoggerInterface $logger,
+    ): JsonResponse {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if ($user === null) {
+            return new JsonResponse(['error' => 'Not authenticated'], 401);
+        }
+
+        $article = $articleRepository->find($id);
+        if ($article === null) {
+            return new JsonResponse(['error' => 'Article not found'], 404);
+        }
+
+        // Authorization: author or admin.
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+        $isOwner = false;
+        try {
+            $viewerHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $isOwner = $article->getPubkey() !== null && hash_equals($article->getPubkey(), $viewerHex);
+        } catch (\Throwable $e) {
+            // npub conversion failure: only admin override remains.
+        }
+
+        if (!$isOwner && !$isAdmin) {
+            return new JsonResponse(['error' => 'Forbidden'], 403);
+        }
+
+        $newState = !$article->isEssayistExclusive();
+
+        // Flip every revision of (pubkey, slug) so cached lists agree with
+        // the single-article view regardless of which row they hit.
+        try {
+            $articleRepository->setEssayistExclusiveByCoordinate(
+                $article->getPubkey(),
+                $article->getSlug(),
+                $newState,
+            );
+        } catch (\Throwable $e) {
+            $logger->error('Failed to toggle essayist_exclusive', [
+                'article_id' => $article->getId(),
+                'error'      => $e->getMessage(),
+            ]);
+            return new JsonResponse(['error' => 'Failed to update article'], 500);
+        }
+
+        // Drop cached profile-tab / Redis view payloads so subsequent reads
+        // see the new visibility state.
+        try {
+            $redisViewStore->invalidateUserArticles($article->getPubkey());
+            $redisViewStore->invalidateProfileTabs($article->getPubkey());
+        } catch (\Throwable $e) {
+            $logger->warning('Failed to invalidate view caches after exclusive toggle', [
+                'article_id' => $article->getId(),
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        return new JsonResponse([
+            'success'            => true,
+            'essayistExclusive'  => $newState,
+        ]);
     }
 }

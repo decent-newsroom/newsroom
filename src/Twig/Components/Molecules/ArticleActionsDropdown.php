@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Twig\Components\Molecules;
 
 use App\Entity\Article;
+use App\Entity\User;
+use App\Util\NostrKeyUtil;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
@@ -16,6 +19,10 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent]
 final class ArticleActionsDropdown
 {
+    public function __construct(private readonly Security $security)
+    {
+    }
+
     public Article $article;
 
     /** Nostr coordinate, e.g. "30023:<pubkey>:<slug>" */
@@ -35,5 +42,35 @@ final class ArticleActionsDropdown
 
     /** User's write relays (null if not logged in) */
     public ?array $relays = null;
+
+    /**
+     * True when the current viewer is allowed to flip the
+     * Essayist-exclusive flag on this article — i.e. they are the
+     * article's author or hold ROLE_ADMIN.
+     */
+    public function canToggleEssayistExclusive(): bool
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return false;
+        }
+        if ($this->security->isGranted('ROLE_ADMIN')) {
+            return true;
+        }
+        $pubkey = $this->article->getPubkey();
+        if ($pubkey === null) {
+            return false;
+        }
+        try {
+            return hash_equals($pubkey, NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    public function isEssayistExclusive(): bool
+    {
+        return $this->article->isEssayistExclusive();
+    }
 }
 

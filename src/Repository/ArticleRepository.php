@@ -22,9 +22,11 @@ class ArticleRepository extends ServiceEntityRepository
      *
      * @param int $limit
      * @param array<string> $excludedPubkeys
+     * @param bool $includeEssayistExclusive When false (default) drops rows flagged
+     *        as Essayist-exclusive so anonymous / non-member listings never leak them.
      * @return Article[]
      */
-    public function findLatestArticles(int $limit = 50, array $excludedPubkeys = []): array
+    public function findLatestArticles(int $limit = 50, array $excludedPubkeys = [], bool $includeEssayistExclusive = false): array
     {
         $qb = $this->createQueryBuilder('a');
 
@@ -39,6 +41,10 @@ class ArticleRepository extends ServiceEntityRepository
             ->andWhere('a.publishedAt = a.createdAt')
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults($limit * 2); // Get more initially, will dedupe by slug
+
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
 
         if (!empty($excludedPubkeys)) {
             $qb->andWhere($qb->expr()->notIn('a.pubkey', ':excludedPubkeys'))
@@ -73,7 +79,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @param int $offset
      * @return Article[]
      */
-    public function searchByQuery(string $query, int $limit = 12, int $offset = 0): array
+    public function searchByQuery(string $query, int $limit = 12, int $offset = 0, bool $includeEssayistExclusive = false): array
     {
         $qb = $this->createQueryBuilder('a');
 
@@ -94,6 +100,10 @@ class ArticleRepository extends ServiceEntityRepository
         ->orderBy('a.createdAt', 'DESC')
         ->setFirstResult($offset)
         ->setMaxResults($limit);
+
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
 
         return $qb->getQuery()->getResult();
     }
@@ -183,7 +193,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @return Article[]
      * @throws Exception|\JsonException
      */
-    public function findByTopics(array $topics, int $limit = 12, int $offset = 0): array
+    public function findByTopics(array $topics, int $limit = 12, int $offset = 0, bool $includeEssayistExclusive = false): array
     {
         if (empty($topics)) {
             return [];
@@ -201,9 +211,12 @@ class ArticleRepository extends ServiceEntityRepository
             $types[$key] = ParameterType::STRING;
         }
 
+        $exclusiveClause = $includeEssayistExclusive ? '' : ' AND essayist_exclusive = FALSE';
+
         $sql = 'SELECT DISTINCT id, created_at FROM article WHERE (' . implode(' OR ', $wheres) . ')'
              // Only fresh releases: skip revisions where published_at differs from created_at
              . ' AND (published_at IS NULL OR published_at = created_at)'
+             . $exclusiveClause
              . ' ORDER BY created_at DESC';
 
         if ($limit > 0) {
@@ -238,7 +251,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @param int $limit Max articles to return
      * @return Article[]
      */
-    public function findLatestByPubkeys(array $pubkeys, int $limit = 50): array
+    public function findLatestByPubkeys(array $pubkeys, int $limit = 50, bool $includeEssayistExclusive = false): array
     {
         if (empty($pubkeys)) {
             return [];
@@ -255,6 +268,10 @@ class ArticleRepository extends ServiceEntityRepository
             ->andWhere('a.publishedAt IS NULL OR a.publishedAt = a.createdAt')
             ->orderBy('a.createdAt', 'DESC')
             ->setMaxResults($limit * 2); // overfetch for deduplication
+
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
 
         /** @var Article[] $articles */
         $articles = $qb->getQuery()->getResult();
@@ -427,7 +444,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @param int $offset
      * @return Article[]
      */
-    public function findByPubkey(string $pubkey, int $limit = 12, int $offset = 0): array
+    public function findByPubkey(string $pubkey, int $limit = 12, int $offset = 0, bool $includeEssayistExclusive = false): array
     {
         $qb = $this->createQueryBuilder('a');
 
@@ -438,6 +455,10 @@ class ArticleRepository extends ServiceEntityRepository
             ->orderBy('a.createdAt', 'DESC')
             ->setFirstResult($offset)
             ->setMaxResults($limit);
+
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
 
         return $qb->getQuery()->getResult();
     }
@@ -511,13 +532,17 @@ class ArticleRepository extends ServiceEntityRepository
      * @param int $offset
      * @return Article[]
      */
-    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0): array
+    public function advancedSearch(string $query, SearchFilters $filters, int $limit = 12, int $offset = 0, bool $includeEssayistExclusive = false): array
     {
         $qb = $this->createQueryBuilder('a');
 
         // Exclude slashes in slug
         $qb->andWhere($qb->expr()->notLike('a.slug', ':slugPattern'))
             ->setParameter('slugPattern', '%/%');
+
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
 
         // Text query (LIKE fallback)
         if (!empty($query)) {
@@ -562,7 +587,7 @@ class ArticleRepository extends ServiceEntityRepository
         // Tags — PostgreSQL jsonb containment (requires native SQL)
         $tagsArray = $filters->getTagsArray();
         if (!empty($tagsArray)) {
-            return $this->advancedSearchWithTags($query, $filters, $tagsArray, $limit, $offset);
+            return $this->advancedSearchWithTags($query, $filters, $tagsArray, $limit, $offset, $includeEssayistExclusive);
         }
 
         // Sort
@@ -581,13 +606,17 @@ class ArticleRepository extends ServiceEntityRepository
     /**
      * Advanced search using native SQL for jsonb tag filtering (PostgreSQL).
      */
-    private function advancedSearchWithTags(string $query, SearchFilters $filters, array $tags, int $limit, int $offset): array
+    private function advancedSearchWithTags(string $query, SearchFilters $filters, array $tags, int $limit, int $offset, bool $includeEssayistExclusive = false): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
         $wheres = ["slug NOT LIKE '%/%'"];
         $params = [];
         $types = [];
+
+        if (!$includeEssayistExclusive) {
+            $wheres[] = 'essayist_exclusive = FALSE';
+        }
 
         // Text query
         if (!empty($query)) {
@@ -670,7 +699,7 @@ class ArticleRepository extends ServiceEntityRepository
      * @param string[] $excludedPubkeys Hex pubkeys to exclude (article authors)
      * @return array{articles: Article[], commentCounts: array<string, int>}
      */
-    public function findArticlesWithComments(int $limit = 50, array $excludedPubkeys = []): array
+    public function findArticlesWithComments(int $limit = 50, array $excludedPubkeys = [], bool $includeEssayistExclusive = false): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
@@ -770,6 +799,10 @@ class ArticleRepository extends ServiceEntityRepository
             // Only fresh releases: skip revisions where published_at differs from created_at
             ->andWhere('a.publishedAt IS NULL OR a.publishedAt = a.createdAt');
 
+        if (!$includeEssayistExclusive) {
+            $qb->andWhere('a.essayistExclusive = false');
+        }
+
         /** @var Article[] $allArticles */
         $allArticles = $qb->getQuery()->getResult();
 
@@ -846,6 +879,36 @@ class ArticleRepository extends ServiceEntityRepository
 
         // Fallback to simple search
         return $this->searchByQuery($query, $limit, $offset);
+    }
+
+    /**
+     * Flip the `essayist_exclusive` flag for every revision of a given
+     * coordinate (pubkey + slug). Operates as a single bulk UPDATE — no
+     * entities are hydrated, so the call is safe to invoke from CLI tooling
+     * even when the article has dozens of historical revisions.
+     *
+     * @return int Number of article rows updated.
+     */
+    public function setEssayistExclusiveByCoordinate(string $pubkey, string $slug, bool $exclusive): int
+    {
+        if ('' === trim($pubkey) || '' === trim($slug)) {
+            return 0;
+        }
+
+        $conn = $this->getEntityManager()->getConnection();
+        return (int) $conn->executeStatement(
+            'UPDATE article SET essayist_exclusive = :flag WHERE pubkey = :pubkey AND slug = :slug',
+            [
+                'flag'   => $exclusive,
+                'pubkey' => $pubkey,
+                'slug'   => $slug,
+            ],
+            [
+                'flag'   => ParameterType::BOOLEAN,
+                'pubkey' => ParameterType::STRING,
+                'slug'   => ParameterType::STRING,
+            ]
+        );
     }
 }
 
