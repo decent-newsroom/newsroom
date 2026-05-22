@@ -186,12 +186,78 @@ Two sections:
 
 ## Open gaps
 
-### 1. Contribution flow UI — not yet built
+### 1. Contribution flow UI — ✓ Built (zap-receipt automation)
 
-The member-funded payment flow is not wired into the landing page. Access is granted entirely manually. To implement:
-- Show a `ZapButton` on the join section targeting a selected current member's pubkey
-- On payment, admin verifies the zap receipt and grants `ROLE_ESSAYIST_MEMBER`
-- Future: automate via zap receipt matching (see `SubscriptionZapReceiptWorkerCommand` / `VanityNameZapReceiptWorkerCommand` for the pattern)
+The member-funded payment flow is wired up end-to-end:
+
+- **Members directory** at `GET /essayist/members` (`EssayistController::members`)
+  lists every user holding `ROLE_ESSAYIST_MEMBER` who exposes a Lightning
+  address (`lud16` on `User` or in Redis-cached metadata). Access is gated:
+  visitors must be logged in **and** hold one of `ROLE_ESSAYIST_MEMBER`,
+  `ROLE_ESSAYIST_CANDIDATE`, or `ROLE_ADMIN`. Anons redirect to
+  `/essayist?join_status=login_required`; logged-in users without a gating
+  role redirect with `join_status=access_denied`. The list is shuffled per
+  request so no member is permanently top of the page.
+- Each row renders the existing **`ZapButton` Live Component** prefilled with
+  the member's `recipientPubkey` and `recipientLud16`, so the contributor goes
+  through the standard NIP-57 modal (amount + comment → LNURL invoice → QR).
+  Anonymous visitors see a login-prompt button instead.
+- An **`essayist_membership` ledger table** records one row per zap receipt
+  with `payer_pubkey`, `contributed_to_pubkey`, `zap_receipt_event_id`
+  (UNIQUE → replay protection), `amount_sats`, `started_at`, `expires_at`.
+  Migration `Version20260522120000`.
+- **`EssayistMembershipService::recordGrant()`** is the only writer. Given a
+  payer pubkey, sponsor pubkey, zap receipt id, and amount, it: (a) rejects
+  payments below `essayist.membership.minimum_sats` (default `1000`),
+  (b) short-circuits on duplicate receipt ids, (c) finds-or-creates the payer's
+  `User` row, (d) computes `expires_at` using the **calendar-month rule**
+  (`EssayistMembershipService::endOfNextMonth($paidAt)` → last second UTC
+  of the month after the one the payment was made in), taking the max of
+  that and any existing expiry so multiple zaps in the same month don't
+  stack but a zap in a later month bumps the window forward, (e) ensures
+  `ROLE_ESSAYIST_MEMBER` is present, (f) pre-warms the gateway membership
+  cache via `EssayistMembershipCacheService::markApproved()`.
+- **`essayist:check-zap-receipts` command** (`EssayistZapReceiptWorkerCommand`)
+  runs every 5 minutes via cron. It scans recent kind:9735 events, parses the
+  payer from the embedded zap request (`description` tag), confirms the
+  recipient (`p` tag) currently holds `ROLE_ESSAYIST_MEMBER`, extracts the
+  amount from the receipt's `amount` tag (or the request's `amount` tag in
+  millisats), and calls `recordGrant()`. Idempotent — re-runs are safe.
+- **`essayist:expire-memberships` command** runs **monthly on the 1st at
+  00:05 UTC** (the calendar-month model makes more frequent runs pointless —
+  expirations only happen at month rollovers). It revokes
+  `ROLE_ESSAYIST_MEMBER` from any user whose latest ledger row has expired
+  (skipping `ROLE_ESSAYIST_EARLY_BIRD` holders, whose June access is free)
+  and publishes a revocation to the gateway via
+  `EssayistMembershipCacheService::markRevoked()`.
+
+**Why a dedicated DB table** rather than relying on roles alone? Three
+reasons:
+
+1. **Replay protection.** The `UNIQUE` index on `zap_receipt_event_id`
+   guarantees that the worker cannot mint the same membership twice from
+   one receipt — matching the ReWire relay spec
+   (`documentation/Subscriptions/rewire-relay-specification.md`,
+   "Receipt Replay Protection").
+2. **Expiry tracking.** Roles are stateless — they're either on or off.
+   Without `expires_at` rows we cannot tell when a member's window actually
+   ends, which makes both the cron and any future "expires in N days"
+   notification impossible.
+3. **Audit + extension semantics.** Multiple top-ups during an active
+   window should extend the expiry, not stack roles. Storing each grant
+   gives the operator a clear contribution history and lets the service
+   compute the effective expiry as `MAX(expires_at)`.
+
+Configuration parameters (`config/services.yaml`):
+
+| Parameter | Default | Purpose |
+|---|---|---|
+| `essayist.membership.minimum_sats` | `1000` | Below this, receipts are ignored. |
+| `essayist.membership.receipt_scan_minutes` | `60` | Cron scan window. |
+
+Duration is **not** configurable — it's fixed by the calendar-month rule.
+A payment in month M always covers month M+1, regardless of which day of M
+it lands on or how many other payments the same user made that month.
 
 ### 2. Gated feed page (`/essayist/feed`) — ✓ Built
 
@@ -214,9 +280,14 @@ Implementation notes:
 - Render using the existing home feed tab infrastructure (Turbo Frames + `content--home-tabs` Stimulus controller) so the personalized page can have tabs (e.g. Follows / Topics / All)
 - Non-members requesting this route receive a 403 redirect to `/essayist` with a `join_status=login_required` flash
 
-### 4. Role expiry — not yet automated
+### 4. Role expiry — ✓ Automated
 
-`ROLE_ESSAYIST_MEMBER` is assigned but never removed automatically. Manage manually for now. Planned: cron command that reads a `membership_granted_at` timestamp and strips the role after 30 days.
+`ROLE_ESSAYIST_MEMBER` is revoked automatically by the
+`essayist:expire-memberships` cron (daily at 01:30) once a user's latest
+`essayist_membership.expires_at` is in the past. Early-bird holders are
+skipped (their June access is free). Manual `user:elevate` and admin
+grants from `/admin/essayist` still work — they just don't create a
+ledger row, so they're permanent until manually revoked.
 
 ### 5. NIP-42 relay-level read enforcement — designed, implementation pending
 

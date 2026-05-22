@@ -22,6 +22,13 @@ parameters:
     # actions (e.g. "Broadcast to Essayist"). Defaults to wss://${ESSAYIST_RELAY_DOMAIN}.
     essayist.relay_public_url_default: 'wss://essayist.localhost'
     essayist.relay_public_url: '%env(default:essayist.relay_public_url_default:ESSAYIST_RELAY_PUBLIC_URL)%'
+    # Membership purchase: minimum zap amount (sats). Each accepted receipt
+    # extends membership through the end of the calendar month after the
+    # one the payment was made in (e.g. a May zap → access through 30 June
+    # 23:59 UTC). Multiple zaps in the same month do not stack.
+    essayist.membership.minimum_sats: 1000
+    # How far back the zap-receipt scanner looks each run (minutes).
+    essayist.membership.receipt_scan_minutes: 60
     
     # Relay Registry — categorized relay lists (replaces scattered hardcoded constants)
     relay_registry.profile_relays:

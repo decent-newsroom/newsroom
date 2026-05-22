@@ -1,0 +1,81 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'essayist.members.title'|trans }} — {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <section class="w-container essayist-members">
+        <header class="essayist-members__header">
+            <h1>{{ 'essayist.members.heading'|trans }}</h1>
+            <p class="essayist-members__lede">
+                {{ 'essayist.members.lede'|trans({
+                    '%min%': minimumSats|number_format,
+                    '%through%': coverageThrough|format_date('long')
+                }) }}
+            </p>
+
+            {% if isMember %}
+                <div class="essayist-alert essayist-alert--success">
+                    {{ 'essayist.members.alreadyMember'|trans }}
+                </div>
+            {% elseif isAdmin %}
+                <div class="essayist-alert essayist-alert--info">
+                    {{ 'essayist.feed.adminNotice'|trans }}
+                </div>
+            {% endif %}
+        </header>
+
+        {% if members is empty %}
+            <p class="essayist-members__empty">{{ 'essayist.members.empty'|trans }}</p>
+        {% else %}
+            <ul class="essayist-members__list">
+                {% for m in members %}
+                    <li class="essayist-members__item">
+                        <div class="essayist-members__avatar">
+                            {% if m.picture %}
+                                <img src="{{ m.picture }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+                            {% else %}
+                                <span class="essayist-members__avatar-placeholder" aria-hidden="true"></span>
+                            {% endif %}
+                        </div>
+                        <div class="essayist-members__body">
+                            <a class="essayist-members__name" href="{{ path('author-profile', {npub: m.npub}) }}">
+                                {{ m.displayName }}
+                            </a>
+                            {% if m.isFollowed %}
+                                <span class="essayist-members__badge essayist-members__badge--follow">{{ 'essayist.members.badge.follow'|trans }}</span>
+                            {% elseif m.isEarlyBird %}
+                                <span class="essayist-members__badge essayist-members__badge--earlybird">{{ 'essayist.members.badge.earlybird'|trans }}</span>
+                            {% endif %}
+                            {% if m.nip05 %}
+                                <span class="essayist-members__nip05">{{ m.nip05 }}</span>
+                            {% endif %}
+                            {% if m.about %}
+                                <p class="essayist-members__about">{{ m.about|u.truncate(180, '…') }}</p>
+                            {% endif %}
+                            <p class="essayist-members__lud16"><code>{{ m.lud16 }}</code></p>
+                        </div>
+                        <div class="essayist-members__action">
+                            <twig:Molecules:ZapButton
+                                recipientPubkey="{{ m.pubkey }}"
+                                recipientLud16="{{ m.lud16 }}"
+                            />
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <p class="essayist-members__footnote">
+            {{ 'essayist.members.footnote'|trans({
+                '%min%': minimumSats|number_format,
+                '%through%': coverageThrough|format_date('long')
+            }) }}
+        </p>
+    </section>
+{% endblock %}
+
+
+
+
+
+

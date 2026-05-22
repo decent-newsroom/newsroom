@@ -16,6 +16,7 @@ use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Essayist\EssayistFeedService;
 use App\Service\Essayist\EssayistMembershipCacheService;
+use App\Service\Essayist\EssayistMembershipService;
 use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayFeedBufferService;
@@ -116,6 +117,140 @@ class EssayistController extends AbstractController
         $em->flush();
 
         return $this->redirectToRoute('app_static_essayist', ['join_status' => 'request_created']);
+    }
+
+    /**
+     * Members directory — lists current `ROLE_ESSAYIST_MEMBER` users so a
+     * prospective contributor can choose a sponsor to zap. Each row exposes
+     * the existing `ZapButton` Live Component prefilled with the member's
+     * `lud16` lightning address.
+     *
+     * Access: logged in AND (member | candidate | admin). Anons redirect to
+     * the landing page with `join_status=login_required`; logged-in users
+     * without one of the gating roles redirect with `join_status=access_denied`.
+     */
+    #[Route('/members', name: 'app_essayist_members', methods: ['GET'])]
+    public function members(
+        UserEntityRepository $userRepository,
+        RedisCacheService $redisCacheService,
+        EssayistMembershipService $membershipService,
+        EventRepository $eventRepository,
+        UserProfileService $userProfileService,
+        LoggerInterface $logger,
+    ): Response {
+        /** @var User|null $viewer */
+        $viewer = $this->getUser();
+        if (!$viewer instanceof User) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
+        }
+
+        $viewerRoles = $viewer->getRoles();
+        $allowed = in_array(RolesEnum::ESSAYIST_MEMBER->value, $viewerRoles, true)
+            || in_array(RolesEnum::ESSAYIST_CANDIDATE->value, $viewerRoles, true)
+            || in_array('ROLE_ADMIN', $viewerRoles, true);
+
+        if (!$allowed) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'access_denied']);
+        }
+
+        $members = $userRepository->findByRoleWithQuery(RolesEnum::ESSAYIST_MEMBER->value, null, 500);
+
+        // Resolve metadata + lud16 from Redis (falls back to the User's stored lud16).
+        $hexPubkeys = [];
+        $npubToHex  = [];
+        foreach ($members as $member) {
+            $npub = $member->getNpub();
+            if ($npub && NostrKeyUtil::isNpub($npub)) {
+                $hex                = NostrKeyUtil::npubToHex($npub);
+                $hexPubkeys[]       = $hex;
+                $npubToHex[$npub]   = $hex;
+            }
+        }
+        $metadataMap = !empty($hexPubkeys) ? $redisCacheService->getMultipleMetadata($hexPubkeys) : [];
+
+        // ── Resolve viewer's follow set (kind:3) for "follows first" sorting ──
+        $followSet = [];
+        try {
+            $viewerHex = NostrKeyUtil::npubToHex($viewer->getUserIdentifier());
+            $followsEvent = $eventRepository->findLatestByPubkeyAndKind($viewerHex, KindsEnum::FOLLOWS->value);
+            if ($followsEvent !== null) {
+                foreach ($followsEvent->getTags() as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1]) && NostrKeyUtil::isHexPubkey($tag[1])) {
+                        $followSet[$tag[1]] = true;
+                    }
+                }
+            } else {
+                // Fallback: ask the profile service (network).
+                foreach ($userProfileService->getFollows($viewerHex) as $hex) {
+                    if (NostrKeyUtil::isHexPubkey($hex)) {
+                        $followSet[$hex] = true;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $logger->debug('Essayist members: could not resolve viewer follows', ['error' => $e->getMessage()]);
+        }
+
+        $rows = [];
+        foreach ($members as $member) {
+            $npub = (string) $member->getNpub();
+            $hex  = $npubToHex[$npub] ?? null;
+            $meta = $hex ? ($metadataMap[$hex] ?? null) : null;
+            $std  = $meta ? (method_exists($meta, 'toStdClass') ? $meta->toStdClass() : $meta) : null;
+
+            $lud16 = $member->getLud16() ?: ($std?->lud16 ?? null);
+            if (is_array($lud16)) {
+                $lud16 = $lud16[0] ?? null;
+            }
+            if (!$lud16) {
+                // Without a Lightning address we can't generate an invoice.
+                continue;
+            }
+
+            $memberRoles = $member->getRoles();
+            $isFollowed  = $hex !== null && isset($followSet[$hex]);
+            $isEarlyBird = in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $memberRoles, true);
+
+            // Three-bucket sort key: 0 = follow, 1 = early bird, 2 = other.
+            $sortBucket = $isFollowed ? 0 : ($isEarlyBird ? 1 : 2);
+
+            $rows[] = [
+                'pubkey'      => $hex,
+                'npub'        => $npub,
+                'displayName' => $std?->display_name ?? $std?->name ?? $member->getDisplayName() ?? $member->getName() ?? $npub,
+                'picture'     => $std?->picture ?? $member->getPicture() ?? '',
+                'about'       => $std?->about ?? $member->getAbout() ?? '',
+                'nip05'       => is_array($std?->nip05 ?? '') ? ($std->nip05[0] ?? '') : ($std?->nip05 ?? $member->getNip05() ?? ''),
+                'lud16'       => $lud16,
+                'isFollowed'  => $isFollowed,
+                'isEarlyBird' => $isEarlyBird,
+                '_sortBucket' => $sortBucket,
+                '_rand'       => mt_rand(),
+            ];
+        }
+
+        // Sort: follows first, then early birds, then others. Randomise within each bucket.
+        usort($rows, static function (array $a, array $b): int {
+            return ($a['_sortBucket'] <=> $b['_sortBucket'])
+                ?: ($a['_rand'] <=> $b['_rand']);
+        });
+
+        $isMember  = in_array(RolesEnum::ESSAYIST_MEMBER->value, $viewerRoles, true);
+        $isAdmin   = in_array('ROLE_ADMIN', $viewerRoles, true);
+
+        // Effective expiry date that a payment made *now* would activate / confirm.
+        // Used by the template to render a precise "valid through …" hint.
+        $coverageThrough = \App\Service\Essayist\EssayistMembershipService::endOfNextMonth(new \DateTimeImmutable('now'));
+
+        return $this->render('essayist/members.html.twig', [
+            'members'         => $rows,
+            'isLoggedIn'      => true,
+            'isMember'        => $isMember,
+            'isAdmin'         => $isAdmin,
+            'minimumSats'     => $membershipService->getMinimumSats(),
+            'coverageThrough' => $coverageThrough,
+            'followCount'     => count($followSet),
+        ]);
     }
 
     /**

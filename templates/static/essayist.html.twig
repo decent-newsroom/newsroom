@@ -169,9 +169,13 @@
                         <p class="essayist-copy">{{ 'essayist.landing.join.memberBody'|trans }}</p>
                         <div class="essayist-actions">
                             <a class="btn btn--primary" href="{{ path('app_essayist_home') }}">{{ 'essayist.landing.join.memberCta'|trans }}</a>
+                            <a class="btn" href="{{ path('app_essayist_members') }}">{{ 'essayist.members.heading'|trans }}</a>
                         </div>
                     {% elseif isPending %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.pendingBody'|trans }}</p>
+                        <div class="essayist-actions">
+                            <a class="btn btn--primary" href="{{ path('app_essayist_members') }}">{{ 'essayist.members.heading'|trans }}</a>
+                        </div>
                     {% elseif app.user %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans({'%launch_date%': fmt_launch}) }}</p>
                         <form method="post" action="{{ path('app_static_essayist_request_access') }}">

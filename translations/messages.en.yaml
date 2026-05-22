@@ -209,6 +209,18 @@ essayist:
         empty: 'No articles yet. Be the first to publish on the Essayist relay.'
         backToLanding: 'About Essayist'
         adminNotice: 'Admin preview — you are viewing this feed as an admin, not as a member.'
+    members:
+        title: 'Essayist Members'
+        heading: 'Choose a member to support'
+        lede: 'To join Essayist, send at least %min% sats to any current member. Membership runs on monthly ticks — a zap sent now activates your access through %through%, regardless of which day this month you contribute.'
+        loginPrompt: 'Sign in with your Nostr key to send a zap and claim membership.'
+        alreadyMember: 'You are already an Essayist member — zaps below still support fellow members and extend their windows.'
+        loginToZap: 'Sign in to zap'
+        empty: 'No members are currently listed with a Lightning address. Check back soon.'
+        footnote: 'Minimum %min% sats · grants access through %through% · powered by NIP-57 zap receipts.'
+        badge:
+            follow: 'You follow'
+            earlybird: 'Early bird'
     home:
         title: 'Essayist — Your Feed'
         heading: 'Your Essayist Feed'

@@ -540,3 +540,112 @@
     margin: var(--spacing-2) 0 0;
     letter-spacing: 0.02em;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Essayist members directory (/essayist/members)
+   ────────────────────────────────────────────────────────────────── */
+
+.essayist-members {
+    padding-block: var(--spacing-6);
+}
+
+.essayist-members__header {
+    margin-bottom: var(--spacing-5);
+}
+
+.essayist-members__lede {
+    color: var(--color-text-muted);
+    max-width: 60ch;
+}
+
+.essayist-members__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.essayist-members__item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.essayist-members__avatar img,
+.essayist-members__avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    background: var(--color-surface-muted);
+    display: block;
+}
+
+.essayist-members__name {
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.essayist-members__nip05 {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    margin-left: var(--spacing-2);
+}
+
+.essayist-members__about {
+    margin: var(--spacing-1) 0 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+}
+
+.essayist-members__lud16 {
+    margin: var(--spacing-2) 0 0 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.essayist-members__lud16 code {
+    background: var(--color-surface-muted);
+    padding: 0.1em 0.4em;
+}
+
+.essayist-members__empty,
+.essayist-members__footnote {
+    color: var(--color-text-muted);
+    margin-top: var(--spacing-4);
+}
+
+@media (max-width: 640px) {
+    .essayist-members__item {
+        grid-template-columns: auto 1fr;
+    }
+    .essayist-members__action {
+        grid-column: 1 / -1;
+    }
+}
+
+.essayist-members__badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.1em 0.4em;
+    margin-left: var(--spacing-2);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-mid);
+    vertical-align: middle;
+}
+
+.essayist-members__badge--follow {
+    border-color: var(--color-accent-strong);
+    color: var(--color-accent-strong);
+}
+
+.essayist-members__badge--earlybird {
+    border-color: var(--color-success, var(--color-accent));
+    color: var(--color-success, var(--color-accent));
+}

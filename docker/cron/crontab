@@ -53,7 +53,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Subscription payment checks (Active Indexing + Updates Pro)
 # Checks for zap receipts matching pending invoices; also processes expiry / grace transitions.
 */5 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console active-indexing:check-receipts >> /var/log/cron-zap-receipts.log 2>&1
-*/60 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console updates-pro:expire-subscriptions >> /var/log/cron-updates-pro-expire.log 2>&1
+*/59 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console updates-pro:expire-subscriptions >> /var/log/cron-updates-pro-expire.log 2>&1
 
 # Vanity name payment checks — activate paid vanity names after Lightning payment confirmed
 # Runs every 5 minutes to pick up zap receipts quickly
@@ -62,4 +62,13 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # Vanity name expiry — release expired subscription names
 # Runs daily at 1 AM
 0 1 * * * . /etc/environment && /usr/local/bin/php /app/bin/console vanity:process-expired >> /var/log/cron-vanity-expired.log 2>&1
+
+# Essayist membership payment checks — match zap receipts to members and extend membership windows.
+# Runs every 5 minutes so contributors see their access activate quickly.
+*/5 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console essayist:check-zap-receipts >> /var/log/cron-essayist-receipts.log 2>&1
+
+# Essayist membership expiry — revoke ROLE_ESSAYIST_MEMBER from users whose latest grant has lapsed.
+# Memberships are calendar-month based (a zap in month M covers month M+1),
+# so expiry only needs to run once after the month rolls over. 00:05 on the 1st of each month.
+5 0 1 * * . /etc/environment && /usr/local/bin/php /app/bin/console essayist:expire-memberships >> /var/log/cron-essayist-expire.log 2>&1
 
