@@ -3,18 +3,8 @@
 {% block title %}{{ 'essayist.home.title'|trans }} — {{ brand_name }}{% endblock %}
 
 {% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'essayist.home.heading'|trans }}" tagline="{{ 'essayist.home.subheading'|trans }}" />
     <section class="w-container">
-
-        <div class="essayist-feed-header">
-            <h1 class="essayist-feed-heading">{{ 'essayist.home.heading'|trans }}</h1>
-            <p class="essayist-feed-subheading">{{ 'essayist.home.subheading'|trans }}</p>
-
-            {% if isAdmin %}
-                <div class="alert alert--info essayist-feed-admin-notice">
-                    {{ 'essayist.feed.adminNotice'|trans }}
-                </div>
-            {% endif %}
-        </div>
 
         <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="foryou">
 

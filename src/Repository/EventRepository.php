@@ -802,6 +802,42 @@ class EventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Find distinct kind:30023 article coordinates that have received a kind:1111
+     * comment since the given Unix timestamp.
+     *
+     * Returns an array keyed by coordinate ("30023:<pubkey>:<d-tag>") with the
+     * latest comment Unix timestamp as value, ordered by latest_comment_at DESC.
+     *
+     * @param  int $since   Unix timestamp lower bound (exclusive)
+     * @param  int $limit   Maximum number of distinct coordinates to return
+     * @return array<string, int>  Map of coordinate → latest_comment_at
+     */
+    public function findRecentlyCommentedLongformCoordinates(int $since, int $limit = 100): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $sql = "SELECT elm->>1 AS coordinate, MAX(e.created_at) AS latest_comment_at
+                FROM event e,
+                     jsonb_array_elements(e.tags) AS elm
+                WHERE e.kind = 1111
+                  AND e.created_at > :since
+                  AND (elm->>0 = 'a' OR elm->>0 = 'A')
+                  AND elm->>1 LIKE '30023:%'
+                GROUP BY elm->>1
+                ORDER BY latest_comment_at DESC
+                LIMIT :limit";
+
+        $rows = $conn->executeQuery($sql, ['since' => $since, 'limit' => $limit])->fetchAllAssociative();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row['coordinate']] = (int) $row['latest_comment_at'];
+        }
+
+        return $result;
+    }
+
+    /**
      * Query events using a NIP-A7 spell filter structure.
      *
      * @param array $filter ['kinds' => int[], 'authors' => string[], '#t' => string[], 'since' => int, 'until' => int, 'limit' => int]

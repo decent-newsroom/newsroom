@@ -21,6 +21,7 @@ use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayFeedBufferService;
 use App\Service\Nostr\UserProfileService;
+use App\Service\UserMuteListService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -443,6 +444,7 @@ class EssayistController extends AbstractController
         UserProfileService $userProfileService,
         NostrClient $nostrClient,
         RedisCacheService $redisCacheService,
+        UserMuteListService $userMuteListService,
         LoggerInterface $logger,
     ): Response {
         /** @var User|null $user */
@@ -475,10 +477,20 @@ class EssayistController extends AbstractController
             $logger->error('EssayistHome: failed to convert npub', ['error' => $e->getMessage()]);
         }
 
+        // Resolve the user's mute list once; applies to all tabs.
+        $mutedPubkeys = [];
+        if ($pubkeyHex) {
+            try {
+                $mutedPubkeys = $userMuteListService->getMutedPubkeys($pubkeyHex);
+            } catch (\Throwable) {
+                // Non-critical — proceed without muting
+            }
+        }
+
         return match ($tab) {
-            'follows' => $this->essayistFollowsTab($feedService, $eventRepository, $userProfileService, $redisCacheService, $logger, $pubkeyHex),
-            'topics'  => $this->essayistTopicsTab($feedService, $nostrClient, $redisCacheService, $logger, $pubkeyHex),
-            default   => $this->essayistForYouTab($feedService, $eventRepository, $userProfileService, $nostrClient, $redisCacheService, $logger, $pubkeyHex),
+            'follows' => $this->essayistFollowsTab($feedService, $eventRepository, $userProfileService, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
+            'topics'  => $this->essayistTopicsTab($feedService, $nostrClient, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
+            default   => $this->essayistForYouTab($feedService, $eventRepository, $userProfileService, $nostrClient, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
         };
     }
 
@@ -491,6 +503,7 @@ class EssayistController extends AbstractController
         RedisCacheService $redisCacheService,
         LoggerInterface $logger,
         ?string $pubkeyHex,
+        array $mutedPubkeys = [],
     ): Response {
         if (!$pubkeyHex) {
             return $this->render('essayist/tabs/_follows.html.twig', [
@@ -528,6 +541,10 @@ class EssayistController extends AbstractController
 
         $articles = $feedService->fetchByPubkeys($followedPubkeys, 50);
 
+        if (!empty($mutedPubkeys)) {
+            $articles = array_values(array_filter($articles, fn (object $c): bool => !in_array($c->pubkey, $mutedPubkeys, true)));
+        }
+
         $authorsMetadata = $this->resolveMetadata(array_column($articles, 'pubkey'), $redisCacheService);
 
         return $this->render('essayist/tabs/_follows.html.twig', [
@@ -544,6 +561,7 @@ class EssayistController extends AbstractController
         RedisCacheService $redisCacheService,
         LoggerInterface $logger,
         ?string $pubkeyHex,
+        array $mutedPubkeys = [],
     ): Response {
         if (!$pubkeyHex) {
             return $this->render('essayist/tabs/_topics.html.twig', [
@@ -570,6 +588,10 @@ class EssayistController extends AbstractController
 
         $articles = $feedService->fetchByTopics($interestTags, 50);
 
+        if (!empty($mutedPubkeys)) {
+            $articles = array_values(array_filter($articles, fn (object $c): bool => !in_array($c->pubkey, $mutedPubkeys, true)));
+        }
+
         $authorsMetadata = $this->resolveMetadata(array_column($articles, 'pubkey'), $redisCacheService);
 
         return $this->render('essayist/tabs/_topics.html.twig', [
@@ -588,6 +610,7 @@ class EssayistController extends AbstractController
         RedisCacheService $redisCacheService,
         LoggerInterface $logger,
         ?string $pubkeyHex,
+        array $mutedPubkeys = [],
     ): Response {
         if (!$pubkeyHex) {
             return $this->render('essayist/tabs/_foryou.html.twig', [
@@ -654,9 +677,62 @@ class EssayistController extends AbstractController
             $logger->error('EssayistHome for-you: failed to load topics', ['error' => $e->getMessage()]);
         }
 
-        // ── 3. Sort merged articles by createdAt descending ──
+        // ── 3. Articles with recent comments from the Essayist relay ──
+        // coordinate → latest_comment_at Unix timestamp (for sorting discussed articles to top)
+        $discussedOrder = [];
+        try {
+            $since       = time() - 7 * 24 * 3600; // last 7 days
+            $coordinates = $eventRepository->findRecentlyCommentedLongformCoordinates($since, 50);
+            if (!empty($coordinates)) {
+                // Extract d-tags and build expected "pubkey:d-tag" coord set.
+                $dTags              = [];
+                $allowedCoordinates = [];
+                foreach ($coordinates as $fullCoord => $latestCommentAt) {
+                    // fullCoord format: 30023:<pubkey>:<d-tag>
+                    $parts = explode(':', $fullCoord, 3);
+                    if (count($parts) === 3) {
+                        $shortCoord           = $parts[1] . ':' . $parts[2]; // pubkey:d-tag
+                        $dTags[]              = $parts[2];
+                        $allowedCoordinates[] = $shortCoord;
+                        $discussedOrder[$shortCoord] = $latestCommentAt;
+                    }
+                }
+                $commentedArticles = $feedService->fetchByDTags($dTags, $allowedCoordinates, 50);
+                foreach ($commentedArticles as $card) {
+                    $coord = $card->pubkey . ':' . $card->slug;
+                    if (!isset($mergedArticles[$coord])) {
+                        $mergedArticles[$coord] = $card;
+                        $sourceLabels[$coord]   = [];
+                    }
+                    if (!in_array('discussed', $sourceLabels[$coord], true)) {
+                        $sourceLabels[$coord][] = 'discussed';
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $logger->error('EssayistHome for-you: failed to load discussed articles', ['error' => $e->getMessage()]);
+        }
+
+        // ── 4. Sort merged articles ──
+        // Remove muted authors across all sources.
+        if (!empty($mutedPubkeys)) {
+            foreach (array_keys($mergedArticles) as $coord) {
+                if (in_array($mergedArticles[$coord]->pubkey, $mutedPubkeys, true)) {
+                    unset($mergedArticles[$coord], $sourceLabels[$coord], $discussedOrder[$coord]);
+                }
+            }
+        }
+
+        // Discussed articles are sorted by latest comment time (most recently active first);
+        // all others fall back to article createdAt, consistent with the global home feed.
         $articlesArray = array_values($mergedArticles);
-        usort($articlesArray, fn (object $a, object $b): int => $b->createdAt <=> $a->createdAt);
+        usort($articlesArray, function (object $a, object $b) use ($discussedOrder): int {
+            $coordA = $a->pubkey . ':' . $a->slug;
+            $coordB = $b->pubkey . ':' . $b->slug;
+            $timeA  = $discussedOrder[$coordA] ?? $a->createdAt->getTimestamp();
+            $timeB  = $discussedOrder[$coordB] ?? $b->createdAt->getTimestamp();
+            return $timeB <=> $timeA;
+        });
         $articlesArray = array_slice($articlesArray, 0, 60);
 
         $authorsMetadata = $this->resolveMetadata(array_column($articlesArray, 'pubkey'), $redisCacheService);

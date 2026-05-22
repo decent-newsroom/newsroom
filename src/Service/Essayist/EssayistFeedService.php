@@ -123,6 +123,53 @@ final class EssayistFeedService
     }
 
     /**
+     * Fetch kind:30023 articles from strfry-essayist filtered by `d` tag (slug) values.
+     *
+     * After fetching, only cards whose full coordinate (pubkey:slug) is in the
+     * provided $allowedCoordinates set are returned, so articles with matching
+     * slugs by different authors are not included unless their coordinate was
+     * explicitly requested.
+     *
+     * @param  string[] $dTags              Slug / d-tag values (without pubkey prefix)
+     * @param  string[] $allowedCoordinates Set of "pubkey:slug" strings used for post-filtering
+     * @return object[]
+     */
+    public function fetchByDTags(array $dTags, array $allowedCoordinates = [], int $limit = 50): array
+    {
+        if (empty($dTags)) {
+            return [];
+        }
+
+        $dTags = array_values(array_unique($dTags));
+
+        $filter = new Filter();
+        $filter->setKinds([30023]);
+        $filter->setLimit($limit);
+
+        try {
+            $filter->setTags(['#d' => $dTags]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('EssayistFeedService: invalid d-tags for tag filter', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+
+        $cards = $this->doFetch($filter);
+
+        // Narrow results to the exact (pubkey, d-tag) pairs we asked for.
+        if (!empty($allowedCoordinates)) {
+            $allowed = array_flip($allowedCoordinates);
+            $cards = array_values(array_filter(
+                $cards,
+                fn (object $c): bool => isset($allowed[$c->pubkey . ':' . $c->slug])
+            ));
+        }
+
+        return $cards;
+    }
+
+    /**
      * Execute a relay REQ with the given filter and return the resulting cards.
      *
      * @return object[]
