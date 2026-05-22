@@ -40,9 +40,9 @@ Money flows between members, not to a platform. Everyone who participates is bot
 * Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
 * Relay write access gated by `ROLE_ESSAYIST_MEMBER`. ✓ Built
 * Admin view: pending requests + active members + grant/revoke. ✓ Built
-* Editor: "Publish to Essayist" option (member-only checkbox to add Essayist relay to the publish target list).
-* Editor: "Publish ONLY to Essayist" option (member-only; restricts publish to Essayist relay only, adds NIP-70 `-` tag).
-* Article actions: "Broadcast to Essayist" (replay signed event to Essayist relay, member-only, author-only).
+* Editor: "Publish to Essayist" option (member-only checkbox to add Essayist relay to the publish target list). ✓ Built
+* Editor: "Publish ONLY to Essayist" option (member-only; restricts publish to Essayist relay only, adds NIP-70 `-` tag). ✓ Built
+* Article actions: "Broadcast to Essayist" (replay signed event to Essayist relay, member-only, author-only). ✓ Built
 * Admin preview access to all role-gated Essayist pages and flows without requiring `ROLE_ESSAYIST_MEMBER`.
 
 ## Optional but Useful
@@ -224,27 +224,42 @@ A dedicated `essayist-gateway` service will sit between Caddy and `strfry-essayi
 
 Full design: `documentation/essayist-gateway.md`.
 
-### 6. Editor: "Publish to Essayist" option — not yet built
+### 6. Editor: "Publish to Essayist" option — ✓ Built
 
-Adds the Essayist relay (`wss://essayist.decentnewsroom.com`) as an extra publish target in the article editor alongside the user's regular NIP-65 relays.
+A non-mapped `publishToEssayist` checkbox on `EditorType` renders inside the
+editor's relays panel (`templates/editor/panels/_relays.html.twig`), but only
+when the viewer holds `ROLE_ESSAYIST_MEMBER` or `ROLE_ADMIN` (admins see an
+"admin preview" badge). When checked, `EditorController::publishNostrEvent`
+appends `%essayist.relay_public_url%` to the user's NIP-65 outbox relay list
+(deduplicated) before calling `NostrClient::publishEvent`. The event itself is
+unchanged — the article is signed and distributed normally to every relay in
+the merged list. The backend re-checks the gating role before honouring the
+flag so a non-member who tampers with the form cannot push to the relay.
 
-Visible only to `ROLE_ESSAYIST_MEMBER` users. Implemented as a checkbox in the publish panel of the editor. When checked, the relay URL is appended to the list of relays the signing Stimulus controller sends the EVENT to.
+### 7. Editor: "Publish ONLY to Essayist" option — ✓ Built
 
-No change to the event itself — the article is published normally and distributed to all selected relays.
+A second non-mapped checkbox `publishOnlyToEssayist` on `EditorType` sits next
+to the previous one in the same panel, gated to the same roles. A small
+Stimulus controller (`ui--essayist-publish-options`) makes the two checkboxes
+mutually exclusive: enabling ONLY-mode forces the "also" checkbox off and
+disables it, and reveals a warning callout explaining that the article will
+only be visible to Essayist members and will not appear on public feeds.
 
-### 7. Editor: "Publish ONLY to Essayist" option — not yet built
+When ONLY-mode is active:
 
-A separate option that restricts distribution to the Essayist relay exclusively and marks the event as protected.
+- The JS publish controller (`nostr--nostr-publish`) pushes the NIP-70
+  protected tag `["-"]` onto the event's `tags` array (idempotently — it
+  checks for an existing `-` tag, e.g. from `advancedMetadata.isProtected`)
+  before signing. Cooperating relays that honour NIP-70 will not re-broadcast
+  the event.
+- The backend (`EditorController::publishNostrEvent`) replaces the relay list
+  entirely with `[%essayist.relay_public_url%]` and passes
+  `ensureLocalRelay: false` to `NostrClient::publishEvent` so the event is not
+  mirrored to the local strfry relay either. The user's regular outbox
+  relays are excluded.
 
-Behaviour:
-- The event is signed with a `-` tag added (NIP-70 "protected event" — signals that the event must not be re-broadcast by any relay that receives it).
-- The list of publish relays is replaced with `[wss://essayist.decentnewsroom.com]` only — the user's NIP-65 outbox relays are excluded.
-- Visible only to `ROLE_ESSAYIST_MEMBER` users, in the same publish panel as gap #6.
-
-Implementation notes:
-- The `-` tag should be included in the event's `tags` array as `["-"]` (NIP-70).
-- The signing Stimulus controller needs to respect an "exclusive relay list" mode: when this option is active, the relay list passed to the signer is overridden to contain only the Essayist relay URL.
-- Display a clear warning in the UI: "This article will only be visible to Essayist members and will not appear on public feeds."
+As with #6, the backend re-checks `ROLE_ESSAYIST_MEMBER || ROLE_ADMIN` before
+honouring the override.
 
 ### 8. Article actions: "Broadcast to Essayist" — ✓ Built
 

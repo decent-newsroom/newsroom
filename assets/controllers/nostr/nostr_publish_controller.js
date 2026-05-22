@@ -378,6 +378,8 @@ export default class extends Controller {
     const topicsString = fd.get('editor[topics]') || '';
     const isDraft = fd.get('editor[isDraft]') === '1';
     const addClientTag = fd.get('editor[clientTag]') === '1';
+    const publishToEssayist = fd.get('editor[publishToEssayist]') === '1';
+    const publishOnlyToEssayist = fd.get('editor[publishOnlyToEssayist]') === '1';
     const pubkey = fd.get('editor[pubkey]') || '';
     const loginMethod = fd.get('editor[loginMethod]') || '';
 
@@ -416,6 +418,8 @@ export default class extends Controller {
       slug,
       isDraft,
       addClientTag,
+      publishToEssayist,
+      publishOnlyToEssayist,
       advancedMetadata,
       pubkey,
       loginMethod,
@@ -560,6 +564,16 @@ export default class extends Controller {
 
     if (formData.addClientTag) {
       tags.push(['client', 'Decent Newsroom']);
+    }
+
+    // NIP-70: when publishing ONLY to Essayist, mark the event as protected so
+    // cooperating relays do not re-broadcast it. Idempotent — only added if
+    // not already present (e.g. via advancedMetadata.isProtected).
+    if (formData.publishOnlyToEssayist) {
+      const hasProtectedTag = tags.some(t => Array.isArray(t) && t[0] === '-');
+      if (!hasProtectedTag) {
+        tags.push(['-']);
+      }
     }
 
     // Add advanced metadata tags

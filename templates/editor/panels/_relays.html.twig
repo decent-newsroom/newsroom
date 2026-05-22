@@ -25,5 +25,60 @@
         <ul class="list-unstyled">
             <li><pre>{{ relay_registry.publicUrl }}</pre></li>
         </ul>
+
+        {# ── Essayist publish options ──────────────────────────────────────
+           Visible to active Essayist members and to admins (preview).
+           - "Also publish to Essayist": appends the Essayist relay to the
+             outbound list alongside the user's regular NIP-65 outbox relays.
+           - "Publish ONLY to Essayist": restricts the publish target list
+             to the Essayist relay only and marks the event with the NIP-70
+             `-` protected tag so cooperating relays do not re-broadcast it. #}
+        {% set is_essayist_member = is_granted('ROLE_ESSAYIST_MEMBER') %}
+        {% set is_admin_preview = is_granted('ROLE_ADMIN') and not is_essayist_member %}
+        {% if essayist_relay_url is defined and essayist_relay_url and (is_essayist_member or is_admin_preview) %}
+            <hr>
+            <div class="essayist-publish-options"
+                 data-controller="ui--essayist-publish-options">
+                <p class="mb-1"><strong>Essayist</strong>
+                    {% if is_admin_preview %}
+                        <span class="badge bg-secondary">admin preview</span>
+                    {% endif %}
+                </p>
+                <small class="text-muted d-block mb-2">
+                    Target the members-only relay:<br>
+                    <code>{{ essayist_relay_url }}</code>
+                </small>
+
+                <div class="form-check">
+                    {{ form_widget(form.publishToEssayist, {
+                        'attr': {
+                            'class': 'form-check-input',
+                            'data-ui--essayist-publish-options-target': 'alsoInput'
+                        }
+                    }) }}
+                    {{ form_label(form.publishToEssayist, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                </div>
+
+                <div class="form-check">
+                    {{ form_widget(form.publishOnlyToEssayist, {
+                        'attr': {
+                            'class': 'form-check-input',
+                            'data-ui--essayist-publish-options-target': 'onlyInput',
+                            'data-action': 'change->ui--essayist-publish-options#onOnlyChanged'
+                        }
+                    }) }}
+                    {{ form_label(form.publishOnlyToEssayist, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                </div>
+
+                <div class="alert alert-warning mt-2 mb-0 small"
+                     data-ui--essayist-publish-options-target="onlyWarning"
+                     hidden>
+                    This article will only be visible to Essayist members and
+                    will not appear on public feeds. The event is marked with a
+                    NIP-70 <code>-</code> tag so cooperating relays do not
+                    re-broadcast it.
+                </div>
+            </div>
+        {% endif %}
     </div>
 {% endif %}

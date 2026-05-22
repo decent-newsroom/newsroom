@@ -300,6 +300,7 @@ class EditorController extends AbstractController
         EventIngestionListener $eventIngestionListener,
         Converter $converter,
         ReplaceableEventCleanupService $replaceableEventCleanupService,
+        string $essayistRelayPublicUrl = '',
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -463,10 +464,42 @@ class EditorController extends AbstractController
                 $relays = $userRelayListService->getRelaysForPublishing('');
             }
 
+            // ── Essayist publish-target overrides ───────────────────────────
+            // Gate the override behind ROLE_ESSAYIST_MEMBER || ROLE_ADMIN.
+            // Anonymous / non-member callers cannot force their event onto the
+            // members-only relay just by toggling a form flag.
+            $publishToEssayist     = !empty($formData['publishToEssayist']);
+            $publishOnlyToEssayist = !empty($formData['publishOnlyToEssayist']);
+            $canTargetEssayist     = $this->isGranted('ROLE_ESSAYIST_MEMBER') || $this->isGranted('ROLE_ADMIN');
+            $ensureLocalRelay      = true;
+
+            if ($canTargetEssayist && $essayistRelayPublicUrl !== '' && ($publishToEssayist || $publishOnlyToEssayist)) {
+                if ($publishOnlyToEssayist) {
+                    // Replace the relay list entirely with the Essayist relay
+                    // and suppress the implicit local-relay mirror — the user
+                    // explicitly asked for an Essayist-only distribution.
+                    $relays = [$essayistRelayPublicUrl];
+                    $ensureLocalRelay = false;
+                    $logger->info('Publishing ONLY to Essayist relay (NIP-70 protected)', [
+                        'event_id' => $eventObj->getId(),
+                        'pubkey'   => substr($signedEvent['pubkey'] ?? '', 0, 16),
+                    ]);
+                } else {
+                    // Append Essayist to the user's existing outbox list.
+                    if (!in_array($essayistRelayPublicUrl, $relays, true)) {
+                        $relays[] = $essayistRelayPublicUrl;
+                    }
+                    $logger->info('Also publishing to Essayist relay', [
+                        'event_id'    => $eventObj->getId(),
+                        'relay_count' => count($relays),
+                    ]);
+                }
+            }
+
             // Publish to Nostr relays
             try {
                 // Use shorter timeout (10s) to fail faster - article is already saved locally
-                $rawResults = $nostrClient->publishEvent($eventObj, $relays, 10);
+                $rawResults = $nostrClient->publishEvent($eventObj, $relays, 10, $ensureLocalRelay);
                 $logger->info('Published to Nostr relays', [
                     'event_id' => $eventObj->getId(),
                     'results' => $rawResults

@@ -67,6 +67,18 @@ class EditorType extends AbstractType
                 'label'    => 'Save as draft',
                 'required' => false,
             ])
+            ->add('publishToEssayist', CheckboxType::class, [
+                'label'    => 'Also publish to Essayist',
+                'required' => false,
+                'mapped'   => false,
+                'data'     => false,
+            ])
+            ->add('publishOnlyToEssayist', CheckboxType::class, [
+                'label'    => 'Publish ONLY to Essayist (members-only)',
+                'required' => false,
+                'mapped'   => false,
+                'data'     => false,
+            ])
             ->add('advancedMetadata', AdvancedMetadataType::class, [
                 'label' => false,
                 'required' => false,
