@@ -34,21 +34,23 @@ Money flows between members, not to a platform. Everyone who participates is bot
 
 * Essayist landing page explaining the membership model. ✓ Built
 * Nostr login. ✓ Already existed
-* Contribution flow: logged-in user sends sats to someone in the membership, access is verified and granted.
+* Contribution flow: logged-in user sends sats to someone in the membership, access is verified and granted. ✓ Built
 * Manual verification fallback (admin grants `ROLE_ESSAYIST_MEMBER` via CLI or admin panel). ✓ Built
-* `ROLE_ESSAYIST_MEMBER` granted once contribution is verified, valid through end of next month.
-* Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`.
+* `ROLE_ESSAYIST_MEMBER` granted once contribution is verified, valid through end of next month. ✓ Built
+* Members directory (`/essayist/members`) for browsing and zapping existing members. ✓ Built
+* Essayist feed page gated by `ROLE_ESSAYIST_MEMBER`. ✓ Built
+* Personalized members home page (`/essayist/home`) with For You / Follows / Topics tabs. ✓ Built
 * Relay write access gated by `ROLE_ESSAYIST_MEMBER`. ✓ Built
 * Admin view: pending requests + active members + grant/revoke. ✓ Built
 * Editor: "Publish to Essayist" option (member-only checkbox to add Essayist relay to the publish target list). ✓ Built
 * Editor: "Publish ONLY to Essayist" option (member-only; restricts publish to Essayist relay only, adds NIP-70 `-` tag). ✓ Built
 * Article actions: "Broadcast to Essayist" (replay signed event to Essayist relay, member-only, author-only). ✓ Built
-* Admin preview access to all role-gated Essayist pages and flows without requiring `ROLE_ESSAYIST_MEMBER`.
+* Admin preview access to all role-gated Essayist pages and flows without requiring `ROLE_ESSAYIST_MEMBER`. ✓ Built
 
 ## Optional but Useful
 
 * Public member count. ✓ Shown on landing page
-* Role expiry cron (removes lapsed membership automatically).
+* Role expiry cron (removes lapsed membership automatically). ✓ Built
 * Landing page showing recent public articles from the relay.
 
 ## Defer
@@ -143,7 +145,7 @@ The roles `ROLE_ESSAYIST_AUTHOR` and `ROLE_ESSAYIST_SUPPORTER` were part of an e
 
 | Controller | Routes | Purpose |
 |---|---|---|
-| `App\Controller\EssayistController` | `GET /essayist`, `POST /essayist/early-bird`, `POST /essayist/request-access`, `GET /essayist/feed` *(planned)*, `GET /essayist/home` *(planned)* | Public landing page, pre-launch sign-up flows, and gated member pages |
+| `App\Controller\EssayistController` | `GET /essayist`, `POST /essayist/early-bird`, `POST /essayist/request-access`, `GET /essayist/feed`, `GET /essayist/home`, `POST /essayist/home/keepalive`, `GET /essayist/home/tab/{tab}`, `GET /essayist/members`, `GET /essayist/sidebar/latest` | Public landing page, pre-launch sign-up flows, and gated member pages |
 | `App\Controller\Administration\EssayistAdminController` | `/admin/essayist/*` | Admin management of members and candidates |
 | `App\Controller\Api\EssayistWriterPolicyController` | `GET /api/internal/essayist/writer/{pubkey}` | Internal bearer-token endpoint called by `write-policy.sh` |
 
@@ -174,9 +176,31 @@ Two sections:
 1. **Active Members** — lists `ROLE_ESSAYIST_MEMBER` holders; shows Early Bird badge; grant-by-npub form; per-user revoke.
 2. **Pending Candidates** — lists `ROLE_ESSAYIST_CANDIDATE` holders with article count on DN; approve (→ member) or reject.
 
+### Members directory (`/essayist/members`) ✓
+
+`GET /essayist/members` in `EssayistController`. Access gated to logged-in users holding at least one of `ROLE_ESSAYIST_MEMBER`, `ROLE_ESSAYIST_CANDIDATE`, or `ROLE_ADMIN`. Anons redirect to the landing page; logged-in users without a gating role redirect with `join_status=access_denied`.
+
+Lists every user currently holding `ROLE_ESSAYIST_MEMBER` who exposes a Lightning address (`lud16` on the `User` entity or in Redis-cached metadata). Members without a `lud16` are silently excluded — without a Lightning address no invoice can be generated.
+
+The list is sorted into three buckets per request and randomised within each bucket:
+
+1. Members the viewer follows (kind:3 — checked against DB first, then `UserProfileService` as fallback)
+2. Early-bird members (`ROLE_ESSAYIST_EARLY_BIRD`)
+3. Everyone else
+
+Each row renders the existing **`ZapButton` Live Component** prefilled with the member's `recipientPubkey` and `recipientLud16`, so the contributor goes through the standard NIP-57 modal (amount + comment → LNURL invoice → QR). The page also displays the effective membership coverage date a payment made now would activate (computed via `EssayistMembershipService::endOfNextMonth`).
+
 ### Gated feed page (`/essayist/feed`) ✓
 
 `GET /essayist/feed` in `EssayistController`. Accessible to `ROLE_ESSAYIST_MEMBER` and `ROLE_ADMIN` (admin preview with banner). Queries `strfry-essayist:7779` via `EssayistFeedService`, renders with `CardList`. Author metadata resolved from Redis. Internal relay URL: `ESSAYIST_RELAY_INTERNAL_URL` env var.
+
+### Personalized home page (`/essayist/home`) ✓
+
+See Implementation details §3 above.
+
+### Members directory (`/essayist/members`) ✓
+
+See "Members directory" under "What is built" above.
 
 ### Zap infrastructure ✓
 
@@ -184,7 +208,7 @@ Two sections:
 
 ---
 
-## Open gaps
+## Implementation details
 
 ### 1. Contribution flow UI — ✓ Built (zap-receipt automation)
 
@@ -263,22 +287,17 @@ it lands on or how many other payments the same user made that month.
 
 `GET /essayist/feed` in `EssayistController`. Manual role check: non-members/anons redirect to the landing page; `ROLE_ADMIN` bypasses the gate and sees an admin-preview banner. `EssayistFeedService` connects to `ws://strfry-essayist:7779`, queries kind:30023 until EOSE, and returns stdClass cards compatible with `CardList`. Author metadata resolved from Redis. Internal relay URL configurable via `ESSAYIST_RELAY_INTERNAL_URL` (default `ws://strfry-essayist:7779`).
 
-### 3. Personalized members front page (`/essayist/home`) — not yet built
+### 3. Personalized members front page (`/essayist/home`) — ✓ Built
 
-A role-gated personalized front page, exclusive to `ROLE_ESSAYIST_MEMBER`.
+`GET /essayist/home` in `EssayistController`, gated to `ROLE_ESSAYIST_MEMBER` and `ROLE_ADMIN`. Renders a personalized feed via three Turbo Frame tabs:
 
-This is the page referenced in the landing page copy ("Members also get a personalized front page based on their favorites, follows and interests"). It functions similarly to the main Decent Newsroom home feed but scoped to the member's own Nostr social graph.
+- **For You** (`/essayist/home/tab/foryou`) — merges articles from follows, topic interests (kind:10015), and recently discussed pieces (kind:1111 comments in the last 7 days), deduplicates by coordinate, and sorts by comment recency then creation date. Capped at 60 results.
+- **Follows** (`/essayist/home/tab/follows`) — kind:30023 articles from pubkeys in the viewer's kind:3 follow list. Resolved from DB first, then `UserProfileService` as fallback.
+- **Topics** (`/essayist/home/tab/topics`) — kind:30023 articles filtered by hashtags from the viewer's kind:10015 interest list via `NostrClient::getUserInterests`.
 
-Implementation notes:
-- `GET /essayist/home` (or merge `/essayist/feed` into this), guarded by `#[IsGranted('ROLE_ESSAYIST_MEMBER')]`
-- Content sources (in priority order):
-  1. **Follows** — kind 30023 articles from pubkeys the member follows (kind 3)
-  2. **Topic interests** — kind 30023 filtered by hashtags from the member's kind 10015 interest list
-  3. **Follow packs** — kind 30023 from pubkeys in any kind 39089 follow packs the member has subscribed to
-- Source relays: `strfry-essayist` first (member-published content), then the member's NIP-65 relay list for broader coverage
-- Deduplicate by `d`-tag; prefer the most recent version
-- Render using the existing home feed tab infrastructure (Turbo Frames + `content--home-tabs` Stimulus controller) so the personalized page can have tabs (e.g. Follows / Topics / All)
-- Non-members requesting this route receive a 403 redirect to `/essayist` with a `join_status=login_required` flash
+All tabs filter out muted authors (kind:10000 via `UserMuteListService`). Author metadata for avatars / display names is resolved from Redis.
+
+The page also activates a live Mercure relay-feed subscription for `strfry-essayist` via `StartRelayFeedMessage` so the sidebar article widget receives push updates instead of polling. A keepalive endpoint (`POST /essayist/home/keepalive`) renews the Redis active flag every ~5 minutes while the page is open. A Featured Writers sidebar panel is populated from the `ESSAYIST_WRITERS` follow pack source if configured.
 
 ### 4. Role expiry — ✓ Automated
 
@@ -363,14 +382,11 @@ generic "Broadcast" action (existing behaviour) but still allows the
 Essayist-only broadcast, since pushing a protected event to the
 members-only relay matches its intent.
 
-### 9. Admin preview access — not yet built
+### 9. Admin preview access — ✓ Built
 
-Admins (`ROLE_ADMIN`) should be able to access all Essayist-gated pages and flows without holding `ROLE_ESSAYIST_MEMBER`, so they can review and test the member experience.
+All Essayist-gated routes (`/essayist/feed`, `/essayist/home`, `/essayist/home/tab/*`, `/essayist/members`, `/essayist/sidebar/latest`) use a manual role check that permits `ROLE_ADMIN` alongside `ROLE_ESSAYIST_MEMBER`. Admins are redirected to the landing page for anonymous-only paths (e.g. early-bird) and see admin-preview banners on member pages.
 
-Scope:
-- `/essayist/feed` and `/essayist/home`: replace the bare `#[IsGranted('ROLE_ESSAYIST_MEMBER')]` check with an expression that also permits `ROLE_ADMIN` — e.g. `#[IsGranted('ROLE_ESSAYIST_MEMBER')]` via a Symfony security voter that grants the attribute to any user who is either a member or an admin, or directly via `#[IsGranted('ROLE_ESSAYIST_MEMBER or ROLE_ADMIN')]`.
-- The landing page state-aware CTA already reads from `$user->getRoles()`; add an `isAdmin` flag to the template context so admins see a distinct "Admin preview" notice instead of the join flow.
-- The editor options (gaps #6 and #7) and the broadcast action (gap #8) should be visible to admins regardless of membership status, labelled with an "(admin)" or preview badge so they can verify the UI without polluting their own relay write access.
+The editor options (gaps #6 and #7) and the broadcast action (gap #8) are likewise visible to admins regardless of membership status, labelled with an "(admin)" or preview badge.
 
 ---
 
@@ -416,4 +432,4 @@ Docker profile `essayist` — activate with `docker compose --profile essayist u
 }
 ```
 
-`auth_required: true` and `restricted_writes: true` signal to clients that both reading and writing require active membership. Write gating is enforced at the relay protocol level via `write-policy.sh`. Read gating is currently enforced at the app layer only — full NIP-42 relay-level read enforcement is a future improvement (see open gap #4).
+`auth_required: true` and `restricted_writes: true` signal to clients that both reading and writing require active membership. Write gating is enforced at the relay protocol level via `write-policy.sh`. Read gating is enforced at the app layer (`/essayist/feed`, `/essayist/home`, and `/essayist/members` are all role-gated). Full NIP-42 relay-level read enforcement at the WebSocket protocol layer is a future improvement handled by `essayist-gateway` (see `documentation/essayist-gateway.md`).

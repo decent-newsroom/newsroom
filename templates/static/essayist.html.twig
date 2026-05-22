@@ -105,15 +105,17 @@
 
                     {% if isEarlyBird or (isMember and isEarlyBird) %}
                         <p class="essayist-earlybird__confirmed">{{ 'essayist.landing.earlybird.confirmedBody'|trans({'%launch_date%': fmt_launch}) }}</p>
-                    {% elseif app.user %}
-                        <form method="post" action="{{ path('app_static_essayist_early_bird') }}">
-                            <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
-                            <button type="submit" class="btn btn--primary">{{ 'essayist.landing.earlybird.ctaClaim'|trans }}</button>
-                        </form>
-                    {% else %}
-                        <div class="essayist-actions">
-                            <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</button>
-                        </div>
+                    {% elseif not isLaunched %}
+                        {% if app.user %}
+                            <form method="post" action="{{ path('app_static_essayist_early_bird') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
+                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.earlybird.ctaClaim'|trans }}</button>
+                            </form>
+                        {% else %}
+                            <div class="essayist-actions">
+                                <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</button>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
