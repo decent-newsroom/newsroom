@@ -10,6 +10,7 @@ use App\Service\Nostr\NostrSigner;
 use App\Service\QRGenerator;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
@@ -85,6 +86,8 @@ final class ZapButton
         private readonly QRGenerator $qrGenerator,
         private readonly LoggerInterface $logger,
         private readonly RedisCacheService $redisCacheService,
+        #[Autowire(param: 'relay_registry.project_relays')]
+        private readonly array $projectRelays = [],
     ) {}
 
     /**
@@ -211,7 +214,7 @@ final class ZapButton
             amountMillisats: $amountMillisats,
             lnurl: $lnurlInfo->bech32 ?? ($this->recipientLud16 ?? $this->recipientLud06 ?? ''),
             comment: $this->comment,
-            relays: [],
+            relays: $this->projectRelays,
             zapSplits: []
         );
 
@@ -353,7 +356,7 @@ final class ZapButton
                 amountMillisats: $amountMillisats,
                 lnurl: $lnurlInfo->bech32 ?? $recipientLud16,
                 comment: $this->comment,
-                relays: [],
+                relays: $this->projectRelays,
                 zapSplits: []
             );
 
