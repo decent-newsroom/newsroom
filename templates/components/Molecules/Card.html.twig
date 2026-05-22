@@ -36,10 +36,14 @@
                     <div class="card-placeholder-bg" style="background-color: hsl({{ (article.slug|default(article.title))|pastelHue }}, 70%, 85%);"></div>
                 {% endif %}
             </div>
-            {% if source_labels|default([])|length > 0 or category_label|default(null) %}
+            {% set isEssayistExclusive = article.essayistExclusive|default(false) %}
+            {% if source_labels|default([])|length > 0 or category_label|default(null) or isEssayistExclusive %}
                 <div class="card-sources">
                     {% if category_label|default(null) %}
                         <span class="source-badge source-badge--category">{{ category_label }}</span>
+                    {% endif %}
+                    {% if isEssayistExclusive %}
+                        <span class="source-badge source-badge--essayist" title="{{ 'home_feed.source.essayist_title'|trans }}">{{ 'home_feed.source.essayist'|trans }}</span>
                     {% endif %}
                     {% for label in source_labels|default([]) %}
                         <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>

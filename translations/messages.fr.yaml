@@ -438,6 +438,8 @@ articleActions:
     broadcastEssayist: 'Diffuser à Essayist'
     broadcastEssayistTitle: 'Republier cet article sur le relais membres Essayist'
     highlights: 'Surlignements'
+    protectedBadge: 'Protégé (NIP-70)'
+    protectedNote: "Cet article est protégé par NIP-70. Seul l'auteur peut le rediffuser vers d'autres relais."
 
 # ── Désambiguïsation d'articles ────────────────────────────────────
 disambiguation:
@@ -760,6 +762,8 @@ home_feed:
         discussed: 'Discutés'
         follows: 'Abonnements'
         interests: 'Intérêts'
+        essayist: 'Essayist'
+        essayist_title: 'Article exclusif Essayist'
     articles:
         signInRequired: 'Connectez-vous pour voir votre flux personnalisé.'
         empty: 'Aucun article trouvé pour le moment. Suivez des auteurs ou configurez vos intérêts pour voir du contenu ici.'

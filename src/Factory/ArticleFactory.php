@@ -38,6 +38,9 @@ class ArticleFactory
         $entity->setRatingPositive(0);
         // process tags
         foreach ($source->tags as $tag) {
+            if (!is_array($tag) || !isset($tag[0])) {
+                continue;
+            }
             switch ($tag[0]) {
                 case 'd':
                     $entity->setSlug($tag[1]);
@@ -62,6 +65,15 @@ class ArticleFactory
                 case 'client':
                     // used to signal where it was created, ignored for now
                     break;
+                // NIP-70 ["-"] (protected): intentionally NOT mapped here.
+                // The factory has no knowledge of which relay an event came
+                // from, and the `-` tag is a generic "please do not
+                // re-broadcast" marker that any author can use for any
+                // reason. Deciding whether an article is Essayist-exclusive
+                // requires the relay-URL context (was it received from
+                // strfry-essayist?) and is therefore handled higher up, in
+                // ArticleEventProjector::projectArticleFromEvent() and the
+                // dedicated essayist:subscribe-relay worker.
             }
         }
         return $entity;

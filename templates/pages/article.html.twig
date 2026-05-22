@@ -150,14 +150,7 @@
                 {% endif %}
 
                 {# Consolidated actions dropdown: share, bookmark, broadcast, highlights #}
-                {% set isProtected = false %}
-                {% if article.raw is defined and article.raw.tags is defined %}
-                    {% for tag in article.raw.tags %}
-                        {% if tag[0] == '-' %}
-                            {% set isProtected = true %}
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
+                {% set isProtected = article.isNip70Protected() %}
                 {% set userRelays = null %}
                 {% if app.user %}
                     {% set relayData = app.user.relays %}
@@ -207,6 +200,13 @@
                         {% else %}
                             <small>{{ article.createdAt|date('F j, Y') }}</small>
                         {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+            {% if isProtected %}
+                <div class="article-protected-notice">
+                    <span class="article-protected-badge" title="{{ 'articleActions.protectedNote'|trans }}">
+                        {{ 'articleActions.protectedBadge'|trans }}
                     </span>
                 </div>
             {% endif %}

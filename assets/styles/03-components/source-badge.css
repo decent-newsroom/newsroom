@@ -47,3 +47,10 @@
     color: var(--color-accent-strong, #333);
 }
 
+.source-badge--essayist {
+    border-color: var(--color-accent-strong, #b8860b);
+    color: var(--color-accent-strong, #b8860b);
+    background: var(--color-accent-soft, transparent);
+    font-weight: 700;
+}
+

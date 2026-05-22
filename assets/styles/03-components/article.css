@@ -11,6 +11,20 @@ article {
     margin-top: var(--spacing-5);
 }
 
+/* NIP-70 protected article notice */
+.article-protected-notice {
+    padding: var(--spacing-1) 0 var(--spacing-2);
+}
+
+.article-protected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #6b7280);
+    cursor: help;
+}
+
 .article-main h2, .article-main h3,
 .article-main h4, .article-main h5, .article-main h6 {
     margin-top: var(--spacing-5);

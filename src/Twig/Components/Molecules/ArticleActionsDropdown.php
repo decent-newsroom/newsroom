@@ -72,5 +72,26 @@ final class ArticleActionsDropdown
     {
         return $this->article->isEssayistExclusive();
     }
+
+    /**
+     * True when the current viewer is the author of this article.
+     * Used to enforce NIP-70: only the author may re-broadcast a protected event.
+     */
+    public function isAuthorOfArticle(): bool
+    {
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return false;
+        }
+        $pubkey = $this->article->getPubkey();
+        if ($pubkey === null) {
+            return false;
+        }
+        try {
+            return hash_equals($pubkey, NostrKeyUtil::npubToHex($user->getUserIdentifier()));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
 }
 

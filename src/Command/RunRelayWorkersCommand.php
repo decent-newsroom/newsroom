@@ -68,6 +68,12 @@ class RunRelayWorkersCommand extends Command
                 InputOption::VALUE_NONE,
                 'Disable spell hydration worker'
             )
+            ->addOption(
+                'without-essayist',
+                null,
+                InputOption::VALUE_NONE,
+                'Disable Essayist relay hydration worker'
+            )
             ->setHelp(
                 'Runs local relay subscription workers in a single process.' . "\n\n" .
                 'Workers:' . "\n" .
@@ -76,7 +82,9 @@ class RunRelayWorkersCommand extends Command
                 '  - Magazine hydration: Subscribes to relay for magazine events (kind 30040)' . "\n" .
                 '  - User context hydration: Subscribes to relay for user identity/social events' . "\n" .
                 '    (follows, bookmarks, interests, relay lists, etc.)' . "\n" .
-                '  - Spell hydration: Subscribes to relay for spell events (kind 777, NIP-A7)' . "\n\n" .
+                '  - Spell hydration: Subscribes to relay for spell events (kind 777, NIP-A7)' . "\n" .
+                '  - Essayist hydration: Subscribes to strfry-essayist for kinds 30023/30024' . "\n" .
+                '    (only when ESSAYIST_RELAY_INTERNAL_URL is configured)' . "\n\n" .
                 'This command is designed to run as the worker-relay Docker service.' . "\n" .
                 'Messenger consumers run in the worker service (app:run-workers).' . "\n" .
                 'Profile work runs in worker-profiles (app:run-profile-workers).' . "\n" .
@@ -131,6 +139,18 @@ class RunRelayWorkersCommand extends Command
             $workers['spells'] = [
                 'command' => ['php', 'bin/console', 'spells:subscribe-local-relay', '-vv'],
                 'description' => 'Spell hydration worker',
+            ];
+        }
+
+        // The Essayist relay is internal-only and only present when the
+        // `essayist` compose profile is active. The subscribe command itself
+        // exits cleanly with a warning when ESSAYIST_RELAY_INTERNAL_URL is
+        // empty, so we can enable the worker by default and rely on the env
+        // var to gate whether it actually does any work.
+        if (!$input->getOption('without-essayist') && getenv('ESSAYIST_RELAY_INTERNAL_URL') !== false && getenv('ESSAYIST_RELAY_INTERNAL_URL') !== '') {
+            $workers['essayist'] = [
+                'command' => ['php', 'bin/console', 'essayist:subscribe-relay', '-vv'],
+                'description' => 'Essayist relay hydration worker',
             ];
         }
 

@@ -53,9 +53,19 @@ class ArticleEventProjector
      *
      * @param object $event The Nostr event object (stdClass with id, kind, pubkey, content, tags, etc.)
      * @param string $relayUrl The relay URL where the event was received from
+     * @param bool   $markEssayistExclusive When true, the persisted `Article` row
+     *               is flagged `essayist_exclusive = true`. Callers should only
+     *               pass `true` when they have already verified that the event
+     *               legitimately belongs to the Essayist surface — i.e. it was
+     *               received from `strfry-essayist` AND carries the NIP-70 `["-"]`
+     *               (protected) tag. The NIP-70 tag on its own is not enough,
+     *               since any author on any relay can use it for unrelated
+     *               reasons. The generic ingestion path (local strfry router,
+     *               gateway, fetch handlers) always passes `false` so unrelated
+     *               protected events from public relays are not shadow-hidden.
      * @throws \Exception
      */
-    public function projectArticleFromEvent(object $event, string $relayUrl): void
+    public function projectArticleFromEvent(object $event, string $relayUrl, bool $markEssayistExclusive = false): void
     {
         try {
             $em = $this->em();
@@ -78,6 +88,14 @@ class ArticleEventProjector
 
             // Create Article entity from the event using the factory
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
+
+            // Caller-asserted Essayist-exclusivity (see method docblock). The
+            // factory deliberately does not derive this from the `-` tag alone
+            // because NIP-70 is a generic marker; only the caller knows whether
+            // the source relay context makes the marker meaningful here.
+            if ($markEssayistExclusive) {
+                $article->setEssayistExclusive(true);
+            }
 
             // ─── NIP-01 ordering guard ──────────────────────────────────────
             // Parameterized-replaceable events are addressed by (pubkey, kind,

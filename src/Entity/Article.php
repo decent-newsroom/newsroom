@@ -392,4 +392,22 @@ class Article
         $this->essayistExclusive = $essayistExclusive;
         return $this;
     }
+
+    /**
+     * Returns true if the underlying Nostr event carries the NIP-70 "-" tag,
+     * meaning the author requested that third parties do not re-broadcast it.
+     */
+    public function isNip70Protected(): bool
+    {
+        $raw = $this->getRaw();
+        if ($raw === null) {
+            return false;
+        }
+        foreach ($raw['tags'] ?? [] as $tag) {
+            if (is_array($tag) && ($tag[0] ?? '') === '-') {
+                return true;
+            }
+        }
+        return false;
+    }
 }

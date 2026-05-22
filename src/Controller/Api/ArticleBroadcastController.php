@@ -181,6 +181,33 @@ class ArticleBroadcastController extends AbstractController
                 ], 400);
             }
 
+            // NIP-70: if the article carries the "-" (protected) tag, only the author
+            // may re-broadcast it. Reject any request from a different authenticated user
+            // or an unauthenticated request.
+            if ($article->isNip70Protected()) {
+                $user = $this->getUser();
+                if (!$user) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'error' => 'This article is NIP-70 protected. Authentication required to broadcast it.'
+                    ], 401);
+                }
+                try {
+                    $userPubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+                } catch (\Exception $e) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'error' => 'Could not verify your identity to broadcast this protected article.'
+                    ], 403);
+                }
+                if (!hash_equals($article->getPubkey() ?? '', $userPubkeyHex)) {
+                    return new JsonResponse([
+                        'success' => false,
+                        'error' => 'This article is NIP-70 protected. Only the author can broadcast it.'
+                    ], 403);
+                }
+            }
+
             // Reconstruct the Event object from raw data
             $event = Event::fromVerified((object)$rawEvent);
 

@@ -508,6 +508,8 @@ articleActions:
     broadcastEssayist: 'Trasmetti a Essayist'
     broadcastEssayistTitle: 'Ripubblica questo articolo sul relay riservato ai membri Essayist'
     highlights: 'In evidenza'
+    protectedBadge: 'Protetto (NIP-70)'
+    protectedNote: 'Questo articolo è protetto da NIP-70. Solo l''autore può ritrasmetterlo ad altri relay.'
 
 # ── Article disambiguation ────────────────────────────────────────
 disambiguation:

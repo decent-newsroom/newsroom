@@ -51,5 +51,13 @@
     color: var(--color-accent, #6366f1);
 }
 
+/* NIP-70 protected badge inside the dropdown button */
+.article-actions-dropdown .badge-protected {
+    margin-left: auto;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    cursor: help;
+}
+
 
 

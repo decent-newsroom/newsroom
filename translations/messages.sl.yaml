@@ -438,6 +438,8 @@ articleActions:
     broadcastEssayist: 'Oddaj na Essayist'
     broadcastEssayistTitle: 'Ponovno objavi članek na članski rele Essayist'
     highlights: 'Označbe'
+    protectedBadge: 'Zaščiteno (NIP-70)'
+    protectedNote: 'Ta članek je zaščiten z NIP-70. Samo avtor ga lahko znova odda na releje.'
 
 # ── Razločevanje člankov ──────────────────────────────────────────
 disambiguation:
@@ -760,6 +762,8 @@ home_feed:
         discussed: 'Komentirano'
         follows: 'Sledim'
         interests: 'Interesi'
+        essayist: 'Essayist'
+        essayist_title: 'Essayist ekskluzivni članek'
     articles:
         signInRequired: 'Prijavite se za ogled prilagojenega vira.'
         empty: 'Zaenkrat ni najdenih člankov. Sledite avtorjem ali nastavite interese, da boste tukaj videli vsebino.'

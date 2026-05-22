@@ -457,6 +457,8 @@ home_feed:
         discussed: 'Discussed'
         follows: 'Follows'
         interests: 'Interests'
+        essayist: 'Essayist'
+        essayist_title: 'Essayist-exclusive article'
     articles:
         signInRequired: 'Sign in to see your personalized feed.'
         empty: 'No articles found yet. Follow some authors or configure your interests to see content here.'
@@ -522,6 +524,8 @@ articleActions:
     broadcastEssayist: 'Broadcast to Essayist'
     broadcastEssayistTitle: 'Re-publish this article to the Essayist members-only relay'
     highlights: 'Highlights'
+    protectedBadge: 'Protected (NIP-70)'
+    protectedNote: 'This article is NIP-70 protected. Only the author can re-broadcast it to additional relays.'
 
 # ── Article disambiguation ────────────────────────────────────────
 disambiguation:

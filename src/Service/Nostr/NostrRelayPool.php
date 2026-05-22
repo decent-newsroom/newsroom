@@ -631,11 +631,13 @@ class NostrRelayPool implements RelayPoolInterface
      * @param callable   $onEvent   Callback: function(object $event, string $relayUrl): void
      * @param string     $workerName  Label for heartbeat tracking (e.g. 'articles', 'media')
      * @param int|null   $since     Only receive events with created_at after this timestamp (avoids replaying known events)
-     * @throws \Exception If local relay is not configured
+     * @param string|null $relayUrlOverride Optional explicit relay URL. When null, the local default relay is used.
+     * @throws \Exception If no relay URL is available
      */
-    public function subscribeLocal(array $kinds, callable $onEvent, string $workerName = 'generic', ?int $since = null): void
+    public function subscribeLocal(array $kinds, callable $onEvent, string $workerName = 'generic', ?int $since = null, ?string $relayUrlOverride = null): void
     {
-        if (!$this->nostrDefaultRelay) {
+        $targetRelay = $relayUrlOverride ?? $this->nostrDefaultRelay;
+        if (!$targetRelay) {
             throw new \Exception('Local relay not configured. Set NOSTR_DEFAULT_RELAY environment variable.');
         }
 
@@ -643,9 +645,9 @@ class NostrRelayPool implements RelayPoolInterface
             throw new \InvalidArgumentException('At least one event kind must be specified');
         }
 
-        $relayUrl = $this->normalizeRelayUrl($this->nostrDefaultRelay);
+        $relayUrl = $this->normalizeRelayUrl($targetRelay);
 
-        $this->logger->info('Starting long-lived subscription to local relay', [
+        $this->logger->info('Starting long-lived subscription to relay', [
             'relay' => $relayUrl,
             'kinds' => $kinds,
             'worker' => $workerName,

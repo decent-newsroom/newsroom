@@ -177,6 +177,11 @@ services:
             REDIS_HOST: ${REDIS_HOST:-redis}
             REDIS_PORT: ${REDIS_PORT:-6379}
             REDIS_PASSWORD: ${REDIS_PASSWORD:-r_password}
+            # Internal Essayist relay URL — when the `essayist` compose profile is
+            # active, the relay-workers manager will spawn essayist:subscribe-relay
+            # to hydrate kind 30023/30024 events (including NIP-70 protected ones)
+            # into the local database. Empty value means the worker is skipped.
+            ESSAYIST_RELAY_INTERNAL_URL: ${ESSAYIST_RELAY_INTERNAL_URL:-}
 
   # Dedicated profile worker: runs the profile refresh daemon (finds stale
   # profiles, dispatches batch update messages) and the async_profiles messenger

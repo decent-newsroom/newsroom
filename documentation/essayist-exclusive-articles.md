@@ -20,42 +20,78 @@ the index on every regular write.
 
 Migration: `migrations/Version20260523120000.php`.
 
-## Auto-flagging on ingestion (NIP-70)
+## Auto-flagging on ingestion (NIP-70 + source relay)
 
-`ArticleFactory::createFromLongFormContentEvent()` inspects the event tags
-during projection. When a `["-"]` tag (NIP-70 *protected* marker) is present,
-the resulting `Article` row is tentatively flagged as exclusive.
-`ArticleEventProjector::projectArticleFromEvent()` then cross-checks the
-article's author: the flag is only retained when the author holds one of
+The NIP-70 `["-"]` (protected) tag on its own is **not** enough to flag an
+article as Essayist-exclusive. NIP-70 is a generic "please do not
+re-broadcast" marker that any author on any relay can use for any reason
+— privacy, draft circulation, unfinished work, whatever. Treating the
+tag alone as our exclusive marker would shadow-hide unrelated authors'
+protected events that happen to arrive via the local strfry router (which
+pulls kind 30023 from public relays like `nos.lol`, `relay.damus.io`,
+etc.) or via NIP-65 outbox fetches. That would silently censor work that
+has nothing to do with Essayist.
 
-- `ROLE_ESSAYIST_MEMBER`
-- `ROLE_ESSAYIST_EARLY_BIRD`
-- `ROLE_ADMIN`
+The actual discriminator is **NIP-70 tag AND source relay**:
 
-If the author has no local `User` row or does not hold one of these roles,
-the projector clears `essayistExclusive` before persisting. The NIP-70 `-`
-tag has broader semantics on Nostr — any author can use it to ask
-cooperating relays not to re-broadcast their event for any reason — so we
-must not silently disappear unrelated authors' protected events from our
-public feeds just because they share a tag with our exclusives.
+> An article is auto-flagged `essayist_exclusive = true` only when it is
+> received from `strfry-essayist` (the members-only relay) AND carries
+> the `["-"]` tag.
 
-This is the same `["-"]` tag the editor's **Publish ONLY to Essayist**
-toggle adds client-side via `nostr_publish_controller.js`. The toggle is
-itself only visible to members and admins, so the round-trip works
-end-to-end with no manual ops step:
+Mechanically:
 
-1. Member author publishes with "Publish ONLY to Essayist" → event carries `["-"]`.
-2. The event reaches strfry-essayist (and, if the user also chose ALSO-mode,
-   the local strfry); both ingestion paths project through `ArticleFactory`.
-3. The projector confirms the author is a member and persists the row with
-   `essayist_exclusive = true`.
-4. Public listings and the single-article view filter / gate it automatically.
+- `ArticleFactory::createFromLongFormContentEvent()` is pure event-to-entity
+  mapping. It does not look at the `-` tag at all; it has no idea which
+  relay the event came from and intentionally stays generic.
+- `ArticleEventProjector::projectArticleFromEvent()` accepts a third
+  argument `bool $markEssayistExclusive = false`. When `true`, the
+  persisted row is flagged. The caller is responsible for deciding
+  whether the source-relay context justifies passing `true`.
+- The dedicated `essayist:subscribe-relay` worker (the only ingestion
+  path that talks to `strfry-essayist`) sets the argument to the boolean
+  "does this event carry the `-` tag?" Every other ingestion path —
+  local strfry subscriber, gateway persistence, author content fetches,
+  backfill, RSS importer, API fetch, embed prefetch, sync article fetch
+  — calls the projector with the default `false`.
 
-Re-publishing a new revision **without** the `["-"]` tag clears the flag on the
-new row (older revisions are removed by the NIP-01 ordering guard in
+What this gives us, case by case:
+
+| Scenario | Source relay | `-` tag | Flagged? |
+|---|---|---|---|
+| External client publishes to `wss://essayist.…` with the `-` tag (uses our exclusive feature) | `strfry-essayist` | yes | **yes** |
+| External client publishes to `wss://essayist.…` without the `-` tag (broadcasts publicly via Essayist too) | `strfry-essayist` | no | no |
+| Author tags `-` for unrelated NIP-70 reasons on a public relay; local strfry router pulls it | local strfry | yes | no |
+| Editor "Publish ONLY to Essayist" — JS adds `-`, server publishes to strfry-essayist only | `strfry-essayist` | yes | **yes** (subscriber); the controller also sets the flag explicitly when the author actually holds the gating role, so the in-app path is authoritative at write time |
+| Editor "Also publish to Essayist" — published to outbox + strfry-essayist, no `-` tag | both | no | no |
+
+Re-publishing a new revision **without** the `-` tag clears the flag on
+the new row (older revisions are removed by the NIP-01 ordering guard in
 `ArticleEventProjector`), so an author can "unprotect" content simply by
-re-publishing it. Conversely, adding the tag in a later revision flips the
-flag on going forward — provided the author is still a member at ingest time.
+re-publishing it. Conversely, adding the tag in a later revision and
+sending it to the Essayist relay flips the flag on going forward.
+
+## Ingestion: hydrating from strfry-essayist
+
+`SubscribeEssayistRelayCommand` (`essayist:subscribe-relay`) runs as part
+of the worker-relay process pool and maintains a long-lived WebSocket
+subscription to the internal `ESSAYIST_RELAY_INTERNAL_URL` (default
+`ws://strfry-essayist:7779`). It filters on kinds `30023` (longform) and
+`30024` (draft), inspects each incoming event for the NIP-70 `["-"]`
+tag, and pipes the event through `ArticleEventProjector` with
+`markEssayistExclusive` set to the result of that check.
+
+The worker is auto-spawned by `RunRelayWorkersCommand` whenever the env
+var is non-empty; when the `essayist` compose profile is off the var is
+empty and the spawn step is skipped. When the var is set but the relay
+is unreachable (e.g. profile booted up after the worker, container
+restart) the command sleeps for 30 seconds and reconnects, so the two
+services can come up in any order.
+
+Because the PHP container reaches `strfry-essayist` over the internal
+compose network — not via Caddy or `essayist-gateway` — the NIP-42
+membership check is sidestepped for the subscriber, exactly the same
+way `ArticleBroadcastController` sidesteps it for outbound publishes
+from logged-in members.
 
 ## Repository contract
 
@@ -73,10 +109,11 @@ Every public listing/search method on `ArticleRepository` takes an
 | `findArticlesWithComments`      | exclude exclusives                                 |
 
 A member-only feed that wants to *include* exclusives must pass `true`
-explicitly. Today the Essayist surfaces read from `strfry-essayist` directly
-(see `EssayistFeedService`), so no caller passes `true` yet — the opt-in exists
-purely so future DB-backed member feeds cannot accidentally drop their
-exclusives.
+explicitly. The current Essayist surfaces (`/essayist/feed`, `/essayist/home`,
+the "Latest from Essayist" widget) read from `strfry-essayist` directly via
+`EssayistFeedService`, but DB-backed member feeds — and any future
+member-only search — can opt in via this parameter so their exclusives are
+not accidentally dropped.
 
 `findOneBy(['slug' => …, 'pubkey' => …])` and the other Doctrine magic finders
 do **not** filter automatically: the single-article view in

@@ -91,7 +91,8 @@
                 </button>
 
                 {# ── Broadcast ── #}
-                {% if not isProtected %}
+                {% set canBroadcast = not isProtected or this.isAuthorOfArticle() %}
+                {% if canBroadcast %}
                 <button class="dropdown-item"
                         type="button"
                         data-ui--article-actions-dropdown-target="broadcastItem"
@@ -108,12 +109,16 @@
                         <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
                     </svg>
                     {{ 'articleActions.broadcast'|trans }}
+                    {% if isProtected %}
+                        <span class="badge-protected" title="{{ 'articleActions.protectedNote'|trans }}">🔒</span>
+                    {% endif %}
                 </button>
                 {% endif %}
 
                 {# ── Broadcast to Essayist (members + admins only) ── #}
                 {% if essayist_relay_url is defined and essayist_relay_url
-                    and (is_granted('ROLE_ESSAYIST_MEMBER') or is_granted('ROLE_ADMIN')) %}
+                    and (is_granted('ROLE_ESSAYIST_MEMBER') or is_granted('ROLE_ADMIN'))
+                    and (not isProtected or this.isAuthorOfArticle()) %}
                 <button class="dropdown-item"
                         type="button"
                         data-action="click->ui--article-actions-dropdown#broadcastEssayist"

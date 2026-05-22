@@ -438,6 +438,8 @@ articleActions:
     broadcastEssayist: 'An Essayist senden'
     broadcastEssayistTitle: 'Diesen Artikel erneut zum Essayist-Mitgliederrelay senden'
     highlights: 'Markierungen'
+    protectedBadge: 'Geschützt (NIP-70)'
+    protectedNote: 'Dieser Artikel ist NIP-70-geschützt. Nur der Autor kann ihn erneut an Relays senden.'
 
 # ── Artikelunterscheidung ─────────────────────────────────────────────
 disambiguation:
@@ -774,6 +776,8 @@ home_feed:
         discussed: 'Diskutiert'
         follows: 'Folge ich'
         interests: 'Interessen'
+        essayist: 'Essayist'
+        essayist_title: 'Essayist-exklusiver Artikel'
     articles:
         signInRequired: 'Melde dich an, um deinen personalisierten Feed zu sehen.'
         empty: 'Noch keine Artikel gefunden. Folge Autoren oder richte deine Interessen ein, um hier Inhalte zu sehen.'
