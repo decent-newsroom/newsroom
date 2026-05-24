@@ -54,7 +54,7 @@ class UserMetadata
             picture: $user->getPicture(),
             banner: $user->getBanner(),
             about: $user->getAbout(),
-            website: $user->getWebsite() ? [$user->getWebsite()] : [],
+            website: self::extractMultiValueString($user->getWebsite()),
             lud16: $user->getLud16() ? [$user->getLud16()] : [],
             lud06: [],
             nip05: self::extractMultiValueString($user->getNip05()),

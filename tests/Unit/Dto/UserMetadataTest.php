@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Dto;
 
 use App\Dto\UserMetadata;
+use App\Entity\User;
 use PHPUnit\Framework\TestCase;
 
 class UserMetadataTest extends TestCase
@@ -27,6 +28,17 @@ class UserMetadataTest extends TestCase
         $metadata = UserMetadata::fromStdClass($raw);
 
         $this->assertSame(['alice@example.com', 'bob@example.com', 'carol@example.com'], $metadata->nip05);
+    }
+
+    public function testFromUserEntitySplitsCommaSeparatedWebsites(): void
+    {
+        $user = new User();
+        $user->setNpub('npub1test');
+        $user->setWebsite('https://example.com, https://blog.example.com');
+
+        $metadata = UserMetadata::fromUserEntity($user);
+
+        $this->assertSame(['https://example.com', 'https://blog.example.com'], $metadata->website);
     }
 }
 

@@ -297,7 +297,7 @@ class UpdateProfileProjectionHandler
         if (!$contentData) {
             $contentData = new \stdClass();
         }
-        $arrayFields = ['nip05', 'lud16', 'lud06'];
+        $arrayFields = ['nip05', 'lud16', 'lud06', 'website'];
         $arrayCollectors = [];
         $tags = $rawEvent->tags ?? [];
         foreach ($tags as $tag) {

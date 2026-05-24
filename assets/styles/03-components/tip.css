@@ -1,0 +1,74 @@
+/* NIP-A3 Tip button + Payment targets settings */
+
+.tip-target-list {
+    margin: 0;
+    padding: 0;
+}
+
+.tip-target-list__item {
+    margin-bottom: var(--spacing-2);
+}
+
+.tip-target-list__btn {
+    text-align: left;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    padding: var(--spacing-2) var(--spacing-3);
+    gap: var(--spacing-2);
+}
+
+.tip-target-list__btn:hover {
+    background: var(--color-surface-2, rgba(0, 0, 0, 0.04));
+}
+
+.tip-target-list__symbol {
+    display: inline-block;
+    min-width: 1.5em;
+    margin-right: var(--spacing-1);
+    font-weight: bold;
+}
+
+.tip-target-list__authority {
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tip-trigger__count {
+    opacity: 0.7;
+    font-size: 0.9em;
+    margin-left: 0.25em;
+}
+
+.payment-target-row {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    margin-bottom: var(--spacing-2);
+}
+
+.payment-target-row__type {
+    flex: 0 0 10em;
+}
+
+.payment-target-row__authority {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.payment-recognized-types {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-2) 0 0 0;
+}
+
+.payment-recognized-types li {
+    padding: var(--spacing-1) 0;
+}
+
+.payment-recognized-types code {
+    background: var(--color-surface-2, rgba(0, 0, 0, 0.05));
+    padding: 0 var(--spacing-1);
+}
+

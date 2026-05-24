@@ -37,19 +37,32 @@
             {% endif %}
         </div>
 
-        {% if author.website is defined and author.website %}
-            {% set website = author.website is iterable ? author.website|first : author.website %}
-            {% if website is not empty %}
-                {% set websiteLabel = website|replace({'https://': '', 'http://': ''}) %}
-                {% if websiteLabel starts with 'www.' %}
-                    {% set websiteLabel = websiteLabel|slice(4) %}
+        {% set websites = [] %}
+        {% if author.website is defined and author.website is not empty %}
+            {% for rawWebsite in (author.website is iterable ? author.website : [author.website]) %}
+                {% if rawWebsite is not empty %}
+                    {% for candidateWebsite in rawWebsite|split(',') %}
+                        {% set normalizedWebsite = candidateWebsite|trim %}
+                        {% if normalizedWebsite is not empty and normalizedWebsite not in websites %}
+                            {% set websites = websites|merge([normalizedWebsite]) %}
+                        {% endif %}
+                    {% endfor %}
                 {% endif %}
-                <div class="mt-2">
+            {% endfor %}
+        {% endif %}
+
+        {% if websites is not empty %}
+            <div class="mt-2">
+                {% for website in websites %}
+                    {% set websiteLabel = website|replace({'https://': '', 'http://': ''}) %}
+                    {% if websiteLabel starts with 'www.' %}
+                        {% set websiteLabel = websiteLabel|slice(4) %}
+                    {% endif %}
                     <a href="{{ website }}" target="_blank" rel="noopener noreferrer">
                         {{ websiteLabel|trim('/') }}
-                    </a>
-                </div>
-            {% endif %}
+                    </a>{% if not loop.last %}<br>{% endif %}
+                {% endfor %}
+            </div>
         {% endif %}
     </section>
     <div class="article-actions">
