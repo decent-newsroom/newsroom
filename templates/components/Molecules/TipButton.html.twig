@@ -11,7 +11,6 @@
             title="{{ 'tip.send'|trans }}"
         >
             <span class="tip-trigger__label">{{ 'tip.button'|trans }}</span>
-            <span class="tip-trigger__loading spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" data-loading></span>
         </button>
     {% endif %}
 
@@ -84,14 +83,14 @@
                     {% if this.phase == 'targets_loading' %}
                         <button
                             type="button"
-                            class="d-none"
+                            class="hidden"
                             data-controller="utility--live-action-on-connect"
                             data-action="live#action"
                             data-live-action-param="loadTargets"
                         ></button>
                         <div class="text-center py-4">
                             <div class="spinner-border text-warning mb-3" role="status">
-                                <span class="visually-hidden d-none">Loading...</span>
+                                <span class="visually-hidden hidden">Loading...</span>
                             </div>
                             <p class="text-muted small mb-0">{{ 'tip.loadingTargets'|trans }}</p>
                         </div>
@@ -264,14 +263,14 @@
                         </div>
 
                         <div class="text-center mb-3">
-                            <a href="{{ selected.href }}" class="btn btn-primary w-100" rel="noopener">
+                            <a href="{{ selected.href }}" class="btn btn-primary" rel="noopener">
                                 {{ 'tip.openInPaymentApp'|trans }}
                             </a>
                         </div>
 
                         <button
                             type="button"
-                            class="btn btn-sm btn-outline-secondary w-100"
+                            class="btn btn-sm btn-secondary"
                             data-action="live#action"
                             data-live-action-param="backToSelect"
                         >← {{ 'tip.choosePaymentMethod'|trans }}</button>
@@ -284,7 +283,7 @@
                         </div>
                         <button
                             type="button"
-                            class="btn btn-outline-primary w-100"
+                            class="btn btn-sm btn-secondary"
                             data-action="live#action"
                             data-live-action-param="backToSelect"
                         >← {{ 'tip.tryAnother'|trans }}</button>
