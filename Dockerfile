@@ -18,6 +18,8 @@ WORKDIR /app
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	acl \
+	ca-certificates \
+	curl \
 	file \
 	gettext \
 	git \
@@ -80,10 +82,29 @@ CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
+ARG SWC_VERSION=v1.3.92
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 COPY --link frankenphp/conf.d/20-app.prod.ini $PHP_INI_DIR/app.conf.d/
+
+RUN set -eux; \
+	arch="$(uname -m)"; \
+	case "$arch" in \
+		x86_64|amd64) swc_target="swc-linux-x64-gnu" ;; \
+		aarch64|arm64) swc_target="swc-linux-arm64-gnu" ;; \
+		*) echo "Unsupported SWC architecture: $arch" >&2; exit 1 ;; \
+	esac; \
+	curl -fL \
+		--retry 5 \
+		--retry-delay 5 \
+		--retry-all-errors \
+		--connect-timeout 20 \
+		--max-time 300 \
+		-o /usr/local/bin/swc \
+		"https://github.com/swc-project/swc/releases/download/${SWC_VERSION}/${swc_target}"; \
+	chmod +x /usr/local/bin/swc; \
+	/usr/local/bin/swc --version
 
 # prevent the reinstallation of vendors at every changes in the source code
 COPY --link composer.* symfony.* ./
@@ -102,4 +123,5 @@ RUN set -eux; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync; \
-	php bin/console cache:warmup --env=prod;
+	php bin/console cache:warmup --env=prod; \
+	php bin/console asset-map:compile --env=prod --no-interaction

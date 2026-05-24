@@ -41,7 +41,7 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	# controller map.  Pre-compiled assets in public/assets/ override that
 	# and can easily become stale / truncated (the ui/ and utility/
 	# controllers were silently dropped once).
-	if [ "$APP_ENV" = 'prod' ] && [ -f "bin/console" ]; then
+	if [ "$APP_ENV" = 'prod' ] && [ -f "bin/console" ] && { [ ! -f "public/assets/manifest.json" ] || [ "$FORCE_ASSET_MAP_COMPILE" = '1' ]; }; then
 		echo '================================'
 		echo 'Compiling AssetMapper assets...'
 		echo '================================'
@@ -53,8 +53,11 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 			echo '❌ Asset compilation failed!'
 			echo 'Checking if AssetMapper is installed...'
 			php bin/console list | grep asset-map || echo 'AssetMapper commands not available'
+			exit 1
 		fi
 		echo '================================'
+	elif [ "$APP_ENV" = 'prod' ] && [ -f "public/assets/manifest.json" ]; then
+		echo 'Prod mode: using pre-compiled AssetMapper assets from the image.'
 	elif [ "$APP_ENV" != 'prod' ] && [ -d "public/assets" ]; then
 		echo 'Dev mode: removing pre-compiled assets so Symfony serves them dynamically...'
 		rm -rf public/assets

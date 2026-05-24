@@ -12,3 +12,5 @@ when@prod:
     framework:
         asset_mapper:
             missing_import_mode: warn
+    sensiolabs_typescript:
+        swc_binary: '/usr/local/bin/swc'
