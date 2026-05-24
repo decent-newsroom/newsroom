@@ -54,9 +54,9 @@ final class TipButton
     #[LiveProp(writable: true)]
     public string $phase = 'idle';
 
-    /** Index into the resolved targets array. */
+    /** Stable key of the currently selected target. */
     #[LiveProp(writable: true)]
-    public int $selectedIndex = -1;
+    public string $selectedTargetKey = '';
 
     // Lightning sub-flow state (mirrors ZapButton).
     #[LiveProp(writable: true)]
@@ -96,7 +96,7 @@ final class TipButton
     ) {}
 
     /**
-     * @return array<int, array{type:string,authority:string,uri:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}>
+     * @return array<int, array{type:string,authority:string,uri:string,href:string,key:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}>
      */
     public function getTargets(): array
     {
@@ -129,6 +129,52 @@ final class TipButton
         }
 
         return $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
+    }
+
+    /**
+     * Group resolved targets by payment type for a cleaner selection UI.
+     *
+     * @return array<int, array{type:string,label:string,symbol:string,recognized:bool,targets:array<int, array{type:string,authority:string,uri:string,href:string,key:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}>}>
+     */
+    public function getTargetGroups(): array
+    {
+        $groups = [];
+
+        foreach ($this->getTargets() as $target) {
+            $type = $target['type'];
+
+            if (!isset($groups[$type])) {
+                $groups[$type] = [
+                    'type' => $type,
+                    'label' => $target['label'],
+                    'symbol' => $target['symbol'],
+                    'recognized' => $target['recognized'],
+                    'targets' => [],
+                ];
+            }
+
+            $groups[$type]['targets'][] = $target;
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * Resolve the currently selected target or null when nothing is selected.
+     */
+    public function getSelectedTarget(): ?array
+    {
+        if ($this->selectedTargetKey === '') {
+            return null;
+        }
+
+        foreach ($this->getTargets() as $target) {
+            if ($target['key'] === $this->selectedTargetKey) {
+                return $target;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -190,6 +236,7 @@ final class TipButton
 
         $this->open = true;
         $this->phase = 'select';
+        $this->selectedTargetKey = '';
         $this->resetTransient();
     }
 
@@ -198,19 +245,19 @@ final class TipButton
     {
         $this->open = false;
         $this->phase = 'idle';
-        $this->selectedIndex = -1;
+        $this->selectedTargetKey = '';
         $this->amount = 21;
         $this->comment = '';
         $this->resetTransient();
     }
 
     #[LiveAction]
-    public function selectTarget(#[LiveArg] ?int $index = null): void
+    public function selectTarget(#[LiveArg] ?string $targetKey = null): void
     {
         $targets = $this->getTargets();
 
-        if ($index === null || !isset($targets[$index])) {
-            $this->selectedIndex = -1;
+        if ($targetKey === null) {
+            $this->selectedTargetKey = '';
             $this->resetTransient();
             $this->error = 'Invalid payment target.';
             $this->phase = 'error';
@@ -218,9 +265,25 @@ final class TipButton
             return;
         }
 
-        $this->selectedIndex = $index;
+        $target = null;
+        foreach ($targets as $candidate) {
+            if ($candidate['key'] === $targetKey) {
+                $target = $candidate;
+                break;
+            }
+        }
+
+        if ($target === null) {
+            $this->selectedTargetKey = '';
+            $this->resetTransient();
+            $this->error = 'Invalid payment target.';
+            $this->phase = 'error';
+
+            return;
+        }
+
+        $this->selectedTargetKey = $targetKey;
         $this->resetTransient();
-        $target = $targets[$index];
 
         if ($target['type'] === 'lightning') {
             $this->phase = 'lightning_input';
@@ -236,21 +299,21 @@ final class TipButton
     public function backToSelect(): void
     {
         $this->phase = 'select';
-        $this->selectedIndex = -1;
+        $this->selectedTargetKey = '';
         $this->resetTransient();
     }
 
     #[LiveAction]
     public function createLightningInvoice(): void
     {
-        $targets = $this->getTargets();
-        if (!isset($targets[$this->selectedIndex]) || $targets[$this->selectedIndex]['type'] !== 'lightning') {
+        $target = $this->getSelectedTarget();
+        if ($target === null || $target['type'] !== 'lightning') {
             $this->error = 'No lightning target selected.';
             $this->phase = 'error';
             return;
         }
 
-        $lud16 = $targets[$this->selectedIndex]['authority'];
+        $lud16 = $target['authority'];
         $pubkeyHex = $this->resolvePubkeyHex();
 
         if ($pubkeyHex === null) {

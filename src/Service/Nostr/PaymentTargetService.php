@@ -42,6 +42,7 @@ final class PaymentTargetService
         'bitcoin'   => ['Bitcoin',           'BTC',     '₿'],
         'cashme'    => ['Cash App',          'Cash App','$'],
         'ethereum'  => ['Ethereum',          'ETH',     'Ξ'],
+        'geyser'    => ['Geyser',            'Geyser',  ''],
         'lightning' => ['Lightning Network', 'LBTC',    '⚡'],
         'monero'    => ['Monero',            'XMR',     'ɱ'],
         'nano'      => ['Nano',              'XNO',     'Ӿ'],
@@ -241,4 +242,3 @@ final class PaymentTargetService
         return $normalized;
     }
 }
-

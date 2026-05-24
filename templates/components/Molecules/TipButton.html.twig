@@ -37,30 +37,47 @@
                     {# Phase: select payment method #}
                     {% if this.phase == 'select' %}
                         <p class="text-muted small mb-3">{{ 'tip.choose'|trans }}</p>
-                        <ul class="list-unstyled tip-target-list">
-                            {% for target in targets %}
-                                <li class="tip-target-list__item">
-                                    <button
-                                        type="button"
-                                        class="btn tip-target-list__btn w-100 d-flex flex-row align-items-center justify-content-between"
-                                        data-action="live#action"
-                                        data-live-action-param="selectTarget"
-                                        data-live-index-param="{{ loop.index0 }}"
-                                    >
-                                        <span class="tip-target-list__label">
-                                            {% if target.symbol %}<span class="tip-target-list__symbol">{{ target.symbol }}</span>{% endif %}
-                                            <strong>{{ target.label }}</strong>
-                                            {% if not target.recognized %}
-                                                <span class="badge bg-secondary ms-1">{{ 'tip.unknown'|trans }}</span>
+                        {% for group in this.targetGroups %}
+                            <section class="tip-target-group">
+                                <div class="tip-target-group__heading">
+                                    {% if group.symbol %}<span class="tip-target-group__symbol">{{ group.symbol }}</span>{% endif %}
+                                    <strong class="tip-target-group__label">{{ group.label }}</strong>
+                                    <span class="badge bg-secondary">{{ group.targets|length }}</span>
+                                    {% if not group.recognized %}
+                                        <span class="badge bg-secondary">{{ 'tip.unknown'|trans }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <ul class="list-unstyled tip-target-list tip-target-group__list">
+                                    {% for target in group.targets %}
+                                        <li class="tip-target-list__item">
+                                            {% if target.type == 'geyser' %}
+                                                <a
+                                                    class="btn tip-target-list__btn tip-target-list__btn--link w-100 d-flex flex-row align-items-center justify-content-between"
+                                                    href="{{ target.href }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <span class="tip-target-list__authority font-monospace text-truncate">{{ target.authority }}</span>
+                                                    <span class="text-muted small ms-3">{{ 'tip.openInPaymentApp'|trans }}</span>
+                                                </a>
+                                            {% else %}
+                                                <button
+                                                    type="button"
+                                                    class="btn tip-target-list__btn w-100 d-flex flex-row align-items-center justify-content-between"
+                                                    data-action="live#action"
+                                                    data-live-action-param="selectTarget"
+                                                    data-live-target-key-param="{{ target.key }}"
+                                                >
+                                                    <span class="tip-target-list__authority text-muted small font-monospace text-truncate">{{ target.authority }}</span>
+                                                    <span class="tip-target-list__meta text-muted small ms-3">{{ target.shortLabel }}</span>
+                                                </button>
                                             {% endif %}
-                                        </span>
-                                        <span class="tip-target-list__authority text-muted small font-monospace text-truncate">
-                                            {{ target.authority }}
-                                        </span>
-                                    </button>
-                                </li>
-                            {% endfor %}
-                        </ul>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </section>
+                        {% endfor %}
                     {% endif %}
 
                     {# Phase: lightning amount/comment input #}
@@ -68,7 +85,8 @@
                         <form data-action="submit->live#action:prevent" data-live-action-param="createLightningInvoice">
                             <div class="alert alert-info mb-3">
                                 <strong>{{ 'tip.method.lightning'|trans }}</strong>
-                                <div class="small font-monospace">{{ targets[this.selectedIndex].authority }}</div>
+                                {% set selected = this.selectedTarget %}
+                                <div class="small font-monospace">{{ selected ? selected.authority : '' }}</div>
                             </div>
                             <div class="mb-3">
                                 <label for="tip-amount" class="form-label">{{ 'tip.amount'|trans }}</label>
@@ -174,7 +192,7 @@
 
                     {# Phase: non-lightning payto target (generic) #}
                     {% if this.phase == 'payto' %}
-                        {% set selected = targets[this.selectedIndex] %}
+                        {% set selected = this.selectedTarget %}
                         <div class="alert alert-info mb-3">
                             <strong>
                                 {% if selected.symbol %}<span class="me-1">{{ selected.symbol }}</span>{% endif %}
@@ -216,20 +234,20 @@
                                 <input
                                     type="text"
                                     class="form-control font-monospace small"
-                                    value="{{ paytoUri }}"
+                                    value="{{ selected.href }}"
                                     readonly
                                     onclick="this.select()"
                                 />
                                 <button
                                     class="btn btn-outline-secondary"
                                     type="button"
-                                    onclick="navigator.clipboard.writeText('{{ paytoUri|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                                    onclick="navigator.clipboard.writeText('{{ selected.href|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
                                 >Copy</button>
                             </div>
                         </div>
 
                         <div class="text-center mb-3">
-                            <a href="{{ paytoUri }}" class="btn btn-primary w-100" rel="noopener">
+                            <a href="{{ selected.href }}" class="btn btn-primary w-100" rel="noopener">
                                 {{ 'tip.openInPaymentApp'|trans }}
                             </a>
                         </div>

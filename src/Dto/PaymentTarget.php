@@ -33,6 +33,34 @@ final class PaymentTarget
     }
 
     /**
+     * Stable identifier for Live Component selection.
+     */
+    public function key(): string
+    {
+        return hash('sha256', $this->type . "\0" . $this->authority);
+    }
+
+    /**
+     * Whether this target should open the Geyser project page.
+     */
+    public function isGeyser(): bool
+    {
+        return $this->type === 'geyser';
+    }
+
+    /**
+     * Human-facing destination for this target.
+     */
+    public function href(): string
+    {
+        if ($this->isGeyser()) {
+            return sprintf('https://geyser.fund/project/%s', rawurlencode($this->authority));
+        }
+
+        return $this->uri();
+    }
+
+    /**
      * Whether this target can flow through the existing Lightning / NIP-57 zap pipeline.
      */
     public function isLightning(): bool
@@ -41,7 +69,7 @@ final class PaymentTarget
     }
 
     /**
-     * @return array{type:string,authority:string,uri:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}
+     * @return array{type:string,authority:string,uri:string,href:string,key:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}
      */
     public function toArray(): array
     {
@@ -49,6 +77,8 @@ final class PaymentTarget
             'type'       => $this->type,
             'authority'  => $this->authority,
             'uri'        => $this->uri(),
+            'href'       => $this->href(),
+            'key'        => $this->key(),
             'recognized' => $this->recognized,
             'label'      => $this->label,
             'symbol'     => $this->symbol,

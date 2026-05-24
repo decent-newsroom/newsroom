@@ -25,21 +25,23 @@ final class TipButtonTest extends TestCase
         $component->selectTarget();
 
         self::assertSame('error', $component->phase);
-        self::assertSame(-1, $component->selectedIndex);
+        self::assertSame('', $component->selectedTargetKey);
         self::assertSame('Invalid payment target.', $component->error);
     }
 
     public function testSelectTargetOpensGenericPaytoFlowForNonLightningTargets(): void
     {
         $component = $this->createComponentWithTargets([
-            ['payto', 'bitcoin', 'bc1qexample'],
+            ['payto', 'monero', '48f1example'],
         ]);
 
-        $component->selectTarget(0);
+        $target = $component->getTargets()[0];
+
+        $component->selectTarget($target['key']);
 
         self::assertSame('payto', $component->phase);
-        self::assertSame(0, $component->selectedIndex);
-        self::assertSame('payto://bitcoin/bc1qexample', $component->paytoUri);
+        self::assertSame($target['key'], $component->selectedTargetKey);
+        self::assertSame('payto://monero/48f1example', $component->paytoUri);
         self::assertSame('<svg>qr</svg>', $component->paytoQrSvg);
         self::assertSame('', $component->error);
     }
@@ -110,5 +112,23 @@ final class TipButtonTest extends TestCase
         $event->setSig(str_repeat('c', 128));
 
         return $event;
+    }
+
+    public function testTargetGroupsGroupSameTypesAndExposeGeyserLinks(): void
+    {
+        $component = $this->createComponentWithTargets([
+            ['payto', 'lightning', 'alice@getalby.com'],
+            ['payto', 'lightning', 'bob@getalby.com'],
+            ['payto', 'geyser', 'gitcitadel'],
+        ]);
+
+        $groups = $component->getTargetGroups();
+
+        self::assertCount(2, $groups);
+        self::assertSame('lightning', $groups[0]['type']);
+        self::assertCount(2, $groups[0]['targets']);
+        self::assertSame('geyser', $groups[1]['type']);
+        self::assertSame('https://geyser.fund/project/gitcitadel', $groups[1]['targets'][0]['href']);
+        self::assertTrue($groups[1]['recognized']);
     }
 }
