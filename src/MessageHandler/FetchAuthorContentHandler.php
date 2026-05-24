@@ -38,6 +38,12 @@ class FetchAuthorContentHandler
      */
     private const FETCH_LIMIT = 100;
 
+    /**
+     * Mercure tab badges should represent fresh activity, not historical
+     * backfills, so include recent-count metadata bounded to this window.
+     */
+    private const MERCURE_RECENT_WINDOW_SECONDS = 21600; // 6 hours
+
     public function __construct(
         private readonly UserRelayListService $userRelayListService,
         private readonly NostrRelayPool $relayPool,
@@ -536,12 +542,18 @@ class FetchAuthorContentHandler
     {
         try {
             $topic = $contentType->getMercureTopic($pubkey);
+            $newestCreatedAt = $this->extractNewestCreatedAt($data);
+            $recentCount = $this->countRecentItems($data, time() - self::MERCURE_RECENT_WINDOW_SECONDS);
+
             $update = new Update(
                 $topic,
                 json_encode([
                     'contentType' => $contentType->value,
                     'items' => $data,
                     'count' => count($data),
+                    'recentCount' => $recentCount,
+                    'newestCreatedAt' => $newestCreatedAt,
+                    'publishedAt' => time(),
                 ]),
                 false
             );
@@ -551,11 +563,64 @@ class FetchAuthorContentHandler
             $this->logger->debug('Published to Mercure', [
                 'topic' => $topic,
                 'item_count' => count($data),
+                'recent_count' => $recentCount,
+                'newest_created_at' => $newestCreatedAt,
             ]);
         } catch (\Exception $e) {
             $this->logger->warning('Failed to publish to Mercure', [
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function extractNewestCreatedAt(array $items): ?int
+    {
+        $newest = null;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $createdAt = $this->extractCreatedAt($item);
+            if ($createdAt === null) {
+                continue;
+            }
+
+            if ($newest === null || $createdAt > $newest) {
+                $newest = $createdAt;
+            }
+        }
+
+        return $newest;
+    }
+
+    private function countRecentItems(array $items, int $cutoff): int
+    {
+        $count = 0;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $createdAt = $this->extractCreatedAt($item);
+            if ($createdAt !== null && $createdAt >= $cutoff) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function extractCreatedAt(array $item): ?int
+    {
+        $value = $item['createdAt'] ?? $item['created_at'] ?? null;
+        if (!is_int($value) && !is_string($value) && !is_float($value)) {
+            return null;
+        }
+
+        $timestamp = (int) $value;
+        return $timestamp > 0 ? $timestamp : null;
     }
 }

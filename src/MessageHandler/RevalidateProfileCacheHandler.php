@@ -36,6 +36,11 @@ class RevalidateProfileCacheHandler
      */
     private const CONTENT_FETCH_THROTTLE_TTL = 300;
 
+    /**
+     * Profile revalidation is a freshness pass, not a full historical backfill.
+     */
+    private const CONTENT_FETCH_SINCE_WINDOW_SECONDS = 21600; // 6 hours
+
     public function __construct(
         private readonly RedisViewStore $viewStore,
         private readonly RedisViewFactory $viewFactory,
@@ -67,10 +72,11 @@ class RevalidateProfileCacheHandler
             // ONE FetchAuthorContentMessage on the async queue.
             if ($this->dispatchThrottle->acquire('author_content_fetch', $pubkey, self::CONTENT_FETCH_THROTTLE_TTL)) {
                 $relays = $this->userRelayListService->getRelaysForFetching($pubkey);
+                $since = max(0, time() - self::CONTENT_FETCH_SINCE_WINDOW_SECONDS);
                 $this->messageBus->dispatch(new FetchAuthorContentMessage(
                     $pubkey,
                     $isOwner ? AuthorContentType::cases() : AuthorContentType::publicTypes(),
-                    0,
+                    $since,
                     $isOwner,
                     $relays
                 ));

@@ -3,6 +3,7 @@
 ## v0.0.41
 Essayist UI.
 
+- [Bug] Fixed stale update badges on author profile tabs. Mercure payloads for `/author/{pubkey}/{contentType}` now include `recentCount` and `newestCreatedAt`, and the profile tabs Stimulus controller ignores updates whose newest item is outside a 6-hour freshness window. Background profile revalidation now fetches author content with `since=now-6h` instead of all-time, so historical backfills no longer show up as fake "new" tab counts.
 - [Bug] Fixed the `TipButton` payment picker so targets are grouped by payment type, selected via a stable target key instead of a fragile list index, and Geyser targets open the corresponding `https://geyser.fund/project/{target}` page directly.
 - [Improvement] Added a visible loading indicator to the `TipButton` trigger while the modal is fetching the latest payment targets event, so clicking the button no longer feels unresponsive.
 - [Improvement] Author profiles now rely on `TipButton` only: kind `0` zap targets (`lud16`/`lud06`) are merged into the tip payment list with deduplication against existing kind `10133` `lightning` targets, and the separate profile `ZapButton` action has been removed.

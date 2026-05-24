@@ -12,7 +12,8 @@ export default class extends Controller {
     static values = {
         pubkey: String,
         hubUrl: String,
-        activeTab: { type: String, default: 'articles' }
+        activeTab: { type: String, default: 'articles' },
+        recentWindowSeconds: { type: Number, default: 21600 }
     };
 
     // Map of content types to their Mercure topics
@@ -75,6 +76,15 @@ export default class extends Controller {
     handleMercureMessage(contentType, event) {
         try {
             const data = JSON.parse(event.data);
+
+            if (this.shouldIgnoreStaleUpdate(contentType, data)) {
+                return;
+            }
+
+            const badgeCount = Number.isFinite(Number(data.recentCount))
+                ? Number(data.recentCount)
+                : Number(data.count || 0);
+
             console.log(`[profile-tabs] Received ${contentType} update`, data);
 
             // Only update if this is the active tab
@@ -83,11 +93,34 @@ export default class extends Controller {
             } else {
                 // Show notification badge on tab and remember there's a pending update
                 this._pendingUpdateByType[contentType] = true;
-                this.showTabNotification(contentType, data.count || 0);
+                this.showTabNotification(contentType, badgeCount);
             }
         } catch (error) {
             console.error('[profile-tabs] Error parsing Mercure message', error);
         }
+    }
+
+    shouldIgnoreStaleUpdate(contentType, data) {
+        const newestCreatedAt = Number(data.newestCreatedAt || 0);
+        const recentWindowSeconds = Number(this.recentWindowSecondsValue || 0);
+
+        if (newestCreatedAt <= 0 || recentWindowSeconds <= 0) {
+            return false;
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const cutoff = now - recentWindowSeconds;
+        const isStale = newestCreatedAt < cutoff;
+
+        if (isStale) {
+            console.debug(`[profile-tabs] Ignoring stale ${contentType} update`, {
+                newestCreatedAt,
+                cutoff,
+                windowSeconds: recentWindowSeconds
+            });
+        }
+
+        return isStale;
     }
 
     /**
