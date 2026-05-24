@@ -41,9 +41,9 @@
                                 <div class="tip-target-group__heading">
                                     {% if group.symbol %}<span class="tip-target-group__symbol">{{ group.symbol }}</span>{% endif %}
                                     <strong class="tip-target-group__label">{{ group.label }}</strong>
-                                    <span class="badge bg-secondary">{{ group.targets|length }}</span>
+                                    <span class="badge bg-secondary hidden">{{ group.targets|length }}</span>
                                     {% if not group.recognized %}
-                                        <span class="badge bg-secondary">{{ 'tip.unknown'|trans }}</span>
+                                        <span class="badge bg-secondary hidden">{{ 'tip.unknown'|trans }}</span>
                                     {% endif %}
                                 </div>
 
