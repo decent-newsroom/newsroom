@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
+use Symfony\UX\LiveComponent\Attribute\LiveArg;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
@@ -150,12 +151,16 @@ final class TipButton
     }
 
     #[LiveAction]
-    public function selectTarget(int $index): void
+    public function selectTarget(#[LiveArg] ?int $index = null): void
     {
         $targets = $this->getTargets();
-        if (!isset($targets[$index])) {
+
+        if ($index === null || !isset($targets[$index])) {
+            $this->selectedIndex = -1;
+            $this->resetTransient();
             $this->error = 'Invalid payment target.';
             $this->phase = 'error';
+
             return;
         }
 
