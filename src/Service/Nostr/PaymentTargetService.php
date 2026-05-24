@@ -58,16 +58,24 @@ final class PaymentTargetService
      */
     public function getForPubkey(string $pubkeyHex): array
     {
-        $event = $this->eventRepository->findLatestByPubkeyAndKind(
-            $pubkeyHex,
-            KindsEnum::PAYMENT_TARGETS->value,
-        );
+        $event = $this->getLatestEventForPubkey($pubkeyHex);
 
         if ($event === null) {
             return [];
         }
 
         return $this->parseEvent($event);
+    }
+
+    /**
+     * Fetch the latest kind 10133 event for a user.
+     */
+    public function getLatestEventForPubkey(string $pubkeyHex): ?Event
+    {
+        return $this->eventRepository->findLatestByPubkeyAndKind(
+            $pubkeyHex,
+            KindsEnum::PAYMENT_TARGETS->value,
+        );
     }
 
     /**

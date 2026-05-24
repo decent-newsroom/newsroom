@@ -254,6 +254,18 @@
                             data-live-action-param="backToSelect"
                         >← {{ 'tip.tryAnother'|trans }}</button>
                     {% endif %}
+
+                    {% if is_granted('ROLE_ADMIN') %}
+                        {% set debugEvent = this.debugTargetEventPreview %}
+                        <details class="mt-3">
+                            <summary class="small">Debug: source payment-target event</summary>
+                            {% if debugEvent %}
+                                <pre class="small mt-2 mb-0">{{ debugEvent }}</pre>
+                            {% else %}
+                                <p class="small text-muted mt-2 mb-0">No kind 10133 event found for this recipient.</p>
+                            {% endif %}
+                        </details>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -44,6 +44,27 @@ final class TipButtonTest extends TestCase
         self::assertSame('', $component->error);
     }
 
+    public function testDebugTargetEventPreviewReturnsNullWhenNoEventExists(): void
+    {
+        $component = $this->createComponentWithTargets([]);
+
+        self::assertNull($component->getDebugTargetEventPreview());
+    }
+
+    public function testDebugTargetEventPreviewSerializesSourceEvent(): void
+    {
+        $component = $this->createComponentWithTargets([
+            ['payto', 'lightning', 'alice@getalby.com'],
+        ]);
+
+        $preview = $component->getDebugTargetEventPreview();
+
+        self::assertNotNull($preview);
+        self::assertStringContainsString('"kind": 10133', $preview);
+        self::assertStringContainsString('"payto"', $preview);
+        self::assertStringContainsString('"alice@getalby.com"', $preview);
+    }
+
     /**
      * @param array<int, array<int, string>> $paymentTags
      */

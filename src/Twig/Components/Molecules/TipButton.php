@@ -131,6 +131,36 @@ final class TipButton
         return $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
     }
 
+    /**
+     * Admin-only debug payload of the source kind 10133 event.
+     */
+    public function getDebugTargetEventPreview(): ?string
+    {
+        $pubkeyHex = $this->resolvePubkeyHex();
+        if ($pubkeyHex === null) {
+            return null;
+        }
+
+        $event = $this->paymentTargetService->getLatestEventForPubkey($pubkeyHex);
+        if ($event === null) {
+            return null;
+        }
+
+        $payload = [
+            'id' => $event->getId(),
+            'kind' => $event->getKind(),
+            'pubkey' => $event->getPubkey(),
+            'created_at' => $event->getCreatedAt(),
+            'content' => $event->getContent(),
+            'tags' => $event->getTags(),
+            'sig' => $event->getSig(),
+        ];
+
+        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        return $json !== false ? $json : null;
+    }
+
     #[LiveAction]
     public function openDialog(): void
     {
