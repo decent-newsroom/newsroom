@@ -215,12 +215,13 @@ class EventController extends AbstractController
                         $logger->info('Event found in database', ['eventId' => $eventId]);
                         $event = $this->entityToObject($dbEvent);
                     } else {
-                        // Enrich relay list with author's relay list when we know the author.
-                        // This is critical for kind 1 (notes) which are typically only on
-                        // the author's personal relays, not on content/article relays.
+                        // Enrich relay list with known author relays when we know the author,
+                        // but do not perform blocking NIP-65 network discovery in the HTTP
+                        // request. Relay hints should be tried immediately; the async fallback
+                        // can do the broader network relay-list lookup if needed.
                         if ($authorPubkey) {
                             try {
-                                $authorRelays = $userRelayListService->getRelaysForFetching($authorPubkey);
+                                $authorRelays = $userRelayListService->getRelaysForEventLookupCacheOrDb($authorPubkey);
                                 $logger->info('Resolved author relay list for nevent lookup', [
                                     'authorPubkey' => $authorPubkey,
                                     'authorRelays' => $authorRelays,
@@ -361,7 +362,7 @@ class EventController extends AbstractController
                                 'pubkey' => $data->pubkey,
                                 'identifier' => $data->identifier,
                                 'relays' => $relays,
-                            ]);
+                            ], allowRelayListNetworkFetch: false);
                             if ($rawEvent !== null) {
                                 $relaySource = $relays[0] ?? 'sync-naddr-fetch';
                                 $persisted = $genericEventProjector->projectEventFromNostrEvent(

@@ -301,6 +301,46 @@ class UserRelayListService
     }
 
     /**
+     * Get known author relays for an interactive event lookup without network I/O.
+     *
+     * This intentionally checks only the hot cache and durable DB copy. It is used
+     * while rendering request/response pages where a kind 10002 network lookup can
+     * consume the whole HTTP timeout before the actual event-id query starts.
+     *
+     * @return string[]
+     */
+    public function getRelaysForEventLookupCacheOrDb(string $pubkeyOrNpub, int $maxRelays = 8): array
+    {
+        $hex = $this->toHex($pubkeyOrNpub);
+        $userList = $this->fromCache($hex) ?? $this->fromDatabase($hex);
+        if ($userList === null) {
+            return [];
+        }
+
+        $relays = [];
+        $local = $this->relayRegistry->getLocalRelay();
+        $hasLocal = $local !== null;
+
+        foreach (array_merge(
+            $userList['write'] ?? [],
+            $userList['read'] ?? [],
+            $userList['all'] ?? [],
+        ) as $relay) {
+            if (count($relays) >= $maxRelays) {
+                break;
+            }
+            if ($hasLocal && $this->relayRegistry->isProjectRelay($relay)) {
+                continue;
+            }
+            if (!in_array($relay, $relays, true) && $this->isValidRelay($relay)) {
+                $relays[] = $relay;
+            }
+        }
+
+        return $relays;
+    }
+
+    /**
      * Get the relay set to use when fetching *content authored by* this pubkey
      * (longform, media, highlights, etc. — i.e. anything we expect to find on
      * the relays where the author publishes).

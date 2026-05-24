@@ -23,6 +23,10 @@ use swentel\nostr\Event\Event;
  */
 class NostrClient
 {
+    private const EVENT_LOOKUP_MAX_RELAYS = 5;
+    private const EVENT_LOOKUP_DIRECT_TIMEOUT = 2;
+    private const EVENT_LOOKUP_GATEWAY_TIMEOUT = 3;
+
     public function __construct(
         private readonly LoggerInterface        $logger,
         private readonly RelayRegistry          $relayRegistry,
@@ -106,52 +110,76 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getEventById(string $eventId, array $relays = []): ?object
+    public function getEventById(
+        string $eventId,
+        array $relays = [],
+        int $gatewayTimeout = self::EVENT_LOOKUP_GATEWAY_TIMEOUT,
+        int $directTimeout = self::EVENT_LOOKUP_DIRECT_TIMEOUT,
+    ): ?object
     {
         $this->logger->info('Getting event by ID', ['event_id' => $eventId, 'relays' => $relays]);
 
         // Prioritise hint relays (most likely to have the event), then local, then content.
         // Previous order (local first, 3 relay cap) caused kind-1 notes to be missed
         // because the local relay never stores them and displaced the actual hints.
-        $hintRelays = array_values(array_filter($relays, fn($r) => !empty(trim($r))));
+        $hintRelays = array_values(array_filter($relays, fn($r) => !empty(trim((string) $r))));
         $localRelays = $this->relayRegistry->getLocalRelay() ? [$this->relayRegistry->getLocalRelay()] : [];
         $contentRelays = $this->relayRegistry->getContentRelays();
+        $allRelays = $this->buildBoundedEventLookupRelays($hintRelays, $localRelays, $contentRelays);
 
+        if ($allRelays === []) {
+            return null;
+        }
+
+        $this->logger->debug('Querying relays for event in one bounded request', [
+            'event_id' => $eventId,
+            'relays' => $allRelays,
+            'gateway_timeout' => $gatewayTimeout,
+            'direct_timeout' => $directTimeout,
+        ]);
+
+        try {
+            $request = $this->executor->buildRequest(
+                kinds: [],
+                filters: ['ids' => [$eventId], 'limit' => 1],
+                relaySet: $this->relaySetFactory->fromUrls($allRelays),
+                stopGap: $eventId,
+            );
+            $request->setTimeout($directTimeout);
+
+            $events = $this->executor->process(
+                $this->executor->execute($request, gatewayTimeout: $gatewayTimeout),
+                fn($event) => $event,
+            );
+
+            return $events[0] ?? null;
+        } catch (\Throwable $e) {
+            $this->logger->debug('Bounded relay event lookup failed', [
+                'event_id' => $eventId,
+                'relays' => $allRelays,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * @param string[] $hintRelays
+     * @param string[] $localRelays
+     * @param string[] $contentRelays
+     * @return string[]
+     */
+    private function buildBoundedEventLookupRelays(array $hintRelays, array $localRelays, array $contentRelays): array
+    {
         $allRelays = [];
-        foreach (array_merge($hintRelays, $localRelays, $contentRelays) as $r) {
-            $r = trim($r);
-            if ($r !== '' && !in_array($r, $allRelays, true)) {
-                $allRelays[] = $r;
-            }
-        }
-        $allRelays = array_slice($allRelays, 0, 5);
-
-        foreach ($allRelays as $relay) {
-            $this->logger->debug('Trying relay for event', ['relay' => $relay, 'event_id' => $eventId]);
-            try {
-                $request = $this->executor->buildRequest(
-                    kinds: [],
-                    filters: ['ids' => [$eventId], 'limit' => 1],
-                    relaySet: $this->relaySetFactory->fromUrls([$relay]),
-                    stopGap: $eventId
-                );
-                $events = $this->executor->process(
-                    $this->executor->execute($request),
-                    fn($event) => $event
-                );
-                if (!empty($events)) {
-                    return $events[0];
-                }
-            } catch (\Throwable $e) {
-                $this->logger->debug('Relay failed for event lookup', [
-                    'relay'    => $relay,
-                    'event_id' => $eventId,
-                    'error'    => $e->getMessage(),
-                ]);
+        foreach (array_merge($hintRelays, $localRelays, $contentRelays) as $relay) {
+            $relay = trim((string) $relay);
+            if ($relay !== '' && !in_array($relay, $allRelays, true)) {
+                $allRelays[] = $relay;
             }
         }
 
-        return null;
+        return array_slice($allRelays, 0, self::EVENT_LOOKUP_MAX_RELAYS);
     }
 
     /**
@@ -190,7 +218,7 @@ class NostrClient
     /**
      * @throws \Exception
      */
-    public function getEventByNaddr(array $decoded, bool $hintOnly = false): ?object
+    public function getEventByNaddr(array $decoded, bool $hintOnly = false, bool $allowRelayListNetworkFetch = true): ?object
     {
         $this->logger->info('Getting event by naddr', ['decoded' => $decoded, 'hintOnly' => $hintOnly]);
 
@@ -225,8 +253,17 @@ class NostrClient
             );
         }
 
-        // Broad search: author/hint relays first, then content relays as fallback
-        $primary  = $this->relaySetFactory->forAuthorWithFallback($pubkey, $relays);
+        // Broad search: author/hint relays first, then content relays as fallback.
+        // Interactive request paths can opt out of blocking NIP-65 network discovery;
+        // they still use relay hints plus any cached/DB relay-list copy, then fall
+        // back to content relays or the async worker.
+        if ($allowRelayListNetworkFetch) {
+            $primary = $this->relaySetFactory->forAuthorWithFallback($pubkey, $relays);
+        } else {
+            $cachedAuthorRelays = $this->userRelayListService->getRelaysForEventLookupCacheOrDb($pubkey, self::EVENT_LOOKUP_MAX_RELAYS);
+            $primaryRelays = $this->buildBoundedEventLookupRelays($relays, [], $cachedAuthorRelays);
+            $primary = $this->relaySetFactory->fromUrls($primaryRelays ?: $this->relayRegistry->getContentRelays());
+        }
         $fallback = $this->relaySetFactory->getDefault();
 
         return $this->executor->fetchFirst(
@@ -234,6 +271,7 @@ class NostrClient
             filters: $filters,
             primary: $primary,
             fallback: $fallback,
+            gatewayTimeout: $allowRelayListNetworkFetch ? 8 : self::EVENT_LOOKUP_GATEWAY_TIMEOUT,
         );
     }
 

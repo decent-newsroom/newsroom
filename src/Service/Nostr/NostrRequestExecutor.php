@@ -136,6 +136,9 @@ class NostrRequestExecutor
             $filterObjects = array_map([self::class, 'buildFilterFromArray'], $filters);
             $msg          = new RequestMessage((new Subscription())->getId(), $filterObjects);
             $localRequest = new TweakedRequest($localRelaySet, $msg, $this->logger);
+            $localRequest
+                ->setTimeout($request->getTimeout())
+                ->stopOnEventId($request->getStopOnEventId());
             $results      += $localRequest->send();
         }
 

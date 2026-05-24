@@ -50,6 +50,16 @@ final class TweakedRequest implements RequestInterface
         return $this;
     }
 
+    public function getStopOnEventId(): ?string
+    {
+        return $this->stopOnEventId;
+    }
+
+    public function getTimeout(): int
+    {
+        return $this->timeout;
+    }
+
     /**
      * Get the relay URLs from this request (for gateway routing).
      * @return string[]
