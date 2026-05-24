@@ -637,6 +637,7 @@ tip:
     back: 'Back'
     createInvoice: '⚡ Create invoice'
     creatingInvoice: 'Creating invoice...'
+    loadingTargets: 'Loading payment methods...'
     invoiceReady: 'Invoice ready!'
     scanWithWallet: 'Scan with your Lightning wallet'
     openInWallet: 'Open in wallet'

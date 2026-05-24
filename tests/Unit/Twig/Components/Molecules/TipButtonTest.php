@@ -53,6 +53,39 @@ final class TipButtonTest extends TestCase
         self::assertNull($component->getDebugTargetEventPreview());
     }
 
+    public function testOpenDialogStartsModalInTargetsLoadingPhase(): void
+    {
+        $component = $this->createComponentWithTargets([
+            ['payto', 'monero', '48f1example'],
+        ]);
+
+        $component->openDialog();
+
+        self::assertTrue($component->open);
+        self::assertSame('targets_loading', $component->phase);
+        self::assertFalse($component->targetsHydrated);
+        self::assertSame([], $component->resolvedTargets);
+    }
+
+    public function testLoadTargetsHydratesSnapshotThatSelectionUses(): void
+    {
+        $component = $this->createComponentWithTargets([
+            ['payto', 'monero', '48f1example'],
+        ]);
+
+        $component->openDialog();
+        $component->loadTargets();
+
+        self::assertSame('select', $component->phase);
+        self::assertTrue($component->targetsHydrated);
+        self::assertCount(1, $component->resolvedTargets);
+
+        $component->selectTarget($component->resolvedTargets[0]['key']);
+
+        self::assertSame('payto', $component->phase);
+        self::assertSame('payto://monero/48f1example', $component->paytoUri);
+    }
+
     public function testDebugTargetEventPreviewSerializesSourceEvent(): void
     {
         $component = $this->createComponentWithTargets([
@@ -65,6 +98,33 @@ final class TipButtonTest extends TestCase
         self::assertStringContainsString('"kind": 10133', $preview);
         self::assertStringContainsString('"payto"', $preview);
         self::assertStringContainsString('"alice@getalby.com"', $preview);
+    }
+
+    public function testDebugTargetEventPreviewFallsBackToLiveSnapshotWhenDbEventMissing(): void
+    {
+        $component = $this->createComponentWithTargets([]);
+        $component->resolvedTargets = [
+            [
+                'type' => 'monero',
+                'authority' => '48f1example',
+                'uri' => 'payto://monero/48f1example',
+                'href' => 'payto://monero/48f1example',
+                'key' => hash('sha256', 'monero' . "\0" . '48f1example'),
+                'recognized' => true,
+                'label' => 'Monero',
+                'symbol' => 'ɱ',
+                'shortLabel' => 'XMR',
+                'extra' => [],
+            ],
+        ];
+        $component->targetsHydrated = true;
+
+        $preview = $component->getDebugTargetEventPreview();
+
+        self::assertNotNull($preview);
+        self::assertStringContainsString('"source": "live_component_snapshot"', $preview);
+        self::assertStringContainsString('"monero"', $preview);
+        self::assertStringContainsString('"48f1example"', $preview);
     }
 
     /**

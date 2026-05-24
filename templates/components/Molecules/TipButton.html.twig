@@ -10,7 +10,8 @@
             data-live-action-param="openDialog"
             title="{{ 'tip.send'|trans }}"
         >
-            {{ 'tip.button'|trans }}
+            <span class="tip-trigger__label">{{ 'tip.button'|trans }}</span>
+            <span class="tip-trigger__loading spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" data-loading></span>
             <span class="tip-trigger__count">({{ targets|length }})</span>
         </button>
     {% endif %}
@@ -78,6 +79,23 @@
                                 </ul>
                             </section>
                         {% endfor %}
+                    {% endif %}
+
+                    {# Phase: loading targets #}
+                    {% if this.phase == 'targets_loading' %}
+                        <button
+                            type="button"
+                            class="d-none"
+                            data-controller="utility--live-action-on-connect"
+                            data-action="live#action"
+                            data-live-action-param="loadTargets"
+                        ></button>
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-warning mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted small mb-0">{{ 'tip.loadingTargets'|trans }}</p>
+                        </div>
                     {% endif %}
 
                     {# Phase: lightning amount/comment input #}

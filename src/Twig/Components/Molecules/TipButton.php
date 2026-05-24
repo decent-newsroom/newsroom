@@ -50,7 +50,7 @@ final class TipButton
     #[LiveProp(writable: true)]
     public bool $open = false;
 
-    /** idle | select | lightning_input | loading | invoice | payto | error */
+    /** idle | targets_loading | select | lightning_input | loading | invoice | payto | error */
     #[LiveProp(writable: true)]
     public string $phase = 'idle';
 
@@ -81,8 +81,17 @@ final class TipButton
     #[LiveProp]
     public string $error = '';
 
-    /** Per-request memoization of resolved targets. */
-    private ?array $resolvedTargets = null;
+    /**
+     * Resolved payment targets snapshot persisted across Live requests.
+     *
+     * @var array<int, array{type:string,authority:string,uri:string,href:string,key:string,recognized:bool,label:string,symbol:string,shortLabel:string,extra:array<int,string>}>
+     */
+    #[LiveProp]
+    public array $resolvedTargets = [];
+
+    /** Whether the target snapshot has been populated for this component state. */
+    #[LiveProp]
+    public bool $targetsHydrated = false;
 
     public function __construct(
         private readonly PaymentTargetService $paymentTargetService,
@@ -100,13 +109,16 @@ final class TipButton
      */
     public function getTargets(): array
     {
-        if ($this->resolvedTargets !== null) {
+        if ($this->targetsHydrated) {
             return $this->resolvedTargets;
         }
 
         $pubkeyHex = $this->resolvePubkeyHex();
         if ($pubkeyHex === null) {
-            return $this->resolvedTargets = [];
+            $this->resolvedTargets = [];
+            $this->targetsHydrated = true;
+
+            return [];
         }
 
         $targets = $this->paymentTargetService->getForPubkey($pubkeyHex);
@@ -128,7 +140,10 @@ final class TipButton
             $targets = array_merge($synthetic, $targets);
         }
 
-        return $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
+        $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
+        $this->targetsHydrated = true;
+
+        return $this->resolvedTargets;
     }
 
     /**
@@ -189,6 +204,25 @@ final class TipButton
 
         $event = $this->paymentTargetService->getLatestEventForPubkey($pubkeyHex);
         if ($event === null) {
+            // Relay-fetched targets are not always persisted yet. Expose the
+            // in-memory snapshot so admins can still debug what the user sees.
+            if ($this->targetsHydrated && $this->resolvedTargets !== []) {
+                $payload = [
+                    'source' => 'live_component_snapshot',
+                    'kind' => 10133,
+                    'pubkey' => $pubkeyHex,
+                    'tags' => array_map(static fn(array $target): array => array_merge([
+                        'payto',
+                        (string) $target['type'],
+                        (string) $target['authority'],
+                    ], (array) ($target['extra'] ?? [])), $this->resolvedTargets),
+                ];
+
+                $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+                return $json !== false ? $json : null;
+            }
+
             return null;
         }
 
@@ -210,34 +244,64 @@ final class TipButton
     #[LiveAction]
     public function openDialog(): void
     {
+        $this->open = true;
+        $this->phase = 'targets_loading';
+        $this->selectedTargetKey = '';
+        $this->resolvedTargets = [];
+        $this->targetsHydrated = false;
+        $this->resetTransient();
+    }
+
+    #[LiveAction]
+    public function loadTargets(): void
+    {
         $pubkeyHex = $this->resolvePubkeyHex();
-        if ($pubkeyHex !== null) {
-            $targets = $this->paymentTargetService->getFreshForPubkey($pubkeyHex);
 
-            $hasLightning = false;
-            foreach ($targets as $target) {
-                if ($target->isLightning()) {
-                    $hasLightning = true;
-                    break;
-                }
-            }
+        if ($pubkeyHex === null) {
+            $this->resolvedTargets = [];
+            $this->targetsHydrated = true;
+            $this->error = 'Could not resolve recipient pubkey.';
+            $this->phase = 'error';
 
-            if (!$hasLightning && $this->recipientLud16) {
-                $synthetic = $this->paymentTargetService->parseTags([
-                    ['payto', 'lightning', $this->recipientLud16],
-                ]);
-                $targets = array_merge($synthetic, $targets);
-            }
-
-            $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
-        } else {
-            $this->resolvedTargets = null;
+            return;
         }
 
-        $this->open = true;
+        try {
+            $targets = $this->paymentTargetService->getFreshForPubkey($pubkeyHex);
+        } catch (
+            \Throwable $e
+        ) {
+            $this->resolvedTargets = [];
+            $this->targetsHydrated = true;
+            $this->error = 'Could not load payment targets right now. Please try again.';
+            $this->phase = 'error';
+
+            $this->logger->warning('Tip targets load failed', [
+                'recipient' => $this->recipientPubkey,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        $hasLightning = false;
+        foreach ($targets as $target) {
+            if ($target->isLightning()) {
+                $hasLightning = true;
+                break;
+            }
+        }
+
+        if (!$hasLightning && $this->recipientLud16) {
+            $synthetic = $this->paymentTargetService->parseTags([
+                ['payto', 'lightning', $this->recipientLud16],
+            ]);
+            $targets = array_merge($synthetic, $targets);
+        }
+
+        $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
+        $this->targetsHydrated = true;
         $this->phase = 'select';
-        $this->selectedTargetKey = '';
-        $this->resetTransient();
     }
 
     #[LiveAction]
@@ -246,6 +310,8 @@ final class TipButton
         $this->open = false;
         $this->phase = 'idle';
         $this->selectedTargetKey = '';
+        $this->resolvedTargets = [];
+        $this->targetsHydrated = false;
         $this->amount = 21;
         $this->comment = '';
         $this->resetTransient();
