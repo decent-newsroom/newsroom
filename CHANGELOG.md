@@ -2,6 +2,8 @@
 
 ## v0.0.42
 
+- [Improvement] Reduced Updates Pro pricing to 100 sats/month and 300 sats/year (was 500/5000). Yearly save badge updated to 75%.
+
 ## v0.0.41
 Essayist UI.
 

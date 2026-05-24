@@ -47,35 +47,15 @@
         <div class="d-flex flex-column align-items-center gap-3 mb-5">
             <p>
                 The free tier allows up to <strong>{{ freeCap }} subscriptions</strong> of the <em>npub</em> and <em>publication</em> types.<br>
-                <strong>Updates Pro</strong> removes these limits and unlocks subscriptions to <em>NIP-51 interest sets</em>.
+                <strong>Updates Pro</strong> removes these limits and unlocks subscriptions to <em>NIP-51 sets</em>.
             </p>
-        </div>
-
-        {# Free vs Pro comparison #}
-        <div class="d-flex gap-4 mb-5" style="justify-content: center; flex-wrap: wrap;">
-            <div class="card" style="min-width: 240px; flex: 1; max-width: 320px;">
-                <h3 style="margin-bottom: var(--spacing-3);">Free</h3>
-                <ul class="feature-list">
-                    <li>Up to {{ freeCap }} npub / publication subscriptions</li>
-                    <li style="opacity: .5; text-decoration: line-through;">NIP-51 set subscriptions</li>
-                    <li style="opacity: .5; text-decoration: line-through;">Unlimited subscriptions</li>
-                </ul>
-            </div>
-            <div class="card" style="min-width: 240px; flex: 1; max-width: 320px; border-color: var(--color-accent);">
-                <h3 style="margin-bottom: var(--spacing-3);">Pro ⚡</h3>
-                <ul class="feature-list">
-                    <li>Unlimited npub / publication subscriptions</li>
-                    <li>NIP-51 set subscriptions (interests, follow lists, ...)</li>
-                    <li>Priority matching pipeline</li>
-                </ul>
-            </div>
         </div>
 
         <div class="pricing-section" data-controller="ui--pricing-toggle">
             <div class="pricing-toggle" role="group" aria-label="Billing period">
                 <button type="button" class="toggle-btn active" data-period="monthly" data-action="click->ui--pricing-toggle#toggle">Monthly</button>
                 <button type="button" class="toggle-btn" data-period="yearly" data-action="click->ui--pricing-toggle#toggle">
-                    Yearly <span class="save-badge">Save 17%</span>
+                    Yearly <span class="save-badge">Save 75%</span>
                 </button>
             </div>
 
@@ -87,6 +67,12 @@
                             <span class="price-unit">sats</span>
                             <span class="price-period">/ {{ tier.value == 'monthly' ? 'month' : 'year' }}</span>
                         </div>
+
+                        <ul class="feature-list" style="margin: var(--spacing-4) 0; text-align: left;">
+                            <li>Unlimited npub / publication subscriptions</li>
+                            <li>NIP-51 set subscriptions (interests, follow lists, ...)</li>
+                            <li>Priority matching pipeline</li>
+                        </ul>
 
                         {% if app.user %}
                             <a href="{{ path('updates_pro_subscribe', {tier: tier.value}) }}" class="btn btn-subscribe">

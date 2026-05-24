@@ -20,8 +20,8 @@ enum UpdateProTier: string
     public function getPriceInSats(): int
     {
         return match ($this) {
-            self::MONTHLY => 500,
-            self::YEARLY => 5000,
+            self::MONTHLY => 100,
+            self::YEARLY => 300,
         };
     }
 
