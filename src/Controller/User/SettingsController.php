@@ -109,14 +109,6 @@ class SettingsController extends AbstractController
         // Build structured relay list from kind 10002 event for the Relays tab
         $relays = $this->buildRelayListFromEvent($events[KindsEnum::RELAY_LIST->value] ?? null);
 
-        // Parse the user's NIP-A3 kind 10133 event (if any) into payment targets
-        // for the Payments tab. Returns [] when no event exists yet.
-        $paymentTargetsEvent = $events[KindsEnum::PAYMENT_TARGETS->value] ?? null;
-        $paymentTargets = $paymentTargetsEvent !== null
-            ? array_map(fn($t) => $t->toArray(), $this->paymentTargetService->parseEvent($paymentTargetsEvent))
-            : [];
-        $paymentTargetTypes = PaymentTargetService::recognizedTypes();
-
         // Recent gateway activity for this pubkey (AUTH outcomes, publish OK/error).
         // Newest first, capped at 50 entries — surfaced under the Relays tab so
         // users can see why a publish failed or whether AUTH succeeded silently.
@@ -137,8 +129,33 @@ class SettingsController extends AbstractController
             'activeIndexing' => $activeIndexing,
             'publicationSubdomain' => $publicationSubdomain,
             'enabled_locales' => $this->getParameter('kernel.enabled_locales'),
+        ]);
+    }
+
+    /**
+     * Dedicated payment targets setup page.
+     *
+     * Lets users build and publish their NIP-A3 payment-targets event
+     * (kind 10133) outside the tabbed settings layout.
+     */
+    #[Route('/settings/payment-targets', name: 'payment_targets_setup')]
+    #[IsGranted('ROLE_USER')]
+    public function paymentTargetsSetup(): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+
+        $paymentTargetsEvent = $this->eventRepository
+            ->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::PAYMENT_TARGETS->value);
+
+        $paymentTargets = $paymentTargetsEvent !== null
+            ? array_map(fn($target) => $target->toArray(), $this->paymentTargetService->parseEvent($paymentTargetsEvent))
+            : [];
+
+        return $this->render('settings/payment-targets.html.twig', [
             'paymentTargets' => $paymentTargets,
-            'paymentTargetTypes' => $paymentTargetTypes,
+            'paymentTargetTypes' => PaymentTargetService::recognizedTypes(),
         ]);
     }
 

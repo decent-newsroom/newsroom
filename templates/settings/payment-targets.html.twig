@@ -1,0 +1,18 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'settings.payments.pageTitle'|trans }}{% endblock %}
+
+{% block body %}
+<div class="w-container py-4">
+    <twig:Atoms:PageHeading heading="{{ 'settings.payments.pageTitle'|trans }}" tagline="{{ 'settings.payments.pageTagline'|trans }}" />
+
+    <div class="mb-3">
+        <a href="{{ path('settings', {'_fragment': 'events'}) }}" class="btn btn--small btn--outline">
+            {{ 'settings.payments.backToEvents'|trans }}
+        </a>
+    </div>
+
+    {% include 'settings/tabs/_payments.html.twig' %}
+</div>
+{% endblock %}
+

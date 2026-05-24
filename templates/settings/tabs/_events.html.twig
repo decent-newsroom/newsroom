@@ -110,6 +110,43 @@
             {% endif %}
         </div>
 
+        {# Kind 10133 — Payment Targets #}
+        {% set paymentTargetsEvent = events[10133] ?? null %}
+        <div class="event-card">
+            <div class="event-card__header">
+                <span class="event-card__kind">Kind 10133</span>
+                <span class="event-card__label">{{ 'settings.events.paymentTargets'|trans }}</span>
+                {% if paymentTargetsEvent %}
+                    <span class="event-card__badge event-card__badge--found">✓</span>
+                {% else %}
+                    <span class="event-card__badge event-card__badge--missing">✗</span>
+                {% endif %}
+            </div>
+            {% if paymentTargetsEvent %}
+                {% set paytoTags = paymentTargetsEvent.tags|filter(t => t[0] is defined and t[0] == 'payto') %}
+                {% set paymentTargetCount = paytoTags|length %}
+                <div class="event-card__meta">
+                    {{ paymentTargetCount }} {{ 'settings.events.paymentMethods'|trans }}
+                    · {{ 'settings.events.lastUpdated'|trans }}: {{ paymentTargetsEvent.createdAt|date('Y-m-d H:i') }}
+                </div>
+                <div class="event-card__detail">
+                    <ul class="event-card__list">
+                        {% for tag in paytoTags %}
+                            <li><code>{{ tag[1] ~ '://' ~ tag[2] }}</code></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="event-card__actions">
+                    <a href="{{ path('payment_targets_setup') }}" class="btn btn--small">{{ 'settings.events.paymentTargetsManage'|trans }}</a>
+                </div>
+            {% else %}
+                <p class="event-card__empty">{{ 'settings.events.notFound'|trans }}</p>
+                <div class="event-card__actions">
+                    <a href="{{ path('payment_targets_setup') }}" class="btn btn--small btn--primary">{{ 'settings.events.paymentTargetsSetup'|trans }}</a>
+                </div>
+            {% endif %}
+        </div>
+
         {# Kind 10003 — Bookmarks #}
         {% set bookmarksEvent = events[10003] ?? null %}
         <div class="event-card">
