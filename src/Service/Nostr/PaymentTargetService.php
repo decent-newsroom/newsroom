@@ -7,7 +7,9 @@ namespace App\Service\Nostr;
 use App\Dto\PaymentTarget;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Enum\RelayPurpose;
 use App\Repository\EventRepository;
+use Psr\Log\LoggerInterface;
 
 /**
  * NIP-A3 (kind 10133) — `payto:` Payment Targets.
@@ -49,7 +51,51 @@ final class PaymentTargetService
 
     public function __construct(
         private readonly EventRepository $eventRepository,
+        private readonly ?NostrRequestExecutor $requestExecutor = null,
+        private readonly ?RelaySetFactory $relaySetFactory = null,
+        private readonly ?UserRelayListService $userRelayListService = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
+
+    /**
+     * Fetch payment targets via a targeted kind 10133 relay lookup.
+     *
+     * Falls back to the persisted DB snapshot when relay lookup is unavailable
+     * or fails.
+     */
+    public function getFreshForPubkey(string $pubkeyHex): array
+    {
+        if ($this->requestExecutor === null || $this->relaySetFactory === null || $this->userRelayListService === null) {
+            return $this->getForPubkey($pubkeyHex);
+        }
+
+        try {
+            $relayUrls = $this->userRelayListService->getRelaysForUser($pubkeyHex, RelayPurpose::USER);
+            $relaySet = $this->relaySetFactory->fromUrls($relayUrls);
+
+            $events = $this->requestExecutor->fetch(
+                kinds: [KindsEnum::PAYMENT_TARGETS->value],
+                filters: [
+                    'authors' => [$pubkeyHex],
+                    'limit' => 1,
+                ],
+                relaySet: $relaySet,
+                pubkey: $pubkeyHex,
+                gatewayTimeout: 10,
+            );
+
+            if (!empty($events)) {
+                return $this->parseRelayEvent($events[0]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger?->debug('PaymentTargetService: targeted kind 10133 lookup failed, using DB snapshot', [
+                'pubkey' => substr($pubkeyHex, 0, 8) . '...',
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->getForPubkey($pubkeyHex);
+    }
 
     /**
      * Fetch and parse the latest kind 10133 event for a user.
@@ -86,6 +132,17 @@ final class PaymentTargetService
     public function parseEvent(Event $event): array
     {
         return $this->parseTags($event->getTags());
+    }
+
+    /**
+     * Parse a relay event object into PaymentTarget DTOs.
+     *
+     * @return PaymentTarget[]
+     */
+    public function parseRelayEvent(object $event): array
+    {
+        $tags = is_array($event->tags ?? null) ? $event->tags : [];
+        return $this->parseTags($this->normalizeTags($tags));
     }
 
     /**
@@ -155,6 +212,33 @@ final class PaymentTargetService
             $out[$type] = ['label' => $label, 'shortLabel' => $short, 'symbol' => $symbol];
         }
         return $out;
+    }
+
+    /**
+     * @param array<int, mixed> $tags
+     * @return array<int, array<int, string>>
+     */
+    private function normalizeTags(array $tags): array
+    {
+        $normalized = [];
+
+        foreach ($tags as $tag) {
+            if ($tag instanceof \stdClass) {
+                $tag = (array) $tag;
+            }
+            if (!is_array($tag)) {
+                continue;
+            }
+
+            $normalizedTag = [];
+            foreach ($tag as $value) {
+                $normalizedTag[] = (string) $value;
+            }
+
+            $normalized[] = $normalizedTag;
+        }
+
+        return $normalized;
     }
 }
 

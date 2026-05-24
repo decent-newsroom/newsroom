@@ -164,6 +164,30 @@ final class TipButton
     #[LiveAction]
     public function openDialog(): void
     {
+        $pubkeyHex = $this->resolvePubkeyHex();
+        if ($pubkeyHex !== null) {
+            $targets = $this->paymentTargetService->getFreshForPubkey($pubkeyHex);
+
+            $hasLightning = false;
+            foreach ($targets as $target) {
+                if ($target->isLightning()) {
+                    $hasLightning = true;
+                    break;
+                }
+            }
+
+            if (!$hasLightning && $this->recipientLud16) {
+                $synthetic = $this->paymentTargetService->parseTags([
+                    ['payto', 'lightning', $this->recipientLud16],
+                ]);
+                $targets = array_merge($synthetic, $targets);
+            }
+
+            $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
+        } else {
+            $this->resolvedTargets = null;
+        }
+
         $this->open = true;
         $this->phase = 'select';
         $this->resetTransient();

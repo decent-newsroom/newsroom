@@ -3,6 +3,7 @@
 ## v0.0.41
 Essayist UI.
 
+- [Improvement] `TipButton` now performs a targeted relay lookup for only kind `10133` when the tip modal opens, then renders the payment picker from that fresh event data.
 - [Improvement] Settings payment-target management now uses a dedicated page (`/settings/payment-targets`) instead of an inline Settings tab, matching the follow-pack flow. The Events tab now includes kind `10133` (Payment Targets) directly after kind `10002` (Relay List), with create/manage actions that deep-link to the new page.
 - [Improvement] Added an admin-only debug preview to the `TipButton` modal that shows the latest kind `10133` event payload used to derive payment targets so target parsing issues can be diagnosed directly in UI without exposing internals to regular users.
 - [Bug] Fixed the `TipButton` Live Component crashing with `requires the "$index" argument` when selecting a payment target. `selectTarget()` now reads the clicked target index as an explicit LiveArg, treats missing/invalid values as a recoverable component error instead of a 500, and has regression coverage in `tests/Unit/Twig/Components/Molecules/TipButtonTest.php`.
