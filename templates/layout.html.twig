@@ -26,7 +26,6 @@
                         {% if is_granted('ROLE_ADMIN') %}
                             <li><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
                             <li><a href="{{ path('spell_list') }}">{{ 'spellsList.heading'|trans }}</a></li>
-                            <li><a href="{{ path('updates_index') }}">{{ 'updates.pageTitle'|trans }}</a></li>
                         {% endif %}
                         {% if app.user %}
                             <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
@@ -35,6 +34,7 @@
                             <li><a href="{{ path('reading_list_index') }}">{{ 'nav.myReadingLists'|trans }}</a></li>
                             <li><a href="{{ path('my_interests') }}">{{ 'nav.myInterests'|trans }}</a></li>
                             <li><a href="{{ path('media_manager') }}">Media Manager</a></li>
+                            <li><a href="{{ path('updates_index') }}">{{ 'updates.pageTitle'|trans }}</a></li>
                         {% endif %}
                     </ul>
                 </div>

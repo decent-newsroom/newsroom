@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v0.0.42
+
 ## v0.0.41
 Essayist UI.
 

@@ -902,7 +902,7 @@ followPackView:
 # ── Updates Center ──────────────────────────────────────────
 updates:
     pageTitle: 'Updates'
-    tagline: 'New articles and publications from the sources you follow.'
+    tagline: 'New articles and publications from the sources you subscribe to.'
     empty: 'No updates yet.'
     untitled: 'Untitled'
     unreadLabel: 'unread'
