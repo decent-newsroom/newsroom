@@ -86,6 +86,35 @@ final class TipButtonTest extends TestCase
         self::assertSame('payto://monero/48f1example', $component->paytoUri);
     }
 
+    public function testGetTargetsIncludesKind0Lud16AndLud06Targets(): void
+    {
+        $component = $this->createComponentWithTargets([]);
+        $component->recipientLud16 = 'alice@getalby.com';
+        $component->recipientLud06 = 'lnurl1dp68gurn8ghj7mrww4exctnrdakj7';
+
+        $targets = $component->getTargets();
+
+        self::assertCount(2, $targets);
+        self::assertSame('lightning', $targets[0]['type']);
+        self::assertSame('alice@getalby.com', $targets[0]['authority']);
+        self::assertSame('lightning', $targets[1]['type']);
+        self::assertSame('lnurl1dp68gurn8ghj7mrww4exctnrdakj7', $targets[1]['authority']);
+    }
+
+    public function testGetTargetsDeduplicatesKind0Lud16AgainstExistingPaytoTarget(): void
+    {
+        $component = $this->createComponentWithTargets([
+            ['payto', 'lightning', 'alice@getalby.com'],
+        ]);
+        $component->recipientLud16 = 'alice@getalby.com';
+
+        $targets = $component->getTargets();
+
+        self::assertCount(1, $targets);
+        self::assertSame('lightning', $targets[0]['type']);
+        self::assertSame('alice@getalby.com', $targets[0]['authority']);
+    }
+
     public function testDebugTargetEventPreviewSerializesSourceEvent(): void
     {
         $component = $this->createComponentWithTargets([

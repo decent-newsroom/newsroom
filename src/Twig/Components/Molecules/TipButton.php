@@ -42,9 +42,13 @@ final class TipButton
     #[LiveProp]
     public string $recipientPubkey = '';
 
-    /** Cached recipient lud16 (used when no lightning payto target exists). */
+    /** Cached recipient lud16 from kind 0 metadata. */
     #[LiveProp]
     public ?string $recipientLud16 = null;
+
+    /** Cached recipient lud06 (bech32 LNURL from kind 0 metadata). */
+    #[LiveProp]
+    public ?string $recipientLud06 = null;
 
     // UI state
     #[LiveProp(writable: true)]
@@ -122,23 +126,7 @@ final class TipButton
         }
 
         $targets = $this->paymentTargetService->getForPubkey($pubkeyHex);
-
-        // If the author has a lud16 in their kind 0 but no `lightning` payto
-        // target, surface it as a virtual lightning target so tipping still
-        // works out of the box for users that have not adopted NIP-A3 yet.
-        $hasLightning = false;
-        foreach ($targets as $t) {
-            if ($t->isLightning()) {
-                $hasLightning = true;
-                break;
-            }
-        }
-        if (!$hasLightning && $this->recipientLud16) {
-            $synthetic = $this->paymentTargetService->parseTags([
-                ['payto', 'lightning', $this->recipientLud16],
-            ]);
-            $targets = array_merge($synthetic, $targets);
-        }
+        $targets = $this->withKind0ZapTargets($targets);
 
         $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
         $this->targetsHydrated = true;
@@ -284,20 +272,7 @@ final class TipButton
             return;
         }
 
-        $hasLightning = false;
-        foreach ($targets as $target) {
-            if ($target->isLightning()) {
-                $hasLightning = true;
-                break;
-            }
-        }
-
-        if (!$hasLightning && $this->recipientLud16) {
-            $synthetic = $this->paymentTargetService->parseTags([
-                ['payto', 'lightning', $this->recipientLud16],
-            ]);
-            $targets = array_merge($synthetic, $targets);
-        }
+        $targets = $this->withKind0ZapTargets($targets);
 
         $this->resolvedTargets = array_map(fn(PaymentTarget $t) => $t->toArray(), $targets);
         $this->targetsHydrated = true;
@@ -379,7 +354,7 @@ final class TipButton
             return;
         }
 
-        $lud16 = $target['authority'];
+        $lightningTarget = trim((string) $target['authority']);
         $pubkeyHex = $this->resolvePubkeyHex();
 
         if ($pubkeyHex === null) {
@@ -397,7 +372,11 @@ final class TipButton
         $this->phase = 'loading';
 
         try {
-            $lnurlInfo = $this->lnurlResolver->resolve($lud16, null);
+            $isBech32Lnurl = str_starts_with(strtolower($lightningTarget), 'lnurl1');
+            $lnurlInfo = $this->lnurlResolver->resolve(
+                $isBech32Lnurl ? null : $lightningTarget,
+                $isBech32Lnurl ? $lightningTarget : null,
+            );
 
             if (!$lnurlInfo->allowsNostr) {
                 throw new \RuntimeException('Recipient does not support Nostr zaps. Tip will not be receipted on Nostr.');
@@ -417,7 +396,7 @@ final class TipButton
             $zapRequestJson = $this->nostrSigner->buildZapRequest(
                 recipientPubkey: $pubkeyHex,
                 amountMillisats: $amountMillisats,
-                lnurl: $lnurlInfo->bech32 ?? $lud16,
+                lnurl: $lnurlInfo->bech32 ?? $lightningTarget,
                 comment: $this->comment,
                 relays: $this->projectRelays,
                 zapSplits: []
@@ -443,6 +422,55 @@ final class TipButton
                 'error'     => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @param PaymentTarget[] $targets
+     * @return PaymentTarget[]
+     */
+    private function withKind0ZapTargets(array $targets): array
+    {
+        $zapTags = [];
+
+        $lud16 = trim((string) ($this->recipientLud16 ?? ''));
+        if ($lud16 !== '') {
+            $zapTags[] = ['payto', 'lightning', $lud16, 'kind0', 'lud16'];
+        }
+
+        $lud06 = trim((string) ($this->recipientLud06 ?? ''));
+        if ($lud06 !== '') {
+            $zapTags[] = ['payto', 'lightning', $lud06, 'kind0', 'lud06'];
+        }
+
+        if ($zapTags === []) {
+            return $targets;
+        }
+
+        $syntheticTargets = $this->paymentTargetService->parseTags($zapTags);
+
+        return $this->deduplicateTargets(array_merge($targets, $syntheticTargets));
+    }
+
+    /**
+     * @param PaymentTarget[] $targets
+     * @return PaymentTarget[]
+     */
+    private function deduplicateTargets(array $targets): array
+    {
+        $seen = [];
+        $deduped = [];
+
+        foreach ($targets as $target) {
+            $key = $target->type . '|' . $target->authority;
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $deduped[] = $target;
+        }
+
+        return $deduped;
     }
 
     private function resetTransient(): void

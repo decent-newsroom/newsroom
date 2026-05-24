@@ -152,6 +152,7 @@
                 <twig:Molecules:TipButton
                     recipientPubkey="{{ article.pubkey }}"
                     :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+                    :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
                 />
 
                 {# Consolidated actions dropdown: share, bookmark, broadcast, highlights #}
@@ -348,6 +349,7 @@
         <twig:Molecules:TipButton
             recipientPubkey="{{ article.pubkey }}"
             :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+            :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
         />
         </div>
 

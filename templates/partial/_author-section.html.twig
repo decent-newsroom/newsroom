@@ -74,15 +74,10 @@
         {% elseif app.user %}
             <twig:Molecules:SubscribeButton :pubkey="pubkey" />
             <twig:FollowPackDropdown pubkey="{{ pubkey }}" />
-            {% if author.lud16 is defined and author.lud16 %}
-                <twig:Molecules:ZapButton
-                    recipientPubkey="{{ pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-                />
-            {% endif %}
             <twig:Molecules:TipButton
                 recipientPubkey="{{ pubkey }}"
                 :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+                :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
             />
         {% endif %}
         <div class="dropdown"

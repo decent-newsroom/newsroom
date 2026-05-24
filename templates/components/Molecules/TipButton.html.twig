@@ -12,7 +12,6 @@
         >
             <span class="tip-trigger__label">{{ 'tip.button'|trans }}</span>
             <span class="tip-trigger__loading spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true" data-loading></span>
-            <span class="tip-trigger__count">({{ targets|length }})</span>
         </button>
     {% endif %}
 
@@ -54,18 +53,18 @@
                                         <li class="tip-target-list__item">
                                             {% if target.type == 'geyser' %}
                                                 <a
-                                                    class="btn tip-target-list__btn tip-target-list__btn--link w-100 d-flex flex-row align-items-center justify-content-between"
+                                                    class="tip-target-list__btn tip-target-list__btn--link d-flex flex-row align-items-center justify-content-between"
                                                     href="{{ target.href }}"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                 >
                                                     <span class="tip-target-list__authority font-monospace text-truncate">{{ target.authority }}</span>
-                                                    <span class="text-muted small ms-3">{{ 'tip.openInPaymentApp'|trans }}</span>
+                                                    <span class="text-muted small ms-3">Open in Geyser Fund</span>
                                                 </a>
                                             {% else %}
                                                 <button
                                                     type="button"
-                                                    class="btn tip-target-list__btn w-100 d-flex flex-row align-items-center justify-content-between"
+                                                    class="tip-target-list__btn d-flex flex-row align-items-center justify-content-between"
                                                     data-action="live#action"
                                                     data-live-action-param="selectTarget"
                                                     data-live-target-key-param="{{ target.key }}"
@@ -92,7 +91,7 @@
                         ></button>
                         <div class="text-center py-4">
                             <div class="spinner-border text-warning mb-3" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                                <span class="visually-hidden d-none">Loading...</span>
                             </div>
                             <p class="text-muted small mb-0">{{ 'tip.loadingTargets'|trans }}</p>
                         </div>
