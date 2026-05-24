@@ -75,6 +75,7 @@ class SubscribeLocalUserContextCommand extends Command
         KindsEnum::INTERESTS->value,           // 10015
         KindsEnum::MEDIA_FOLLOWS->value,       // 10020
         KindsEnum::BLOSSOM_SERVER_LIST->value,  // 10063
+        KindsEnum::PAYMENT_TARGETS->value,     // 10133 — NIP-A3 (payto)
         KindsEnum::BOOKMARK_SETS->value,       // 30003
         KindsEnum::CURATION_SET->value,        // 30004
         KindsEnum::CURATION_VIDEOS->value,     // 30005
@@ -97,6 +98,7 @@ class SubscribeLocalUserContextCommand extends Command
         10015 => 'Interests',
         10020 => 'Media follows',
         10063 => 'Blossom servers',
+        10133 => 'Payment targets (payto)',
         30003 => 'Bookmark sets',
         30004 => 'Curation sets (articles)',
         30005 => 'Curation sets (videos)',

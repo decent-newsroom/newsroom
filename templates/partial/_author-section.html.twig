@@ -67,6 +67,10 @@
                     recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
                 />
             {% endif %}
+            <twig:Molecules:TipButton
+                recipientPubkey="{{ pubkey }}"
+                :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+            />
         {% endif %}
         <div class="dropdown"
              data-controller="utility--share-dropdown">

@@ -149,6 +149,11 @@
                         recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
                 {% endif %}
 
+                <twig:Molecules:TipButton
+                    recipientPubkey="{{ article.pubkey }}"
+                    :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+                />
+
                 {# Consolidated actions dropdown: share, bookmark, broadcast, highlights #}
                 {% set isProtected = article.isNip70Protected() %}
                 {% set userRelays = null %}
@@ -340,6 +345,10 @@
                     recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
             {% endif %}
         {% endif %}
+        <twig:Molecules:TipButton
+            recipientPubkey="{{ article.pubkey }}"
+            :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
+        />
         </div>
 
         <twig:Organisms:Comments

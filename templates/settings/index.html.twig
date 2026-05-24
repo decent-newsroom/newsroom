@@ -42,6 +42,12 @@
                data-tab="preferences">
                 {{ 'settings.tab.preferences'|trans }}
             </a>
+            <a href="#payments" class="settings-tab"
+               data-action="click->ui--settings-tabs#switchTab"
+               data-ui--settings-tabs-target="tab"
+               data-tab="payments">
+                {{ 'settings.tab.payments'|trans }}
+            </a>
         </nav>
 
         <div class="settings-panels">
@@ -68,6 +74,11 @@
             <div class="settings-panel"
                  data-ui--settings-tabs-target="panel" data-panel="preferences">
                 {% include 'settings/tabs/_preferences.html.twig' %}
+            </div>
+
+            <div class="settings-panel"
+                 data-ui--settings-tabs-target="panel" data-panel="payments">
+                {% include 'settings/tabs/_payments.html.twig' %}
             </div>
         </div>
     </div>

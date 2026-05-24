@@ -624,6 +624,34 @@ zap:
     button: 'Zap'
     send: 'Send Zap'
 
+# ── Tip (NIP-A3 payto payment targets, kind 10133) ────────────────
+tip:
+    button: 'Tip'
+    send: 'Send a tip'
+    close: 'Close'
+    choose: 'Choose a payment method:'
+    method.lightning: 'Lightning'
+    amount: 'Amount (sats)'
+    note: 'Note (optional)'
+    notePlaceholder: 'Add a message...'
+    back: 'Back'
+    createInvoice: '⚡ Create invoice'
+    creatingInvoice: 'Creating invoice...'
+    invoiceReady: 'Invoice ready!'
+    scanWithWallet: 'Scan with your Lightning wallet'
+    openInWallet: 'Open in wallet'
+    choosePaymentMethod: 'Choose payment method'
+    scanOrOpen: 'Scan the QR or open in a compatible payment app.'
+    address: 'Address'
+    openInPaymentApp: 'Open in payment app'
+    unknown: 'unknown type'
+    unknownTypeHint: 'This payment type is not recognized by the newsroom — your wallet may still handle it.'
+    tryAnother: 'Try another method'
+
+# ── Settings · Payment targets (NIP-A3) ───────────────────────────
+# Keys live inside the `settings:` namespace below (settings.payments.*).
+
+
 # ── Reading list dropdown ─────────────────────────────────────────
 readingListDropdown:
     addToList: 'Add to Reading List'
@@ -905,6 +933,7 @@ settings:
         events: 'Events'
         subscriptions: 'Subscriptions'
         preferences: 'Preferences'
+        payments: 'Payments'
     preferences:
         heading: 'Preferences'
         description: 'Customize the look and language of the application.'
@@ -913,6 +942,19 @@ settings:
         themeLight: 'Light'
         themeSpace: 'Space'
         language: 'Language'
+    payments:
+        heading: 'Payment targets'
+        description: 'Publish a NIP-A3 kind 10133 event so others can tip you on Bitcoin, Lightning, Nano, or any RFC-8905 payment system.'
+        addTarget: 'Add payment target'
+        type: 'Type'
+        typePlaceholder: 'e.g. bitcoin, lightning, nano'
+        authority: 'Address'
+        authorityPlaceholder: 'e.g. you@walletofsatoshi.com or bc1q...'
+        remove: 'Remove'
+        publish: 'Sign and publish'
+        empty: 'No payment targets configured yet.'
+        recognized: 'Recognized'
+        custom: 'Custom'
     profile:
         heading: 'Profile'
         description: 'Update your Nostr profile metadata (kind 0). Changes will be signed with your key and published to your relays.'

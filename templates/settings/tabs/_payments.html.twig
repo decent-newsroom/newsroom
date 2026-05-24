@@ -1,0 +1,64 @@
+{# Payment targets tab — NIP-A3 kind 10133 (payto: payment targets) #}
+<div class="settings-section"
+     data-controller="nostr--nostr-settings-payment-targets"
+     data-nostr--nostr-settings-payment-targets-publish-url-value="{{ path('api_settings_event_publish') }}"
+     data-nostr--nostr-settings-payment-targets-targets-value="{{ paymentTargets|default([])|json_encode }}"
+     data-nostr--nostr-settings-payment-targets-recognized-value="{{ paymentTargetTypes|default({})|json_encode }}">
+
+    <h2 class="settings-section__title">{{ 'settings.payments.heading'|trans }}</h2>
+    <p class="settings-section__desc">{{ 'settings.payments.description'|trans }}</p>
+
+    <div class="payment-targets-list"
+         data-nostr--nostr-settings-payment-targets-target="list">
+        {% if paymentTargets is empty %}
+            <p class="text-muted" data-nostr--nostr-settings-payment-targets-target="empty">
+                {{ 'settings.payments.empty'|trans }}
+            </p>
+        {% endif %}
+
+        {% for target in paymentTargets %}
+            <div class="payment-target-row settings-multi-field__row"
+                 data-nostr--nostr-settings-payment-targets-target="row">
+                <input type="text"
+                       data-nostr--nostr-settings-payment-targets-target="typeInput"
+                       value="{{ target.type }}"
+                       placeholder="{{ 'settings.payments.typePlaceholder'|trans }}"
+                       class="payment-target-row__type">
+                <input type="text"
+                       data-nostr--nostr-settings-payment-targets-target="authorityInput"
+                       value="{{ target.authority }}"
+                       placeholder="{{ 'settings.payments.authorityPlaceholder'|trans }}"
+                       class="payment-target-row__authority">
+                <button type="button"
+                        class="btn btn--secondary settings-multi-field__remove"
+                        data-action="click->nostr--nostr-settings-payment-targets#removeRow">−</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="settings-form__actions">
+        <button type="button"
+                class="btn btn--secondary"
+                data-action="click->nostr--nostr-settings-payment-targets#addRow">
+            + {{ 'settings.payments.addTarget'|trans }}
+        </button>
+        <button type="button"
+                class="btn btn--primary"
+                data-nostr--nostr-settings-payment-targets-target="publishButton"
+                data-action="click->nostr--nostr-settings-payment-targets#publish">
+            {{ 'settings.payments.publish'|trans }}
+        </button>
+    </div>
+
+    {% if paymentTargetTypes is not empty %}
+        <details class="settings-raw-json mt-3">
+            <summary class="settings-raw-json__toggle">{{ 'settings.payments.recognized'|trans }}</summary>
+            <ul class="payment-recognized-types">
+                {% for type, meta in paymentTargetTypes %}
+                    <li><code>{{ type }}</code> — {{ meta.label }} ({{ meta.shortLabel }})</li>
+                {% endfor %}
+            </ul>
+        </details>
+    {% endif %}
+</div>
+

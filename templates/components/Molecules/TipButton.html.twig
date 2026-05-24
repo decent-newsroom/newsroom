@@ -1,0 +1,262 @@
+<div {{ attributes.defaults({class: 'tip-button-component d-inline'}) }}>
+    {% set targets = this.targets %}
+
+    {# Only render the trigger if at least one payment target exists. #}
+    {% if targets|length > 0 %}
+        <button
+            type="button"
+            class="btn tip-trigger {{ btnClass|default('') }}"
+            data-action="live#action"
+            data-live-action-param="openDialog"
+            title="{{ 'tip.send'|trans }}"
+        >
+            {{ 'tip.button'|trans }}
+            <span class="tip-trigger__count">({{ targets|length }})</span>
+        </button>
+    {% endif %}
+
+    {% if this.open %}
+        <div class="zap-modal-overlay" data-action="click->live#action" data-live-action-param="closeDialog">
+            <div class="zap-modal-content card shadow-lg" onclick="event.stopPropagation()">
+                <div class="card-body">
+                    <div class="d-flex flex-row justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="m-0">{{ 'tip.send'|trans }}</h5>
+                            {% if recipientPubkey %}
+                                <small class="text-muted">to <twig:Molecules:UserFromNpub :ident="recipientPubkey"/></small>
+                            {% endif %}
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-action="live#action"
+                            data-live-action-param="closeDialog"
+                        >{{ 'tip.close'|trans }}</button>
+                    </div>
+
+                    {# Phase: select payment method #}
+                    {% if this.phase == 'select' %}
+                        <p class="text-muted small mb-3">{{ 'tip.choose'|trans }}</p>
+                        <ul class="list-unstyled tip-target-list">
+                            {% for target in targets %}
+                                <li class="tip-target-list__item">
+                                    <button
+                                        type="button"
+                                        class="btn tip-target-list__btn w-100 d-flex flex-row align-items-center justify-content-between"
+                                        data-action="live#action"
+                                        data-live-action-param="selectTarget"
+                                        data-live-index-param="{{ loop.index0 }}"
+                                    >
+                                        <span class="tip-target-list__label">
+                                            {% if target.symbol %}<span class="tip-target-list__symbol">{{ target.symbol }}</span>{% endif %}
+                                            <strong>{{ target.label }}</strong>
+                                            {% if not target.recognized %}
+                                                <span class="badge bg-secondary ms-1">{{ 'tip.unknown'|trans }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="tip-target-list__authority text-muted small font-monospace text-truncate">
+                                            {{ target.authority }}
+                                        </span>
+                                    </button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {# Phase: lightning amount/comment input #}
+                    {% if this.phase == 'lightning_input' %}
+                        <form data-action="submit->live#action:prevent" data-live-action-param="createLightningInvoice">
+                            <div class="alert alert-info mb-3">
+                                <strong>{{ 'tip.method.lightning'|trans }}</strong>
+                                <div class="small font-monospace">{{ targets[this.selectedIndex].authority }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="tip-amount" class="form-label">{{ 'tip.amount'|trans }}</label>
+                                <input
+                                    type="number"
+                                    id="tip-amount"
+                                    class="form-control"
+                                    min="1"
+                                    step="1"
+                                    data-model="debounce(300)|amount"
+                                    value="{{ amount }}"
+                                    required
+                                    autofocus
+                                />
+                                <div class="d-flex flex-row gap-2 mt-2">
+                                    {% for preset in [21, 100, 1000, 21000] %}
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm flex-fill"
+                                            onclick="document.getElementById('tip-amount').value = {{ preset }}; document.getElementById('tip-amount').dispatchEvent(new Event('input', { bubbles: true }));"
+                                        >{{ preset >= 1000 ? (preset // 1000) ~ 'k' : preset }}</button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="tip-comment" class="form-label">{{ 'tip.note'|trans }}</label>
+                                <textarea
+                                    id="tip-comment"
+                                    class="form-control"
+                                    rows="2"
+                                    data-model="norender|comment"
+                                    placeholder="{{ 'tip.notePlaceholder'|trans }}"
+                                >{{ comment }}</textarea>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    data-action="live#action"
+                                    data-live-action-param="backToSelect"
+                                >← {{ 'tip.back'|trans }}</button>
+                                <button type="submit" class="btn btn-warning flex-fill">
+                                    {{ 'tip.createInvoice'|trans }}
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+
+                    {# Phase: loading #}
+                    {% if this.phase == 'loading' %}
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-warning mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted">{{ 'tip.creatingInvoice'|trans }}</p>
+                        </div>
+                    {% endif %}
+
+                    {# Phase: lightning invoice ready #}
+                    {% if this.phase == 'invoice' %}
+                        <div class="text-center mb-3">
+                            <p class="text-success mb-2">✓ {{ 'tip.invoiceReady'|trans }}</p>
+                            <p class="text-muted small">{{ 'tip.scanWithWallet'|trans }}</p>
+                        </div>
+
+                        <div class="qr-container text-center mb-3">
+                            {{ qrSvg|raw }}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">BOLT11</label>
+                            <div class="d-flex flex-row input-group input-group-sm">
+                                <input
+                                    type="text"
+                                    class="form-control font-monospace small"
+                                    value="{{ bolt11 }}"
+                                    readonly
+                                    onclick="this.select()"
+                                />
+                                <button
+                                    class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="navigator.clipboard.writeText('{{ bolt11|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                                >Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="text-center mb-3">
+                            <a href="lightning:{{ bolt11|upper }}" class="btn btn-warning w-100">
+                                ⚡ {{ 'tip.openInWallet'|trans }}
+                            </a>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary w-100"
+                            data-action="live#action"
+                            data-live-action-param="backToSelect"
+                        >← {{ 'tip.choosePaymentMethod'|trans }}</button>
+                    {% endif %}
+
+                    {# Phase: non-lightning payto target (generic) #}
+                    {% if this.phase == 'payto' %}
+                        {% set selected = targets[this.selectedIndex] %}
+                        <div class="alert alert-info mb-3">
+                            <strong>
+                                {% if selected.symbol %}<span class="me-1">{{ selected.symbol }}</span>{% endif %}
+                                {{ selected.label }}
+                            </strong>
+                            {% if not selected.recognized %}
+                                <div class="small">{{ 'tip.unknownTypeHint'|trans }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="text-center mb-3">
+                            <p class="text-muted small mb-2">{{ 'tip.scanOrOpen'|trans }}</p>
+                            <div class="qr-container text-center mb-3">
+                                {{ paytoQrSvg|raw }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">{{ 'tip.address'|trans }}</label>
+                            <div class="d-flex flex-row input-group input-group-sm">
+                                <input
+                                    type="text"
+                                    class="form-control font-monospace small"
+                                    value="{{ selected.authority }}"
+                                    readonly
+                                    onclick="this.select()"
+                                />
+                                <button
+                                    class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="navigator.clipboard.writeText('{{ selected.authority|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                                >Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">payto URI</label>
+                            <div class="d-flex flex-row input-group input-group-sm">
+                                <input
+                                    type="text"
+                                    class="form-control font-monospace small"
+                                    value="{{ paytoUri }}"
+                                    readonly
+                                    onclick="this.select()"
+                                />
+                                <button
+                                    class="btn btn-outline-secondary"
+                                    type="button"
+                                    onclick="navigator.clipboard.writeText('{{ paytoUri|e('js') }}'); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)"
+                                >Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="text-center mb-3">
+                            <a href="{{ paytoUri }}" class="btn btn-primary w-100" rel="noopener">
+                                {{ 'tip.openInPaymentApp'|trans }}
+                            </a>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary w-100"
+                            data-action="live#action"
+                            data-live-action-param="backToSelect"
+                        >← {{ 'tip.choosePaymentMethod'|trans }}</button>
+                    {% endif %}
+
+                    {# Phase: error #}
+                    {% if this.phase == 'error' %}
+                        <div class="alert alert-danger mb-3">
+                            <strong>Error:</strong> {{ error }}
+                        </div>
+                        <button
+                            type="button"
+                            class="btn btn-outline-primary w-100"
+                            data-action="live#action"
+                            data-live-action-param="backToSelect"
+                        >← {{ 'tip.tryAnother'|trans }}</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+

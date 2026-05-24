@@ -76,6 +76,7 @@ class SyncUserEventsHandler
         KindsEnum::INTERESTS->value,          // 10015
         KindsEnum::MEDIA_FOLLOWS->value,      // 10020
         KindsEnum::BLOSSOM_SERVER_LIST->value, // 10063
+        KindsEnum::PAYMENT_TARGETS->value,    // 10133 — NIP-A3 (payto)
         KindsEnum::BOOKMARK_SETS->value,      // 30003
         KindsEnum::CURATION_SET->value,       // 30004
         KindsEnum::CURATION_VIDEOS->value,    // 30005

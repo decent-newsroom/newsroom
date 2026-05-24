@@ -36,6 +36,7 @@ enum KindsEnum: int
     case MEDIA_FOLLOWS = 10020; // NIP-68, multimedia follow list
     case RELAY_MONITOR_ANNOUNCEMENT = 10166; // NIP-66, relay monitor self-announcement (replaceable, per monitor pubkey)
     case BLOSSOM_SERVER_LIST = 10063; // NIP-B7, user Blossom server list
+    case PAYMENT_TARGETS = 10133; // NIP-A3, payto: payment targets (RFC-8905)
     case HTTP_AUTH = 27235; // NIP-98, HTTP Auth
     case BOOKMARK_SETS = 30003; // NIP-51, Categorized bookmark sets
     case CURATION_SET = 30004; // NIP-51, Curation sets (articles/notes)
