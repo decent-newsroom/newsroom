@@ -44,6 +44,10 @@ final class ZapButton
     #[LiveProp]
     public array $zapSplits = [];
 
+    // Initial amount setting (can be passed in from parent)
+    #[LiveProp]
+    public int $initialAmount = 21; // Initial amount in sats (default 21)
+
     // UI state props (internal)
     #[LiveProp(writable: true)]
     public bool $open = false;
@@ -52,7 +56,7 @@ final class ZapButton
     public string $phase = 'idle'; // idle, input, loading, invoice, error
 
     #[LiveProp(writable: true)]
-    public int $amount = 21; // Amount in sats (default 21)
+    public int $amount = 21; // Amount in sats (current/working amount)
 
     #[LiveProp(writable: true)]
     public string $comment = '';
@@ -110,6 +114,7 @@ final class ZapButton
         $this->qrSvg = '';
         $this->invoices = [];
         $this->currentInvoiceIndex = 0;
+        $this->amount = $this->initialAmount; // Initialize from the configured initial amount
     }
 
     /**
@@ -124,7 +129,7 @@ final class ZapButton
         $this->bolt11 = '';
         $this->qrSvg = '';
         $this->comment = '';
-        $this->amount = 21;
+        $this->amount = $this->initialAmount; // Reset to configured initial amount
         $this->invoices = [];
         $this->currentInvoiceIndex = 0;
     }

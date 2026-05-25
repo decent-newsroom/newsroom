@@ -4,7 +4,7 @@
 
 {% block body %}
     <section class="w-container essayist-members">
-        <header class="essayist-members__header">
+        <div class="essayist-members__header">
             <h1>{{ 'essayist.members.heading'|trans }}</h1>
             <p class="essayist-members__lede">
                 {{ 'essayist.members.lede'|trans({
@@ -22,7 +22,7 @@
                     {{ 'essayist.feed.adminNotice'|trans }}
                 </div>
             {% endif %}
-        </header>
+        </div>
 
         {% if members is empty %}
             <p class="essayist-members__empty">{{ 'essayist.members.empty'|trans }}</p>
@@ -43,11 +43,12 @@
                             </a>
                             {% if m.isFollowed %}
                                 <span class="essayist-members__badge essayist-members__badge--follow">{{ 'essayist.members.badge.follow'|trans }}</span>
-                            {% elseif m.isEarlyBird %}
+                            {% endif %}
+                            {% if m.isEarlyBird %}
                                 <span class="essayist-members__badge essayist-members__badge--earlybird">{{ 'essayist.members.badge.earlybird'|trans }}</span>
                             {% endif %}
                             {% if m.nip05 %}
-                                <span class="essayist-members__nip05">{{ m.nip05 }}</span>
+                                <p><span class="essayist-members__nip05">{{ m.nip05 }}</span></p>
                             {% endif %}
                             {% if m.about %}
                                 <p class="essayist-members__about">{{ m.about|u.truncate(180, '…') }}</p>
@@ -58,6 +59,7 @@
                             <twig:Molecules:ZapButton
                                 recipientPubkey="{{ m.pubkey }}"
                                 recipientLud16="{{ m.lud16 }}"
+                                :initialAmount="1000"
                             />
                         </div>
                     </li>
