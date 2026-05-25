@@ -21,6 +21,7 @@ class VisitTrackingListener
     private const EXCLUDED_ROUTES = [
         '/_profiler',
         '/_wdt',
+        '/_components/',
         '/service-worker.js',
         '/chat-sw.js',
         '/manifest.webmanifest',
@@ -37,6 +38,8 @@ class VisitTrackingListener
         // Partial/preview routes (not full page views)
         '/editor/markdown/preview',
         '/article-editor/preview/',
+        // Essayist keepalive pings
+        '/essayist/home/keepalive',
     ];
 
     /** Static file extensions that should never be tracked */
