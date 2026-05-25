@@ -5,6 +5,7 @@
 - [Feature] Added an `Activity` tab to `/essayist/home` that shows recent member activity from the current Essayist membership pool. A new `EssayistMemberActivityService` resolves current `ROLE_ESSAYIST_MEMBER` pubkeys, fetches recent events from local storage, and emits a mixed feed of highlights (kind `9802`), reposts (kind `16`), and comments (kind `1111`). `EssayistController::homeFeedTab()` now supports `activity`, and the new tab partial renders each item via the existing bookmark/event card pipeline. Documentation: `documentation/essayist-home-activity-tab.md`.
 - [Improvement] Reused the same highlight card template as the `/highlights` feed for `/essayist/home` Activity highlights by extracting `templates/partial/_highlight_feed_card.html.twig` and rendering both pages through that shared partial.
 - [Improvement] Updated the `/e/{ident}` event page to render kind `9802` highlights through the same shared highlight card partial (`templates/partial/_highlight_feed_card.html.twig`) used by `/highlights` and Essayist Activity.
+- [Improvement] Essayist Activity highlight items now resolve `a`/`A` article references into preview cards (via generated `naddr` + parsed preview data), matching `/highlights` feed behavior when referenced content is available.
 - [Improvement] Reduced Updates Pro pricing.
 
 

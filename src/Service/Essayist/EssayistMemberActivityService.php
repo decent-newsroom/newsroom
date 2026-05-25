@@ -9,7 +9,9 @@ use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
 use App\Repository\EventRepository;
 use App\Repository\UserEntityRepository;
+use App\Service\Nostr\NostrLinkParser;
 use App\Util\NostrKeyUtil;
+use nostriphant\NIP19\Bech32;
 
 /**
  * Builds a recent activity feed for current Essayist members.
@@ -28,6 +30,7 @@ final class EssayistMemberActivityService
     public function __construct(
         private readonly UserEntityRepository $userRepository,
         private readonly EventRepository $eventRepository,
+        private readonly NostrLinkParser $nostrLinkParser,
     ) {
     }
 
@@ -120,6 +123,7 @@ final class EssayistMemberActivityService
         $url = null;
         $articleRef = null;
         $articleTitle = null;
+        $relayHints = [];
 
         foreach ($event->getTags() as $tag) {
             if (!is_array($tag) || count($tag) < 2) {
@@ -137,6 +141,9 @@ final class EssayistMemberActivityService
                     if ($articleRef === null) {
                         $articleRef = $tag[1] ?? null;
                     }
+                    if (isset($tag[2]) && is_string($tag[2]) && str_starts_with($tag[2], 'wss://')) {
+                        $relayHints[] = $tag[2];
+                    }
                     break;
                 case 'title':
                     if ($articleTitle === null) {
@@ -150,7 +157,19 @@ final class EssayistMemberActivityService
                     if ($url === null) {
                         $url = $tag[1] ?? null;
                     }
+                    if (isset($tag[1]) && is_string($tag[1]) && str_starts_with($tag[1], 'wss://')) {
+                        $relayHints[] = $tag[1];
+                    }
                     break;
+            }
+        }
+
+        $naddr = null;
+        $preview = null;
+        if (is_string($articleRef) && $articleRef !== '') {
+            $naddr = $this->generateNaddr($articleRef, array_values(array_unique($relayHints)));
+            if ($naddr !== null) {
+                $preview = $this->createPreviewData($naddr);
             }
         }
 
@@ -161,9 +180,52 @@ final class EssayistMemberActivityService
             'url' => $url,
             'article_ref' => $articleRef,
             'article_title' => $articleTitle,
-            'naddr' => null,
-            'preview' => null,
+            'naddr' => $naddr,
+            'preview' => $preview,
         ];
+    }
+
+    private function generateNaddr(string $coordinate, array $relayHints = []): ?string
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        try {
+            $kind = (int) $parts[0];
+            if ($kind < 30000 || $kind >= 40000) {
+                return null;
+            }
+
+            $naddr = Bech32::naddr(
+                kind: $kind,
+                pubkey: $parts[1],
+                identifier: $parts[2],
+                relays: $relayHints,
+            );
+
+            return (string) $naddr;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function createPreviewData(string $naddr): ?array
+    {
+        try {
+            $links = $this->nostrLinkParser->parseLinks('nostr:' . $naddr);
+            if (!empty($links) && is_array($links[0])) {
+                return $links[0];
+            }
+        } catch (\Throwable) {
+            // Best-effort enrichment: fall back to link rendering when parsing fails.
+        }
+
+        return null;
     }
 }
 
