@@ -56,11 +56,13 @@
                             <p class="essayist-members__lud16"><code>{{ m.lud16 }}</code></p>
                         </div>
                         <div class="essayist-members__action">
-                            <twig:Molecules:ZapButton
-                                recipientPubkey="{{ m.pubkey }}"
-                                recipientLud16="{{ m.lud16 }}"
-                                :initialAmount="1000"
-                            />
+                            {% if app.user.userIdentifier is not m.pubkey|toNpub %}
+                                <twig:Molecules:ZapButton
+                                    recipientPubkey="{{ m.pubkey }}"
+                                    recipientLud16="{{ m.lud16 }}"
+                                    :initialAmount="1000"
+                                />
+                            {% endif %}
                         </div>
                     </li>
                 {% endfor %}
