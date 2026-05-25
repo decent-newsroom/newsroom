@@ -24,6 +24,7 @@ class ChatMessageService
         private readonly ChatRelayClient $relayClient,
         private readonly ChatAuthorizationChecker $authChecker,
         private readonly HubInterface $hub,
+        private readonly ChatWebPushService $webPushService,
     ) {}
 
     /**
@@ -68,6 +69,8 @@ class ChatMessageService
 
         $topic = sprintf('/chat/%d/group/%s', $community->getId(), $group->getSlug());
         $this->hub->publish(new Update($topic, json_encode($dto)));
+
+        $this->webPushService->dispatchPushNotification($group, $user);
 
         return $dto;
     }

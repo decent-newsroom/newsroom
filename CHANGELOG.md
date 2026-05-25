@@ -2,6 +2,8 @@
 
 ## v0.0.42
 
+- [Bug] Fixed ChatBundle: `ChatMessageService` was missing `ChatWebPushService` injection, causing a fatal PHP error when self-sovereign users sent messages. Push notifications are now dispatched for both custodial and self-sovereign message paths.
+- [Bug] Fixed ChatBundle real-time message delivery: `layout.html.twig` was missing the `<meta name="mercure-hub">` tag required by the Stimulus messages controller to set up the Mercure SSE subscription. Messages now arrive in real-time without a page reload.
 - [Improvement] Excluded more partials from visit counts in the visitor analytics.
 - [Feature] Added an `Activity` tab to `/essayist/home` that shows recent member activity from the current Essayist membership pool. A new `EssayistMemberActivityService` resolves current `ROLE_ESSAYIST_MEMBER` pubkeys, fetches recent events from local storage, and emits a mixed feed of highlights (kind `9802`), reposts (kind `16`), and comments (kind `1111`). `EssayistController::homeFeedTab()` now supports `activity`, and the new tab partial renders each item via the existing bookmark/event card pipeline. Documentation: `documentation/essayist-home-activity-tab.md`.
 - [Improvement] Reused the same highlight card template as the `/highlights` feed for `/essayist/home` Activity highlights by extracting `templates/partial/_highlight_feed_card.html.twig` and rendering both pages through that shared partial.
