@@ -16,7 +16,11 @@
                     </span>
                 </div>
                 {% if item.type == 'highlight' and item.highlight is defined %}
-                    {% include 'partial/_highlight_with_source.html.twig' with {highlight: item.highlight} %}
+                    {% set highlightItem = item.highlight|merge({
+                        pubkey: item.event.pubkey,
+                        created_at: item.event.createdAt,
+                    }) %}
+                    {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlightItem} %}
                 {% else %}
                     {% include 'partial/_bookmark_event_card.html.twig' with {event: item.event} %}
                 {% endif %}
