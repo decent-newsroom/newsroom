@@ -30,7 +30,8 @@
 
 {% block aside %}
     <nav class="essayist-feed-nav">
-        <a href="{{ path('app_static_essayist') }}" class="btn btn--sm">← {{ 'essayist.feed.backToLanding'|trans }}</a>
+        <a href="{{ path('app_essayist_home') }}" class="btn btn--sm">{{ 'essayist.home.heading'|trans }}</a>
+        <a href="{{ path('app_static_essayist') }}" class="btn btn--sm">{{ 'essayist.feed.backToLanding'|trans }}</a>
     </nav>
 {% endblock %}
 
