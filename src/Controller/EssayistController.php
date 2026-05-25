@@ -15,6 +15,7 @@ use App\Repository\FollowPackSourceRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Essayist\EssayistFeedService;
+use App\Service\Essayist\EssayistMemberActivityService;
 use App\Service\Essayist\EssayistMembershipCacheService;
 use App\Service\Essayist\EssayistMembershipService;
 use App\Service\FollowPackService;
@@ -436,10 +437,11 @@ class EssayistController extends AbstractController
     /**
      * Turbo Frame tab endpoint for the Essayist personalized home page.
      */
-    #[Route('/home/tab/{tab}', name: 'app_essayist_home_tab', requirements: ['tab' => 'foryou|follows|topics'])]
+    #[Route('/home/tab/{tab}', name: 'app_essayist_home_tab', requirements: ['tab' => 'foryou|follows|topics|activity'])]
     public function homeFeedTab(
         string $tab,
         EssayistFeedService $feedService,
+        EssayistMemberActivityService $memberActivityService,
         EventRepository $eventRepository,
         UserProfileService $userProfileService,
         NostrClient $nostrClient,
@@ -490,8 +492,19 @@ class EssayistController extends AbstractController
         return match ($tab) {
             'follows' => $this->essayistFollowsTab($feedService, $eventRepository, $userProfileService, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
             'topics'  => $this->essayistTopicsTab($feedService, $nostrClient, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
+            'activity' => $this->essayistActivityTab($memberActivityService),
             default   => $this->essayistForYouTab($feedService, $eventRepository, $userProfileService, $nostrClient, $redisCacheService, $logger, $pubkeyHex, $mutedPubkeys),
         };
+    }
+
+    private function essayistActivityTab(EssayistMemberActivityService $memberActivityService): Response
+    {
+        $activity = $memberActivityService->getRecentActivity(60);
+
+        return $this->render('essayist/tabs/_activity.html.twig', [
+            'isLoggedIn' => true,
+            'activity' => $activity,
+        ]);
     }
 
     // ── Private tab helpers ────────────────────────────────────────────────

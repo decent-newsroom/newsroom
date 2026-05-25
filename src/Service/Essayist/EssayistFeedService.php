@@ -181,8 +181,19 @@ final class EssayistFeedService
             return [];
         }
 
+        return $this->doFetchFromRelay($filter, $this->internalRelayUrl);
+    }
+
+    /**
+     * Execute a relay REQ against a single relay and return cards.
+     *
+     * @return object[]
+     */
+    private function doFetchFromRelay(Filter $filter, string $relayUrl): array
+    {
+
         try {
-            $relay = new Relay($this->internalRelayUrl);
+            $relay = new Relay($relayUrl);
             $relay->connect();
 
             $client = $relay->getClient();
@@ -286,7 +297,7 @@ final class EssayistFeedService
             return $cards;
         } catch (\Throwable $e) {
             $this->logger->warning('EssayistFeedService: failed to fetch from essayist relay', [
-                'relay' => $this->internalRelayUrl,
+                'relay' => $relayUrl,
                 'error' => $e->getMessage(),
             ]);
             return [];

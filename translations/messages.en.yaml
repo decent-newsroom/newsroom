@@ -230,6 +230,7 @@ essayist:
             foryou: 'For You'
             follows: 'Follows'
             topics: 'Topics'
+            activity: 'Activity'
         foryou:
             signInRequired: 'Sign in to see your personalized Essayist feed.'
             empty: 'No articles found yet. Follow some authors or configure your interests to see content here.'
@@ -240,6 +241,14 @@ essayist:
         topics:
             signInRequired: 'Sign in to see articles based on your interests.'
             noArticles: 'No articles found matching your interests on Essayist.'
+        activity:
+            signInRequired: 'Sign in to see recent member activity.'
+            empty: 'No recent member activity found yet.'
+            type:
+                highlight: 'Highlight'
+                repost: 'Repost'
+                quote: 'Quote'
+                comment: 'Comment'
         nav:
             allArticles: 'All Essayist articles'
         featuredPack:

@@ -1,0 +1,23 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.activity.signInRequired'|trans }}</p>
+        </div>
+    {% elseif activity is empty %}
+        <div class="alert alert-info">
+            <p>{{ 'essayist.home.activity.empty'|trans }}</p>
+        </div>
+    {% else %}
+        <div class="article-list">
+            {% for item in activity %}
+                <div class="mb-2">
+                    <span class="text-muted">
+                        {{ ('essayist.home.activity.type.' ~ item.type)|trans }}
+                    </span>
+                </div>
+                {% include 'partial/_bookmark_event_card.html.twig' with {event: item.event} %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</turbo-frame>
+

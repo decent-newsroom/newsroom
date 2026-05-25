@@ -30,6 +30,13 @@
                    data-action="click->content--home-tabs#switchTab">
                     {{ 'essayist.home.tab.topics'|trans }}
                 </a>
+                <a href="{{ path('app_essayist_home_tab', {tab: 'activity'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="activity"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'essayist.home.tab.activity'|trans }}
+                </a>
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">

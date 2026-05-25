@@ -218,6 +218,7 @@ essayist:
             foryou: 'Per te'
             follows: 'Seguiti'
             topics: 'Argomenti'
+            activity: 'Attività'
         foryou:
             signInRequired: 'Accedi per vedere il tuo feed Essayist personalizzato.'
             empty: 'Nessun articolo trovato ancora. Segui autori o configura i tuoi interessi.'
@@ -228,6 +229,14 @@ essayist:
         topics:
             signInRequired: 'Accedi per vedere articoli basati sui tuoi interessi.'
             noArticles: 'Nessun articolo trovato corrispondente ai tuoi interessi su Essayist.'
+        activity:
+            signInRequired: 'Accedi per vedere l''attività recente dei membri.'
+            empty: 'Nessuna attività recente dei membri trovata.'
+            type:
+                highlight: 'Highlight'
+                repost: 'Repost'
+                quote: 'Citazione'
+                comment: 'Commento'
         nav:
             allArticles: 'Tutti gli articoli Essayist'
         featuredPack:

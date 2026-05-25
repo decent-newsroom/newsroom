@@ -218,6 +218,7 @@ essayist:
             foryou: 'Zate'
             follows: 'Sleditve'
             topics: 'Teme'
+            activity: 'Aktivnost'
         foryou:
             signInRequired: 'Prijavi se za ogled tvojega osebnega Essayist vira.'
             empty: 'Še ni najdenih člankov. Sledi avtorjem ali nastavi svoje interese.'
@@ -228,6 +229,14 @@ essayist:
         topics:
             signInRequired: 'Prijavi se za ogled člankov na podlagi tvojih interesov.'
             noArticles: 'Ni najdenih člankov, ki bi ustrezali tvojim interesom na Essayist.'
+        activity:
+            signInRequired: 'Prijavi se za ogled nedavne aktivnosti članov.'
+            empty: 'Nedavne aktivnosti članov še ni.'
+            type:
+                highlight: 'Highlight'
+                repost: 'Repost'
+                quote: 'Citat'
+                comment: 'Komentar'
         nav:
             allArticles: 'Vsi Essayist članki'
         featuredPack:

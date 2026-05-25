@@ -218,6 +218,7 @@ essayist:
             foryou: 'Pour vous'
             follows: 'Abonnements'
             topics: 'Sujets'
+            activity: 'Activité'
         foryou:
             signInRequired: 'Connectez-vous pour voir votre fil Essayist personnalisé.'
             empty: "Pas encore d'articles trouvés. Suivez des auteurs ou configurez vos centres d'intérêt."
@@ -228,6 +229,14 @@ essayist:
         topics:
             signInRequired: 'Connectez-vous pour voir les articles basés sur vos centres d''intérêt.'
             noArticles: 'Aucun article correspondant à vos centres d''intérêt sur Essayist.'
+        activity:
+            signInRequired: 'Connectez-vous pour voir l''activité récente des membres.'
+            empty: 'Aucune activité récente des membres pour le moment.'
+            type:
+                highlight: 'Highlight'
+                repost: 'Repost'
+                quote: 'Citation'
+                comment: 'Commentaire'
         nav:
             allArticles: 'Tous les articles Essayist'
         featuredPack:

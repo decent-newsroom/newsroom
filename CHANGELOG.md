@@ -2,7 +2,9 @@
 
 ## v0.0.42
 
+- [Feature] Added an `Activity` tab to `/essayist/home` that shows recent member activity from the current Essayist membership pool. A new `EssayistMemberActivityService` resolves current `ROLE_ESSAYIST_MEMBER` pubkeys, fetches recent events from local storage, and emits a mixed feed of highlights (kind `9802`), reposts (kind `16`), and comments (kind `1111`). `EssayistController::homeFeedTab()` now supports `activity`, and the new tab partial renders each item via the existing bookmark/event card pipeline. Documentation: `documentation/essayist-home-activity-tab.md`.
 - [Improvement] Reduced Updates Pro pricing.
+
 
 ## v0.0.41
 Essayist UI.
