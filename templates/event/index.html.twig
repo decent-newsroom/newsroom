@@ -134,6 +134,37 @@
             {% include 'event/_kind39089_followPack.html.twig' %}
         {% elseif event.kind == 1111 %}
             {% include 'event/_kind1111_comment.html.twig' %}
+        {% elseif event.kind == 9802 %}
+            {% set highlightContext = null %}
+            {% set highlightArticleRef = null %}
+            {% set highlightArticleTitle = null %}
+            {% set highlightUrl = null %}
+
+            {% for tag in event.tags %}
+                {% if tag[0] in ['a', 'A'] and highlightArticleRef is null and tag[1] is defined %}
+                    {% set highlightArticleRef = tag[1] %}
+                {% elseif tag[0] == 'context' and highlightContext is null and tag[1] is defined %}
+                    {% set highlightContext = tag[1] %}
+                {% elseif tag[0] == 'title' and highlightArticleTitle is null and tag[1] is defined %}
+                    {% set highlightArticleTitle = tag[1] %}
+                {% elseif tag[0] == 'r' and highlightUrl is null and tag[1] is defined %}
+                    {% set highlightUrl = tag[1] %}
+                {% endif %}
+            {% endfor %}
+
+            {% set highlight = {
+                content: event.content|default(''),
+                context: highlightContext,
+                pubkey: event.pubkey,
+                created_at: event.created_at,
+                article_ref: highlightArticleRef,
+                article_title: highlightArticleTitle,
+                url: highlightUrl,
+                naddr: null,
+                preview: null,
+            } %}
+
+            {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
         {% else %}
             {# Regular event content for non-picture and non-video events #}
             <div class="event-content">
