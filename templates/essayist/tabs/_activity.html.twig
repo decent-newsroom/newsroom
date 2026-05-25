@@ -1,4 +1,4 @@
-<turbo-frame id="home-tab-content">
+<turbo-frame id="home-tab-content" target="_top">
     {% if not isLoggedIn|default(true) %}
         <div class="alert alert-info">
             <p>{{ 'essayist.home.activity.signInRequired'|trans }}</p>
@@ -15,7 +15,11 @@
                         {{ ('essayist.home.activity.type.' ~ item.type)|trans }}
                     </span>
                 </div>
-                {% include 'partial/_bookmark_event_card.html.twig' with {event: item.event} %}
+                {% if item.type == 'highlight' and item.highlight is defined %}
+                    {% include 'partial/_highlight_with_source.html.twig' with {highlight: item.highlight} %}
+                {% else %}
+                    {% include 'partial/_bookmark_event_card.html.twig' with {event: item.event} %}
+                {% endif %}
             {% endfor %}
         </div>
     {% endif %}

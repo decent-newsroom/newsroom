@@ -32,7 +32,7 @@ final class EssayistMemberActivityService
     }
 
     /**
-     * @return array<int, array{event: Event, type: string}>
+     * @return array<int, array{event: Event, type: string, highlight?: array<string, mixed>}>
      */
     public function getRecentActivity(int $limit = 60): array
     {
@@ -79,10 +79,16 @@ final class EssayistMemberActivityService
                 continue;
             }
 
-            $activity[] = [
+            $item = [
                 'event' => $event,
                 'type' => $type,
             ];
+
+            if ($type === 'highlight') {
+                $item['highlight'] = $this->buildHighlightData($event);
+            }
+
+            $activity[] = $item;
 
             if (count($activity) >= $limit) {
                 break;
@@ -100,6 +106,64 @@ final class EssayistMemberActivityService
             KindsEnum::COMMENTS->value => 'comment',
             default => null,
         };
+    }
+
+    /**
+     * Build a lightweight highlight view model compatible with existing highlight templates.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildHighlightData(Event $event): array
+    {
+        $context = null;
+        $sourceUrl = null;
+        $url = null;
+        $articleRef = null;
+        $articleTitle = null;
+
+        foreach ($event->getTags() as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+
+            $key = (string) ($tag[0] ?? '');
+
+            switch ($key) {
+                case 'context':
+                    $context = $tag[1] ?? null;
+                    break;
+                case 'a':
+                case 'A':
+                    if ($articleRef === null) {
+                        $articleRef = $tag[1] ?? null;
+                    }
+                    break;
+                case 'title':
+                    if ($articleTitle === null) {
+                        $articleTitle = $tag[1] ?? null;
+                    }
+                    break;
+                case 'r':
+                    if ($sourceUrl === null) {
+                        $sourceUrl = $tag[1] ?? null;
+                    }
+                    if ($url === null) {
+                        $url = $tag[1] ?? null;
+                    }
+                    break;
+            }
+        }
+
+        return [
+            'content' => $event->getContent(),
+            'context' => $context,
+            'sourceUrl' => $sourceUrl,
+            'url' => $url,
+            'article_ref' => $articleRef,
+            'article_title' => $articleTitle,
+            'naddr' => null,
+            'preview' => null,
+        ];
     }
 }
 

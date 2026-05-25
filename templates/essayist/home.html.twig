@@ -40,7 +40,7 @@
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">
-                <turbo-frame id="home-tab-content" src="{{ path('app_essayist_home_tab', {tab: 'foryou'}) }}" loading="lazy">
+                <turbo-frame id="home-tab-content" src="{{ path('app_essayist_home_tab', {tab: 'foryou'}) }}" loading="lazy" target="_top">
                     <div class="home-feed__loading">
                         <div class="spinner"></div>
                         <p>{{ 'home_feed.loading'|trans }}</p>

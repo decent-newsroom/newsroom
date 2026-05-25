@@ -1,4 +1,4 @@
-<turbo-frame id="home-tab-content">
+<turbo-frame id="home-tab-content" target="_top">
     {% if not isLoggedIn|default(true) %}
         <div class="alert alert-info">
             <p>{{ 'essayist.home.topics.signInRequired'|trans }}</p>
