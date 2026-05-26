@@ -144,7 +144,7 @@
                                             {{ highlight.content }}
                                         </blockquote>
                                         {% if highlight.article_title %}
-                                            <a href="{{ path('author-slug', {'npub': highlight.article_author|toNpub, 'slug': highlight.article_slug}) }}" class="highlight-source">
+                                            <a href="{{ path('author-article-slug', {'npub': highlight.article_author|toNpub, 'slug': highlight.article_slug}) }}" class="highlight-source">
                                                 <small>{{ highlight.article_title }} →</small>
                                             </a>
                                         {% endif %}
