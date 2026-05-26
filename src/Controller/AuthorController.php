@@ -1026,7 +1026,7 @@ class AuthorController extends AbstractController
     }
 
     /**
-     * Get overview tab data - mix of recent content
+     * Get editorial tab data - magazines and follow packs
      */
     private function getOverviewTabData(
         string $pubkey,
@@ -1038,30 +1038,53 @@ class AuthorController extends AbstractController
         MessageBusInterface $messageBus,
         EntityManagerInterface $em
     ): array {
-        // Note: Background revalidation via RevalidateProfileCacheMessage
-        // will dispatch FetchAuthorContentMessage asynchronously
-
         // Get author's magazines
         $authorMagazines = $this->getAuthorMagazines($pubkey, $em);
 
+        // Get existing follow packs for the author
+        $existingFollowPacks = [];
+        $followPacks = $em->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
 
-        // Get recent articles (limit to 3 for overview)
-        $allArticles = $this->getAuthorArticles($pubkey, false, $viewStore, $viewFactory, $articleSearch);
-        $recentArticles = array_slice($allArticles, 0, 3);
+        foreach ($followPacks as $pack) {
+            $dTag = $pack->getSlug() ?? '';
+            if ($dTag === '') {
+                continue;
+            }
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+            // Query is sorted DESC by created_at, so first d-tag wins (newest revision).
+            if (isset($existingFollowPacks[$dTag])) {
+                continue;
+            }
 
-        // Get recent media (limit to 6 for overview)
-        $mediaData = $this->getMediaTabData($pubkey, $redisCacheService);
-        $recentMedia = array_slice($mediaData['mediaEvents'] ?? [], 0, 6);
-
-        // Get recent highlights (limit to 6 for overview)
-        $highlightsData = $this->getHighlightsTabData($pubkey, $em);
-        $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 3);
+            $existingFollowPacks[$dTag] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+                'pubkey' => $pubkey,
+            ];
+        }
 
         return [
             'authorMagazines' => $authorMagazines,
-            'recentArticles' => $recentArticles,
-            'recentMedia' => $recentMedia,
-            'recentHighlights' => $recentHighlights,
+            'existingFollowPacks' => array_values($existingFollowPacks),
         ];
     }
 
@@ -1302,7 +1325,23 @@ class AuthorController extends AbstractController
         // Prefer projected Magazine entities
         $magazines = $em->getRepository(Magazine::class)->findByPubkey($pubkey);
         if (!empty($magazines)) {
-            return $magazines;
+            $bySlug = [];
+            foreach ($magazines as $magazine) {
+                if (!$magazine instanceof Magazine) {
+                    continue;
+                }
+
+                $slug = $magazine->getSlug();
+                if ($slug === '') {
+                    continue;
+                }
+
+                if (!isset($bySlug[$slug]) || $magazine->getUpdatedAt() > $bySlug[$slug]->getUpdatedAt()) {
+                    $bySlug[$slug] = $magazine;
+                }
+            }
+
+            return array_values($bySlug);
         }
 
         // Fallback: query Event table (same logic as ZineList used to use)
@@ -1718,20 +1757,14 @@ class AuthorController extends AbstractController
      * hide articles that are visible elsewhere (Discover, direct links) for
      * up to 24 hours.
      *
-     * For the overview tab, we treat it as empty if recentArticles is empty
-     * (even if other content like media/highlights exists), because a profile
-     * with articles showing elsewhere should always show them in the overview.
-     * Using OR for recentArticles prevents stale caches with empty articles
-     * but non-empty media from poisoning the overview for up to 24h.
+     * For the overview tab, we now treat it as empty only if both magazines
+     * and follow packs are missing, since the Editorial tab only shows these.
      */
     private function isEmptyCachedTabPayload(string $tab, array $data): bool
     {
         return match ($tab) {
             'articles' => empty($data['articles']),
-            'overview' => empty($data['recentArticles'])
-                || (empty($data['recentMedia'])
-                    && empty($data['recentHighlights'])
-                    && empty($data['authorMagazines'])),
+            'overview' => empty($data['authorMagazines']) && empty($data['existingFollowPacks']),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),

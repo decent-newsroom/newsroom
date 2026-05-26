@@ -1,5 +1,5 @@
 <turbo-frame id="profile-tab-content">
-    <div class="profile-overview-content">
+    <div class="profile-editorial-content">
         {# Magazines Section #}
         {% if authorMagazines|default([])|length > 0 %}
             <div class="overview-section">
@@ -32,54 +32,36 @@
             </div>
         {% endif %}
 
-        {# Recent Articles Section #}
-        {% if recentArticles|default([])|length > 0 %}
+        {# Follow Packs Section #}
+        {% if existingFollowPacks|default([])|length > 0 %}
             <div class="overview-section">
                 <div class="w-container">
-                    <twig:Organisms:CardList :list="recentArticles" class="article-list overview-grid"></twig:Organisms:CardList>
-                </div>
-            </div>
-        {% endif %}
-
-        {# Recent Media Section #}
-        {% if recentMedia|default([])|length > 0 %}
-            <div class="overview-section">
-                <div class="w-container">
-                    {% include 'partial/_masonry.html.twig' with {mediaEvents: recentMedia} %}
-                </div>
-            </div>
-        {% endif %}
-
-        {# Recent Highlights Section #}
-        {% if recentHighlights|default([])|length > 0 %}
-            <div class="overview-section">
-                <div class="w-container">
-                    <div class="highlights-preview">
-                        {% for highlight in recentHighlights %}
-                            <blockquote class="highlight-item compact">
-                                <p>{{ highlight.content|length > 200 ? highlight.content|slice(0, 200) ~ '...' : highlight.content }}</p>
-                                {% if highlight.sourceUrl %}
-                                    <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener">
-                                        Source →
+                    {% for pack in existingFollowPacks %}
+                        <div class="card p-3 ln-section--reader">
+                            <div class="card-body text-center">
+                                <h2 class="card-title">
+                                    <a href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
+                                        {{ pack.title|default(pack.dTag) }}
                                     </a>
-                                {% endif %}
-                            </blockquote>
-                        {% endfor %}
-                    </div>
+                                </h2>
+                                <p class="text-muted">{{ pack.memberCount }} {{ pack.memberCount == 1 ? 'writer' : 'writers' }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         {% endif %}
 
         {# Empty state #}
-        {% if authorMagazines|default([])|length == 0 and recentArticles|default([])|length == 0 and recentMedia|default([])|length == 0 and recentHighlights|default([])|length == 0 %}
+        {% if authorMagazines|default([])|length == 0 and existingFollowPacks|default([])|length == 0 %}
             <div class="no-content">
                 {% if isOwner|default(false) %}
-                    <p>You haven't published any content yet.</p>
+                    <p>You haven't published any magazines or follow packs yet.</p>
                     <p>
-                        <a href="{{ path('editor-create') }}" class="btn btn-primary" data-turbo-frame="_top">Write your first article</a>
+                        <a href="{{ path('editor-create') }}" class="btn btn-primary" data-turbo-frame="_top">Create a magazine</a>
                     </p>
                 {% else %}
-                    <p>This author hasn't published any content yet.</p>
+                    <p>This author hasn't published any magazines or follow packs yet.</p>
                 {% endif %}
             </div>
         {% endif %}

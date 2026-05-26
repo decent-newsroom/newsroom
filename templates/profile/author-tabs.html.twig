@@ -10,14 +10,14 @@
              data-content--author-profile-tabs-hub-url-value="{{ mercure_public_hub_url }}"
              data-content--author-profile-tabs-active-tab-value="{{ activeTab }}">
 
-            {# Overview tab - visible to everyone #}
+            {# Editorial tab - visible to everyone #}
             <a href="{{ path(routePrefix ~ 'profile-tab', useVanity ? {'vanity': profileId, 'tab': 'overview'} : {'npub': profileId, 'tab': 'overview'}) }}"
                class="tab-link {{ activeTab == 'overview' ? 'active' : '' }}"
                data-content--author-profile-tabs-target="tab"
                data-tab="overview"
                data-turbo-frame="profile-tab-content"
                data-action="click->content--author-profile-tabs#switchTab">
-                Overview
+                Editorial
             </a>
 
             {# Public tabs - visible to everyone #}
