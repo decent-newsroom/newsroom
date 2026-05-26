@@ -11,9 +11,7 @@
 
 /* ===== Container ===== */
 .featured-unfold {
-    max-width: 1200px;
     margin: 0 auto;
-    padding: 0 var(--spacing-3);
 }
 
 /* ===== Header ===== */
@@ -53,8 +51,6 @@
     text-decoration: none;
     color: var(--color-text);
     overflow: hidden;
-    width: 340px;
-    flex-shrink: 0;
 }
 
 a.featured-unfold__card:hover {
