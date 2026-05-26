@@ -63,13 +63,27 @@
                 {% endif %}
             </a>
         {% elseif highlight.article_ref %}
-            <span class="article-reference" style="opacity: 0.6; cursor: default;">
-                {% if highlight.article_title %}
-                    {{ highlight.article_title }}
-                {% else %}
-                    {{ 'text.articleReference'|trans }}: {{ highlight.article_ref }}
-                {% endif %}
-            </span>
+            {% set refParts = highlight.article_ref|split(':', 3) %}
+            {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
+            {% if refNpub and refParts|length == 3 %}
+                <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
+                   class="article-reference"
+                   data-turbo-frame="_top">
+                    {% if highlight.article_title %}
+                        {{ highlight.article_title }}
+                    {% else %}
+                        {{ 'text.viewOriginalArticle'|trans }}
+                    {% endif %}
+                </a>
+            {% else %}
+                <span class="article-reference" style="opacity: 0.6; cursor: default;">
+                    {% if highlight.article_title %}
+                        {{ highlight.article_title }}
+                    {% else %}
+                        {{ 'text.articleReference'|trans }}: {{ highlight.article_ref }}
+                    {% endif %}
+                </span>
+            {% endif %}
         {% elseif highlight.url %}
             <a href="{{ highlight.url }}"
                class="article-reference"
