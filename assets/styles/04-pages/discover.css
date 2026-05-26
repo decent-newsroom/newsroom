@@ -55,50 +55,6 @@
     margin-bottom: 2rem;
 }
 
-/* Discover Tabs */
-.discover-tabs {
-    width: 100%;
-}
-
-.discover-tabs__nav {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border-color, #e0e0e0);
-    margin-bottom: 2rem;
-}
-
-.discover-tab-button {
-    flex: 1;
-    padding: 1rem;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--text-secondary, #666);
-    transition: all 0.2s;
-    text-align: center;
-}
-
-.discover-tab-button:hover {
-    color: var(--text-primary, #1a1a1a);
-    background-color: var(--hover-bg, rgba(0, 0, 0, 0.02));
-}
-
-.discover-tab-button--active {
-    color: var(--text-primary, #1a1a1a);
-    border-bottom-color: var(--primary-color, #007bff);
-}
-
-.discover-tab-content {
-    display: none;
-}
-
-.discover-tab-content--active {
-    display: block;
-}
-
 /* Editorial Grid */
 .editorial-grid {
     display: grid;
@@ -109,7 +65,7 @@
 .editorial-card {
     border: 1px solid var(--border-color, #e0e0e0);
     overflow: hidden;
-    transition: all 0.2s;
+    transition: box-shadow 0.2s;
 }
 
 .editorial-card:hover {
@@ -171,49 +127,6 @@
     overflow: hidden;
 }
 
-/* Highlights Grid */
-.highlights-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-}
-
-.highlight-card {
-    border: 1px solid var(--border-color, #e0e0e0);
-    padding: 1rem;
-    background: var(--card-bg, #fff);
-}
-
-.highlight-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-}
-
-.highlight-content {
-    margin-bottom: 0.75rem;
-}
-
-.highlight-content blockquote {
-    margin: 0 0 0.75rem 0;
-    padding: 0;
-    font-style: italic;
-    color: var(--text-primary, #1a1a1a);
-    line-height: 1.5;
-}
-
-.highlight-source {
-    color: var(--primary-color, #007bff);
-    text-decoration: none;
-    font-size: 0.85rem;
-}
-
-.highlight-source:hover {
-    text-decoration: underline;
-}
-
 /* Discover Sidebar */
 .discover-sidebar {
     position: sticky;
@@ -223,7 +136,6 @@
 .discover-sidebar .sidebar-section {
     background: var(--card-bg, #f8f9fa);
     padding: 1.5rem;
-    border-radius: 8px;
     border: 1px solid var(--border-color, #e0e0e0);
 }
 
@@ -248,14 +160,6 @@
     color: var(--primary-color, #007bff);
 }
 
-/* Highlights Preview Grid */
-#highlights-preview .highlights-grid {
-    display: grid;
-    gap: 1.5rem;
-    grid-template-columns: 1fr;
-}
-
-
 /* Featured Writers Section */
 .featured-writers {
     margin-bottom: var(--spacing-2);
@@ -279,7 +183,6 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.5rem;
-    border-radius: 6px;
     text-decoration: none;
     color: var(--text-primary, #1a1a1a);
     transition: background-color 0.2s;
@@ -359,24 +262,10 @@
         justify-content: center;
     }
 
-    .discover-tabs__nav {
-        flex-wrap: wrap;
-    }
-
-    .discover-tab-button {
-        flex: 1;
-        min-width: 100px;
-        font-size: 0.9rem;
-        padding: 0.75rem 0.5rem;
-    }
-
     .editorial-grid {
         grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     }
-
-    .highlights-grid {
-        grid-template-columns: 1fr;
-    }
 }
+
 
 

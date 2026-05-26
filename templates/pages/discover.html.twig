@@ -92,21 +92,32 @@
     <section class="w-container">
         <div class="discover-section">
             {# Tabs Navigation #}
-            <div class="discover-tabs" data-controller="content--discover-tabs">
-                <div class="discover-tabs__nav">
-                    <button class="discover-tab-button discover-tab-button--active" data-action="click->content--discover-tabs#switchTab" data-tab="articles">
-                        {{ 'discover.articles'|trans|default('Articles') }}
-                    </button>
-                    <button class="discover-tab-button" data-action="click->content--discover-tabs#switchTab" data-tab="highlights">
-                        {{ 'discover.highlights'|trans|default('Highlights') }}
-                    </button>
-                    <button class="discover-tab-button" data-action="click->content--discover-tabs#switchTab" data-tab="editorial">
-                        {{ 'discover.editorial'|trans|default('Editorial') }}
-                    </button>
-                </div>
+            <div data-controller="content--discover-tabs">
+                <nav class="profile-tabs">
+                    <a href="#articles" class="tab-link active"
+                       data-action="click->content--discover-tabs#switchTab"
+                       data-content--discover-tabs-target="tab"
+                       data-tab="articles">
+                        {{ 'discover.articles'|trans }}
+                    </a>
+                    <a href="#highlights" class="tab-link"
+                       data-action="click->content--discover-tabs#switchTab"
+                       data-content--discover-tabs-target="tab"
+                       data-tab="highlights">
+                        {{ 'discover.highlights'|trans }}
+                    </a>
+                    <a href="#editorial" class="tab-link"
+                       data-action="click->content--discover-tabs#switchTab"
+                       data-content--discover-tabs-target="tab"
+                       data-tab="editorial">
+                        {{ 'discover.editorial'|trans }}
+                    </a>
+                </nav>
 
                 {# Articles Tab #}
-                <div class="discover-tab-content discover-tab-content--active" data-content--discover-tabs-target="articles">
+                <div class="settings-panel active"
+                     data-content--discover-tabs-target="panel"
+                     data-panel="articles">
                     {% if articles is empty %}
                         <div class="alert alert-info">
                             {{ 'discover.noArticles'|trans }}
@@ -117,46 +128,26 @@
                 </div>
 
                 {# Highlights Tab #}
-                <div class="discover-tab-content" data-content--discover-tabs-target="highlights">
+                <div class="settings-panel"
+                     data-content--discover-tabs-target="panel"
+                     data-panel="highlights">
                     {% if highlights is empty %}
-                        <div class="alert alert-info">
-                            {{ 'highlights.noHighlights'|trans|default('No highlights found') }}
+                        <div class="no-highlights">
+                            <p>{{ 'highlights.noHighlights'|trans }}</p>
                         </div>
                     {% else %}
                         <div class="highlights-grid">
                             {% for highlight in highlights %}
-                                <div class="highlight-card">
-                                    <div class="highlight-header">
-                                        {% if highlight.pubkey %}
-                                            <twig:Molecules:UserFromNpub
-                                                ident="{{ highlight.pubkey }}"
-                                                :compact="true"
-                                            />
-                                        {% else %}
-                                            <span class="text-muted">Anonymous</span>
-                                        {% endif %}
-                                        <small class="text-muted ms-auto">
-                                            {{ highlight.created_at|date('M j') }}
-                                        </small>
-                                    </div>
-                                    <div class="highlight-content">
-                                        <blockquote>
-                                            {{ highlight.content }}
-                                        </blockquote>
-                                        {% if highlight.article_title %}
-                                            <a href="{{ path('author-article-slug', {'npub': highlight.article_author|toNpub, 'slug': highlight.article_slug}) }}" class="highlight-source">
-                                                <small>{{ highlight.article_title }} →</small>
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                                {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
                             {% endfor %}
                         </div>
                     {% endif %}
                 </div>
 
                 {# Editorial Tab (Magazines, Follow Packs, Collections) #}
-                <div class="discover-tab-content" data-content--discover-tabs-target="editorial">
+                <div class="settings-panel"
+                     data-content--discover-tabs-target="panel"
+                     data-panel="editorial">
                     {% if editorial is empty %}
                         <div class="alert alert-info">
                             {{ 'discover.noEditorial'|trans|default('No publications found') }}
