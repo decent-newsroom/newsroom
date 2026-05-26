@@ -50,7 +50,8 @@ final class FollowPackList
         $user = $this->security->getUser();
         if ($user) {
             try {
-                $currentUserPubkey = (new Key())->convertToHex($user->getUserIdentifier());
+                $identifier = strtolower(trim($user->getUserIdentifier()));
+                $currentUserPubkey = (new Key())->convertToHex($identifier);
             } catch (\Throwable) {
                 // Keep default ordering for anonymous/unresolvable identities.
             }

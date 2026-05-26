@@ -86,6 +86,9 @@ class VanityNameService
      */
     public function reserve(string $npub, string $name, VanityNamePaymentType $paymentType): VanityName
     {
+        // Normalize inputs
+        $npub = strtolower(trim($npub));
+        $name = trim($name);
         $validationError = $this->getValidationError($name, $npub);
         if ($validationError !== null) {
             throw new \InvalidArgumentException($validationError);

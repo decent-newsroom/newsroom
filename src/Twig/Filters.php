@@ -121,6 +121,8 @@ class Filters extends AbstractExtension
     public function toNpub(string $hexPubKey): string
     {
         try {
+            // Normalize hex to lowercase
+            $hexPubKey = strtolower(trim($hexPubKey));
             $key = new Key();
             return $key->convertPublicKeyToBech32($hexPubKey);
         } catch (\Throwable) {
@@ -131,6 +133,8 @@ class Filters extends AbstractExtension
     public function toHex(string $npub): string
     {
         try {
+            // Normalize bech32 to lowercase (mixed case causes checksum errors)
+            $npub = strtolower(trim($npub));
             $key = new Key();
             return $key->convertToHex($npub);
         } catch (\Throwable) {

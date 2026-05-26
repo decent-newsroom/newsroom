@@ -78,7 +78,9 @@ class QualityCheckArticlesCommand extends Command
     {
         // Exclude muted users
         $key = new Key();
-        $authorNpub = $key->convertPublicKeyToBech32($article->getPubkey());
+        // Normalize hex pubkey to lowercase
+        $pubkeyHex = strtolower(trim($article->getPubkey()));
+        $authorNpub = $key->convertPublicKeyToBech32($pubkeyHex);
         if (in_array($authorNpub, $this->mutedUserNpubs, true))
         {
             return false;

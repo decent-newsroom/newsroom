@@ -30,6 +30,9 @@ class NostrKeyUtil
      */
     public static function npubToHex(string $npub): string
     {
+        // Normalize to lowercase (bech32 must be lowercase, but users might copy-paste mixed case)
+        $npub = strtolower(trim($npub));
+
         if (!self::isNpub($npub)) {
             throw new \InvalidArgumentException('Not a valid npub');
         }
@@ -47,6 +50,9 @@ class NostrKeyUtil
      */
     public static function hexToNpub(string $pubkey): string
     {
+        // Normalize hex to lowercase
+        $pubkey = strtolower(trim($pubkey));
+
         if (!self::isHexPubkey($pubkey)) {
             throw new \InvalidArgumentException('Not a valid hex pubkey');
         }

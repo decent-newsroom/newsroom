@@ -105,7 +105,7 @@ final class SpellList
             $std = $meta instanceof UserMetadata ? $meta->toStdClass() : $meta;
 
             try {
-                $npub = $keyHelper->convertPublicKeyToBech32($pubkey);
+                $npub = $keyHelper->convertPublicKeyToBech32(strtolower(trim($pubkey)));
             } catch (\Throwable) {
                 $npub = $pubkey;
             }

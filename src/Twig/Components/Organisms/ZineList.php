@@ -31,6 +31,8 @@ final class ZineList
         if ($npub) {
             try {
                 $key = new Key();
+                // Normalize npub to lowercase
+                $npub = strtolower(trim($npub));
                 $this->currentUserPubkey = $key->convertToHex($npub);
             } catch (\Throwable $e) {
                 // ignore

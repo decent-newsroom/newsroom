@@ -78,7 +78,7 @@ class VanityNameAdminController extends AbstractController
     public function store(Request $request): Response
     {
         $name = $request->request->get('vanity_name', '');
-        $npub = $request->request->get('npub', '');
+        $npub = strtolower(trim($request->request->get('npub', '')));
         $paymentTypeValue = $request->request->get('payment_type', 'admin_granted');
 
         // Validate CSRF

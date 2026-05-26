@@ -2,6 +2,7 @@
 
 ## v0.0.42
 
+- [Bug] Fixed mixed-case Nostr key handling: The `swentel/nostr-php` library's `Key` class requires strictly lowercase bech32 strings. Added defensive normalization to `strtolower(trim())` at all key conversion points — in `NostrKeyUtil`, Twig filters, and all services/commands that call `convertToHex()` or `convertPublicKeyToBech32()`. This prevents "Data contains mixture of higher/lower case characters" and "Invalid bech32 checksum" exceptions from user-provided or display-layer key input.
 - [Bug] Fixed ChatBundle: `ChatMessageService` was missing `ChatWebPushService` injection, causing a fatal PHP error when self-sovereign users sent messages. Push notifications are now dispatched for both custodial and self-sovereign message paths.
 - [Bug] Fixed ChatBundle real-time message delivery: `layout.html.twig` was missing the `<meta name="mercure-hub">` tag required by the Stimulus messages controller to set up the Mercure SSE subscription. Messages now arrive in real-time without a page reload.
 - [Improvement] Excluded more partials from visit counts in the visitor analytics.

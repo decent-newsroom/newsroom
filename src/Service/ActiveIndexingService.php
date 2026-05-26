@@ -33,7 +33,8 @@ class ActiveIndexingService
         string $recipientPubkey,
         private readonly string $recipientLud16,
     ) {
-        // Convert npub to hex if needed
+        // Normalize and convert npub to hex if needed
+        $recipientPubkey = strtolower(trim($recipientPubkey));
         if (str_starts_with($recipientPubkey, 'npub1')) {
             $key = new Key();
             $this->recipientPubkeyHex = $key->convertToHex($recipientPubkey);

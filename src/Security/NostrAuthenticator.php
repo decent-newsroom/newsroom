@@ -235,6 +235,8 @@ class NostrAuthenticator extends AbstractAuthenticator implements InteractiveAut
     {
         try {
             $key = new Key();
+            // Normalize hex pubkey to lowercase
+            $pubkey = strtolower(trim($pubkey));
             return $key->convertPublicKeyToBech32($pubkey);
         } catch (\Throwable $e) {
             throw new AuthenticationException('Failed to convert public key to user identifier: ' . $e->getMessage());

@@ -58,6 +58,9 @@ class UserRolePromoter
             return;
         }
 
+        // Normalize hex to lowercase
+        $pubkeyHex = strtolower(trim($pubkeyHex));
+
         try {
             $key = new Key();
             $npub = $key->convertPublicKeyToBech32($pubkeyHex);
