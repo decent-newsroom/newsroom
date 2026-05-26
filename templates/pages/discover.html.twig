@@ -91,13 +91,147 @@
 
     <section class="w-container">
         <div class="discover-section">
-            {% if articles is empty %}
-                <div class="alert alert-info">
-                    {{ 'discover.noArticles'|trans }}
+            {# Tabs Navigation #}
+            <div class="discover-tabs" data-controller="content--discover-tabs">
+                <div class="discover-tabs__nav">
+                    <button class="discover-tab-button discover-tab-button--active" data-action="click->content--discover-tabs#switchTab" data-tab="articles">
+                        {{ 'discover.articles'|trans|default('Articles') }}
+                    </button>
+                    <button class="discover-tab-button" data-action="click->content--discover-tabs#switchTab" data-tab="highlights">
+                        {{ 'discover.highlights'|trans|default('Highlights') }}
+                    </button>
+                    <button class="discover-tab-button" data-action="click->content--discover-tabs#switchTab" data-tab="editorial">
+                        {{ 'discover.editorial'|trans|default('Editorial') }}
+                    </button>
                 </div>
-            {% else %}
-                <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
-            {% endif %}
+
+                {# Articles Tab #}
+                <div class="discover-tab-content discover-tab-content--active" data-content--discover-tabs-target="articles">
+                    {% if articles is empty %}
+                        <div class="alert alert-info">
+                            {{ 'discover.noArticles'|trans }}
+                        </div>
+                    {% else %}
+                        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+                    {% endif %}
+                </div>
+
+                {# Highlights Tab #}
+                <div class="discover-tab-content" data-content--discover-tabs-target="highlights">
+                    {% if highlights is empty %}
+                        <div class="alert alert-info">
+                            {{ 'highlights.noHighlights'|trans|default('No highlights found') }}
+                        </div>
+                    {% else %}
+                        <div class="highlights-grid">
+                            {% for highlight in highlights %}
+                                <div class="highlight-card">
+                                    <div class="highlight-header">
+                                        {% if highlight.pubkey %}
+                                            <twig:Molecules:UserFromNpub
+                                                ident="{{ highlight.pubkey }}"
+                                                :compact="true"
+                                            />
+                                        {% else %}
+                                            <span class="text-muted">Anonymous</span>
+                                        {% endif %}
+                                        <small class="text-muted ms-auto">
+                                            {{ highlight.created_at|date('M j') }}
+                                        </small>
+                                    </div>
+                                    <div class="highlight-content">
+                                        <blockquote>
+                                            {{ highlight.content }}
+                                        </blockquote>
+                                        {% if highlight.article_title %}
+                                            <a href="{{ path('author-slug', {'npub': highlight.article_author|toNpub, 'slug': highlight.article_slug}) }}" class="highlight-source">
+                                                <small>{{ highlight.article_title }} →</small>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                {# Editorial Tab (Magazines, Follow Packs, Collections) #}
+                <div class="discover-tab-content" data-content--discover-tabs-target="editorial">
+                    {% if editorial is empty %}
+                        <div class="alert alert-info">
+                            {{ 'discover.noEditorial'|trans|default('No publications found') }}
+                        </div>
+                    {% else %}
+                        <div class="editorial-grid">
+                            {% for item in editorial %}
+                                {% if item.kind == 30040 %}
+                                    {# Magazine #}
+                                    <div class="editorial-card">
+                                        {% if item.image %}
+                                            <div class="editorial-card__image">
+                                                <a href="{{ path('magazine-index', {'mag': item.slug}) }}">
+                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                        <div class="editorial-card__body">
+                                            <h3 class="editorial-card__title">
+                                                <a href="{{ path('magazine-index', {'mag': item.slug}) }}">{{ item.title }}</a>
+                                            </h3>
+                                            {% if item.summary %}
+                                                <p class="editorial-card__summary">{{ item.summary }}</p>
+                                            {% endif %}
+                                            <span class="badge bg-primary">Magazine</span>
+                                        </div>
+                                    </div>
+                                {% elseif item.kind == 39089 %}
+                                    {# Follow Pack #}
+                                    <div class="editorial-card">
+                                        {% if item.image %}
+                                            <div class="editorial-card__image">
+                                                <a href="{{ path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) }}">
+                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                        <div class="editorial-card__body">
+                                            <h3 class="editorial-card__title">
+                                                <a href="{{ path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) }}">{{ item.title }}</a>
+                                            </h3>
+                                            {% if item.summary %}
+                                                <p class="editorial-card__summary">{{ item.summary }}</p>
+                                            {% endif %}
+                                            <span class="badge bg-secondary">Follow Pack</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {# Curation Set #}
+                                    <div class="editorial-card">
+                                        {% if item.image %}
+                                            <div class="editorial-card__image">
+                                                <a href="{{ path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) }}">
+                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                        <div class="editorial-card__body">
+                                            <h3 class="editorial-card__title">
+                                                <a href="{{ path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) }}">{{ item.title }}</a>
+                                            </h3>
+                                            {% if item.summary %}
+                                                <p class="editorial-card__summary">{{ item.summary }}</p>
+                                            {% endif %}
+                                            <span class="badge bg-info text-dark">
+                                                {% if item.kind == 30005 %}Video{% elseif item.kind == 30006 %}Audio{% else %}Collection{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </section>
 {% endblock %}

@@ -299,6 +299,10 @@ newsstand:
 discover:
     searchPlaceholder: 'Artikel suchen oder Nostr-Identifikatoren einfügen...'
     noArticles: 'Keine Artikel gefunden.'
+    articles: 'Artikel'
+    highlights: 'Highlights'
+    editorial: 'Redaktionell'
+    noEditorial: 'Keine Publikationen gefunden.'
     tagline: 'für verborgene Schätze'
 
 search:

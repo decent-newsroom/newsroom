@@ -213,6 +213,7 @@ class DefaultController extends AbstractController
         ArticleSearchFactory $articleSearchFactory,
         UserMuteListService $userMuteListService,
         NostrClient $nostrClient,
+        EntityManagerInterface $entityManager,
     ): Response
     {
         // ── Resolve user-level mute list (kind 10000, NIP-51) ──
@@ -227,6 +228,7 @@ class DefaultController extends AbstractController
             }
         }
 
+        // ── Articles Tab ──────────────────────────────────────────────────
         // Fast path: Try to get from Redis views first (single GET)
         $cachedView = $viewStore->fetchLatestArticles();
 
@@ -307,6 +309,113 @@ class DefaultController extends AbstractController
             }
         }
 
+        // ── Highlights Tab ────────────────────────────────────────────────
+        $highlights = [];
+        try {
+            $cachedHighlights = $viewStore->fetchLatestHighlights();
+
+            if ($cachedHighlights !== null) {
+                foreach ($cachedHighlights as $baseObject) {
+                    if (isset($baseObject['highlight'])) {
+                        $article = $baseObject['article'] ?? null;
+                        $highlight = [
+                            'id' => $baseObject['highlight']['eventId'] ?? null,
+                            'content' => $baseObject['highlight']['content'] ?? '',
+                            'created_at' => isset($baseObject['highlight']['createdAt'])
+                                ? strtotime($baseObject['highlight']['createdAt'])
+                                : time(),
+                            'pubkey' => $baseObject['highlight']['pubkey'] ?? null,
+                            'context' => $baseObject['highlight']['context'] ?? null,
+                            'article_ref' => $article && isset($article['kind'], $article['pubkey'], $article['slug'])
+                                ? $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug']
+                                : null,
+                            'article_title' => ($article && !empty($article['title'])) ? $article['title'] : null,
+                            'article_author' => $article['pubkey'] ?? null,
+                            'article_slug' => $article['slug'] ?? null,
+                            'profile' => $baseObject['author'] ?? null,
+                            'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
+                        ];
+                        $highlights[] = $highlight;
+                    }
+                }
+            } else {
+                // Database fallback
+                $highlightEvents = $entityManager->getRepository(Event::class)
+                    ->findBy(['kind' => KindsEnum::HIGHLIGHT->value], ['created_at' => 'DESC'], 200);
+
+                foreach ($highlightEvents as $event) {
+                    $highlight = [
+                        'id' => $event->getId(),
+                        'content' => $event->getContent(),
+                        'created_at' => $event->getCreatedAt(),
+                        'pubkey' => $event->getPubkey(),
+                        'context' => null,
+                        'article_ref' => null,
+                        'article_title' => null,
+                    ];
+                    $highlights[] = $highlight;
+                }
+            }
+        } catch (\Throwable) {
+            // Non-critical — proceed with empty highlights
+        }
+
+        // ── Editorial Tab (Magazines + Follow Packs + Collections) ────────
+        $editorial = [];
+        try {
+            $repo = $entityManager->getRepository(Event::class);
+
+            // Fetch magazines (kind 30040)
+            $magazines = $repo->findBy(
+                ['kind' => KindsEnum::PUBLICATION_INDEX->value],
+                ['created_at' => 'DESC'],
+                50
+            );
+
+            // Fetch follow packs (kind 39089)
+            $followPacks = $repo->findBy(
+                ['kind' => KindsEnum::FOLLOW_PACK->value],
+                ['created_at' => 'DESC'],
+                50
+            );
+
+            // Fetch curation sets (kinds 30004, 30005, 30006)
+            $curatedSets = $repo->createQueryBuilder('e')
+                ->where('e.kind IN (:kinds)')
+                ->setParameter('kinds', [
+                    KindsEnum::CURATION_SET_ARTICLE->value,  // 30004
+                    KindsEnum::CURATION_SET_VIDEO->value,    // 30005
+                    KindsEnum::CURATION_SET_AUDIO->value,    // 30006
+                ])
+                ->orderBy('e.created_at', 'DESC')
+                ->setMaxResults(50)
+                ->getQuery()
+                ->getResult();
+
+            // Combine all editorial content
+            $allEditorial = array_merge($magazines, $followPacks, $curatedSets);
+
+            // Sort by created_at descending
+            usort($allEditorial, function (Event $a, Event $b) {
+                return $b->getCreatedAt() <=> $a->getCreatedAt();
+            });
+
+            // Transform to display format
+            foreach ($allEditorial as $event) {
+                $editorial[] = [
+                    'kind' => $event->getKind(),
+                    'title' => $event->getTitle() ?? 'Untitled',
+                    'summary' => $event->getSummary(),
+                    'slug' => $event->getSlug(),
+                    'pubkey' => $event->getPubkey(),
+                    'image' => $event->getImage(),
+                    'created_at' => $event->getCreatedAt(),
+                ];
+            }
+        } catch (\Throwable) {
+            // Non-critical — proceed with empty editorial
+        }
+
         // Build main topics key => display name map from ForumTopics constant
         $mainTopicsMap = [];
         foreach (ForumTopics::TOPICS as $key => $data) {
@@ -318,7 +427,6 @@ class DefaultController extends AbstractController
         // and fetch their named interest sets (kind 30015)
         $hasInterests = false;
         $interestSets = [];
-        $user = $this->getUser();
         if ($user !== null) {
             try {
                 $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
@@ -333,6 +441,8 @@ class DefaultController extends AbstractController
         return $this->render('pages/discover.html.twig', [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
+            'highlights' => $highlights,
+            'editorial' => $editorial,
             'mainTopicsMap' => $mainTopicsMap,
             'hasInterests' => $hasInterests,
             'interestSets' => $interestSets,

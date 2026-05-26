@@ -299,6 +299,10 @@ newsstand:
 discover:
     searchPlaceholder: 'Buscar artículos o pegar identificadores de Nostr...'
     noArticles: 'No se encontraron artículos.'
+    articles: 'Artículos'
+    highlights: 'Destacados'
+    editorial: 'Editorial'
+    noEditorial: 'No se encontraron publicaciones.'
     tagline: 'para joyas ocultas'
 
 search:

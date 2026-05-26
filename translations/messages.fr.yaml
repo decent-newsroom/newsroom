@@ -299,6 +299,10 @@ newsstand:
 discover:
     searchPlaceholder: 'Rechercher des articles ou coller des identifiants Nostr...'
     noArticles: 'Aucun article trouvé.'
+    articles: 'Articles'
+    highlights: 'Points forts'
+    editorial: 'Éditorial'
+    noEditorial: 'Aucune publication trouvée.'
     tagline: 'pour des trésors cachés'
 
 search:

@@ -299,6 +299,10 @@ newsstand:
 discover:
     searchPlaceholder: 'Išči članke ali prilepi Nostr identifikatorje...'
     noArticles: 'Ni najdenih člankov.'
+    articles: 'Članki'
+    highlights: 'Poudarki'
+    editorial: 'Uredniški'
+    noEditorial: 'Nobenih objav ni najdenih.'
     tagline: 'za skrite bisere'
 
 search:

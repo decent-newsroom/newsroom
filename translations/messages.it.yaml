@@ -311,6 +311,10 @@ bookshelf:
 discover:
     searchPlaceholder: 'Cerca articoli o incolla identificatori Nostr...'
     noArticles: 'Nessun articolo trovato.'
+    articles: 'Articoli'
+    highlights: 'Highlights'
+    editorial: 'Editoriale'
+    noEditorial: 'Nessuna pubblicazione trovata.'
     tagline: 'per gemme nascoste'
 
 search:

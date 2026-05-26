@@ -324,6 +324,10 @@ bookshelf:
 discover:
     searchPlaceholder: 'Search for articles or paste Nostr identifiers...'
     noArticles: 'No articles found.'
+    articles: 'Articles'
+    highlights: 'Highlights'
+    editorial: 'Editorial'
+    noEditorial: 'No publications found.'
     tagline: 'for hidden gems'
 
 search:

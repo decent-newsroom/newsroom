@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.43
+
+- [Feature] Discover page now has three tabbed sections: **Articles** (existing article stream), **Highlights** (community highlights from kind 9802 events), and **Editorial** (magazines, follow packs, and curated collections combined). Users can toggle between tabs, and the selection is persisted to localStorage. All editorial content (kind 30040 magazines, kind 39089 follow packs, kind 30004/30005/30006 curation sets) is sorted by creation date in reverse chronological order. New Stimulus controller `content--discover-tabs` handles tab switching with smooth UI transitions. [Documentation: `documentation/Reader/discover-tabs.md`]
+
 ## v0.0.42
 
 - [Bug] Fixed mixed-case Nostr key handling: The `swentel/nostr-php` library's `Key` class requires strictly lowercase bech32 strings. Added defensive normalization to `strtolower(trim())` at all key conversion points — in `NostrKeyUtil`, Twig filters, and all services/commands that call `convertToHex()` or `convertPublicKeyToBech32()`. This prevents "Data contains mixture of higher/lower case characters" and "Invalid bech32 checksum" exceptions from user-provided or display-layer key input.
