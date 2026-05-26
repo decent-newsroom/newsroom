@@ -149,9 +149,8 @@
                      data-content--discover-tabs-target="panel"
                      data-panel="editorial">
                     {% if editorial is empty %}
-                        <div class="alert alert-info">
-                            {{ 'discover.noEditorial'|trans|default('No publications found') }}
-                        </div>
+                        {# Fallback: show all magazines via the same component as the newsstand #}
+                        <twig:Organisms:ZineList />
                     {% else %}
                         <div class="editorial-grid">
                             {% for item in editorial %}

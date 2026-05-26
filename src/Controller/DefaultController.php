@@ -13,6 +13,7 @@ use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
+use App\Service\Graph\GraphMagazineListService;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
 use App\Service\Search\ArticleSearchFactory;
@@ -214,6 +215,7 @@ class DefaultController extends AbstractController
         UserMuteListService $userMuteListService,
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
+        GraphMagazineListService $graphMagazineList,
     ): Response
     {
         // ── Resolve user-level mute list (kind 10000, NIP-51) ──
@@ -341,7 +343,7 @@ class DefaultController extends AbstractController
             } else {
                 // Database fallback
                 $highlightEvents = $entityManager->getRepository(Event::class)
-                    ->findBy(['kind' => KindsEnum::HIGHLIGHT->value], ['created_at' => 'DESC'], 200);
+                    ->findBy(['kind' => KindsEnum::HIGHLIGHTS->value], ['created_at' => 'DESC'], 200);
 
                 foreach ($highlightEvents as $event) {
                     $highlight = [
@@ -365,53 +367,65 @@ class DefaultController extends AbstractController
         try {
             $repo = $entityManager->getRepository(Event::class);
 
-            // Fetch magazines (kind 30040)
-            $magazines = $repo->findBy(
-                ['kind' => KindsEnum::PUBLICATION_INDEX->value],
-                ['created_at' => 'DESC'],
-                50
-            );
+            // Fetch magazines via the graph service (same source as the newsstand)
+            $magazineRows = $graphMagazineList->listAllMagazines();
+            foreach ($magazineRows as $row) {
+                $editorial[] = [
+                    'kind'       => KindsEnum::PUBLICATION_INDEX->value,
+                    'title'      => $row['title'] ?? 'Untitled',
+                    'summary'    => $row['summary'] ?? null,
+                    'slug'       => $row['slug'] ?? $row['d_tag'],
+                    'pubkey'     => $row['pubkey'],
+                    'image'      => $row['image'] ?? null,
+                    'created_at' => 0, // graph service doesn't expose this; sort handled below
+                ];
+            }
 
-            // Fetch follow packs (kind 39089)
+            // Fetch follow packs (kind 39089) from the Event table
             $followPacks = $repo->findBy(
                 ['kind' => KindsEnum::FOLLOW_PACK->value],
                 ['created_at' => 'DESC'],
                 50
             );
+            foreach ($followPacks as $event) {
+                $editorial[] = [
+                    'kind'       => $event->getKind(),
+                    'title'      => $event->getTitle() ?? 'Untitled',
+                    'summary'    => $event->getSummary(),
+                    'slug'       => $event->getSlug(),
+                    'pubkey'     => $event->getPubkey(),
+                    'image'      => $event->getImage(),
+                    'created_at' => $event->getCreatedAt(),
+                ];
+            }
 
             // Fetch curation sets (kinds 30004, 30005, 30006)
             $curatedSets = $repo->createQueryBuilder('e')
                 ->where('e.kind IN (:kinds)')
                 ->setParameter('kinds', [
-                    KindsEnum::CURATION_SET_ARTICLE->value,  // 30004
-                    KindsEnum::CURATION_SET_VIDEO->value,    // 30005
-                    KindsEnum::CURATION_SET_AUDIO->value,    // 30006
+                    KindsEnum::CURATION_SET->value,
+                    KindsEnum::CURATION_VIDEOS->value,
+                    KindsEnum::CURATION_PICTURES->value,
                 ])
                 ->orderBy('e.created_at', 'DESC')
                 ->setMaxResults(50)
                 ->getQuery()
                 ->getResult();
-
-            // Combine all editorial content
-            $allEditorial = array_merge($magazines, $followPacks, $curatedSets);
-
-            // Sort by created_at descending
-            usort($allEditorial, function (Event $a, Event $b) {
-                return $b->getCreatedAt() <=> $a->getCreatedAt();
-            });
-
-            // Transform to display format
-            foreach ($allEditorial as $event) {
+            foreach ($curatedSets as $event) {
                 $editorial[] = [
-                    'kind' => $event->getKind(),
-                    'title' => $event->getTitle() ?? 'Untitled',
-                    'summary' => $event->getSummary(),
-                    'slug' => $event->getSlug(),
-                    'pubkey' => $event->getPubkey(),
-                    'image' => $event->getImage(),
+                    'kind'       => $event->getKind(),
+                    'title'      => $event->getTitle() ?? 'Untitled',
+                    'summary'    => $event->getSummary(),
+                    'slug'       => $event->getSlug(),
+                    'pubkey'     => $event->getPubkey(),
+                    'image'      => $event->getImage(),
                     'created_at' => $event->getCreatedAt(),
                 ];
             }
+
+            // Sort: items with created_at > 0 come first (newest first); graph magazines trail at the end
+            usort($editorial, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+
         } catch (\Throwable) {
             // Non-critical — proceed with empty editorial
         }
