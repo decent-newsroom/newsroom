@@ -370,11 +370,15 @@ class DefaultController extends AbstractController
             // Fetch magazines via the graph service (same source as the newsstand)
             $magazineRows = $graphMagazineList->listAllMagazines();
             foreach ($magazineRows as $row) {
+                $slug = $row['slug'] ?? $row['d_tag'] ?? null;
+                if (!$slug) {
+                    continue;
+                }
                 $editorial[] = [
                     'kind'       => KindsEnum::PUBLICATION_INDEX->value,
                     'title'      => $row['title'] ?? 'Untitled',
                     'summary'    => $row['summary'] ?? null,
-                    'slug'       => $row['slug'] ?? $row['d_tag'],
+                    'slug'       => $slug,
                     'pubkey'     => $row['pubkey'],
                     'image'      => $row['image'] ?? null,
                     'created_at' => 0, // graph service doesn't expose this; sort handled below
@@ -388,11 +392,20 @@ class DefaultController extends AbstractController
                 50
             );
             foreach ($followPacks as $event) {
+                $slug = $event->getSlug();
+                if (!$slug) {
+                    continue;
+                }
+                // Skip empty follow packs (no p-tags)
+                $pTags = array_filter($event->getTags(), fn ($t) => ($t[0] ?? '') === 'p');
+                if (empty($pTags)) {
+                    continue;
+                }
                 $editorial[] = [
                     'kind'       => $event->getKind(),
                     'title'      => $event->getTitle() ?? 'Untitled',
                     'summary'    => $event->getSummary(),
-                    'slug'       => $event->getSlug(),
+                    'slug'       => $slug,
                     'pubkey'     => $event->getPubkey(),
                     'image'      => $event->getImage(),
                     'created_at' => $event->getCreatedAt(),
@@ -412,16 +425,37 @@ class DefaultController extends AbstractController
                 ->getQuery()
                 ->getResult();
             foreach ($curatedSets as $event) {
+                $slug = $event->getSlug();
+                if (!$slug) {
+                    continue;
+                }
+                // Skip empty curation sets (no a- or e-tags)
+                $contentTags = array_filter($event->getTags(), fn ($t) => in_array($t[0] ?? '', ['a', 'e'], true));
+                if (empty($contentTags)) {
+                    continue;
+                }
                 $editorial[] = [
                     'kind'       => $event->getKind(),
                     'title'      => $event->getTitle() ?? 'Untitled',
                     'summary'    => $event->getSummary(),
-                    'slug'       => $event->getSlug(),
+                    'slug'       => $slug,
                     'pubkey'     => $event->getPubkey(),
                     'image'      => $event->getImage(),
                     'created_at' => $event->getCreatedAt(),
                 ];
             }
+
+            // Deduplicate by pubkey:slug — keep only the latest entry per coordinate
+            $seen = [];
+            $deduped = [];
+            foreach ($editorial as $item) {
+                $key = ($item['pubkey'] ?? '') . ':' . ($item['slug'] ?? '');
+                if (!isset($seen[$key]) || $item['created_at'] > $seen[$key]) {
+                    $seen[$key] = $item['created_at'];
+                    $deduped[$key] = $item;
+                }
+            }
+            $editorial = array_values($deduped);
 
             // Sort: items with created_at > 0 come first (newest first); graph magazines trail at the end
             usort($editorial, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);

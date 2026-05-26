@@ -152,73 +152,37 @@
                         {# Fallback: show all magazines via the same component as the newsstand #}
                         <twig:Organisms:ZineList />
                     {% else %}
-                        <div class="editorial-grid">
-                            {% for item in editorial %}
-                                {% if item.kind == 30040 %}
-                                    {# Magazine #}
-                                    <div class="editorial-card">
-                                        {% if item.image %}
-                                            <div class="editorial-card__image">
-                                                <a href="{{ path('magazine-index', {'mag': item.slug}) }}">
-                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                                                </a>
-                                            </div>
-                                        {% endif %}
-                                        <div class="editorial-card__body">
-                                            <h3 class="editorial-card__title">
-                                                <a href="{{ path('magazine-index', {'mag': item.slug}) }}">{{ item.title }}</a>
-                                            </h3>
-                                            {% if item.summary %}
-                                                <p class="editorial-card__summary">{{ item.summary }}</p>
-                                            {% endif %}
-                                            <span class="badge bg-primary">Magazine</span>
-                                        </div>
-                                    </div>
-                                {% elseif item.kind == 39089 %}
-                                    {# Follow Pack #}
-                                    <div class="editorial-card">
-                                        {% if item.image %}
-                                            <div class="editorial-card__image">
-                                                <a href="{{ path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) }}">
-                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                                                </a>
-                                            </div>
-                                        {% endif %}
-                                        <div class="editorial-card__body">
-                                            <h3 class="editorial-card__title">
-                                                <a href="{{ path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) }}">{{ item.title }}</a>
-                                            </h3>
-                                            {% if item.summary %}
-                                                <p class="editorial-card__summary">{{ item.summary }}</p>
-                                            {% endif %}
-                                            <span class="badge bg-secondary">Follow Pack</span>
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    {# Curation Set #}
-                                    <div class="editorial-card">
-                                        {% if item.image %}
-                                            <div class="editorial-card__image">
-                                                <a href="{{ path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) }}">
-                                                    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                                                </a>
-                                            </div>
-                                        {% endif %}
-                                        <div class="editorial-card__body">
-                                            <h3 class="editorial-card__title">
-                                                <a href="{{ path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) }}">{{ item.title }}</a>
-                                            </h3>
-                                            {% if item.summary %}
-                                                <p class="editorial-card__summary">{{ item.summary }}</p>
-                                            {% endif %}
-                                            <span class="badge bg-info text-dark">
-                                                {% if item.kind == 30005 %}Video{% elseif item.kind == 30006 %}Audio{% else %}Collection{% endif %}
-                                            </span>
-                                        </div>
+                        {% for item in editorial %}
+                            {% if item.kind == 30040 %}
+                                {% set itemUrl = path('magazine-index', {'mag': item.slug}) %}
+                                {% set itemBadge = 'Magazine' %}
+                            {% elseif item.kind == 39089 %}
+                                {% set itemUrl = path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) %}
+                                {% set itemBadge = 'Follow Pack' %}
+                            {% else %}
+                                {% set itemUrl = path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) %}
+                                {% set itemBadge = item.kind == 30005 ? 'Video' : (item.kind == 30006 ? 'Pictures' : 'Collection') %}
+                            {% endif %}
+                            <div class="card p-3 ln-section--reader">
+                                {% if item.image %}
+                                    <div class="card-header m-0">
+                                        <a href="{{ itemUrl }}">
+                                            <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
+                                        </a>
                                     </div>
                                 {% endif %}
-                            {% endfor %}
-                        </div>
+                                <div class="card-body text-center">
+                                    <h2 class="card-title">
+                                        <a href="{{ itemUrl }}">{{ item.title }}</a>
+                                    </h2>
+                                    {% if item.summary %}
+                                        <p class="lede line-clamp-5">{{ item.summary }}</p>
+                                    {% endif %}
+                                    <p><small><twig:Molecules:UserFromNpub :ident="item.pubkey" /></small></p>
+                                    <span class="badge bg-secondary">{{ itemBadge }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
                     {% endif %}
                 </div>
             </div>
