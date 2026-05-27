@@ -8,9 +8,9 @@ use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
+use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\GraphMagazineListService;
@@ -212,6 +212,8 @@ class DefaultController extends AbstractController
         RedisViewStore $viewStore,
         LatestArticlesExclusionPolicy $exclusionPolicy,
         ArticleSearchFactory $articleSearchFactory,
+        UserEntityRepository $userRepository,
+        ArticleRepository $articleRepository,
         UserMuteListService $userMuteListService,
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
@@ -311,8 +313,8 @@ class DefaultController extends AbstractController
             }
         }
 
-        // ── Highlights Tab ────────────────────────────────────────────────
-        $highlights = [];
+        // ── Activity Tab (Highlights + Comments on long-form articles) ──────
+        $activityItems = [];
         try {
             $cachedHighlights = $viewStore->fetchLatestHighlights();
 
@@ -320,7 +322,8 @@ class DefaultController extends AbstractController
                 foreach ($cachedHighlights as $baseObject) {
                     if (isset($baseObject['highlight'])) {
                         $article = $baseObject['article'] ?? null;
-                        $highlight = [
+                        $item = [
+                            'type' => 'highlight',
                             'id' => $baseObject['highlight']['eventId'] ?? null,
                             'content' => $baseObject['highlight']['content'] ?? '',
                             'created_at' => isset($baseObject['highlight']['createdAt'])
@@ -337,16 +340,17 @@ class DefaultController extends AbstractController
                             'profile' => $baseObject['author'] ?? null,
                             'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
                         ];
-                        $highlights[] = $highlight;
+                        $activityItems[] = $item;
                     }
                 }
             } else {
-                // Database fallback
+                // Database fallback for highlights
                 $highlightEvents = $entityManager->getRepository(Event::class)
                     ->findBy(['kind' => KindsEnum::HIGHLIGHTS->value], ['created_at' => 'DESC'], 200);
 
                 foreach ($highlightEvents as $event) {
-                    $highlight = [
+                    $item = [
+                        'type' => 'highlight',
                         'id' => $event->getId(),
                         'content' => $event->getContent(),
                         'created_at' => $event->getCreatedAt(),
@@ -355,11 +359,49 @@ class DefaultController extends AbstractController
                         'article_ref' => null,
                         'article_title' => null,
                     ];
-                    $highlights[] = $highlight;
+                    $activityItems[] = $item;
                 }
             }
+
+            // Fetch comments (kind 1111) that reference long-form articles (30023 or 30024)
+            $commentEvents = $entityManager->getRepository(Event::class)
+                ->findBy(['kind' => KindsEnum::COMMENTS->value], ['created_at' => 'DESC'], 200);
+
+            foreach ($commentEvents as $event) {
+                $articleRef = null;
+                // Look for 'a' tags referencing long-form articles
+                foreach ($event->getTags() as $tag) {
+                    if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
+                        $parts = explode(':', $tag[1], 3);
+                        if (count($parts) === 3) {
+                            $kind = (int)$parts[0];
+                            // kind 30023 (longform) or 30024 (draft)
+                            if (in_array($kind, [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
+                                $articleRef = $tag[1]; // e.g., "30023:pubkey:slug"
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Only include comments that reference a long-form article
+                if ($articleRef) {
+                    $item = [
+                        'type' => 'comment',
+                        'id' => $event->getId(),
+                        'content' => $event->getContent(),
+                        'created_at' => $event->getCreatedAt(),
+                        'pubkey' => $event->getPubkey(),
+                        'article_ref' => $articleRef,
+                    ];
+                    $activityItems[] = $item;
+                }
+            }
+
+            // Sort by created_at descending (newest first)
+            usort($activityItems, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
         } catch (\Throwable) {
-            // Non-critical — proceed with empty highlights
+            // Non-critical — proceed with empty activity
         }
 
         // ── Editorial Tab (Magazines + Follow Packs + Collections) ────────
@@ -464,6 +506,17 @@ class DefaultController extends AbstractController
             // Non-critical — proceed with empty editorial
         }
 
+        // ── Featured Writers Tab (same feed as /featured-articles) ─────────
+        $featuredArticles = [];
+        $featuredAuthorsMetadata = [];
+        try {
+            $featuredFeed = $this->buildFeaturedWritersFeed($userRepository, $articleRepository, $redisCacheService);
+            $featuredArticles = $featuredFeed['articles'];
+            $featuredAuthorsMetadata = $featuredFeed['authorsMetadata'];
+        } catch (\Throwable) {
+            // Non-critical — proceed with empty featured writers feed
+        }
+
         // Build main topics key => display name map from ForumTopics constant
         $mainTopicsMap = [];
         foreach (ForumTopics::TOPICS as $key => $data) {
@@ -489,8 +542,10 @@ class DefaultController extends AbstractController
         return $this->render('pages/discover.html.twig', [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
-            'highlights' => $highlights,
+            'activityItems' => $activityItems,
             'editorial' => $editorial,
+            'featuredArticles' => $featuredArticles,
+            'featuredAuthorsMetadata' => $featuredAuthorsMetadata,
             'mainTopicsMap' => $mainTopicsMap,
             'hasInterests' => $hasInterests,
             'interestSets' => $interestSets,
@@ -614,14 +669,31 @@ class DefaultController extends AbstractController
      */
     #[Route('/featured-articles', name: 'featured_articles')]
     public function featuredArticles(
-        \App\Repository\UserEntityRepository $userRepository,
+        UserEntityRepository $userRepository,
         ArticleRepository $articleRepository,
         RedisCacheService $redisCacheService,
     ): Response
     {
+        $featuredFeed = $this->buildFeaturedWritersFeed($userRepository, $articleRepository, $redisCacheService);
+
+        return $this->render('pages/featured-articles.html.twig', [
+            'articles' => $featuredFeed['articles'],
+            'authorsMetadata' => $featuredFeed['authorsMetadata'],
+        ]);
+    }
+
+    /**
+     * @return array{articles: array<int, Article>, authorsMetadata: array<string, object>}
+     */
+    private function buildFeaturedWritersFeed(
+        UserEntityRepository $userRepository,
+        ArticleRepository $articleRepository,
+        RedisCacheService $redisCacheService,
+    ): array
+    {
         $featuredUsers = $userRepository->findFeaturedWriters();
 
-        // Convert to hex pubkeys
+        // Convert featured writer npubs to hex pubkeys for article filtering.
         $pubkeys = [];
         foreach ($featuredUsers as $user) {
             $npub = $user->getNpub();
@@ -631,22 +703,20 @@ class DefaultController extends AbstractController
         }
 
         $articles = $articleRepository->findLatestByPubkeys($pubkeys, 50);
-
-        // Collect unique author pubkeys for metadata
-        $authorPubkeys = array_unique(array_map(fn($a) => $a->getPubkey(), $articles));
+        $authorPubkeys = array_unique(array_map(fn($article) => $article->getPubkey(), $articles));
         $metadataMap = $redisCacheService->getMultipleMetadata($authorPubkeys);
 
         $authorsMetadataStd = [];
-        foreach ($metadataMap as $pk => $meta) {
-            $authorsMetadataStd[$pk] = $meta instanceof UserMetadata
-                ? $meta->toStdClass()
-                : $meta;
+        foreach ($metadataMap as $pubkey => $metadata) {
+            $authorsMetadataStd[$pubkey] = $metadata instanceof UserMetadata
+                ? $metadata->toStdClass()
+                : $metadata;
         }
 
-        return $this->render('pages/featured-articles.html.twig', [
+        return [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
-        ]);
+        ];
     }
 
     /**

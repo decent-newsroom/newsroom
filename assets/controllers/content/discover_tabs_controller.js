@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 
 /*
  * Discover Tabs Controller
- * Handles switching between Articles, Highlights, and Editorial tabs.
+ * Handles switching between Articles, Activity (Highlights + Comments), Editorial, and Featured Writers tabs.
  * Reuses the existing .tab-link / .settings-panel CSS patterns.
  */
 export default class extends Controller {
@@ -16,6 +16,7 @@ export default class extends Controller {
     }
 
     connect() {
+        // Try to restore previously selected tab, fall back to articles
         const savedTab = localStorage.getItem('discover-tab') || 'articles';
         this.activateTab(savedTab);
     }

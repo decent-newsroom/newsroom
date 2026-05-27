@@ -92,17 +92,23 @@
             {# Tabs Navigation #}
             <div data-controller="content--discover-tabs">
                 <nav class="profile-tabs">
+                    <a href="#featured-writers" class="tab-link"
+                       data-action="click->content--discover-tabs#switchTab"
+                       data-content--discover-tabs-target="tab"
+                       data-tab="featured-writers">
+                        {{ 'discover.featuredWriters'|trans }}
+                    </a>
                     <a href="#articles" class="tab-link active"
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
                        data-tab="articles">
                         {{ 'discover.articles'|trans }}
                     </a>
-                    <a href="#highlights" class="tab-link"
+                    <a href="#activity" class="tab-link"
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
-                       data-tab="highlights">
-                        {{ 'discover.highlights'|trans }}
+                       data-tab="activity">
+                        {{ 'discover.activity'|trans }}
                     </a>
                     <a href="#editorial" class="tab-link"
                        data-action="click->content--discover-tabs#switchTab"
@@ -125,18 +131,60 @@
                     {% endif %}
                 </div>
 
-                {# Highlights Tab #}
+                {# Activity Tab (Highlights + Comments) #}
                 <div class="settings-panel"
                      data-content--discover-tabs-target="panel"
-                     data-panel="highlights">
-                    {% if highlights is empty %}
+                     data-panel="activity">
+                    {% if activityItems is empty %}
                         <div class="no-highlights">
-                            <p>{{ 'highlights.noHighlights'|trans }}</p>
+                            <p>{{ 'discover.noActivity'|trans }}</p>
                         </div>
                     {% else %}
                         <div class="highlights-grid">
-                            {% for highlight in highlights %}
-                                {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
+                            {% for item in activityItems %}
+                                {% if item.type == 'comment' %}
+                                    {# Comment item #}
+                                    <div class="highlight-card">
+                                        <div class="highlight-header">
+                                            <div class="highlight-author">
+                                                {% if item.pubkey %}
+                                                    <twig:Molecules:UserFromNpub
+                                                        ident="{{ item.pubkey }}"
+                                                        :compact="true"
+                                                    />
+                                                    <span style="margin-left: 0.5rem; font-size: 0.85rem; color: var(--color-text-muted);">{{ 'discover.commented'|trans }}</span>
+                                                {% else %}
+                                                    <span>{{ 'text.anonymous'|trans }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="highlight-date">
+                                                {{ item.created_at|date('M j, Y') }}
+                                            </div>
+                                        </div>
+                                        <div class="highlight-content" data-controller="utility--show-more">
+                                            <div data-utility--show-more-target="preview" class="content-preview">
+                                                {{ item.content|markdown_to_html|raw }}
+                                            </div>
+                                        </div>
+                                        <div class="highlight-footer">
+                                            {% if item.article_ref %}
+                                                {% set refParts = item.article_ref|split(':', 3) %}
+                                                {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
+                                                {% if refNpub and refParts|length == 3 %}
+                                                    <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
+                                                       class="article-reference"
+                                                       data-turbo-frame="_top">
+                                                        {{ 'discover.viewArticle'|trans }}
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    {# Highlight item #}
+                                    {% set highlight = item %}
+                                    {% include 'partial/_highlight_feed_card.html.twig' %}
+                                {% endif %}
                             {% endfor %}
                         </div>
                     {% endif %}
@@ -181,6 +229,19 @@
                                 </div>
                             </div>
                         {% endfor %}
+                    {% endif %}
+                </div>
+
+                {# Featured Writers Tab #}
+                <div class="settings-panel"
+                     data-content--discover-tabs-target="panel"
+                     data-panel="featured-writers">
+                    {% if featuredArticles is empty %}
+                        <div class="alert alert-info">
+                            {{ 'discover.noFeaturedWritersArticles'|trans }}
+                        </div>
+                    {% else %}
+                        <twig:Organisms:CardList :list="featuredArticles" :authorsMetadata="featuredAuthorsMetadata" class="article-list" />
                     {% endif %}
                 </div>
             </div>
