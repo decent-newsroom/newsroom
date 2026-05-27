@@ -2,7 +2,9 @@
   <div>
     {% if app.user %}
         <div class="notice info">
-            <twig:Molecules:UserFromNpub ident="{{ app.user.npub }}" />
+            {% if app.user.npub %}
+                <twig:Molecules:UserFromNpub ident="{{ app.user.npub }}" />
+            {% endif %}
             {% if is_granted('ROLE_ADMIN') %}<span class="badge">{{ 'auth.admin'|trans }}</span>{% endif %}
         </div>
         {% if is_granted('ROLE_ADMIN') %}
