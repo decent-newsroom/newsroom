@@ -8,6 +8,7 @@ use App\Dto\UserMetadata;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Enum\RolesEnum;
 use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
@@ -407,11 +408,29 @@ class DefaultController extends AbstractController
         // ── Editorial Tab (Magazines + Follow Packs + Collections) ────────
         $editorial = [];
         try {
+            // Fetch all users with ROLE_EDITOR and collect their hex pubkeys
+            $editorUsers = $userRepository->findByRoleWithQuery(RolesEnum::EDITOR->value, null, 10000);
+            $editorPubkeys = [];
+            foreach ($editorUsers as $editorUser) {
+                try {
+                    $npub = $editorUser->getNpub();
+                    if (NostrKeyUtil::isNpub($npub)) {
+                        $editorPubkeys[] = NostrKeyUtil::npubToHex($npub);
+                    }
+                } catch (\Throwable) {
+                    // Skip editor with invalid npub
+                }
+            }
+
             $repo = $entityManager->getRepository(Event::class);
 
             // Fetch magazines via the graph service (same source as the newsstand)
             $magazineRows = $graphMagazineList->listAllMagazines();
             foreach ($magazineRows as $row) {
+                // Only include magazines from editor users
+                if (!in_array($row['pubkey'] ?? '', $editorPubkeys, true)) {
+                    continue;
+                }
                 $slug = $row['slug'] ?? $row['d_tag'] ?? null;
                 if (!$slug) {
                     continue;
@@ -434,6 +453,10 @@ class DefaultController extends AbstractController
                 50
             );
             foreach ($followPacks as $event) {
+                // Only include follow packs from editor users
+                if (!in_array($event->getPubkey(), $editorPubkeys, true)) {
+                    continue;
+                }
                 $slug = $event->getSlug();
                 if (!$slug) {
                     continue;
@@ -467,6 +490,10 @@ class DefaultController extends AbstractController
                 ->getQuery()
                 ->getResult();
             foreach ($curatedSets as $event) {
+                // Only include curation sets from editor users
+                if (!in_array($event->getPubkey(), $editorPubkeys, true)) {
+                    continue;
+                }
                 $slug = $event->getSlug();
                 if (!$slug) {
                     continue;
