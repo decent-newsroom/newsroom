@@ -3,6 +3,7 @@
 ## v0.0.44
 
 - [Feature] Added a follow pack identity card at the top of the Follow Pack home feed tab, showing the pack's title (linked to its full page), optional cover image, description, member count, and curator attribution via `UserFromNpub`. The card is only shown when a pack is configured and its event is found in the database.
+- [Bug] Fixed `UnfoldBundle` default theme width inconsistency: the home (`index.hbs`) and category (`category.hbs`) templates now use the same `800px` max width as post pages instead of rendering extra wide.
 
 
 ## v0.0.43

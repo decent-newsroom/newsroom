@@ -148,6 +148,7 @@ class UnfoldDemoTest extends TestCase
         $this->assertNotEmpty($html);
         $this->assertStringContainsString('Demo Magazine', $html);
         $this->assertStringContainsString('Hello World', $html);
+        $this->assertStringContainsString('max-width: 800px', $html);
 
         // Output for visual inspection
         echo "\n\n=== RENDERED HOME PAGE (first 2000 chars) ===\n";
@@ -201,6 +202,48 @@ class UnfoldDemoTest extends TestCase
         echo "\n\n=== RENDERED POST PAGE (first 2000 chars) ===\n";
         echo substr($html, 0, 2000);
         echo "\n...\n";
+    }
+
+    public function testRenderCategoryPageWithDefaultThemeUsesPostWidth(): void
+    {
+        $this->renderer->setTheme('default');
+
+        $siteConfig = new SiteConfig(
+            naddr: 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu35yyt0mwjjh8pcz4zprhxegz69t4wr9t74vk6zne58wzh0waycrqsqqqa28pjfdhz',
+            title: 'Demo Magazine',
+            description: 'A demonstration magazine',
+            logo: null,
+            categories: ['30040:abc123:tech'],
+            pubkey: 'abc123def456',
+            theme: 'default',
+        );
+
+        $category = new CategoryData(
+            slug: 'tech',
+            title: 'Technology',
+            coordinate: '30040:abc123:tech',
+            summary: 'All about tech',
+            articleCoordinates: ['30023:abc123:hello-world'],
+        );
+
+        $post = new PostData(
+            slug: 'hello-world',
+            title: 'Hello World: Welcome to Our Magazine',
+            summary: 'This is the first article in our brand new magazine.',
+            content: 'Content',
+            image: 'https://picsum.photos/800/400',
+            publishedAt: strtotime('2026-01-09 10:30:00'),
+            pubkey: 'abc123def456',
+            coordinate: '30023:abc123:hello-world',
+        );
+
+        $context = $this->contextBuilder->buildCategoryContext($siteConfig, [$category], $category, [$post]);
+        $html = $this->renderer->render('category', $context);
+
+        $this->assertNotEmpty($html);
+        $this->assertStringContainsString('Technology', $html);
+        $this->assertStringContainsString('max-width: 800px', $html);
+        $this->assertStringNotContainsString('max-width: 1200px', $html);
     }
 
     public function testRenderPostPageShowsZeroCommentCountWhenThreadContainsOnlyZaps(): void
