@@ -30,6 +30,10 @@
 {% endblock %}
 
 {% block body %}
+    {% if magazine is defined %}
+        <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine"  />
+    {% endif %}
+
     <article class="w-container">
         <div class="card">
             <div class="mb-3">
@@ -72,4 +76,3 @@
         </div>
     </article>
 {% endblock %}
-
