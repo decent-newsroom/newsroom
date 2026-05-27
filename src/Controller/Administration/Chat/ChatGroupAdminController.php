@@ -10,6 +10,7 @@ use App\ChatBundle\Repository\ChatGroupMembershipRepository;
 use App\ChatBundle\Repository\ChatUserRepository;
 use App\ChatBundle\Service\ChatGroupService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -55,8 +56,22 @@ class ChatGroupAdminController extends AbstractController
             return $this->redirectToRoute('admin_chat_groups', ['communityId' => $communityId]);
         }
 
-        $this->groupService->createGroup($community, $name, $slug, $creator);
+        $result = $this->groupService->createGroup($community, $name, $slug, $creator);
 
+        // Check if result is an array (self-sovereign with unsigned event) or ChatGroup (custodial)
+        if (is_array($result)) {
+            // Self-sovereign user: return unsigned event for client-side signing
+            $group = $result['group'];
+            $unsignedEvent = $result['unsignedEvent'];
+
+            return new JsonResponse([
+                'groupId' => $group->getId(),
+                'groupName' => $group->getName(),
+                'unsignedEvent' => $unsignedEvent,
+            ]);
+        }
+
+        // Custodial user: group is immediately created
         $this->addFlash('success', 'Group created.');
         return $this->redirectToRoute('admin_chat_groups', ['communityId' => $communityId]);
     }
@@ -84,5 +99,31 @@ class ChatGroupAdminController extends AbstractController
         $this->addFlash('success', 'Group archived.');
         return $this->redirectToRoute('admin_chat_groups', ['communityId' => $communityId]);
     }
-}
 
+    #[Route('/{groupId}/publish-channel-event', name: 'admin_chat_group_publish_channel', methods: ['POST'])]
+    public function publishChannelEvent(int $communityId, int $groupId, Request $request): Response
+    {
+        $group = $this->groupRepo->find($groupId) ?? throw $this->createNotFoundException();
+
+        $data = json_decode($request->getContent(), true);
+        $signedEventJson = json_encode($data['signedEvent'] ?? null);
+
+        if ($signedEventJson === 'null') {
+            return new JsonResponse(['error' => 'Missing signedEvent'], 400);
+        }
+
+        $users = $this->userRepo->findByCommunity($group->getCommunity());
+        $creator = $users[0] ?? null;
+
+        if ($creator === null || $creator->getPubkey() !== ($data['signedEvent']['pubkey'] ?? '')) {
+            return new JsonResponse(['error' => 'Unauthorized'], 403);
+        }
+
+        try {
+            $this->groupService->publishSignedChannelEvent($group, $creator, $signedEventJson);
+            return new JsonResponse(['success' => true, 'groupId' => $group->getId()]);
+        } catch (\Exception $e) {
+            return new JsonResponse(['error' => $e->getMessage()], 400);
+        }
+    }
+}

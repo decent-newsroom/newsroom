@@ -3,10 +3,15 @@
 {% block title %}Groups — {{ community.name }}{% endblock %}
 
 {% block body %}
-<div class="admin-dashboard">
+<div class="admin-dashboard" data-controller="chat--groups"
+     data-chat--groups-community-id-value="{{ community.id }}"
+     data-chat--groups-create-url-value="{{ path('admin_chat_group_create', {communityId: community.id}) }}"
+     data-chat--groups-csrf-token-value="{{ csrf_token('form') }}">
     <h1>Groups — {{ community.name }}</h1>
 
-    <form method="post" action="{{ path('admin_chat_group_create', {communityId: community.id}) }}">
+    <div data-chat--groups-target="status"></div>
+
+    <form data-chat--groups-target="form" data-action="submit->chat--groups#submitForm">
         <div class="form-group" style="margin:0;">
             <label for="name">Name</label>
             <input type="text" id="name" name="name" required placeholder="General">

@@ -47,7 +47,7 @@ class DefaultController extends AbstractController
     /**
      * @throws Exception
      */
-    #[Route('/', name: 'home')]
+    #[Route('/', name: 'home', condition: "!request.attributes.has('_chat_community')")]
     public function index(): Response
     {
         if ($this->getUser()) {
