@@ -119,7 +119,7 @@ essayist:
         title: 'Essayist'
         hero:
             eyebrow: 'Relay financiado por membresía'
-            heading: 'Un relay de valor por valor para ensayos.'
+            heading: 'Un relay para ensayos curados por la comunidad.'
             lede: 'Essayist es un relay para escritura de formato largo. Para obtener acceso, haces una pequeña contribución mensual a un miembro existente de tu elección. Los miembros también obtienen una página principal personalizada basada en sus favoritos, seguidos e intereses.'
             ctaAnon: 'Iniciar sesión para unirse'
             ctaLoggedIn: 'Hacerse miembro'

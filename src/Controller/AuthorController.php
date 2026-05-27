@@ -8,7 +8,6 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
-use App\Message\BatchUpdateProfileProjectionMessage;
 use App\Message\RevalidateProfileCacheMessage;
 use App\Message\FetchMissingCurationMediaMessage;
 use App\ReadModel\RedisView\RedisViewFactory;

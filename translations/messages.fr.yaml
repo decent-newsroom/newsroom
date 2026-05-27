@@ -119,7 +119,7 @@ essayist:
         title: 'Essayist'
         hero:
             eyebrow: 'Relais financé par adhésion'
-            heading: 'Un relais valeur-pour-valeur pour les essais.'
+            heading: 'Un relais d''essais sélectionné par la communauté.'
             lede: "Essayist est un relais pour l'écriture longue. Pour y accéder, vous faites une petite contribution mensuelle à un membre existant de votre choix. Les membres ont également accès à une page d'accueil personnalisée basée sur leurs favoris, abonnements et centres d'intérêt."
             ctaAnon: 'Se connecter pour rejoindre'
             ctaLoggedIn: 'Devenir membre'

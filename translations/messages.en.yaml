@@ -119,7 +119,7 @@ essayist:
         title: 'Essayist'
         hero:
             eyebrow: 'Membership-funded relay'
-            heading: 'A value-for-value relay for essays.'
+            heading: 'A community-curated relay for essays.'
             lede: 'Essayist is a relay for longform writing. To get access, you make a small monthly contribution to an existing author of your choice. Members also get a personalized front page based on their favorites, follows and interests.'
             ctaAnon: 'Sign in to join'
             ctaLoggedIn: 'Become a member'
