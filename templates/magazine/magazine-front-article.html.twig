@@ -35,7 +35,7 @@
     <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" :isOwner="isOwner|default(false)" />
 
     <article class="w-container">
-        <div class="card">
+        <div class="card heading">
             <div class="card-sources">
                 <span class="source-badge source-badge--featured">Featured</span>
             </div>
@@ -96,13 +96,5 @@
             {% endif %}
         </div>
     </article>
-    {# Category list below the front-page article — gives readers a navigation entry point #}
-    {% if categoryTags is defined and categoryTags is not empty %}
-        <section class="mb-5 p-0">
-            {% for cat in categoryTags %}
-                <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list" />
-            {% endfor %}
-        </section>
-    {% endif %}
 {% endblock %}
 

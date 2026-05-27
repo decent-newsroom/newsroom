@@ -99,6 +99,80 @@ class EventControllerPublicationRedirectTest extends TestCase
         self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
     }
 
+    public function testNaddrPublicationWithNestedChaptersRedirectsToReadingListPage(): void
+    {
+        $pubkey = str_repeat('a', 64);
+        $slug = 'chapter-list';
+        $event = $this->makePublicationEvent($pubkey, $slug, [
+            ['d', $slug],
+            ['a', '30041:' . str_repeat('f', 64) . ':chapter-1'],
+        ]);
+
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findByNaddr')
+            ->with(KindsEnum::PUBLICATION_INDEX->value, $pubkey, $slug)
+            ->willReturn($event);
+
+        $logger = $this->createMock(LoggerInterface::class);
+
+        $controller = $this->makeController();
+        $response = $controller->index(
+            $this->encodeNaddr($event),
+            new Request(),
+            $this->createMock(RedisCacheService::class),
+            new NostrLinkParser($logger),
+            $logger,
+            $repository,
+            $this->createMock(MessageBusInterface::class),
+            $this->createMock(NostrClient::class),
+            $this->createMock(GenericEventProjector::class),
+            $this->createMock(UserRelayListService::class),
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertStringContainsString('/__redirect/reading-list', $response->getTargetUrl());
+        self::assertStringContainsString('slug=' . rawurlencode($slug), $response->getTargetUrl());
+        self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
+    }
+
+    public function testNaddrPublicationWithNestedWikiRedirectsToReadingListPage(): void
+    {
+        $pubkey = str_repeat('9', 64);
+        $slug = 'wiki-list';
+        $event = $this->makePublicationEvent($pubkey, $slug, [
+            ['d', $slug],
+            ['a', KindsEnum::WIKI->value . ':' . str_repeat('8', 64) . ':wiki-entry'],
+        ]);
+
+        $repository = $this->createMock(EventRepository::class);
+        $repository->expects(self::once())
+            ->method('findByNaddr')
+            ->with(KindsEnum::PUBLICATION_INDEX->value, $pubkey, $slug)
+            ->willReturn($event);
+
+        $logger = $this->createMock(LoggerInterface::class);
+
+        $controller = $this->makeController();
+        $response = $controller->index(
+            $this->encodeNaddr($event),
+            new Request(),
+            $this->createMock(RedisCacheService::class),
+            new NostrLinkParser($logger),
+            $logger,
+            $repository,
+            $this->createMock(MessageBusInterface::class),
+            $this->createMock(NostrClient::class),
+            $this->createMock(GenericEventProjector::class),
+            $this->createMock(UserRelayListService::class),
+        );
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertStringContainsString('/__redirect/reading-list', $response->getTargetUrl());
+        self::assertStringContainsString('slug=' . rawurlencode($slug), $response->getTargetUrl());
+        self::assertStringContainsString('npub=' . rawurlencode(NostrKeyUtil::hexToNpub($pubkey)), $response->getTargetUrl());
+    }
+
     private function makeController(): EventController
     {
         $projector = $this->createMock(ArticleEventProjector::class);

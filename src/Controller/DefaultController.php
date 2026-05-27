@@ -1731,22 +1731,41 @@ class DefaultController extends AbstractController
             // alone — slugs collide across authors and kinds.
             $parsed = [];
             $slugs = [];
+            $wikiCoordinates = [];
             foreach ($coordinates as $coordinate) {
                 $parts = explode(':', $coordinate, 3);
                 if (count($parts) !== 3 || $parts[2] === '') {
                     continue;
                 }
+                $kind = (int) $parts[0];
                 $parsed[$coordinate] = [
-                    'kind'   => (int) $parts[0],
+                    'kind'   => $kind,
                     'pubkey' => $parts[1],
                     'slug'   => $parts[2],
                 ];
                 $slugs[] = $parts[2];
+
+                if ($kind === KindsEnum::WIKI->value) {
+                    $wikiCoordinates[] = $coordinate;
+                }
             }
 
             // Preferred path: look up by full coordinate (kind, pubkey, slug).
             $articleRepo = $entityManager->getRepository(\App\Entity\Article::class);
             $coordMap = $articleRepo->findByCoordinates(array_values($parsed));
+            $eventRepo = $entityManager->getRepository(Event::class);
+            $wikiMap = [];
+            foreach ($wikiCoordinates as $wikiCoordinate) {
+                $wikiInfo = $parsed[$wikiCoordinate] ?? null;
+                if (!is_array($wikiInfo)) {
+                    continue;
+                }
+
+                $wikiEvent = $eventRepo->findByNaddr(KindsEnum::WIKI->value, $wikiInfo['pubkey'], $wikiInfo['slug']);
+                if ($wikiEvent instanceof Event) {
+                    $wikiMap[$wikiCoordinate] = $this->buildMagazineWikiCard($wikiEvent, $wikiCoordinate);
+                }
+            }
 
             // Fallback: search service lookup by slug, for any coordinate we
             // couldn't resolve by exact match (e.g. articles not yet projected
@@ -1782,6 +1801,16 @@ class DefaultController extends AbstractController
                 }
                 $info = $parsed[$coordinate];
                 $key = $info['kind'] . ':' . $info['pubkey'] . ':' . $info['slug'];
+
+                if ($info['kind'] === KindsEnum::WIKI->value) {
+                    if (isset($wikiMap[$coordinate])) {
+                        $list[] = $wikiMap[$coordinate];
+                    } else {
+                        $missingCoordinates[] = $coordinate;
+                    }
+                    continue;
+                }
+
                 if (isset($coordMap[$key])) {
                     $list[] = $coordMap[$key];
                 } elseif (isset($slugMap[$info['slug']])) {
@@ -1815,6 +1844,119 @@ class DefaultController extends AbstractController
             'category' => $category,
             'index' => $catIndex
         ]);
+    }
+
+    #[Route('/mag/{mag}/cat/{cat}/wiki/{slug}', name: 'magazine-category-wiki', requirements: ['slug' => '.+'])]
+    public function magCategoryWiki(
+        string $mag,
+        string $cat,
+        string $slug,
+        RedisCacheService $redisCacheService,
+        EntityManagerInterface $entityManager,
+        Converter $converter,
+        LoggerInterface $logger,
+    ): Response {
+        $magazine = $redisCacheService->getMagazineIndex($mag);
+        $slug = urldecode($slug);
+
+        $conn = $entityManager->getConnection();
+        $categoryResult = $conn->executeQuery(
+            "SELECT e.* FROM event e WHERE e.tags @> ?::jsonb ORDER BY e.created_at DESC LIMIT 1",
+            [json_encode([['d', $cat]])]
+        );
+        $categoryData = $categoryResult->fetchAssociative();
+
+        if ($categoryData === false) {
+            throw $this->createNotFoundException('Category not found');
+        }
+
+        $categoryEvent = new Event();
+        $categoryEvent->setId($categoryData['id']);
+        $categoryEvent->setKind((int) $categoryData['kind']);
+        $categoryEvent->setPubkey($categoryData['pubkey']);
+        $categoryEvent->setContent($categoryData['content']);
+        $categoryEvent->setCreatedAt((int) $categoryData['created_at']);
+        $categoryEvent->setTags(json_decode($categoryData['tags'], true) ?? []);
+        $categoryEvent->setSig($categoryData['sig']);
+
+        $wikiPubkey = null;
+        foreach ($categoryEvent->getTags() as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'a' || !isset($tag[1]) || !is_string($tag[1])) {
+                continue;
+            }
+
+            $parts = explode(':', $tag[1], 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            if ((int) $parts[0] === KindsEnum::WIKI->value && $parts[2] === $slug) {
+                $wikiPubkey = $parts[1];
+                break;
+            }
+        }
+
+        if ($wikiPubkey === null) {
+            throw $this->createNotFoundException('Wiki not found in this category');
+        }
+
+        $wiki = $entityManager->getRepository(Event::class)->findByNaddr(KindsEnum::WIKI->value, $wikiPubkey, $slug);
+        if (!$wiki instanceof Event) {
+            return $this->render('pages/article_not_found.html.twig', [
+                'message' => 'The wiki could not be found.',
+                'searchQuery' => $slug,
+            ]);
+        }
+
+        try {
+            $content = $converter->convertToHTML(
+                $wiki->getContent(),
+                null,
+                $wiki->getKind(),
+                $wiki->getTags(),
+            );
+        } catch (\Throwable $e) {
+            $logger->error('Failed to convert wiki content to HTML', [
+                'coordinate' => sprintf('%d:%s:%s', KindsEnum::WIKI->value, $wikiPubkey, $slug),
+                'error' => $e->getMessage(),
+            ]);
+            $content = nl2br(htmlspecialchars($wiki->getContent(), ENT_QUOTES, 'UTF-8'));
+        }
+
+        try {
+            $key = new Key();
+            $npub = $key->convertPublicKeyToBech32($wiki->getPubkey());
+        } catch (\Throwable) {
+            $npub = $wiki->getPubkey();
+        }
+        $author = $redisCacheService->getMetadata($wiki->getPubkey())->toStdClass();
+
+        return $this->render('magazine/wiki.html.twig', [
+            'mag' => $mag,
+            'magazine' => $magazine,
+            'categorySlug' => $cat,
+            'categoryTitle' => $categoryEvent->getTitle() ?? $cat,
+            'wiki' => $wiki,
+            'content' => $content,
+            'author' => $author,
+            'npub' => $npub,
+        ]);
+    }
+
+    private function buildMagazineWikiCard(Event $wikiEvent, string $coordinate): object
+    {
+        return (object) [
+            'pubkey' => $wikiEvent->getPubkey(),
+            'slug' => $wikiEvent->getSlug() ?? '',
+            'coordinate' => $coordinate,
+            'kind' => $wikiEvent->getKind(),
+            'title' => $wikiEvent->getTitle() ?: ($wikiEvent->getSlug() ?? 'Wiki'),
+            'summary' => $wikiEvent->getSummary(),
+            'image' => $wikiEvent->getImage(),
+            'createdAt' => (new \DateTimeImmutable())->setTimestamp($wikiEvent->getCreatedAt()),
+            'publishedAt' => null,
+            'isMagazineWiki' => true,
+        ];
     }
 
 

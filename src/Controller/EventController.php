@@ -114,12 +114,86 @@ class EventController extends AbstractController
                 return 'magazine';
             }
 
-            if ($kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value) {
+            if (
+                $kind === KindsEnum::LONGFORM->value
+                || $kind === KindsEnum::LONGFORM_DRAFT->value
+                || $kind === KindsEnum::PUBLICATION_CONTENT->value
+                || $kind === KindsEnum::WIKI->value
+            ) {
                 $hasArticleReference = true;
             }
         }
 
         return $hasArticleReference ? 'reading_list' : 'unknown';
+    }
+
+    private function findDTag(array $tags): ?string
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 'd' || !isset($tag[1]) || !is_string($tag[1])) {
+                continue;
+            }
+
+            $slug = trim($tag[1]);
+            if ($slug !== '') {
+                return $slug;
+            }
+        }
+
+        return null;
+    }
+
+    private function redirectPublicationIndexIfNeeded(object $event, LoggerInterface $logger): ?Response
+    {
+        $kind = (int) ($event->kind ?? 0);
+        $tags = $event->tags ?? null;
+
+        if ($kind !== KindsEnum::PUBLICATION_INDEX->value || !is_array($tags)) {
+            return null;
+        }
+
+        $slug = $this->findDTag($tags);
+        if ($slug === null) {
+            return null;
+        }
+
+        $classification = $this->classifyPublicationTarget($tags);
+        if ($classification === 'magazine') {
+            $logger->info('Redirecting publication index to magazine page', ['slug' => $slug]);
+
+            return $this->redirectToRoute('magazine-index', ['mag' => $slug]);
+        }
+
+        if ($classification !== 'reading_list') {
+            return null;
+        }
+
+        $pubkey = (string) ($event->pubkey ?? '');
+        if ($pubkey === '') {
+            return null;
+        }
+
+        try {
+            $npub = \App\Util\NostrKeyUtil::hexToNpub($pubkey);
+        } catch (\Throwable $e) {
+            $logger->warning('Failed to redirect publication index to reading list due to invalid pubkey', [
+                'pubkey' => $pubkey,
+                'slug' => $slug,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        $logger->info('Redirecting publication index to reading list page', [
+            'npub' => $npub,
+            'slug' => $slug,
+        ]);
+
+        return $this->redirectToRoute('reading-list', [
+            'npub' => $npub,
+            'slug' => $slug,
+        ]);
     }
 
     /**
@@ -443,31 +517,6 @@ class EventController extends AbstractController
                         ]);
                     }
 
-                    if ($data->kind === KindsEnum::PUBLICATION_INDEX->value && isset($event->tags) && is_array($event->tags)) {
-                        $classification = $this->classifyPublicationTarget($event->tags);
-
-                        if ($classification === 'magazine') {
-                            $logger->info('Redirecting publication index to magazine page', [
-                                'slug' => $data->identifier,
-                            ]);
-                            return $this->redirectToRoute('magazine-index', [
-                                'mag' => $data->identifier,
-                            ]);
-                        }
-
-                        if ($classification === 'reading_list') {
-                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
-                            $logger->info('Redirecting publication index to reading list page', [
-                                'npub' => $npub,
-                                'slug' => $data->identifier,
-                            ]);
-                            return $this->redirectToRoute('reading-list', [
-                                'npub' => $npub,
-                                'slug' => $data->identifier,
-                            ]);
-                        }
-                    }
-
                     // Redirect curation sets to their dedicated views
                     $curationKinds = [
                         KindsEnum::CURATION_SET->value,       // 30004
@@ -497,6 +546,11 @@ class EventController extends AbstractController
             if (!$event) {
                 $logger->warning('Event not found', ['data' => $data]);
                 throw new NotFoundHttpException('Event not found');
+            }
+
+            $publicationRedirect = $this->redirectPublicationIndexIfNeeded($event, $logger);
+            if ($publicationRedirect instanceof Response) {
+                return $publicationRedirect;
             }
 
             // Parse event content for Nostr links

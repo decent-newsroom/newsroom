@@ -60,7 +60,7 @@ h2.card-title {
     background: none;
 }
 
-article .card:not(.zap-modal-content,.comment) {
+article .card:not(.zap-modal-content,.comment,.heading) {
     background: none;
     border-top: 1px solid var(--color-border);
     border-bottom: 1px solid var(--color-border);

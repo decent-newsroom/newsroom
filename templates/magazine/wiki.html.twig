@@ -1,0 +1,75 @@
+{% extends 'layout.html.twig' %}
+
+{% import 'macros/jsonld.html.twig' as jsonld %}
+
+{% block title %}{{ wiki.title }} - {{ magazine.title|default(mag) }} - Newsroom{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    <meta property="og:title" content="{{ wiki.title }} - {{ magazine.title|default(mag) }}">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="{{ app.request.uri }}">
+    {% if wiki.image %}
+        <meta property="og:image" content="{{ wiki.image }}">
+    {% endif %}
+    {% if wiki.summary %}
+        <meta property="og:description" content="{{ wiki.summary }}">
+    {% endif %}
+    <meta property="og:site_name" content="Newsroom">
+
+    {% set breadcrumbItems = [
+        {"name": "Home", "url": url('home')},
+        {"name": "Newsstand", "url": url('newsstand')},
+        {"name": magazine.title|default(mag), "url": url('magazine-index', {'mag': mag})},
+        {"name": categoryTitle, "url": url('magazine-category', {'mag': mag, 'slug': categorySlug})},
+        {"name": wiki.title, "url": app.request.uri}
+    ] %}
+    <script type="application/ld+json">
+    {{ jsonld.breadcrumbs(breadcrumbItems)|raw }}
+    </script>
+{% endblock %}
+
+{% block body %}
+    <article class="w-container">
+        <div class="card">
+            <div class="mb-3">
+                <a href="{{ path('magazine-category', {mag: mag, slug: categorySlug}) }}" class="btn btn-sm">
+                    ← Back to {{ categoryTitle }}
+                </a>
+            </div>
+
+            {% if wiki.image %}
+                <div class="card-header">
+                    <img src="{{ wiki.image }}" alt="Cover image for {{ wiki.title }}" class="img-fluid">
+                </div>
+            {% endif %}
+
+            <div class="card-body">
+                <h1 class="card-title">{{ wiki.title }}</h1>
+
+                {% if wiki.summary %}
+                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ wiki.summary }}</p>
+                {% endif %}
+
+                {% if author %}
+                    <div class="byline mb-4">
+                        <span>
+                            <small>by</small>
+                            <twig:Molecules:UserFromNpub :ident="npub" />
+                        </span>
+                        <span class="text-muted">
+                            <small>{{ wiki.createdAt|date('F j, Y') }}</small>
+                        </span>
+                    </div>
+                {% endif %}
+
+                <div class="wiki-content"
+                     data-controller="utility--katex"
+                     data-utility--katex-display-value="true">
+                    {{ content|resolve_nostr_embeds|raw }}
+                </div>
+            </div>
+        </div>
+    </article>
+{% endblock %}
+

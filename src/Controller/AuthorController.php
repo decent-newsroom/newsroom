@@ -195,11 +195,10 @@ class AuthorController extends AbstractController
             throw $this->createNotFoundException('Reading list not found');
         }
 
-        // fetch articles listed in the list's a tags
-        $coordinates = []; // Store full coordinates (kind:author:slug)
-        // Extract category metadata and article coordinates
+        // Fetch list items from `a` tags (articles, chapters, wikis)
+        $coordinates = []; // full coordinates: kind:author:d-tag
         foreach ($list->getTags() as $tag) {
-            if ($tag[0] === 'a') {
+            if (($tag[0] ?? null) === 'a' && isset($tag[1]) && is_string($tag[1])) {
                 $coordinates[] = $tag[1]; // Store the full coordinate
             }
         }
@@ -207,6 +206,10 @@ class AuthorController extends AbstractController
         $articles = [];
         if (count($coordinates) > 0) {
             $articleRepo = $em->getRepository(Article::class);
+            $eventKindsInReadingLists = [
+                KindsEnum::PUBLICATION_CONTENT->value, // 30041 chapters
+                KindsEnum::WIKI->value,
+            ];
 
             // Batch load by (pubkey, slug) to avoid N+1 queries.
             // We still dedupe by latest createdAt per slug after fetching.
@@ -214,8 +217,10 @@ class AuthorController extends AbstractController
             foreach ($coordinates as $coord) {
                 $parts = explode(':', $coord, 3);
                 if (count($parts) === 3) {
-                    [, $author, $articleSlug] = $parts;
-                    $want[] = ['pubkey' => $author, 'slug' => $articleSlug, 'coord' => $coord];
+                    [$kind, $author, $articleSlug] = $parts;
+                    if ((int) $kind === KindsEnum::LONGFORM->value || (int) $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                        $want[] = ['pubkey' => $author, 'slug' => $articleSlug, 'coord' => $coord];
+                    }
                 }
             }
 
@@ -251,6 +256,25 @@ class AuthorController extends AbstractController
                     continue;
                 }
                 [$kind, $author, $articleSlug] = $parts;
+                $kindInt = (int) $kind;
+
+                if (in_array($kindInt, $eventKindsInReadingLists, true)) {
+                    $eventItem = $repo->findByNaddr($kindInt, $author, $articleSlug);
+                    if ($eventItem instanceof Event) {
+                        $articles[] = $this->buildReadingListEventCard($eventItem, $coord, $articleSlug);
+                        continue;
+                    }
+
+                    $articles[] = (object) [
+                        'pubkey' => $author,
+                        'slug' => $articleSlug,
+                        'coordinate' => $coord,
+                        'kind' => $kindInt,
+                        'title' => null,
+                    ];
+                    continue;
+                }
+
                 $k = $author . ':' . $articleSlug;
                 if (isset($foundMap[$k])) {
                     $articles[] = $foundMap[$k];
@@ -262,7 +286,7 @@ class AuthorController extends AbstractController
                     'pubkey' => $author,
                     'slug' => $articleSlug,
                     'coordinate' => $coord,
-                    'kind' => (int) $kind,
+                    'kind' => $kindInt,
                     'title' => null,
                 ];
             }
@@ -286,6 +310,22 @@ class AuthorController extends AbstractController
             'list' => $list,
             'articles' => $articles,
         ]);
+    }
+
+    private function buildReadingListEventCard(Event $event, string $coordinate, string $slug): object
+    {
+        return (object) [
+            'pubkey' => $event->getPubkey(),
+            'slug' => $slug,
+            'coordinate' => $coordinate,
+            'kind' => $event->getKind(),
+            'title' => $event->getTitle() ?: $slug,
+            'summary' => $event->getSummary(),
+            'image' => $event->getImage(),
+            'createdAt' => (new \DateTimeImmutable())->setTimestamp($event->getCreatedAt()),
+            'publishedAt' => null,
+            'naddr' => $this->generateNaddr($coordinate),
+        ];
     }
 
     /**
