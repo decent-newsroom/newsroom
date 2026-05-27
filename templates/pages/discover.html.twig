@@ -174,7 +174,7 @@
                                                     <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
                                                        class="article-reference"
                                                        data-turbo-frame="_top">
-                                                        {{ 'discover.viewArticle'|trans }}
+                                                        {{ item.article_title ?: ('discover.viewArticle'|trans) }}
                                                     </a>
                                                 {% endif %}
                                             {% endif %}

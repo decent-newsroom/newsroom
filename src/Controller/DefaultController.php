@@ -368,6 +368,8 @@ class DefaultController extends AbstractController
             $commentEvents = $entityManager->getRepository(Event::class)
                 ->findBy(['kind' => KindsEnum::COMMENTS->value], ['created_at' => 'DESC'], 200);
 
+            $commentRefsById = [];
+
             foreach ($commentEvents as $event) {
                 $articleRef = null;
                 // Look for 'a' tags referencing long-form articles
@@ -387,6 +389,7 @@ class DefaultController extends AbstractController
 
                 // Only include comments that reference a long-form article
                 if ($articleRef) {
+                    $commentRefsById[$event->getId()] = $articleRef;
                     $item = [
                         'type' => 'comment',
                         'id' => $event->getId(),
@@ -394,9 +397,29 @@ class DefaultController extends AbstractController
                         'created_at' => $event->getCreatedAt(),
                         'pubkey' => $event->getPubkey(),
                         'article_ref' => $articleRef,
+                        'article_title' => null,
                     ];
                     $activityItems[] = $item;
                 }
+            }
+
+            // Resolve long-form article titles in batch so comment links match highlight UX.
+            if (!empty($commentRefsById)) {
+                $eventRepo = $entityManager->getRepository(Event::class);
+                $articleEventsByRef = method_exists($eventRepo, 'findByCoordinates')
+                    ? $eventRepo->findByCoordinates(array_values(array_unique($commentRefsById)))
+                    : [];
+
+                foreach ($activityItems as &$item) {
+                    if (($item['type'] ?? null) !== 'comment') {
+                        continue;
+                    }
+
+                    $ref = $item['article_ref'] ?? null;
+                    $articleEvent = $ref ? ($articleEventsByRef[$ref] ?? null) : null;
+                    $item['article_title'] = $articleEvent?->getTitle();
+                }
+                unset($item);
             }
 
             // Sort by created_at descending (newest first)
