@@ -2,6 +2,7 @@
 
 ## v0.0.43
 
+- [Bug] Fixed Activity-tab comment cards being height-clipped without an expand control by wiring them to the same show-more/show-less toggle pattern used by highlight cards.
 - [Bug] Fixed fatal error when `app.user.npub` is null: `UserFromNpub::mount()` now accepts a nullable `$ident` and returns early instead of crashing.
 - [Feature] Added editor role management to admin roles (`/admin/role`): a new **Editors** section now lists users with `ROLE_EDITOR` and provides add/remove controls (same pattern as featured writers), including auto-creating user rows when adding by npub.
 - [Feature] Replaced Overview tab with Editorial tab in user profiles that displays only magazines and follow packs. The Editorial tab provides a focused view of the user's curated editorial content without mixed media/articles/highlights.

@@ -162,9 +162,18 @@
                                             </div>
                                         </div>
                                         <div class="highlight-content" data-controller="utility--show-more">
+                                            {% set commentHtml = item.content|markdown_to_html %}
                                             <div data-utility--show-more-target="preview" class="content-preview">
-                                                {{ item.content|markdown_to_html|raw }}
+                                                {{ commentHtml|raw }}
                                             </div>
+                                            <div data-utility--show-more-target="full" class="content-full" style="display: none;">
+                                                {{ commentHtml|raw }}
+                                            </div>
+                                            <button data-utility--show-more-target="button"
+                                                    data-action="click->utility--show-more#toggle"
+                                                    class="show-more-button">
+                                                {{ 'text.showMore'|trans }}
+                                            </button>
                                         </div>
                                         <div class="highlight-footer">
                                             {% if item.article_ref %}
