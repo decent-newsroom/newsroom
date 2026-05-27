@@ -55,6 +55,12 @@
     margin-bottom: 2rem;
 }
 
+/* Keep Discover tabs visible below the fixed header while scrolling */
+.discover-section [data-controller="content--discover-tabs"] .profile-tabs {
+    position: sticky;
+    top: var(--header-height-with-gap);
+}
+
 
 /* Discover Sidebar */
 .discover-sidebar {
@@ -173,6 +179,10 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .discover-section [data-controller="content--discover-tabs"] .profile-tabs {
+        top: var(--header-height);
+    }
+
     .discover-section .section-header {
         flex-direction: column;
         align-items: flex-start !important;
