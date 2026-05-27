@@ -1,17 +1,38 @@
-#!/bin/bash
-# Write policy for strfry-chat: accept chat messages and channel management events
-# Accepted kinds: 0 (metadata), 40-42 (NIP-28 channel create/metadata/message),
-#                 43-44 (NIP-28 hide/mute)
+#!/bin/sh
+# =============================================================================
+# Chat relay write policy — accept only chat / channel-management kinds
+# =============================================================================
+# Allowed kinds:
+#   0        - metadata
+#   40 - 44  - NIP-28 channel create / metadata / messages / hide / mute
+#
+# Implementation notes:
+#  - dockurr/strfry does not ship jq, so parse with POSIX shell only.
+#  - strfry's plugin protocol requires every response to echo the event id.
+# =============================================================================
 
-while read -r line; do
-    KIND=$(echo "$line" | jq -r '.event.kind')
-
-    case "$KIND" in
-        0|40|41|42|43|44)
-            echo '{"action":"accept"}'
+while IFS= read -r line; do
+    case "$line" in
+        *'"id":"'*)
+            rest=${line#*'"id":"'}
+            EVENT_ID=${rest%%'"'*}
             ;;
         *)
-            echo '{"action":"reject","msg":"only chat events (kinds 0, 40-44) are accepted"}'
+            EVENT_ID=""
+            ;;
+    esac
+
+    if [ -z "$EVENT_ID" ]; then
+        printf '{"id":"","action":"reject","msg":"malformed event"}\n'
+        continue
+    fi
+
+    case "$line" in
+        *'"kind":0,'*|*'"kind": 0,'*|*'"kind":0}'*|*'"kind": 0}'*|*'"kind":40,'*|*'"kind": 40,'*|*'"kind":40}'*|*'"kind": 40}'*|*'"kind":41,'*|*'"kind": 41,'*|*'"kind":41}'*|*'"kind": 41}'*|*'"kind":42,'*|*'"kind": 42,'*|*'"kind":42}'*|*'"kind": 42}'*|*'"kind":43,'*|*'"kind": 43,'*|*'"kind":43}'*|*'"kind": 43}'*|*'"kind":44,'*|*'"kind": 44,'*|*'"kind":44}'*|*'"kind": 44}'*)
+            printf '{"id":"%s","action":"accept"}\n' "$EVENT_ID"
+            ;;
+        *)
+            printf '{"id":"%s","action":"reject","msg":"only chat events (kinds 0, 40-44) are accepted"}\n' "$EVENT_ID"
             ;;
     esac
 done

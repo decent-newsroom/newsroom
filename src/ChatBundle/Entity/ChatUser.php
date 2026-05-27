@@ -96,6 +96,7 @@ class ChatUser implements UserInterface
         $this->runtimeRoles = $roles;
     }
 
+    #[\Deprecated]
     public function eraseCredentials(): void
     {
         // No browser-managed credentials

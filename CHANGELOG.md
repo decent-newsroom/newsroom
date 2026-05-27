@@ -2,6 +2,8 @@
 
 ## v0.0.44
 
+- [Bug] Fixed relay-auth template crashes when the logged-in security user has no `npub` value (or is a `ChatUser`). `templates/base.html.twig` now renders the relay-auth controller only when a usable npub exists, `App\Twig\NostrExtension` now treats null/empty inputs as empty strings, and `App\ChatBundle\Entity\ChatUser::eraseCredentials()` is annotated to satisfy the Symfony 7.3 deprecation.
+- [Bug] Fixed private chat infrastructure in Docker Compose. The `strfry-chat` relay is now started by default again, its data volume is persisted, and its write-policy no longer depends on missing `jq` or host executable bits, so chat subdomains on production deployments are backed by a working internal relay.
 - [Feature] Added a follow pack identity card at the top of the Follow Pack home feed tab, showing the pack's title (linked to its full page), optional cover image, description, member count, and curator attribution via `UserFromNpub`. The card is only shown when a pack is configured and its event is found in the database.
 - [Bug] Fixed `UnfoldBundle` default theme width inconsistency: the home (`index.hbs`) and category (`category.hbs`) templates now use the same `800px` max width as post pages instead of rendering extra wide.
 

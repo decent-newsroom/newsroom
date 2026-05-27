@@ -281,19 +281,20 @@ services:
 ###< strfry relay ###
 
 ###> strfry-chat relay (private, NIP-28 only) ###
-#  strfry-chat:
-#    image: dockurr/strfry:latest
-#    restart: unless-stopped
-#    command:
-#      - /bin/sh
-#      - -c
-#      - ./strfry relay /etc/strfry.conf
-#    volumes:
-#        - ./docker/strfry-chat/strfry.conf:/etc/strfry.conf:ro
-#        - ./docker/strfry-chat/write-policy.sh:/app/write-policy.sh:ro
-#        - strfry_chat_data:/var/lib/strfry
-#    ports:
-#        - "7778:7778"
+  strfry-chat:
+    image: dockurr/strfry:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cp /app/write-policy.sh /usr/local/bin/chat-write-policy.sh
+        chmod +x /usr/local/bin/chat-write-policy.sh
+        exec ./strfry relay /etc/strfry.conf
+    volumes:
+        - ./docker/strfry-chat/strfry.conf:/etc/strfry.conf:ro
+        - ./docker/strfry-chat/write-policy.sh:/app/write-policy.sh:ro
+        - strfry_chat_data:/var/lib/strfry
 ###< strfry-chat relay ###
 
 ###> strfry-essayist relay (writer-first, longform only) ###
@@ -372,7 +373,7 @@ volumes:
 ###< strfry relay ###
 
 ###> strfry-chat relay ###
-#  strfry_chat_data:
+  strfry_chat_data:
 ###< strfry-chat relay ###
 
 ###> strfry-essayist relay ###

@@ -21,8 +21,12 @@ class NostrExtension extends AbstractExtension
         ];
     }
 
-    public function npubToHex(string $npub): string
+    public function npubToHex(?string $npub): string
     {
+        if ($npub === null || $npub === '') {
+            return '';
+        }
+
         try {
             return NostrKeyUtil::npubToHex($npub);
         } catch (\Throwable) {
@@ -30,8 +34,12 @@ class NostrExtension extends AbstractExtension
         }
     }
 
-    public function hexToNpub(string $hex): string
+    public function hexToNpub(?string $hex): string
     {
+        if ($hex === null || $hex === '') {
+            return '';
+        }
+
         try {
             return NostrKeyUtil::hexToNpub($hex);
         } catch (\Throwable) {

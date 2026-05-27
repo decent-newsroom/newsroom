@@ -77,10 +77,11 @@
      style="display:none"></div>
 {% endif %}
 
-{# Relay AUTH signer — always active for logged-in users so every relay connection authenticates as the user, not as an ephemeral key #}
-{% if app.user and relay_gateway_enabled %}
+{# Relay AUTH signer — only for users with a usable npub; chat-only users do not have one #}
+{% set relayAuthPubkey = app.user ? (app.user.npub|default(null)|npub_to_hex) : '' %}
+{% if app.user and relay_gateway_enabled and relayAuthPubkey is not empty %}
 <div data-controller="nostr--relay-auth"
-     data-nostr--relay-auth-pubkey-value="{{ app.user.npub|npub_to_hex }}"
+     data-nostr--relay-auth-pubkey-value="{{ relayAuthPubkey }}"
      data-nostr--relay-auth-hub-url-value="{{ mercure_public_hub_url }}"
      style="display:none"></div>
 {% endif %}
