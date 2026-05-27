@@ -13,6 +13,10 @@
             </div>
         {% endif %}
 
+        {% if hasFollowPack and packMeta is defined and packMeta %}
+            {% include 'partial/_follow_pack_card.html.twig' with { pack: packMeta } %}
+        {% endif %}
+
         {% if articles is empty %}
             {% if hasFollowPack %}
                 <div class="alert alert-info">

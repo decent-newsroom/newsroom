@@ -150,6 +150,68 @@ class FollowPackService
     }
 
     /**
+     * Parse a coordinate and return metadata from the matching follow pack event,
+     * or null if the event is not found.
+     *
+     * @return array{title: string, description: string|null, image: string|null, pubkey: string, dtag: string, memberCount: int}|null
+     */
+    public function getPackMetadataFromCoordinate(string $coordinate): ?array
+    {
+        $parts = explode(':', $coordinate, 3);
+        if (count($parts) < 3) {
+            return null;
+        }
+
+        [$kindStr, $pubkey, $dTag] = $parts;
+        $kind = (int) $kindStr;
+
+        $events = $this->em->getRepository(Event::class)->findBy([
+            'kind' => $kind,
+            'pubkey' => $pubkey,
+        ]);
+
+        $matchingEvent = null;
+        foreach ($events as $event) {
+            if ($event->getSlug() === $dTag) {
+                if (!$matchingEvent || $event->getCreatedAt() > $matchingEvent->getCreatedAt()) {
+                    $matchingEvent = $event;
+                }
+            }
+        }
+
+        if (!$matchingEvent) {
+            return null;
+        }
+
+        $title = '';
+        $description = null;
+        $image = null;
+        $memberCount = 0;
+
+        foreach ($matchingEvent->getTags() as $tag) {
+            if (!is_array($tag) || count($tag) < 2) {
+                continue;
+            }
+            match ($tag[0]) {
+                'title' => $title = $tag[1],
+                'description' => $description = $tag[1],
+                'image' => $image = $tag[1],
+                'p' => $memberCount++,
+                default => null,
+            };
+        }
+
+        return [
+            'title' => $title ?: 'Follow Pack',
+            'description' => $description,
+            'image' => $image,
+            'pubkey' => $pubkey,
+            'dtag' => $dTag,
+            'memberCount' => $memberCount,
+        ];
+    }
+
+    /**
      * Get all kind 39089 events from the database for a given pubkey.
      *
      * @return Event[]

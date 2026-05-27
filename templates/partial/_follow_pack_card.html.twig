@@ -1,0 +1,40 @@
+{#
+  Reusable follow pack card.
+  Expected variables:
+    pack.title        string
+    pack.description  string|null
+    pack.image        string|null
+    pack.npub         string|null  (bech32; if absent, pack.pubkey|hex_to_npub is used)
+    pack.pubkey       string       (hex)
+    pack.dtag         string
+    pack.memberCount  int
+    pack.articleCount int|null     (optional)
+#}
+{% set npub = pack.npub ?? (pack.pubkey|hex_to_npub) %}
+<div class="card p-3 ln-section--reader">
+    {% if pack.image %}
+        <div class="card-header m-0">
+            <a href="{{ path('follow_pack_view', { npub: npub, dtag: pack.dtag }) }}" data-turbo-frame="_top">
+                <img src="{{ pack.image }}" alt="{{ pack.title }}" loading="lazy">
+            </a>
+        </div>
+    {% endif %}
+    <div class="card-body text-center">
+        <h2 class="card-title">
+            <a href="{{ path('follow_pack_view', { npub: npub, dtag: pack.dtag }) }}" data-turbo-frame="_top">
+                {{ pack.title }}
+            </a>
+        </h2>
+        {% if pack.description %}
+            <p class="eyebrow line-clamp-5">{{ pack.description }}</p>
+        {% endif %}
+        <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-2">
+            <span class="badge bg-secondary">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
+            {% if pack.articleCount is defined and pack.articleCount is not null %}
+                <span class="badge bg-info text-dark">{{ pack.articleCount }} {{ 'followPacks.articles'|trans }}</span>
+            {% endif %}
+        </div>
+        <p>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></p>
+    </div>
+</div>
+

@@ -8,7 +8,7 @@
             <div class="alert alert-info home-feed__no-pack-notice">
                 <p>{{ 'home_feed.updates.no_subscriptions'|trans }}</p>
                 <p class="text-muted" style="font-size: 0.9rem; margin-top: 0.5rem;">{{ 'home_feed.updates.subscribe_hint'|trans }}</p>
-                <a href="{{ path('updates_subscriptions') }}" class="btn btn--small btn--outline" style="margin-top: 0.75rem;">
+                <a href="{{ path('updates_subscriptions') }}" class="btn btn--small btn--outline" style="margin-top: 0.75rem;" data-turbo-frame="_top">
                     {{ 'home_feed.updates.manage_cta'|trans }}
                 </a>
             </div>
@@ -23,7 +23,7 @@
         {% else %}
             {% include 'partial/_update_items.html.twig' %}
             <div style="margin-top: 1rem;">
-                <a href="{{ path('updates_index') }}" class="btn btn--small btn--outline">{{ 'home_feed.updates.view_all'|trans }}</a>
+                <a href="{{ path('updates_index') }}" class="btn btn--small btn--outline" data-turbo-frame="_top">{{ 'home_feed.updates.view_all'|trans }}</a>
             </div>
         {% endif %}
     {% endif %}

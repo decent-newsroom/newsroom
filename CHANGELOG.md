@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.44
+
+- [Feature] Added a follow pack identity card at the top of the Follow Pack home feed tab, showing the pack's title (linked to its full page), optional cover image, description, member count, and curator attribution via `UserFromNpub`. The card is only shown when a pack is configured and its event is found in the database.
+
+
 ## v0.0.43
 
 - [Feature] Added a **Follow Pack** tab, an **Activity** tab, and an **Updates** tab to the logged-in home page. The Follow Pack tab shows articles from the pubkeys in the user's own featured follow pack; if none is configured a notice links to the setup page. The Activity tab mirrors the Discover page Activity tab but is personalised: it shows kind 9802 highlights and kind 1111 long-form article comments only from pubkeys the current user follows, sorted newest first (up to 60 items). The Updates tab reuses the same collapsed item feed as `/updates` without marking items as read; if the user has no subscriptions yet, a notice explains they can use the Subscribe button on author profile pages and links to the subscriptions management page. Extracted shared partials `partial/_activity_items.html.twig` and `partial/_update_items.html.twig` so Discover and the Updates page reuse them without duplication. New `home_feed.tab.activity`, `home_feed.tab.updates`, `home_feed.activity.*`, and `home_feed.updates.*` translation keys added to all five locales.
@@ -15,6 +20,7 @@
 - [Improvement] Limited the Discover Editorial tab to only show collections from users who have the ROLE_EDITOR role, ensuring curated content comes from designated editors.
 - [Improvement] Updated the Essayist landing hero heading copy across all locales from value-for-value wording to community-curated wording.
 - [Bug] Fixed Discover tabs sticky offset on mobile so the tab bar now anchors below the mobile header height instead of overlapping the fixed header.
+
 
 ## v0.0.42
 

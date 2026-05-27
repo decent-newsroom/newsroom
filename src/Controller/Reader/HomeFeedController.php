@@ -645,6 +645,8 @@ class HomeFeedController extends AbstractController
             ]);
         }
 
+        $packMeta = $followPackService->getPackMetadataFromCoordinate($coordinate);
+
         try {
             $pubkeys = $followPackService->getPubkeysFromCoordinate($coordinate);
             $result = $followPackService->getArticlesForPubkeys($pubkeys, 50);
@@ -654,6 +656,7 @@ class HomeFeedController extends AbstractController
                 'authorsMetadata' => $result['authorsMetadata'],
                 'hasFollowPack' => true,
                 'isLoggedIn' => true,
+                'packMeta' => $packMeta,
             ]);
         } catch (\Throwable $e) {
             $logger->error('Featured pack tab: failed to load articles', ['error' => $e->getMessage()]);
@@ -663,6 +666,7 @@ class HomeFeedController extends AbstractController
                 'authorsMetadata' => [],
                 'hasFollowPack' => true,
                 'isLoggedIn' => true,
+                'packMeta' => $packMeta,
             ]);
         }
     }
