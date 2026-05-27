@@ -46,6 +46,10 @@ class RoleController extends AbstractController
     {
         $form = $this->createForm(RoleType::class);
 
+        // Get editors for display
+        $editors = $userRepository->findByRoleWithQuery(RolesEnum::EDITOR->value, null, 1000, 0);
+        $editorsData = $this->enrichUsersWithMetadata($editors, $redisCacheService);
+
         // Get featured writers for display
         $featuredWriters = $userRepository->findFeaturedWriters();
         $featuredWritersData = $this->enrichUsersWithMetadata($featuredWriters, $redisCacheService);
@@ -60,6 +64,7 @@ class RoleController extends AbstractController
 
         return $this->render('admin/roles.html.twig', [
             'form' => $form->createView(),
+            'editors' => $editorsData,
             'featuredWriters' => $featuredWritersData,
             'mutedUsers' => $mutedUsersData,
             'rssManagers' => $rssManagersData,
@@ -207,6 +212,56 @@ class RoleController extends AbstractController
         $em->flush();
 
         $this->addFlash('success', 'User removed from featured writers');
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/editors/add', name: 'admin_editors_add', methods: ['POST'])]
+    public function addEditor(Request $request, UserEntityRepository $userRepository, EntityManagerInterface $em): Response
+    {
+        $npub = $request->request->get('npub');
+
+        if (!$npub || !str_starts_with($npub, 'npub1')) {
+            $this->addFlash('error', 'Invalid npub format');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user = $userRepository->findOneBy(['npub' => $npub]);
+
+        if (!$user) {
+            $user = new User();
+            $user->setNpub($npub);
+            $user->setRoles([RolesEnum::EDITOR->value]);
+            $em->persist($user);
+            $this->addFlash('success', 'Created new user and added as editor');
+        } else {
+            if ($user->isEditor()) {
+                $this->addFlash('warning', 'User is already an editor');
+                return $this->redirectToRoute('admin_roles');
+            }
+            $user->addRole(RolesEnum::EDITOR->value);
+            $this->addFlash('success', 'User added as editor');
+        }
+
+        $em->flush();
+
+        return $this->redirectToRoute('admin_roles');
+    }
+
+    #[Route('/admin/editors/remove/{id}', name: 'admin_editors_remove', methods: ['POST'])]
+    public function removeEditor(int $id, UserEntityRepository $userRepository, EntityManagerInterface $em): Response
+    {
+        $user = $userRepository->find($id);
+
+        if (!$user) {
+            $this->addFlash('error', 'User not found');
+            return $this->redirectToRoute('admin_roles');
+        }
+
+        $user->removeRole(RolesEnum::EDITOR->value);
+        $em->flush();
+
+        $this->addFlash('success', 'User removed from editors');
 
         return $this->redirectToRoute('admin_roles');
     }

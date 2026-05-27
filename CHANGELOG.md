@@ -2,6 +2,7 @@
 
 ## v0.0.43
 
+- [Feature] Added editor role management to admin roles (`/admin/role`): a new **Editors** section now lists users with `ROLE_EDITOR` and provides add/remove controls (same pattern as featured writers), including auto-creating user rows when adding by npub.
 - [Feature] Replaced Overview tab with Editorial tab in user profiles that displays only magazines and follow packs. The Editorial tab provides a focused view of the user's curated editorial content without mixed media/articles/highlights.
 - [Feature] Discover page now has three tabbed sections: **Articles** (existing article stream), **Highlights** (community highlights from kind 9802 events), and **Editorial** (magazines, follow packs, and curated collections combined). Users can toggle between tabs, and the selection is persisted to localStorage. All editorial content (kind 30040 magazines, kind 39089 follow packs, kind 30004/30005/30006 curation sets) is sorted by creation date in reverse chronological order. New Stimulus controller `content--discover-tabs` handles tab switching with smooth UI transitions. [Documentation: `documentation/Reader/discover-tabs.md`]
 - [Feature] Added a fourth Discover tab, **Featured writers**, which reuses the same featured-writer feed logic as `/featured-articles` (ROLE_FEATURED_WRITER filter + latest 50 articles + author metadata mapping) so both views stay in sync.
