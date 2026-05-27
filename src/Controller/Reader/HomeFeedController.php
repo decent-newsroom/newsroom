@@ -727,7 +727,6 @@ class HomeFeedController extends AbstractController
         }
 
         $activityItems = [];
-        $commentRefsById = [];
 
         try {
             // ── 2. Highlights from followed pubkeys ──
@@ -740,6 +739,7 @@ class HomeFeedController extends AbstractController
             foreach ($highlightEvents as $event) {
                 $articleRef = null;
                 $context = null;
+                $url = null;
                 foreach ($event->getTags() as $tag) {
                     if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
                         $parts = explode(':', $tag[1], 3);
@@ -749,6 +749,9 @@ class HomeFeedController extends AbstractController
                     }
                     if (($tag[0] ?? '') === 'context' && isset($tag[1])) {
                         $context = $tag[1];
+                    }
+                    if (($tag[0] ?? '') === 'r' && isset($tag[1]) && $url === null) {
+                        $url = $tag[1];
                     }
                 }
 
@@ -763,7 +766,7 @@ class HomeFeedController extends AbstractController
                     'article_title' => null,
                     'naddr' => null,
                     'preview' => null,
-                    'url' => null,
+                    'url' => $url,
                 ];
             }
 
@@ -790,7 +793,6 @@ class HomeFeedController extends AbstractController
                 }
 
                 if ($articleRef) {
-                    $commentRefsById[$event->getId()] = $articleRef;
                     $activityItems[] = [
                         'type' => 'comment',
                         'id' => $event->getId(),
@@ -803,18 +805,24 @@ class HomeFeedController extends AbstractController
                 }
             }
 
-            // ── 4. Batch-resolve article titles for comments ──
-            if (!empty($commentRefsById)) {
+            // ── 4. Batch-resolve article titles for comments and highlights ──
+            $allArticleRefs = [];
+            foreach ($activityItems as $item) {
+                $ref = $item['article_ref'] ?? null;
+                if ($ref !== null) {
+                    $allArticleRefs[] = $ref;
+                }
+            }
+            if (!empty($allArticleRefs)) {
                 $articleEventsByRef = $eventRepository->findByCoordinates(
-                    array_values(array_unique($commentRefsById))
+                    array_values(array_unique($allArticleRefs))
                 );
                 foreach ($activityItems as &$item) {
-                    if (($item['type'] ?? null) !== 'comment') {
-                        continue;
-                    }
                     $ref = $item['article_ref'] ?? null;
                     $articleEvent = $ref ? ($articleEventsByRef[$ref] ?? null) : null;
-                    $item['article_title'] = $articleEvent?->getTitle();
+                    if ($articleEvent !== null) {
+                        $item['article_title'] = $articleEvent->getTitle();
+                    }
                 }
                 unset($item);
             }

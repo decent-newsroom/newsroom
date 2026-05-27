@@ -408,8 +408,3 @@ article p > img {
     color: var(--color-text-muted);
     font-style: italic;
 }
-
-main article .card {
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
-}
