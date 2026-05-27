@@ -45,8 +45,9 @@ class SubscribeLocalMagazinesCommand extends Command
                 'and automatically persists them to the database as generic events. ' .
                 'It runs as a long-lived daemon process.' . "\n\n" .
                 'Supported event kinds:' . "\n" .
-                '  - Kind 30040: Magazine indices / Reading lists (NIP-51)' . "\n\n" .
-                'You can specify additional kinds using --kinds=30040,30041'
+                '  - Kind 30040: Magazine indices / Reading lists (NIP-51)' . "\n" .
+                '  - Kind 30817: Wiki entries (NIP-54)' . "\n\n" .
+                'You can specify additional kinds using --kinds=30040,30041,30817'
             );
     }
 
@@ -83,6 +84,7 @@ class SubscribeLocalMagazinesCommand extends Command
                 $kindName = match($kind) {
                     30040 => 'Magazines/Reading Lists',
                     30041 => 'Article Curation Sets',
+                    30817 => 'Wiki Entries (NIP-54)',
                     default => "Kind $kind"
                 };
                 $io->writeln(sprintf('  - %s: <fg=cyan>%d</>', $kindName, $count));
@@ -93,12 +95,23 @@ class SubscribeLocalMagazinesCommand extends Command
         }
 
         try {
-            // Determine the "since" timestamp so the relay skips events we already have
-            $since = $this->eventRepository->findLatestCreatedAtByKinds($kinds);
+            // Determine the "since" timestamp so the relay skips events we already have.
+            // Use the MINIMUM per-kind latest timestamp so that any kind with no stored
+            // events causes a full-history fetch (avoids skipping events for newly added kinds).
+            $since = null;
+            foreach ($kinds as $kindVal) {
+                $kindLatest = $this->eventRepository->findLatestCreatedAtByKinds([$kindVal]);
+                if ($kindLatest === null) {
+                    // This kind has no stored events — fetch full history
+                    $since = null;
+                    break;
+                }
+                $since = ($since === null) ? $kindLatest : min($since, $kindLatest);
+            }
             if ($since !== null) {
-                $io->info(sprintf('Resuming from last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
+                $io->info(sprintf('Resuming from earliest last known event: %s (timestamp %d)', date('Y-m-d H:i:s', $since), $since));
             } else {
-                $io->info('No existing events for these kinds — fetching full history from relay');
+                $io->info('One or more kinds have no stored events — fetching full history from relay');
             }
 
             // Start the long-lived subscription
@@ -114,6 +127,7 @@ class SubscribeLocalMagazinesCommand extends Command
                     $kindName = match($kind) {
                         30040 => 'Magazine/List',
                         30041 => 'Curation Set',
+                        30817 => 'Wiki',
                         default => "Kind $kind"
                     };
 

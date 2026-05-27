@@ -9,6 +9,7 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
+use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
@@ -1584,7 +1585,8 @@ class DefaultController extends AbstractController
     public function magCategory($mag, $slug, EntityManagerInterface $entityManager,
                                 RedisCacheService $redisCacheService,
                                 LoggerInterface $logger,
-                                ArticleSearchInterface $articleSearch): Response
+                                ArticleSearchInterface $articleSearch,
+                                MessageBusInterface $messageBus): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
@@ -1795,6 +1797,7 @@ class DefaultController extends AbstractController
 
             // Build ordered list in original coordinate order.
             $missingCoordinates = [];
+            $queuedMissingWikiCoordinates = [];
             foreach ($coordinates as $coordinate) {
                 if (!isset($parsed[$coordinate])) {
                     continue;
@@ -1807,6 +1810,17 @@ class DefaultController extends AbstractController
                         $list[] = $wikiMap[$coordinate];
                     } else {
                         $missingCoordinates[] = $coordinate;
+
+                        // Queue only wiki coordinates that this category actually references.
+                        $lookupKey = sprintf('naddr:%d:%s:%s', $info['kind'], $info['pubkey'], $info['slug']);
+                        $messageBus->dispatch(new FetchEventFromRelaysMessage(
+                            lookupKey: $lookupKey,
+                            type: 'naddr',
+                            kind: $info['kind'],
+                            pubkey: $info['pubkey'],
+                            identifier: $info['slug'],
+                        ));
+                        $queuedMissingWikiCoordinates[] = $coordinate;
                     }
                     continue;
                 }
@@ -1823,6 +1837,12 @@ class DefaultController extends AbstractController
             if (!empty($missingCoordinates)) {
                 $logger->info('There were missing articles', [
                     'missing' => $missingCoordinates
+                ]);
+            }
+
+            if (!empty($queuedMissingWikiCoordinates)) {
+                $logger->info('Queued missing magazine wiki coordinates for async hydration', [
+                    'coordinates' => $queuedMissingWikiCoordinates,
                 ]);
             }
         }

@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Bug] Fixed wiki events (kind `30817`) not appearing in magazine category pages by queueing targeted async `naddr` fetches for missing wiki coordinates referenced by the category. This hydrates only the wikis actually included in the magazine instead of subscribing to all global wiki events.
 - [Feature] Improved kind `30040` resolution in `/e/*` routes: publication index events now redirect to magazines when they reference nested `30040` indices, and redirect to reading lists when they reference longforms (`30023`/`30024`), chapters (`30041`), or wiki entries (`30817`). Reading list rendering now resolves `30041` and `30817` `a`-references into card items that open via `/e/naddr...`.
 - [Feature] Magazine category pages now support wiki coordinates (`kind:30817`) alongside longform article coordinates. Wiki items render in the same card list UI and open via the new per-category route `/mag/{mag}/cat/{cat}/wiki/{slug}`.
 - [Improvement] Unfold restyle.
