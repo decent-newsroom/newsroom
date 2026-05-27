@@ -1,9 +1,4 @@
 <header>
-    {{#if site.logo}}
-    <div class="site-cover">
-        <a href="/"><img src="{{site.logo}}" alt="{{site.title}}" class="cover-image"></a>
-    </div>
-    {{/if}}
     <div class="site-title">
         <a href="/">{{site.title}}</a>
     </div>
@@ -11,10 +6,15 @@
     <p class="site-description">{{site.description}}</p>
     {{/if}}
     <nav>
-        <a href="/">Home</a>
+        <a href="/" {{#if site.home_current}}class="nav-current"{{/if}}>Home</a>
         {{#each site.navigation}}
-        <a href="{{url}}">{{label}}</a>
+        <a href="{{url}}" {{#if current}}class="nav-current"{{/if}}>{{label}}</a>
         {{/each}}
     </nav>
+    {{#if site.logo}}
+    <div class="site-cover">
+        <a href="/"><img src="{{site.logo}}" alt="{{site.title}}" class="cover-image"></a>
+    </div>
+    {{/if}}
 </header>
 

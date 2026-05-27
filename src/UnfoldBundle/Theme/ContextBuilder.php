@@ -32,7 +32,7 @@ class ContextBuilder
      */
     public function buildHomeContext(SiteConfig $site, array $categories, array $posts): array
     {
-        $siteContext = $this->buildSiteContext($site, $categories);
+        $siteContext = $this->buildSiteContext($site, $categories, '/');
         return [
             '@site' => $siteContext,
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
@@ -55,7 +55,7 @@ class ContextBuilder
         CategoryData $category,
         array $posts
     ): array {
-        $siteContext = $this->buildSiteContext($site, $categories);
+        $siteContext = $this->buildSiteContext($site, $categories, '/' . $category->slug);
         return [
             '@site' => $siteContext,
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
@@ -77,15 +77,15 @@ class ContextBuilder
      *
      * @param CategoryData[] $categories
      */
-    public function buildPostContext(SiteConfig $site, array $categories, PostData $post): array
+    public function buildPostContext(SiteConfig $site, array $categories, PostData $post, ?CategoryData $primaryCategory = null): array
     {
-        $siteContext = $this->buildSiteContext($site, $categories);
+        $siteContext = $this->buildSiteContext($site, $categories, null);
         return [
             '@site' => $siteContext,
             'site' => $siteContext,  // Also provide without @ for LightnCandy compatibility
             '@custom' => $this->buildCustomContext(),
             '@pageType' => 'post',
-            'post' => $this->buildSinglePostContext($post),
+            'post' => $this->buildSinglePostContext($post, $primaryCategory),
         ];
     }
 
@@ -94,12 +94,13 @@ class ContextBuilder
      *
      * @param CategoryData[] $categories
      */
-    private function buildSiteContext(SiteConfig $site, array $categories): array
+    private function buildSiteContext(SiteConfig $site, array $categories, ?string $currentUrl): array
     {
         $navigation = array_map(fn(CategoryData $cat) => [
             'label' => $cat->title,
             'url' => '/' . $cat->slug,
             'slug' => $cat->slug,
+            'current' => $currentUrl === '/' . $cat->slug,
         ], $categories);
 
         // Get magazine creator's lightning address from metadata
@@ -121,6 +122,7 @@ class ContextBuilder
             'logo' => $site->logo,
             'url' => '/',
             'navigation' => $navigation,
+            'home_current' => $currentUrl === '/',
             'locale' => 'en',
             'members_enabled' => false,
             'creator_pubkey' => $site->pubkey,
@@ -178,7 +180,7 @@ class ContextBuilder
     /**
      * Build full post context for detail page
      */
-    private function buildSinglePostContext(PostData $post): array
+    private function buildSinglePostContext(PostData $post, ?CategoryData $primaryCategory = null): array
     {
         // Fetch author metadata from Redis cache
         $authorMetadata = $this->redisCacheService->getMetadata($post->pubkey);
@@ -230,6 +232,11 @@ class ContextBuilder
             'comments' => $comments,
             'comments_count' => $commentsCount,
             'has_thread_activity' => [] !== $comments,
+            'primary_tag' => $primaryCategory !== null ? [
+                'name' => $primaryCategory->title,
+                'slug' => $primaryCategory->slug,
+                'url' => '/' . $primaryCategory->slug,
+            ] : null,
         ];
     }
 

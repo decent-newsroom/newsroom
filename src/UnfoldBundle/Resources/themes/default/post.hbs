@@ -29,8 +29,12 @@
         nav { margin-top: 1rem; }
         nav a { color: #333; text-decoration: none; margin-right: 1.5rem; font-size: 0.9rem; }
         nav a:hover { text-decoration: underline; }
+        nav a.nav-current { border-bottom: 2px solid #333; padding-bottom: 2px; }
         article { margin-bottom: 3rem; }
         .post-header { margin-bottom: 2rem; }
+        .post-category { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+        .post-category a { color: #333; text-decoration: none; }
+        .post-category a:hover { text-decoration: underline; }
         .post-header h1 { font-size: 2.5rem; line-height: 1.2; margin-bottom: 1rem; }
         .post-meta { color: #666; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
         .post-meta .author { display: inline-flex; align-items: center; gap: 0.5rem; }
@@ -59,6 +63,9 @@
     <main>
         <article>
             <div class="post-header">
+                {{#if post.primary_tag}}
+                <div class="post-category"><a href="{{post.primary_tag.url}}">{{post.primary_tag.name}}</a></div>
+                {{/if}}
                 <h1>{{post.title}}</h1>
                 <div class="post-meta">
                     {{#if post.primary_author}}

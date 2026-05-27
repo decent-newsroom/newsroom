@@ -117,7 +117,18 @@ class SiteController
             throw new NotFoundHttpException('Article not found');
         }
 
-        $context = $this->contextBuilder->buildPostContext($siteConfig, $categories, $post);
+        // Find the category this post belongs to
+        $primaryCategory = null;
+        foreach ($categories as $category) {
+            foreach ($category->articleCoordinates as $coordinate) {
+                if (str_ends_with($coordinate, ':' . $slug)) {
+                    $primaryCategory = $category;
+                    break 2;
+                }
+            }
+        }
+
+        $context = $this->contextBuilder->buildPostContext($siteConfig, $categories, $post, $primaryCategory);
 
         $html = $this->renderer->render('post', $context);
 
