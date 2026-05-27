@@ -1,0 +1,17 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.articles.signInRequired'|trans }}</p>
+        </div>
+    {% elseif followCount|default(0) == 0 %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.activity.noFollows'|trans }}</p>
+        </div>
+    {% elseif activityItems is empty %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.activity.empty'|trans }}</p>
+        </div>
+    {% else %}
+        {% include 'partial/_activity_items.html.twig' %}
+    {% endif %}
+</turbo-frame>

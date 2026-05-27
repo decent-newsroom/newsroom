@@ -1,0 +1,32 @@
+{#
+  Shared update items list.
+  Variables:
+    updates  Update[]  Sorted newest-first. May be empty (caller handles empty state).
+  Optional attributes:
+    streamTarget  bool  When true, adds data-ui--updates-stream-target="list"
+                        (used by the Updates page Mercure controller).
+                        Defaults to false so it is safe to include without the controller.
+#}
+<ul class="update-list"{% if streamTarget|default(false) %} data-ui--updates-stream-target="list"{% endif %}>
+    {% for n in updates %}
+        <li class="update-item{% if n.readAt is null %} update-item--unread{% endif %}"
+            data-update-id="{{ n.id }}">
+            <div class="update-item__header">
+                <span class="update-item__kind">
+                    {% if n.eventKind == 30023 %}{{ 'updates.toast.newArticle'|trans }}
+                    {% elseif n.eventKind == 30040 %}{{ 'updates.toast.newPublication'|trans }}
+                    {% else %}{{ n.eventKind }}
+                    {% endif %}
+                </span>
+                <time datetime="{{ n.createdAt|date('c') }}">{{ n.createdAt|date('Y-m-d H:i') }}</time>
+            </div>
+            <a href="{{ n.url }}" class="update-item__title" data-turbo-frame="_top">
+                {{ n.title ?: ('updates.untitled'|trans) }}
+            </a>
+            {% if n.summary %}
+                <p class="update-item__summary">{{ n.summary }}</p>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+

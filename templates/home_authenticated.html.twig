@@ -25,6 +25,22 @@
                     {{ 'home_feed.tab.featured_pack'|trans }}
                 </a>
 
+                <a href="{{ path('home_feed_tab', {tab: 'activityfeed'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="activityfeed"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.activity'|trans }}
+                </a>
+
+                <a href="{{ path('home_feed_tab', {tab: 'updatesfeed'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="updatesfeed"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.updates'|trans }}
+                </a>
+
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">

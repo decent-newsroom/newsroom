@@ -776,6 +776,8 @@ home_feed:
         articles: 'Para ti'
         media: 'Multimedia'
         featured_pack: 'Follow Pack'
+        activity: 'Actividad'
+        updates: 'Actualizaciones'
     loading: 'Cargando artículos…'
     source:
         discussed: 'Comentados'
@@ -797,6 +799,15 @@ home_feed:
         no_pack: 'Aún no has configurado un follow pack destacado.'
         setup_cta: 'Configurar Follow Pack'
         empty: 'Aún no se encontraron artículos de tu follow pack.'
+    activity:
+        empty: 'Aún no hay resaltados ni comentarios de personas que sigues.'
+        noFollows: 'Sigue a personas en Nostr para ver sus resaltados y comentarios aquí.'
+    updates:
+        no_subscriptions: 'Aún no tienes suscripciones de actualizaciones.'
+        subscribe_hint: 'Usa el botón Suscribirse en las páginas de perfil de autores para incluirlos en este feed, o gestiona tus suscripciones manualmente.'
+        manage_cta: 'Gestionar suscripciones'
+        empty: 'Aún no hay actualizaciones de tus suscripciones.'
+        view_all: 'Ver todas las actualizaciones'
 
 # ── Configuración ──────────────────────────────────────────────────────
 settings:

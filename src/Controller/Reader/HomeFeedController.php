@@ -16,6 +16,8 @@ use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
+use App\Repository\UpdateRepository;
+use App\Repository\UpdateSubscriptionRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ArticleSearchInterface;
@@ -29,7 +31,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media|featuredpack'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media|featuredpack|activityfeed|updatesfeed'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -43,6 +45,8 @@ class HomeFeedController extends AbstractController
         UserMuteListService $userMuteListService,
         MutedPubkeysService $mutedPubkeysService,
         FollowPackService $followPackService,
+        UpdateRepository $updateRepository,
+        UpdateSubscriptionRepository $subscriptionRepository,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
@@ -53,6 +57,8 @@ class HomeFeedController extends AbstractController
             'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
             'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
             'featuredpack' => $this->featuredPackTab($followPackService, $logger),
+            'activityfeed' => $this->activityFeedTab($eventRepository, $userProfileService, $logger),
+            'updatesfeed' => $this->updatesFeedTab($updateRepository, $subscriptionRepository),
         };
     }
 
@@ -659,5 +665,214 @@ class HomeFeedController extends AbstractController
                 'isLoggedIn' => true,
             ]);
         }
+    }
+
+    /**
+     * Activity feed tab: highlights (kind 9802) and long-form article comments (kind 1111)
+     * from the pubkeys the current user follows, sorted newest first.
+     */
+    private function activityFeedTab(
+        EventRepository $eventRepository,
+        UserProfileService $userProfileService,
+        LoggerInterface $logger,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->render('home/tabs/_activity_feed.html.twig', [
+                'activityItems' => [],
+                'isLoggedIn' => false,
+                'followCount' => 0,
+            ]);
+        }
+
+        try {
+            $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        } catch (\Throwable $e) {
+            $logger->error('Activity feed tab: failed to convert npub', ['error' => $e->getMessage()]);
+            return $this->render('home/tabs/_activity_feed.html.twig', [
+                'activityItems' => [],
+                'isLoggedIn' => true,
+                'followCount' => 0,
+            ]);
+        }
+
+        // ── 1. Resolve followed pubkeys ──
+        $followedPubkeys = [];
+        try {
+            $followsEvent = $eventRepository->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::FOLLOWS->value);
+            if ($followsEvent === null) {
+                $followedPubkeys = $userProfileService->getFollows($pubkeyHex);
+            } else {
+                foreach ($followsEvent->getTags() as $tag) {
+                    if (is_array($tag) && ($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                        $followedPubkeys[] = $tag[1];
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $logger->error('Activity feed tab: failed to load follows', ['error' => $e->getMessage()]);
+        }
+
+        if (empty($followedPubkeys)) {
+            return $this->render('home/tabs/_activity_feed.html.twig', [
+                'activityItems' => [],
+                'isLoggedIn' => true,
+                'followCount' => 0,
+            ]);
+        }
+
+        $activityItems = [];
+        $commentRefsById = [];
+
+        try {
+            // ── 2. Highlights from followed pubkeys ──
+            $highlightEvents = $eventRepository->findMediaEventsByPubkeys(
+                $followedPubkeys,
+                [KindsEnum::HIGHLIGHTS->value],
+                100
+            );
+
+            foreach ($highlightEvents as $event) {
+                $articleRef = null;
+                $context = null;
+                foreach ($event->getTags() as $tag) {
+                    if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
+                        $parts = explode(':', $tag[1], 3);
+                        if (count($parts) === 3 && in_array((int) $parts[0], [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
+                            $articleRef = $tag[1];
+                        }
+                    }
+                    if (($tag[0] ?? '') === 'context' && isset($tag[1])) {
+                        $context = $tag[1];
+                    }
+                }
+
+                $activityItems[] = [
+                    'type' => 'highlight',
+                    'id' => $event->getId(),
+                    'content' => $event->getContent(),
+                    'created_at' => $event->getCreatedAt(),
+                    'pubkey' => $event->getPubkey(),
+                    'context' => $context,
+                    'article_ref' => $articleRef,
+                    'article_title' => null,
+                    'naddr' => null,
+                    'preview' => null,
+                    'url' => null,
+                ];
+            }
+
+            // ── 3. Comments (kind 1111) referencing long-form articles from followed pubkeys ──
+            $commentEvents = $eventRepository->findMediaEventsByPubkeys(
+                $followedPubkeys,
+                [KindsEnum::COMMENTS->value],
+                100
+            );
+
+            foreach ($commentEvents as $event) {
+                $articleRef = null;
+                foreach ($event->getTags() as $tag) {
+                    if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
+                        $parts = explode(':', $tag[1], 3);
+                        if (count($parts) === 3) {
+                            $kind = (int) $parts[0];
+                            if (in_array($kind, [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
+                                $articleRef = $tag[1];
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if ($articleRef) {
+                    $commentRefsById[$event->getId()] = $articleRef;
+                    $activityItems[] = [
+                        'type' => 'comment',
+                        'id' => $event->getId(),
+                        'content' => $event->getContent(),
+                        'created_at' => $event->getCreatedAt(),
+                        'pubkey' => $event->getPubkey(),
+                        'article_ref' => $articleRef,
+                        'article_title' => null,
+                    ];
+                }
+            }
+
+            // ── 4. Batch-resolve article titles for comments ──
+            if (!empty($commentRefsById)) {
+                $articleEventsByRef = $eventRepository->findByCoordinates(
+                    array_values(array_unique($commentRefsById))
+                );
+                foreach ($activityItems as &$item) {
+                    if (($item['type'] ?? null) !== 'comment') {
+                        continue;
+                    }
+                    $ref = $item['article_ref'] ?? null;
+                    $articleEvent = $ref ? ($articleEventsByRef[$ref] ?? null) : null;
+                    $item['article_title'] = $articleEvent?->getTitle();
+                }
+                unset($item);
+            }
+
+            // ── 5. Sort newest first, cap at 60 ──
+            usort($activityItems, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+            $activityItems = array_slice($activityItems, 0, 60);
+        } catch (\Throwable $e) {
+            $logger->error('Activity feed tab: failed to load activity', ['error' => $e->getMessage()]);
+        }
+
+        return $this->render('home/tabs/_activity_feed.html.twig', [
+            'activityItems' => $activityItems,
+            'isLoggedIn' => true,
+            'followCount' => count($followedPubkeys),
+        ]);
+    }
+
+    /**
+     * Updates feed tab: shows items from the user's update subscriptions (same data
+     * as the Updates page) without marking them as read/seen — that only happens
+     * when the user opens the full /updates page.
+     */
+    private function updatesFeedTab(
+        UpdateRepository $updateRepository,
+        UpdateSubscriptionRepository $subscriptionRepository,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->render('home/tabs/_updates_feed.html.twig', [
+                'updates' => [],
+                'hasSubscriptions' => false,
+                'isLoggedIn' => false,
+            ]);
+        }
+
+        $hasSubscriptions = $subscriptionRepository->countActiveForUser($user) > 0;
+
+        // Fetch recent updates using the same collapse logic as UpdatesController::index().
+        // We deliberately do NOT call markAllSeen / markAllRead here.
+        $raw = $updateRepository->findRecentForUser($user, 200);
+        $updates = [];
+        $seenPubkeys = [];
+        foreach ($raw as $update) {
+            if ($update->getEventKind() === 30023) {
+                $key = $update->getEventPubkey();
+                if (isset($seenPubkeys[$key])) {
+                    continue;
+                }
+                $seenPubkeys[$key] = true;
+            }
+            $updates[] = $update;
+            if (count($updates) >= 50) {
+                break;
+            }
+        }
+
+        return $this->render('home/tabs/_updates_feed.html.twig', [
+            'updates' => $updates,
+            'hasSubscriptions' => $hasSubscriptions,
+            'isLoggedIn' => true,
+        ]);
     }
 }

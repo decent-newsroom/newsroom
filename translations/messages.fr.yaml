@@ -776,6 +776,8 @@ home_feed:
         articles: 'Pour vous'
         media: 'Médias'
         featured_pack: 'Follow Pack'
+        activity: 'Activité'
+        updates: 'Mises à jour'
     loading: 'Chargement des articles…'
     source:
         discussed: 'Discutés'
@@ -797,6 +799,15 @@ home_feed:
         no_pack: 'Vous n''avez pas encore configuré de follow pack en vedette.'
         setup_cta: 'Configurer un Follow Pack'
         empty: 'Aucun article trouvé pour les auteurs de votre follow pack.'
+    activity:
+        empty: 'Pas encore de surlignements ni de commentaires des personnes que vous suivez.'
+        noFollows: 'Suivez des personnes sur Nostr pour voir leurs surlignements et commentaires ici.'
+    updates:
+        no_subscriptions: 'Vous n''avez pas encore d''abonnements de mises à jour.'
+        subscribe_hint: 'Utilisez le bouton S''abonner sur les pages de profil des auteurs pour les inclure dans ce fil, ou gérez vos abonnements manuellement.'
+        manage_cta: 'Gérer les abonnements'
+        empty: 'Aucune mise à jour pour le moment de vos abonnements.'
+        view_all: 'Voir toutes les mises à jour'
 
 # ── Paramètres ──────────────────────────────────────────────────────
 settings:

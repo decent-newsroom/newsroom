@@ -140,62 +140,7 @@
                             <p>{{ 'discover.noActivity'|trans }}</p>
                         </div>
                     {% else %}
-                        <div class="highlights-grid">
-                            {% for item in activityItems %}
-                                {% if item.type == 'comment' %}
-                                    {# Comment item #}
-                                    <div class="highlight-card">
-                                        <div class="highlight-header">
-                                            <div class="highlight-author">
-                                                {% if item.pubkey %}
-                                                    <twig:Molecules:UserFromNpub
-                                                        ident="{{ item.pubkey }}"
-                                                        :compact="true"
-                                                    />
-                                                    <span style="margin-left: 0.5rem; font-size: 0.85rem; color: var(--color-text-muted);">{{ 'discover.commented'|trans }}</span>
-                                                {% else %}
-                                                    <span>{{ 'text.anonymous'|trans }}</span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="highlight-date">
-                                                {{ item.created_at|date('M j, Y') }}
-                                            </div>
-                                        </div>
-                                        <div class="highlight-content" data-controller="utility--show-more">
-                                            {% set commentHtml = item.content|markdown_to_html %}
-                                            <div data-utility--show-more-target="preview" class="content-preview">
-                                                {{ commentHtml|raw }}
-                                            </div>
-                                            <div data-utility--show-more-target="full" class="content-full" style="display: none;">
-                                                {{ commentHtml|raw }}
-                                            </div>
-                                            <button data-utility--show-more-target="button"
-                                                    data-action="click->utility--show-more#toggle"
-                                                    class="show-more-button">
-                                                {{ 'text.showMore'|trans }}
-                                            </button>
-                                        </div>
-                                        <div class="highlight-footer">
-                                            {% if item.article_ref %}
-                                                {% set refParts = item.article_ref|split(':', 3) %}
-                                                {% set refNpub = refParts|length == 3 ? refParts[1]|hex_to_npub : '' %}
-                                                {% if refNpub and refParts|length == 3 %}
-                                                    <a href="{{ path('author-article-slug', {npub: refNpub, slug: refParts[2]}) }}"
-                                                       class="article-reference"
-                                                       data-turbo-frame="_top">
-                                                        {{ item.article_title ?: ('discover.viewArticle'|trans) }}
-                                                    </a>
-                                                {% endif %}
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    {# Highlight item #}
-                                    {% set highlight = item %}
-                                    {% include 'partial/_highlight_feed_card.html.twig' %}
-                                {% endif %}
-                            {% endfor %}
-                        </div>
+                        {% include 'partial/_activity_items.html.twig' %}
                     {% endif %}
                 </div>
 

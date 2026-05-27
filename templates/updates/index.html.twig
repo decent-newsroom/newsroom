@@ -30,28 +30,7 @@
     {% if updates is empty %}
         <p class="text-muted">{{ 'updates.empty'|trans }}</p>
     {% else %}
-        <ul class="update-list" data-ui--updates-stream-target="list">
-            {% for n in updates %}
-                <li class="update-item{% if n.readAt is null %} update-item--unread{% endif %}"
-                    data-update-id="{{ n.id }}">
-                    <div class="update-item__header">
-                        <span class="update-item__kind">
-                            {% if n.eventKind == 30023 %}{{ 'updates.toast.newArticle'|trans }}
-                            {% elseif n.eventKind == 30040 %}{{ 'updates.toast.newPublication'|trans }}
-                            {% else %}{{ n.eventKind }}
-                            {% endif %}
-                        </span>
-                        <time datetime="{{ n.createdAt|date('c') }}">{{ n.createdAt|date('Y-m-d H:i') }}</time>
-                    </div>
-                    <a href="{{ n.url }}" class="update-item__title">
-                        {{ n.title ?: 'updates.untitled'|trans }}
-                    </a>
-                    {% if n.summary %}
-                        <p class="update-item__summary">{{ n.summary }}</p>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
+        {% include 'partial/_update_items.html.twig' with {streamTarget: true} %}
     {% endif %}
 </div>
 {% endblock %}

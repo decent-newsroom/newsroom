@@ -471,6 +471,8 @@ home_feed:
         articles: 'For you'
         media: 'Media'
         featured_pack: 'Follow Pack'
+        activity: 'Activity'
+        updates: 'Updates'
     loading: 'Loading articles…'
     source:
         discussed: 'Discussed'
@@ -504,6 +506,15 @@ home_feed:
         no_pack: 'You haven''t set up a featured follow pack yet.'
         setup_cta: 'Set Up Follow Pack'
         empty: 'No articles found from your follow pack writers yet.'
+    activity:
+        empty: 'No highlights or comments from people you follow yet.'
+        noFollows: 'Follow some people on Nostr to see their highlights and comments here.'
+    updates:
+        no_subscriptions: 'You don''t have any update subscriptions yet.'
+        subscribe_hint: 'Use the Subscribe button on author profile pages to include them in this feed, or manage your subscriptions manually.'
+        manage_cta: 'Manage subscriptions'
+        empty: 'No updates yet from your subscriptions.'
+        view_all: 'View all updates'
 
 # ── Article page ──────────────────────────────────────────────────
 article:

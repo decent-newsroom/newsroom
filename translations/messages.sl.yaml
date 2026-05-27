@@ -776,6 +776,8 @@ home_feed:
         articles: 'Zame'
         media: 'Mediji'
         featured_pack: 'Follow Pack'
+        activity: 'Aktivnost'
+        updates: 'Posodobitve'
     loading: 'Nalagam članke…'
     source:
         discussed: 'Komentirano'
@@ -797,6 +799,15 @@ home_feed:
         no_pack: 'Še niste nastavili izpostavljenega follow pack-a.'
         setup_cta: 'Nastavi Follow Pack'
         empty: 'Zaenkrat ni člankov od avtorjev v vašem follow pack-u.'
+    activity:
+        empty: 'Zaenkrat ni poudarkov ali komentarjev od ljudi, ki jim sledite.'
+        noFollows: 'Sledite ljudem na Nostr, da boste tukaj videli njihove poudarke in komentarje.'
+    updates:
+        no_subscriptions: 'Še nimate naročnin za posodobitve.'
+        subscribe_hint: 'Uporabite gumb Naroči se na straneh profilov avtorjev, da jih vključite v ta vir, ali ročno upravljajte naročnine.'
+        manage_cta: 'Upravljaj naročnine'
+        empty: 'Zaenkrat ni posodobitev od vaših naročnin.'
+        view_all: 'Oglej si vse posodobitve'
 
 # ── Nastavitve ──────────────────────────────────────────────────────
 settings:

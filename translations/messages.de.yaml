@@ -790,6 +790,8 @@ home_feed:
         articles: 'Für dich'
         media: 'Medien'
         featured_pack: 'Follow-Pack'
+        activity: 'Aktivität'
+        updates: 'Updates'
     loading: 'Artikel werden geladen…'
     source:
         discussed: 'Diskutiert'
@@ -811,6 +813,15 @@ home_feed:
         no_pack: 'Du hast noch kein Follow-Pack eingerichtet.'
         setup_cta: 'Follow-Pack einrichten'
         empty: 'Noch keine Artikel von deinen Follow-Pack-Autoren gefunden.'
+    activity:
+        empty: 'Noch keine Highlights oder Kommentare von Leuten, denen du folgst.'
+        noFollows: 'Folge Leuten auf Nostr, um ihre Highlights und Kommentare hier zu sehen.'
+    updates:
+        no_subscriptions: 'Du hast noch keine Update-Abonnements.'
+        subscribe_hint: 'Verwende die Abonnieren-Schaltfläche auf Autorprofilseiten, um sie in diesen Feed aufzunehmen, oder verwalte deine Abonnements manuell.'
+        manage_cta: 'Abonnements verwalten'
+        empty: 'Noch keine Updates von deinen Abonnements.'
+        view_all: 'Alle Updates anzeigen'
 
 # ── Einstellungen ──────────────────────────────────────────────────────
 settings:
