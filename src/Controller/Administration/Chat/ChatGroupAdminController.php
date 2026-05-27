@@ -9,6 +9,7 @@ use App\ChatBundle\Repository\ChatGroupRepository;
 use App\ChatBundle\Repository\ChatGroupMembershipRepository;
 use App\ChatBundle\Repository\ChatUserRepository;
 use App\ChatBundle\Service\ChatGroupService;
+use App\Entity\User as MainAppUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,9 +49,7 @@ class ChatGroupAdminController extends AbstractController
         $name = $request->request->get('name', '');
         $slug = $request->request->get('slug', '');
 
-        // Find a community admin to sign the channel create event
-        $users = $this->userRepo->findByCommunity($community);
-        $creator = $users[0] ?? null;
+        $creator = $this->resolveGroupCreator($communityId);
         if ($creator === null) {
             $this->addFlash('error', 'Create at least one user before creating groups.');
             return $this->redirectToRoute('admin_chat_groups', ['communityId' => $communityId]);
@@ -103,19 +102,23 @@ class ChatGroupAdminController extends AbstractController
     #[Route('/{groupId}/publish-channel-event', name: 'admin_chat_group_publish_channel', methods: ['POST'])]
     public function publishChannelEvent(int $communityId, int $groupId, Request $request): Response
     {
+        $community = $this->communityRepo->find($communityId) ?? throw $this->createNotFoundException();
         $group = $this->groupRepo->find($groupId) ?? throw $this->createNotFoundException();
+        if ($group->getCommunity()->getId() !== $community->getId()) {
+            throw $this->createNotFoundException();
+        }
 
         $data = json_decode($request->getContent(), true);
-        $signedEventJson = json_encode($data['signedEvent'] ?? null);
+        $signedEvent = $data['signedEvent'] ?? null;
+        $signedEventJson = json_encode($signedEvent);
 
-        if ($signedEventJson === 'null') {
+        if (!is_array($signedEvent) || $signedEventJson === 'null') {
             return new JsonResponse(['error' => 'Missing signedEvent'], 400);
         }
 
-        $users = $this->userRepo->findByCommunity($group->getCommunity());
-        $creator = $users[0] ?? null;
+        $creator = $this->resolveCurrentSelfSovereignUser($communityId);
 
-        if ($creator === null || $creator->getPubkey() !== ($data['signedEvent']['pubkey'] ?? '')) {
+        if ($creator === null || $creator->getPubkey() !== ($signedEvent['pubkey'] ?? '')) {
             return new JsonResponse(['error' => 'Unauthorized'], 403);
         }
 
@@ -125,5 +128,51 @@ class ChatGroupAdminController extends AbstractController
         } catch (\Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 400);
         }
+    }
+
+    private function resolveGroupCreator(int $communityId): ?\App\ChatBundle\Entity\ChatUser
+    {
+        $community = $this->communityRepo->find($communityId);
+        if ($community === null) {
+            return null;
+        }
+
+        $users = $this->userRepo->findByCommunity($community);
+
+        // Prefer a custodial signer when available to avoid client-side relay AUTH dependencies.
+        foreach ($users as $user) {
+            if ($user->isCustodial() && $user->isActive()) {
+                return $user;
+            }
+        }
+
+        // Fall back to the currently authenticated self-sovereign admin.
+        $current = $this->resolveCurrentSelfSovereignUser($communityId);
+        if ($current !== null) {
+            return $current;
+        }
+
+        // Last resort: legacy behavior.
+        return $users[0] ?? null;
+    }
+
+    private function resolveCurrentSelfSovereignUser(int $communityId): ?\App\ChatBundle\Entity\ChatUser
+    {
+        $community = $this->communityRepo->find($communityId);
+        if ($community === null) {
+            return null;
+        }
+
+        $securityUser = $this->getUser();
+        if (!$securityUser instanceof MainAppUser) {
+            return null;
+        }
+
+        $chatUser = $this->userRepo->findByMainAppUserAndCommunity($securityUser, $community);
+        if ($chatUser === null || $chatUser->isCustodial() || !$chatUser->isActive()) {
+            return null;
+        }
+
+        return $chatUser;
     }
 }

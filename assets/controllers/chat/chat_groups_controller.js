@@ -79,7 +79,7 @@ export default class extends Controller {
     }
 
     async signAndPublishChannelEvent(data) {
-        if (!window.nostr) {
+        if (!window.nostr || typeof window.nostr.signEvent !== 'function' || typeof window.nostr.getPublicKey !== 'function') {
             this.showError('Nostr extension not found. Install a Nostr extension to sign this event.');
             return;
         }
@@ -88,8 +88,16 @@ export default class extends Controller {
             this.showStatus('Requesting public key from Nostr extension...');
             const pubkey = await window.nostr.getPublicKey();
 
-            const unsignedEvent = data.unsignedEvent;
-            unsignedEvent.pubkey = pubkey;
+            const unsignedEvent = { ...(data.unsignedEvent || {}) };
+            const expectedPubkey = unsignedEvent.pubkey || '';
+            if (expectedPubkey !== '' && expectedPubkey !== pubkey) {
+                this.showError('Your signer pubkey does not match the community admin required to publish this channel.');
+                return;
+            }
+
+            if (!unsignedEvent.pubkey) {
+                unsignedEvent.pubkey = pubkey;
+            }
 
             this.showStatus('Requesting signature from Nostr extension...');
             const signedEvent = await window.nostr.signEvent(unsignedEvent);
