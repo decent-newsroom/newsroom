@@ -17,6 +17,14 @@
                     {{ 'home_feed.tab.articles'|trans }}
                 </a>
 
+                <a href="{{ path('home_feed_tab', {tab: 'featuredpack'}) }}"
+                   class="tab-link"
+                   data-content--home-tabs-target="tab"
+                   data-tab="featuredpack"
+                   data-action="click->content--home-tabs#switchTab">
+                    {{ 'home_feed.tab.featured_pack'|trans }}
+                </a>
+
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">

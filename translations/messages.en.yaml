@@ -467,9 +467,10 @@ home_feed:
         podcasts: 'Podcasts'
         newsbots: 'News Bots'
         discussed: 'Discussed'
-        foryou: 'Articles'
-        articles: 'Articles'
+        foryou: 'For you'
+        articles: 'For you'
         media: 'Media'
+        featured_pack: 'Follow Pack'
     loading: 'Loading articles…'
     source:
         discussed: 'Discussed'
@@ -499,6 +500,10 @@ home_feed:
     newsbots:
         empty: 'No news bot articles available'
         emptyHint: 'News bot sources have not been configured yet.'
+    featured_pack:
+        no_pack: 'You haven''t set up a featured follow pack yet.'
+        setup_cta: 'Set Up Follow Pack'
+        empty: 'No articles found from your follow pack writers yet.'
 
 # ── Article page ──────────────────────────────────────────────────
 article:

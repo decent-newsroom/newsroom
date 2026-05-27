@@ -1,0 +1,27 @@
+<turbo-frame id="home-tab-content">
+    {% if not isLoggedIn|default(true) %}
+        <div class="alert alert-info">
+            <p>{{ 'home_feed.articles.signInRequired'|trans }}</p>
+        </div>
+    {% else %}
+        {% if not hasFollowPack %}
+            <div class="alert alert-info home-feed__no-pack-notice">
+                <p>{{ 'home_feed.featured_pack.no_pack'|trans }}</p>
+                <a href="{{ path('follow_pack_setup') }}" class="btn btn--small btn--outline">
+                    {{ 'home_feed.featured_pack.setup_cta'|trans }}
+                </a>
+            </div>
+        {% endif %}
+
+        {% if articles is empty %}
+            {% if hasFollowPack %}
+                <div class="alert alert-info">
+                    <p>{{ 'home_feed.featured_pack.empty'|trans }}</p>
+                </div>
+            {% endif %}
+        {% else %}
+            <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+        {% endif %}
+    {% endif %}
+</turbo-frame>
+

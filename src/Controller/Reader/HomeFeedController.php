@@ -13,6 +13,7 @@ use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
+use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
 use App\Service\MutedPubkeysService;
@@ -28,7 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class HomeFeedController extends AbstractController
 {
-    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media'])]
+    #[Route('/home/tab/{tab}', name: 'home_feed_tab', requirements: ['tab' => 'latest|follows|interests|discussed|foryou|articles|media|featuredpack'])]
     public function tab(
         string $tab,
         RedisCacheService $redisCacheService,
@@ -41,6 +42,7 @@ class HomeFeedController extends AbstractController
         UserProfileService $userProfileService,
         UserMuteListService $userMuteListService,
         MutedPubkeysService $mutedPubkeysService,
+        FollowPackService $followPackService,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
@@ -50,6 +52,7 @@ class HomeFeedController extends AbstractController
             'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
             'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
             'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
+            'featuredpack' => $this->featuredPackTab($followPackService, $logger),
         };
     }
 
@@ -605,5 +608,56 @@ class HomeFeedController extends AbstractController
         return $this->render('home/tabs/_media.html.twig', [
             'mediaEvents' => $mediaEvents,
         ]);
+    }
+
+    /**
+     * Featured follow pack tab: shows articles from the current user's featured follow pack.
+     * If no follow pack coordinate is set, renders a notice with a link to the setup page.
+     */
+    private function featuredPackTab(
+        FollowPackService $followPackService,
+        LoggerInterface $logger,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+                'articles' => [],
+                'authorsMetadata' => [],
+                'hasFollowPack' => false,
+                'isLoggedIn' => false,
+            ]);
+        }
+
+        $coordinate = $user->getFollowPackCoordinate();
+        if (!$coordinate) {
+            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+                'articles' => [],
+                'authorsMetadata' => [],
+                'hasFollowPack' => false,
+                'isLoggedIn' => true,
+            ]);
+        }
+
+        try {
+            $pubkeys = $followPackService->getPubkeysFromCoordinate($coordinate);
+            $result = $followPackService->getArticlesForPubkeys($pubkeys, 50);
+
+            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+                'articles' => $result['articles'],
+                'authorsMetadata' => $result['authorsMetadata'],
+                'hasFollowPack' => true,
+                'isLoggedIn' => true,
+            ]);
+        } catch (\Throwable $e) {
+            $logger->error('Featured pack tab: failed to load articles', ['error' => $e->getMessage()]);
+
+            return $this->render('home/tabs/_my_follow_pack.html.twig', [
+                'articles' => [],
+                'authorsMetadata' => [],
+                'hasFollowPack' => true,
+                'isLoggedIn' => true,
+            ]);
+        }
     }
 }

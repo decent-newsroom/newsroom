@@ -772,9 +772,10 @@ home_feed:
         podcasts: 'Podkasti'
         newsbots: 'Novičarski boti'
         discussed: 'Komentirano'
-        foryou: 'Članki'
-        articles: 'Članki'
+        foryou: 'Zame'
+        articles: 'Zame'
         media: 'Mediji'
+        featured_pack: 'Follow Pack'
     loading: 'Nalagam članke…'
     source:
         discussed: 'Komentirano'
@@ -792,6 +793,10 @@ home_feed:
     discussed:
         empty: 'Zaenkrat ni najdenih člankov s komentarji.'
         commentCount: '{1} %count% komentar|{2} %count% komentarja|[3,4] %count% komentarji|]4,Inf] %count% komentarjev'
+    featured_pack:
+        no_pack: 'Še niste nastavili izpostavljenega follow pack-a.'
+        setup_cta: 'Nastavi Follow Pack'
+        empty: 'Zaenkrat ni člankov od avtorjev v vašem follow pack-u.'
 
 # ── Nastavitve ──────────────────────────────────────────────────────
 settings:

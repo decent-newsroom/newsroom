@@ -786,9 +786,10 @@ home_feed:
         podcasts: 'Podcasts'
         newsbots: 'Nachrichten-Bots'
         discussed: 'Diskutiert'
-        foryou: 'Artikel'
-        articles: 'Artikel'
+        foryou: 'Für dich'
+        articles: 'Für dich'
         media: 'Medien'
+        featured_pack: 'Follow-Pack'
     loading: 'Artikel werden geladen…'
     source:
         discussed: 'Diskutiert'
@@ -806,6 +807,10 @@ home_feed:
     discussed:
         empty: 'Noch keine Artikel mit Kommentaren gefunden.'
         commentCount: '{1} %count% Kommentar|]1,Inf] %count% Kommentare'
+    featured_pack:
+        no_pack: 'Du hast noch kein Follow-Pack eingerichtet.'
+        setup_cta: 'Follow-Pack einrichten'
+        empty: 'Noch keine Artikel von deinen Follow-Pack-Autoren gefunden.'
 
 # ── Einstellungen ──────────────────────────────────────────────────────
 settings:

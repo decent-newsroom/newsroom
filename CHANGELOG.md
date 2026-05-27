@@ -2,6 +2,7 @@
 
 ## v0.0.43
 
+- [Feature] Renamed the "Articles" home feed tab to "For you" across all five locales (en, de, es, fr, sl). Added a new **Follow Pack** tab to the logged-in home page that lists articles from the pubkeys in the user's own featured follow pack (kind 39089, resolved via `User::followPackCoordinate`). If the user has not yet configured a featured follow pack, a notice is shown at the top of the tab with a direct link to the follow pack setup page (`/settings/follow-pack`). New `home_feed.tab.featured_pack` and `home_feed.featured_pack.*` translation keys added to all locales.
 - [Bug] Fixed Activity-tab comment cards being height-clipped without an expand control by wiring them to the same show-more/show-less toggle pattern used by highlight cards.
 - [Bug] Fixed fatal error when `app.user.npub` is null: `UserFromNpub::mount()` now accepts a nullable `$ident` and returns early instead of crashing.
 - [Feature] Added editor role management to admin roles (`/admin/role`): a new **Editors** section now lists users with `ROLE_EDITOR` and provides add/remove controls (same pattern as featured writers), including auto-creating user rows when adding by npub.
