@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Util;
 
-use swentel\nostr\Key\Key;
+use nostriphant\NIP19\Bech32;
 
 class NostrKeyUtil
 {
@@ -33,12 +33,24 @@ class NostrKeyUtil
         // Normalize to lowercase (bech32 must be lowercase, but users might copy-paste mixed case)
         $npub = strtolower(trim($npub));
 
+        if (str_starts_with($npub, 'nostr:')) {
+            $npub = substr($npub, 6);
+        }
+
         if (!self::isNpub($npub)) {
             throw new \InvalidArgumentException('Not a valid npub');
         }
+
         try {
-            $key = new Key();
-            return $key->convertToHex($npub);
+            $decoded = new Bech32($npub);
+            if ($decoded->type !== 'npub') {
+                throw new \InvalidArgumentException('Not a valid npub');
+            }
+
+            /** @var object{data:string} $data */
+            $data = $decoded->data;
+
+            return $data->data;
         } catch (\Throwable $e) {
             throw new \InvalidArgumentException('Invalid npub: ' . $e->getMessage(), 0, $e);
         }
@@ -57,8 +69,7 @@ class NostrKeyUtil
             throw new \InvalidArgumentException('Not a valid hex pubkey');
         }
         try {
-            $key = new Key();
-            return $key->convertPublicKeyToBech32($pubkey);
+            return (string) Bech32::npub($pubkey);
         } catch (\Throwable $e) {
             throw new \InvalidArgumentException('Invalid pubkey: ' . $e->getMessage(), 0, $e);
         }
