@@ -431,6 +431,10 @@ main.editor-layout {
     display: none;
 }
 
+.editor-mobile-layout-controls {
+    display: none;
+}
+
 /* Article list sidebar */
 .editor-articlelist-sidebar {
     width: 260px;
@@ -707,40 +711,87 @@ main.editor-layout {
     }
 
     .editor-main {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: none;
+        gap: 0;
         height: auto;
         min-height: calc(100vh - 60px);
+        overflow: visible;
+    }
+
+    .editor-mobile-layout-controls {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        background: var(--surface, #f9fafb);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+
+    .editor-mobile-layout-controls .btn {
+        flex: 1;
     }
 
     .editor-center {
         overflow: visible;
+        border-right: none;
+        order: 2;
     }
 
     .editor-center-content {
         overflow: visible;
     }
 
+    .editor-articlelist-sidebar,
     .editor-sidebar {
-        display: none !important;
+        display: flex !important;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        max-height: 45vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        overflow: hidden;
     }
 
     .editor-articlelist-sidebar {
+        order: 1;
+    }
+
+    .editor-sidebar {
+        order: 3;
+    }
+
+    .editor-articlelist-sidebar.is-mobile-collapsed,
+    .editor-sidebar.is-mobile-collapsed {
         display: none !important;
     }
 
-    /* Hide the mode tabs on mobile */
     .editor-center-tabs {
-        display: none !important;
-    }
-
-    /* Force edit pane to always show, hide preview */
-    .editor-pane--edit {
         display: flex !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        scrollbar-width: thin;
     }
 
-    .editor-pane--markdown,
-    .editor-pane--preview {
-        display: none !important;
+    .editor-tab {
+        flex: 0 0 auto;
+    }
+
+    .editor-sidebar-tabs,
+    .editor-articlelist-sidebar .editor-sidebar-tabs {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .editor-sidebar-tab {
+        flex: 0 0 auto;
+        min-width: 96px;
+        padding: 0.625rem 0.75rem;
     }
 
     /* Adjust header for mobile */

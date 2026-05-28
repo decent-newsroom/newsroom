@@ -48,6 +48,26 @@
 <main class="editor-layout" data-controller="editor--layout nostr--nostr-single-sign utility--login-modal" data-article-id="{{ article.id|default('') }}" data-nostr--nostr-single-sign-publish-url-value="{{ path('api-article-publish') }}">
     {{ form_start(form, {'attr': {'id': 'editor-form'}}) }}
     <div class="editor-main">
+        <div class="editor-mobile-layout-controls" data-editor--layout-target="mobileLayoutControls">
+            <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                data-editor--layout-target="mobileArticleListToggle"
+                data-action="editor--layout#toggleMobileArticleList"
+                aria-expanded="true"
+            >
+                Hide Library
+            </button>
+            <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                data-editor--layout-target="mobileSidebarToggle"
+                data-action="editor--layout#toggleMobileSidebar"
+                aria-expanded="true"
+            >
+                Hide Settings
+            </button>
+        </div>
         <div data-nostr--nostr-single-sign-target="status"
              style="position: fixed;top: 65px;right: 10px;"
         ></div>
@@ -206,7 +226,7 @@
             </div>
         </div>
         {# Right sidebar (last grid column) #}
-        <aside class="editor-sidebar" data-controller="editor--panels">
+        <aside class="editor-sidebar" data-controller="editor--panels" data-editor--layout-target="editorSidebar">
             <div class="editor-sidebar-tabs">
                 <button
                     type="button"

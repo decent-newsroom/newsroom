@@ -9,13 +9,18 @@ export default class extends Controller {
         'previewBody', 'previewTitle',
         'previewSummary', 'previewImage', 'previewImagePlaceholder', 'previewAuthor', 'previewDate',
         'markdownEditor', 'richTextTitle', 'markdownTitle', 'markdownCode', 'status',
-        'saveDraftSubmit', 'publishSubmit', 'jsonCode'
+        'saveDraftSubmit', 'publishSubmit', 'jsonCode',
+        'articleListSidebar', 'editorSidebar', 'mobileArticleListToggle', 'mobileSidebarToggle', 'mobileLayoutControls'
     ];
 
     connect() {
         console.log('Editor layout controller connected');
         this.autoSaveTimer = null;
         this.lastConversionWarningAt = 0;
+        this.mobilePanelsVisible = {
+            articleList: true,
+            settings: true,
+        };
 
         // Cache of npub → display name, populated from Quill blots and API lookups.
         // Survives tab switches so names don't need re-fetching.
@@ -56,7 +61,57 @@ export default class extends Controller {
         // Auto-sync content when Quill editor loses focus
         this.setupQuillBlurSync();
 
+        this.handleViewportChange = () => this.applyMobilePanelVisibility();
+        window.addEventListener('resize', this.handleViewportChange);
+        this.applyMobilePanelVisibility();
+
         this.setupAuthModal();
+    }
+
+    isMobileViewport() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    toggleMobileArticleList(event) {
+        event.preventDefault();
+        this.mobilePanelsVisible.articleList = !this.mobilePanelsVisible.articleList;
+        this.applyMobilePanelVisibility();
+    }
+
+    toggleMobileSidebar(event) {
+        event.preventDefault();
+        this.mobilePanelsVisible.settings = !this.mobilePanelsVisible.settings;
+        this.applyMobilePanelVisibility();
+    }
+
+    applyMobilePanelVisibility() {
+        const isMobile = this.isMobileViewport();
+
+        if (this.hasArticleListSidebarTarget) {
+            this.articleListSidebarTarget.classList.toggle(
+                'is-mobile-collapsed',
+                isMobile && !this.mobilePanelsVisible.articleList
+            );
+        }
+
+        if (this.hasEditorSidebarTarget) {
+            this.editorSidebarTarget.classList.toggle(
+                'is-mobile-collapsed',
+                isMobile && !this.mobilePanelsVisible.settings
+            );
+        }
+
+        if (this.hasMobileArticleListToggleTarget) {
+            const expanded = !isMobile || this.mobilePanelsVisible.articleList;
+            this.mobileArticleListToggleTarget.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            this.mobileArticleListToggleTarget.textContent = expanded ? 'Hide Library' : 'Show Library';
+        }
+
+        if (this.hasMobileSidebarToggleTarget) {
+            const expanded = !isMobile || this.mobilePanelsVisible.settings;
+            this.mobileSidebarToggleTarget.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            this.mobileSidebarToggleTarget.textContent = expanded ? 'Hide Settings' : 'Show Settings';
+        }
     }
 
     setupQuillBlurSync() {
@@ -437,6 +492,9 @@ export default class extends Controller {
     disconnect() {
         if (this.autoSaveTimer) {
             clearTimeout(this.autoSaveTimer);
+        }
+        if (this.handleViewportChange) {
+            window.removeEventListener('resize', this.handleViewportChange);
         }
         // Clean up Quill blur listener
         if (this.quillBlurHandler && window.appQuill && window.appQuill.root) {

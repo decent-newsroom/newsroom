@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Improvement] Reworked the mobile article editor layout: mode tabs are now available on mobile again, both sidebars (library and settings) render in the mobile flow, and new show/hide toggle controls let users collapse either sidebar without losing access to full editor functionality.
 - [Bug] Fixed article editor lockups on problematic Markdown->Quill conversions. The editor now wraps both conversion directions in guarded fallbacks, shows a visible warning notification when conversion fails, and keeps the Markdown source loaded so the page remains usable instead of hanging.
 - [Bug] Hardened `assets/controllers/editor/conversion.js` inline Markdown parser with bounded-iteration and forward-progress guards so special-character edge cases can no longer trap the Markdown->Delta conversion in an infinite loop.
 - [Bug] Fixed pasted Nostr `npub` lookups from crashing on long or `nostr:`-prefixed identifiers by switching `NostrKeyUtil::npubToHex()` to the long-input `nostriphant/nip-19` decoder instead of the length-limited `swentel/nostr-php` Bech32 converter.
