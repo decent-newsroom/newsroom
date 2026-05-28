@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Bug] Fixed `events:replay-deletions` failing on PostgreSQL with `SQLSTATE[42803]` by removing the `ORDER BY` clause from its internal `COUNT()` query before batching kind `5` deletion requests.
 - [Improvement] Refined the mobile editor overlay behavior: library/settings now default to hidden, opening either panel overlays the editor content full-height, and the compact mobile header hides the article title text to preserve space for actions.
 - [Improvement] Reworked the mobile article editor layout: mode tabs are now available on mobile again, both sidebars (library and settings) render in the mobile flow, and new show/hide toggle controls let users collapse either sidebar without losing access to full editor functionality.
 - [Bug] Fixed article editor lockups on problematic Markdown->Quill conversions. The editor now wraps both conversion directions in guarded fallbacks, shows a visible warning notification when conversion fails, and keeps the Markdown source loaded so the page remains usable instead of hanging.

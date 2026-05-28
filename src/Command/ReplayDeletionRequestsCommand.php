@@ -78,7 +78,12 @@ class ReplayDeletionRequestsCommand extends Command
             $qb->andWhere('e.created_at >= :since')->setParameter('since', $since);
         }
 
-        $total = (int) (clone $qb)->select('COUNT(e.id)')->getQuery()->getSingleScalarResult();
+        $countQb = clone $qb;
+        $countQb
+            ->resetDQLPart('orderBy')
+            ->select('COUNT(e.id)');
+
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
 
         if ($total === 0) {
             $io->success('No kind:5 deletion requests found in the database.');
