@@ -15,6 +15,7 @@ export default class extends Controller {
     connect() {
         console.log('Editor layout controller connected');
         this.autoSaveTimer = null;
+        this.lastConversionWarningAt = 0;
 
         // Cache of npub → display name, populated from Quill blots and API lookups.
         // Survives tab switches so names don't need re-fetching.
@@ -106,7 +107,11 @@ export default class extends Controller {
             if (mdTextarea) nmd = mdTextarea.value;
         }
         this.state.content_NMD = nmd;
-        this.state.content_delta = this.nmdToDelta(nmd);
+        this.state.content_delta = this.safeNmdToDelta(nmd, {
+            context: 'initial-load',
+            fallbackMarkdown: nmd,
+            fallbackToPlainTextDelta: true,
+        });
         // Set active_source to 'quill' since we want rich text editor to be active first
         this.state.active_source = 'quill';
     }
@@ -221,7 +226,10 @@ export default class extends Controller {
             // Snapshot mention names from Quill blots before converting
             this.snapshotMentionNames();
             // Convert Delta to NMD
-            this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
+            this.state.content_NMD = this.safeDeltaToNmd(this.state.content_delta, {
+                context: 'switch-to-markdown',
+                fallbackMarkdown: this.state.content_NMD,
+            });
             this.state.active_source = 'md';
             this.updateMarkdownEditor();
             // Sync title from rich text to markdown
@@ -240,7 +248,11 @@ export default class extends Controller {
                 nmd = this.state.content_NMD;
             }
             this.state.content_NMD = nmd;
-            this.state.content_delta = this.nmdToDelta(nmd);
+            this.state.content_delta = this.safeNmdToDelta(nmd, {
+                context: 'switch-to-edit',
+                fallbackMarkdown: nmd,
+                fallbackToPlainTextDelta: true,
+            });
             this.state.active_source = 'quill';
             this.updateQuillEditor();
             // Sync title from markdown to rich text
@@ -316,7 +328,10 @@ export default class extends Controller {
         // the current delta to markdown on the fly so the preview is always fresh.
         let markdownContent = '';
         if (this.state.active_source === 'quill' && this.state.content_delta) {
-            markdownContent = this.deltaToNMD(this.state.content_delta);
+            markdownContent = this.safeDeltaToNmd(this.state.content_delta, {
+                context: 'preview',
+                fallbackMarkdown: this.state.content_NMD,
+            });
         } else if (markdownInput) {
             // CodeMirror may not sync back to the textarea value in real-time
             if (markdownInput._codemirror) {
@@ -449,7 +464,10 @@ export default class extends Controller {
     syncContentBeforePublish() {
         // If the active source is Quill, convert delta to markdown and update the form field
         if (this.state.active_source === 'quill' && this.state.content_delta) {
-            this.state.content_NMD = this.deltaToNMD(this.state.content_delta);
+            this.state.content_NMD = this.safeDeltaToNmd(this.state.content_delta, {
+                context: 'before-publish',
+                fallbackMarkdown: this.state.content_NMD,
+            });
             this.updateMarkdownEditor();
             console.log('[Editor] Synced Quill content to markdown');
         }
@@ -576,6 +594,68 @@ export default class extends Controller {
     nmdToDelta(nmd) {
         // Pass mentionNameCache so npub→name lookup doesn't require API
         return markdownToDelta(nmd, { mentionNames: this.mentionNameCache });
+    }
+
+    safeDeltaToNmd(delta, { context = 'unknown', fallbackMarkdown = '' } = {}) {
+        try {
+            return this.deltaToNMD(delta);
+        } catch (error) {
+            this.notifyConversionFailure(
+                `Could not convert rich text to Markdown (${context}). Kept existing Markdown content.`,
+                error
+            );
+
+            return typeof fallbackMarkdown === 'string' ? fallbackMarkdown : '';
+        }
+    }
+
+    safeNmdToDelta(nmd, {
+        context = 'unknown',
+        fallbackMarkdown = '',
+        fallbackToPlainTextDelta = true,
+    } = {}) {
+        try {
+            return this.nmdToDelta(nmd);
+        } catch (error) {
+            this.notifyConversionFailure(
+                `Could not convert Markdown to rich text (${context}). Loaded Markdown and kept the editor responsive.`,
+                error
+            );
+
+            if (fallbackToPlainTextDelta) {
+                const fallbackText = typeof fallbackMarkdown === 'string' ? fallbackMarkdown : '';
+                return this.createPlainTextDelta(fallbackText);
+            }
+
+            return null;
+        }
+    }
+
+    createPlainTextDelta(markdown) {
+        const value = typeof markdown === 'string' ? markdown : '';
+        if (!value) {
+            return { ops: [{ insert: '\n' }] };
+        }
+
+        const textWithTrailingNewline = value.endsWith('\n') ? value : `${value}\n`;
+        return { ops: [{ insert: textWithTrailingNewline }] };
+    }
+
+    notifyConversionFailure(message, error = null) {
+        if (error) {
+            console.error('[Editor] Conversion failure:', error);
+        }
+
+        const now = Date.now();
+        if (now - this.lastConversionWarningAt < 2000) {
+            return;
+        }
+        this.lastConversionWarningAt = now;
+
+        this.updateStatus(`Conversion failed: ${message}`);
+        if (typeof window.showToast === 'function') {
+            window.showToast(`Editor notice: ${message}`, 'warning', 7000);
+        }
     }
 
     emitContentChanged() {
