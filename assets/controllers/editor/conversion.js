@@ -407,10 +407,19 @@ function inlineMarkdownToOps(text, mentionNames) {
   const ops = [];
   let i = 0;
   const names = mentionNames || {};
+  const maxIterations = (text?.length || 0) * 4 + 100;
+  let iterations = 0;
 
   const pushText = (t) => { if (t) ops.push({ insert: t }); };
 
   while (i < text.length) {
+    iterations += 1;
+    if (iterations > maxIterations) {
+      // Safety valve: avoid pathological parser loops from freezing the UI.
+      pushText(text.slice(i));
+      break;
+    }
+    const startIndex = i;
 
     // nostr mention: nostr:npub1...
     if (text.startsWith('nostr:', i)) {
@@ -564,6 +573,12 @@ function inlineMarkdownToOps(text, mentionNames) {
     const next = nextSpecialIndex(text, i);
     pushText(text.slice(i, next));
     i = next;
+
+    // Defensive forward-progress guard for unexpected parser states.
+    if (i === startIndex) {
+      pushText(text[i]);
+      i += 1;
+    }
   }
 
   return ops;
