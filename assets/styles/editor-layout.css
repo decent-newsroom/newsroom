@@ -471,16 +471,10 @@ main.editor-layout {
     padding: 1.5rem 0;
 }
 
-.articlelist-manage-link {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
-    background: var(--surface-dark, #f3f4f6);
-}
-
 .articlelist-manage-link a {
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--primary, #2563eb);
+    color: var(--color-secondary);
     text-decoration: none;
 }
 
@@ -766,6 +760,7 @@ main.editor-layout {
     .editor-articlelist-sidebar,
     .editor-sidebar {
         display: flex !important;
+        flex-direction: column;
         position: fixed;
         left: 0;
         right: 0;
@@ -777,7 +772,8 @@ main.editor-layout {
         max-height: none;
         border-right: none;
         border-bottom: none;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         z-index: 220;
         box-shadow: none;
     }
@@ -819,6 +815,14 @@ main.editor-layout {
     .editor-articlelist-sidebar .editor-sidebar-tabs {
         flex-direction: row;
         overflow-x: auto;
+        flex-shrink: 0;
+    }
+
+    .editor-sidebar-panels {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
     }
 
     .editor-sidebar-tab {
@@ -856,6 +860,7 @@ main.editor-layout {
         background: var(--surface, #f9fafb);
         border-top: 1px solid var(--border-color, #e5e7eb);
         margin-top: auto;
+        flex-shrink: 0;
     }
 
     .editor-mobile-actions .btn {
@@ -900,6 +905,18 @@ main.editor-layout {
     .editor-pane--edit .ql-container {
         min-height: 300px;
         flex: 1;
+        min-height: 200px;
+    }
+
+    .editor-pane--edit .quill {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .editor-pane--edit #editor {
+        flex: 1;
     }
 
     .editor-title-field {
@@ -908,6 +925,24 @@ main.editor-layout {
 
     .editor-title-input {
         flex-shrink: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .editor-pane--markdown .cm-editor {
+        font-size: 16px;
+    }
+
+    .editor-pane--markdown .cm-content {
+        padding: 1rem 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    input,
+    textarea,
+    select {
+        font-size: 16px;
     }
 }
 

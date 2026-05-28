@@ -21,6 +21,8 @@
 
 ## v0.0.43
 
+- [Bug] Fixed mobile editor empty space at bottom by ensuring action buttons don't flex-shrink and Quill editor container properly fills available vertical space.
+- [Bug] Fixed mobile editor triggering unwanted browser auto-zoom by enforcing 16px minimum font size on all inputs, textareas, selects, and CodeMirror editor on mobile devices, preventing layout shifts.
 - [Bug] Fixed mobile editor overlay stacking where the Quill toolbar/tooltip could render above the Library/Settings sidebars; mobile z-index layering now keeps sidebars on top.
 - [Improvement] Updated mobile editor footer actions to a compact two-button row with responsive wrapping, plus an ultra-narrow fallback to stacked buttons for readability.
 - [Bug] Fixed chat admin group creation signer resolution. The controller now prefers an active custodial user in the community for kind-40 signing/publish (avoiding the self-sovereign relay-AUTH roundtrip when a custodial signer exists), and only falls back to the currently authenticated self-sovereign chat user when needed. The signed publish endpoint now authorizes against the current linked self-sovereign user instead of the first community user row, preventing stuck/unauthorized publish flows.
@@ -121,6 +123,7 @@ Essayist membership gateway.
 
 ## v0.0.39
 Essayist.
+- [Bug] Fixed mobile library/settings pane scrolling so the last items in the list are now accessible instead of being cut off by the fixed overlay sizing.
 
 - [Bug] Fixed `media_post_cache.kind` column overflowing for Nostr event kinds above 32 767 (e.g. kind 34235). Column type changed from `SMALLINT` to `INTEGER`.
 - [Bug] Fixed `ArticleInPublication` Doctrine mapping generating column name `container_dtag` instead of the actual DB column `container_d_tag`. Added explicit `name: 'container_d_tag'` to the ORM column attribute, resolving "could not look up publications for article" errors.
