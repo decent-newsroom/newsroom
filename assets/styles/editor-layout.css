@@ -769,7 +769,7 @@ main.editor-layout {
         width: auto;
         max-width: none;
         min-width: 0;
-        max-height: none;
+        max-height: calc(100vh - var(--editor-header-height) - var(--editor-mobile-controls-height));;
         border-right: none;
         border-bottom: none;
         overflow-y: auto;
