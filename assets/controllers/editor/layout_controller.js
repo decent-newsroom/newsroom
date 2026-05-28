@@ -18,8 +18,8 @@ export default class extends Controller {
         this.autoSaveTimer = null;
         this.lastConversionWarningAt = 0;
         this.mobilePanelsVisible = {
-            articleList: true,
-            settings: true,
+            articleList: false,
+            settings: false,
         };
 
         // Cache of npub → display name, populated from Quill blots and API lookups.
@@ -74,13 +74,21 @@ export default class extends Controller {
 
     toggleMobileArticleList(event) {
         event.preventDefault();
-        this.mobilePanelsVisible.articleList = !this.mobilePanelsVisible.articleList;
+        const next = !this.mobilePanelsVisible.articleList;
+        this.mobilePanelsVisible.articleList = next;
+        if (next && this.isMobileViewport()) {
+            this.mobilePanelsVisible.settings = false;
+        }
         this.applyMobilePanelVisibility();
     }
 
     toggleMobileSidebar(event) {
         event.preventDefault();
-        this.mobilePanelsVisible.settings = !this.mobilePanelsVisible.settings;
+        const next = !this.mobilePanelsVisible.settings;
+        this.mobilePanelsVisible.settings = next;
+        if (next && this.isMobileViewport()) {
+            this.mobilePanelsVisible.articleList = false;
+        }
         this.applyMobilePanelVisibility();
     }
 

@@ -609,6 +609,7 @@ main.editor-layout {
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
+    flex-grow: 1;
 }
 
 .mention-name,
@@ -699,15 +700,30 @@ main.editor-layout {
 }
 
 @media (max-width: 768px) {
+    :root {
+        --editor-header-height: 60px;
+        --editor-mobile-controls-height: 52px;
+    }
+
     /* Disable fixed positioning on mobile */
     main[data-controller="editor--layout"] {
-        position: static;
-        height: auto;
-        min-height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin-top: var(--editor-header-height);
+        height: calc(100dvh - var(--editor-header-height));
+        min-height: calc(100dvh - var(--editor-header-height));
+        overflow: hidden;
     }
 
     .editor-header {
         position: static;
+    }
+
+    .editor-header-left .editor-title {
+        display: none;
     }
 
     .editor-main {
@@ -724,11 +740,13 @@ main.editor-layout {
         display: flex;
         gap: 0.5rem;
         padding: 0.75rem;
+        min-height: var(--editor-mobile-controls-height);
+        box-sizing: border-box;
         border-bottom: 1px solid var(--border-color, #e5e7eb);
         background: var(--surface, #f9fafb);
         position: sticky;
         top: 0;
-        z-index: 20;
+        z-index: 55;
     }
 
     .editor-mobile-layout-controls .btn {
@@ -748,13 +766,20 @@ main.editor-layout {
     .editor-articlelist-sidebar,
     .editor-sidebar {
         display: flex !important;
-        width: 100%;
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: calc(var(--editor-header-height) + var(--editor-mobile-controls-height));
+        bottom: 0;
+        width: auto;
         max-width: none;
         min-width: 0;
-        max-height: 45vh;
+        max-height: none;
         border-right: none;
-        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        border-bottom: none;
         overflow: hidden;
+        z-index: 70;
+        box-shadow: none;
     }
 
     .editor-articlelist-sidebar {
