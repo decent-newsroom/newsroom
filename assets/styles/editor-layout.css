@@ -723,7 +723,6 @@ main.editor-layout {
     padding: 0.1em 0.35em;
     border-radius: 0.25em;
     font-weight: 600;
-    font-size: 0.95em;
     cursor: default;
     white-space: nowrap;
     user-select: all;

@@ -42,15 +42,21 @@ article {
 .article-main ul,
 .article-main ol,
 .article-main blockquote,
+.article-main table {
+    font-size: 1.3em;
+}
+
+.article-main p,
+.article-main ul,
+.article-main ol,
+.article-main blockquote,
 .article-main table,
 #editor .ql-editor p,
 #editor .ql-editor ul,
 #editor .ql-editor ol,
 #editor .ql-editor blockquote,
 #editor .ql-editor table {
-    font-family: var(--main-body-font), serif;
     color: var(--color-text-mid);
-    font-size: 1.1rem;
     line-height: 1.75;
 }
 
@@ -59,14 +65,12 @@ article {
 #editor .ql-editor ol,
 #editor .ql-editor blockquote,
 #editor .ql-editor table {
-    font-family: var(--main-body-font), serif;
     color: var(--color-text-mid);
-    font-size: 1.3rem;
-    line-height: 1.3;
+    line-height: 1.2;
 }
 
 #editor .ql-editor li {
-    line-height: 1.4;
+    line-height: 1.2;
 }
 
 #editor .ql-editor p,
