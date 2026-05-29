@@ -50,7 +50,7 @@ article {
 #editor .ql-editor table {
     font-family: var(--main-body-font), serif;
     color: var(--color-text-mid);
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     line-height: 1.75;
 }
 
@@ -61,7 +61,7 @@ article {
 #editor .ql-editor table {
     font-family: var(--main-body-font), serif;
     color: var(--color-text-mid);
-    font-size: 1.4rem;
+    font-size: 1.3rem;
     line-height: 1.3;
 }
 
