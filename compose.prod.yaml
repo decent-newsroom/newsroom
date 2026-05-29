@@ -189,9 +189,8 @@ services:
 
 ###> strfry-essayist relay (prod overrides) ###
 # The essayist profile is automatically enabled in production.
-# Redis is external in prod (no `redis` service in this compose project), so we
-# drop the `redis` depends_on inherited from compose.yaml and let REDIS_URL
-# point at the external instance via env.
+# essayist-gateway uses the same Redis configuration as the rest of the stack
+# (no separate ESSAYIST_GATEWAY_REDIS_URL needed — it mirrors php/worker configs).
   strfry-essayist:
     profiles: !reset []
   essayist-gateway:
@@ -209,7 +208,7 @@ services:
       RELAY_PUBLIC_URL: ${ESSAYIST_RELAY_PUBLIC_URL:?ESSAYIST_RELAY_PUBLIC_URL must be set}
       ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:?ESSAYIST_POLICY_TOKEN must be set}
       POLICY_URL_TEMPLATE: http://php/api/internal/essayist/writer/{pubkey}
-      REDIS_URL: ${ESSAYIST_GATEWAY_REDIS_URL:-redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@${REDIS_HOST:?REDIS_HOST must be set}:${REDIS_PORT:-6379}}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
       LOG_LEVEL: ${ESSAYIST_GATEWAY_LOG_LEVEL:-info}
 ###< strfry-essayist relay (prod overrides) ###
 
