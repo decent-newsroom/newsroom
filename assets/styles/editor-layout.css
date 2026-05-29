@@ -208,6 +208,22 @@ main.editor-layout {
     z-index: 100;
 }
 
+.editor-pane--edit .ql-toolbar .ql-view-font-select {
+    min-width: 120px;
+    height: 30px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 0;
+    background: var(--background, #ffffff);
+    color: var(--color-text, #111827);
+    font-size: 0.875rem;
+}
+
+.editor-pane--edit .ql-toolbar .ql-view-font-select:focus {
+    outline: none;
+    border-color: var(--primary, #2563eb);
+}
+
 .editor-pane--edit .ql-container {
     flex: 1;
     overflow-y: auto;

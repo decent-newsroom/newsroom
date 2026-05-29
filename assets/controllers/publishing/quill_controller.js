@@ -11,6 +11,10 @@ window.katex = katex;
 
 export default class extends Controller {
   static targets = ['hidden', 'markdown']   // hidden = HTML, markdown = MD
+  static values = {
+    fonts: Array,
+    defaultFont: String,
+  }
 
   connect() {
     // --- 1) Custom IMG blot that supports alt ---
@@ -184,6 +188,9 @@ export default class extends Controller {
 
     this.quill = new Quill(editorEl, options);
 
+    // View-only font switcher: changes editor rendering only, never Quill output formats.
+    this.initializeViewFontPicker();
+
     // Expose globally for preview functionality
     window.appQuill = this.quill;
 
@@ -259,6 +266,108 @@ export default class extends Controller {
   syncHiddenAsHtml() {
     if (!this.hasHiddenTarget) return;
     this.hiddenTarget.value = this.quill.root.innerHTML;
+  }
+
+  getDefaultFonts() {
+    return [
+      {
+        label: 'Sans',
+        family: 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      },
+      {
+        label: 'Serif',
+        family: 'Georgia, "Times New Roman", Times, serif',
+      },
+      {
+        label: 'Mono',
+        family: 'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      },
+    ];
+  }
+
+  getConfiguredFonts() {
+    if (!this.hasFontsValue || !Array.isArray(this.fontsValue) || this.fontsValue.length === 0) {
+      return this.getDefaultFonts();
+    }
+
+    return this.fontsValue
+      .map((font) => {
+        if (typeof font === 'string') {
+          return {
+            label: font,
+            family: font,
+          };
+        }
+
+        if (!font || typeof font !== 'object') {
+          return null;
+        }
+
+        const label = String(font.label || '').trim();
+        const family = String(font.family || '').trim();
+        if (!label || !family) {
+          return null;
+        }
+
+        return { label, family };
+      })
+      .filter(Boolean);
+  }
+
+  getFontStorageKey() {
+    const editorId = this.element.dataset.id || 'default';
+    return `editor.quill.view-font.${editorId}`;
+  }
+
+  initializeViewFontPicker() {
+    const toolbar = this.quill.getModule('toolbar')?.container;
+    if (!toolbar) {
+      return;
+    }
+
+    const fonts = this.getConfiguredFonts();
+    if (fonts.length === 0) {
+      return;
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'ql-formats ql-view-fonts';
+
+    const select = document.createElement('select');
+    select.className = 'ql-view-font-select';
+    select.setAttribute('aria-label', 'Editor font');
+
+    for (const font of fonts) {
+      const option = document.createElement('option');
+      option.value = font.family;
+      option.textContent = font.label;
+      option.style.fontFamily = font.family;
+      select.appendChild(option);
+    }
+
+    const fallbackFont = this.hasDefaultFontValue ? this.defaultFontValue : fonts[0].family;
+    const savedFont = window.localStorage.getItem(this.getFontStorageKey());
+    const selectedFont = fonts.some((font) => font.family === savedFont) ? savedFont : fallbackFont;
+
+    select.value = selectedFont;
+    this.applyViewFont(selectedFont);
+
+    select.addEventListener('change', (event) => {
+      const fontFamily = event.target.value;
+      this.applyViewFont(fontFamily);
+      window.localStorage.setItem(this.getFontStorageKey(), fontFamily);
+    });
+
+    wrapper.appendChild(select);
+    toolbar.appendChild(wrapper);
+  }
+
+  applyViewFont(fontFamily) {
+    if (!this.quill?.root) {
+      return;
+    }
+
+    this.quill.root.style.fontFamily = fontFamily || '';
   }
 
   // Convert formula spans in loaded HTML to proper Quill formula embeds
