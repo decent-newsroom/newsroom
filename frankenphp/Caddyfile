@@ -49,8 +49,18 @@
 
 
         # Nostr relay WebSocket proxy
-        @relay host {$RELAY_DOMAIN:relay.localhost}
+        # When behind a reverse proxy that might rewrite Host headers, also match X-Forwarded-Host
+        @relay {
+            host {$RELAY_DOMAIN:relay.localhost}
+        }
+        @relayForwarded {
+            header X-Forwarded-Host {$RELAY_DOMAIN:relay.localhost}
+        }
         handle @relay {
+                encode zstd gzip
+                reverse_proxy strfry:7777
+        }
+        handle @relayForwarded {
                 encode zstd gzip
                 reverse_proxy strfry:7777
         }
@@ -60,8 +70,20 @@
         # The gateway enforces NIP-42 AUTH + ROLE_ESSAYIST_MEMBER on every connection.
         # Activated only when the `essayist` Docker profile is running.
         # Configure: ESSAYIST_RELAY_DOMAIN=essayist.decentnewsroom.com
-        @essayistRelay host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
+        #
+        # When behind a reverse proxy, match on X-Forwarded-Host (if present) as well as Host
+        # to handle proxies that rewrite the Host header.
+        @essayistRelay {
+            host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
+        }
+        @essayistRelayForwarded {
+            header X-Forwarded-Host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
+        }
         handle @essayistRelay {
+                encode zstd gzip
+                reverse_proxy essayist-gateway:7780
+        }
+        handle @essayistRelayForwarded {
                 encode zstd gzip
                 reverse_proxy essayist-gateway:7780
         }
