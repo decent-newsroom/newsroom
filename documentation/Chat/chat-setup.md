@@ -8,6 +8,8 @@ How to set up a community chat instance from scratch after updating Docker.
 - A main-app admin account (your npub has `ROLE_ADMIN`)
 - `APP_ENCRYPTION_KEY` set in your `.env.local` (32-byte hex string for AES-256-GCM)
 
+The private chat relay (`strfry-chat`) is part of the default Compose stack. On older production deployments created before chat shipping by default, recreate the stack after pulling the update so the new relay container is created.
+
 Generate an encryption key if you don't have one:
 
 ```bash
@@ -161,4 +163,9 @@ Check: `docker compose logs strfry-chat`. Verify `docker/strfry-chat/strfry.conf
 - Verify `SERVER_NAME` includes `*.localhost` (dev) or `*.yourdomain.com` (prod).
 - Verify the community's subdomain matches exactly what you registered in the admin panel.
 - Check `docker compose logs php` for `ChatRequestListener` errors.
+
+### Chat subdomain returns 500 on an older production deployment
+- Confirm the new `strfry-chat` container exists: `docker compose ps strfry-chat`.
+- If it is missing, redeploy with the updated Compose files so Docker creates it.
+- If it exists but chat actions still fail, inspect `docker compose logs strfry-chat` for write-policy errors.
 

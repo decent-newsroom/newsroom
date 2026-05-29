@@ -8,14 +8,17 @@ When a user is logged in, the homepage (`/`) shows a tabbed article feed instead
 
 | Tab | Source | Description |
 |-----|--------|-------------|
-| **Articles** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
+| **For you** | Discussed + Follows + Interests (merged) | Combined, deduplicated feed from articles with comments, followed authors, and interest topics. Each item is tagged with its source(s). Default tab for logged-in users. |
+| **Follow Pack** | User's featured follow pack (kind 39089, `User::followPackCoordinate`) | Articles from the pubkeys in the user's own featured follow pack. If no follow pack is configured, a notice is shown at the top with a link to the follow pack setup page. |
+| **Activity** | Follows (kind 9802 highlights + kind 1111 comments) | Highlights and long-form article comments produced by the pubkeys the user follows, merged and sorted newest first. If the user has no follows, an empty-state message is shown. |
+| **Updates** | `update` table (user's `UpdateSubscription` records) | New articles and publications from the sources the user has subscribed to — same data as `/updates`, without marking items as read. If the user has no subscriptions, a notice links to the subscriptions management page and explains the Subscribe button on profile pages. |
 | **Media** | Follows + Interests media events (kinds 20, 21, 22) | Non-NSFW media from followed authors and interest hashtags, merged and deduplicated, displayed in a masonry grid. |
 | **Podcasts** | Follow pack (kind 39089) | Articles from npubs in the admin-configured podcast follow pack. |
 | **News Bots** | Follow pack (kind 39089) | Articles from npubs in the admin-configured news bot follow pack. |
 
 ### Articles Feed Details
 
-The "Articles" tab merges three article sources into one deduplicated, time-sorted list:
+The "For you" tab merges three article sources into one deduplicated, time-sorted list:
 
 1. **Discussed** — articles that have comments (kind 1111), fetched via `findArticlesWithComments()`. Comment counts are preserved and displayed on cards.
 2. **Follows** — articles from pubkeys the user follows (kind 3 follow list), fetched via `findLatestByPubkeys()`.
@@ -53,7 +56,7 @@ The individual tab routes (`/home/tab/latest`, `/home/tab/discussed`, `/home/tab
 ### Routing
 
 - `GET /` — renders `home.html.twig` (anonymous) or `home_authenticated.html.twig` (logged in)
-- `GET /home/tab/{tab}` — returns a `<turbo-frame>` partial for the given tab (`articles`, `media`, `podcasts`, `newsbots`, plus legacy: `latest`, `follows`, `interests`, `discussed`, `foryou`)
+- `GET /home/tab/{tab}` — returns a `<turbo-frame>` partial for the given tab (`articles`, `featuredpack`, `activityfeed`, `updatesfeed`, `media`, `podcasts`, `newsbots`, plus legacy: `latest`, `follows`, `interests`, `discussed`, `foryou`)
 
 ### Controllers
 

@@ -137,7 +137,7 @@ The PHP side pre-warms the Redis cache whenever it grants or revokes `ROLE_ESSAY
 
 ## NIP-11 Passthrough
 
-HTTP `GET /` to the relay URL with `Accept: application/nostr+json` is reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH. Any other path, method, or `Accept` header returns `404`. This allows clients to read relay metadata (name, description, `auth_required: true`, `payment_required: true`, `payments_url`) before initiating a WebSocket connection without exposing the upstream relay's broader HTTP surface.
+Any unauthenticated HTTP `GET` request is reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH. The gateway forwards the incoming `Accept` header and returns strfry's native HTTP response (status/body/content-type). Non-`GET` methods still return `404`. This keeps WebSocket AUTH enforcement intact while making plain browser/curl requests behave exactly like direct strfry access.
 
 ---
 
@@ -385,10 +385,17 @@ All Essayist-specific knobs are now config — there is no hardcoded URL shape. 
 
 ---
 
+## Troubleshooting
+
+For 404 errors, service health issues, or configuration problems, see **[`documentation/Essayist/troubleshooting.md`](../Essayist/troubleshooting.md)**.
+
+---
+
 ## Open Items
 
 - [x] Remove `ports: 7779:7779` from `strfry-essayist` in production compose
 - [x] PHP-side Redis pre-warming on role grant/revoke (write key + `PUBLISH essayist_member_revoked`)
+- [x] Fix production compose to auto-enable essayist profile (`profiles: !reset []`)
 - [ ] Integration test: connect without AUTH → expect `CLOSED auth-required:` / `OK … false auth-required:` reject
 - [ ] Integration test: AUTH with invalid sig → expect `CLOSED restricted:` + `NOTICE` + close
 - [ ] Integration test: AUTH with non-member pubkey → expect `CLOSED restricted:` + `NOTICE` + close
