@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Improvement] Changed Essayist gateway HTTP passthrough to forward any unauthenticated `GET` request to `strfry-essayist` and return strfry's native response (instead of returning 404 for non-`application/nostr+json` browser requests).
 - [Bug] Fixed Essayist relay 404 errors in production: `compose.prod.yaml` now automatically enables the essayist profile (`strfry-essayist` and `essayist-gateway`) instead of requiring manual `--profile essayist` flag.
 - [Bug] Fixed Essayist relay routing when behind a reverse proxy: Caddyfile now matches on both `Host` and `X-Forwarded-Host` headers so requests work regardless of whether the proxy rewrites Host headers. This fixes 404s when a reverse proxy changes the Host header to something different.
 - [Bug] Simplified essayist-gateway Redis configuration in production: now uses the same `REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD` variables as other services instead of requiring a separate `ESSAYIST_GATEWAY_REDIS_URL`.

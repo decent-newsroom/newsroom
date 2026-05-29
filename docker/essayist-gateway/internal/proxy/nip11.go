@@ -4,13 +4,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 )
 
-// NIP11Handler proxies GET / requests with `Accept: application/nostr+json`
-// directly to the upstream relay's HTTP listener. All other paths/methods/Accepts
-// return 404.
+// NIP11Handler proxies unauthenticated HTTP GET requests to the upstream relay's
+// HTTP listener so clients receive strfry's default HTTP behavior. Non-GET
+// methods return 404.
 //
 // The upstream relay URL must be a ws:// or wss:// URL; we transform it to
 // http:// or https:// for the metadata request.
@@ -28,22 +27,21 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		accept := r.Header.Get("Accept")
-		if !strings.Contains(accept, "application/nostr+json") {
+		if r.Method != http.MethodGet {
 			http.NotFound(w, r)
 			return
 		}
 
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, upstreamHTTP, nil)
+		upstreamURL := upstreamHTTP + r.URL.RequestURI()
+
+		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, upstreamURL, nil)
 		if err != nil {
 			http.Error(w, "upstream error", http.StatusBadGateway)
 			return
 		}
-		req.Header.Set("Accept", "application/nostr+json")
+		if accept := r.Header.Get("Accept"); accept != "" {
+			req.Header.Set("Accept", accept)
+		}
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -52,7 +50,9 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
-		w.Header().Set("Content-Type", "application/nostr+json")
+		if contentType := resp.Header.Get("Content-Type"); contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.Copy(w, resp.Body)
 	}
