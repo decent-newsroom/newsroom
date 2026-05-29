@@ -14,6 +14,10 @@ export default class extends Controller {
   static values = {
     fonts: Array,
     defaultFont: String,
+    fontSizeStep: Number,
+    defaultFontSize: Number,
+    minFontSize: Number,
+    maxFontSize: Number,
   }
 
   connect() {
@@ -190,6 +194,7 @@ export default class extends Controller {
 
     // View-only font switcher: changes editor rendering only, never Quill output formats.
     this.initializeViewFontPicker();
+    this.initializeViewFontSizer();
 
     // Expose globally for preview functionality
     window.appQuill = this.quill;
@@ -319,6 +324,54 @@ export default class extends Controller {
     return `editor.quill.view-font.${editorId}`;
   }
 
+  getFontSizeStorageKey() {
+    const editorId = this.element.dataset.id || 'default';
+    return `editor.quill.view-font-size.${editorId}`;
+  }
+
+  getFontSizeConfig() {
+    return {
+      step: this.hasFontSizeStepValue ? Math.max(1, Number(this.fontSizeStepValue) || 5) : 5,
+      defaultSize: this.hasDefaultFontSizeValue ? Number(this.defaultFontSizeValue) || 100 : 100,
+      minSize: this.hasMinFontSizeValue ? Number(this.minFontSizeValue) || 75 : 75,
+      maxSize: this.hasMaxFontSizeValue ? Number(this.maxFontSizeValue) || 150 : 150,
+    };
+  }
+
+  normalizeFontSize(size) {
+    const { step, minSize, maxSize } = this.getFontSizeConfig();
+    const numericSize = Number(size);
+    const steppedSize = Number.isFinite(numericSize) ? Math.round(numericSize / step) * step : step;
+    return Math.min(maxSize, Math.max(minSize, steppedSize));
+  }
+
+  getSavedFontSize() {
+    const saved = Number(window.localStorage.getItem(this.getFontSizeStorageKey()));
+    return Number.isFinite(saved) ? saved : null;
+  }
+
+  applyViewFontSize(size, persist = true) {
+    if (!this.quill?.root) {
+      return;
+    }
+
+    const normalized = this.normalizeFontSize(size);
+    this.quill.root.style.fontSize = `${normalized}%`;
+
+    if (persist) {
+      window.localStorage.setItem(this.getFontSizeStorageKey(), String(normalized));
+    }
+
+    if (this.fontSizeDisplay) {
+      this.fontSizeDisplay.textContent = `${normalized}%`;
+    }
+  }
+
+  changeViewFontSize(delta) {
+    const current = this.getSavedFontSize() ?? this.getFontSizeConfig().defaultSize;
+    this.applyViewFontSize(current + delta);
+  }
+
   initializeViewFontPicker() {
     const toolbar = this.quill.getModule('toolbar')?.container;
     if (!toolbar) {
@@ -360,6 +413,45 @@ export default class extends Controller {
 
     wrapper.appendChild(select);
     toolbar.appendChild(wrapper);
+  }
+
+  initializeViewFontSizer() {
+    const toolbar = this.quill.getModule('toolbar')?.container;
+    if (!toolbar) {
+      return;
+    }
+
+    const { step, defaultSize } = this.getFontSizeConfig();
+    const savedSize = this.getSavedFontSize();
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'ql-formats ql-view-font-size';
+
+    const decrease = document.createElement('button');
+    decrease.type = 'button';
+    decrease.className = 'ql-view-font-size-btn';
+    decrease.textContent = 'A−';
+    decrease.setAttribute('aria-label', `Decrease editor font size by ${step}%`);
+
+    const display = document.createElement('span');
+    display.className = 'ql-view-font-size-display';
+    this.fontSizeDisplay = display;
+
+    const increase = document.createElement('button');
+    increase.type = 'button';
+    increase.className = 'ql-view-font-size-btn';
+    increase.textContent = 'A+';
+    increase.setAttribute('aria-label', `Increase editor font size by ${step}%`);
+
+    decrease.addEventListener('click', () => this.changeViewFontSize(-step));
+    increase.addEventListener('click', () => this.changeViewFontSize(step));
+
+    wrapper.appendChild(decrease);
+    wrapper.appendChild(display);
+    wrapper.appendChild(increase);
+    toolbar.appendChild(wrapper);
+
+    this.applyViewFontSize(savedSize ?? defaultSize, Boolean(savedSize));
   }
 
   applyViewFont(fontFamily) {

@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Improvement] Added a 5% stepwise font-size toggle to the Quill editor toolbar so writers can zoom the editing surface up/down without affecting stored output.
 - [Improvement] Added a view-only font selector to the Quill editor toolbar (Sans/Serif/Mono) so writers can change editing readability without emitting font markup/classes into saved HTML/Markdown output.
 - [Bug] Fixed `events:replay-deletions` failing on PostgreSQL with `SQLSTATE[42803]` by removing the `ORDER BY` clause from its internal `COUNT()` query before batching kind `5` deletion requests.
 - [Improvement] Refined the mobile editor overlay behavior: library/settings now default to hidden, opening either panel overlays the editor content full-height, and the compact mobile header hides the article title text to preserve space for actions.

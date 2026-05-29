@@ -10,7 +10,11 @@
     ] %}
     <div {{ stimulus_controller('publishing--quill', {
         fonts: quill_view_fonts,
-        defaultFont: quill_view_fonts[0].family
+        defaultFont: quill_view_fonts[0].family,
+        fontSizeStep: 5,
+        defaultFontSize: 100,
+        minFontSize: 75,
+        maxFontSize: 150
     }) }} class="quill" data-id="{{ id }}" >
         <div id="editor">
             {{ value|raw }}
