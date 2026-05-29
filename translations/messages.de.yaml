@@ -210,7 +210,7 @@ essayist:
         backToLanding: 'Über Essayist'
         adminNotice: 'Admin-Vorschau — Du siehst diesen Feed als Admin, nicht als Mitglied.'
     home:
-        title: 'Essayist — Dein Feed'
+        title: 'Essayist'
         heading: 'Dein Essayist-Feed'
         subheading: 'Artikel von Personen, denen du folgst, und Themen, die dich interessieren.'
         accessDenied: 'Du brauchst eine aktive Essayist-Mitgliedschaft, um diese Seite zu sehen.'

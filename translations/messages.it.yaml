@@ -210,7 +210,7 @@ essayist:
         backToLanding: 'Informazioni su Essayist'
         adminNotice: 'Anteprima amministratore — stai visualizzando questo feed come amministratore, non come membro.'
     home:
-        title: 'Essayist — Il tuo feed'
+        title: 'Essayist'
         heading: 'Il tuo feed Essayist'
         subheading: 'Articoli delle persone che segui e degli argomenti che ti interessano.'
         accessDenied: 'Hai bisogno di un abbonamento Essayist attivo per visualizzare questa pagina.'

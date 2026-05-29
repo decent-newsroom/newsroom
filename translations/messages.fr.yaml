@@ -210,7 +210,7 @@ essayist:
         backToLanding: 'À propos d''Essayist'
         adminNotice: 'Aperçu administrateur — vous consultez ce fil en tant qu''administrateur, pas en tant que membre.'
     home:
-        title: 'Essayist — Votre fil'
+        title: 'Essayist'
         heading: 'Votre fil Essayist'
         subheading: 'Articles des personnes que vous suivez et des sujets qui vous intéressent.'
         accessDenied: "Vous avez besoin d'un abonnement Essayist actif pour voir cette page."

@@ -19,6 +19,9 @@
         </ul>
         {% endif %}
         <ul class="user-nav">
+            {% if is_granted('ROLE_ESSAYIST_MEMBER') %}
+                <li><a href="{{ path('app_essayist_home') }}">{{ 'essayist.home.title'|trans }}</a></li>
+            {% endif %}
             {% if is_granted('ROLE_ADMIN') %}
                 <li><a href="{{ path('updates_index') }}">{{ 'updates.pageTitle'|trans }}</a></li>
                 <li><a href="{{ path('profile_stats') }}">{{ 'nav.myStats'|trans }}</a></li>

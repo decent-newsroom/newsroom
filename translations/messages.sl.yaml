@@ -210,7 +210,7 @@ essayist:
         backToLanding: 'O Essayist'
         adminNotice: 'Predogled administratorja — gledate ta vir kot administrator, ne kot član.'
     home:
-        title: 'Essayist — Tvoj vir'
+        title: 'Essayist'
         heading: 'Tvoj Essayist vir'
         subheading: 'Članki oseb, ki jim slediš, in teme, ki te zanimajo.'
         accessDenied: 'Za ogled te strani potrebuješ aktivno Essayist članstvo.'

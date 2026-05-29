@@ -222,7 +222,7 @@ essayist:
             follow: 'You follow'
             earlybird: 'Early bird'
     home:
-        title: 'Essayist — Your Feed'
+        title: 'Essayist'
         heading: 'Your Essayist Feed'
         subheading: 'Articles from people you follow and topics you care about, on the Essayist relay.'
         accessDenied: 'You need an active Essayist membership to view this page.'
