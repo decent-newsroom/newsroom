@@ -181,9 +181,10 @@ export default class extends Controller {
     };
 
     // Root editor element & hidden target
-    const editorEl =
-      this.element.querySelector('#editor') ||
-      document.querySelector('#editor');
+    const editorEl = this.element.querySelector('#editor');
+    if (!editorEl) {
+      return;
+    }
 
     // Before initializing Quill, check if there's existing HTML with formulas or mentions
     const existingHTML = editorEl.innerHTML.trim();
@@ -351,12 +352,13 @@ export default class extends Controller {
   }
 
   applyViewFontSize(size, persist = true) {
-    if (!this.quill?.root) {
+    const editorRoot = this.getScopedEditorRoot();
+    if (!editorRoot) {
       return;
     }
 
     const normalized = this.normalizeFontSize(size);
-    this.quill.root.style.fontSize = `${normalized}%`;
+    editorRoot.style.fontSize = `${normalized}%`;
 
     if (persist) {
       window.localStorage.setItem(this.getFontSizeStorageKey(), String(normalized));
@@ -455,11 +457,25 @@ export default class extends Controller {
   }
 
   applyViewFont(fontFamily) {
-    if (!this.quill?.root) {
+    const editorRoot = this.getScopedEditorRoot();
+    if (!editorRoot) {
       return;
     }
 
-    this.quill.root.style.fontFamily = fontFamily || '';
+    editorRoot.style.fontFamily = fontFamily || '';
+  }
+
+  getScopedEditorRoot() {
+    if (this.quill?.root && this.element.contains(this.quill.root)) {
+      return this.quill.root;
+    }
+
+    const localRoot = this.element.querySelector('.ql-editor');
+    if (localRoot instanceof HTMLElement) {
+      return localRoot;
+    }
+
+    return null;
   }
 
   // Convert formula spans in loaded HTML to proper Quill formula embeds

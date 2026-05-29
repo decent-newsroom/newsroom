@@ -19,6 +19,7 @@ Allow writers to switch editor font family from the Quill toolbar for readabilit
 - The picker does not use Quill's `font` format.
 - No Delta attributes are added for font changes.
 - The hidden field still stores `this.quill.root.innerHTML`, which does not include root-level inline styles.
+- Font and size styles are applied only to the current `.quill` controller instance, not globally.
 
 ## Persistence
 - Selected font is stored in localStorage under `editor.quill.view-font.{field-id}`.

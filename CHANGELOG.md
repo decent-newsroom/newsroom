@@ -29,6 +29,7 @@
 
 ## v0.0.43
 
+- [Bug] Fixed Quill view-font controls leaking outside the active editor instance by removing global `#editor` fallback lookup and scoping font/font-size style application strictly to the current controller element.
 - [Bug] Fixed mobile editor empty space at bottom by ensuring action buttons don't flex-shrink and Quill editor container properly fills available vertical space.
 - [Bug] Fixed mobile editor triggering unwanted browser auto-zoom by enforcing 16px minimum font size on all inputs, textareas, selects, and CodeMirror editor on mobile devices, preventing layout shifts.
 - [Bug] Fixed mobile editor overlay stacking where the Quill toolbar/tooltip could render above the Library/Settings sidebars; mobile z-index layering now keeps sidebars on top.

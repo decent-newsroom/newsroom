@@ -43,21 +43,16 @@ article {
 .article-main ol,
 .article-main blockquote,
 .article-main table {
-    font-size: 1.3em;
+    font-size: 1.3rem;
 }
 
 .article-main p,
 .article-main ul,
 .article-main ol,
 .article-main blockquote,
-.article-main table,
-#editor .ql-editor p,
-#editor .ql-editor ul,
-#editor .ql-editor ol,
-#editor .ql-editor blockquote,
-#editor .ql-editor table {
+.article-main table {
     color: var(--color-text-mid);
-    line-height: 1.75;
+    line-height: 1.5;
 }
 
 #editor .ql-editor p,
