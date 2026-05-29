@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Bug] Fixed Essayist relay 404 errors in production: `compose.prod.yaml` now automatically enables the essayist profile (`strfry-essayist` and `essayist-gateway`) instead of requiring manual `--profile essayist` flag. Added production troubleshooting guide at `documentation/Essayist/troubleshooting.md`.
 - [Improvement] Made the Essayist home link visible in the user menu for `ROLE_ESSAYIST_MEMBER` users.
 - [Improvement] Added a 5% stepwise font-size toggle to the Quill editor toolbar so writers can zoom the editing surface up/down without affecting stored output.
 - [Improvement] Added a view-only font selector to the Quill editor toolbar (Sans/Serif/Mono) so writers can change editing readability without emitting font markup/classes into saved HTML/Markdown output.

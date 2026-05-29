@@ -188,10 +188,14 @@ services:
 ###< strfry relay ###
 
 ###> strfry-essayist relay (prod overrides) ###
+# The essayist profile is automatically enabled in production.
 # Redis is external in prod (no `redis` service in this compose project), so we
 # drop the `redis` depends_on inherited from compose.yaml and let REDIS_URL
 # point at the external instance via env.
+  strfry-essayist:
+    profiles: !reset []
   essayist-gateway:
+    profiles: !reset []
     depends_on:
       php:
         condition: service_healthy
@@ -214,3 +218,4 @@ volumes:
   caddy_config:
   database_data:
   strfry_data:
+  strfry_essayist_data:
