@@ -302,6 +302,7 @@ class EditorController extends AbstractController
         Converter $converter,
         ReplaceableEventCleanupService $replaceableEventCleanupService,
         string $essayistRelayPublicUrl = '',
+        string $essayistRelayInternalUrl = '',
     ): JsonResponse {
         // Increase execution time limit for relay publishing (60 seconds)
         set_time_limit(60);
@@ -510,6 +511,38 @@ class EditorController extends AbstractController
                         'event_id'    => $eventObj->getId(),
                         'relay_count' => count($relays),
                     ]);
+                }
+            }
+
+            // ── Essayist internal-relay bypass ──────────────────────────────
+            // If the Essayist public URL appears in the relay list (either added
+            // via the editor checkbox or already present in the user's NIP-65
+            // write list), and the current user holds ROLE_ESSAYIST_MEMBER (or
+            // ROLE_ADMIN), rewrite it to the internal Docker address so the PHP
+            // process connects directly without triggering the NIP-42 AUTH
+            // gateway. The internal URL is unreachable from outside the compose
+            // network, so this sidestep is safe within the trust boundary.
+            if ($essayistRelayPublicUrl !== '' && $essayistRelayInternalUrl !== '') {
+                $remapUser = $this->getUser();
+                if ($remapUser && (
+                    in_array('ROLE_ESSAYIST_MEMBER', $remapUser->getRoles(), true) ||
+                    in_array('ROLE_ADMIN', $remapUser->getRoles(), true)
+                )) {
+                    $publicNorm = $this->normaliseRelayUrl($essayistRelayPublicUrl);
+                    $remapped   = false;
+                    $relays = array_map(function (string $url) use ($publicNorm, $essayistRelayInternalUrl, &$remapped): string {
+                        if ($this->normaliseRelayUrl($url) === $publicNorm) {
+                            $remapped = true;
+                            return $essayistRelayInternalUrl;
+                        }
+                        return $url;
+                    }, $relays);
+                    if ($remapped) {
+                        $logger->info('Editor: remapped Essayist public URL to internal relay', [
+                            'public'   => $essayistRelayPublicUrl,
+                            'internal' => $essayistRelayInternalUrl,
+                        ]);
+                    }
                 }
             }
 
@@ -824,5 +857,28 @@ class EditorController extends AbstractController
             'success'            => true,
             'essayistExclusive'  => $newState,
         ]);
+    }
+
+    /**
+     * Normalise a relay URL for loose equality checks (scheme + host + port,
+     * no trailing slash or path). Mirrors ArticleBroadcastController.
+     */
+    private function normaliseRelayUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        $parts = parse_url($url);
+        if ($parts === false || empty($parts['host'])) {
+            return rtrim(strtolower($url), '/');
+        }
+        $scheme = strtolower($parts['scheme'] ?? 'wss');
+        $host   = strtolower($parts['host']);
+        $port   = $parts['port'] ?? null;
+        if (($scheme === 'wss' && $port === 443) || ($scheme === 'ws' && $port === 80)) {
+            $port = null;
+        }
+        return $scheme . '://' . $host . ($port ? ':' . $port : '');
     }
 }
