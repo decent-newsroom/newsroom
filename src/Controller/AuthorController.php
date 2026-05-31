@@ -1079,6 +1079,8 @@ class AuthorController extends AbstractController
     ): array {
         // Get author's magazines
         $authorMagazines = $this->getAuthorMagazines($pubkey, $em);
+        // Get magazines where author is featured as a contributor
+        $featuredMagazines = $this->getFeaturedMagazines($pubkey, $em);
 
         // Get existing follow packs for the author
         $existingFollowPacks = [];
@@ -1121,10 +1123,167 @@ class AuthorController extends AbstractController
             ];
         }
 
+        // Get follow packs where this author is included as a member.
+        $featuredInFollowPacks = $this->getFeaturedInFollowPacks($pubkey, $em);
+
         return [
             'authorMagazines' => $authorMagazines,
+            'featuredMagazines' => $featuredMagazines,
             'existingFollowPacks' => array_values($existingFollowPacks),
+            'featuredInFollowPacks' => $featuredInFollowPacks,
         ];
+    }
+
+    /**
+     * Get magazines where the user is listed as a contributor.
+     *
+     * @return array<int, Magazine|array<string, mixed>>
+     */
+    private function getFeaturedMagazines(string $pubkey, EntityManagerInterface $em): array
+    {
+        $featured = $em->getRepository(Magazine::class)->findByContributor($pubkey);
+        if (!empty($featured)) {
+            // Exclude magazines authored by the same pubkey to avoid duplicates with authorMagazines.
+            return array_values(array_filter($featured, static function ($magazine) use ($pubkey): bool {
+                return !$magazine instanceof Magazine || $magazine->getPubkey() !== $pubkey;
+            }));
+        }
+
+        // Fallback when magazine projection is missing: inspect publication-index events.
+        $allIndices = $em->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
+        $featuredBySlug = [];
+
+        foreach ($allIndices as $event) {
+            if (!$event instanceof Event || $event->getPubkey() === $pubkey) {
+                continue;
+            }
+
+            $tags = $event->getTags();
+            $isMagType = false;
+            $isTopLevel = false;
+            $hasContributor = false;
+
+            foreach ($tags as $tag) {
+                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
+                    $isMagType = true;
+                }
+
+                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
+                    $parts = explode(':', $tag[1] ?? '', 3);
+                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
+                        $isTopLevel = true;
+                    }
+
+                    // Magazine includes article coordinate; pubkey in coord means featured contributor.
+                    if (count($parts) === 3 && in_array($parts[0], ['30023', '30024'], true) && $parts[1] === $pubkey) {
+                        $hasContributor = true;
+                    }
+                }
+            }
+
+            if (!$isMagType || !$isTopLevel || !$hasContributor) {
+                continue;
+            }
+
+            $slug = $event->getSlug();
+            if ($slug === null) {
+                continue;
+            }
+
+            if (!isset($featuredBySlug[$slug]) || $event->getCreatedAt() > $featuredBySlug[$slug]->getCreatedAt()) {
+                $featuredBySlug[$slug] = $event;
+            }
+        }
+
+        return array_values(array_map(function (Event $event) {
+            $title = null;
+            $summary = null;
+            $image = null;
+
+            foreach ($event->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
+                    $summary = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'image' && isset($tag[1])) {
+                    $image = $tag[1];
+                }
+            }
+
+            return [
+                'slug' => $event->getSlug(),
+                'title' => $title,
+                'summary' => $summary,
+                'image' => $image,
+                'featured' => true,
+            ];
+        }, $featuredBySlug));
+    }
+
+    /**
+     * Get follow packs where a user pubkey appears in p-tags.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function getFeaturedInFollowPacks(string $pubkey, EntityManagerInterface $em): array
+    {
+        $followPacks = $em->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.kind = :kind')
+            ->andWhere('e.pubkey != :pubkey')
+            ->andWhere('e.tags LIKE :memberTag')
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('memberTag', '%"p"%"' . $pubkey . '"%')
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+
+        $featuredByCoordinate = [];
+
+        foreach ($followPacks as $pack) {
+            if (!$pack instanceof Event) {
+                continue;
+            }
+
+            $dTag = $pack->getSlug() ?? '';
+            if ($dTag === '') {
+                continue;
+            }
+
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+
+            if (!in_array($pubkey, $pTags, true)) {
+                continue;
+            }
+
+            $coordinate = $pack->getPubkey() . ':' . $dTag;
+            if (isset($featuredByCoordinate[$coordinate])) {
+                continue;
+            }
+
+            $featuredByCoordinate[$coordinate] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+                'pubkey' => $pack->getPubkey(),
+                'featured' => true,
+            ];
+        }
+
+        return array_values($featuredByCoordinate);
     }
 
     /**
@@ -1803,7 +1962,10 @@ class AuthorController extends AbstractController
     {
         return match ($tab) {
             'articles' => empty($data['articles']),
-            'overview' => empty($data['authorMagazines']) && empty($data['existingFollowPacks']),
+            'overview' => empty($data['authorMagazines'])
+                && empty($data['existingFollowPacks'])
+                && empty($data['featuredMagazines'])
+                && empty($data['featuredInFollowPacks']),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),

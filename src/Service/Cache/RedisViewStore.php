@@ -166,18 +166,17 @@ class RedisViewStore
      * Used to apply a short TTL so transient empty results don't poison the
      * 24h profile cache.
      *
-     * For the overview tab, we check recentArticles OR the rest being empty —
-     * this prevents a cache entry with media/highlights but no articles from
-     * getting a 24h TTL and hiding articles from the overview for a day.
+     * For the overview/editorial tab, we only keep long TTLs when at least one
+     * editorial collection exists (published or featured magazines/follow packs).
      */
     private function isEmptyTabPayload(string $tab, array $data): bool
     {
         return match ($tab) {
             'articles' => empty($data['articles']),
-            'overview' => empty($data['recentArticles'])
-                || (empty($data['recentMedia'])
-                    && empty($data['recentHighlights'])
-                    && empty($data['authorMagazines'])),
+            'overview' => empty($data['authorMagazines'])
+                && empty($data['existingFollowPacks'])
+                && empty($data['featuredMagazines'])
+                && empty($data['featuredInFollowPacks']),
             'media' => empty($data['mediaEvents']),
             'highlights' => empty($data['highlights']),
             'drafts' => empty($data['drafts']),

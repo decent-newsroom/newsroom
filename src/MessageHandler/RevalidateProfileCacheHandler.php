@@ -121,24 +121,15 @@ class RevalidateProfileCacheHandler
     {
         // Get author's magazines
         $authorMagazines = $this->getAuthorMagazines($pubkey);
-
-        // Get recent articles
-        $allArticles = $this->buildArticlesData($pubkey, false);
-        $recentArticles = array_slice($allArticles['articles'] ?? [], 0, 3);
-
-        // Get recent media
-        $mediaData = $this->buildMediaData($pubkey);
-        $recentMedia = array_slice($mediaData['mediaEvents'] ?? [], 0, 6);
-
-        // Get recent highlights
-        $highlightsData = $this->buildHighlightsData($pubkey);
-        $recentHighlights = array_slice($highlightsData['highlights'] ?? [], 0, 3);
+        $featuredMagazines = $this->getFeaturedMagazines($pubkey);
+        $existingFollowPacks = $this->getAuthorFollowPacks($pubkey);
+        $featuredInFollowPacks = $this->getFeaturedInFollowPacks($pubkey);
 
         return [
             'authorMagazines' => $authorMagazines,
-            'recentArticles' => $recentArticles,
-            'recentMedia' => $recentMedia,
-            'recentHighlights' => $recentHighlights,
+            'featuredMagazines' => $featuredMagazines,
+            'existingFollowPacks' => $existingFollowPacks,
+            'featuredInFollowPacks' => $featuredInFollowPacks,
         ];
     }
 
@@ -380,6 +371,135 @@ class RevalidateProfileCacheHandler
                 'image' => $image,
             ];
         }, $bySlug));
+    }
+
+    /**
+     * Get magazines where the user appears in contributor list.
+     */
+    private function getFeaturedMagazines(string $pubkey): array
+    {
+        $featured = $this->em->getRepository(Magazine::class)->findByContributor($pubkey);
+        if (!empty($featured)) {
+            return array_values(array_filter($featured, static function ($magazine) use ($pubkey): bool {
+                return !$magazine instanceof Magazine || $magazine->getPubkey() !== $pubkey;
+            }));
+        }
+
+        return [];
+    }
+
+    /**
+     * Get follow packs published by the user.
+     */
+    private function getAuthorFollowPacks(string $pubkey): array
+    {
+        $followPacks = $this->em->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.pubkey = :pubkey')
+            ->andWhere('e.kind = :kind')
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(10)
+            ->getQuery()
+            ->getResult();
+
+        $existingFollowPacks = [];
+        foreach ($followPacks as $pack) {
+            if (!$pack instanceof Event) {
+                continue;
+            }
+
+            $dTag = $pack->getSlug() ?? '';
+            if ($dTag === '') {
+                continue;
+            }
+
+            if (isset($existingFollowPacks[$dTag])) {
+                continue;
+            }
+
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+
+            $existingFollowPacks[$dTag] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+                'pubkey' => $pubkey,
+            ];
+        }
+
+        return array_values($existingFollowPacks);
+    }
+
+    /**
+     * Get follow packs where the user appears in p-tags.
+     */
+    private function getFeaturedInFollowPacks(string $pubkey): array
+    {
+        $followPacks = $this->em->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.kind = :kind')
+            ->andWhere('e.pubkey != :pubkey')
+            ->andWhere('e.tags LIKE :memberTag')
+            ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
+            ->setParameter('pubkey', $pubkey)
+            ->setParameter('memberTag', '%"p"%"' . $pubkey . '"%')
+            ->orderBy('e.created_at', 'DESC')
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+
+        $featuredByCoordinate = [];
+        foreach ($followPacks as $pack) {
+            if (!$pack instanceof Event) {
+                continue;
+            }
+
+            $dTag = $pack->getSlug() ?? '';
+            if ($dTag === '') {
+                continue;
+            }
+
+            $title = '';
+            $pTags = [];
+            foreach ($pack->getTags() as $tag) {
+                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
+                    $title = $tag[1];
+                }
+                if (($tag[0] ?? '') === 'p' && isset($tag[1])) {
+                    $pTags[] = $tag[1];
+                }
+            }
+
+            if (!in_array($pubkey, $pTags, true)) {
+                continue;
+            }
+
+            $coordinate = $pack->getPubkey() . ':' . $dTag;
+            if (isset($featuredByCoordinate[$coordinate])) {
+                continue;
+            }
+
+            $featuredByCoordinate[$coordinate] = [
+                'dTag' => $dTag,
+                'title' => $title,
+                'memberCount' => count($pTags),
+                'memberPubkeys' => $pTags,
+                'pubkey' => $pack->getPubkey(),
+                'featured' => true,
+            ];
+        }
+
+        return array_values($featuredByCoordinate);
     }
 }
 

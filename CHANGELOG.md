@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Feature] Extended profile **Editorial** tab to include not only magazines and follow packs authored by the profile user, but also magazines where they are listed as a contributor and follow packs where their pubkey appears in `p` tags. Added dedicated UI sections for "Featured in" content and aligned overview cache/revalidation payloads with the new data shape.
 - [Improvement] Editor article publishing now bypasses the Essayist NIP-42 AUTH gateway by remapping the public Essayist relay URL to the internal Docker address (`ws://strfry-essayist:7779`) for users with `ROLE_ESSAYIST_MEMBER` or `ROLE_ADMIN`. This applies both when the user ticks the "Also publish to Essayist" / "Publish ONLY to Essayist" checkboxes and when the Essayist relay is already present in their NIP-65 write list.
 - [Improvement] Changed Essayist gateway HTTP passthrough to forward any unauthenticated `GET` request to `strfry-essayist` and return strfry's native response (instead of returning 404 for non-`application/nostr+json` browser requests).
 - [Bug] Fixed Essayist relay 404 errors in production: `compose.prod.yaml` now automatically enables the essayist profile (`strfry-essayist` and `essayist-gateway`) instead of requiring manual `--profile essayist` flag.

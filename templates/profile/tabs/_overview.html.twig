@@ -32,6 +32,39 @@
             </div>
         {% endif %}
 
+        {# Featured in Magazines Section #}
+        {% if featuredMagazines|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="w-container">
+                    {% for mag in featuredMagazines %}
+                        {% set magSlug = mag.slug|default(null) %}
+                        {% if magSlug %}
+                        <div class="card p-3 ln-section--reader">
+                            {% if mag.image|default(null) %}
+                                <div class="card-header m-0">
+                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
+                                        <img src="{{ mag.image }}" alt="{{ mag.title|default(magSlug) }}" loading="lazy">
+                                    </a>
+                                </div>
+                            {% endif %}
+                            <div class="card-body text-center">
+                                <h2 class="card-title">
+                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
+                                        {{ mag.title|default(magSlug) }}
+                                    </a>
+                                </h2>
+                                <p class="text-muted">Featured in this magazine</p>
+                                {% if mag.summary|default(null) %}
+                                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ mag.summary }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
         {# Follow Packs Section #}
         {% if existingFollowPacks|default([])|length > 0 %}
             <div class="overview-section">
@@ -52,16 +85,37 @@
             </div>
         {% endif %}
 
+        {# Featured in Follow Packs Section #}
+        {% if featuredInFollowPacks|default([])|length > 0 %}
+            <div class="overview-section">
+                <div class="w-container">
+                    {% for pack in featuredInFollowPacks %}
+                        <div class="card p-3 ln-section--reader">
+                            <div class="card-body text-center">
+                                <h2 class="card-title">
+                                    <a href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
+                                        {{ pack.title|default(pack.dTag) }}
+                                    </a>
+                                </h2>
+                                <p class="text-muted">Featured in this follow pack</p>
+                                <p class="text-muted">{{ pack.memberCount }} {{ pack.memberCount == 1 ? 'writer' : 'writers' }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
         {# Empty state #}
-        {% if authorMagazines|default([])|length == 0 and existingFollowPacks|default([])|length == 0 %}
+        {% if authorMagazines|default([])|length == 0 and existingFollowPacks|default([])|length == 0 and featuredMagazines|default([])|length == 0 and featuredInFollowPacks|default([])|length == 0 %}
             <div class="no-content">
                 {% if isOwner|default(false) %}
-                    <p>You haven't published any magazines or follow packs yet.</p>
+                    <p>You are not publishing or featured in magazines or follow packs yet.</p>
                     <p>
                         <a href="{{ path('editor-create') }}" class="btn btn-primary" data-turbo-frame="_top">Create a magazine</a>
                     </p>
                 {% else %}
-                    <p>This author hasn't published any magazines or follow packs yet.</p>
+                    <p>This author is not publishing or featured in magazines or follow packs yet.</p>
                 {% endif %}
             </div>
         {% endif %}
