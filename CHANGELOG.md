@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Improvement] Relaxed `docker/strfry-essayist/write-policy.sh` to accept all event kinds from authenticated Essayist members; membership/auth remains enforced at `essayist-gateway` (NIP-42 + role checks), while the policy script now only validates plugin input shape and echoes event ids for strfry protocol compliance.
 - [Bug] Fixed duplicate follow packs shown in Settings → Events tab (Kind 39089 card): the pack list now deduplicates by d-tag, keeping only the most recent version of each pack.
 - [Bug] Fixed `settings/payment-targets` often opening with an empty editor when the latest kind `10133` payment-targets event had not yet been persisted locally. The page now loads the freshest known event like the relay tab does, then pre-fills the form from its existing `payto` targets.
 - [Bug] Fixed profile-page crashes on PostgreSQL caused by filtering JSONB `event.tags` with `LIKE` in follow-pack lookups. The editorial/follow-pack queries now fetch recent candidates and apply p-tag membership checks in PHP, avoiding `operator does not exist: jsonb ~~ unknown`.

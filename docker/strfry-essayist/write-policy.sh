@@ -1,22 +1,15 @@
 #!/bin/sh
 # =============================================================================
-# Essayist relay write policy — kind-only filter
+# Essayist relay write policy — member-gated passthrough
 # =============================================================================
 #
 # Membership enforcement happens at the connection layer in essayist-gateway
-# (NIP-42 AUTH + ROLE_ESSAYIST_MEMBER), so this script no longer calls the
-# PHP policy API. It exists only as a defence-in-depth layer that rejects
-# event kinds the relay is not meant to store.
-#
-# Allowed kinds:
-#   30023 - longform article (NIP-23)
-#
-# All other kinds are rejected. Identity events (0, 3, 10002) and drafts
-# (30024) should be fetched from the author's own relays.
+# (NIP-42 AUTH + ROLE_ESSAYIST_MEMBER), so this script acts as a protocol-safe
+# passthrough only: echo event id and accept the event.
 #
 # Implementation notes:
-#  - dockurr/strfry does not ship jq, so the kind check and id extraction
-#    use POSIX shell pattern matching / parameter expansion only.
+#  - dockurr/strfry does not ship jq, so id extraction uses POSIX shell pattern
+#    matching / parameter expansion only.
 #  - strfry's plugin protocol REQUIRES every response to echo the event's
 #    `id`, otherwise strfry rejects the response with
 #    `Plugin error: JSON object key "id" not found` and refuses to ingest
@@ -48,14 +41,7 @@ while IFS= read -r line; do
         continue
     fi
 
-    case "$line" in
-        *'"kind":30023'*|*'"kind": 30023'*)
-            printf '{"id":"%s","action":"accept"}\n' "$EVENT_ID"
-            ;;
-        *)
-            printf '{"id":"%s","action":"reject","msg":"only published longform articles accepted on this relay (kind 30023)"}\n' "$EVENT_ID"
-            ;;
-    esac
+    printf '{"id":"%s","action":"accept"}\n' "$EVENT_ID"
 done
 
 
