@@ -441,16 +441,28 @@ class SettingsController extends AbstractController
             $events[$kind] = $this->eventRepository->findLatestByPubkeyAndKind($pubkeyHex, $kind);
         }
 
-        // Also load follow packs (kind 39089) — parameterized replaceable, can have multiple
-        $followPacks = $this->eventRepository->createQueryBuilder('e')
+        // Also load follow packs (kind 39089) — parameterized replaceable, can have multiple.
+        // Deduplicate by d-tag (slug), keeping only the most recent version of each pack.
+        $followPacksRaw = $this->eventRepository->createQueryBuilder('e')
             ->where('e.pubkey = :pubkey')
             ->andWhere('e.kind = :kind')
             ->setParameter('pubkey', $pubkeyHex)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(10)
+            ->setMaxResults(50)
             ->getQuery()
             ->getResult();
+
+        $followPacks = [];
+        $seenPackDTags = [];
+        foreach ($followPacksRaw as $packEvent) {
+            $dTag = $packEvent->getSlug() ?? '';
+            if (isset($seenPackDTags[$dTag])) {
+                continue;
+            }
+            $seenPackDTags[$dTag] = true;
+            $followPacks[] = $packEvent;
+        }
 
         $events['follow_packs'] = $followPacks;
 
