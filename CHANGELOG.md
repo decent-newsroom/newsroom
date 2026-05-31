@@ -2,6 +2,8 @@
 
 ## v0.0.44
 
+- [Improvement] Increased Essayist gateway AUTH wait time by configuring `AUTH_TIMEOUT_SECONDS` to default to 30s in Compose (`ESSAYIST_GATEWAY_AUTH_TIMEOUT_SECONDS` override), reducing premature `AUTH timeout` disconnects for slower signers.
+- [Improvement] Added explicit NIP-11 relay icon metadata (`icon`) to `docker/strfry-essayist/strfry.conf`, so relay review clients can render a branded card/name for the Essayist relay.
 - [Improvement] Relaxed `docker/strfry-essayist/write-policy.sh` to accept all event kinds from authenticated Essayist members; membership/auth remains enforced at `essayist-gateway` (NIP-42 + role checks), while the policy script now only validates plugin input shape and echoes event ids for strfry protocol compliance.
 - [Bug] Fixed duplicate follow packs shown in Settings → Events tab (Kind 39089 card): the pack list now deduplicates by d-tag, keeping only the most recent version of each pack.
 - [Bug] Fixed `settings/payment-targets` often opening with an empty editor when the latest kind `10133` payment-targets event had not yet been persisted locally. The page now loads the freshest known event like the relay tab does, then pre-fills the form from its existing `payto` targets.

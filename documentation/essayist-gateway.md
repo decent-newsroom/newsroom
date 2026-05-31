@@ -58,7 +58,7 @@ Security model:
 
 gateway → client    ["AUTH", "<challenge>"]           32 random bytes → 64 hex chars, per-connection
 
-  while waiting for AUTH (up to AUTH_TIMEOUT_SECONDS, default 10s):
+  while waiting for AUTH (up to AUTH_TIMEOUT_SECONDS, default 30s in Compose / 10s binary fallback):
     incoming REQ   → ["CLOSED",  <sub_id>,   "auth-required: membership required"]
     incoming EVENT → ["OK",      <event_id>, false, "auth-required: membership required"]
     (frames buffered silently — see "Pre-auth Frame Buffer" below)
@@ -103,7 +103,7 @@ Machine-readable signal is the `restricted:` / `auth-required:` prefix on `CLOSE
 
 ### AUTH timeout
 
-If no `AUTH` message is received within `AUTH_TIMEOUT_SECONDS` (default `10`) of the connection the gateway sends a final `["NOTICE", "auth-required: AUTH timeout"]` and closes.
+If no `AUTH` message is received within `AUTH_TIMEOUT_SECONDS` (default `30` in Compose, `10` as gateway binary fallback) of the connection the gateway sends a final `["NOTICE", "auth-required: AUTH timeout"]` and closes.
 
 ### Redis failure mode
 
@@ -215,7 +215,7 @@ type ConnectionState struct {
 | `REDIS_MEMBER_NEG_TTL_SECONDS` | `30` | TTL for cached **rejections** (short, so grants propagate fast) |
 | `REDIS_BREAKER_COOLDOWN_SECONDS` | `30` | Cooldown after consecutive Redis failures before retrying the fast path |
 | `REVOCATION_CHANNEL` | `essayist_member_revoked` | Redis pub/sub channel for push-based revocation |
-| `AUTH_TIMEOUT_SECONDS` | `10` | Seconds to wait for client AUTH before closing |
+| `AUTH_TIMEOUT_SECONDS` | `10` (gateway binary default) | Seconds to wait for client AUTH before closing |
 | `CREATED_AT_TOLERANCE_SECONDS` | `60` | Allowed clock skew on kind:22242 `created_at` |
 | `MAX_CONNECTIONS` | `2000` | Global cap on concurrent WS connections |
 | `MAX_CONNECTIONS_PER_IP` | `20` | Per-IP cap on concurrent WS connections |
@@ -248,6 +248,7 @@ essayist-gateway:
   environment:
     UPSTREAM_RELAY_URL: ws://strfry-essayist:7779
     RELAY_PUBLIC_URL: ${ESSAYIST_RELAY_PUBLIC_URL:-wss://essayist.decentnewsroom.com}
+    AUTH_TIMEOUT_SECONDS: ${ESSAYIST_GATEWAY_AUTH_TIMEOUT_SECONDS:-30}
     ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:?ESSAYIST_POLICY_TOKEN must be set}
     POLICY_URL_TEMPLATE: http://php/api/internal/essayist/writer/{pubkey}
     REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
