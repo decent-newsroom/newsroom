@@ -38,6 +38,8 @@ use Symfony\Component\Serializer\SerializerInterface;
 
 class AuthorController extends AbstractController
 {
+    private const string DEFAULT_PROFILE_TAB = 'articles';
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly NostrLinkParser $nostrLinkParser,
@@ -835,6 +837,15 @@ class AuthorController extends AbstractController
         $npub = $resolved['npub'];
         $vanityName = $resolved['vanity'];
         $useVanity = $resolved['useVanity'];
+
+        // Legacy compatibility: /overview was removed; send old links to the default profile tab.
+        if ($tab === 'overview') {
+            if ($useVanity) {
+                return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => self::DEFAULT_PROFILE_TAB], 301);
+            }
+
+            return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => self::DEFAULT_PROFILE_TAB], 301);
+        }
 
         // Determine which identifier to use in URLs
         $profileId = $useVanity ? $vanityName : $npub;
@@ -2011,13 +2022,13 @@ class AuthorController extends AbstractController
 
 
     /**
-     * Author profile - redirect to overview tab by default
+     * Author profile - redirect to default public tab
      */
     #[Route('/{vanity}', name: 'author-vanity-profile', priority: -10)]
     #[Route('/p/{npub}', name: 'author-profile', requirements: ['npub' => '^npub1.*'])]
     public function index(string $npub = null, string $vanity = null): Response
     {
-        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => 'overview']);
+        $resolved = $this->resolveVanityOrRedirect($npub, $vanity, 'author-vanity-profile-tab', ['tab' => self::DEFAULT_PROFILE_TAB]);
         if ($resolved instanceof Response) {
             return $resolved;
         }
@@ -2026,13 +2037,13 @@ class AuthorController extends AbstractController
         $useVanity = $resolved['useVanity'];
         $vanityName = $resolved['vanity'];
 
-        // Redirect to overview tab with the same identifier type
+        // Redirect to default tab with the same identifier type
         if ($useVanity) {
-            return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => 'overview']);
+            return $this->redirectToRoute('author-vanity-profile-tab', ['vanity' => $vanityName, 'tab' => self::DEFAULT_PROFILE_TAB]);
         }
 
-        // Redirect to overview tab - shows dashboard with mix of content
-        return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => 'overview']);
+        // Redirect to default tab
+        return $this->redirectToRoute('author-profile-tab', ['npub' => $npub, 'tab' => self::DEFAULT_PROFILE_TAB]);
     }
 
     /**

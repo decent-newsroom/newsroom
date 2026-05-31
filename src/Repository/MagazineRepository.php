@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Magazine;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -45,10 +46,31 @@ class MagazineRepository extends ServiceEntityRepository
      */
     public function findByContributor(string $pubkey): array
     {
+        $connection = $this->getEntityManager()->getConnection();
+        $platform = $connection->getDatabasePlatform();
+
+        if ($platform instanceof PostgreSQLPlatform) {
+            // contributors is stored as JSON; cast to jsonb and use containment.
+            $ids = $connection->executeQuery(
+                'SELECT id FROM magazine WHERE contributors::jsonb @> :needle::jsonb ORDER BY updated_at DESC',
+                ['needle' => json_encode([$pubkey], JSON_THROW_ON_ERROR)]
+            )->fetchFirstColumn();
+
+            if ($ids === []) {
+                return [];
+            }
+
+            return $this->createQueryBuilder('m')
+                ->where('m.id IN (:ids)')
+                ->setParameter('ids', array_map('intval', $ids))
+                ->orderBy('m.updatedAt', 'DESC')
+                ->getQuery()
+                ->getResult();
+        }
+
+        // Fallback for non-PostgreSQL setups.
         $qb = $this->createQueryBuilder('m');
 
-        // Use JSON_CONTAINS for MySQL/MariaDB or jsonb_exists for PostgreSQL
-        // This checks if the pubkey exists in the contributors JSON array
         return $qb
             ->where($qb->expr()->like('m.contributors', ':pubkey'))
             ->setParameter('pubkey', '%"' . $pubkey . '"%')
