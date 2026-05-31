@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Bug] Fixed Essayist relay NIP-11 browser discovery issues: `essayist-gateway` now adds NIP-11 CORS headers (`Access-Control-Allow-Origin/Headers/Methods`), answers `OPTIONS /` preflight, and defaults missing or `*/*` `Accept` to `application/nostr+json` when proxying metadata requests.
 - [Improvement] Essayist gateway now intercepts non-`30023` client `EVENT` writes and responds with `OK false` + `NOTICE` (`blocked: ...`) without closing the websocket, so policy rejections do not look like relay/session failure.
 - [Improvement] Restored `docker/strfry-essayist/write-policy.sh` longform-only gating (kind `30023`) and changed rejection messages to a policy-style `blocked:` reason so non-matching writes are handled as expected relay policy instead of relay/internal `error` behavior in clients.
 - [Improvement] Increased Essayist gateway AUTH wait time by configuring `AUTH_TIMEOUT_SECONDS` to default to 30s in Compose (`ESSAYIST_GATEWAY_AUTH_TIMEOUT_SECONDS` override), reducing premature `AUTH timeout` disconnects for slower signers.

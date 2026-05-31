@@ -141,7 +141,18 @@ The PHP side pre-warms the Redis cache whenever it grants or revokes `ROLE_ESSAY
 
 ## NIP-11 Passthrough
 
-Any unauthenticated HTTP `GET` request is reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH. The gateway forwards the incoming `Accept` header and returns strfry's native HTTP response (status/body/content-type). Non-`GET` methods still return `404`. This keeps WebSocket AUTH enforcement intact while making plain browser/curl requests behave exactly like direct strfry access.
+Any unauthenticated HTTP `GET` request is reverse-proxied directly to `strfry-essayist:7779` without requiring AUTH.
+
+- The gateway forwards the incoming `Accept` header by default.
+- If `Accept` is missing or browser-default (`*/*`), the gateway sets upstream `Accept: application/nostr+json` so NIP-11 metadata can still be discovered.
+- The gateway returns strfry's native response body/status/content-type.
+- The gateway adds CORS headers on NIP-11 responses:
+  - `Access-Control-Allow-Origin: *`
+  - `Access-Control-Allow-Headers: Accept, Content-Type, Authorization`
+  - `Access-Control-Allow-Methods: GET, OPTIONS`
+- `OPTIONS /` returns `204 No Content` with the same CORS headers.
+
+This keeps WebSocket AUTH enforcement intact while making browser/curl metadata lookups reliable.
 
 ---
 

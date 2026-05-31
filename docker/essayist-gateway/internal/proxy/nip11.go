@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -27,6 +28,13 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		setNIP11CORSHeaders(w)
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		if r.Method != http.MethodGet {
 			http.NotFound(w, r)
 			return
@@ -39,7 +47,12 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 			http.Error(w, "upstream error", http.StatusBadGateway)
 			return
 		}
-		if accept := r.Header.Get("Accept"); accept != "" {
+		accept := r.Header.Get("Accept")
+		if accept == "" || strings.Contains(accept, "*/*") {
+			// Some web clients omit the explicit NIP-11 accept header.
+			// Default to nostr+json so relay metadata can still be discovered.
+			req.Header.Set("Accept", "application/nostr+json")
+		} else {
 			req.Header.Set("Accept", accept)
 		}
 
@@ -56,5 +69,11 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.Copy(w, resp.Body)
 	}
+}
+
+func setNIP11CORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 }
 
