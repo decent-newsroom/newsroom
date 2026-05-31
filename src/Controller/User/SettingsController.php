@@ -146,12 +146,12 @@ class SettingsController extends AbstractController
         $user = $this->getUser();
         $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
 
-        $paymentTargetsEvent = $this->eventRepository
-            ->findLatestByPubkeyAndKind($pubkeyHex, KindsEnum::PAYMENT_TARGETS->value);
-
-        $paymentTargets = $paymentTargetsEvent !== null
-            ? array_map(fn($target) => $target->toArray(), $this->paymentTargetService->parseEvent($paymentTargetsEvent))
-            : [];
+        // Match the Tip modal: on-demand relay fetch first, then fall back to the
+        // persisted DB snapshot when no live event can be resolved.
+        $paymentTargets = array_map(
+            static fn($target) => $target->toArray(),
+            $this->paymentTargetService->getFreshForPubkey($pubkeyHex),
+        );
 
         return $this->render('settings/payment-targets.html.twig', [
             'paymentTargets' => $paymentTargets,
