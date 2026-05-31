@@ -56,7 +56,7 @@
                             <p class="essayist-members__lud16"><code>{{ m.lud16 }}</code></p>
                         </div>
                         <div class="essayist-members__action">
-                            {% if app.user.userIdentifier is not m.pubkey|toNpub %}
+                            {% if app.user.userIdentifier != (m.pubkey|toNpub) %}
                                 <twig:Molecules:ZapButton
                                     recipientPubkey="{{ m.pubkey }}"
                                     recipientLud16="{{ m.lud16 }}"
