@@ -2,8 +2,6 @@
 
 ## v0.0.44
 
-- [Bug] Fixed profile root links (`/p/{npub}` and `/{vanity}`) defaulting to removed `overview`; they now redirect to the `articles` tab.
-- [Bug] Added backward-compatibility redirect for legacy profile `overview` URLs so `/p/{npub}/overview` and `/{vanity}/overview` 301-redirect to `articles`.
 - [Bug] Fixed PostgreSQL profile/editorial crashes caused by querying `magazine.contributors` (JSON column) with `LIKE`. Contributor lookups now use JSONB containment (`contributors::jsonb @> ...`) on PostgreSQL, avoiding `operator does not exist: json ~~ unknown` errors.
 - [Bug] Fixed Essayist relay (and any future server-initiated WebSocket) clients timing out without ever receiving the NIP-42 `AUTH` challenge: removed `encode zstd gzip` from the `relay.localhost` and `essayist.localhost` Caddy reverse-proxy routes. Caddy's encoder wraps the response writer in a way that can buffer the first server-pushed frame after a WS upgrade, which manifested as `AUTH timeout, closing` in the essayist-gateway logs because the gateway pushes `AUTH` immediately on connect (strfry was unaffected since it is purely client-initiated).
 - [Improvement] essayist-gateway now logs the `AUTH` challenge only *after* the frame is written, surfaces write failures as `outcome=write_failed`, and applies a 5s write deadline so a stalled socket cannot silently hide a delivery problem.
