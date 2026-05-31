@@ -93,11 +93,16 @@ func (h *Handler) run(ctx context.Context, connID string, client *websocket.Conn
 		logger.Error("challenge generation failed", "err", err)
 		return
 	}
-	logger.Info("AUTH challenge sent")
 
+	// Bound the write so a stalled socket cannot block us indefinitely.
+	_ = client.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	if err := client.WriteMessage(websocket.TextMessage, mustMarshal([]any{"AUTH", challenge})); err != nil {
+		logger.Warn("AUTH challenge write failed", "err", err, "outcome", "write_failed")
+		metrics.AuthTotal.WithLabelValues("write_failed").Inc()
 		return
 	}
+	_ = client.SetWriteDeadline(time.Time{})
+	logger.Info("AUTH challenge sent")
 
 	// Apply a hard deadline for the AUTH phase.
 	authDeadline := time.Now().Add(h.AuthTimeout)

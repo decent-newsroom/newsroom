@@ -56,12 +56,16 @@
         @relayForwarded {
             header X-Forwarded-Host {$RELAY_DOMAIN:relay.localhost}
         }
+        # NOTE: do NOT add `encode` here. Caddy's encoder wraps the response
+        # writer and can buffer/swallow the first server-initiated frame after
+        # a WebSocket upgrade. Strfry happens to be client-initiated so the
+        # bug is invisible there, but the essayist-gateway below pushes an
+        # AUTH challenge immediately on connect and was timing out because of
+        # this. Keep both relay routes encoder-free for consistency.
         handle @relay {
-                encode zstd gzip
                 reverse_proxy strfry:7777
         }
         handle @relayForwarded {
-                encode zstd gzip
                 reverse_proxy strfry:7777
         }
 
@@ -80,11 +84,9 @@
             header X-Forwarded-Host {$ESSAYIST_RELAY_DOMAIN:essayist.localhost}
         }
         handle @essayistRelay {
-                encode zstd gzip
                 reverse_proxy essayist-gateway:7780
         }
         handle @essayistRelayForwarded {
-                encode zstd gzip
                 reverse_proxy essayist-gateway:7780
         }
 
