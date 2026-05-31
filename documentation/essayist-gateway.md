@@ -85,6 +85,10 @@ client → gateway   ["AUTH", <kind-22242-event>]
   approved:
     gateway → client    ["OK", <event_id>, true, ""]
     open WS to strfry-essayist:7779
+    non-30023 EVENT writes are rejected by the gateway itself with
+      ["OK", <event_id>, false, "blocked: only published longform articles accepted on this relay (kind 30023)"]
+      ["NOTICE", "blocked: only published longform articles accepted on this relay (kind 30023)"]
+    and the connection stays open
     replay any buffered pre-auth frames to upstream
     start bidirectional copy loop (transparent proxy)
 

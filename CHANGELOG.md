@@ -2,6 +2,8 @@
 
 ## v0.0.44
 
+- [Improvement] Essayist gateway now intercepts non-`30023` client `EVENT` writes and responds with `OK false` + `NOTICE` (`blocked: ...`) without closing the websocket, so policy rejections do not look like relay/session failure.
+- [Improvement] Restored `docker/strfry-essayist/write-policy.sh` longform-only gating (kind `30023`) and changed rejection messages to a policy-style `blocked:` reason so non-matching writes are handled as expected relay policy instead of relay/internal `error` behavior in clients.
 - [Improvement] Increased Essayist gateway AUTH wait time by configuring `AUTH_TIMEOUT_SECONDS` to default to 30s in Compose (`ESSAYIST_GATEWAY_AUTH_TIMEOUT_SECONDS` override), reducing premature `AUTH timeout` disconnects for slower signers.
 - [Improvement] Added explicit NIP-11 relay icon metadata (`icon`) to `docker/strfry-essayist/strfry.conf`, so relay review clients can render a branded card/name for the Essayist relay.
 - [Improvement] Relaxed `docker/strfry-essayist/write-policy.sh` to accept all event kinds from authenticated Essayist members; membership/auth remains enforced at `essayist-gateway` (NIP-42 + role checks), while the policy script now only validates plugin input shape and echoes event ids for strfry protocol compliance.

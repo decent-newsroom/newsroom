@@ -1,11 +1,18 @@
 #!/bin/sh
 # =============================================================================
-# Essayist relay write policy — member-gated passthrough
+# Essayist relay write policy — longform-only gate
 # =============================================================================
 #
 # Membership enforcement happens at the connection layer in essayist-gateway
-# (NIP-42 AUTH + ROLE_ESSAYIST_MEMBER), so this script acts as a protocol-safe
-# passthrough only: echo event id and accept the event.
+# (NIP-42 AUTH + ROLE_ESSAYIST_MEMBER). This script is defence-in-depth and
+# limits writes to published longform articles only.
+#
+# Allowed kinds:
+#   30023 - longform article (NIP-23)
+#
+# All other kinds are rejected with a policy-style `blocked:` reason (not an
+# internal `error:` reason) so clients can classify the response as expected
+# relay policy instead of relay malfunction.
 #
 # Implementation notes:
 #  - dockurr/strfry does not ship jq, so id extraction uses POSIX shell pattern
@@ -41,7 +48,14 @@ while IFS= read -r line; do
         continue
     fi
 
-    printf '{"id":"%s","action":"accept"}\n' "$EVENT_ID"
+    case "$line" in
+        *'"kind":30023,'*|*'"kind": 30023,'*|*'"kind":30023}'*|*'"kind": 30023}'*)
+            printf '{"id":"%s","action":"accept"}\n' "$EVENT_ID"
+            ;;
+        *)
+            printf '{"id":"%s","action":"reject","msg":"blocked: only published longform articles accepted on this relay (kind 30023)"}\n' "$EVENT_ID"
+            ;;
+    esac
 done
 
 
