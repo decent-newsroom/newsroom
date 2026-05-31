@@ -1,8 +1,6 @@
 package proxy
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,12 +11,6 @@ import (
 // NIP11Handler proxies unauthenticated HTTP GET requests to the upstream relay's
 // HTTP listener so clients receive strfry's default HTTP behavior. Non-GET
 // methods return 404.
-//
-// When the response is application/nostr+json the handler augments the
-// limitation object with auth_required, payment_required, and
-// restricted_writes = true so that Nostr clients correctly advertise the
-// relay's membership requirements. strfry v1.1.0 does not expose these flags
-// natively via its config, so we inject them here at the gateway layer.
 //
 // The upstream relay URL must be a ws:// or wss:// URL; we transform it to
 // http:// or https:// for the metadata request.
@@ -85,4 +77,3 @@ func setNIP11CORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 }
-
