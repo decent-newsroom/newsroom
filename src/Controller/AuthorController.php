@@ -1232,12 +1232,10 @@ class AuthorController extends AbstractController
         $followPacks = $em->getRepository(Event::class)->createQueryBuilder('e')
             ->where('e.kind = :kind')
             ->andWhere('e.pubkey != :pubkey')
-            ->andWhere('e.tags LIKE :memberTag')
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->setParameter('pubkey', $pubkey)
-            ->setParameter('memberTag', '%"p"%"' . $pubkey . '"%')
             ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(50)
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
 

@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Bug] Fixed profile-page crashes on PostgreSQL caused by filtering JSONB `event.tags` with `LIKE` in follow-pack lookups. The editorial/follow-pack queries now fetch recent candidates and apply p-tag membership checks in PHP, avoiding `operator does not exist: jsonb ~~ unknown`.
 - [Bug] Fixed `settings/payment-targets` often opening with an empty editor when the latest kind `10133` payment-targets event had not yet been persisted locally. The page now mirrors the Tip modal by performing a targeted on-demand relay fetch first, then falling back to the DB snapshot.
 - [Bug] Fixed PostgreSQL profile/editorial crashes caused by querying `magazine.contributors` (JSON column) with `LIKE`. Contributor lookups now use JSONB containment (`contributors::jsonb @> ...`) on PostgreSQL, avoiding `operator does not exist: json ~~ unknown` errors.
 - [Bug] Fixed Essayist relay (and any future server-initiated WebSocket) clients timing out without ever receiving the NIP-42 `AUTH` challenge: removed `encode zstd gzip` from the `relay.localhost` and `essayist.localhost` Caddy reverse-proxy routes. Caddy's encoder wraps the response writer in a way that can buffer the first server-pushed frame after a WS upgrade, which manifested as `AUTH timeout, closing` in the essayist-gateway logs because the gateway pushes `AUTH` immediately on connect (strfry was unaffected since it is purely client-initiated).
