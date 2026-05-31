@@ -992,6 +992,7 @@ settings:
         empty: 'No payment targets configured yet.'
         recognized: 'Recognized'
         custom: 'Custom'
+        rawJson: 'Raw payment target event (kind 10133)'
     profile:
         heading: 'Profile'
         description: 'Update your Nostr profile metadata (kind 0). Changes will be signed with your key and published to your relays.'

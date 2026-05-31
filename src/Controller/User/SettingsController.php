@@ -146,16 +146,44 @@ class SettingsController extends AbstractController
         $user = $this->getUser();
         $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
 
-        // Match the Tip modal: on-demand relay fetch first, then fall back to the
-        // persisted DB snapshot when no live event can be resolved.
-        $paymentTargets = array_map(
-            static fn($target) => $target->toArray(),
-            $this->paymentTargetService->getFreshForPubkey($pubkeyHex),
-        );
+        // Match the Tip modal: load the freshest kind 10133 event first, then
+        // fall back to the persisted DB snapshot when no live event can be resolved.
+        $paymentTargetsEvent = $this->paymentTargetService->getFreshEventForPubkey($pubkeyHex);
+        $paymentTargets = $paymentTargetsEvent instanceof EventEntity
+            ? array_map(static fn($target) => $target->toArray(), $this->paymentTargetService->parseEvent($paymentTargetsEvent))
+            : ($paymentTargetsEvent !== null
+                ? array_map(static fn($target) => $target->toArray(), $this->paymentTargetService->parseRelayEvent($paymentTargetsEvent))
+                : []);
+
+        $paymentTargetsRawJson = null;
+        if ($paymentTargetsEvent !== null) {
+            $payload = $paymentTargetsEvent instanceof EventEntity
+                ? [
+                    'id' => $paymentTargetsEvent->getId(),
+                    'pubkey' => $paymentTargetsEvent->getPubkey(),
+                    'kind' => $paymentTargetsEvent->getKind(),
+                    'created_at' => $paymentTargetsEvent->getCreatedAt(),
+                    'content' => $paymentTargetsEvent->getContent(),
+                    'tags' => $paymentTargetsEvent->getTags(),
+                    'sig' => $paymentTargetsEvent->getSig(),
+                ]
+                : [
+                    'id' => $paymentTargetsEvent->id ?? '',
+                    'pubkey' => $paymentTargetsEvent->pubkey ?? '',
+                    'kind' => $paymentTargetsEvent->kind ?? '',
+                    'created_at' => $paymentTargetsEvent->created_at ?? null,
+                    'content' => $paymentTargetsEvent->content ?? '',
+                    'tags' => $paymentTargetsEvent->tags ?? [],
+                    'sig' => $paymentTargetsEvent->sig ?? '',
+                ];
+
+            $paymentTargetsRawJson = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: null;
+        }
 
         return $this->render('settings/payment-targets.html.twig', [
             'paymentTargets' => $paymentTargets,
-            'paymentTargetTypes' => PaymentTargetService::recognizedTypes(),
+            'paymentTargetTypes' => $this->paymentTargetService->recognizedTypes(),
+            'paymentTargetsRawJson' => $paymentTargetsRawJson,
         ]);
     }
 

@@ -19,15 +19,25 @@
         {% for target in paymentTargets %}
             <div class="payment-target-row settings-multi-field__row"
                  data-nostr--nostr-settings-payment-targets-target="row">
+                <label for="payment-target-type-{{ loop.index0 }}" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+                    {{ 'settings.payments.type'|trans }}
+                </label>
                 <input type="text"
+                       id="payment-target-type-{{ loop.index0 }}"
                        data-nostr--nostr-settings-payment-targets-target="typeInput"
                        value="{{ target.type }}"
                        placeholder="{{ 'settings.payments.typePlaceholder'|trans }}"
+                       aria-label="{{ 'settings.payments.type'|trans }}"
                        class="payment-target-row__type">
+                <label for="payment-target-authority-{{ loop.index0 }}" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+                    {{ 'settings.payments.authority'|trans }}
+                </label>
                 <input type="text"
+                       id="payment-target-authority-{{ loop.index0 }}"
                        data-nostr--nostr-settings-payment-targets-target="authorityInput"
                        value="{{ target.authority }}"
                        placeholder="{{ 'settings.payments.authorityPlaceholder'|trans }}"
+                       aria-label="{{ 'settings.payments.authority'|trans }}"
                        class="payment-target-row__authority">
                 <button type="button"
                         class="btn btn--secondary settings-multi-field__remove"
@@ -49,6 +59,13 @@
             {{ 'settings.payments.publish'|trans }}
         </button>
     </div>
+
+    {% if paymentTargetsRawJson is defined and paymentTargetsRawJson %}
+        <details class="settings-raw-json mt-3">
+            <summary class="settings-raw-json__toggle">{{ 'settings.payments.rawJson'|trans }}</summary>
+            <pre class="settings-raw-json__content"><code>{{ paymentTargetsRawJson }}</code></pre>
+        </details>
+    {% endif %}
 
     {% if paymentTargetTypes is not empty %}
         <details class="settings-raw-json mt-3">

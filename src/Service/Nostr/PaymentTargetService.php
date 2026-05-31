@@ -59,15 +59,15 @@ final class PaymentTargetService
     ) {}
 
     /**
-     * Fetch payment targets via a targeted kind 10133 relay lookup.
+     * Fetch the freshest kind 10133 event via a targeted relay lookup.
      *
      * Falls back to the persisted DB snapshot when relay lookup is unavailable
      * or fails.
      */
-    public function getFreshForPubkey(string $pubkeyHex): array
+    public function getFreshEventForPubkey(string $pubkeyHex): Event|\stdClass|null
     {
         if ($this->requestExecutor === null || $this->relaySetFactory === null || $this->userRelayListService === null) {
-            return $this->getForPubkey($pubkeyHex);
+            return $this->getLatestEventForPubkey($pubkeyHex);
         }
 
         try {
@@ -86,7 +86,7 @@ final class PaymentTargetService
             );
 
             if (!empty($events)) {
-                return $this->parseRelayEvent($events[0]);
+                return $events[0];
             }
         } catch (\Throwable $e) {
             $this->logger?->debug('PaymentTargetService: targeted kind 10133 lookup failed, using DB snapshot', [
@@ -95,7 +95,30 @@ final class PaymentTargetService
             ]);
         }
 
-        return $this->getForPubkey($pubkeyHex);
+        return $this->getLatestEventForPubkey($pubkeyHex);
+    }
+
+    /**
+     * Fetch payment targets via a targeted kind 10133 relay lookup.
+     *
+     * Falls back to the persisted DB snapshot when relay lookup is unavailable
+     * or fails.
+     *
+     * @return PaymentTarget[]
+     */
+    public function getFreshForPubkey(string $pubkeyHex): array
+    {
+        $event = $this->getFreshEventForPubkey($pubkeyHex);
+
+        if ($event === null) {
+            return [];
+        }
+
+        if ($event instanceof Event) {
+            return $this->parseEvent($event);
+        }
+
+        return $this->parseRelayEvent($event);
     }
 
     /**
