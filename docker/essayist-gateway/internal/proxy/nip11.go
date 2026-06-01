@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -67,9 +68,74 @@ func NIP11Handler(upstreamRelayWS string) http.HandlerFunc {
 		if contentType := resp.Header.Get("Content-Type"); contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		}
+
+		if isNIP11 && strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "application/json") {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				http.Error(w, "upstream read error", http.StatusBadGateway)
+				return
+			}
+			if enriched, ok := enrichNIP11Response(body, r); ok {
+				w.WriteHeader(resp.StatusCode)
+				_, _ = w.Write(enriched)
+				return
+			}
+			w.WriteHeader(resp.StatusCode)
+			_, _ = w.Write(body)
+			return
+		}
+
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.Copy(w, resp.Body)
 	}
+}
+
+func enrichNIP11Response(body []byte, r *http.Request) ([]byte, bool) {
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, false
+	}
+
+	if _, ok := doc["icon"]; !ok {
+		doc["icon"] = requestPublicBaseURL(r) + "/favicon.ico"
+	}
+
+	limitation, _ := doc["limitation"].(map[string]any)
+	if limitation == nil {
+		limitation = make(map[string]any)
+	}
+	if _, ok := limitation["auth_required"]; !ok {
+		limitation["auth_required"] = true
+	}
+	if _, ok := limitation["restricted_writes"]; !ok {
+		limitation["restricted_writes"] = true
+	}
+	doc["limitation"] = limitation
+
+	enriched, err := json.Marshal(doc)
+	if err != nil {
+		return nil, false
+	}
+
+	return enriched, true
+}
+
+func requestPublicBaseURL(r *http.Request) string {
+	scheme := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if scheme == "" {
+		if r.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+
+	return scheme + "://" + host
 }
 
 func setNIP11CORSHeaders(w http.ResponseWriter) {

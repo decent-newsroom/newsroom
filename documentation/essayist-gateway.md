@@ -146,6 +146,10 @@ Any unauthenticated HTTP `GET` request is reverse-proxied directly to `strfry-es
 - The gateway forwards the incoming `Accept` header by default.
 - If `Accept` is missing or browser-default (`*/*`), the gateway sets upstream `Accept: application/nostr+json` so NIP-11 metadata can still be discovered.
 - The gateway returns strfry's native response body/status/content-type.
+- For NIP-11 JSON responses, the gateway enriches missing metadata fields:
+  - `icon` defaults to `{public-base-url}/favicon.ico`
+  - `limitation.auth_required` defaults to `true`
+  - `limitation.restricted_writes` defaults to `true`
 - The gateway adds CORS headers on NIP-11 responses:
   - `Access-Control-Allow-Origin: *`
   - `Access-Control-Allow-Headers: Accept, Content-Type, Authorization`

@@ -2,6 +2,7 @@
 
 ## v0.0.44
 
+- [Improvement] Added explicit NIP-11 `icon` metadata to the default relay config (`docker/strfry/strfry.conf`), so both primary strfry relay configs now expose an icon for relay review UIs.
 - [Feature] Added pubkey blocklist write policy to the default strfry relay.
 - [Bug] Fixed Essayist relay NIP-11 browser discovery issues: `essayist-gateway` now adds NIP-11 CORS headers (`Access-Control-Allow-Origin/Headers/Methods`), answers `OPTIONS /` preflight, and defaults missing or `*/*` `Accept` to `application/nostr+json` when proxying metadata requests.
 - [Improvement] Essayist gateway now intercepts non-`30023` client `EVENT` writes and responds with `OK false` + `NOTICE` (`blocked: ...`) without closing the websocket, so policy rejections do not look like relay/session failure.
@@ -45,6 +46,7 @@
 
 ## v0.0.43
 
+- [Improvement] `essayist-gateway` now enriches NIP-11 JSON when upstream `strfry` omits optional fields: sets `icon` to `{public-base-url}/favicon.ico` and fills `limitation.auth_required=true` plus `limitation.restricted_writes=true` by default.
 - [Bug] Fixed Quill view-font controls leaking outside the active editor instance by removing global `#editor` fallback lookup and scoping font/font-size style application strictly to the current controller element.
 - [Bug] Fixed mobile editor empty space at bottom by ensuring action buttons don't flex-shrink and Quill editor container properly fills available vertical space.
 - [Bug] Fixed mobile editor triggering unwanted browser auto-zoom by enforcing 16px minimum font size on all inputs, textareas, selects, and CodeMirror editor on mobile devices, preventing layout shifts.
