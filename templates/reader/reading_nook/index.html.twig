@@ -2,33 +2,9 @@
 
 {% block body %}
 <section class="reading-nook-page">
-    <header class="reading-nook-page__header">
-        <div>
-            <h1>{{ 'reading_nook.title'|trans }}</h1>
-            <p>{{ 'reading_nook.subtitle'|trans }}</p>
-        </div>
-        <a class="reading-nook-page__create" href="{{ path('editor-create') }}">{{ 'reading_nook.create_article'|trans }}</a>
-    </header>
+    <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
 
     <div class="reading-nook-layout">
-        <aside class="reading-nook-sidebar">
-            <h2>{{ 'reading_nook.sidebar.title'|trans }}</h2>
-            <nav>
-                <a href="{{ path('my_bookmarks') }}">{{ 'reading_nook.sidebar.bookmarks'|trans }}</a>
-                <a href="{{ path('my_interests') }}">{{ 'reading_nook.sidebar.interests'|trans }}</a>
-                <a href="{{ path('my_magazines') }}">{{ 'reading_nook.sidebar.magazines'|trans }}</a>
-                <a href="{{ path('reading_list_index') }}">{{ 'reading_nook.sidebar.reading_lists'|trans }}</a>
-                <a href="{{ path('my_content') }}">{{ 'reading_nook.sidebar.my_content'|trans }}</a>
-                <a href="{{ path('follow_packs') }}">{{ 'reading_nook.sidebar.follow_packs'|trans }}</a>
-            </nav>
-
-            <div class="reading-nook-sidebar__stats">
-                <h3>{{ 'reading_nook.sidebar.pool_title'|trans }}</h3>
-                <p>{{ 'reading_nook.sidebar.pool_count'|trans({'%count%': totalCount}) }}</p>
-                <p>{{ 'reading_nook.sidebar.filtered_count'|trans({'%count%': filteredCount}) }}</p>
-            </div>
-        </aside>
-
         <div class="reading-nook-content">
             <form method="get" class="reading-nook-filters">
                 <div class="reading-nook-filters__search">
@@ -143,3 +119,23 @@
 </section>
 {% endblock %}
 
+{% block aside %}
+    <h2>{{ 'reading_nook.sidebar.title'|trans }}</h2>
+    <nav>
+        <a href="{{ path('my_bookmarks') }}">{{ 'reading_nook.sidebar.bookmarks'|trans }}</a>
+        <a href="{{ path('my_interests') }}">{{ 'reading_nook.sidebar.interests'|trans }}</a>
+        <a href="{{ path('my_magazines') }}">{{ 'reading_nook.sidebar.magazines'|trans }}</a>
+        <a href="{{ path('reading_list_index') }}">{{ 'reading_nook.sidebar.reading_lists'|trans }}</a>
+        <a href="{{ path('my_content') }}">{{ 'reading_nook.sidebar.my_content'|trans }}</a>
+        <a href="{{ path('follow_packs') }}">{{ 'reading_nook.sidebar.follow_packs'|trans }}</a>
+    </nav>
+
+    <div class="reading-nook-sidebar__stats">
+        <h3>{{ 'reading_nook.sidebar.pool_title'|trans }}</h3>
+        <p>{{ 'reading_nook.sidebar.pool_count'|trans({'%count%': totalCount}) }}</p>
+        <p>{{ 'reading_nook.sidebar.filtered_count'|trans({'%count%': filteredCount}) }}</p>
+    </div>
+
+    <a class="reading-nook-page__create" href="{{ path('editor-create') }}">{{ 'reading_nook.create_article'|trans }}</a>
+
+{% endblock %}
