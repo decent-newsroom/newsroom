@@ -4,7 +4,7 @@
 
 - Remove search credits system: deleted `src/Credits/` namespace (`CreditTransaction` entity, `CreditsManager` service, `RedisCreditStore`), `CreditTransactionController`, `GetCreditsComponent`, admin transactions template, `credits.cache` pool, and deprecated `getTransactionStats()` from `AdminDashboardService`
 - Subdomain subscription pricing and feature lists now state that a NIP-05 vanity name is included for the duration of the subscription; the settings page links active subscribers to the vanity name registration page
-- Vendor Iconoir SVG icon set via Symfony UX Icons (`assets/icons/iconoir/`); replace inline SVG checkmarks in pricing page and external-link icons in highlight templates with `ux_icon()` calls
+- Vendor Iconoir SVG icon set via Symfony UX Icons (`assets/icons/iconoir/`); replace inline SVG checkmarks in pricing page and external-link icons in highlight templates with `ux_icon()` calls using valid `iconoir:...` namespaced icon syntax
 - Fix pricing page horizontal overflow by adding `overflow-x: hidden` on the grid container and `min-width: 0; overflow: hidden` on cards
 - Rename "Total Visits" → "Page Views" and "Unique Visitors" → "Unique Sessions / Users" in admin analytics; add clarifying notes
 - Add `wss://spatia-arcana.com` to content relay list

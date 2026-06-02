@@ -58,7 +58,7 @@
     {% elseif highlight.sourceUrl %}
         <a href="{{ highlight.sourceUrl }}" class="source-link" target="_blank" rel="noopener" data-turbo-frame="_top">
             Source: {{ highlight.sourceUrl|replace({'https://': '', 'http://': ''})|split('/')[0] }}
-            {{ ux_icon('iconoir/open-new-window', {width: 14, height: 14}) }}
+            {{ ux_icon('iconoir:open-new-window', {width: 14, height: 14}) }}
         </a>
     {% elseif highlight.url %}
         <a href="{{ highlight.url }}"
@@ -67,7 +67,7 @@
            rel="noopener noreferrer"
            data-turbo-frame="_top">
             View source
-            {{ ux_icon('iconoir/open-new-window', {width: 14, height: 14}) }}
+            {{ ux_icon('iconoir:open-new-window', {width: 14, height: 14}) }}
         </a>
     {% endif %}
 </blockquote>
