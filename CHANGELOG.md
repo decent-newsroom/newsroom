@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Feature] XML sitemap at `/sitemap.xml` listing static pages, published articles (up to 1 000), and magazines; linked from the site footer and referenced in `robots.txt` for crawler discovery
 - [Deprecated] Remove search credits system: deleted `src/Credits/` namespace (`CreditTransaction` entity, `CreditsManager` service, `RedisCreditStore`), `CreditTransactionController`, `GetCreditsComponent`, admin transactions template, `credits.cache` pool, and deprecated `getTransactionStats()` from `AdminDashboardService`
 - [Improvement] Subdomain subscription pricing and feature lists now state that a NIP-05 vanity name is included for the duration of the subscription; the settings page links active subscribers to the vanity name registration page
 - [Feature] Vendor Iconoir SVG icon set via Symfony UX Icons (`assets/icons/iconoir/`); replace inline SVG checkmarks in pricing page and external-link icons in highlight templates with `ux_icon()` calls using valid `iconoir:...` namespaced icon syntax

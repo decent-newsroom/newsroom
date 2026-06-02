@@ -87,6 +87,7 @@ footer:
     community: 'Community'
     project: 'Project'
     developer: 'Developer'
+    sitemap: 'Sitemap'
 
 # ── Contribution sidebar ──────────────────────────────────────────
 contribution:

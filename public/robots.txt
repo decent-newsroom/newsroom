@@ -10,9 +10,21 @@ Allow: /icons/
 Allow: /$
 Allow: /unfold
 Allow: /about
+Allow: /discover
+Allow: /newsstand
+Allow: /follow-packs
+Allow: /pricing
+Allow: /roadmap
+Allow: /changelog
+Allow: /tos
 Allow: /mag/
 Allow: /p/
 Allow: /list/
+Allow: /sitemap.xml
 
 # Crawl delay
 Crawl-delay: 1
+
+# Sitemap
+Sitemap: /sitemap.xml
+
