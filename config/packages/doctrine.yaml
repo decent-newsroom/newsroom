@@ -25,12 +25,6 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
-            Credits:
-                type: attribute
-                is_bundle: false
-                dir: '%kernel.project_dir%/src/Credits/Entity'
-                prefix: 'App\Credits\Entity'
-                alias: Credits
             ChatBundle:
                 type: attribute
                 is_bundle: false
