@@ -1,0 +1,7 @@
+ux_icons:
+    # Default attributes applied to every <twig:UX:Icon> / ux_icon() call.
+    # Icons are decorative by default; set aria-label on the caller when meaningful.
+    default_icon_attributes:
+        aria-hidden: 'true'
+        focusable: 'false'
+
