@@ -79,6 +79,7 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 
 ### UI & Navigation
 - [My Content Page](Newsroom/my-content-page.md) — Unified content management view
+- [Reading Nook](Reader/reading-nook.md) — Unified personal reading workspace across owned collections
 - [Segmented Navigation](Reader/menu-segmented-navigation.md) — Sidebar navigation sections
 - [QoL: Prev/Next & Back to Top](Reader/qol-prev-next-back-to-top.md) — Navigation improvements
 - [Custom Homepage](Newsroom/custom-homepage.md) — Homepage configuration

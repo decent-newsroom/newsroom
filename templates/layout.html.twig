@@ -29,6 +29,7 @@
                         {% endif %}
                         {% if app.user %}
                             <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
+                            <li class="hidden"><a href="{{ path('reading_nook') }}">{{ 'reading_nook.nav'|trans }}</a></li>
                             <li><a href="{{ path('my_bookmarks') }}">{{ 'nav.bookmarks'|trans }}</a></li>
                             <li><a href="{{ path('my_magazines') }}">{{ 'nav.myMagazines'|trans }}</a></li>
                             <li><a href="{{ path('reading_list_index') }}">{{ 'nav.myReadingLists'|trans }}</a></li>

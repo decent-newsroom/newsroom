@@ -964,3 +964,54 @@ updates:
     errors:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
+
+reading_nook:
+    nav: 'Reading Nook' # TODO: translate
+    title: 'Reading Nook' # TODO: translate
+    subtitle: 'Search and filter your own collections in one place.' # TODO: translate
+    create_article: 'New article' # TODO: translate
+    empty: 'No items match the current filters.' # TODO: translate
+    sidebar:
+        title: 'Quick access' # TODO: translate
+        bookmarks: 'My bookmarks' # TODO: translate
+        interests: 'My interests' # TODO: translate
+        magazines: 'My magazines' # TODO: translate
+        reading_lists: 'My reading lists' # TODO: translate
+        my_content: 'My content' # TODO: translate
+        follow_packs: 'My follow packs' # TODO: translate
+        pool_title: 'Owned pool' # TODO: translate
+        pool_count: 'Total items: %count%' # TODO: translate
+        filtered_count: 'Visible now: %count%' # TODO: translate
+    filters:
+        search: 'Search content' # TODO: translate
+        search_placeholder: 'Title, summary, body, tags...' # TODO: translate
+        section: 'Section' # TODO: translate
+        timespan: 'Timespan' # TODO: translate
+        tag: 'Tag' # TODO: translate
+        any_tag: 'Any tag' # TODO: translate
+        apply: 'Apply' # TODO: translate
+        reset: 'Reset' # TODO: translate
+    section:
+        all: 'All sections' # TODO: translate
+        bookmarks: 'Bookmarks' # TODO: translate
+        interests: 'Topic lists' # TODO: translate
+        reading_lists: 'Reading lists' # TODO: translate
+        follow_packs: 'Follow packs' # TODO: translate
+        my_content: 'My content' # TODO: translate
+        magazines: 'Magazines' # TODO: translate
+    timespan:
+        all: 'All time' # TODO: translate
+        7d: 'Last 7 days' # TODO: translate
+        30d: 'Last 30 days' # TODO: translate
+        90d: 'Last 90 days' # TODO: translate
+        365d: 'Last 365 days' # TODO: translate
+    item:
+        kind: 'Kind' # TODO: translate
+        created: 'Created' # TODO: translate
+        updated: 'Updated' # TODO: translate
+        entries: 'Entries' # TODO: translate
+        topics: 'Topics' # TODO: translate
+        members: 'Members' # TODO: translate
+        open: 'Open' # TODO: translate
+        manage: 'Manage' # TODO: translate
+

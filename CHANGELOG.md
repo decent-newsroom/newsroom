@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Feature] Added `GET /reading-nook` (Reading Nook): a unified personal reading workspace that aggregates owned bookmarks, topic lists (kinds 10015/30015), follow packs (39089), reading lists/curation sets, magazines, and authored content; includes dedicated sidebar navigation plus server-side filtering by section, timespan, tags, and free-text search scoped to the owned-event pool.
 - [Feature] XML sitemap at `/sitemap.xml` listing static pages, published articles (up to 1 000), and magazines; linked from the site footer and referenced in `robots.txt` for crawler discovery
 - [Deprecated] Remove search credits system: deleted `src/Credits/` namespace (`CreditTransaction` entity, `CreditsManager` service, `RedisCreditStore`), `CreditTransactionController`, `GetCreditsComponent`, admin transactions template, `credits.cache` pool, and deprecated `getTransactionStats()` from `AdminDashboardService`
 - [Improvement] Subdomain subscription pricing and feature lists now state that a NIP-05 vanity name is included for the duration of the subscription; the settings page links active subscribers to the vanity name registration page
