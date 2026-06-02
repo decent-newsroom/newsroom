@@ -39,6 +39,7 @@ parameters:
         - 'wss://relay.damus.io'
         - 'wss://relay.primal.net'
         - 'wss://nos.lol'
+        - 'wss://spatia-arcana.com'
     relay_registry.project_relays:
         - 'wss://relay.decentnewsroom.com'
     relay_registry.signer_relays:

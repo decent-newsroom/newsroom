@@ -4,7 +4,7 @@
 
 {% block body %}
     <div class="analytics-container">
-        <h1>Page Visit Analytics</h1>
+        <h1>Visitor Analytics</h1>
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
@@ -44,22 +44,23 @@
 
         <div class="analytics-summary-row">
             <div class="analytics-card">
-                <h2>Total Visits</h2>
+                <h2>Page Views</h2>
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ visitsLast24Hours }}</li>
                     <li><strong>Last 7 days:</strong> {{ visitsLast7Days }}</li>
                     <li><strong>All time:</strong> {{ totalVisits }}</li>
                 </ul>
+                <p class="analytics-note">Each tracked page load (bots, assets, and API utility traffic excluded).</p>
             </div>
 
             <div class="analytics-card">
-                <h2>Unique Visitors</h2>
+                <h2>Unique Sessions / Users</h2>
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ uniqueVisitorsLast24Hours }}</li>
                     <li><strong>Last 7 days:</strong> {{ uniqueVisitorsLast7Days }}</li>
                     <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
                 </ul>
-                <p class="analytics-note">Tracked by visitor ID (session-based for logged-in visitors, cookie-based for anonymous visitors)</p>
+                <p class="analytics-note">Distinct visitor IDs: session-based for logged-in users, cookie-based (<code>_nv</code>) for anonymous visitors. Not verified unique humans — one person on multiple devices counts as multiple sessions.</p>
             </div>
 
             <div class="analytics-card">
@@ -381,7 +382,7 @@
         </div>
 
         <div class="analytics-card">
-            <h2>Visitor Sessions (Last 7 Days)</h2>
+            <h2>Sessions (Last 7 Days)</h2>
             {% if visitsBySessionLast7Days|length > 0 %}
                 <table class="analytics-table">
                     <thead>
@@ -559,7 +560,9 @@
         </div>
 
         <div class="analytics-info">
-            <p>Visit tracking is automated via event listener. Visitor IDs cover both anonymous cookie-based visitors and logged-in session-based visitors. API requests are still recorded for endpoint-specific analytics, but generic visitor metrics exclude <code>/api/*</code> utility traffic and <code>/preview</code> partials.</p>
+            <p>
+                <strong>Page views</strong> count each tracked page load. <strong>Sessions/Users</strong> count distinct visitor IDs (session cookie for logged-in users; <code>_nv</code> cookie for anonymous visitors). API requests, asset requests, and preview partials are excluded from both metrics. Bot traffic is detected by user-agent and counted separately.
+            </p>
         </div>
     </div>
 {% endblock %}

@@ -79,6 +79,13 @@
                             You'll receive notification when <code>{{ subscription.subdomain }}.{{ baseDomain }}</code> is live.
                         </p>
                     </div>
+                    <div class="notice info mb-3">
+                        <strong>NIP-05 vanity name included</strong>
+                        <p style="margin: var(--spacing-2) 0 0;">
+                            Your subscription entitles you to a NIP-05 vanity name of your choice for the duration of your subscription.
+                            <a href="{{ path('vanity_index') }}">Claim your vanity name →</a>
+                        </p>
+                    </div>
                     <p class="text-muted">
                         Your subscription remains active until {{ subscription.expiresAt|date('F j, Y') }}.
                     </p>

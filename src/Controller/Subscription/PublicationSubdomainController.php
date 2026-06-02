@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller\Subscription;
 
+use App\Entity\PublicationSubdomainSubscription;
 use App\Service\PublicationSubdomainService;
 use App\Service\QRGenerator;
+use App\Service\VanityNameService;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,6 +22,7 @@ class PublicationSubdomainController extends AbstractController
         private readonly PublicationSubdomainService $service,
         private readonly QRGenerator $qrGenerator,
         private readonly LoggerInterface $logger,
+        private readonly VanityNameService $vanityNameService,
     ) {
     }
 
@@ -39,8 +42,8 @@ class PublicationSubdomainController extends AbstractController
         }
         return $this->render('subscription/publication_subdomain/index.html.twig', [
             'baseDomain' => $this->service->getBaseDomain(),
-            'priceInSats' => \App\Entity\PublicationSubdomainSubscription::PRICE_SATS,
-            'durationDays' => \App\Entity\PublicationSubdomainSubscription::DURATION_DAYS,
+            'priceInSats' => PublicationSubdomainSubscription::PRICE_SATS,
+            'durationDays' => PublicationSubdomainSubscription::DURATION_DAYS,
             'existingSubscription' => $existingSubscription,
         ]);
     }
@@ -62,7 +65,7 @@ class PublicationSubdomainController extends AbstractController
 
         return $this->render('subscription/publication_subdomain/subscribe.html.twig', [
             'baseDomain' => $this->service->getBaseDomain(),
-            'priceInSats' => \App\Entity\PublicationSubdomainSubscription::PRICE_SATS,
+            'priceInSats' => PublicationSubdomainSubscription::PRICE_SATS,
         ]);
     }
 
@@ -119,7 +122,7 @@ class PublicationSubdomainController extends AbstractController
         return $this->render('subscription/publication_subdomain/invoice.html.twig', [
             'subscription' => $subscription,
             'bolt11' => $bolt11,
-            'amount' => \App\Entity\PublicationSubdomainSubscription::PRICE_SATS,
+            'amount' => PublicationSubdomainSubscription::PRICE_SATS,
             'qrSvg' => $qrSvg,
             'baseDomain' => $this->service->getBaseDomain(),
         ]);

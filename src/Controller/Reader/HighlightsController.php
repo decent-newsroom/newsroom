@@ -148,6 +148,7 @@ class HighlightsController extends AbstractController
                 'pubkey' => $event->pubkey ?? null,
                 'tags' => $event->tags ?? [],
                 'article_ref' => null,
+                'event_ref' => null,   // e-tag reference (kind:1 text notes)
                 'article_title' => null,
                 'article_author' => null,
                 'context' => null,
@@ -180,6 +181,12 @@ class HighlightsController extends AbstractController
                         $parts = explode(':', $tag[1] ?? '', 3);
                         if (count($parts) === 3) {
                             $highlight['article_author'] = $parts[1];
+                        }
+                        break;
+                    case 'e': // Event reference (kind:1 text notes)
+                    case 'E':
+                        if (!$highlight['event_ref']) {
+                            $highlight['event_ref'] = $tag[1] ?? null;
                         }
                         break;
                     case 'context':
@@ -215,14 +222,21 @@ class HighlightsController extends AbstractController
                 }
 
                 $processed[] = $highlight;
+            } elseif ($highlight['event_ref']) {
+                // Highlight pointing to a kind:1 text note via e-tag
+                $processed[] = $highlight;
+            } elseif ($highlight['url'] && !str_starts_with($highlight['url'], 'wss://')) {
+                // Highlight with a non-relay URL source
+                $processed[] = $highlight;
             }
         }
 
-        // Sort & dedupe by article_ref + highlight author (one highlight per author per article)
+        // Sort & dedupe by source ref + highlight author (one highlight per author per source)
         usort($processed, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
         $uniqueHighlights = [];
         foreach ($processed as $highlight) {
-            $dedupeKey = ($highlight['article_ref'] ?? '') . '|' . ($highlight['pubkey'] ?? '');
+            $sourceRef = $highlight['article_ref'] ?? $highlight['event_ref'] ?? $highlight['url'] ?? '';
+            $dedupeKey = $sourceRef . '|' . ($highlight['pubkey'] ?? '');
             if (!isset($uniqueHighlights[$dedupeKey])) {
                 $uniqueHighlights[$dedupeKey] = $highlight;
             }
