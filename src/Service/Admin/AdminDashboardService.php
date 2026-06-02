@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Admin;
 
-use App\Credits\Entity\CreditTransaction;
 use App\Enum\RolesEnum;
 use App\Repository\EventRepository;
 use App\Repository\HighlightRepository;
@@ -236,56 +235,6 @@ class AdminDashboardService
                 'unique_visitors_last_7d' => 0,
                 'bounce_rate' => 0,
                 'top_articles_24h' => [],
-                'error' => true,
-            ];
-        }
-    }
-
-    /**
-     * Get transaction statistics
-     * @deprecated Since v0.0.21 — Search credits system has been deprecated.
-     */
-    public function getTransactionStats(): array
-    {
-        try {
-            return $this->cache->get('admin_dashboard_transaction_stats', function (ItemInterface $item) {
-                $item->expiresAfter(300); // 5 minutes
-
-                $transactionRepo = $this->em->getRepository(CreditTransaction::class);
-                $totalTransactions = $transactionRepo->count([]);
-
-                $conn = $this->em->getConnection();
-
-                // Recent transactions
-                $recentQuery = "SELECT COUNT(*) FROM credit_transaction WHERE created_at >= NOW() - INTERVAL '24 hours'";
-                $recentCount = (int) $conn->executeQuery($recentQuery)->fetchOne();
-
-                // Sum of credits and debits
-                $creditQuery = "SELECT COALESCE(SUM(amount), 0) FROM credit_transaction WHERE type = 'credit'";
-                $debitQuery = "SELECT COALESCE(SUM(amount), 0) FROM credit_transaction WHERE type = 'debit'";
-
-                $totalCredits = (int) $conn->executeQuery($creditQuery)->fetchOne();
-                $totalDebits = (int) $conn->executeQuery($debitQuery)->fetchOne();
-
-                // Last transaction
-                $lastTransaction = $transactionRepo->findOneBy([], ['createdAt' => 'DESC']);
-
-                return [
-                    'total_transactions' => $totalTransactions,
-                    'recent_transactions_24h' => $recentCount,
-                    'total_credits' => $totalCredits,
-                    'total_debits' => $totalDebits,
-                    'last_transaction_time' => $lastTransaction?->getCreatedAt(),
-                ];
-            });
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to get transaction stats', ['error' => $e->getMessage()]);
-            return [
-                'total_transactions' => 0,
-                'recent_transactions_24h' => 0,
-                'total_credits' => 0,
-                'total_debits' => 0,
-                'last_transaction_time' => null,
                 'error' => true,
             ];
         }

@@ -16,7 +16,6 @@ framework:
         pools:
             #my.dedicated.cache: null
             subscriptions.cache: null
-            credits.cache: null
             articles.cache:
                 adapter: cache.adapter.redis
                 provider: Redis
