@@ -56,7 +56,7 @@ Security model:
 ```
 [client connects]
 
-gateway → client    ["AUTH", "<challenge>"]           32 random bytes → 64 hex chars, per-connection
+gateway → client    ["AUTH", "<challenge>"]           16 random bytes → 32 hex chars, per-connection
 
   while waiting for AUTH (up to AUTH_TIMEOUT_SECONDS, default 30s in Compose / 10s binary fallback):
     incoming REQ   → ["CLOSED",  <sub_id>,   "auth-required: membership required"]
@@ -385,7 +385,7 @@ Example log lines:
 - The gateway is the **sole** NIP-42 enforcement point for both REQ (reads) and EVENT (writes).
 - `strfry-essayist` is only reachable inside the Docker compose network; it does not listen on any host-mapped port.
 - The `ESSAYIST_POLICY_TOKEN` bearer secret is shared between the gateway and the PHP app; it is not exposed to relay clients.
-- Challenge strings are 32 bytes of cryptographically random data (Go `crypto/rand`, 64 hex chars on the wire), scoped to a single connection and discarded after use.
+- Challenge strings are 16 bytes of cryptographically random data (Go `crypto/rand`, 32 hex chars on the wire), scoped to a single connection and discarded after use.
 - Replay attack window is bounded by the ±60 second `created_at` tolerance on kind:22242 (`CREATED_AT_TOLERANCE_SECONDS`).
 - Redis membership cache is advisory; a cache miss always falls through to the authoritative PHP API. Approvals are cached for 10 min, rejections for 30 s. Revocations propagate via Redis pub/sub (`essayist_member_revoked`) and forcibly close any matching authenticated connections.
 - `MAX_CONNECTIONS_PER_IP` and `MAX_PREAUTH_FRAME_BYTES` bound the resources a single client can consume before completing AUTH.
