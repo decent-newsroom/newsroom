@@ -6,6 +6,7 @@ namespace App\ExpressionBundle\Service;
 
 use App\Entity\Event;
 use App\ExpressionBundle\Model\NormalizedItem;
+use App\ExpressionBundle\Model\RuntimeContext;
 use App\ExpressionBundle\Parser\ExpressionParser;
 use App\ExpressionBundle\Runner\ExpressionRunner;
 use App\ExpressionBundle\Source\SourceResolverInterface;
@@ -36,36 +37,8 @@ final class ExpressionService
      */
     public function evaluate(Event $expression, string $userPubkey, bool $enforceTimeout = true): array
     {
-        $start = microtime(true);
-        $coordinate = $this->buildCoordinate($expression);
-
-        $this->logger->info('Evaluating expression', [
-            'coordinate' => $coordinate,
-            'user' => substr($userPubkey, 0, 12) . '…',
-            'enforceTimeout' => $enforceTimeout,
-        ]);
-
-        try {
-            $ctx = $this->contextFactory->create($userPubkey);
-            $pipeline = $this->parser->parse($expression);
-            $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver, $enforceTimeout);
-
-            $this->logger->info('Expression evaluated', [
-                'coordinate' => $coordinate,
-                'resultItems' => count($result),
-                'totalMs' => round((microtime(true) - $start) * 1000),
-            ]);
-
-            return $result;
-        } catch (\Throwable $e) {
-            $this->logger->error('Expression evaluation failed', [
-                'coordinate' => $coordinate,
-                'error' => $e->getMessage(),
-                'exception' => get_class($e),
-                'totalMs' => round((microtime(true) - $start) * 1000),
-            ]);
-            throw $e;
-        }
+        $ctx = $this->contextFactory->create($userPubkey);
+        return $this->evaluateWithContext($expression, $userPubkey, $ctx, $enforceTimeout);
     }
 
     /**
@@ -77,7 +50,10 @@ final class ExpressionService
         $ctx = $this->contextFactory->create($userPubkey);
         $cacheKey = $this->cache->buildKey($expression, $ctx);
 
-        return $this->cache->getOrSet($cacheKey, fn() => $this->evaluate($expression, $userPubkey, $enforceTimeout));
+        return $this->cache->getOrSet(
+            $cacheKey,
+            fn() => $this->evaluateWithContext($expression, $userPubkey, $ctx, $enforceTimeout)
+        );
     }
 
     /**
@@ -124,6 +100,94 @@ final class ExpressionService
      */
     public function evaluateSpell(Event $spell, string $userPubkey): array
     {
+        $ctx = $this->contextFactory->create($userPubkey);
+        return $this->evaluateSpellWithContext($spell, $userPubkey, $ctx);
+    }
+
+    /**
+     * Evaluate a spell with caching. Cache key mixes event id + author context so
+     * republished spells (new event id) and per-user contexts never collide.
+     *
+     * @return NormalizedItem[]
+     */
+    public function evaluateSpellCached(Event $spell, string $userPubkey): array
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        $cacheKey = $this->buildSpellCacheKeyFromContext($spell, $ctx);
+        return $this->cache->getOrSet(
+            $cacheKey,
+            fn() => $this->evaluateSpellWithContext($spell, $userPubkey, $ctx)
+        );
+    }
+
+    /**
+     * Build the feed cache key for a spell + user without evaluating.
+     */
+    public function buildSpellCacheKey(Event $spell, string $userPubkey): string
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        return $this->buildSpellCacheKeyFromContext($spell, $ctx);
+    }
+
+    /**
+     * Return cached spell results or null on miss.
+     *
+     * @return NormalizedItem[]|null
+     */
+    public function getCachedSpellResults(Event $spell, string $userPubkey): ?array
+    {
+        $ctx = $this->contextFactory->create($userPubkey);
+        return $this->cache->get($this->buildSpellCacheKeyFromContext($spell, $ctx));
+    }
+
+    /**
+     * @return NormalizedItem[]
+     */
+    private function evaluateWithContext(
+        Event $expression,
+        string $userPubkey,
+        RuntimeContext $ctx,
+        bool $enforceTimeout,
+    ): array {
+        $start = microtime(true);
+        $coordinate = $this->buildCoordinate($expression);
+
+        $this->logger->info('Evaluating expression', [
+            'coordinate' => $coordinate,
+            'user' => substr($userPubkey, 0, 12) . '…',
+            'enforceTimeout' => $enforceTimeout,
+        ]);
+
+        try {
+            $pipeline = $this->parser->parse($expression);
+            $result = $this->runner->run($pipeline, $ctx, $this->sourceResolver, $enforceTimeout);
+
+            $this->logger->info('Expression evaluated', [
+                'coordinate' => $coordinate,
+                'resultItems' => count($result),
+                'totalMs' => round((microtime(true) - $start) * 1000),
+            ]);
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->logger->error('Expression evaluation failed', [
+                'coordinate' => $coordinate,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'totalMs' => round((microtime(true) - $start) * 1000),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * @return NormalizedItem[]
+     */
+    private function evaluateSpellWithContext(
+        Event $spell,
+        string $userPubkey,
+        RuntimeContext $ctx,
+    ): array {
         $start = microtime(true);
         $label = $spell->getId() ?: 'unknown';
 
@@ -133,7 +197,6 @@ final class ExpressionService
         ]);
 
         try {
-            $ctx = $this->contextFactory->create($userPubkey);
             $result = $this->spellResolver->executeEvent($spell, $ctx);
 
             $this->logger->info('Spell evaluated', [
@@ -153,24 +216,8 @@ final class ExpressionService
         }
     }
 
-    /**
-     * Evaluate a spell with caching. Cache key mixes event id + author context so
-     * republished spells (new event id) and per-user contexts never collide.
-     *
-     * @return NormalizedItem[]
-     */
-    public function evaluateSpellCached(Event $spell, string $userPubkey): array
+    private function buildSpellCacheKeyFromContext(Event $spell, RuntimeContext $ctx): string
     {
-        $cacheKey = $this->buildSpellCacheKey($spell, $userPubkey);
-        return $this->cache->getOrSet($cacheKey, fn() => $this->evaluateSpell($spell, $userPubkey));
-    }
-
-    /**
-     * Build the feed cache key for a spell + user without evaluating.
-     */
-    public function buildSpellCacheKey(Event $spell, string $userPubkey): string
-    {
-        $ctx = $this->contextFactory->create($userPubkey);
         $ctxHash = md5(
             implode(',', $ctx->contacts) . '|' . implode(',', $ctx->interests)
         );
@@ -181,15 +228,5 @@ final class ExpressionService
             $ctx->mePubkey,
             $ctxHash
         ));
-    }
-
-    /**
-     * Return cached spell results or null on miss.
-     *
-     * @return NormalizedItem[]|null
-     */
-    public function getCachedSpellResults(Event $spell, string $userPubkey): ?array
-    {
-        return $this->cache->get($this->buildSpellCacheKey($spell, $userPubkey));
     }
 }

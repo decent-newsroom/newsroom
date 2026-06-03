@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Improvement] Reduced duplicate runtime-context work in `ExpressionService`: cached expression and spell evaluation paths now build `RuntimeContext` once and reuse it for both cache-key generation and evaluation execution.
 - [Bug] Fixed ExpressionBundle PHPStan issues by tightening iterable/value PHPDoc types across parser/model/source/cache services, removing dead/unreachable runner branches, making address resolver matches exhaustive, fixing non-null coalesce/strict checks in spell resolution, and replacing `Bech32::$type` access in feed API naddr decoding with payload type validation.
 - [Bug] Fixed the Essayist members page crashing on `/essayist/members` by correcting the claim-section Twig translation calls and adding the missing `essayist.claim.*` strings.
 - [Feature] Added **Essayist zap claim/verification** system for membership payments to other members. Claims support payer proof (`payment preimage + BOLT11`), classic zap receipt proof (kind `9735`), and a new recipient-confirmation fallback inspired by Payment Superchats: recipients can confirm pending claims directly on `/essayist/members` (optionally storing a kind `9741` attestation event id), which grants/extends the payer membership without requiring relay-wide receipt scraping. New `Bolt11PaymentVerifier` utility, `EssayistZapClaim` entity + repository, `EssayistZapClaimService` verification/attestation flow, `EssayistClaimZapButton` Live Component, and claim endpoints/UI updates.
