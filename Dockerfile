@@ -117,11 +117,11 @@ COPY --link . ./
 RUN rm -Rf frankenphp/
 
 RUN set -eux; \
-	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	mkdir -p var/cache var/log; \
-	composer dump-env prod --empty; \
+	sync; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
+	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
-	chmod +x bin/console; \
-	php bin/console cache:clear --env=prod --no-debug; \
+	chmod +x bin/console; sync; \
+	php bin/console cache:warmup --env=prod; \
 	php bin/console asset-map:compile --env=prod --no-interaction
