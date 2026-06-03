@@ -1,5 +1,3 @@
-#syntax=docker/dockerfile:1
-
 # Versions
 # Pin to a specific digest
 FROM dunglas/frankenphp:1.12.3-php8 AS frankenphp_upstream
@@ -14,8 +12,6 @@ FROM frankenphp_upstream AS frankenphp_base
 
 WORKDIR /app
 
-# persistent / runtime deps
-# hadolint ignore=DL3008
 # persistent / runtime deps
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -79,6 +75,7 @@ CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
+ENV DATABASE_URL="postgresql://app:app@database:5432/app?serverVersion=16&charset=utf8"
 ARG SWC_VERSION=v1.3.92
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
