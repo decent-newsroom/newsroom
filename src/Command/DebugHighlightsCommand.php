@@ -34,15 +34,24 @@ class DebugHighlightsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $coordinate = $input->getArgument('coordinate');
+        $coordinateArg = $input->getArgument('coordinate');
+        $coordinate = is_string($coordinateArg) ? trim($coordinateArg) : '';
 
-        if (!$coordinate) {
+        if ('' === $coordinate) {
             // List all stored coordinates
-            $coordinates = $this->highlightRepository->getAllArticleCoordinates();
+            $rawCoordinates = $this->highlightRepository->getAllArticleCoordinates();
+            $coordinates = array_values(array_filter(
+                $rawCoordinates,
+                static fn ($coord): bool => is_string($coord) && '' !== trim($coord)
+            ));
 
             $io->title('All Article Coordinates in Database');
             $io->writeln(sprintf('Found %d unique coordinates:', count($coordinates)));
             $io->newLine();
+
+            if (count($rawCoordinates) !== count($coordinates)) {
+                $io->warning('Some stored coordinates are empty or invalid and were skipped.');
+            }
 
             foreach ($coordinates as $coord) {
                 $count = count($this->highlightRepository->findByArticleCoordinate($coord));
