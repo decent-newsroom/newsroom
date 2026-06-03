@@ -16,16 +16,13 @@ WORKDIR /app
 
 # persistent / runtime deps
 # hadolint ignore=DL3008
+# persistent / runtime deps
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	acl \
 	ca-certificates \
 	curl \
-	file \
 	gettext \
-	git \
-        bash \
-    libnss3-tools \
-    cron \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -109,19 +106,25 @@ RUN set -eux; \
 # prevent the reinstallation of vendors at every changes in the source code
 COPY --link composer.* symfony.* ./
 
+RUN --mount=type=cache,target=/tmp/composer-cache \
+	set -eux; \
+	COMPOSER_CACHE_DIR=/tmp/composer-cache composer install \
+		--no-dev \
+		--prefer-dist \
+		--no-progress \
+		--no-interaction \
+		--no-scripts \
+		--no-autoloader
+
 # copy sources
 COPY --link . ./
 RUN rm -Rf frankenphp/
 
 RUN set -eux; \
-	composer install --no-cache --prefer-dist --no-progress --no-scripts
-
-RUN set -eux; \
 	mkdir -p var/cache var/log; \
-	sync; \
+	composer dump-env prod --empty; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
-	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
-	chmod +x bin/console; sync; \
-	php bin/console cache:warmup --env=prod; \
+	chmod +x bin/console; \
+	php bin/console cache:clear --env=prod --no-debug; \
 	php bin/console asset-map:compile --env=prod --no-interaction

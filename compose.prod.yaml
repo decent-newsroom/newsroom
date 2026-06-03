@@ -33,31 +33,38 @@ services:
     environment:
       # These override/supplement .env.prod.local values
       APP_ENV: prod
-      APP_SECRET: ${APP_SECRET}
+      APP_SECRET: ${APP_SECRET:?APP_SECRET must be set}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
-      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-.+}
-      SERVER_NAME: ${SERVER_NAME:-:80}
-      MERCURE_URL: ${MERCURE_URL:-http://localhost/.well-known/mercure}
-      MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL}
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      RELAY_DOMAIN: ${RELAY_DOMAIN:-relay.localhost}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:?TRUSTED_HOSTS must be set}
+      SERVER_NAME: ${SERVER_NAME:?SERVER_NAME must be set}, php:80, localhost
+      MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
+      MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL:?MERCURE_PUBLIC_URL must be set}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET must be set}
+      RELAY_DOMAIN: ${RELAY_DOMAIN:?RELAY_DOMAIN must be set}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-true}
+      ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
+      ESSAYIST_RELAY_DOMAIN: ${ESSAYIST_RELAY_DOMAIN:-essayist.localhost}
       # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
-      # Limit to 8 threads to avoid CPU over-provisioning.
-      # Default (2× CPU cores) can exhaust CPU on shared servers.
-      FRANKENPHP_CONFIG: "worker ./public/index.php 8"
+      # Tune via environment variables for explicit control.
+      FRANKENPHP_NUM_THREADS: ${FRANKENPHP_NUM_THREADS:-4}
+      FRANKENPHP_MAX_THREADS: ${FRANKENPHP_MAX_THREADS:-12}
+      FRANKENPHP_WORKERS: ${FRANKENPHP_WORKERS:-4}
+      PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-256M}
+      GOMEMLIMIT: ${FRANKENPHP_GOMEMLIMIT:-768MiB}
     volumes:
       # Caddy state (TLS certs, etc.). Safe to persist.
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       database:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       strfry:
         condition: service_started
@@ -67,7 +74,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_USER: ${POSTGRES_USER:-app}
     volumes:
       - database_data:/var/lib/postgresql/data:rw
@@ -92,14 +99,14 @@ services:
       - .env.prod.local
     environment:
       APP_ENV: prod
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET must be set}
       RELAY_GATEWAY_ENABLED: "true"
     depends_on:
       php:
@@ -116,12 +123,12 @@ services:
       - .env.prod.local
     environment:
       APP_ENV: prod
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
     depends_on:
       php:
         condition: service_healthy
@@ -135,14 +142,14 @@ services:
       - .env.prod.local
     environment:
       APP_ENV: prod
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
       MERCURE_URL: ${MERCURE_URL:-http://php/.well-known/mercure}
-      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET:?MERCURE_JWT_SECRET must be set}
     depends_on:
       php:
         condition: service_healthy
@@ -156,11 +163,12 @@ services:
       - .env.prod.local
     environment:
       APP_ENV: prod
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       NOSTR_DEFAULT_RELAY: ${NOSTR_DEFAULT_RELAY:-ws://strfry:7777}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      ESSAYIST_RELAY_INTERNAL_URL: ${ESSAYIST_RELAY_INTERNAL_URL:-ws://strfry-essayist:7779}
     depends_on:
       php:
         condition: service_healthy
@@ -171,7 +179,7 @@ services:
 
 ###> strfry relay ###
   strfry:
-    image: dockurr/strfry:latest
+    image: dockurr/strfry:v1.30.1
     restart: unless-stopped
     command:
       - /bin/sh
@@ -188,6 +196,7 @@ services:
       - ./docker/strfry/blocked-pubkeys.txt:/etc/strfry-blocked-pubkeys.txt:ro
       - ./docker/strfry/router.conf:/etc/router.conf:ro
       - strfry_data:/var/lib/strfry
+    ports: !reset []
 ###< strfry relay ###
 
 ###> strfry-essayist relay (prod overrides) ###
@@ -195,11 +204,14 @@ services:
 # essayist-gateway uses the same Redis configuration as the rest of the stack
 # (no separate ESSAYIST_GATEWAY_REDIS_URL needed — it mirrors php/worker configs).
   strfry-essayist:
+    image: dockurr/strfry:v1.30.1
     profiles: !reset []
   essayist-gateway:
     profiles: !reset []
     depends_on:
       php:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       strfry-essayist:
         condition: service_started
@@ -212,7 +224,7 @@ services:
       AUTH_TIMEOUT_SECONDS: ${ESSAYIST_GATEWAY_AUTH_TIMEOUT_SECONDS:-30}
       ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:?ESSAYIST_POLICY_TOKEN must be set}
       POLICY_URL_TEMPLATE: http://php/api/internal/essayist/writer/{pubkey}
-      REDIS_URL: redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
       LOG_LEVEL: ${ESSAYIST_GATEWAY_LOG_LEVEL:-info}
 ###< strfry-essayist relay (prod overrides) ###
 

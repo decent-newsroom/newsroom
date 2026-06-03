@@ -3,7 +3,13 @@
     # CADDY_EXTRA_CONFIG="{ auto_https off }"
     {$CADDY_GLOBAL_OPTIONS}
 
+    metrics
+
     frankenphp {
+        num_threads {$FRANKENPHP_NUM_THREADS:-4}
+        max_threads {$FRANKENPHP_MAX_THREADS:-12}
+        max_wait_time 10s
+        php_ini memory_limit {$PHP_MEMORY_LIMIT:-256M}
         {$FRANKENPHP_CONFIG}
     }
 }
@@ -161,6 +167,9 @@
 		# Assets are already referenced in HTML via <link> and importmap tags.
 		header -Link
 
+		# Note: For complex routing with dedicated worker pools for slow paths (relay/API/search),
+		# consider implementing a separate relay-api service with its own PHP pool.
+		# This keeps fast reader pages isolated from slow relay operations.
 
 		@phpRoute {
 			not path /.well-known/mercure*

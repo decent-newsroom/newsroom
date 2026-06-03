@@ -1,18 +1,25 @@
-**/*.log
-**/*.md
-!CHANGELOG.md
-!ROADMAP.md
-**/*.php~
-**/*.dist.php
-**/*.dist
-**/*.cache
-**/._*
+# Git and version control
+.git
+.github
+.gitignore
+.gitattributes
+.gitmodules
+
+# IDE and editor configs
+.idea
+.vscode
+.editorconfig
+
+# Environment variables and secrets
+.env.local
+.env.*.local
+.env.local.php
+.env.test
+auth.json
+
+# Docker-related files
 **/.dockerignore
-**/.DS_Store
-**/.git/
-**/.gitattributes
-**/.gitignore
-**/.gitmodules
+**/Dockerfile
 **/compose.*.yaml
 **/compose.*.yml
 **/compose.yaml
@@ -21,16 +28,34 @@
 **/docker-compose.*.yml
 **/docker-compose.yaml
 **/docker-compose.yml
-**/Dockerfile
-**/Thumbs.db
-.github/
+
+# Documentation and logs (but keep specific changelogs)
+**/*.log
+**/*.md
+!CHANGELOG.md
+!ROADMAP.md
 docs/
+
+# Build artifacts and generated files
+public/assets/
+public/build/
 public/bundles/
-tests/
-var/
+node_modules/
 vendor/
-.editorconfig
-.env.*.local
-.env.local
-.env.local.php
-.env.test
+var/
+**/*.cache
+**/*.dist
+**/*.dist.php
+
+# PHP files
+**/*.php~
+
+# OS and editor temp files
+**/._*
+**/.DS_Store
+**/Thumbs.db
+*.swp
+*.swo
+
+# Testing
+tests/
