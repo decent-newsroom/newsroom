@@ -42,10 +42,16 @@
                the comment text shown above as a small callout. #}
             {% include 'partial/_comment_as_card.html.twig' with {event: event} %}
         {% else %}
-            {# Default: parsed content preview #}
-            <div class="event-content">
-                <twig:Atoms:Content :content="event.content" />
-            </div>
+            {# Default: show event metadata first so empty-content index events
+               can still surface their summary / alt description. #}
+            {% include 'event/_event_meta.html.twig' with {event: event} %}
+
+            {# Default parsed content preview, only when there is content to show. #}
+            {% if event.content is not empty %}
+                <div class="event-content">
+                    <twig:Atoms:Content :content="event.content" />
+                </div>
+            {% endif %}
             {% if not event.kind == 1 %}
                 {% include 'partial/_gallery.html.twig' with {event: event, isEmbed: true} %}
             {% endif %}
