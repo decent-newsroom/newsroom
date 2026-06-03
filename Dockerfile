@@ -75,7 +75,6 @@ CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--watch" ]
 FROM frankenphp_base AS frankenphp_prod
 
 ENV APP_ENV=prod
-ENV DATABASE_URL="postgresql://app:app@database:5432/app?serverVersion=16&charset=utf8"
 ARG SWC_VERSION=v1.3.92
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
@@ -118,6 +117,7 @@ COPY --link . ./
 RUN rm -Rf frankenphp/
 
 RUN set -eux; \
+	if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	mkdir -p var/cache var/log; \
 	composer dump-env prod --empty; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
