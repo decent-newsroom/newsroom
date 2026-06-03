@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Improvement] Updated `templates/static/essayist.html.twig` for post-launch operation: removed early-access/"relay goes live" messaging, removed early-bird claim UI, restored visible member-count status, and kept access-request CTAs always available.
 - [Improvement] Added Reading Nook roadmap notes in `documentation/Reader/reading-nook.md` for next steps: full locale translations, pagination, source chips, private/encrypted bookmarks support, and own-highlights integration.
 - [Feature] Added `GET /reading-nook` (Reading Nook): a unified personal reading workspace that aggregates owned bookmarks, topic lists (kinds 10015/30015), follow packs (39089), reading lists/curation sets, magazines, and authored content; includes dedicated sidebar navigation plus server-side filtering by section, timespan, tags, and free-text search scoped to the owned-event pool.
 - [Feature] XML sitemap at `/sitemap.xml` listing static pages, published articles (up to 1 000), and magazines; linked from the site footer and referenced in `robots.txt` for crawler discovery

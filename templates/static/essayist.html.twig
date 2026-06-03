@@ -17,15 +17,8 @@
                     {% elseif isAdmin|default(false) %}
                         <a class="btn btn--primary" href="{{ path('app_essayist_home') }}">Admin preview</a>
                     {% elseif app.user %}
-                        {% if isEarlyBird %}
-                            <span class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.hero.ctaEarlyBirdConfirmed'|trans }}</span>
-                        {% elseif isPending %}
+                        {% if isPending %}
                             <span class="btn btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.pendingBody'|trans }}</span>
-                        {% elseif not isLaunched %}
-                            <form method="post" action="{{ path('app_static_essayist_early_bird') }}" style="display:inline;">
-                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
-                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.earlybird.ctaClaim'|trans }}</button>
-                            </form>
                         {% else %}
                             <form method="post" action="{{ path('app_static_essayist_request_access') }}" style="display:inline;">
                                 <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
@@ -42,81 +35,14 @@
 
         <section class="essayist-status">
             <div class="essayist-shell essayist-status__grid">
-                {# Early bird: show countdown. Restore member count box below once relay goes live.
                 <div class="essayist-status__item">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.memberLabel'|trans }}</div>
                     <p class="essayist-status__count">{{ memberCount }}</p>
                     <p>{{ 'essayist.landing.status.memberBody'|trans }}</p>
                 </div>
-                #}
-                <div class="essayist-status__item"
-                     data-controller="ui--countdown"
-                     data-ui--countdown-target-value="{{ launchDate|date('c') }}">
-                    <div class="essayist-status__label">{{ 'essayist.landing.status.countdownLabel'|trans }}</div>
-                    <div class="essayist-countdown">
-                        <span class="essayist-countdown__unit">
-                            <span class="essayist-status__count" data-ui--countdown-target="days"></span>
-                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownDays'|trans }}</span>
-                        </span>
-                        <span class="essayist-countdown__sep">:</span>
-                        <span class="essayist-countdown__unit">
-                            <span class="essayist-status__count" data-ui--countdown-target="hours"></span>
-                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownHours'|trans }}</span>
-                        </span>
-                        <span class="essayist-countdown__sep">:</span>
-                        <span class="essayist-countdown__unit">
-                            <span class="essayist-status__count" data-ui--countdown-target="minutes"></span>
-                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownMinutes'|trans }}</span>
-                        </span>
-                        <span class="essayist-countdown__sep">:</span>
-                        <span class="essayist-countdown__unit">
-                            <span class="essayist-status__count" data-ui--countdown-target="seconds"></span>
-                            <span class="essayist-countdown__unit-label">{{ 'essayist.landing.status.countdownSeconds'|trans }}</span>
-                        </span>
-                    </div>
-                    <p>{{ 'essayist.landing.status.countdownBody'|trans({'%launch_date%': fmt_launch, '%deadline%': fmt_deadline}) }}</p>
-                </div>
                 <div class="essayist-status__item">
                     <div class="essayist-status__label">{{ 'essayist.landing.status.renewalLabel'|trans }}</div>
                     <p>{{ 'essayist.landing.status.renewalBody'|trans }}</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="essayist-earlybird" class="essayist-section essayist-section--earlybird">
-            <div class="essayist-shell essayist-grid-two">
-                <div>
-                    <p class="essayist-eyebrow essayist-eyebrow--accent">{{ 'essayist.landing.earlybird.eyebrow'|trans }}</p>
-                    <h2>{{ 'essayist.landing.earlybird.heading'|trans }}</h2>
-                    <p class="essayist-earlybird__deadline">{{ 'essayist.landing.earlybird.deadline'|trans({'%deadline%': fmt_deadline}) }}</p>
-                </div>
-                <div>
-                    {% if joinStatus == 'early_bird_claimed' %}
-                        <div class="essayist-alert essayist-alert--success">
-                            {{ 'essayist.landing.join.status.early_bird_claimed'|trans({'%launch_date%': fmt_launch}) }}
-                        </div>
-                    {% elseif joinStatus == 'already_early_bird' %}
-                        <div class="essayist-alert essayist-alert--info">
-                            {{ 'essayist.landing.join.status.already_early_bird'|trans }}
-                        </div>
-                    {% endif %}
-
-                    <p class="essayist-copy">{{ 'essayist.landing.earlybird.body'|trans({'%launch_date%': fmt_launch}) }}</p>
-
-                    {% if isEarlyBird or (isMember and isEarlyBird) %}
-                        <p class="essayist-earlybird__confirmed">{{ 'essayist.landing.earlybird.confirmedBody'|trans({'%launch_date%': fmt_launch}) }}</p>
-                    {% elseif not isLaunched %}
-                        {% if app.user %}
-                            <form method="post" action="{{ path('app_static_essayist_early_bird') }}">
-                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_early_bird') }}">
-                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.earlybird.ctaClaim'|trans }}</button>
-                            </form>
-                        {% else %}
-                            <div class="essayist-actions">
-                                <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.earlybird.ctaAnon'|trans }}</button>
-                            </div>
-                        {% endif %}
-                    {% endif %}
                 </div>
             </div>
         </section>
@@ -133,7 +59,7 @@
                             <strong>{{ 'essayist.landing.how.step1.title'|trans }}</strong>
                             <p>{{ 'essayist.landing.how.step1.body'|trans }}</p>
                         </li>
-                        <li{% if not isLaunched %} class="essayist-step--waived"{% endif %}>
+                        <li>
                             <strong>{{ 'essayist.landing.how.step2.title'|trans }}</strong>
                             <p>{{ 'essayist.landing.how.step2.body'|trans({'%deadline%': fmt_deadline}) }}</p>
                         </li>
@@ -182,22 +108,12 @@
                         <p class="essayist-copy">{{ 'essayist.landing.join.loggedInBody'|trans({'%launch_date%': fmt_launch}) }}</p>
                         <form method="post" action="{{ path('app_static_essayist_request_access') }}">
                             <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
-                            {% if isLaunched %}
-                                <button type="submit" class="btn btn--primary">{{ 'essayist.landing.join.requestCta'|trans }}</button>
-                            {% else %}
-                                <button type="submit" class="btn btn--primary" disabled>{{ 'essayist.landing.join.requestCta'|trans }}</button>
-                                <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans({'%launch_date%': fmt_launch}) }}</p>
-                            {% endif %}
+                            <button type="submit" class="btn btn--primary">{{ 'essayist.landing.join.requestCta'|trans }}</button>
                         </form>
                     {% else %}
                         <p class="essayist-copy">{{ 'essayist.landing.join.anonBody'|trans }}</p>
                         <div class="essayist-actions">
-                            {% if isLaunched %}
-                                <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.join.anonCta'|trans }}</button>
-                            {% else %}
-                                <a class="btn btn--primary btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.anonCta'|trans }}</a>
-                                <p class="essayist-join__opens-hint">{{ 'essayist.landing.join.opensHint'|trans({'%launch_date%': fmt_launch}) }}</p>
-                            {% endif %}
+                            <button class="btn btn--primary" type="button" data-action="click->utility--login-modal#openDialog">{{ 'essayist.landing.join.anonCta'|trans }}</button>
                         </div>
                     {% endif %}
                 </div>
