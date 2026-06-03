@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Service\Graph\CurrentVersionResolver;
 use App\Service\Graph\ReferenceParserService;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Psr\Log\LoggerInterface;
@@ -462,7 +463,7 @@ class GraphAuditCommand extends Command
                 $existingEventRows = $this->connection->fetchAllAssociative(
                     'SELECT id FROM event WHERE id IN (?)',
                     [$eventIds],
-                    [Connection::PARAM_STR_ARRAY],
+                    [ArrayParameterType::STRING],
                 );
                 foreach ($existingEventRows as $row) {
                     $existingEventIds[(string) $row['id']] = true;
@@ -471,7 +472,7 @@ class GraphAuditCommand extends Command
                 $existingArticleRows = $this->connection->fetchAllAssociative(
                     'SELECT event_id FROM article WHERE event_id IN (?)',
                     [$eventIds],
-                    [Connection::PARAM_STR_ARRAY],
+                    [ArrayParameterType::STRING],
                 );
                 foreach ($existingArticleRows as $row) {
                     $existingArticleEventIds[(string) $row['event_id']] = true;
@@ -502,7 +503,7 @@ class GraphAuditCommand extends Command
                     $deleted = $this->connection->executeStatement(
                         'DELETE FROM current_record WHERE record_uid IN (?)',
                         [array_values(array_column($batchOrphans, 'record_uid'))],
-                        [Connection::PARAM_STR_ARRAY],
+                        [ArrayParameterType::STRING],
                     );
                     $io->info(sprintf('Removed %d orphaned current_record entries from this batch.', $deleted));
                 } catch (\Throwable $e) {

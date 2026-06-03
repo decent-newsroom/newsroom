@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Bug] Fixed `dn:graph:audit` orphan detection crashing on newer Doctrine DBAL versions by replacing removed `Connection::PARAM_STR_ARRAY` usages in `GraphAuditCommand` with `ArrayParameterType::STRING` for `IN (?)` array bindings.
 - [Bug] Expression result cards now surface event `summary` metadata, or `alt` when content is empty, so index events like magazine categories and reading lists no longer render as blank cards.
 - [Improvement] Docker/Compose/FrankenPHP infrastructure improvements: fixed Composer layer caching by reordering Dockerfile (composer.* copied before source), added `--no-dev --no-scripts --no-autoloader` flags to reduce build iterations, use `composer dump-env prod --empty` to avoid baking secrets, pinned strfry images to v1.30.1, enabled Caddy metrics endpoint for observability.
 - [Improvement] Compose configuration hardening: confirmed Redis is environment-specific (local service in `compose.override.yaml` for dev, external IP-based in production only), made production secrets required (`:?VAR must be set` pattern), fixed PostgreSQL version consistency, reset strfry port exposure in production (internal-only), fixed Mercure URL configuration (internal vs. public), hardened cron service with restart policy and explicit prod environment.
