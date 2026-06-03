@@ -210,6 +210,9 @@ essayist:
         empty: 'Še ni člankov. Bodi prvi, ki objavi na Essayist relejnem omrežju.'
         backToLanding: 'O Essayist'
         adminNotice: 'Predogled administratorja — gledate ta vir kot administrator, ne kot član.'
+    claim:
+        heading: 'Zahtevaj svoj zap'
+        description: 'Si plačal članstvo, pa se še ne prikazuje? Spodaj oddaj svojo zahtevo.'
     home:
         title: 'Essayist'
         heading: 'Tvoj Essayist vir'

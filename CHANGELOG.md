@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Bug] Fixed the Essayist members page crashing on `/essayist/members` by correcting the claim-section Twig translation calls and adding the missing `essayist.claim.*` strings.
 - [Feature] Added **Essayist zap claim/verification** system for membership payments to other members. Claims support payer proof (`payment preimage + BOLT11`), classic zap receipt proof (kind `9735`), and a new recipient-confirmation fallback inspired by Payment Superchats: recipients can confirm pending claims directly on `/essayist/members` (optionally storing a kind `9741` attestation event id), which grants/extends the payer membership without requiring relay-wide receipt scraping. New `Bolt11PaymentVerifier` utility, `EssayistZapClaim` entity + repository, `EssayistZapClaimService` verification/attestation flow, `EssayistClaimZapButton` Live Component, and claim endpoints/UI updates.
 - [Improvement] Essayist members-page zap flow now auto-creates a pending membership claim when the payer closes the Zap dialog after invoice generation (`ZapButton` with `enableMembershipClaim=true`), shows an inline "pending recipient confirmation" state to the payer, and adds a payer-side "Discard" action that voids/deletes the pending claim if payment failed or the user changed their mind.
 - [Improvement] Updated `templates/static/essayist.html.twig` for post-launch operation: removed early-access/"relay goes live" messaging, removed early-bird claim UI, restored visible member-count status, and kept access-request CTAs always available.

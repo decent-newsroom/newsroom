@@ -222,6 +222,9 @@ essayist:
         badge:
             follow: 'You follow'
             earlybird: 'Early bird'
+    claim:
+        heading: 'Claim your zap'
+        description: 'Paid for a membership but do not see it reflected? Submit your claim below.'
     home:
         title: 'Essayist'
         heading: 'Your Essayist Feed'

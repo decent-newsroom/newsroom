@@ -27,8 +27,8 @@
         {# Claim zap form for logged-in users #}
         {% if app.user %}
             <div class="essayist-members__claim-section">
-                <h2 class="essayist-members__claim-title">{{ 'essayist.claim.heading'|trans('Claim your zap') }}</h2>
-                <p class="essayist-members__claim-description">{{ 'essayist.claim.description'|trans('Paid for a membership but do not see it reflected? Submit your claim below.') }}</p>
+                <h2 class="essayist-members__claim-title">{{ 'essayist.claim.heading'|trans }}</h2>
+                <p class="essayist-members__claim-description">{{ 'essayist.claim.description'|trans }}</p>
                 <twig:Molecules:EssayistClaimZapButton />
             </div>
         {% endif %}
@@ -58,9 +58,12 @@
 
                             <form method="post" action="{{ path('app_essayist_claim_attest', {id: claim.id}) }}" class="essayist-members__attest-form">
                                 <input type="hidden" name="_token" value="{{ csrf_token('essayist_attest_claim_' ~ claim.id) }}">
-                                <input type="number" name="amount_sats" min="1" step="100" placeholder="Amount sats (optional)">
-                                <input type="text" name="attestation_event_id" maxlength="64" placeholder="Optional kind:9741 event id">
-                                <input type="text" name="note" maxlength="255" placeholder="Optional note">
+                                <label for="essayist-claim-amount-{{ claim.id }}" class="hidden">Amount sats (optional)</label>
+                                <input id="essayist-claim-amount-{{ claim.id }}" type="number" name="amount_sats" min="1" step="100" placeholder="Amount sats (optional)">
+                                <label for="essayist-claim-attestation-{{ claim.id }}" class="hidden">Optional kind:9741 event id</label>
+                                <input id="essayist-claim-attestation-{{ claim.id }}" type="text" name="attestation_event_id" maxlength="64" placeholder="Optional kind:9741 event id">
+                                <label for="essayist-claim-note-{{ claim.id }}" class="hidden">Optional note</label>
+                                <input id="essayist-claim-note-{{ claim.id }}" type="text" name="note" maxlength="255" placeholder="Optional note">
                                 <button type="submit" class="btn btn--primary">Confirm payment</button>
                             </form>
                         </li>

@@ -210,6 +210,9 @@ essayist:
         empty: "Pas encore d'articles. Soyez le premier à publier sur le relay Essayist."
         backToLanding: 'À propos d''Essayist'
         adminNotice: 'Aperçu administrateur — vous consultez ce fil en tant qu''administrateur, pas en tant que membre.'
+    claim:
+        heading: 'Réclamez votre zap'
+        description: 'Vous avez payé une adhésion mais elle n''apparaît pas ? Soumettez votre réclamation ci-dessous.'
     home:
         title: 'Essayist'
         heading: 'Votre fil Essayist'

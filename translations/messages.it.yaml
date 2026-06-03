@@ -210,6 +210,9 @@ essayist:
         empty: 'Nessun articolo ancora. Sii il primo a pubblicare sul relay Essayist.'
         backToLanding: 'Informazioni su Essayist'
         adminNotice: 'Anteprima amministratore — stai visualizzando questo feed come amministratore, non come membro.'
+    claim:
+        heading: 'Richiedi il tuo zap'
+        description: 'Hai pagato un abbonamento ma non lo vedi ancora? Invia la tua richiesta qui sotto.'
     home:
         title: 'Essayist'
         heading: 'Il tuo feed Essayist'

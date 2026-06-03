@@ -210,6 +210,9 @@ essayist:
         empty: 'Noch keine Artikel. Sei der Erste, der auf dem Essayist-Relay veröffentlicht.'
         backToLanding: 'Über Essayist'
         adminNotice: 'Admin-Vorschau — Du siehst diesen Feed als Admin, nicht als Mitglied.'
+    claim:
+        heading: 'Deinen Zap beanspruchen'
+        description: 'Du hast für eine Mitgliedschaft bezahlt, sie wird aber nicht angezeigt? Reiche unten deinen Anspruch ein.'
     home:
         title: 'Essayist'
         heading: 'Dein Essayist-Feed'
@@ -327,9 +330,6 @@ search:
         sortRelevance: 'Relevanz'
         sortNewest: 'Neueste zuerst'
         sortOldest: 'Älteste zuerst'
-        apply: 'Anwenden'
-        clear: 'Filter zurücksetzen'
-        userSearchHint: 'Suchen Sie nach Personen? <a href="%url%">Benutzer suchen</a>'
 
 # ── Highlights ─────────────────────────────────────────────────────
 highlights:
