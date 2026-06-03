@@ -50,11 +50,9 @@ services:
       RELAY_GATEWAY_ENABLED: ${RELAY_GATEWAY_ENABLED:-true}
       ESSAYIST_POLICY_TOKEN: ${ESSAYIST_POLICY_TOKEN:-changeme}
       ESSAYIST_RELAY_DOMAIN: ${ESSAYIST_RELAY_DOMAIN:-essayist.localhost}
-      # Enable FrankenPHP worker mode (keeps PHP workers alive between requests).
-      # Tune via environment variables for explicit control.
-      FRANKENPHP_NUM_THREADS: ${FRANKENPHP_NUM_THREADS:-4}
-      FRANKENPHP_MAX_THREADS: ${FRANKENPHP_MAX_THREADS:-12}
-      FRANKENPHP_WORKERS: ${FRANKENPHP_WORKERS:-4}
+      # Enable FrankenPHP worker mode. Tune worker count via FRANKENPHP_WORKERS (default 4).
+      # The FRANKENPHP_CONFIG value is injected directly into the Caddyfile frankenphp block.
+      FRANKENPHP_CONFIG: "worker ./public/index.php ${FRANKENPHP_WORKERS:-4}"
       PHP_MEMORY_LIMIT: ${PHP_MEMORY_LIMIT:-256M}
       GOMEMLIMIT: ${FRANKENPHP_GOMEMLIMIT:-768MiB}
     volumes:
@@ -179,7 +177,7 @@ services:
 
 ###> strfry relay ###
   strfry:
-    image: dockurr/strfry:v1.30.1
+    image: dockurr/strfry:latest
     restart: unless-stopped
     command:
       - /bin/sh
@@ -204,7 +202,7 @@ services:
 # essayist-gateway uses the same Redis configuration as the rest of the stack
 # (no separate ESSAYIST_GATEWAY_REDIS_URL needed — it mirrors php/worker configs).
   strfry-essayist:
-    image: dockurr/strfry:v1.30.1
+    image: dockurr/strfry:latest
     profiles: !reset []
   essayist-gateway:
     profiles: !reset []

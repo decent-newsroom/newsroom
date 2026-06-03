@@ -6,10 +6,6 @@
     metrics
 
     frankenphp {
-        num_threads {$FRANKENPHP_NUM_THREADS:-4}
-        max_threads {$FRANKENPHP_MAX_THREADS:-12}
-        max_wait_time 10s
-        php_ini memory_limit {$PHP_MEMORY_LIMIT:-256M}
         {$FRANKENPHP_CONFIG}
     }
 }
