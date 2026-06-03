@@ -70,7 +70,7 @@ class User implements UserInterface, EquatableInterface
         $roles = $this->roles;
         $roles[] = 'ROLE_USER';
 
-        return $roles;
+        return array_values(array_unique($roles));
     }
 
     public function setRoles(?array $roles): self
@@ -91,7 +91,7 @@ class User implements UserInterface, EquatableInterface
 
     public function removeRole(string $role): self
     {
-        $this->roles = array_filter($this->roles, fn($r) => $r !== $role);
+        $this->roles = array_values(array_filter($this->roles, fn($r) => $r !== $role));
         return $this;
     }
 

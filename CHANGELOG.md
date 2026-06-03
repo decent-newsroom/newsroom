@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Bug] Fixed `fos:elastica:populate` crash on `users` index: `removeRole()` was using `array_filter()` without `array_values()`, leaving sparse numeric keys that PHP serialises as a JSON object instead of an array, causing Elasticsearch to reject the `roles` keyword field. Both `removeRole()` and `getRoles()` now re-index with `array_values()` / `array_unique()`.
 - [Improvement] Reduced duplicate runtime-context work in `ExpressionService`: cached expression and spell evaluation paths now build `RuntimeContext` once and reuse it for both cache-key generation and evaluation execution.
 - [Bug] Fixed ExpressionBundle PHPStan issues by tightening iterable/value PHPDoc types across parser/model/source/cache services, removing dead/unreachable runner branches, making address resolver matches exhaustive, fixing non-null coalesce/strict checks in spell resolution, and replacing `Bech32::$type` access in feed API naddr decoding with payload type validation.
 - [Bug] Fixed the Essayist members page crashing on `/essayist/members` by correcting the claim-section Twig translation calls and adding the missing `essayist.claim.*` strings.
