@@ -16,24 +16,9 @@
     color: var(--color-text-mid, #d8d8d8);
 }
 
-.reading-nook-page__create {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--color-border, #3a3a3a);
-    text-decoration: none;
-    color: var(--color-text, #f5f5f5);
-}
-
-.reading-nook-page__create:hover {
-    border-color: var(--color-accent, #8fcb7e);
-    color: var(--color-accent, #8fcb7e);
-}
-
 .reading-nook-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
 }
 
@@ -67,15 +52,9 @@
 }
 
 .reading-nook-sidebar__stats {
-    border-top: 1px solid var(--color-border, #3a3a3a);
     padding-top: 0.75rem;
     display: grid;
     gap: 0.25rem;
-}
-
-.reading-nook-sidebar__stats p {
-    margin: 0;
-    color: var(--color-text-mid, #d8d8d8);
 }
 
 .reading-nook-content {
