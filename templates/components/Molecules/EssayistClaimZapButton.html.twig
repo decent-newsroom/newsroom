@@ -139,5 +139,121 @@
             <button type="button" class="btn" data-action="live#action" data-live-action-param="reset">Try again</button>
         </div>
 
+    {% else %}
+        {# Fallback: show the form if phase is undefined or has unexpected value #}
+        <div class="essayist-claim-form">
+            <form data-action="live#action" data-live-action-param="submitClaim">
+
+                {# ── Sponsor ──────────────────────────────────────────── #}
+                <div class="essayist-claim-field">
+                    <label class="essayist-claim-label">
+                        Member you zapped <span aria-hidden="true">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        data-model="sponsorNpub"
+                        placeholder="npub1…"
+                        class="essayist-claim-input essayist-claim-input--mono"
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <small class="essayist-claim-hint">The Nostr pubkey (npub…) of the member whose Lightning address you paid.</small>
+                </div>
+
+                {# ── Primary proof: invoice + preimage ────────────────── #}
+                <fieldset class="essayist-claim-fieldset">
+                    <legend class="essayist-claim-legend">
+                        ⚡ Proof of payment <span class="essayist-claim-badge">recommended — instant</span>
+                    </legend>
+                    <p class="essayist-claim-hint">
+                        After you paid the Lightning invoice your wallet shows a <strong>payment preimage</strong>
+                        (sometimes called "proof of payment" or "preimage"). Paste it together with the invoice and
+                        your membership is extended instantly — no admin needed.
+                    </p>
+
+                    <div class="essayist-claim-field">
+                        <label class="essayist-claim-label">BOLT11 invoice (the <code>lnbc…</code> string you paid)</label>
+                        <textarea
+                            data-model="bolt11Invoice"
+                            placeholder="lnbc5000n1pjn…"
+                            class="essayist-claim-input essayist-claim-input--mono essayist-claim-input--tall"
+                            autocomplete="off"
+                            spellcheck="false"
+                        ></textarea>
+                    </div>
+
+                    <div class="essayist-claim-field">
+                        <label class="essayist-claim-label">Payment preimage <small>(64-char hex your wallet shows after payment)</small></label>
+                        <input
+                            type="text"
+                            data-model="paymentPreimage"
+                            placeholder="0f1e2d3c4b5a…"
+                            class="essayist-claim-input essayist-claim-input--mono"
+                            autocomplete="off"
+                            spellcheck="false"
+                            maxlength="64"
+                        />
+                        <small class="essayist-claim-hint">
+                            In most wallets: tap the completed payment → "Details" → "Preimage" / "Proof of payment".
+                        </small>
+                    </div>
+                </fieldset>
+
+                {# ── Fallback: receipt event ID ────────────────────────── #}
+                <details class="essayist-claim-fallback">
+                    <summary class="essayist-claim-fallback__toggle">Don't have the preimage? Other options…</summary>
+                    <div class="essayist-claim-fallback__body">
+
+                        <div class="essayist-claim-field">
+                            <label class="essayist-claim-label">
+                                Zap receipt event ID
+                                <span class="essayist-claim-badge essayist-claim-badge--neutral">auto-verified if found locally</span>
+                            </label>
+                            <textarea
+                                data-model="zapReceiptEventId"
+                                placeholder="kind 9735 event ID (64-char hex)…"
+                                class="essayist-claim-input essayist-claim-input--mono essayist-claim-input--tall"
+                                autocomplete="off"
+                                spellcheck="false"
+                            ></textarea>
+                            <small class="essayist-claim-hint">
+                                If the receipt event is visible on a public relay, we can verify it automatically.
+                            </small>
+                        </div>
+
+                        <div class="essayist-claim-field">
+                            <label class="essayist-claim-label">
+                                Invoice only (no preimage)
+                                <span class="essayist-claim-badge essayist-claim-badge--warn">requires admin review</span>
+                            </label>
+                            <small class="essayist-claim-hint">
+                                If you only paste an invoice without a preimage or receipt, an admin will verify the payment manually
+                                and approve your claim. This usually takes a few hours.
+                                <br>Fill the BOLT11 field above and leave the preimage empty.
+                            </small>
+                        </div>
+
+                        <div class="essayist-claim-field">
+                            <label class="essayist-claim-label">Amount (sats, optional)</label>
+                            <input
+                                type="number"
+                                data-model="claimedAmountSats"
+                                placeholder="5000"
+                                min="1"
+                                step="100"
+                                class="essayist-claim-input"
+                            />
+                            <small class="essayist-claim-hint">Extracted from invoice automatically when a preimage is provided.</small>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="essayist-claim-actions">
+                    <button type="submit" class="btn btn--primary">Submit claim</button>
+                    <button type="button" class="btn" data-action="live#action" data-live-action-param="reset">Cancel</button>
+                </div>
+            </form>
+        </div>
+
     {% endif %}
 </div>
