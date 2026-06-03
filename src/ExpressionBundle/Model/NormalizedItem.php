@@ -125,7 +125,7 @@ final class NormalizedItem
     /**
      * Get a normalized event property by name.
      */
-    public function getProperty(string $name): int|string|float|null
+    public function getProperty(string $name): int|string|null
     {
         return match ($name) {
             'id' => $this->getId(),
@@ -141,7 +141,7 @@ final class NormalizedItem
      * Get derived runner state by name (empty namespace).
      * Currently only "score" is defined.
      */
-    public function getDerived(string $name): int|string|float|null
+    public function getDerived(string $name): ?float
     {
         return match ($name) {
             'score' => $this->getScore(),

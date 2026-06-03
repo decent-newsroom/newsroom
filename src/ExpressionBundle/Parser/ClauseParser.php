@@ -19,6 +19,7 @@ final class ClauseParser
     private const VALID_COMPARATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte'];
     private const VALID_TEXT_MODES = ['contains-ci', 'eq-ci', 'prefix-ci'];
 
+    /** @param list<string> $tag */
     public function parse(array $tag): ClauseInterface
     {
         $type = $tag[0] ?? null;
@@ -32,6 +33,7 @@ final class ClauseParser
         };
     }
 
+    /** @param list<string> $tag */
     private function parseMatch(array $tag): MatchClause
     {
         // ["match", namespace, selector, ...values]
@@ -42,6 +44,7 @@ final class ClauseParser
         return new MatchClause($tag[1], $tag[2], array_slice($tag, 3));
     }
 
+    /** @param list<string> $tag */
     private function parseNot(array $tag): NotClause
     {
         // ["not", namespace, selector, ...values]
@@ -52,6 +55,7 @@ final class ClauseParser
         return new NotClause($tag[1], $tag[2], array_slice($tag, 3));
     }
 
+    /** @param list<string> $tag */
     private function parseCmp(array $tag): CmpClause
     {
         // ["cmp", namespace, selector, comparator, value]
@@ -65,6 +69,7 @@ final class ClauseParser
         return new CmpClause($tag[1], $tag[2], $tag[3], $tag[4]);
     }
 
+    /** @param list<string> $tag */
     private function parseText(array $tag): TextClause
     {
         // ["text", namespace, selector, mode, value]
@@ -78,6 +83,7 @@ final class ClauseParser
         return new TextClause($tag[1], $tag[2], $tag[3], $tag[4]);
     }
 
+    /** @param list<string> $allowed */
     private function validateNamespace(string $ns, array $allowed): void
     {
         if (!in_array($ns, $allowed, true)) {

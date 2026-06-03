@@ -46,12 +46,11 @@ final class FeedApiController extends AbstractController
 
             // 2. Decode naddr
             $decoded = new Bech32($naddr);
-            if ($decoded->type !== 'naddr') {
-                return $this->errorResponse('Invalid naddr: expected naddr type', 400);
+            $data = $decoded->data;
+            if (!$data instanceof NAddr) {
+                return $this->errorResponse('Invalid naddr: expected naddr payload', 400);
             }
 
-            /** @var NAddr $data */
-            $data = $decoded->data;
             $kind = $data->kind;
             $pubkey = $data->pubkey;
             $identifier = $data->identifier;

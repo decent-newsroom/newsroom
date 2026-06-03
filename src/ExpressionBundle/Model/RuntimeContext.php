@@ -10,6 +10,12 @@ namespace App\ExpressionBundle\Model;
  */
 final class RuntimeContext
 {
+    /**
+     * @param list<string> $contacts
+     * @param list<string> $interests
+     * @param list<string> $relays
+     * @param list<string> $visitedExpressions
+     */
     public function __construct(
         public readonly string $mePubkey,
         public readonly array $contacts,

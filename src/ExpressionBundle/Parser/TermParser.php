@@ -16,6 +16,8 @@ final class TermParser
 
     /**
      * Parse a term tag: ["term", namespace, selector, normalizer, weight, ...extraValues]
+     *
+     * @param list<string> $tag
      */
     public function parse(array $tag): Term
     {

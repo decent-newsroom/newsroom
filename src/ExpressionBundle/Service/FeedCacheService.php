@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\ExpressionBundle\Service;
 
 use App\Entity\Event;
+use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
@@ -44,7 +45,7 @@ final class FeedCacheService
 
     /**
      * Read-only cache check. Returns cached items or null on miss.
-     * @return array|null NormalizedItem[] or null
+     * @return NormalizedItem[]|null
      */
     public function get(string $cacheKey): ?array
     {
@@ -63,8 +64,8 @@ final class FeedCacheService
     }
 
     /**
-     * @param callable $factory Returns NormalizedItem[]
-     * @return array NormalizedItem[]
+     * @param callable(): NormalizedItem[] $factory
+     * @return NormalizedItem[]
      */
     public function getOrSet(string $cacheKey, callable $factory): array
     {

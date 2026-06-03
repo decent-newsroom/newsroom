@@ -132,7 +132,10 @@ final class ExpressionRunner
         return $previousResult ?? [];
     }
 
-    /** @return NormalizedItem[][] */
+    /**
+     * @param NormalizedItem[]|null $previousResult
+     * @return NormalizedItem[][]
+     */
     private function resolveInputs(
         Stage $stage,
         ?array $previousResult,
@@ -160,19 +163,16 @@ final class ExpressionRunner
             return $explicitInputs;
         }
 
-        if ($hasExplicit) {
-            // For non-set ops with explicit inputs: merge all explicit lists into one
-            $merged = [];
-            foreach ($explicitInputs as $list) {
-                foreach ($list as $item) {
-                    $merged[] = $item;
-                }
+        // For non-set ops with explicit inputs: merge all explicit lists into one
+        $merged = [];
+        foreach ($explicitInputs as $list) {
+            foreach ($list as $item) {
+                $merged[] = $item;
             }
-            return [$merged];
         }
-
-        return [$previousResult];
+        return [$merged];
     }
+
 
     private function deriveOpName(OperationInterface $op): string
     {

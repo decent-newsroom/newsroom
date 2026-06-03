@@ -562,7 +562,8 @@ final class TraversalResolver
     {
         $event = new Event();
         $event->setId($article->getEventId() ?? '');
-        $event->setKind($article->getKind()?->value ?? 30023);
+        $articleKind = $article->getKind();
+        $event->setKind($articleKind !== null ? $articleKind->value : 30023);
         $event->setPubkey($article->getPubkey() ?? '');
         $event->setContent($article->getContent() ?? '');
         $event->setSig($article->getSig() ?? '');

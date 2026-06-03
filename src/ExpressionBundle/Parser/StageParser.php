@@ -33,7 +33,7 @@ final class StageParser
 
     /**
      * @param string $op Operation name from the op tag
-     * @param array $stageTags All tags belonging to this stage (between op tags)
+     * @param list<list<string>> $stageTags All tags belonging to this stage (between op tags)
      * @param bool $isFirstStage Whether this is the first stage (requires inputs)
      */
     public function parse(string $op, array $stageTags, bool $isFirstStage): Stage

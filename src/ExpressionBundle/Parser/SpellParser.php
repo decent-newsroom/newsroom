@@ -17,6 +17,7 @@ final class SpellParser
         private readonly VariableResolver $variableResolver,
     ) {}
 
+    /** @return array<string, mixed> */
     public function parse(Event $spell, RuntimeContext $ctx): array
     {
         $filter = [];
@@ -37,7 +38,10 @@ final class SpellParser
         return $filter;
     }
 
-    /** @return string[] */
+    /**
+     * @param list<string> $values
+     * @return list<string>
+     */
     private function resolveAuthors(array $values, RuntimeContext $ctx): array
     {
         $resolved = [];
@@ -47,7 +51,7 @@ final class SpellParser
                 $resolved[] = $v;
             }
         }
-        return array_unique($resolved);
+        return array_values(array_unique($resolved));
     }
 }
 

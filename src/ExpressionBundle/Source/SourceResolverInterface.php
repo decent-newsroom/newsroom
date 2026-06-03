@@ -10,7 +10,7 @@ use App\ExpressionBundle\Model\RuntimeContext;
 interface SourceResolverInterface
 {
     /**
-     * @param array $inputRef ["e"|"a", reference]
+     * @param array{0:'e'|'a',1:string} $inputRef ["e"|"a", reference]
      * @return NormalizedItem[]
      */
     public function resolve(array $inputRef, RuntimeContext $ctx): array;

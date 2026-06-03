@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\ExpressionBundle\Source;
 
-use App\ExpressionBundle\Exception\InvalidArgumentException;
 use App\ExpressionBundle\Model\NormalizedItem;
 use App\ExpressionBundle\Model\RuntimeContext;
 use Psr\Log\LoggerInterface;
@@ -39,7 +38,10 @@ final class SourceResolver implements SourceResolverInterface
         39089,                      // follow packs
     ];
 
-    /** @return NormalizedItem[] */
+    /**
+     * @param array{0:'e'|'a',1:string} $inputRef
+     * @return NormalizedItem[]
+     */
     public function resolve(array $inputRef, RuntimeContext $ctx): array
     {
         // Detect and decode bech32-encoded references (nevent1..., naddr1..., note1...)
@@ -47,13 +49,12 @@ final class SourceResolver implements SourceResolverInterface
 
         $this->logger->debug('Resolving input reference', [
             'type' => $inputRef[0],
-            'ref' => substr($inputRef[1] ?? '', 0, 64),
+            'ref' => substr($inputRef[1], 0, 64),
         ]);
 
         $items = match ($inputRef[0]) {
             'e' => $this->eventIdResolver->resolve($inputRef[1], $ctx),
             'a' => $this->addressResolver->resolve($inputRef[1], $ctx),
-            default => throw new InvalidArgumentException("Unknown input type: {$inputRef[0]}"),
         };
 
         // When an event ID resolves to a "container" kind (spell, expression, list),
@@ -80,10 +81,13 @@ final class SourceResolver implements SourceResolverInterface
     /**
      * If the reference value is a bech32-encoded Nostr identifier (nevent, naddr, note),
      * decode it and convert to the appropriate [type, reference] pair.
+     *
+     * @param array{0:'e'|'a',1:string} $inputRef
+     * @return array{0:'e'|'a',1:string}
      */
     private function decodeBech32Input(array $inputRef): array
     {
-        $ref = $inputRef[1] ?? '';
+        $ref = $inputRef[1];
 
         // Strip nostr: prefix if present
         if (str_starts_with($ref, 'nostr:')) {

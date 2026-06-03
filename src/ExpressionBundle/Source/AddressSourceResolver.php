@@ -78,6 +78,7 @@ final class AddressSourceResolver
         };
     }
 
+    /** @return 'expression'|'spell'|'list'|'pubkey_list'|'generic' */
     private function resolverTypeForKind(int $kind): string
     {
         return match (true) {

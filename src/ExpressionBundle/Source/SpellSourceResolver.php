@@ -63,7 +63,7 @@ final class SpellSourceResolver
         // explicit `relays` tags on the spell itself. DB results are merged as
         // a supplement / fallback.
         $spellRelays = $filter['relays'] ?? [];
-        $userRelays = $ctx->relays ?? [];
+        $userRelays = $ctx->relays;
         $queryRelays = array_values(array_unique(array_merge($spellRelays, $userRelays)));
 
         $this->logger->debug('Spell filter built', [
@@ -93,7 +93,7 @@ final class SpellSourceResolver
         foreach ([$relayEvents, $dbEvents] as $bucket) {
             foreach ($bucket as $event) {
                 $id = $event->getId();
-                if ($id === null || $id === '') {
+                if ($id === '') {
                     continue;
                 }
                 if (!isset($merged[$id])) {
@@ -134,7 +134,10 @@ final class SpellSourceResolver
         return $event;
     }
 
-    /** @return Event[] */
+    /**
+     * @param array<string, mixed> $filter
+     * @return Event[]
+     */
     private function fetchFromRelays(array $filter): array
     {
         $kinds = $filter['kinds'] ?? [];

@@ -80,6 +80,7 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [NIP-46 Remote Signing](Nostr/nip46-remote-signing.md) — Bunker session persistence and relay configuration
 - [Tabular Data (NIP-XX)](Nostr/NIP-tabular.md) — Kind 1450 CSV events
 - [getNpubRelays Optimization](Nostr/get-npub-relays-optimization.md) — Relay list resolution performance
+- [Expression Runner OpenAPI Spec](Nostr/expression-runner-openapi.md) — OpenAPI contract for NIP-EX/NIP-FX/NIP-GX expression validation and evaluation
 
 ### UI & Navigation
 - [My Content Page](Newsroom/my-content-page.md) — Unified content management view

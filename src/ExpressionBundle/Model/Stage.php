@@ -13,7 +13,7 @@ final class Stage
 {
     /**
      * @param string $op Operation name: "all", "any", "none", "sort", "slice", "distinct", "union", "intersect", "difference", "score", "parent", "child", "ancestor", "descendant"
-     * @param array $inputs Input references [["e","<id>"], ["a","<addr>"]]
+     * @param list<array{0:'e'|'a',1:string}> $inputs Input references [["e","<id>"], ["a","<addr>"]]
      * @param ClauseInterface[] $clauses Clause objects for filter operations
      * @param Term[] $terms Term objects for NIP-FX score operation
      * @param ?string $traversalModifier NIP-GX traversal modifier: "root" for ancestor, "leaves" for descendant; null otherwise
