@@ -38,7 +38,7 @@ final class Version20260603120000 extends AbstractMigration
                 recipient_attestation_note TEXT DEFAULT NULL,
                 created_at TIMESTAMP(0) NOT NULL,
                 verified_at TIMESTAMP(0) DEFAULT NULL,
-                CONSTRAINT fk_essayist_zap_claim_user_id FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE,
+                CONSTRAINT fk_essayist_zap_claim_user_id FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE CASCADE,
                 PRIMARY KEY (id)
             )
         SQL
