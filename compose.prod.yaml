@@ -211,8 +211,6 @@ services:
     depends_on:
       php:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       strfry-essayist:
         condition: service_started
     environment:
