@@ -420,27 +420,113 @@ class GraphAuditCommand extends Command
     {
         $io->info('Checking for orphaned current_record entries…');
 
-        $sql = <<<'SQL'
-            SELECT cr.coord, cr.current_event_id, cr.kind
-            FROM current_record cr
-            LEFT JOIN event e ON e.id = cr.current_event_id
-            LEFT JOIN article a ON a.event_id = cr.current_event_id
-            WHERE e.id IS NULL AND a.event_id IS NULL
-        SQL;
+        $orphans = [];
+        $checked = 0;
+        $cursor = '';
 
-        try {
-            $orphans = $this->connection->fetchAllAssociative($sql);
-        } catch (\Throwable $e) {
-            $io->error('Failed to detect orphans: ' . $e->getMessage());
-            return 0;
+        $io->info(sprintf('Scanning current_record entries in batches of %d…', self::BATCH_SIZE));
+
+        while (!$this->interrupted) {
+            try {
+                $batchRows = $this->connection->fetchAllAssociative(
+                    'SELECT record_uid, coord, current_event_id, kind FROM current_record WHERE record_uid > :cursor ORDER BY record_uid ASC LIMIT :batch_limit',
+                    [
+                        'cursor' => $cursor,
+                        'batch_limit' => self::BATCH_SIZE,
+                    ],
+                    [
+                        'cursor' => ParameterType::STRING,
+                        'batch_limit' => ParameterType::INTEGER,
+                    ],
+                );
+            } catch (\Throwable $e) {
+                $io->error('Failed to load current_record batch: ' . $e->getMessage());
+                $this->logger->error('Graph audit: orphan batch load failed', [
+                    'cursor' => $cursor,
+                    'error' => $e->getMessage(),
+                ]);
+                break;
+            }
+
+            if (empty($batchRows)) {
+                break;
+            }
+
+            $recordUids = array_column($batchRows, 'record_uid');
+            $eventIds = array_values(array_unique(array_column($batchRows, 'current_event_id')));
+
+            $existingEventIds = [];
+            $existingArticleEventIds = [];
+
+            try {
+                $existingEventRows = $this->connection->fetchAllAssociative(
+                    'SELECT id FROM event WHERE id IN (?)',
+                    [$eventIds],
+                    [Connection::PARAM_STR_ARRAY],
+                );
+                foreach ($existingEventRows as $row) {
+                    $existingEventIds[(string) $row['id']] = true;
+                }
+
+                $existingArticleRows = $this->connection->fetchAllAssociative(
+                    'SELECT event_id FROM article WHERE event_id IN (?)',
+                    [$eventIds],
+                    [Connection::PARAM_STR_ARRAY],
+                );
+                foreach ($existingArticleRows as $row) {
+                    $existingArticleEventIds[(string) $row['event_id']] = true;
+                }
+            } catch (\Throwable $e) {
+                $io->error('Failed to check orphaned events in batch: ' . $e->getMessage());
+                $this->logger->error('Graph audit: orphan detection batch failed', [
+                    'cursor' => $cursor,
+                    'error' => $e->getMessage(),
+                ]);
+                break;
+            }
+
+            $batchOrphans = [];
+            foreach ($batchRows as $row) {
+                $eventId = (string) $row['current_event_id'];
+
+                if (isset($existingEventIds[$eventId]) || isset($existingArticleEventIds[$eventId])) {
+                    continue;
+                }
+
+                $batchOrphans[] = $row;
+                $orphans[] = $row;
+            }
+
+            if ($fix && !empty($batchOrphans)) {
+                try {
+                    $deleted = $this->connection->executeStatement(
+                        'DELETE FROM current_record WHERE record_uid IN (?)',
+                        [array_values(array_column($batchOrphans, 'record_uid'))],
+                        [Connection::PARAM_STR_ARRAY],
+                    );
+                    $io->info(sprintf('Removed %d orphaned current_record entries from this batch.', $deleted));
+                } catch (\Throwable $e) {
+                    $io->error('Failed to delete orphaned current_record entries: ' . $e->getMessage());
+                    $this->logger->error('Graph audit: orphan deletion failed', [
+                        'cursor' => $cursor,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $checked += count($batchRows);
+            $lastRow = $batchRows[array_key_last($batchRows)];
+            $cursor = (string) $lastRow['record_uid'];
+
+            $this->dispatchSignals();
         }
 
         if (empty($orphans)) {
-            $io->info('✓ No orphaned current_record entries.');
+            $io->info(sprintf('✓ No orphaned current_record entries found after checking %d records.', $checked));
             return 0;
         }
 
-        $io->warning(sprintf('Found %d orphaned current_record entries (event missing from both tables).', count($orphans)));
+        $io->warning(sprintf('Found %d orphaned current_record entries (checked %d).', count($orphans), $checked));
         $sample = array_slice($orphans, 0, 5);
         $tableRows = array_map(fn(array $r) => [
             $r['coord'],
@@ -449,12 +535,6 @@ class GraphAuditCommand extends Command
         ], $sample);
         $io->table(['Coord', 'Missing Event ID', 'Kind'], $tableRows);
 
-        if ($fix) {
-            $deleted = $this->connection->executeStatement(
-                'DELETE FROM current_record WHERE record_uid IN (SELECT cr.record_uid FROM current_record cr LEFT JOIN event e ON e.id = cr.current_event_id LEFT JOIN article a ON a.event_id = cr.current_event_id WHERE e.id IS NULL AND a.event_id IS NULL)',
-            );
-            $io->info(sprintf('Removed %d orphaned current_record entries.', $deleted));
-        }
 
         return count($orphans);
     }
