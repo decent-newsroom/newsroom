@@ -62,8 +62,6 @@ services:
     depends_on:
       database:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       strfry:
         condition: service_started
 
