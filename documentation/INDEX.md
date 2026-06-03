@@ -72,6 +72,10 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [Zaps](LN/zaps.md) — Lightning payments, zap splits
 - [Contribution Widget](Newsroom/contribution-widget.md) — Donation/support widget
 
+### Essayist
+- [Essayist Zap Claims](Essayist/essayist-zap-claims.md) — Manual zap verification for private payments
+- [Essayist Setup Guide](Essayist/SETUP-ZAP-CLAIMS.md) — Deployment and usage guide for zap claims
+
 ### Nostr Protocol
 - [NIP-46 Remote Signing](Nostr/nip46-remote-signing.md) — Bunker session persistence and relay configuration
 - [Tabular Data (NIP-XX)](Nostr/NIP-tabular.md) — Kind 1450 CSV events

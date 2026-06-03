@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Twig\Components\Molecules;
 
+use App\Entity\User;
+use App\Repository\EssayistZapClaimRepository;
+use App\Service\Essayist\EssayistZapClaimService;
 use App\Service\Cache\RedisCacheService;
 use App\Service\LNURLResolver;
 use App\Service\Nostr\NostrSigner;
 use App\Service\QRGenerator;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
@@ -48,6 +53,10 @@ final class ZapButton
     #[LiveProp]
     public int $initialAmount = 21; // Initial amount in sats (default 21)
 
+    // Enable Essayist pending-claim automation (used on /essayist/members)
+    #[LiveProp]
+    public bool $enableMembershipClaim = false;
+
     // UI state props (internal)
     #[LiveProp(writable: true)]
     public bool $open = false;
@@ -77,6 +86,12 @@ final class ZapButton
     #[LiveProp(writable: true)]
     public int $currentInvoiceIndex = 0;
 
+    #[LiveProp(writable: true)]
+    public ?int $pendingClaimId = null;
+
+    #[LiveProp(writable: true)]
+    public string $pendingClaimMessage = '';
+
     // LNURL info (stored after resolution)
     #[LiveProp]
     public int $minSendable = 1000; // millisats
@@ -90,6 +105,9 @@ final class ZapButton
         private readonly QRGenerator $qrGenerator,
         private readonly LoggerInterface $logger,
         private readonly RedisCacheService $redisCacheService,
+        private readonly EssayistZapClaimService $essayistZapClaimService,
+        private readonly EssayistZapClaimRepository $essayistZapClaimRepository,
+        private readonly Security $security,
         #[Autowire(param: 'relay_registry.project_relays')]
         private readonly array $projectRelays = [],
     ) {}
@@ -123,6 +141,10 @@ final class ZapButton
     #[LiveAction]
     public function closeDialog(): void
     {
+        if ($this->enableMembershipClaim && $this->phase === 'invoice') {
+            $this->createPendingMembershipClaimIfPossible();
+        }
+
         $this->open = false;
         $this->phase = 'idle';
         $this->error = '';
@@ -132,6 +154,93 @@ final class ZapButton
         $this->amount = $this->initialAmount; // Reset to configured initial amount
         $this->invoices = [];
         $this->currentInvoiceIndex = 0;
+    }
+
+    #[LiveAction]
+    public function discardPendingClaim(): void
+    {
+        if ($this->pendingClaimId === null) {
+            return;
+        }
+
+        /** @var User|null $user */
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return;
+        }
+
+        $claim = $this->essayistZapClaimRepository->find($this->pendingClaimId);
+        if ($claim === null || !$claim->isPending()) {
+            $this->pendingClaimId = null;
+            $this->pendingClaimMessage = '';
+            return;
+        }
+
+        $userNpub = (string) ($user->getNpub() ?? '');
+        if (!NostrKeyUtil::isNpub($userNpub)) {
+            return;
+        }
+
+        $payerHex = NostrKeyUtil::npubToHex($userNpub);
+        if (!hash_equals($claim->getPayerPubkey(), $payerHex)) {
+            return;
+        }
+
+        $this->essayistZapClaimRepository->delete($claim);
+        $this->pendingClaimId = null;
+        $this->pendingClaimMessage = 'Pending confirmation discarded.';
+    }
+
+    private function createPendingMembershipClaimIfPossible(): void
+    {
+        if ('' === trim($this->bolt11)) {
+            return;
+        }
+
+        /** @var User|null $user */
+        $user = $this->security->getUser();
+        if (!$user instanceof User) {
+            return;
+        }
+
+        $userNpub = (string) ($user->getNpub() ?? '');
+        if (!NostrKeyUtil::isNpub($userNpub)) {
+            return;
+        }
+
+        $sponsorHex = $this->recipientPubkey;
+        if (str_starts_with($sponsorHex, 'npub1')) {
+            $sponsorHex = NostrKeyUtil::npubToHex($sponsorHex);
+        }
+        if (!NostrKeyUtil::isHexPubkey($sponsorHex)) {
+            return;
+        }
+
+        $existing = $this->essayistZapClaimRepository->findByBolt11($this->bolt11);
+        if ($existing !== null) {
+            $this->pendingClaimId = $existing->getId();
+            $this->pendingClaimMessage = 'Payment pending recipient confirmation.';
+            return;
+        }
+
+        $payerHex = NostrKeyUtil::npubToHex($userNpub);
+        $claim = $this->essayistZapClaimService->createClaim(
+            user: $user,
+            payerPubkeyHex: $payerHex,
+            sponsorPubkeyHex: $sponsorHex,
+            zapReceiptEventId: null,
+            bolt11Invoice: $this->bolt11,
+            paymentPreimage: null,
+            claimedAmountSats: $this->amount > 0 ? $this->amount : null,
+        );
+
+        // Run existing auto paths just in case a receipt was already provided elsewhere.
+        $this->essayistZapClaimService->verifyClaim($claim);
+
+        $this->pendingClaimId = $claim->getId();
+        $this->pendingClaimMessage = $claim->isPending()
+            ? 'Payment pending recipient confirmation.'
+            : 'Payment verified.';
     }
 
     /**

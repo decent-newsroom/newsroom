@@ -24,6 +24,51 @@
             {% endif %}
         </div>
 
+        {# Claim zap form for logged-in users #}
+        {% if app.user %}
+            <div class="essayist-members__claim-section">
+                <h2 class="essayist-members__claim-title">{{ 'essayist.claim.heading'|trans('Claim your zap') }}</h2>
+                <p class="essayist-members__claim-description">{{ 'essayist.claim.description'|trans('Paid for a membership but do not see it reflected? Submit your claim below.') }}</p>
+                <twig:Molecules:EssayistClaimZapButton />
+            </div>
+        {% endif %}
+
+        {% if claimsToAttest is defined and claimsToAttest is not empty %}
+            <div class="essayist-members__claim-section">
+                <h2 class="essayist-members__claim-title">Confirm incoming membership payments</h2>
+                <p class="essayist-members__claim-description">
+                    These users claim they paid your wallet. Confirming acts like a superchat-style recipient attestation and grants membership.
+                </p>
+
+                <ul class="essayist-members__claims-to-attest">
+                    {% for claim in claimsToAttest %}
+                        <li class="essayist-members__claims-to-attest-item">
+                            <div>
+                                <p><strong>Payer:</strong> <code>{{ claim.payerPubkey|toNpub }}</code></p>
+                                {% if claim.claimedAmountSats %}
+                                    <p><strong>Claimed:</strong> {{ claim.claimedAmountSats|number_format }} sats</p>
+                                {% endif %}
+                                {% if claim.bolt11Invoice %}
+                                    <p><strong>Invoice:</strong> <code>{{ claim.bolt11Invoice|slice(0, 42) ~ '...' }}</code></p>
+                                {% endif %}
+                                {% if claim.zapReceiptEventId %}
+                                    <p><strong>Receipt ID:</strong> <code>{{ claim.zapReceiptEventId }}</code></p>
+                                {% endif %}
+                            </div>
+
+                            <form method="post" action="{{ path('app_essayist_claim_attest', {id: claim.id}) }}" class="essayist-members__attest-form">
+                                <input type="hidden" name="_token" value="{{ csrf_token('essayist_attest_claim_' ~ claim.id) }}">
+                                <input type="number" name="amount_sats" min="1" step="100" placeholder="Amount sats (optional)">
+                                <input type="text" name="attestation_event_id" maxlength="64" placeholder="Optional kind:9741 event id">
+                                <input type="text" name="note" maxlength="255" placeholder="Optional note">
+                                <button type="submit" class="btn btn--primary">Confirm payment</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
         {% if members is empty %}
             <p class="essayist-members__empty">{{ 'essayist.members.empty'|trans }}</p>
         {% else %}
@@ -61,6 +106,7 @@
                                     recipientPubkey="{{ m.pubkey }}"
                                     recipientLud16="{{ m.lud16 }}"
                                     :initialAmount="1000"
+                                    :enableMembershipClaim="true"
                                 />
                             {% endif %}
                         </div>

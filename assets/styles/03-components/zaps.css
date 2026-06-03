@@ -41,3 +41,14 @@
 body:has(.zap-modal-overlay) {
     overflow: hidden;
 }
+
+.zap-pending-note {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.zap-pending-note small {
+    color: var(--color-text-muted);
+}
+

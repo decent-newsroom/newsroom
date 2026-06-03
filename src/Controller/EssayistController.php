@@ -12,12 +12,14 @@ use App\Enum\RolesEnum;
 use App\Message\StartRelayFeedMessage;
 use App\Repository\EventRepository;
 use App\Repository\FollowPackSourceRepository;
+use App\Repository\EssayistZapClaimRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
 use App\Service\Essayist\EssayistFeedService;
 use App\Service\Essayist\EssayistMemberActivityService;
 use App\Service\Essayist\EssayistMembershipCacheService;
 use App\Service\Essayist\EssayistMembershipService;
+use App\Service\Essayist\EssayistZapClaimService;
 use App\Service\FollowPackService;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\RelayFeedBufferService;
@@ -136,6 +138,7 @@ class EssayistController extends AbstractController
         UserEntityRepository $userRepository,
         RedisCacheService $redisCacheService,
         EssayistMembershipService $membershipService,
+        EssayistZapClaimRepository $claimRepository,
         EventRepository $eventRepository,
         UserProfileService $userProfileService,
         LoggerInterface $logger,
@@ -244,6 +247,16 @@ class EssayistController extends AbstractController
         // Used by the template to render a precise "valid through …" hint.
         $coverageThrough = \App\Service\Essayist\EssayistMembershipService::endOfNextMonth(new \DateTimeImmutable('now'));
 
+        $claimsToAttest = [];
+        if (NostrKeyUtil::isNpub((string) $viewer->getNpub())) {
+            try {
+                $viewerHex = NostrKeyUtil::npubToHex((string) $viewer->getNpub());
+                $claimsToAttest = $claimRepository->findPendingForSponsorPubkey($viewerHex);
+            } catch (\Throwable $e) {
+                $logger->debug('Essayist members: failed loading pending attestation claims', ['error' => $e->getMessage()]);
+            }
+        }
+
         return $this->render('essayist/members.html.twig', [
             'members'         => $rows,
             'isLoggedIn'      => true,
@@ -252,7 +265,54 @@ class EssayistController extends AbstractController
             'minimumSats'     => $membershipService->getMinimumSats(),
             'coverageThrough' => $coverageThrough,
             'followCount'     => count($followSet),
+            'claimsToAttest'  => $claimsToAttest,
         ]);
+    }
+
+    #[Route('/claims/{id}/attest', name: 'app_essayist_claim_attest', methods: ['POST'])]
+    public function attestClaim(
+        int $id,
+        Request $request,
+        EssayistZapClaimRepository $claimRepository,
+        EssayistZapClaimService $claimService,
+    ): Response {
+        /** @var User|null $viewer */
+        $viewer = $this->getUser();
+        if (!$viewer instanceof User) {
+            return $this->redirectToRoute('app_static_essayist', ['join_status' => 'login_required']);
+        }
+
+        if (!$this->isCsrfTokenValid('essayist_attest_claim_' . $id, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid security token.');
+            return $this->redirectToRoute('app_essayist_members');
+        }
+
+        $claim = $claimRepository->find($id);
+        if ($claim === null) {
+            $this->addFlash('error', 'Claim not found.');
+            return $this->redirectToRoute('app_essayist_members');
+        }
+
+        $amount = $request->request->get('amount_sats');
+        $amountSats = is_numeric($amount) ? (int) $amount : null;
+        $eventId = trim((string) $request->request->get('attestation_event_id', ''));
+        $note = trim((string) $request->request->get('note', ''));
+
+        $ok = $claimService->attestByRecipient(
+            $claim,
+            $viewer,
+            $amountSats,
+            $eventId !== '' ? $eventId : null,
+            $note !== '' ? $note : null,
+        );
+
+        if ($ok) {
+            $this->addFlash('success', 'Payment confirmed. Membership has been extended for the payer.');
+        } else {
+            $this->addFlash('error', 'Could not confirm this claim. Ensure you are the zap recipient and provide an amount if missing.');
+        }
+
+        return $this->redirectToRoute('app_essayist_members');
     }
 
     /**

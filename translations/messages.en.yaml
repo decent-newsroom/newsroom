@@ -218,7 +218,7 @@ essayist:
         alreadyMember: 'You are already an Essayist member.'
         loginToZap: 'Sign in to zap'
         empty: 'No members are currently listed with a Lightning address. Check back soon.'
-        footnote: 'Minimum %min% sats · grants access through %through% · powered by NIP-57 zap receipts.'
+        footnote: 'Minimum %min% sats · grants access through %through%'
         badge:
             follow: 'You follow'
             earlybird: 'Early bird'

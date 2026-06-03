@@ -13,6 +13,24 @@
         {% endif %}
     </button>
 
+    {% if this.enableMembershipClaim and this.pendingClaimId %}
+        <div class="zap-pending-note mt-2">
+            <small>{{ this.pendingClaimMessage ?: 'Payment pending recipient confirmation.' }}</small>
+            <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary ms-2"
+                data-action="live#action"
+                data-live-action-param="discardPendingClaim"
+            >
+                Discard
+            </button>
+        </div>
+    {% elseif this.enableMembershipClaim and this.pendingClaimMessage %}
+        <div class="zap-pending-note mt-2">
+            <small>{{ this.pendingClaimMessage }}</small>
+        </div>
+    {% endif %}
+
     {# Modal Dialog #}
     {% if this.open %}
         <div class="zap-modal-overlay" data-action="click->live#action" data-live-action-param="closeDialog">
