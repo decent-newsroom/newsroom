@@ -13,6 +13,7 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use App\Util\Nip10TagParser;
+use App\Util\NostrKeyUtil;
 use Exception;
 use nostriphant\NIP19\Bech32;
 use nostriphant\NIP19\Data;
@@ -174,7 +175,7 @@ class EventController extends AbstractController
         }
 
         try {
-            $npub = \App\Util\NostrKeyUtil::hexToNpub($pubkey);
+            $npub = NostrKeyUtil::hexToNpub($pubkey);
         } catch (\Throwable $e) {
             $logger->warning('Failed to redirect publication index to reading list due to invalid pubkey', [
                 'pubkey' => $pubkey,
@@ -358,42 +359,64 @@ class EventController extends AbstractController
 
                 case 'naddr':
                     // Handle naddr (parameterized replaceable event) - check DB first
+                    $naddrKind = (int) ($data->kind ?? 0);
+                    $naddrPubkey = (string) ($data->pubkey ?? '');
+                    $naddrIdentifier = trim((string) ($data->identifier ?? ''));
                     $relays = $data->relays ?? [];
                     $logger->info('Looking up naddr in database', [
-                        'kind' => $data->kind,
-                        'pubkey' => $data->pubkey,
-                        'identifier' => $data->identifier,
+                        'kind' => $naddrKind,
+                        'pubkey' => $naddrPubkey,
+                        'identifier' => $naddrIdentifier,
                     ]);
+
+                    // Canonicalize long-form naddr links to the article route.
+                    // The article controller already handles relay fetch fallback.
+                    if ($naddrKind === KindsEnum::LONGFORM->value && $naddrPubkey !== '' && $naddrIdentifier !== '') {
+                        try {
+                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
+
+                            return $this->redirectToRoute('author-article-slug', [
+                                'npub' => $npub,
+                                'slug' => $naddrIdentifier,
+                            ]);
+                        } catch (\Throwable $e) {
+                            $logger->warning('Failed to canonicalize long-form naddr to article route', [
+                                'pubkey' => $naddrPubkey,
+                                'identifier' => $naddrIdentifier,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
 
                     // Fast path for articles: check Article table first and redirect
                     // directly. This is the canonical path for /article/naddr1... which
                     // now redirects here, and avoids falling through to the generic
                     // event renderer when a proper article view is available.
-                    if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
+                    if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
                         $articleEntity = $eventRepository->getEntityManager()
                             ->getRepository(\App\Entity\Article::class)
-                            ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                            ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                         if ($articleEntity) {
-                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
                             return $this->redirectToRoute('author-article-slug', [
                                 'npub' => $npub,
-                                'slug' => $data->identifier,
+                                'slug' => $naddrIdentifier,
                             ]);
                         }
                     }
 
-                    $dbEvent = $eventRepository->findByNaddr($data->kind, $data->pubkey, $data->identifier);
+                    $dbEvent = $eventRepository->findByNaddr($naddrKind, $naddrPubkey, $naddrIdentifier);
                     if ($dbEvent) {
                         $logger->info('Event found in database', [
                             'eventId' => $dbEvent->getId(),
-                            'kind' => $data->kind,
+                            'kind' => $naddrKind,
                         ]);
                         $event = $this->entityToObject($dbEvent);
 
                         // For article kinds, ensure the Article projection exists.
                         // The Event may have been ingested via GenericEventProjector
                         // without a corresponding Article entity — recover here.
-                        if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
+                        if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
                             try {
                                 $this->articleEventProjector->projectArticleFromEvent(
                                     $event,
@@ -401,21 +424,21 @@ class EventController extends AbstractController
                                 );
                             } catch (\Throwable $e) {
                                 $logger->warning('Article projection recovery failed for naddr DB hit', [
-                                    'kind' => $data->kind,
-                                    'pubkey' => $data->pubkey,
-                                    'identifier' => $data->identifier,
+                                    'kind' => $naddrKind,
+                                    'pubkey' => $naddrPubkey,
+                                    'identifier' => $naddrIdentifier,
                                     'error' => $e->getMessage(),
                                 ]);
                             }
                             // Re-check the Article table — redirect if projection succeeded
                             $articleEntity = $eventRepository->getEntityManager()
                                 ->getRepository(\App\Entity\Article::class)
-                                ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                                ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                             if ($articleEntity) {
-                                $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                                $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
                                 return $this->redirectToRoute('author-article-slug', [
                                     'npub' => $npub,
-                                    'slug' => $data->identifier,
+                                    'slug' => $naddrIdentifier,
                                 ]);
                             }
                         }
@@ -425,16 +448,16 @@ class EventController extends AbstractController
                         // getEventByNaddr already prioritises hint relays, then falls
                         // back to author relays + default relays.
                         $logger->info('naddr not in database, querying relays synchronously', [
-                            'kind' => $data->kind,
-                            'pubkey' => $data->pubkey,
-                            'identifier' => $data->identifier,
+                            'kind' => $naddrKind,
+                            'pubkey' => $naddrPubkey,
+                            'identifier' => $naddrIdentifier,
                             'relays' => $relays,
                         ]);
                         try {
                             $rawEvent = $nostrClient->getEventByNaddr([
-                                'kind' => $data->kind,
-                                'pubkey' => $data->pubkey,
-                                'identifier' => $data->identifier,
+                                'kind' => $naddrKind,
+                                'pubkey' => $naddrPubkey,
+                                'identifier' => $naddrIdentifier,
                                 'relays' => $relays,
                             ], allowRelayListNetworkFetch: false);
                             if ($rawEvent !== null) {
@@ -458,33 +481,33 @@ class EventController extends AbstractController
                                 }
                                 $logger->info('Event found on relays and persisted', [
                                     'eventId' => $persisted->getId(),
-                                    'kind' => $data->kind,
+                                    'kind' => $naddrKind,
                                 ]);
                                 $event = $this->entityToObject($persisted);
                                 break;
                             }
                         } catch (\Throwable $e) {
                             $logger->warning('Synchronous relay fetch failed for naddr', [
-                                'kind' => $data->kind,
-                                'pubkey' => $data->pubkey,
-                                'identifier' => $data->identifier,
+                                'kind' => $naddrKind,
+                                'pubkey' => $naddrPubkey,
+                                'identifier' => $naddrIdentifier,
                                 'error' => $e->getMessage(),
                             ]);
                         }
 
                         // Sync fetch didn't find it — fall back to async as last resort
-                        $lookupKey = sprintf('naddr:%d:%s:%s', $data->kind, $data->pubkey, $data->identifier);
+                        $lookupKey = sprintf('naddr:%d:%s:%s', $naddrKind, $naddrPubkey, $naddrIdentifier);
                         $logger->info('naddr not found synchronously, dispatching async relay search', [
-                            'kind' => $data->kind,
-                            'pubkey' => $data->pubkey,
-                            'identifier' => $data->identifier,
+                            'kind' => $naddrKind,
+                            'pubkey' => $naddrPubkey,
+                            'identifier' => $naddrIdentifier,
                         ]);
                         $messageBus->dispatch(new FetchEventFromRelaysMessage(
                             lookupKey: $lookupKey,
                             type: 'naddr',
-                            kind: $data->kind,
-                            pubkey: $data->pubkey,
-                            identifier: $data->identifier,
+                            kind: $naddrKind,
+                            pubkey: $naddrPubkey,
+                            identifier: $naddrIdentifier,
                             relays: $relays,
                         ));
                         return $this->render('event/loading.html.twig', [
@@ -494,26 +517,26 @@ class EventController extends AbstractController
                         ]);
                     }
 
-                    if ($data->kind === KindsEnum::LONGFORM->value || $data->kind === KindsEnum::LONGFORM_DRAFT->value) {
+                    if ($naddrKind === KindsEnum::LONGFORM->value || $naddrKind === KindsEnum::LONGFORM_DRAFT->value) {
                         // Only redirect to the article page if the Article entity
                         // was actually projected.  The sync fetch persists the Event
                         // but article projection can fail silently — in that case
                         // fall through to the generic event renderer.
                         $articleEntity = $eventRepository->getEntityManager()
                             ->getRepository(\App\Entity\Article::class)
-                            ->findOneBy(['slug' => $data->identifier, 'pubkey' => $data->pubkey]);
+                            ->findOneBy(['slug' => $naddrIdentifier, 'pubkey' => $naddrPubkey]);
                         if ($articleEntity) {
-                            $logger->info('Redirecting to article', ['identifier' => $data->identifier]);
-                            $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                            $logger->info('Redirecting to article', ['identifier' => $naddrIdentifier]);
+                            $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
                             return $this->redirectToRoute('author-article-slug', [
                                 'npub' => $npub,
-                                'slug' => $data->identifier,
+                                'slug' => $naddrIdentifier,
                             ]);
                         }
                         $logger->warning('Event fetched but Article entity not found, rendering generic event page', [
-                            'kind' => $data->kind,
-                            'pubkey' => $data->pubkey,
-                            'identifier' => $data->identifier,
+                            'kind' => $naddrKind,
+                            'pubkey' => $naddrPubkey,
+                            'identifier' => $naddrIdentifier,
                         ]);
                     }
 
@@ -523,17 +546,17 @@ class EventController extends AbstractController
                         KindsEnum::CURATION_VIDEOS->value,    // 30005
                         KindsEnum::CURATION_PICTURES->value,  // 30006
                     ];
-                    if (in_array($data->kind, $curationKinds, true)) {
-                        $npub = \App\Util\NostrKeyUtil::hexToNpub($data->pubkey);
+                    if (in_array($naddrKind, $curationKinds, true)) {
+                        $npub = NostrKeyUtil::hexToNpub($naddrPubkey);
                         $logger->info('Redirecting to curation set', [
-                            'kind' => $data->kind,
+                            'kind' => $naddrKind,
                             'npub' => $npub,
-                            'slug' => $data->identifier,
+                            'slug' => $naddrIdentifier,
                         ]);
                         return $this->redirectToRoute('curation-set', [
                             'npub' => $npub,
-                            'kind' => $data->kind,
-                            'slug' => $data->identifier,
+                            'kind' => $naddrKind,
+                            'slug' => $naddrIdentifier,
                         ]);
                     }
                     break;
