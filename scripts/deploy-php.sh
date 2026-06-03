@@ -14,7 +14,7 @@
 #   Docker, docker-compose, and appropriate credentials must be available.
 #
 
-set -euo pipefail
+set -eu
 
 # Color output for readability
 GREEN='\033[0;32m'
