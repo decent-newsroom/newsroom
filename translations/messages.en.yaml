@@ -223,7 +223,7 @@ essayist:
             follow: 'You follow'
             earlybird: 'Early bird'
     claim:
-        heading: 'Claim your zap'
+        heading: 'Claim your payment'
         description: 'Paid for a membership but do not see it reflected? Submit your claim below.'
     home:
         title: 'Essayist'
