@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Feature] Added a delete action in `my-content` article rows that builds a kind `5` (NIP-09) delete request for the selected article (`e` + `a` tags), asks the signer to sign it, and publishes it via the user-context event endpoint.
 - [Bug] Fixed `/e/naddr1...` handling for long-form coordinates (kind `30023`): these links now canonicalize directly to the article route (`/p/{npub}/d/{slug}`) instead of sometimes rendering the generic `/e/...` event page.
 - [Bug] Fixed `dn:graph:audit` orphan detection crashing on newer Doctrine DBAL versions by replacing removed `Connection::PARAM_STR_ARRAY` usages in `GraphAuditCommand` with `ArrayParameterType::STRING` for `IN (?)` array bindings.
 - [Bug] Expression result cards now surface event `summary` metadata, or `alt` when content is empty, so index events like magazine categories and reading lists no longer render as blank cards.

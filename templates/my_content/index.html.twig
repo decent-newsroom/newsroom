@@ -251,6 +251,19 @@
                     <span class="fs-col fs-col--kind">
                         Article
                         <a href="{{ path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}" class="fs-action" title="View published">↗</a>
+                        {% if article.eventId %}
+                            <button
+                                type="button"
+                                class="fs-action"
+                                title="Sign delete request"
+                                data-controller="content--my-content-delete"
+                                data-action="click->content--my-content-delete#requestDelete"
+                                data-content--my-content-delete-publish-url-value="{{ path('api_settings_event_publish') }}"
+                                data-content--my-content-delete-event-id-value="{{ article.eventId }}"
+                                data-content--my-content-delete-coordinate-value="30023:{{ article.pubkey }}:{{ article.slug }}"
+                                data-content--my-content-delete-article-title-value="{{ article.title|default('Untitled') }}"
+                            >del</button>
+                        {% endif %}
                     </span>
                 </div>
             {% endfor %}
