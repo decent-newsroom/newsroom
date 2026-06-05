@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Feature] Added `admin:delete-old-media-events` command to clean up old media events (kinds 20, 21, 22, 34235, 34236) that exceed a retention threshold (default: 60 days); useful for managing database size when media events are not heavily surfaced in feeds.
 - [Feature] Added a delete action in `my-content` article rows that builds a kind `5` (NIP-09) delete request for the selected article (`e` + `a` tags), asks the signer to sign it, and publishes it via the user-context event endpoint.
 - [Bug] Fixed `/e/naddr1...` handling for long-form coordinates (kind `30023`): these links now canonicalize directly to the article route (`/p/{npub}/d/{slug}`) instead of sometimes rendering the generic `/e/...` event page.
 - [Bug] Fixed `dn:graph:audit` orphan detection crashing on newer Doctrine DBAL versions by replacing removed `Connection::PARAM_STR_ARRAY` usages in `GraphAuditCommand` with `ArrayParameterType::STRING` for `IN (?)` array bindings.
