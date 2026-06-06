@@ -208,8 +208,36 @@ class ArticleBroadcastController extends AbstractController
                 }
             }
 
-            // Reconstruct the Event object from raw data
-            $event = Event::fromVerified((object)$rawEvent);
+            // Reconstruct the Event object from raw data and fail with a clear
+            // client-facing reason when the stored payload cannot be verified.
+            try {
+                $event = Event::fromVerified((object)$rawEvent);
+            } catch (\Throwable $verificationError) {
+                $this->logger->warning('Broadcast rejected: event verification failed', [
+                    'article_id' => $article->getId(),
+                    'error' => $verificationError->getMessage(),
+                ]);
+
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Article event failed verification and was not broadcast.',
+                    'reason' => 'Event verification failed for stored raw payload',
+                    'article_id' => $article->getId(),
+                ], 422);
+            }
+
+            if (!$event instanceof Event) {
+                $this->logger->warning('Broadcast rejected: event verification returned no valid Event', [
+                    'article_id' => $article->getId(),
+                ]);
+
+                return new JsonResponse([
+                    'success' => false,
+                    'error' => 'Article event failed verification and was not broadcast.',
+                    'reason' => 'Stored raw payload could not be verified as a signed event',
+                    'article_id' => $article->getId(),
+                ], 422);
+            }
 
             $this->logger->info('Broadcasting article to relays', [
                 'article_id' => $article->getId(),
