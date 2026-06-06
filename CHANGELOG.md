@@ -33,6 +33,7 @@
 - [Improvement] Rename "Total Visits" → "Page Views" and "Unique Visitors" → "Unique Sessions / Users" in admin analytics; add clarifying notes
 - [Improvement] Add `wss://spatia-arcana.com` to content relay list
 - [Improvement] Highlights feed now surfaces kind:1 text note references (e-tags): controller extracts `e`/`E` tags and renders them via `NostrEmbed`; deduplication key updated to cover all source types
+- [Bug] Fixed `mentionify` in profile/about rendering to also detect and link `nostr:npub1...` (and plain `npub1...`) mentions, not only `@npub1...` tokens.
 
 
 ## v0.0.44

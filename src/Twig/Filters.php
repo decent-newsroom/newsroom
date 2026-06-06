@@ -57,15 +57,22 @@ class Filters extends AbstractExtension
     public function mentionify(string $text): string
     {
         return preg_replace_callback(
-            '/@(?<npub>npub1[0-9a-z]{10,})/i',
+            '/(?<![a-z0-9_\/])(?<prefix>nostr:|@)?(?<npub>npub1[0-9a-z]{10,})(?![0-9a-z])/i',
             function ($matches) {
                 $npub = $matches['npub'];
                 $short = substr($npub, 0, 8) . '…' . substr($npub, -4);
+                $prefix = strtolower($matches['prefix'] ?? '');
+
+                $label = match ($prefix) {
+                    '@' => '@' . $short,
+                    'nostr:' => 'nostr:' . $short,
+                    default => $short,
+                };
 
                 return sprintf(
-                    '<a href="/p/%s" class="mention-link">@%s</a>',
+                    '<a href="/p/%s" class="mention-link">%s</a>',
                     htmlspecialchars($npub, ENT_QUOTES, 'UTF-8'),
-                    htmlspecialchars($short, ENT_QUOTES, 'UTF-8')
+                    htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
                 );
             },
             $text
