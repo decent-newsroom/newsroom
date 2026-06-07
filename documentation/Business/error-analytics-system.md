@@ -397,7 +397,7 @@ Run with cron:
 
 3. **Check database connection**:
    ```bash
-   php bin/console doctrine:query:sql "SELECT COUNT(*) FROM error_log"
+   php bin/console dbal:run-sql "SELECT COUNT(*) FROM error_log"
    ```
 
 ### Page Shows "No Errors"?

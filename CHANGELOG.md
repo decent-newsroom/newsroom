@@ -2,6 +2,7 @@
 
 ## v0.0.45
 
+- [Improvement] Replaced deprecated `doctrine:query:sql` command references in project documentation with `dbal:run-sql` to align with current DoctrineBundle guidance and reduce console deprecation noise.
 - [Bug] `POST /api/broadcast-article` now returns a clear verification error (`422`) when an article's stored raw event cannot be verified/reconstructed, explicitly stating the event was not broadcast for that reason instead of surfacing a raw 500.
 - [Feature] Added `admin:delete-old-media-events` command to clean up old media events (kinds 20, 21, 22, 34235, 34236) that exceed a retention threshold (default: 60 days); useful for managing database size when media events are not heavily surfaced in feeds.
 - [Feature] Added a delete action in `my-content` article rows that builds a kind `5` (NIP-09) delete request for the selected article (`e` + `a` tags), asks the signer to sign it, and publishes it via the user-context event endpoint.

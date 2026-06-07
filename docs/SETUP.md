@@ -365,7 +365,7 @@ docker compose exec php bin/console doctrine:migrations:diff
 docker compose exec php bin/console doctrine:migrations:status
 
 # Execute raw SQL query
-docker compose exec php bin/console doctrine:query:sql "SELECT * FROM users LIMIT 5"
+docker compose exec php bin/console dbal:run-sql "SELECT * FROM users LIMIT 5"
 ```
 
 ### Debugging
@@ -417,7 +417,7 @@ docker compose ps database
 docker compose logs database
 
 # Test connection from PHP container
-docker compose exec php bin/console doctrine:query:sql "SELECT 1"
+docker compose exec php bin/console dbal:run-sql "SELECT 1"
 ```
 
 ### Certificate Issues in Production
