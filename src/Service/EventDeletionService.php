@@ -106,10 +106,18 @@ class EventDeletionService
                     'error' => $e->getMessage(),
                 ]);
                 $skipped++;
+
+                // Recover EntityManager state if a transaction failure closed it
+                if (!$this->em->isOpen()) {
+                    $this->em->clear();
+                }
             }
         }
 
-        $this->em->flush();
+        // Only flush if the EntityManager is still open
+        if ($this->em->isOpen()) {
+            $this->em->flush();
+        }
 
         $this->logger->info('NIP-09: deletion request processed', [
             'deletion_event' => $deletionRequest->getId(),
