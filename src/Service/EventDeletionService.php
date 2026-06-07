@@ -10,10 +10,10 @@ use App\Entity\Event;
 use App\Entity\Highlight;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
-use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\MagazineRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -34,13 +34,69 @@ use Psr\Log\LoggerInterface;
  */
 class EventDeletionService
 {
+    private const FLUSH_BATCH_SIZE = 50;
+
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly EventRepository $eventRepository,
-        private readonly MagazineRepository $magazineRepository,
-        private readonly DeletedEventRepository $deletedEventRepository,
+        private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
     ) {}
+
+    private function em(): EntityManagerInterface
+    {
+        $em = $this->managerRegistry->getManagerForClass(DeletedEvent::class);
+
+        if (!$em instanceof EntityManagerInterface || !$em->isOpen()) {
+            $em = $this->managerRegistry->resetManager();
+        }
+
+        \assert($em instanceof EntityManagerInterface);
+
+        return $em;
+    }
+
+    private function eventRepository(): EventRepository
+    {
+        $repository = $this->em()->getRepository(Event::class);
+        \assert($repository instanceof EventRepository);
+
+        return $repository;
+    }
+
+    private function magazineRepository(): MagazineRepository
+    {
+        $repository = $this->em()->getRepository(Magazine::class);
+        \assert($repository instanceof MagazineRepository);
+
+        return $repository;
+    }
+
+    private function deletedEventRepository(): \App\Repository\DeletedEventRepository
+    {
+        $repository = $this->em()->getRepository(DeletedEvent::class);
+        \assert($repository instanceof \App\Repository\DeletedEventRepository);
+
+        return $repository;
+    }
+
+    private function flushAndClear(): void
+    {
+        $em = $this->em();
+        $em->flush();
+        $em->clear();
+    }
+
+    private function resetPersistenceState(): void
+    {
+        $em = $this->managerRegistry->getManagerForClass(DeletedEvent::class);
+
+        if ($em instanceof EntityManagerInterface && $em->isOpen()) {
+            $em->clear();
+
+            return;
+        }
+
+        $this->managerRegistry->resetManager();
+    }
 
     /**
      * Process a kind:5 deletion request that has already been persisted.
@@ -68,6 +124,7 @@ class EventDeletionService
         $processed = 0;
         $suppressed = 0;
         $skipped = 0;
+        $mutationsSinceFlush = 0;
 
         foreach ($deletionRequest->getTags() as $tag) {
             if (!is_array($tag) || !isset($tag[0], $tag[1])) {
@@ -99,6 +156,15 @@ class EventDeletionService
                 if ($result === 'processed') { $processed++; }
                 elseif ($result === 'suppressed') { $suppressed++; }
                 else { $skipped++; }
+
+                if ($result !== 'skipped') {
+                    $mutationsSinceFlush++;
+                }
+
+                if ($mutationsSinceFlush >= self::FLUSH_BATCH_SIZE) {
+                    $this->flushAndClear();
+                    $mutationsSinceFlush = 0;
+                }
             } catch (\Throwable $e) {
                 $this->logger->warning('NIP-09: failed to process deletion target', [
                     'deletion_event' => $deletionRequest->getId(),
@@ -106,17 +172,13 @@ class EventDeletionService
                     'error' => $e->getMessage(),
                 ]);
                 $skipped++;
-
-                // Recover EntityManager state if a transaction failure closed it
-                if (!$this->em->isOpen()) {
-                    $this->em->clear();
-                }
+                $mutationsSinceFlush = 0;
+                $this->resetPersistenceState();
             }
         }
 
-        // Only flush if the EntityManager is still open
-        if ($this->em->isOpen()) {
-            $this->em->flush();
+        if ($mutationsSinceFlush > 0) {
+            $this->flushAndClear();
         }
 
         $this->logger->info('NIP-09: deletion request processed', [
@@ -144,7 +206,7 @@ class EventDeletionService
         ?string $reason,
         array $kHints,
     ): string {
-        $target = $this->eventRepository->find($eventId);
+        $target = $this->eventRepository()->find($eventId);
 
         // NIP-09: never act on a kind 5 target
         if ($target !== null && $target->getKind() === KindsEnum::DELETION_REQUEST->value) {
@@ -244,7 +306,7 @@ class EventDeletionService
         ?int $upToCreatedAt,
     ): void {
         // 1) Remove Event rows (the generic Nostr event table)
-        $qb = $this->em->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->delete(Event::class, 'e')
             ->where('e.pubkey = :pubkey')
             ->andWhere('e.kind = :kind')
@@ -290,7 +352,7 @@ class EventDeletionService
 
     private function deleteArticles(string $pubkey, ?string $dTag, ?string $eventId, ?int $upToCreatedAt): int
     {
-        $qb = $this->em->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->delete(Article::class, 'a')
             ->where('a.pubkey = :pubkey')
             ->setParameter('pubkey', $pubkey);
@@ -310,7 +372,7 @@ class EventDeletionService
 
     private function deleteHighlights(string $pubkey, ?string $eventId, ?int $upToCreatedAt): int
     {
-        $qb = $this->em->createQueryBuilder()
+        $qb = $this->em()->createQueryBuilder()
             ->delete(Highlight::class, 'h')
             ->where('h.pubkey = :pubkey')
             ->setParameter('pubkey', $pubkey);
@@ -331,11 +393,11 @@ class EventDeletionService
             return 0;
         }
         // Magazine slug equals the d-tag of the kind:30040 index event.
-        $magazine = $this->magazineRepository->findBySlug($dTag);
+        $magazine = $this->magazineRepository()->findBySlug($dTag);
         if ($magazine === null || $magazine->getPubkey() !== $pubkey) {
             return 0;
         }
-        $this->em->remove($magazine);
+        $this->em()->remove($magazine);
         return 1;
     }
 
@@ -348,7 +410,7 @@ class EventDeletionService
         int $deletionCreatedAt,
         ?string $reason,
     ): void {
-        $existing = $this->deletedEventRepository->findByTargetRef($targetRef);
+        $existing = $this->deletedEventRepository()->findByTargetRef($targetRef);
         if ($existing !== null) {
             // Keep the latest deletion_created_at so we honor a wider window.
             if ($deletionCreatedAt > $existing->getDeletionCreatedAt()) {
@@ -368,7 +430,7 @@ class EventDeletionService
         $tombstone->setDeletionEventId($deletionEventId);
         $tombstone->setDeletionCreatedAt($deletionCreatedAt);
         $tombstone->setReason($reason);
-        $this->em->persist($tombstone);
+        $this->em()->persist($tombstone);
     }
 }
 

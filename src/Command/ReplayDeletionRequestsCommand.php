@@ -9,6 +9,8 @@ use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
 use App\Service\EventDeletionService;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -38,12 +40,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class ReplayDeletionRequestsCommand extends Command
 {
-    private const BATCH_SIZE = 100;
+    private const DEFAULT_BATCH_SIZE = 100;
 
     public function __construct(
-        private readonly EventRepository $eventRepository,
         private readonly EventDeletionService $eventDeletionService,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly ManagerRegistry $managerRegistry,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();
@@ -55,7 +56,8 @@ class ReplayDeletionRequestsCommand extends Command
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'List deletion requests that would be processed without touching the DB')
             ->addOption('pubkey', null, InputOption::VALUE_OPTIONAL, 'Only process kind:5 events from this hex pubkey')
             ->addOption('since', null, InputOption::VALUE_OPTIONAL, 'Only process kind:5 events with created_at >= this unix timestamp')
-            ->addOption('limit', null, InputOption::VALUE_OPTIONAL, 'Cap the number of deletion requests to process');
+            ->addOption('limit', null, InputOption::VALUE_OPTIONAL, 'Cap the number of deletion requests to process')
+            ->addOption('batch-size', null, InputOption::VALUE_OPTIONAL, 'How many deletion requests to load per Doctrine batch', (string) self::DEFAULT_BATCH_SIZE);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -65,25 +67,13 @@ class ReplayDeletionRequestsCommand extends Command
         $pubkey = $input->getOption('pubkey');
         $since = $input->getOption('since') !== null ? (int) $input->getOption('since') : null;
         $limit = $input->getOption('limit') !== null ? (int) $input->getOption('limit') : null;
+        $batchSize = max(1, (int) $input->getOption('batch-size'));
 
-        $qb = $this->eventRepository->createQueryBuilder('e')
-            ->where('e.kind = :kind')
-            ->setParameter('kind', KindsEnum::DELETION_REQUEST->value)
-            ->orderBy('e.created_at', 'ASC'); // oldest first so newer deletions can still override tombstones
-
-        if ($pubkey !== null) {
-            $qb->andWhere('e.pubkey = :pubkey')->setParameter('pubkey', $pubkey);
-        }
-        if ($since !== null) {
-            $qb->andWhere('e.created_at >= :since')->setParameter('since', $since);
-        }
-
-        $countQb = clone $qb;
-        $countQb
+        $total = (int) $this->createDeletionRequestQueryBuilder($pubkey, $since)
             ->resetDQLPart('orderBy')
-            ->select('COUNT(e.id)');
-
-        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+            ->select('COUNT(e.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
 
         if ($total === 0) {
             $io->success('No kind:5 deletion requests found in the database.');
@@ -105,19 +95,37 @@ class ReplayDeletionRequestsCommand extends Command
         $progress->start();
 
         while ($processed < $toProcess) {
-            $batchQb = clone $qb;
-            $batch = $batchQb
+            $batchRows = $this->createDeletionRequestQueryBuilder($pubkey, $since)
+                ->select('e.id')
                 ->setFirstResult($offset)
-                ->setMaxResults(min(self::BATCH_SIZE, $toProcess - $processed))
+                ->setMaxResults(min($batchSize, $toProcess - $processed))
                 ->getQuery()
-                ->getResult();
+                ->getArrayResult();
 
-            if (empty($batch)) {
+            $batchIds = array_map(
+                static fn (array $row): string => (string) $row['id'],
+                $batchRows,
+            );
+
+            if ($batchIds === []) {
                 break;
             }
 
-            /** @var Event $deletionRequest */
-            foreach ($batch as $deletionRequest) {
+            foreach ($batchIds as $deletionRequestId) {
+                $deletionRequest = $this->loadDeletionRequest($deletionRequestId);
+
+                if (!$deletionRequest instanceof Event) {
+                    $this->logger->warning('events:replay-deletions skipped missing request from current batch', [
+                        'deletion_event' => $deletionRequestId,
+                    ]);
+
+                    $processed++;
+                    $progress->advance();
+                    $this->releasePersistenceState();
+
+                    continue;
+                }
+
                 if ($dryRun) {
                     $this->describeDryRun($io, $deletionRequest);
                 } else {
@@ -132,21 +140,21 @@ class ReplayDeletionRequestsCommand extends Command
                             'error' => $e->getMessage(),
                         ]);
                         $io->warning(sprintf('Failed on %s: %s', $deletionRequest->getId(), $e->getMessage()));
+                        $this->releasePersistenceState();
                     }
                 }
 
                 $processed++;
                 $progress->advance();
+                $this->releasePersistenceState();
 
                 if ($processed >= $toProcess) {
                     break;
                 }
             }
 
-            $offset += self::BATCH_SIZE;
-
-            // Free memory between batches
-            $this->entityManager->clear();
+            $offset += count($batchIds);
+            $this->releasePersistenceState();
         }
 
         $progress->finish();
@@ -166,6 +174,65 @@ class ReplayDeletionRequestsCommand extends Command
         ));
 
         return Command::SUCCESS;
+    }
+
+    private function createDeletionRequestQueryBuilder(?string $pubkey, ?int $since): QueryBuilder
+    {
+        $qb = $this->eventRepository()->createQueryBuilder('e')
+            ->where('e.kind = :kind')
+            ->setParameter('kind', KindsEnum::DELETION_REQUEST->value)
+            ->orderBy('e.created_at', 'ASC');
+
+        if ($pubkey !== null) {
+            $qb->andWhere('e.pubkey = :pubkey')->setParameter('pubkey', $pubkey);
+        }
+
+        if ($since !== null) {
+            $qb->andWhere('e.created_at >= :since')->setParameter('since', $since);
+        }
+
+        return $qb;
+    }
+
+    private function eventRepository(): EventRepository
+    {
+        $repository = $this->loadEntityManager()->getRepository(Event::class);
+        \assert($repository instanceof EventRepository);
+
+        return $repository;
+    }
+
+    private function loadEntityManager(): EntityManagerInterface
+    {
+        $em = $this->managerRegistry->getManagerForClass(Event::class);
+
+        if (!$em instanceof EntityManagerInterface || !$em->isOpen()) {
+            $em = $this->managerRegistry->resetManager();
+        }
+
+        \assert($em instanceof EntityManagerInterface);
+
+        return $em;
+    }
+
+    private function loadDeletionRequest(string $eventId): ?Event
+    {
+        $event = $this->loadEntityManager()->find(Event::class, $eventId);
+
+        return $event instanceof Event ? $event : null;
+    }
+
+    private function releasePersistenceState(): void
+    {
+        $em = $this->managerRegistry->getManagerForClass(Event::class);
+
+        if ($em instanceof EntityManagerInterface && $em->isOpen()) {
+            $em->clear();
+
+            return;
+        }
+
+        $this->managerRegistry->resetManager();
     }
 
     private function describeDryRun(SymfonyStyle $io, Event $deletionRequest): void
