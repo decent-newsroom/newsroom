@@ -31,6 +31,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Usage:
  *   docker compose exec php bin/console events:replay-deletions
  *   docker compose exec php bin/console events:replay-deletions --dry-run
+ *   docker compose exec php bin/console events:replay-deletions --batch-size=25
  *   docker compose exec php bin/console events:replay-deletions --pubkey=<hex>
  *   docker compose exec php bin/console events:replay-deletions --since=1735689600
  */
@@ -140,7 +141,6 @@ class ReplayDeletionRequestsCommand extends Command
                             'error' => $e->getMessage(),
                         ]);
                         $io->warning(sprintf('Failed on %s: %s', $deletionRequest->getId(), $e->getMessage()));
-                        $this->releasePersistenceState();
                     }
                 }
 

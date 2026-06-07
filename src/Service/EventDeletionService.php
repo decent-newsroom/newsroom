@@ -10,6 +10,7 @@ use App\Entity\Event;
 use App\Entity\Highlight;
 use App\Entity\Magazine;
 use App\Enum\KindsEnum;
+use App\Repository\DeletedEventRepository;
 use App\Repository\EventRepository;
 use App\Repository\MagazineRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,10 +71,10 @@ class EventDeletionService
         return $repository;
     }
 
-    private function deletedEventRepository(): \App\Repository\DeletedEventRepository
+    private function deletedEventRepository(): DeletedEventRepository
     {
         $repository = $this->em()->getRepository(DeletedEvent::class);
-        \assert($repository instanceof \App\Repository\DeletedEventRepository);
+        \assert($repository instanceof DeletedEventRepository);
 
         return $repository;
     }
@@ -172,8 +173,18 @@ class EventDeletionService
                     'error' => $e->getMessage(),
                 ]);
                 $skipped++;
+
+                if ($mutationsSinceFlush > 0) {
+                    try {
+                        $this->flushAndClear();
+                    } catch (\Throwable) {
+                        $this->resetPersistenceState();
+                    }
+                } else {
+                    $this->resetPersistenceState();
+                }
+
                 $mutationsSinceFlush = 0;
-                $this->resetPersistenceState();
             }
         }
 
