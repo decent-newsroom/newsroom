@@ -2,7 +2,7 @@
 
 ## v0.0.45
 
-- [Bug] Hardened `events:replay-deletions` for large backfills: the command now streams kind `5` request ids in configurable batches, resets Doctrine state between requests/chunks, and `EventDeletionService` flushes tombstones in small chunks so long replays no longer get stuck behind an overgrown or closed EntityManager.
+- [Bug] Hardened `events:replay-deletions` for large backfills: the command now streams kind `5` request ids in configurable batches, resets Doctrine state between requests/chunks, and `EventDeletionService` flushes tombstones in small chunks while deduplicating repeated refs inside one deletion request, preventing `uniq_deleted_event_target_ref` failures.
 - [Improvement] Replaced deprecated `doctrine:query:sql` command references in project documentation with `dbal:run-sql` to align with current DoctrineBundle guidance and reduce console deprecation noise.
 - [Bug] `POST /api/broadcast-article` now returns a clear verification error (`422`) when an article's stored raw event cannot be verified/reconstructed, explicitly stating the event was not broadcast for that reason instead of surfacing a raw 500.
 - [Feature] Added `admin:delete-old-media-events` command to clean up old media events (kinds 20, 21, 22, 34235, 34236) that exceed a retention threshold (default: 60 days); useful for managing database size when media events are not heavily surfaced in feeds.

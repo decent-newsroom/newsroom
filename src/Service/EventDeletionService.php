@@ -126,6 +126,7 @@ class EventDeletionService
         $suppressed = 0;
         $skipped = 0;
         $mutationsSinceFlush = 0;
+        $seenTargetRefs = [];
 
         foreach ($deletionRequest->getTags() as $tag) {
             if (!is_array($tag) || !isset($tag[0], $tag[1])) {
@@ -141,6 +142,7 @@ class EventDeletionService
                         $requestedAt,
                         $reason,
                         $kHints,
+                        $seenTargetRefs,
                     );
                 } elseif ($tag[0] === 'a') {
                     $result = $this->handleCoordinateReference(
@@ -149,6 +151,7 @@ class EventDeletionService
                         $deletionRequest->getId(),
                         $requestedAt,
                         $reason,
+                        $seenTargetRefs,
                     );
                 } else {
                     continue;
@@ -216,6 +219,7 @@ class EventDeletionService
         int $requestedAt,
         ?string $reason,
         array $kHints,
+        array &$seenTargetRefs,
     ): string {
         $target = $this->eventRepository()->find($eventId);
 
@@ -246,6 +250,7 @@ class EventDeletionService
             deletionEventId: $deletionEventId,
             deletionCreatedAt: $requestedAt,
             reason: $reason,
+            seenTargetRefs: $seenTargetRefs,
         );
 
         if ($target === null) {
@@ -268,6 +273,7 @@ class EventDeletionService
         string $deletionEventId,
         int $requestedAt,
         ?string $reason,
+        array &$seenTargetRefs,
     ): string {
         $parts = explode(':', $coordinate, 3);
         if (count($parts) !== 3 || !ctype_digit($parts[0])) {
@@ -296,6 +302,7 @@ class EventDeletionService
             deletionEventId: $deletionEventId,
             deletionCreatedAt: $requestedAt,
             reason: $reason,
+            seenTargetRefs: $seenTargetRefs,
         );
 
         $this->cascadeDelete($kind, $requesterPubkey, $dTag, null, $requestedAt);
@@ -420,7 +427,15 @@ class EventDeletionService
         string $deletionEventId,
         int $deletionCreatedAt,
         ?string $reason,
+        array &$seenTargetRefs,
     ): void {
+        // Duplicate refs can appear in a single kind:5 request; avoid duplicate INSERTs
+        // before the current UnitOfWork flushes.
+        if (isset($seenTargetRefs[$targetRef])) {
+            return;
+        }
+        $seenTargetRefs[$targetRef] = true;
+
         $existing = $this->deletedEventRepository()->findByTargetRef($targetRef);
         if ($existing !== null) {
             // Keep the latest deletion_created_at so we honor a wider window.
