@@ -139,7 +139,7 @@ class DefaultController extends AbstractController
                 continue;
             }
 
-            if ($kind === KindsEnum::LONGFORM->value && $frontPageArticleCoordinate === null) {
+            if (($kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value) && $frontPageArticleCoordinate === null) {
                 $frontPageArticleCoordinate = (string) $tag[1];
             }
         }
@@ -149,6 +149,79 @@ class DefaultController extends AbstractController
             'chapterCoordinates' => $chapterCoordinates,
             'frontPageArticleCoordinate' => $frontPageArticleCoordinate,
         ];
+    }
+
+    /**
+     * @param array<int, array<mixed>> $categoryTags
+     * @return array<int, array{categorySlug: string, categoryTitle: string, articleCoordinate: ?string}>
+     */
+    private function buildCategoryPreviewPayload(array $categoryTags, EventRepository $eventRepository): array
+    {
+        if ($categoryTags === []) {
+            return [];
+        }
+
+        $categoryCoordinates = [];
+        foreach ($categoryTags as $tag) {
+            if (!isset($tag[1]) || !is_string($tag[1])) {
+                continue;
+            }
+            $categoryCoordinates[] = $tag[1];
+        }
+
+        if ($categoryCoordinates === []) {
+            return [];
+        }
+
+        $categoryMap = $eventRepository->findByCoordinates($categoryCoordinates);
+        $payload = [];
+
+        foreach ($categoryCoordinates as $coordinate) {
+            $parts = explode(':', $coordinate, 3);
+            $categorySlug = $parts[2] ?? '';
+            if ($categorySlug === '') {
+                continue;
+            }
+
+            $categoryEvent = $categoryMap[$coordinate] ?? null;
+            if (!$categoryEvent instanceof Event) {
+                $payload[] = [
+                    'categorySlug' => $categorySlug,
+                    'categoryTitle' => $categorySlug,
+                    'articleCoordinate' => null,
+                ];
+                continue;
+            }
+
+            $payload[] = [
+                'categorySlug' => $categorySlug,
+                'categoryTitle' => $categoryEvent->getTitle() ?? $categorySlug,
+                'articleCoordinate' => $this->findFirstCategoryArticleCoordinate($categoryEvent),
+            ];
+        }
+
+        return $payload;
+    }
+
+    private function findFirstCategoryArticleCoordinate(Event $categoryEvent): ?string
+    {
+        foreach ($categoryEvent->getTags() as $tag) {
+            if (!isset($tag[0], $tag[1]) || $tag[0] !== 'a' || !is_string($tag[1])) {
+                continue;
+            }
+
+            $parts = explode(':', $tag[1], 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            $kind = (int) $parts[0];
+            if ($kind === KindsEnum::LONGFORM->value || $kind === KindsEnum::LONGFORM_DRAFT->value) {
+                return $tag[1];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -1070,10 +1143,7 @@ class DefaultController extends AbstractController
      * @throws InvalidArgumentException|\Doctrine\DBAL\Exception
      */
     #[Route('/mag/{mag}', name: 'magazine-index')]
-    public function magIndex(string $mag, EntityManagerInterface $entityManager,
-                             Converter $converter,
-                             ArticleSearchInterface $articleSearch,
-                             RedisCacheService $redisCacheService) : Response
+    public function magIndex(string $mag, EntityManagerInterface $entityManager) : Response
     {
         $eventRepository = $entityManager->getRepository(Event::class);
         if (!$eventRepository instanceof EventRepository) {
@@ -1101,60 +1171,103 @@ class DefaultController extends AbstractController
             }
         }
 
-        // If the magazine designates a kind:30023 article as its front page, fetch and render it
+        // If a top-level article is designated, render only the front-article view.
+        // The heavy article lookup/render is deferred to a lazy Turbo Frame route.
         if ($frontPageArticleCoordinate !== null) {
-            $fpParts = explode(':', $frontPageArticleCoordinate, 3);
-            $fpSlug = $fpParts[2] ?? '';
-            $fpPubkey = $fpParts[1] ?? '';
-
-            $frontArticles = $articleSearch->findBySlugs([$fpSlug], 10);
-            // Prefer the article whose pubkey matches the coordinate
-            $frontArticle = null;
-            foreach ($frontArticles as $candidate) {
-                if ($candidate->getPubkey() === $fpPubkey) {
-                    $frontArticle = $candidate;
-                    break;
-                }
-            }
-            if ($frontArticle === null && !empty($frontArticles)) {
-                $frontArticle = $frontArticles[0];
-            }
-
-            if ($frontArticle !== null) {
-                $htmlContent = $frontArticle->getProcessedHtml();
-                if (!$htmlContent) {
-                    try {
-                        $htmlContent = $converter->convertToHTML(
-                            $frontArticle->getContent(),
-                            null,
-                            $frontArticle->getKind()?->value,
-                            $frontArticle->getRaw()['tags'] ?? null,
-                        );
-                    } catch (\Throwable) {
-                        $htmlContent = '';
-                    }
-                }
-
-                $key = new \swentel\nostr\Key\Key();
-                $fpNpub = $key->convertPublicKeyToBech32($frontArticle->getPubkey());
-                $fpAuthorMetadata = $redisCacheService->getMetadata($frontArticle->getPubkey());
-
-                return $this->render('magazine/magazine-front-article.html.twig', [
-                    'magazine' => $magazine,
-                    'mag' => $mag,
-                    'isOwner' => $isOwner,
-                    'article' => $frontArticle,
-                    'content' => $htmlContent,
-                    'npub' => $fpNpub,
-                    'author' => $fpAuthorMetadata->toStdClass(),
-                ]);
-            }
+            return $this->render('magazine/magazine-front-article.html.twig', [
+                'magazine' => $magazine,
+                'mag' => $mag,
+                'isOwner' => $isOwner,
+            ]);
         }
 
         return $this->render('magazine/magazine-front.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
             'isOwner' => $isOwner,
+        ]);
+    }
+
+    #[Route('/mag/{mag}/front-article-frame', name: 'magazine-front-article-frame')]
+    public function magFrontArticleFrame(
+        string $mag,
+        EntityManagerInterface $entityManager,
+        Converter $converter,
+        ArticleSearchInterface $articleSearch,
+        RedisCacheService $redisCacheService,
+    ): Response {
+        $eventRepository = $entityManager->getRepository(Event::class);
+        if (!$eventRepository instanceof EventRepository) {
+            return $this->render('magazine/_front_article_frame.html.twig', [
+                'article' => null,
+            ]);
+        }
+
+        $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+        if (!$magazine instanceof Event) {
+            return $this->render('magazine/_front_article_frame.html.twig', [
+                'article' => null,
+            ]);
+        }
+
+        $structure = $this->parseMagazineStructure($magazine);
+        $frontPageArticleCoordinate = $structure['frontPageArticleCoordinate'];
+        if (!is_string($frontPageArticleCoordinate) || $frontPageArticleCoordinate === '') {
+            return $this->render('magazine/_front_article_frame.html.twig', [
+                'article' => null,
+            ]);
+        }
+
+        $parts = explode(':', $frontPageArticleCoordinate, 3);
+        $articleSlug = $parts[2] ?? '';
+        $articlePubkey = $parts[1] ?? '';
+        if ($articleSlug === '' || $articlePubkey === '') {
+            return $this->render('magazine/_front_article_frame.html.twig', [
+                'article' => null,
+            ]);
+        }
+
+        $frontArticles = $articleSearch->findBySlugs([$articleSlug], 10);
+        $frontArticle = null;
+        foreach ($frontArticles as $candidate) {
+            if ($candidate->getPubkey() === $articlePubkey) {
+                $frontArticle = $candidate;
+                break;
+            }
+        }
+        if ($frontArticle === null && !empty($frontArticles)) {
+            $frontArticle = $frontArticles[0];
+        }
+
+        if (!$frontArticle instanceof Article) {
+            return $this->render('magazine/_front_article_frame.html.twig', [
+                'article' => null,
+            ]);
+        }
+
+        $htmlContent = $frontArticle->getProcessedHtml();
+        if (!$htmlContent) {
+            try {
+                $htmlContent = $converter->convertToHTML(
+                    $frontArticle->getContent(),
+                    null,
+                    $frontArticle->getKind()?->value,
+                    $frontArticle->getRaw()['tags'] ?? null,
+                );
+            } catch (\Throwable) {
+                $htmlContent = '';
+            }
+        }
+
+        $key = new Key();
+        $fpNpub = $key->convertPublicKeyToBech32($frontArticle->getPubkey());
+        $fpAuthorMetadata = $redisCacheService->getMetadata($frontArticle->getPubkey());
+
+        return $this->render('magazine/_front_article_frame.html.twig', [
+            'article' => $frontArticle,
+            'content' => $htmlContent,
+            'npub' => $fpNpub,
+            'author' => $fpAuthorMetadata->toStdClass(),
         ]);
     }
 
@@ -1181,22 +1294,83 @@ class DefaultController extends AbstractController
     }
 
     #[Route('/mag/{mag}/categories-frame', name: 'magazine-categories-frame')]
-    public function magCategoriesFrame(string $mag, EntityManagerInterface $entityManager): Response
+    public function magCategoriesFrame(
+        string $mag,
+        EntityManagerInterface $entityManager,
+        CacheItemPoolInterface $cache,
+    ): Response
     {
         $eventRepository = $entityManager->getRepository(Event::class);
         if (!$eventRepository instanceof EventRepository) {
-            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'categoryTags' => []]);
+            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'previews' => []]);
         }
 
         $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
         if ($magazine === null) {
-            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'categoryTags' => []]);
+            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'previews' => []]);
         }
 
         $structure = $this->parseMagazineStructure($magazine);
+
+        $cacheKey = 'magazine_category_previews_' . $magazine->getId();
+        $cacheItem = $cache->getItem($cacheKey);
+        if ($cacheItem->isHit() && is_array($cacheItem->get())) {
+            $previewPayload = $cacheItem->get();
+        } else {
+            $previewPayload = $this->buildCategoryPreviewPayload($structure['categoryTags'], $eventRepository);
+            $cacheItem->set($previewPayload);
+            $cacheItem->expiresAfter(600);
+            $cache->save($cacheItem);
+        }
+
+        $parsedCoordinates = [];
+        foreach ($previewPayload as $preview) {
+            $coordinate = $preview['articleCoordinate'] ?? null;
+            if (!is_string($coordinate) || $coordinate === '') {
+                continue;
+            }
+
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            $parsedCoordinates[] = [
+                'kind' => (int) $parts[0],
+                'pubkey' => $parts[1],
+                'slug' => $parts[2],
+            ];
+        }
+
+        $articleMap = [];
+        if ($parsedCoordinates !== []) {
+            /** @var ArticleRepository $articleRepository */
+            $articleRepository = $entityManager->getRepository(Article::class);
+            $articleMap = $articleRepository->findByCoordinates($parsedCoordinates);
+        }
+
+        $previews = [];
+        foreach ($previewPayload as $preview) {
+            $coordinate = $preview['articleCoordinate'] ?? null;
+            $article = null;
+            if (is_string($coordinate) && $coordinate !== '') {
+                $parts = explode(':', $coordinate, 3);
+                if (count($parts) === 3) {
+                    $key = ((int) $parts[0]) . ':' . $parts[1] . ':' . $parts[2];
+                    $article = $articleMap[$key] ?? null;
+                }
+            }
+
+            $previews[] = [
+                'categorySlug' => $preview['categorySlug'] ?? '',
+                'categoryTitle' => $preview['categoryTitle'] ?? '',
+                'article' => $article,
+            ];
+        }
+
         return $this->render('magazine/_categories_frame.html.twig', [
             'mag' => $mag,
-            'categoryTags' => $structure['categoryTags'],
+            'previews' => $previews,
         ]);
     }
 

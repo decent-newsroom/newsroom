@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Performance] Magazine front pages now choose a lighter rendering strategy: when a top-level featured article is present, the page shows only that article view and defers article resolution/body rendering to a lazy Turbo Frame; when only categories are present, the page renders one cached preview article per category (10-minute cache) via the categories Turbo Frame.
 - [Performance] Article engagement sections are now lazy-loaded via Turbo Frames: comments and highlights moved out of the initial article response and fetched from dedicated `/p/{npub}/d/{slug}/comments` and `/p/{npub}/d/{slug}/highlights` frame endpoints after the page is visible.
 - [Performance] Magazine endpoints now avoid full event-table scans and per-chapter N+1 SQL lookups: front/read/manifest routes resolve the latest index via indexed `d_tag` lookup and batch chapter coordinates in one DB query, reducing first-byte latency on `/mag/*` pages.
 - [Performance] Article pages now load faster: the synchronous Nostr relay fetch (blocking on unknown articles) is replaced by an async dispatch + Mercure-powered loading page; publications (sidebar) and reading-list prev/next navigation are lazy-loaded via Turbo Frames so the article body renders immediately.

@@ -1,8 +1,31 @@
 <turbo-frame id="magazine-categories">
-    {% if categoryTags is not empty %}
-        {% for cat in categoryTags %}
-            <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list"/>
-        {% endfor %}
+    {% if previews is not empty %}
+        <div class="mb-5">
+            {% for preview in previews %}
+                <div class="featured-cat">
+                    <a href="{{ path('magazine-category', { slug: preview.categorySlug, mag: mag }) }}">
+                        {{ preview.categoryTitle ?: preview.categorySlug }}
+                    </a>
+                </div>
+                {% if preview.article %}
+                    <div class="article-list mb-4">
+                        <twig:Molecules:Card :article="preview.article" :cat="preview.categorySlug" :mag="mag" />
+                    </div>
+                {% else %}
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <p class="text-muted mb-0">No cached preview article available yet.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body">
+                <p class="text-muted mb-0">No category previews available yet.</p>
+            </div>
+        </div>
     {% endif %}
 </turbo-frame>
 

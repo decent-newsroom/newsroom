@@ -1,0 +1,75 @@
+<turbo-frame id="magazine-front-article">
+    {% if article %}
+        <article class="w-container">
+            <div class="card heading">
+                <div class="card-sources">
+                    <span class="source-badge source-badge--featured">Featured</span>
+                </div>
+                <div class="card-header">
+                    <h1 class="card-title">{{ article.title }}</h1>
+                </div>
+                {% if author %}
+                    <div class="byline">
+                        <span>
+                            {{ 'text.byline'|trans }} <a href="{{ path('author-redirect', {'pubkey': article.pubkey}) }}">
+                                <twig:Atoms:NameOrNpub :author="author" :npub="npub" />
+                            </a>
+                        </span>
+                        <span>
+                            {% if article.publishedAt is not null %}
+                                <small>{{ article.publishedAt|date('F j, Y') }}</small>
+                                {% if article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+                                    <small class="article-edited-note">· {{ 'text.edited'|trans }} {{ article.createdAt|date('F j, Y') }}</small>
+                                {% endif %}
+                            {% else %}
+                                <small>{{ article.createdAt|date('F j, Y') }}</small>
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="card-body">
+                {% if article.summary %}
+                    <div class="lede"
+                         data-controller="utility--katex"
+                         data-utility--katex-display-value="false">
+                        {{ article.summary }}
+                    </div>
+                {% endif %}
+
+                {% if article.image %}
+                    <div class="article__image">
+                        <img src="{{ article.image }}" alt="{{ article.title }}">
+                    </div>
+                {% endif %}
+
+                <div class="article-main"
+                     data-controller="utility--katex"
+                     data-utility--katex-display-value="true">
+                    {{ content|resolve_nostr_embeds|raw }}
+                </div>
+
+                {% if article.topics|length > 0 %}
+                    <hr class="divider" />
+                    <div class="tags">
+                        {% for tag in article.topics %}
+                            {% if tag is not empty %}
+                                <a href="{{ path('forum_tag', {'tag': tag|url_encode}) }}" class="tag">#{{ tag }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </article>
+    {% else %}
+        <article class="w-container">
+            <div class="card">
+                <div class="card-body">
+                    <p class="text-muted mb-0">Featured article is not available yet.</p>
+                </div>
+            </div>
+        </article>
+    {% endif %}
+</turbo-frame>
+
