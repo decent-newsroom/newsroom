@@ -8,9 +8,11 @@
 
     {% if isSubcategoryCategory %}
         {# Subcategory container — recursively render a FeaturedList for each child category #}
-        {% for subcat in list %}
-            <twig:Organisms:FeaturedList :mag="mag" category="{{ subcat }}" class="featured-list featured-list--sub" />
-        {% endfor %}
+        {% if canRenderChildren %}
+            {% for subcat in list %}
+                <twig:Organisms:FeaturedList :mag="mag" category="{{ subcat }}" :depth="depth + 1" class="featured-list featured-list--sub" />
+            {% endfor %}
+        {% endif %}
     {% elseif isChapterCategory %}
         {# Chapter-based category — show first chapter + link to all #}
         {% set feature = list[0] %}
