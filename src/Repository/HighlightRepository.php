@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Article;
 use App\Entity\Highlight;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -247,7 +248,7 @@ class HighlightRepository extends ServiceEntityRepository
      * Get latest highlights with their corresponding articles
      * Uses a join or separate query to efficiently fetch both
      * @param int $limit Maximum number of highlights to return
-     * @return array<array{highlight: Highlight, article: ?\App\Entity\Article}>
+     * @return array<array{highlight: Highlight, article: ?Article}>
      */
     public function findLatestWithArticles(int $limit = 200): array
     {
@@ -255,16 +256,16 @@ class HighlightRepository extends ServiceEntityRepository
         $highlights = $this->findLatest($limit);
 
         // Extract article coordinates and fetch corresponding articles
-        $coordinates = array_unique(array_map(
-            fn(Highlight $h) => $h->getArticleCoordinate(),
-            $highlights
-        ));
+        $coordinates = array_values(array_unique(array_filter(
+            array_map(fn(Highlight $h) => $h->getArticleCoordinate(), $highlights),
+            fn($coordinate) => is_string($coordinate) && $coordinate !== ''
+        )));
 
         // Query articles by their coordinates
         $articles = [];
         if (!empty($coordinates)) {
             $em = $this->getEntityManager();
-            $articleRepo = $em->getRepository(\App\Entity\Article::class);
+            $articleRepo = $em->getRepository(Article::class);
 
             // Build article coordinate map (kind:pubkey:identifier format)
             foreach ($coordinates as $coordinate) {
@@ -289,9 +290,11 @@ class HighlightRepository extends ServiceEntityRepository
         // Combine highlights with their articles
         $result = [];
         foreach ($highlights as $highlight) {
+            $coordinate = $highlight->getArticleCoordinate() ?? '';
+
             $result[] = [
                 'highlight' => $highlight,
-                'article' => $articles[$highlight->getArticleCoordinate()] ?? null,
+                'article' => $coordinate !== '' ? ($articles[$coordinate] ?? null) : null,
             ];
         }
 
