@@ -8,6 +8,7 @@
 
 ## v0.0.45
 
+- [Bug] Added a Postgres healthcheck to `compose.yaml` so `service_healthy` dependencies no longer fail with `newsroom-database-1 has no healthcheck configured` during startup.
 - [Bug] Hardened `events:replay-deletions` for large backfills: the command now streams kind `5` request ids in configurable batches, resets Doctrine state between requests/chunks, and `EventDeletionService` flushes tombstones in small chunks while deduplicating repeated refs inside one deletion request, preventing `uniq_deleted_event_target_ref` failures.
 - [Improvement] Replaced deprecated `doctrine:query:sql` command references in project documentation with `dbal:run-sql` to align with current DoctrineBundle guidance and reduce console deprecation noise.
 - [Bug] `POST /api/broadcast-article` now returns a clear verification error (`422`) when an article's stored raw event cannot be verified/reconstructed, explicitly stating the event was not broadcast for that reason instead of surfacing a raw 500.
