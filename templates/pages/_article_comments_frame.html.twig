@@ -1,0 +1,14 @@
+{% set articleRootContext = {
+    tag: 'A',
+    value: articleRoot,
+    relay: null,
+    pubkey: articlePubkey,
+    kind: 30023
+} %}
+
+<twig:Organisms:Comments
+    current="{{ articleRoot }}"
+    :rootContext="articleRootContext"
+    :replyPublishUrl="path('comment_publish')"
+    :replyCsrfToken="csrf_token('comment_publish')" />
+

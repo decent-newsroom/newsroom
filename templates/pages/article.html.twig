@@ -168,21 +168,8 @@
                     canonicalUrl="{{ canonical }}"
                     naddrEncoded="{{ article|naddrEncode }}"
                     :isProtected="isProtected"
-                    :highlightCount="highlights is defined ? highlights|length : 0"
+                    :highlightCount="0"
                     :relays="userRelays" />
-
-                {# Hidden highlights toggle button — triggered by the dropdown controller #}
-                {% if highlights is defined and highlights|length > 0 %}
-                    <button data-ui--highlights-toggle-target="button"
-                            data-action="click->ui--highlights-toggle#toggle"
-                            class="btn btn-secondary"
-                            type="button"
-                            aria-pressed="false"
-                            title="Toggle highlights"
-                            hidden>
-                        Highlights ({{ highlights|length }})
-                    </button>
-                {% endif %}
             </div>
         {% endif %}
 
@@ -267,10 +254,7 @@
 
             <div class="article-main"
                  data-controller="utility--katex"
-                 data-utility--katex-display-value="true"
-                 {% if highlights is defined and highlights|length > 0 %}
-                 data-highlights="{{ highlights|json_encode|e('html_attr') }}"
-                 {% endif %}>
+                 data-utility--katex-display-value="true">
                 {{ content|resolve_nostr_embeds|raw }}
             </div>
 
@@ -353,52 +337,17 @@
         />
         </div>
 
-        <twig:Organisms:Comments
-            current="30023:{{ article.pubkey }}:{{ article.slug|e }}"
-            :rootContext="articleRoot"
-            :replyPublishUrl="path('comment_publish')"
-            :replyCsrfToken="csrf_token('comment_publish')" />
+        <turbo-frame id="article-comments"
+                     src="{{ path('article-comments-frame', {npub: npub, slug: article.slug}) }}"
+                     loading="lazy">
+        </turbo-frame>
         {% endif %}
 
-        {# Highlights - shown after comments #}
-        {% if highlights is defined and highlights|length > 0 %}
-            <div class="highlights-bottom-section">
-                <h3 class="highlights-bottom-heading hidden">Highlights ({{ highlights|length }})</h3>
-                <div class="highlights-bottom-grid">
-                    {% for highlight in highlights %}
-                        <div class="highlight-card-compact">
-                            <div class="highlight-header-compact">
-                                {% if highlight.pubkey %}
-                                    <twig:Molecules:UserFromNpub
-                                        ident="{{ highlight.pubkey }}"
-                                        :compact="true"
-                                    />
-                                {% else %}
-                                    <span class="text-muted">Anonymous</span>
-                                {% endif %}
-                                <small class="text-muted ms-auto">
-                                    {{ highlight.created_at|date('M j') }}
-                                </small>
-                            </div>
-                            <div class="highlight-content-compact">
-                                {% if highlight.context %}
-                                    {% set htmlContext = highlight.context|markdown_to_html %}
-                                    {% if highlight.content in highlight.context %}
-                                        {% set wrapper = '<mark class="highlight-mark-compact">' ~ highlight.content ~ '</mark>' %}
-                                        {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
-                                        {{ rendered|raw }}
-                                    {% else %}
-                                        <div class="context-text-compact">{{ htmlContext|raw }}</div>
-                                        <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
-                                    {% endif %}
-                                {% else %}
-                                    <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
+        {% if not (isDraft is defined and isDraft) %}
+            <turbo-frame id="article-highlights"
+                         src="{{ path('article-highlights-frame', {npub: npub, slug: article.slug}) }}"
+                         loading="lazy">
+            </turbo-frame>
         {% endif %}
 
         {# Prev/Next article navigation from reading list — lazy Turbo Frame #}

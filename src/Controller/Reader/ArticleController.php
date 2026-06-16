@@ -377,6 +377,50 @@ class ArticleController  extends AbstractController
         ]);
     }
 
+    #[Route('/p/{npub}/d/{slug}/comments', name: 'article-comments-frame', requirements: ['slug' => '.+'], priority: 6)]
+    public function articleCommentsFrame(
+        string $slug,
+        string $npub,
+    ): Response {
+        $slug = urldecode($slug);
+
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+            $articleRoot = '30023:' . $pubkey . ':' . $slug;
+        } catch (\Throwable) {
+            return new Response('');
+        }
+
+        return $this->render('pages/_article_comments_frame.html.twig', [
+            'articleRoot' => $articleRoot,
+            'articlePubkey' => $pubkey,
+        ]);
+    }
+
+    #[Route('/p/{npub}/d/{slug}/highlights', name: 'article-highlights-frame', requirements: ['slug' => '.+'], priority: 6)]
+    public function articleHighlightsFrame(
+        string $slug,
+        string $npub,
+        HighlightService $highlightService,
+    ): Response {
+        $slug = urldecode($slug);
+        $highlights = [];
+
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+            $articleCoordinate = '30023:' . $pubkey . ':' . $slug;
+            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
+        } catch (\Throwable) {
+            // Best-effort only
+        }
+
+        return $this->render('pages/_article_highlights_frame.html.twig', [
+            'highlights' => $highlights,
+        ]);
+    }
+
     #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
@@ -385,7 +429,6 @@ class ArticleController  extends AbstractController
         RedisCacheService $redisCacheService,
         Converter $converter,
         LoggerInterface $logger,
-        HighlightService $highlightService,
         NostrEventParser $eventParser,
         EmbedReferenceExtractor $embedExtractor,
         MessageBusInterface $bus,
@@ -523,14 +566,6 @@ class ArticleController  extends AbstractController
             // Non-critical — transport may be temporarily unavailable
             $logger->debug('Could not dispatch embed prefetch', ['error' => $e->getMessage()]);
         }
-        $highlights = [];
-        try {
-            $articleCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-            $highlights = $highlightService->getHighlightsForArticle($articleCoordinate);
-        } catch (\Throwable $e) {
-            // Best-effort only
-        }
-
         try {
             return $this->render('pages/article.html.twig', [
                 'article' => $article,
@@ -539,7 +574,6 @@ class ArticleController  extends AbstractController
                 'content' => $htmlContent,
                 'canEdit' => $canEdit,
                 'canonical' => $canonical,
-                'highlights' => $highlights,
                 'advancedMetadata' => $advancedMetadata,
             ]);
         } catch (\Throwable $e) {

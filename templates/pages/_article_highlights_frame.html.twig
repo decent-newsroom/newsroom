@@ -1,0 +1,55 @@
+{% if highlights is defined and highlights|length > 0 %}
+    <div class="highlights-frame-loader"
+         data-controller="content--highlights-frame"
+         data-content--highlights-frame-items-value="{{ highlights|json_encode|e('html_attr') }}">
+    </div>
+
+    <button data-ui--highlights-toggle-target="button"
+            data-action="click->ui--highlights-toggle#toggle"
+            class="btn btn-secondary"
+            type="button"
+            aria-pressed="false"
+            title="Toggle highlights"
+            hidden>
+        Highlights ({{ highlights|length }})
+    </button>
+
+    <div class="highlights-bottom-section">
+        <h3 class="highlights-bottom-heading hidden">Highlights ({{ highlights|length }})</h3>
+        <div class="highlights-bottom-grid">
+            {% for highlight in highlights %}
+                <div class="highlight-card-compact">
+                    <div class="highlight-header-compact">
+                        {% if highlight.pubkey %}
+                            <twig:Molecules:UserFromNpub
+                                ident="{{ highlight.pubkey }}"
+                                :compact="true"
+                            />
+                        {% else %}
+                            <span class="text-muted">Anonymous</span>
+                        {% endif %}
+                        <small class="text-muted ms-auto">
+                            {{ highlight.created_at|date('M j') }}
+                        </small>
+                    </div>
+                    <div class="highlight-content-compact">
+                        {% if highlight.context %}
+                            {% set htmlContext = highlight.context|markdown_to_html %}
+                            {% if highlight.content in highlight.context %}
+                                {% set wrapper = '<mark class="highlight-mark-compact">' ~ highlight.content ~ '</mark>' %}
+                                {% set rendered = htmlContext|replace({ (highlight.content): wrapper }) %}
+                                {{ rendered|raw }}
+                            {% else %}
+                                <div class="context-text-compact">{{ htmlContext|raw }}</div>
+                                <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
+                            {% endif %}
+                        {% else %}
+                            <mark class="highlight-mark-compact">{{ highlight.content }}</mark>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+

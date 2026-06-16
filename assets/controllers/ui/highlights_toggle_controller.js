@@ -1,9 +1,14 @@
 ﻿import { Controller } from '@hotwired/stimulus';
 export default class extends Controller {
     static targets = ['button'];
+
     connect() {
+        this.onHighlightsLoaded = this.onHighlightsLoaded.bind(this);
+        this.element.addEventListener('article:highlights-loaded', this.onHighlightsLoaded);
+
         this.articleMain = this.element.querySelector('.article-main');
         if (!this.articleMain) return;
+
         const highlightsData = this.articleMain.getAttribute('data-highlights');
         if (highlightsData) {
             try {
@@ -17,6 +22,19 @@ export default class extends Controller {
         const enabled = localStorage.getItem('highlights-enabled') === 'true';
         this.setHighlightsVisibility(enabled);
     }
+
+    disconnect() {
+        this.element.removeEventListener('article:highlights-loaded', this.onHighlightsLoaded);
+    }
+
+    onHighlightsLoaded(event) {
+        this.highlights = event.detail?.highlights || [];
+        this.applyHighlights();
+
+        const enabled = localStorage.getItem('highlights-enabled') === 'true';
+        this.setHighlightsVisibility(enabled);
+    }
+
     applyHighlights() {
         if (!this.highlights || this.highlights.length === 0) return;
         // Get all text nodes in the article
@@ -36,7 +54,7 @@ export default class extends Controller {
             textNodes.push(node);
         }
         // For each highlight, find and wrap matching text
-        this.highlights.forEach((highlight, index) => {
+        this.highlights.forEach((highlight) => {
             const searchText = highlight.content.trim();
             if (!searchText) return;
             textNodes.forEach(textNode => {
