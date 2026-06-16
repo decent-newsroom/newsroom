@@ -389,7 +389,7 @@ class ArticleController  extends AbstractController
             $pubkey = $key->convertToHex($npub);
             $articleRoot = '30023:' . $pubkey . ':' . $slug;
         } catch (\Throwable) {
-            return new Response('');
+            return $this->render('pages/_article_comments_frame.html.twig');
         }
 
         return $this->render('pages/_article_comments_frame.html.twig', [

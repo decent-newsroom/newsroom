@@ -1,14 +1,18 @@
-{% set articleRootContext = {
-    tag: 'A',
-    value: articleRoot,
-    relay: null,
-    pubkey: articlePubkey,
-    kind: 30023
-} %}
+<turbo-frame id="article-comments">
+    {% if articleRoot is defined and articlePubkey is defined and articleRoot %}
+        {% set articleRootContext = {
+            tag: 'A',
+            value: articleRoot,
+            relay: null,
+            pubkey: articlePubkey,
+            kind: 30023
+        } %}
 
-<twig:Organisms:Comments
-    current="{{ articleRoot }}"
-    :rootContext="articleRootContext"
-    :replyPublishUrl="path('comment_publish')"
-    :replyCsrfToken="csrf_token('comment_publish')" />
+        <twig:Organisms:Comments
+            current="{{ articleRoot }}"
+            :rootContext="articleRootContext"
+            :replyPublishUrl="path('comment_publish')"
+            :replyCsrfToken="csrf_token('comment_publish')" />
+    {% endif %}
+</turbo-frame>
 
