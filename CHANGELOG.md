@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] Reduced strfry LMDB read/write pressure: cut router relay connections (9 → 5), dropped kind `3` (follow lists) and kind `10000` (mute lists) from the `user_data` stream, eliminated duplicate `10002` ingestion, removed non-standard kind `777`, reduced LMDB mmap from 10 GiB → 3 GiB, dropped `maxreaders` 256 → 64, tightened `queryTimesliceBudgetMicroseconds` to 4 ms, `maxFilterLimit` to 200, `maxSubsPerConnection` to 15, and tightened the max event age from 3 years → 6 months.
 - [Improvement] Reworked the FrankenPHP Docker healthcheck to use a local readiness marker written by `frankenphp/docker-entrypoint.sh` instead of curling `/up`, eliminating HTTP probe traffic while keeping `service_healthy` startup ordering.
 - [Deprecated] Removed the legacy ChatBundle wiring from Symfony config (`services.yaml`, `security.yaml`, `messenger.yaml`, `doctrine.yaml`, `twig.yaml`, `config/packages/chat.yaml`, and `config/routes/chat.yaml`) and neutralized the old admin chat controllers so the bundle no longer participates in container compilation.
 
