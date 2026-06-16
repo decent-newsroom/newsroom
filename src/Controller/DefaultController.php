@@ -1831,18 +1831,37 @@ class DefaultController extends AbstractController
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
-        // Query the database for the category event by slug using native SQL
-        $sql = "SELECT e.* FROM event e
-                WHERE e.tags @> ?::jsonb
-                ORDER BY e.created_at DESC
-                ";
-
         $conn = $entityManager->getConnection();
-        $result = $conn->executeQuery($sql, [
-            json_encode([['d', $slug]])
-        ]);
+        // Fast path: indexed replaceable lookup (kind + d_tag), newest wins.
+        $eventData = $conn->executeQuery(
+            'SELECT e.* FROM event e
+             WHERE e.kind = :kind
+               AND e.d_tag = :slug
+             ORDER BY e.created_at DESC
+             LIMIT 1',
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'slug' => $slug,
+            ]
+        )->fetchAssociative();
 
-        $eventData = $result->fetchAssociative();
+        if ($eventData === false) {
+            // Backward compatibility for pre-d_tag rows.
+            $eventData = $conn->executeQuery(
+                "SELECT e.* FROM event e
+                 WHERE e.kind = :kind
+                   AND EXISTS (
+                     SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                     WHERE tag->>0 = 'd' AND tag->>1 = :slug
+                   )
+                 ORDER BY e.created_at DESC
+                 LIMIT 1",
+                [
+                    'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                    'slug' => $slug,
+                ]
+            )->fetchAssociative();
+        }
 
 
         if ($eventData === false) {
@@ -1901,6 +1920,10 @@ class DefaultController extends AbstractController
         }
 
         if ($isChapterCategory) {
+            /** @var EventRepository $eventRepository */
+            $eventRepository = $entityManager->getRepository(Event::class);
+            $chapterMap = $eventRepository->findByCoordinates($coordinates);
+
             // Fetch 30041 chapter events directly
             $chapters = [];
             foreach ($coordinates as $coordinate) {
@@ -1908,29 +1931,39 @@ class DefaultController extends AbstractController
                 if (count($parts) !== 3) {
                     continue;
                 }
+                $chapterKind = (int) ($parts[0] ?? 0);
+                $chapterPubkey = $parts[1] ?? '';
                 $chapterSlug = $parts[2];
+                $chapter = $chapterMap[$coordinate] ?? null;
 
-                $chapterSql = "SELECT e.* FROM event e
-                    WHERE e.tags @> ?::jsonb
-                    AND e.kind = ?
-                    ORDER BY e.created_at DESC
-                    LIMIT 1";
+                if (!$chapter instanceof Event && $chapterKind === KindsEnum::PUBLICATION_CONTENT->value && $chapterPubkey !== '' && $chapterSlug !== '') {
+                    // Fallback for legacy rows that may not have d_tag backfilled.
+                    $chapterData = $conn->executeQuery(
+                        "SELECT e.* FROM event e
+                         WHERE e.kind = :kind
+                           AND e.pubkey = :pubkey
+                           AND (
+                             e.d_tag = :slug
+                             OR EXISTS (
+                               SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                               WHERE tag->>0 = 'd' AND tag->>1 = :slug
+                             )
+                           )
+                         ORDER BY e.created_at DESC
+                         LIMIT 1",
+                        [
+                            'kind' => KindsEnum::PUBLICATION_CONTENT->value,
+                            'pubkey' => $chapterPubkey,
+                            'slug' => $chapterSlug,
+                        ]
+                    )->fetchAssociative();
 
-                $chapterResult = $conn->executeQuery($chapterSql, [
-                    json_encode([['d', $chapterSlug]]),
-                    KindsEnum::PUBLICATION_CONTENT->value,
-                ]);
+                    if ($chapterData !== false) {
+                        $chapter = $this->hydrateEventFromRow($chapterData);
+                    }
+                }
 
-                $chapterData = $chapterResult->fetchAssociative();
-                if ($chapterData) {
-                    $chapter = new Event();
-                    $chapter->setId($chapterData['id']);
-                    $chapter->setKind((int)$chapterData['kind']);
-                    $chapter->setPubkey($chapterData['pubkey']);
-                    $chapter->setContent($chapterData['content']);
-                    $chapter->setCreatedAt((int)$chapterData['created_at']);
-                    $chapter->setTags(json_decode($chapterData['tags'], true) ?? []);
-                    $chapter->setSig($chapterData['sig']);
+                if ($chapter instanceof Event) {
                     $chapters[] = [
                         'event' => $chapter,
                         'coordinate' => $coordinate,
@@ -2121,11 +2154,34 @@ class DefaultController extends AbstractController
         $slug = urldecode($slug);
 
         $conn = $entityManager->getConnection();
-        $categoryResult = $conn->executeQuery(
-            "SELECT e.* FROM event e WHERE e.tags @> ?::jsonb ORDER BY e.created_at DESC LIMIT 1",
-            [json_encode([['d', $cat]])]
-        );
-        $categoryData = $categoryResult->fetchAssociative();
+        $categoryData = $conn->executeQuery(
+            'SELECT e.* FROM event e
+             WHERE e.kind = :kind
+               AND e.d_tag = :slug
+             ORDER BY e.created_at DESC
+             LIMIT 1',
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'slug' => $cat,
+            ]
+        )->fetchAssociative();
+
+        if ($categoryData === false) {
+            $categoryData = $conn->executeQuery(
+                "SELECT e.* FROM event e
+                 WHERE e.kind = :kind
+                   AND EXISTS (
+                     SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                     WHERE tag->>0 = 'd' AND tag->>1 = :slug
+                   )
+                 ORDER BY e.created_at DESC
+                 LIMIT 1",
+                [
+                    'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                    'slug' => $cat,
+                ]
+            )->fetchAssociative();
+        }
 
         if ($categoryData === false) {
             throw $this->createNotFoundException('Category not found');
