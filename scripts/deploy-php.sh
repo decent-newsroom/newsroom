@@ -122,7 +122,6 @@ printf "Services NOT restarted (stable infrastructure):\n"
 printf "  • database (PostgreSQL)\n"
 printf "  • redis (external)\n"
 printf "  • strfry (local relay)\n"
-printf "  • strfry-chat\n"
 printf "  • strfry-essayist (if enabled)\n"
 printf "  • essayist-gateway (if enabled)\n"
 printf '\n'

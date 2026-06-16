@@ -25,12 +25,6 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Entity'
                 prefix: 'App\Entity'
                 alias: App
-            ChatBundle:
-                type: attribute
-                is_bundle: false
-                dir: '%kernel.project_dir%/src/ChatBundle/Entity'
-                prefix: 'App\ChatBundle\Entity'
-                alias: ChatBundle
         controller_resolver:
             auto_mapping: false
 

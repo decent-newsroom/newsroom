@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.46
+
+- [Deprecated] Removed the legacy ChatBundle wiring from Symfony config (`services.yaml`, `security.yaml`, `messenger.yaml`, `doctrine.yaml`, `twig.yaml`, `config/packages/chat.yaml`, and `config/routes/chat.yaml`) and neutralized the old admin chat controllers so the bundle no longer participates in container compilation.
+
 ## v0.0.45
 
 - [Bug] Hardened `events:replay-deletions` for large backfills: the command now streams kind `5` request ids in configurable batches, resets Doctrine state between requests/chunks, and `EventDeletionService` flushes tombstones in small chunks while deduplicating repeated refs inside one deletion request, preventing `uniq_deleted_event_target_ref` failures.

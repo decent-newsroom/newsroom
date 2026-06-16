@@ -39,12 +39,6 @@ services:
     # Dev startup is slower (anonymous vendor volume → composer install + asset
     # compile + DB wait + migrations).  Give the entrypoint up to ~6 minutes
     # before Docker marks the container unhealthy.
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/up"]
-      start_period: 300s
-      interval: 10s
-      timeout: 5s
-      retries: 6
     tty: true
 
 ###> symfony/mercure-bundle ###
@@ -66,12 +60,6 @@ services:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-r_password}", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
 ###< Redis ###
 
   cron:

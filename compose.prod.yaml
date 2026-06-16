@@ -10,7 +10,6 @@
 #   - Uses frankenphp_prod Docker target (optimized, no dev tools)
 #   - No source code bind mounts (code is baked into image)
 #   - Automatic TLS certificates via Let's Encrypt (when SERVER_NAME is a domain)
-#   - Healthchecks for service dependencies
 #
 # Required environment variables (set in .env.prod.local):
 #   - APP_SECRET: Unique secret for CSRF/cookies
@@ -74,23 +73,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-app}
     volumes:
       - database_data:/var/lib/postgresql/data:rw
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d ${POSTGRES_DB:-app} -U ${POSTGRES_USER:-app}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
 
   relay-gateway:
     image: ${COMPOSE_PROJECT_NAME:-newsroom}-php
     profiles: !reset []
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "php", "bin/console", "app:relay-gateway:status", "--health-check"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     env_file:
       - .env.prod.local
     environment:

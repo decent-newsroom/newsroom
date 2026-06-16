@@ -4,10 +4,6 @@ help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-relay-build: ## Build relay containers (first time only, ~10 min)
-	docker compose build strfry strfry-chat
-	@echo "Relay containers built successfully."
-
 relay-up: ## Start local relay stack (strfry + worker-relay)
 	docker compose up -d strfry worker-relay
 	@echo "Relay stack started. Check status with: docker compose ps"
@@ -15,14 +11,6 @@ relay-up: ## Start local relay stack (strfry + worker-relay)
 relay-down: ## Stop local relay stack (strfry + worker-relay)
 	docker compose stop worker-relay strfry
 	@echo "Relay stack stopped."
-
-relay-chat-up: ## Start private chat relay service
-	docker compose up -d strfry-chat
-	@echo "Chat relay started."
-
-relay-chat-down: ## Stop private chat relay service
-	docker compose stop strfry-chat
-	@echo "Chat relay stopped."
 
 relay-gateway-up: ## Start relay gateway service (gateway profile)
 	docker compose --profile gateway up -d relay-gateway
