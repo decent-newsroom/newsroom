@@ -11,6 +11,7 @@ use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\ArticleRepository;
+use App\Repository\EventRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
@@ -45,6 +46,158 @@ use Pagerfanta\Pagerfanta;
 
 class DefaultController extends AbstractController
 {
+    /**
+     * Hydrate an Event from a raw DB row without going through a full ORM query.
+     */
+    private function hydrateEventFromRow(array $row): Event
+    {
+        $event = new Event();
+        $event->setId((string) ($row['id'] ?? ''));
+        if (isset($row['event_id'])) {
+            $event->setEventId((string) $row['event_id']);
+        }
+        $event->setKind((int) ($row['kind'] ?? 0));
+        $event->setPubkey((string) ($row['pubkey'] ?? ''));
+        $event->setContent((string) ($row['content'] ?? ''));
+        $event->setCreatedAt((int) ($row['created_at'] ?? 0));
+        $event->setSig($row['sig'] ?? null);
+
+        $tags = $row['tags'] ?? [];
+        if (is_string($tags)) {
+            $tags = json_decode($tags, true) ?? [];
+        }
+        $event->setTags(is_array($tags) ? $tags : []);
+
+        return $event;
+    }
+
+    /**
+     * Find latest kind:30040 index for a magazine slug using indexed d_tag first.
+     */
+    private function findLatestMagazineIndexBySlug(string $slug, EventRepository $eventRepository): ?Event
+    {
+        $conn = $eventRepository->getEntityManager()->getConnection();
+
+        $row = $conn->executeQuery(
+            'SELECT * FROM event e WHERE e.kind = :kind AND e.d_tag = :slug ORDER BY e.created_at DESC LIMIT 1',
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'slug' => $slug,
+            ],
+        )->fetchAssociative();
+
+        if ($row === false) {
+            // Backward compatibility for rows that predate d_tag backfill.
+            $row = $conn->executeQuery(
+                "SELECT * FROM event e
+                 WHERE e.kind = :kind
+                   AND EXISTS (
+                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                       WHERE tag->>0 = 'd' AND tag->>1 = :slug
+                   )
+                 ORDER BY e.created_at DESC
+                 LIMIT 1",
+                [
+                    'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                    'slug' => $slug,
+                ],
+            )->fetchAssociative();
+        }
+
+        return $row !== false ? $this->hydrateEventFromRow($row) : null;
+    }
+
+    /**
+     * Parse magazine tags into categories, chapters and optional front-page article coordinate.
+     *
+     * @return array{categoryTags: array<int, array<mixed>>, chapterCoordinates: string[], frontPageArticleCoordinate: ?string}
+     */
+    private function parseMagazineStructure(Event $magazine): array
+    {
+        $categoryTags = [];
+        $chapterCoordinates = [];
+        $frontPageArticleCoordinate = null;
+
+        foreach ($magazine->getTags() as $tag) {
+            if (!isset($tag[0], $tag[1]) || $tag[0] !== 'a') {
+                continue;
+            }
+
+            $parts = explode(':', (string) $tag[1], 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            $kind = (int) $parts[0];
+            if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
+                $categoryTags[] = $tag;
+                continue;
+            }
+
+            if ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
+                $chapterCoordinates[] = (string) $tag[1];
+                continue;
+            }
+
+            if ($kind === KindsEnum::LONGFORM->value && $frontPageArticleCoordinate === null) {
+                $frontPageArticleCoordinate = (string) $tag[1];
+            }
+        }
+
+        return [
+            'categoryTags' => $categoryTags,
+            'chapterCoordinates' => $chapterCoordinates,
+            'frontPageArticleCoordinate' => $frontPageArticleCoordinate,
+        ];
+    }
+
+    /**
+     * Build chapter cards for magazine templates using one batch DB lookup.
+     *
+     * @param string[] $chapterCoordinates
+     * @return array<int, array{event: ?Event, coordinate: string, fetched: bool, slug?: string, pubkey?: string, kind?: int}>
+     */
+    private function resolveMagazineChapters(array $chapterCoordinates, EventRepository $eventRepository): array
+    {
+        if ($chapterCoordinates === []) {
+            return [];
+        }
+
+        $chapterMap = $eventRepository->findByCoordinates($chapterCoordinates);
+        $chapters = [];
+        foreach ($chapterCoordinates as $coordinate) {
+            $parts = explode(':', $coordinate, 3);
+            if (count($parts) !== 3) {
+                continue;
+            }
+
+            $kind = (int) $parts[0];
+            $pubkey = $parts[1];
+            $slug = $parts[2];
+
+            $chapter = $chapterMap[$coordinate] ?? null;
+            if ($chapter instanceof Event) {
+                $chapters[] = [
+                    'event' => $chapter,
+                    'coordinate' => $coordinate,
+                    'fetched' => true,
+                ];
+                continue;
+            }
+
+            $chapters[] = [
+                'event' => null,
+                'coordinate' => $coordinate,
+                'slug' => $slug,
+                'pubkey' => $pubkey,
+                'kind' => $kind,
+                'fetched' => false,
+            ];
+        }
+
+        return $chapters;
+    }
+
     /**
      * @throws Exception
      */
@@ -922,104 +1075,18 @@ class DefaultController extends AbstractController
                              ArticleSearchInterface $articleSearch,
                              RedisCacheService $redisCacheService) : Response
     {
-        // Get latest magazine index by slug from database
-        $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
-
-        // Filter by slug
-        $nzines = array_filter($nzines, function ($index) use ($mag) {
-            return $index->getSlug() === $mag;
-        });
-
-        if (count($nzines) === 0) {
+        $eventRepository = $entityManager->getRepository(Event::class);
+        if (!$eventRepository instanceof EventRepository) {
             throw $this->createNotFoundException('Magazine not found');
         }
 
-        // Sort by createdAt, keep newest
-        usort($nzines, function ($a, $b) {
-            return $b->getCreatedAt() <=> $a->getCreatedAt();
-        });
-
-        $magazine = array_shift($nzines);
-
-        // Extract 'a' tags and categorize them by kind (30040 vs 30041 vs 30023)
-        $categoryTags = [];
-        $chapterCoordinates = [];
-        $frontPageArticleCoordinate = null; // first kind:30023 direct child, if any
-
-        if ($magazine->getTags()) {
-            foreach ($magazine->getTags() as $tag) {
-                if (isset($tag[0]) && $tag[0] === 'a' && isset($tag[1])) {
-                    $parts = explode(':', $tag[1], 3);
-                    if (count($parts) === 3) {
-                        $kind = (int)$parts[0];
-                        if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
-                            // This is a category (30040)
-                            $categoryTags[] = $tag;
-                        } elseif ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
-                            // This is a chapter (30041)
-                            $chapterCoordinates[] = $tag[1]; // Store the full coordinate
-                        } elseif ($kind === KindsEnum::LONGFORM->value && $frontPageArticleCoordinate === null) {
-                            // First kind:30023 article is used as the magazine front page
-                            $frontPageArticleCoordinate = $tag[1];
-                        }
-                    }
-                }
-            }
+        $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+        if ($magazine === null) {
+            throw $this->createNotFoundException('Magazine not found');
         }
 
-        // Fetch chapter events and create placeholders for missing ones
-        $chapters = [];
-        if (!empty($chapterCoordinates)) {
-            foreach ($chapterCoordinates as $coordinate) {
-                $parts = explode(':', $coordinate, 3);
-                if (count($parts) === 3) {
-                    $kind = (int)$parts[0];
-                    $pubkey = $parts[1];
-                    $slug = $parts[2];
-
-                    // Query for the chapter by d-tag (slug)
-                    $sql = "SELECT e.* FROM event e
-                            WHERE e.tags @> ?::jsonb
-                            AND e.kind = ?
-                            ORDER BY e.created_at DESC
-                            LIMIT 1";
-
-                    $conn = $entityManager->getConnection();
-                    $result = $conn->executeQuery($sql, [
-                        json_encode([['d', $slug]]),
-                        KindsEnum::PUBLICATION_CONTENT->value
-                    ]);
-
-                    $eventData = $result->fetchAssociative();
-                    if ($eventData) {
-                        // Chapter exists in database
-                        $chapter = new Event();
-                        $chapter->setId($eventData['id']);
-                        $chapter->setKind((int)$eventData['kind']);
-                        $chapter->setPubkey($eventData['pubkey']);
-                        $chapter->setContent($eventData['content']);
-                        $chapter->setCreatedAt((int)$eventData['created_at']);
-                        $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
-                        $chapter->setSig($eventData['sig']);
-                        $chapters[] = [
-                            'event' => $chapter,
-                            'coordinate' => $coordinate,
-                            'fetched' => true,
-                        ];
-                    } else {
-                        // Chapter not fetched yet - create placeholder
-                        $chapters[] = [
-                            'event' => null,
-                            'coordinate' => $coordinate,
-                            'slug' => $slug,
-                            'pubkey' => $pubkey,
-                            'kind' => $kind,
-                            'fetched' => false,
-                        ];
-                    }
-                }
-            }
-        }
+        $structure = $this->parseMagazineStructure($magazine);
+        $frontPageArticleCoordinate = $structure['frontPageArticleCoordinate'];
 
         // Check if current user owns this magazine
         $isOwner = false;
@@ -1080,7 +1147,6 @@ class DefaultController extends AbstractController
                     'content' => $htmlContent,
                     'npub' => $fpNpub,
                     'author' => $fpAuthorMetadata->toStdClass(),
-                    'categoryTags' => $categoryTags,
                 ]);
             }
         }
@@ -1088,9 +1154,49 @@ class DefaultController extends AbstractController
         return $this->render('magazine/magazine-front.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
-            'categoryTags' => $categoryTags,
-            'chapters' => $chapters,
             'isOwner' => $isOwner,
+        ]);
+    }
+
+    #[Route('/mag/{mag}/chapters-frame', name: 'magazine-chapters-frame')]
+    public function magChaptersFrame(string $mag, EntityManagerInterface $entityManager): Response
+    {
+        $eventRepository = $entityManager->getRepository(Event::class);
+        if (!$eventRepository instanceof EventRepository) {
+            return $this->render('magazine/_chapters_frame.html.twig', ['mag' => $mag, 'chapters' => []]);
+        }
+
+        $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+        if ($magazine === null) {
+            return $this->render('magazine/_chapters_frame.html.twig', ['mag' => $mag, 'chapters' => []]);
+        }
+
+        $structure = $this->parseMagazineStructure($magazine);
+        $chapters = $this->resolveMagazineChapters($structure['chapterCoordinates'], $eventRepository);
+
+        return $this->render('magazine/_chapters_frame.html.twig', [
+            'mag' => $mag,
+            'chapters' => $chapters,
+        ]);
+    }
+
+    #[Route('/mag/{mag}/categories-frame', name: 'magazine-categories-frame')]
+    public function magCategoriesFrame(string $mag, EntityManagerInterface $entityManager): Response
+    {
+        $eventRepository = $entityManager->getRepository(Event::class);
+        if (!$eventRepository instanceof EventRepository) {
+            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'categoryTags' => []]);
+        }
+
+        $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+        if ($magazine === null) {
+            return $this->render('magazine/_categories_frame.html.twig', ['mag' => $mag, 'categoryTags' => []]);
+        }
+
+        $structure = $this->parseMagazineStructure($magazine);
+        return $this->render('magazine/_categories_frame.html.twig', [
+            'mag' => $mag,
+            'categoryTags' => $structure['categoryTags'],
         ]);
     }
 
@@ -1106,24 +1212,15 @@ class DefaultController extends AbstractController
         LoggerInterface $logger
     ): Response
     {
-        // Get latest magazine index by slug from database (same as magIndex)
-        $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
-
-        // Filter by slug
-        $nzines = array_filter($nzines, function ($index) use ($mag) {
-            return $index->getSlug() === $mag;
-        });
-
-        if (count($nzines) === 0) {
+        $eventRepository = $entityManager->getRepository(Event::class);
+        if (!$eventRepository instanceof EventRepository) {
             throw $this->createNotFoundException('Magazine not found');
         }
 
-        // Sort by createdAt, keep newest
-        usort($nzines, function ($a, $b) {
-            return $b->getCreatedAt() <=> $a->getCreatedAt();
-        });
-
-        $magazine = array_shift($nzines);
+        $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+        if ($magazine === null) {
+            throw $this->createNotFoundException('Magazine not found');
+        }
 
         // Extract chapter coordinates from magazine
         $chapterCoordinates = [];
@@ -1142,6 +1239,7 @@ class DefaultController extends AbstractController
         }
 
         // Fetch and process all chapters
+        $chapterMap = $eventRepository->findByCoordinates($chapterCoordinates);
         $chapters = [];
         foreach ($chapterCoordinates as $coordinate) {
             $parts = explode(':', $coordinate, 3);
@@ -1150,32 +1248,10 @@ class DefaultController extends AbstractController
                 $pubkey = $parts[1];
                 $slug = $parts[2];
 
-                // Query for the chapter by d-tag (slug)
-                $sql = "SELECT e.* FROM event e
-                        WHERE e.tags @> ?::jsonb
-                        AND e.kind = ?
-                        ORDER BY e.created_at DESC
-                        LIMIT 1";
+                $chapter = $chapterMap[$coordinate] ?? null;
 
-                $conn = $entityManager->getConnection();
-                $result = $conn->executeQuery($sql, [
-                    json_encode([['d', $slug]]),
-                    KindsEnum::PUBLICATION_CONTENT->value
-                ]);
-
-                $eventData = $result->fetchAssociative();
-
-                if ($eventData) {
-                    // Chapter exists - create event and process content
-                    $chapter = new Event();
-                    $chapter->setId($eventData['id']);
-                    $chapter->setEventId($eventData['event_id']);
-                    $chapter->setKind((int)$eventData['kind']);
-                    $chapter->setPubkey($eventData['pubkey']);
-                    $chapter->setContent($eventData['content']);
-                    $chapter->setCreatedAt((int)$eventData['created_at']);
-                    $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
-                    $chapter->setSig($eventData['sig']);
+                if ($chapter instanceof Event) {
+                    // Chapter exists - process content
 
                     // Process AsciiDoc content with caching
                     $cacheKey = 'chapter_' . $chapter->getId();
@@ -1327,24 +1403,15 @@ class DefaultController extends AbstractController
     ): JsonResponse
     {
         try {
-            // Get latest magazine index by slug from database
-            $nzines = $entityManager->getRepository(Event::class)->findBy(['kind' => KindsEnum::PUBLICATION_INDEX]);
-
-            // Filter by slug
-            $nzines = array_filter($nzines, function ($index) use ($mag) {
-                return $index->getSlug() === $mag;
-            });
-
-            if (count($nzines) === 0) {
+            $eventRepository = $entityManager->getRepository(Event::class);
+            if (!$eventRepository instanceof EventRepository) {
                 return new JsonResponse(['error' => 'Magazine not found'], 404);
             }
 
-            // Sort by createdAt, keep newest
-            usort($nzines, function ($a, $b) {
-                return $b->getCreatedAt() <=> $a->getCreatedAt();
-            });
-
-            $magazine = array_shift($nzines);
+            $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
+            if ($magazine === null) {
+                return new JsonResponse(['error' => 'Magazine not found'], 404);
+            }
 
             // Build manifest structure
             $manifest = [

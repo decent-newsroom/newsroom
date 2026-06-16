@@ -1,0 +1,8 @@
+<turbo-frame id="magazine-categories">
+    {% if categoryTags is not empty %}
+        {% for cat in categoryTags %}
+            <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list"/>
+        {% endfor %}
+    {% endif %}
+</turbo-frame>
+

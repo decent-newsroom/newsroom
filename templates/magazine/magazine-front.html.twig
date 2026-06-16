@@ -58,75 +58,15 @@
     <twig:Organisms:MagazineHero :magazine="magazine" :mag="mag" :isOwner="isOwner|default(false)" />
 
     <section class="w-container mb-5">
-        {# Display chapters if available #}
-        {% if chapters is defined and chapters is not empty %}
-            <div class="mb-5">
-                <div class="mb-3">
-                    <h2 class="featured-cat mb-0">Chapters</h2>
-                </div>
-                <div class="article-list">
-                    {% for chapter in chapters %}
-                        {% if chapter.fetched %}
-                            {# Fetched chapter - show full card #}
-                            {% set chapterEvent = chapter.event %}
-                            {% set chapterSlug = '' %}
-                            {% for tag in chapterEvent.tags %}
-                                {% if tag[0] == 'd' %}
-                                    {% set chapterSlug = tag[1] %}
-                                {% endif %}
-                            {% endfor %}
+        <turbo-frame id="magazine-chapters"
+                     src="{{ path('magazine-chapters-frame', {mag: mag}) }}"
+                     loading="lazy">
+        </turbo-frame>
 
-                            <div class="card">
-                                <a href="{{ path('magazine-chapter', {mag: mag, slug: chapterSlug}) }}">
-                                    {% if chapterEvent.image %}
-                                        <div class="card-header">
-                                            <img src="{{ chapterEvent.image }}" alt="Cover image for {{ chapterEvent.title }}">
-                                        </div>
-                                    {% endif %}
-                                    <div class="card-body">
-                                        <h3 class="card-title">{{ chapterEvent.title }}</h3>
-                                        {% if chapterEvent.summary %}
-                                            <p class="lede truncate">{{ chapterEvent.summary }}</p>
-                                        {% endif %}
-                                    </div>
-                                </a>
-                            </div>
-                        {% else %}
-                            {# Unfetched chapter - show placeholder #}
-                            <div class="card card-placeholder" data-coordinate="{{ chapter.coordinate }}">
-                                <div class="card-body">
-                                    <h3 class="card-title text-muted">
-                                        {{ chapter.slug }}
-                                    </h3>
-                                    <p class="text-muted">
-                                        <small>Chapter not yet fetched from relays</small>
-                                    </p>
-                                    <button
-                                        class="btn btn-sm btn-primary fetch-chapter-btn"
-                                        data-coordinate="{{ chapter.coordinate }}"
-                                        data-slug="{{ chapter.slug }}"
-                                        data-mag="{{ mag }}"
-                                        onclick="fetchChapter(this)">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16" style="vertical-align: text-bottom;">
-                                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                                        </svg>
-                                        Fetch Chapter
-                                    </button>
-                                </div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% endif %}
-
-        {# Display categories if available #}
-        {% if categoryTags is defined and categoryTags is not empty %}
-            {% for cat in categoryTags %}
-                <twig:Organisms:FeaturedList :mag="mag" category="{{ cat }}" class="featured-list"/>
-            {% endfor %}
-        {% endif %}
+        <turbo-frame id="magazine-categories"
+                     src="{{ path('magazine-categories-frame', {mag: mag}) }}"
+                     loading="lazy">
+        </turbo-frame>
     </section>
 {% endblock %}
 
