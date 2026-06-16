@@ -6,15 +6,13 @@ use App\Entity\Article;
 use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
 use App\Entity\User;
-use App\Service\ArticleEventProjector;
+use App\Message\FetchEventFromRelaysMessage;
+use App\Message\PrefetchNostrEmbedsMessage;
 use App\Service\ArticlePublicationIndexer;
 use App\Service\Cache\RedisCacheService;
-use App\Service\GenericEventProjector;
-use App\Service\HighlightService;
-use App\Message\PrefetchNostrEmbedsMessage;
 use App\Service\EmbedReferenceExtractor;
+use App\Service\HighlightService;
 use App\Service\ReadingListNavigationService;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\VanityNameService;
 use App\Util\CommonMark\Converter;
@@ -341,6 +339,44 @@ class ArticleController  extends AbstractController
         ]);
     }
 
+    #[Route('/p/{npub}/d/{slug}/aside', name: 'article-aside-frame', requirements: ['slug' => '.+'], priority: 6)]
+    public function articleAsideFrame(
+        string $slug,
+        ArticlePublicationIndexer $publicationIndexer,
+        string $npub,
+    ): Response {
+        $slug = urldecode($slug);
+        $publications = [];
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+            $publications = $publicationIndexer->findPublicationsForArticle($pubkey, $slug);
+        } catch (\Throwable) {}
+
+        return $this->render('pages/_article_aside_frame.html.twig', [
+            'publications' => $publications,
+        ]);
+    }
+
+    #[Route('/p/{npub}/d/{slug}/list-nav', name: 'article-list-nav-frame', requirements: ['slug' => '.+'], priority: 6)]
+    public function articleListNavFrame(
+        string $slug,
+        ReadingListNavigationService $readingListNavigation,
+        string $npub,
+    ): Response {
+        $slug = urldecode($slug);
+        $listNav = null;
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+            $listNav = $readingListNavigation->findNavigation('30023:' . $pubkey . ':' . $slug);
+        } catch (\Throwable) {}
+
+        return $this->render('pages/_article_list_nav_frame.html.twig', [
+            'listNav' => $listNav,
+        ]);
+    }
+
     #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(
@@ -351,13 +387,8 @@ class ArticleController  extends AbstractController
         LoggerInterface $logger,
         HighlightService $highlightService,
         NostrEventParser $eventParser,
-        ReadingListNavigationService $readingListNavigation,
-        NostrClient $nostrClient,
-        GenericEventProjector $genericEventProjector,
-        ArticleEventProjector $articleEventProjector,
         EmbedReferenceExtractor $embedExtractor,
         MessageBusInterface $bus,
-        ArticlePublicationIndexer $publicationIndexer,
         $npub = null,
         $vanity = null
     ): Response
@@ -380,45 +411,31 @@ class ArticleController  extends AbstractController
         $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
 
         if (!$article) {
-            // Article not in local DB — try fetching from relays synchronously.
-            // This is a targeted limit-1 lookup (known pubkey + d-tag), so a
-            // brief wait is fine — the user is requesting this specific article.
-            $logger->info('Article not in DB, attempting synchronous relay fetch', [
+            // Article not in local DB — dispatch async relay fetch and show a
+            // loading page.  The worker (FetchEventFromRelaysHandler) will
+            // persist the event and publish a Mercure update; the browser
+            // Stimulus controller will reload this URL once the article lands.
+            $lookupKey = 'article:' . md5($pubkey . ':' . $slug);
+            $logger->info('Article not in DB, dispatching async relay fetch', [
                 'npub' => $npub,
                 'slug' => $slug,
+                'lookupKey' => $lookupKey,
             ]);
             try {
-                $rawEvent = $nostrClient->getEventByNaddr([
-                    'kind' => KindsEnum::LONGFORM->value,
-                    'pubkey' => $pubkey,
-                    'identifier' => $slug,
-                    'relays' => [],
-                ]);
-                if ($rawEvent !== null) {
-                    $genericEventProjector->projectEventFromNostrEvent($rawEvent, 'sync-article-fetch');
-                    try {
-                        $articleEventProjector->projectArticleFromEvent($rawEvent, 'sync-article-fetch');
-                    } catch (\Throwable $e) {
-                        $logger->warning('Article projection failed during inline fetch', [
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                    // Re-query after projection
-                    $article = $repository->findOneBy(['slug' => $slug, 'pubkey' => $pubkey], ['createdAt' => 'DESC']);
-                }
+                $bus->dispatch(new FetchEventFromRelaysMessage(
+                    lookupKey: $lookupKey,
+                    type: 'naddr',
+                    kind: KindsEnum::LONGFORM->value,
+                    pubkey: $pubkey,
+                    identifier: $slug,
+                ));
             } catch (\Throwable $e) {
-                $logger->warning('Synchronous relay fetch failed for article', [
-                    'slug' => $slug,
-                    'pubkey' => $pubkey,
-                    'error' => $e->getMessage(),
-                ]);
+                $logger->warning('Could not dispatch async article fetch', ['error' => $e->getMessage()]);
             }
-        }
 
-        if (!$article) {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => 'The article could not be found.',
-                'searchQuery' => $slug
+            return $this->render('pages/article_loading.html.twig', [
+                'lookupKey' => $lookupKey,
+                'reloadUrl' => $this->generateUrl('author-article-slug', ['npub' => $npub, 'slug' => $slug]),
             ]);
         }
 
@@ -514,28 +531,6 @@ class ArticleController  extends AbstractController
             // Best-effort only
         }
 
-        // Find prev/next articles from reading lists
-        $listNav = null;
-        try {
-            $navCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-            $listNav = $readingListNavigation->findNavigation($navCoordinate);
-        } catch (\Exception $e) {}
-
-        // Find which publications (magazines / reading-list categories) include this article
-        $publications = [];
-        try {
-            $publications = $publicationIndexer->findPublicationsForArticle(
-                $article->getPubkey(),
-                $article->getSlug(),
-            );
-        } catch (\Throwable $e) {
-            $logger->warning('Could not look up publications for article', [
-                'error' => $e->getMessage(),
-                'pubkey' => $article->getPubkey(),
-                'slug'   => $article->getSlug(),
-            ]);
-        }
-
         try {
             return $this->render('pages/article.html.twig', [
                 'article' => $article,
@@ -546,8 +541,6 @@ class ArticleController  extends AbstractController
                 'canonical' => $canonical,
                 'highlights' => $highlights,
                 'advancedMetadata' => $advancedMetadata,
-                'listNav' => $listNav,
-                'publications' => $publications,
             ]);
         } catch (\Throwable $e) {
             $logger->critical('ARTICLE RENDER CRASHED', [

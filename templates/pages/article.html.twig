@@ -401,38 +401,12 @@
             </div>
         {% endif %}
 
-        {# Prev/Next article navigation from reading list #}
-        {% if listNav is defined and listNav is not null and (listNav.prevArticle or listNav.nextArticle) %}
-            <section class="article-prev-next" aria-label="Reading list navigation">
-                {% if listNav.listTitle %}
-                    <p class="article-prev-next__heading">
-                        {{ 'article.moreFrom'|trans }}
-                        {% if listNav.listSlug and listNav.listPubkey %}
-                            {% if listNav.listKind == 30040 %}
-                                <a href="{{ path('reading-list', { slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
-                            {% else %}
-                                <a href="{{ path('curation-set', { kind: listNav.listKind, slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
-                            {% endif %}
-                        {% else %}
-                            {{ listNav.listTitle }}
-                        {% endif %}
-                    </p>
-                {% endif %}
-                <div class="article-prev-next__grid">
-                    {% if listNav.nextArticle %}
-                        <div class="article-prev-next__item">
-                            <span class="article-prev-next__label hidden">{{ 'article.nextArticle'|trans }}</span>
-                            <twig:Molecules:Card :article="listNav.nextArticle" />
-                        </div>
-                    {% endif %}
-                    {% if listNav.prevArticle %}
-                        <div class="article-prev-next__item">
-                            <span class="article-prev-next__label hidden">{{ 'article.prevArticle'|trans }}</span>
-                            <twig:Molecules:Card :article="listNav.prevArticle" />
-                        </div>
-                    {% endif %}
-                </div>
-            </section>
+        {# Prev/Next article navigation from reading list — lazy Turbo Frame #}
+        {% if not (isDraft is defined and isDraft) %}
+        <turbo-frame id="article-list-nav"
+                     src="{{ path('article-list-nav-frame', {npub: npub, slug: article.slug}) }}"
+                     loading="lazy">
+        </turbo-frame>
         {% endif %}
     </article>
     {% if article.topics|length > 0 and not (isDraft is defined and isDraft) %}
@@ -444,33 +418,9 @@
 {% endblock %}
 
 {% block aside %}
-    {% if publications is defined and publications|length > 0 %}
-        <div class="article-in-publications">
-            <h3 class="article-in-publications__heading">{{ 'article.inPublications'|trans }}</h3>
-            <ul class="article-in-publications__list">
-                {% for pub in publications %}
-                    <li class="article-in-publications__item">
-                        {% if pub.is_reading_list %}
-                            <a class="article-in-publications__mag-link"
-                               href="{{ path('reading-list', {slug: pub.magazine_slug, npub: pub.magazine_pubkey|hex_to_npub}) }}">
-                                {{ pub.magazine_title ?? pub.magazine_slug }}
-                            </a>
-                        {% else %}
-                            <a class="article-in-publications__mag-link"
-                               href="{{ path('magazine-index', {mag: pub.magazine_slug}) }}">
-                                {{ pub.magazine_title ?? pub.magazine_slug }}
-                            </a>
-                        {% endif %}
-                        {% if pub.category_slug %}
-                            <span class="article-in-publications__sep">›</span>
-                            <a class="article-in-publications__cat-link"
-                               href="{{ path('magazine-category', {mag: pub.magazine_slug, slug: pub.category_slug}) }}">
-                                {{ pub.category_title ?? pub.category_slug }}
-                            </a>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
+    {% if not (isDraft is defined and isDraft) %}
+        <turbo-frame id="article-publications"
+                     src="{{ path('article-aside-frame', {npub: npub, slug: article.slug}) }}">
+        </turbo-frame>
     {% endif %}
 {% endblock %}

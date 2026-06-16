@@ -1,0 +1,35 @@
+<turbo-frame id="article-list-nav">
+    {% if listNav is not null and (listNav.prevArticle or listNav.nextArticle) %}
+        <section class="article-prev-next" aria-label="Reading list navigation">
+            {% if listNav.listTitle %}
+                <p class="article-prev-next__heading">
+                    {{ 'article.moreFrom'|trans }}
+                    {% if listNav.listSlug and listNav.listPubkey %}
+                        {% if listNav.listKind == 30040 %}
+                            <a href="{{ path('reading-list', { slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
+                        {% else %}
+                            <a href="{{ path('curation-set', { kind: listNav.listKind, slug: listNav.listSlug, npub: listNav.listPubkey|toNpub }) }}">{{ listNav.listTitle }}</a>
+                        {% endif %}
+                    {% else %}
+                        {{ listNav.listTitle }}
+                    {% endif %}
+                </p>
+            {% endif %}
+            <div class="article-prev-next__grid">
+                {% if listNav.nextArticle %}
+                    <div class="article-prev-next__item">
+                        <span class="article-prev-next__label hidden">{{ 'article.nextArticle'|trans }}</span>
+                        <twig:Molecules:Card :article="listNav.nextArticle" />
+                    </div>
+                {% endif %}
+                {% if listNav.prevArticle %}
+                    <div class="article-prev-next__item">
+                        <span class="article-prev-next__label hidden">{{ 'article.prevArticle'|trans }}</span>
+                        <twig:Molecules:Card :article="listNav.prevArticle" />
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
+</turbo-frame>
+
