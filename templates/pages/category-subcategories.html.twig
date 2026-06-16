@@ -43,7 +43,7 @@
 {% block body %}
     <twig:Organisms:MagazineHero :mag="mag" :magazine="magazine" />
 
-    <section class="mb-5">
+    <section class="w-container mb-5">
         {% for subcat in subcategoryTags %}
             <twig:Organisms:FeaturedList :mag="mag" category="{{ subcat }}" class="featured-list featured-list--sub" />
         {% endfor %}
