@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Bug] Fixed article-page timeouts in `ReadingListNavigationService`: list-membership discovery now uses the indexed `parsed_reference.target_coord` path first (joining to source events) with a legacy `event.tags @>` fallback only when graph references are unavailable.
 - [Bug] Fixed nested magazine category pages failing to load: `FeaturedList` now resolves category/chapter events by full coordinate (`kind + pubkey + d_tag`) instead of slug-only lookups, and recursive subcategory rendering is depth-guarded to prevent cyclic/self-referential loops.
 - [Bug] Fixed `mag/...` page timeouts caused by `CategoryLink` Twig component DB lookups: replaced broad `tags @>` scans with indexed `(kind, pubkey, d_tag)` resolution (legacy fallback kept) and added per-request coordinate title memoization to avoid repeated duplicate queries during one render.
 - [Bug] Fixed slow magazine category/front follow-up loads by replacing broad `event.tags` slug scans with indexed `(kind, d_tag)` lookups (with legacy fallback) and by batching chapter coordinate resolution in `DefaultController::magCategory()` instead of running per-chapter SQL queries.

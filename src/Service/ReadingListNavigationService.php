@@ -36,6 +36,10 @@ class ReadingListNavigationService
      */
     public function findNavigation(string $articleCoordinate): ?array
     {
+        if (!str_contains($articleCoordinate, ':')) {
+            return null;
+        }
+
         $cacheKey = 'reading_list_nav_' . md5($articleCoordinate);
 
         try {
@@ -49,21 +53,33 @@ class ReadingListNavigationService
             // Cache failures should never break the request
         }
 
-        // Use PostgreSQL JSON containment to find events whose tags contain an 'a' tag referencing this article
-        // The tags column is jsonb, so the GIN index (idx_event_tags_gin) is used directly.
-        $sql = "SELECT e.* FROM event e
-                WHERE e.tags @> ?::jsonb
-                AND e.kind IN (30040, 30004)
-                ORDER BY e.created_at DESC
-                LIMIT 10";
-
         try {
             $conn = $this->em->getConnection();
-            $result = $conn->executeQuery($sql, [
-                json_encode([['a', $articleCoordinate]])
-            ]);
+            // Fast path: graph references table (indexed by target_coord).
+            $rows = $conn->executeQuery(
+                "SELECT e.*
+                 FROM parsed_reference pr
+                 INNER JOIN event e ON e.id = pr.source_event_id
+                 WHERE pr.target_coord = :coord
+                   AND pr.tag_name IN ('a', 'A')
+                   AND e.kind IN (30040, 30004)
+                 ORDER BY e.created_at DESC
+                 LIMIT 10",
+                ['coord' => $articleCoordinate]
+            )->fetchAllAssociative();
 
-            $rows = $result->fetchAllAssociative();
+            if (empty($rows)) {
+                // Backward-compatible fallback for instances where parsed_reference
+                // is not yet fully backfilled.
+                $rows = $conn->executeQuery(
+                    "SELECT e.* FROM event e
+                     WHERE e.tags @> :atag::jsonb
+                       AND e.kind IN (30040, 30004)
+                     ORDER BY e.created_at DESC
+                     LIMIT 10",
+                    ['atag' => json_encode([['a', $articleCoordinate]])]
+                )->fetchAllAssociative();
+            }
         } catch (\Exception $e) {
             $this->logger->warning('ReadingListNavigationService: query failed', ['error' => $e->getMessage()]);
             return null;
