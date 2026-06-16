@@ -1,7 +1,10 @@
 #!/bin/sh
 set -e
 
+READY_MARKER=/tmp/newsroom-ready
+
 if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
+	rm -f "$READY_MARKER"
 	# Install the project the first time PHP is started
 	# After the installation, the following block can be deleted
 	if [ ! -f composer.json ]; then
@@ -105,6 +108,7 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 	mkdir -p var/cache var/log
 	setfacl -m u:www-data:rwX -m u:"$(whoami)":rwX var var/cache var/log
 	setfacl -d -m u:www-data:rwX -m u:"$(whoami)":rwX var var/cache var/log
+	touch "$READY_MARKER"
 fi
 
 exec docker-php-entrypoint "$@"

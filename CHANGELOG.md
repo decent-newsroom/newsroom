@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] Reworked the FrankenPHP Docker healthcheck to use a local readiness marker written by `frankenphp/docker-entrypoint.sh` instead of curling `/up`, eliminating HTTP probe traffic while keeping `service_healthy` startup ordering.
 - [Deprecated] Removed the legacy ChatBundle wiring from Symfony config (`services.yaml`, `security.yaml`, `messenger.yaml`, `doctrine.yaml`, `twig.yaml`, `config/packages/chat.yaml`, and `config/routes/chat.yaml`) and neutralized the old admin chat controllers so the bundle no longer participates in container compilation.
 
 ## v0.0.45

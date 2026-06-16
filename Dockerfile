@@ -52,7 +52,7 @@ COPY --link frankenphp/Caddyfile /etc/frankenphp/Caddyfile
 ENTRYPOINT ["docker-entrypoint"]
 
 HEALTHCHECK --start-period=180s --interval=10s --timeout=5s --retries=5 \
-    CMD curl -f http://localhost/up || exit 1
+	CMD test -f /tmp/newsroom-ready || exit 1
 CMD [ "frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile" ]
 
 # Dev FrankenPHP image

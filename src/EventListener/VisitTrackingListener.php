@@ -26,7 +26,6 @@ class VisitTrackingListener
         '/chat-sw.js',
         '/manifest.webmanifest',
         '/robots.txt',
-        '/up',
         // Main-domain asset paths
         '/assets/',
         '/icons/',
