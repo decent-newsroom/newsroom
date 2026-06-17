@@ -1,0 +1,40 @@
+<nav class="sidebar-nav">
+    {# Back link (optional, e.g., "Back to newsroom") #}
+    {% if backLink %}
+        <div class="sidebar-nav__back">
+            <a href="{{ path(backLink.route) }}">
+                {% if backLink.icon %}
+                    <span class="icon">{{ backLink.icon }}</span>
+                {% endif %}
+                {{ backLink.label|trans }}
+            </a>
+        </div>
+    {% endif %}
+
+    {# Sections #}
+    {% for section in sections %}
+        <div class="nav-section">
+            {% if section.label %}
+                <div class="nav-section__label">{{ section.label|trans }}</div>
+            {% endif %}
+            <ul class="user-nav">
+                {% for item in section.items %}
+                    <li>
+                        <a href="{{ path(item.route) }}">
+                            {% if item.icon is defined %}
+                                <span class="icon">{{ item.icon }}</span>
+                            {% endif %}
+                            {{ item.label|trans }}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endfor %}
+
+    {# Optional footer component (e.g., UserMenu) #}
+    {% if footerComponent %}
+        {{ include(footerComponent) }}
+    {% endif %}
+</nav>
+

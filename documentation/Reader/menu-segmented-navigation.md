@@ -1,5 +1,7 @@
 # Segmented Sidebar Navigation
 
+> This document describes the existing segmented sidebar approach. For the next planned navigation iteration that separates Reading Nook from authored content and introduces a branded Newsroom workspace, see [Newsroom Navigation Refactor Plan](../Newsroom/newsroom-navigation-refactor-plan.md).
+
 ## Overview
 
 The left sidebar navigation has been reorganised into three labelled segments separated by dividers. This provides a clearer information hierarchy and groups related pages by intent.

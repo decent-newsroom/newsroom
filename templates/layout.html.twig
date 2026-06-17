@@ -3,59 +3,49 @@
 {% block layout %}
     <div class="layout" data-controller="ui--sidebar-toggle">
         <div class="aside-wrapper">
+            {# Global main navigation #}
             <nav id="leftNav">
                 <header>
                     <button class="close" data-action="click->ui--sidebar-toggle#close" aria-label="{{ 'nav.closeLeftSidebar'|trans }}">✕</button>
                 </header>
+
                 <div class="nav-section">
                     <div class="nav-section__label">{{ 'nav.discover'|trans }}</div>
                     <ul class="user-nav">
                         <li><a href="{{ path('discover') }}">{{ 'nav.articles'|trans }}</a></li>
                         <li><a href="{{ path('forum') }}">{{ 'nav.topics'|trans }}</a></li>
                         <li><a href="{{ path('highlights') }}">{{ 'nav.highlights'|trans }}</a></li>
-                        <li><a href="{{ path('relay_feed_index') }}">{{ 'nav.relayFeeds'|trans }}</a></li>
                     </ul>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section__label">{{ 'nav.newsroom'|trans }}</div>
+                    <div class="nav-section__label">{{ 'nav.publications'|trans }}</div>
                     <ul class="user-nav">
                         <li><a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a></li>
-                        <li><a href="{{ path('lists') }}">{{ 'nav.collections'|trans }}</a></li>
-                        <li><a href="{{ path('follow_packs') }}">{{ 'nav.followPacks'|trans }}</a></li>
-                        {% if is_granted('ROLE_ADMIN') %}
-                            <li><a href="{{ path('expression_list') }}">{{ 'nav.expressions'|trans }}</a></li>
-                            <li><a href="{{ path('spell_list') }}">{{ 'spellsList.heading'|trans }}</a></li>
-                        {% endif %}
-                        {% if app.user %}
-                            <li class="hidden"><a href="{{ path('my_content') }}">{{ 'nav.myContent'|trans }}</a></li>
-                            <li class="hidden"><a href="{{ path('reading_nook') }}">{{ 'reading_nook.nav'|trans }}</a></li>
-                            <li><a href="{{ path('my_bookmarks') }}">{{ 'nav.bookmarks'|trans }}</a></li>
-                            <li><a href="{{ path('my_magazines') }}">{{ 'nav.myMagazines'|trans }}</a></li>
-                            <li><a href="{{ path('reading_list_index') }}">{{ 'nav.myReadingLists'|trans }}</a></li>
-                            <li><a href="{{ path('my_interests') }}">{{ 'nav.myInterests'|trans }}</a></li>
-                            <li><a href="{{ path('media_manager') }}">Media Manager</a></li>
-                            <li><a href="{{ path('updates_index') }}">{{ 'updates.pageTitle'|trans }}</a></li>
-                        {% endif %}
                     </ul>
                 </div>
 
-                <div class="nav-section">
-                    <div class="nav-section__label">{{ 'nav.create'|trans }}</div>
-                    <ul class="user-nav">
-                        <li><a href="{{ path('mag_wizard_new') }}">{{ 'nav.magazine'|trans }}</a></li>
-                        <li><a href="{{ path('reading_list_index') }}">{{ 'nav.readingList'|trans }}</a></li>
-                        <li><a href="{{ path('editor-create') }}">{{ 'nav.article'|trans }}</a></li>
-                        {% if app.user %}
-                            <li class="hidden"><a href="{{ path('expression_create') }}">{{ 'nav.expression'|trans }}</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
+                {% if app.user %}
+                    <div class="nav-section">
+                        <div class="nav-section__label">{{ 'nav.personal'|trans }}</div>
+                        <ul class="user-nav">
+                            <li><a href="{{ path('reading_nook') }}">{{ 'nav.readingNook'|trans }}</a></li>
+                            <li><a href="{{ path('my_content') }}">{{ 'nav.newsroom'|trans }}</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section__label">{{ 'nav.create'|trans }}</div>
+                        <ul class="user-nav">
+                            <li><a href="{{ path('mag_wizard_new') }}">{{ 'nav.newMagazine'|trans }}</a></li>
+                            <li><a href="{{ path('reading_list_index') }}">{{ 'nav.newReadingList'|trans }}</a></li>
+                            <li><a href="{{ path('editor-create') }}">{{ 'nav.newArticle'|trans }}</a></li>
+                        </ul>
+                    </div>
+                {% endif %}
+
                 <twig:UserMenu />
 
-                <div class="container mt-2 mb-2 text-end hidden">
-                    <a href="{{ path('feedback_form') }}" class="btn btn-outline-primary">{{ 'nav.sendFeedback'|trans }}</a>
-                </div>
                 {% block nav %}{% endblock %}
             </nav>
         </div>
