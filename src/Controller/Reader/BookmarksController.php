@@ -6,6 +6,7 @@ namespace App\Controller\Reader;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Helper\NavigationBuilderTrait;
 use App\Message\SyncUserEventsMessage;
 use App\Repository\EventRepository;
 use App\Service\GenericEventProjector;
@@ -24,6 +25,8 @@ use swentel\nostr\Event\Event as NostrEvent;
 
 class BookmarksController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     private const BOOKMARK_KINDS = [
         KindsEnum::BOOKMARKS,         // 10003
         KindsEnum::BOOKMARK_SETS,     // 30003
@@ -67,6 +70,7 @@ class BookmarksController extends AbstractController
         }
 
         return $this->render('pages/my-bookmarks.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
             'bookmarks' => $bookmarks,
             'resolvedEvents' => $resolvedEvents,
             'syncing' => $syncing,

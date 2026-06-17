@@ -252,6 +252,10 @@
     border-left-color: var(--color-lilac-500, #b98bdc);
 }
 
+.reading-nook-item--subscriptions {
+    border-left-color: var(--color-warning, #d0a84d);
+}
+
 .reading-nook-item--my-content {
     border-left-color: var(--color-accent-strong, #e1b574);
 }

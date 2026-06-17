@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] `My Bookmarks` and `My Interests` pages now render inside the Reading Nook layout shell (including the local Reading Nook sidebar) for consistent navigation in the read-side workspace.
 - [Improvement] Reading Nook now excludes authored sections (`My Content` and `My Magazines`) so `/reading-nook` focuses on read-side collections only; authored management remains in the Newsroom workspace.
 - [Bug] Removed runtime dependency on `api.iconify.design` during icon cache warmup/asset compilation by switching UX Icons to local `iconoir` SVG assets and disabling remote Iconify fetches.
 - [Improvement] Restyled `/reading-nook` into a cleaner personal-library dashboard: added overview stat cards, a clearer filter workbench, grouped section anchors, richer collection cards, and a dedicated right sidebar with quick jumps and popular-tag shortcuts.
@@ -35,6 +36,9 @@
 
 ## v0.0.45
 
+- [Improvement] Reading Nook subscription cards now resolve friendly publication/NIP-51 set titles using the same coordinate lookup approach as `/updates/subscriptions`, and the Reading Nook right aside now includes the theme switcher controls from user preferences.
+- [Improvement] Reading Nook now includes a Subscriptions content section in the main grid, populated from active update subscriptions (authors/publications/NIP-51 sets) with direct open/manage actions.
+- [Improvement] Added Subscriptions to the Reading Nook local navigation and moved `/updates/subscriptions` onto the Reading Nook layout so subscription management stays in the read-side workspace.
 - [Bug] Added a Postgres healthcheck to `compose.yaml` so `service_healthy` dependencies no longer fail with `newsroom-database-1 has no healthcheck configured` during startup.
 - [Bug] Hardened `events:replay-deletions` for large backfills: the command now streams kind `5` request ids in configurable batches, resets Doctrine state between requests/chunks, and `EventDeletionService` flushes tombstones in small chunks while deduplicating repeated refs inside one deletion request, preventing `uniq_deleted_event_target_ref` failures.
 - [Improvement] Replaced deprecated `doctrine:query:sql` command references in project documentation with `dbal:run-sql` to align with current DoctrineBundle guidance and reduce console deprecation noise.

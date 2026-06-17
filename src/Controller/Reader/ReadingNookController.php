@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Controller\Reader;
 
 use App\Entity\Event;
+use App\Entity\Magazine;
+use App\Entity\User;
 use App\Enum\KindsEnum;
+use App\Enum\UpdateSourceTypeEnum;
 use App\Helper\NavigationBuilderTrait;
+use App\Repository\EventRepository;
+use App\Repository\UpdateSubscriptionRepository;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +28,7 @@ final class ReadingNookController extends AbstractController
     private const SECTION_INTERESTS = 'interests';
     private const SECTION_READING_LISTS = 'reading_lists';
     private const SECTION_FOLLOW_PACKS = 'follow_packs';
+    private const SECTION_SUBSCRIPTIONS = 'subscriptions';
 
     /**
      * @var array<string, string>
@@ -32,6 +38,7 @@ final class ReadingNookController extends AbstractController
         self::SECTION_INTERESTS => 'reading_nook.section.interests',
         self::SECTION_READING_LISTS => 'reading_nook.section.reading_lists',
         self::SECTION_FOLLOW_PACKS => 'reading_nook.section.follow_packs',
+        self::SECTION_SUBSCRIPTIONS => 'reading_nook.section.subscriptions',
     ];
 
     /**
@@ -54,17 +61,22 @@ final class ReadingNookController extends AbstractController
     public function index(
         Request $request,
         EntityManagerInterface $em,
+        EventRepository $eventRepository,
+        UpdateSubscriptionRepository $subscriptionRepository,
     ): Response {
         $user = $this->getUser();
         if ($user === null) {
             return $this->redirectToRoute('home');
         }
 
+        /** @var User $user */
+
         $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
         $events = $this->loadOwnedEvents($em, $pubkeyHex);
 
         $items = [
             ...$this->buildEntriesFromEvents($events),
+            ...$this->buildSubscriptionEntries($user, $subscriptionRepository, $eventRepository, $em),
         ];
 
         $filters = [
@@ -385,6 +397,115 @@ final class ReadingNookController extends AbstractController
         }
 
         return null;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildSubscriptionEntries(
+        User $user,
+        UpdateSubscriptionRepository $subscriptionRepository,
+        EventRepository $eventRepository,
+        EntityManagerInterface $em,
+    ): array
+    {
+        $entries = [];
+
+        foreach ($subscriptionRepository->findActiveForUser($user) as $subscription) {
+            $type = $subscription->getSourceType();
+            $sourceValue = $subscription->getSourceValue();
+            $title = $this->resolveSubscriptionTitle($type, $sourceValue, $eventRepository, $em)
+                ?? $subscription->getLabel()
+                ?? $this->subscriptionFallbackTitle($type, $sourceValue);
+            $summary = $this->subscriptionSummary($type, $sourceValue);
+
+            $entries[] = [
+                'section' => self::SECTION_SUBSCRIPTIONS,
+                'kind' => $type->value,
+                'title' => $title,
+                'summary' => $summary,
+                'tags' => ['subscription', $type->value],
+                'createdAt' => $subscription->getCreatedAt(),
+                'updatedAt' => null,
+                'url' => $this->generateUrl('updates_subscriptions'),
+                'manageUrl' => $this->generateUrl('updates_subscriptions'),
+                'meta' => [
+                    'sourceTypeLabel' => $type->label(),
+                ],
+                'search' => $this->buildSearchBlob([
+                    $title,
+                    $summary,
+                    $sourceValue,
+                    $type->value,
+                ]),
+            ];
+        }
+
+        return $entries;
+    }
+
+    private function resolveSubscriptionTitle(
+        UpdateSourceTypeEnum $type,
+        string $sourceValue,
+        EventRepository $eventRepository,
+        EntityManagerInterface $em,
+    ): ?string {
+        if ($type !== UpdateSourceTypeEnum::PUBLICATION && $type !== UpdateSourceTypeEnum::NIP51_SET) {
+            return null;
+        }
+
+        $parts = explode(':', $sourceValue, 3);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        [$kindRaw, $pubkey, $dTag] = $parts;
+        $kind = (int) $kindRaw;
+
+        if ($type === UpdateSourceTypeEnum::PUBLICATION) {
+            $magazine = $em->getRepository(Magazine::class)->findOneBy(['pubkey' => $pubkey, 'slug' => $dTag]);
+            if ($magazine instanceof Magazine && $magazine->getTitle() !== null) {
+                return $magazine->getTitle();
+            }
+        }
+
+        $event = $eventRepository->findByNaddr($kind, $pubkey, $dTag);
+        if ($event === null) {
+            return null;
+        }
+
+        $title = $event->getTitle();
+        if ($title !== null) {
+            return $title;
+        }
+
+        foreach ($event->getTags() as $tag) {
+            if (is_array($tag) && ($tag[0] ?? '') === 'name' && isset($tag[1])) {
+                return (string) $tag[1];
+            }
+        }
+
+        return null;
+    }
+
+    private function subscriptionFallbackTitle(UpdateSourceTypeEnum $type, string $sourceValue): string
+    {
+        if ($type === UpdateSourceTypeEnum::NPUB) {
+            return 'npub:' . substr($sourceValue, 0, 12) . '...';
+        }
+
+        $parts = explode(':', $sourceValue, 3);
+
+        return $parts[2] ?? $sourceValue;
+    }
+
+    private function subscriptionSummary(UpdateSourceTypeEnum $type, string $sourceValue): string
+    {
+        return match ($type) {
+            UpdateSourceTypeEnum::NPUB => 'Author updates subscription',
+            UpdateSourceTypeEnum::PUBLICATION => 'Publication updates subscription: ' . $sourceValue,
+            UpdateSourceTypeEnum::NIP51_SET => 'NIP-51 set updates subscription: ' . $sourceValue,
+        };
     }
 
     /**

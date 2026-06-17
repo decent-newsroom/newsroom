@@ -1044,6 +1044,7 @@ reading_nook:
         interests: 'Topic lists' # TODO: translate
         reading_lists: 'Reading lists' # TODO: translate
         follow_packs: 'Follow packs' # TODO: translate
+        subscriptions: 'Subscriptions' # TODO: translate
         my_content: 'My content' # TODO: translate
         magazines: 'Magazines' # TODO: translate
     timespan:
@@ -1059,6 +1060,7 @@ reading_nook:
         entries: 'Entries' # TODO: translate
         topics: 'Topics' # TODO: translate
         members: 'Members' # TODO: translate
+        source_type: 'Source type' # TODO: translate
         categories: 'Kategorien'
         contributors: 'Mitwirkende'
         open: 'Open' # TODO: translate

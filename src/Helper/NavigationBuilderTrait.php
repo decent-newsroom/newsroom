@@ -39,6 +39,12 @@ trait NavigationBuilderTrait
                     ['label' => 'reading_nook.nav.follow_packs', 'route' => 'follow_packs'],
                 ],
             ],
+            [
+                'label' => 'updates.pageTitle',
+                'items' => [
+                    ['label' => 'updates.manageSubscriptions', 'route' => 'updates_subscriptions'],
+                ],
+            ],
         ];
     }
 

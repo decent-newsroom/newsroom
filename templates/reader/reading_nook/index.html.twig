@@ -161,6 +161,9 @@
                                             {% if item.meta.memberCount is defined %}
                                                 <span>{{ 'reading_nook.item.members'|trans }}: {{ item.meta.memberCount }}</span>
                                             {% endif %}
+                                            {% if item.meta.sourceTypeLabel is defined %}
+                                                <span>{{ 'reading_nook.item.source_type'|trans }}: {{ item.meta.sourceTypeLabel|trans }}</span>
+                                            {% endif %}
                                             {% if item.meta.categories is defined %}
                                                 <span>{{ 'reading_nook.item.categories'|trans }}: {{ item.meta.categories }}</span>
                                             {% endif %}
@@ -215,6 +218,33 @@
                 <div>
                     <span>{{ 'reading_nook.summary.filters'|trans }}</span>
                     <strong>{{ activeFilterCount }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="reading-nook-aside__panel">
+            <h2>{{ 'settings.preferences.theme'|trans }}</h2>
+            <div data-controller="ui--theme"
+                 data-ui--theme-sync-url-value="{{ path('app_theme_switch', {theme: '__THEME__'}) }}">
+                <div class="preferences-theme-options">
+                    <button class="preferences-theme-option"
+                            data-action="click->ui--theme#pick"
+                            data-ui--theme-theme-param="dark"
+                            data-ui--theme-target="option">
+                        {{ 'settings.preferences.themeDark'|trans }}
+                    </button>
+                    <button class="preferences-theme-option"
+                            data-action="click->ui--theme#pick"
+                            data-ui--theme-theme-param="light"
+                            data-ui--theme-target="option">
+                        {{ 'settings.preferences.themeLight'|trans }}
+                    </button>
+                    <button class="preferences-theme-option"
+                            data-action="click->ui--theme#pick"
+                            data-ui--theme-theme-param="space"
+                            data-ui--theme-target="option">
+                        {{ 'settings.preferences.themeSpace'|trans }}
+                    </button>
                 </div>
             </div>
         </section>

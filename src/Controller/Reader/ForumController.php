@@ -6,6 +6,7 @@ namespace App\Controller\Reader;
 
 use App\Entity\User;
 use App\Enum\KindsEnum;
+use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
@@ -27,6 +28,8 @@ use Symfony\Contracts\Cache\ItemInterface;
 
 class ForumController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     #[Route('/topics', name: 'topics')]
     public function topics(ContentSearchService $contentSearch, Request $request): Response
     {
@@ -131,6 +134,7 @@ class ForumController extends AbstractController
         $pager->setCurrentPage($page);
 
         return $this->render('forum/my_interests.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
             'userInterests' => $userInterests,
             'articles' => array_slice($articles, ($page - 1) * $perPage, $perPage),
             'pager' => $pager,
@@ -182,6 +186,7 @@ class ForumController extends AbstractController
         $pager->setCurrentPage($page);
 
         return $this->render('forum/interest_set.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
             'set' => $set,
             'articles' => array_slice($articles, ($page - 1) * $perPage, $perPage),
             'pager' => $pager,

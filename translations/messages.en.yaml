@@ -1406,6 +1406,7 @@ reading_nook:
         interests: 'Topic lists'
         reading_lists: 'Reading lists'
         follow_packs: 'Follow packs'
+        subscriptions: 'Subscriptions'
         my_content: 'My content'
         magazines: 'Magazines'
     timespan:
@@ -1421,6 +1422,7 @@ reading_nook:
         entries: 'Entries'
         topics: 'Topics'
         members: 'Members'
+        source_type: 'Source type'
         categories: 'Categories'
         contributors: 'Contributors'
         open: 'Open'

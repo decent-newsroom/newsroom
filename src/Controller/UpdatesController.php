@@ -8,6 +8,7 @@ use App\Entity\Magazine;
 use App\Entity\UpdateSubscription;
 use App\Entity\User;
 use App\Enum\UpdateSourceTypeEnum;
+use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Repository\UpdateRepository;
 use App\Repository\UpdateSubscriptionRepository;
@@ -30,6 +31,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[IsGranted('ROLE_USER')]
 class UpdatesController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     public function __construct(
         private readonly UpdateRepository $updateRepository,
         private readonly UpdateSubscriptionRepository $subscriptionRepository,
@@ -143,6 +146,7 @@ class UpdatesController extends AbstractController
         }
 
         return $this->render('updates/subscriptions.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
             'subscriptions' => $subscriptions,
             'sourceTitles' => $sourceTitles,
             'isPro' => $this->accessService->isPro($user),
