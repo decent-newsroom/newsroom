@@ -50,8 +50,28 @@
                 <twig:Organisms:CardList :list="articles" class="article-list" />
             {% endif %}
 
-            {% if pager.getNbPages() > 1 %}
-                <twig:Atoms:Pagination :pager="pager" route="forum_main_topic" :routeParams="{topic: categoryKey}" />
+            {% if hasPrev or hasMore %}
+                <nav class="pagination" aria-label="Topic pagination">
+                    <div class="pagination-prev">
+                        {% if hasPrev %}
+                            <a class="pagination-link" href="{{ path('forum_main_topic', {topic: categoryKey, page: page - 1}) }}">&larr; Previous</a>
+                        {% else %}
+                            <span class="pagination-link pagination-disabled">&larr; Previous</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="pagination-info">
+                        Page {{ page }}
+                    </div>
+
+                    <div class="pagination-next">
+                        {% if hasMore %}
+                            <a class="pagination-link" href="{{ path('forum_main_topic', {topic: categoryKey, page: page + 1}) }}">Next &rarr;</a>
+                        {% else %}
+                            <span class="pagination-link pagination-disabled">Next &rarr;</span>
+                        {% endif %}
+                    </div>
+                </nav>
             {% endif %}
         </div>
     </section>

@@ -192,7 +192,12 @@ class ForumController extends AbstractController
      * @deprecated Forum main topic pages are being replaced by home feed topic integration.
      */
     #[Route('/forum/main/{topic}', name: 'forum_main_topic')]
-    public function mainTopic(string $topic, ContentSearchService $contentSearch, Request $request): Response
+    public function mainTopic(
+        string $topic,
+        ContentSearchService $contentSearch,
+        CacheInterface $cache,
+        Request $request,
+    ): Response
     {
         $catKey = strtolower(trim($topic));
         if (!isset(ForumTopics::TOPICS[$catKey])) {
@@ -210,19 +215,34 @@ class ForumController extends AbstractController
 
         $page = max(1, (int) $request->query->get('page', 1));
         $perPage = 20;
-        $articles = $contentSearch->searchByTopics($tags, limit: $perPage * 10);
-        $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
 
-        $pager = new Pagerfanta(new ArrayAdapter($articles));
-        $pager->setMaxPerPage($perPage);
-        $pager->setCurrentPage($page);
+        $cacheKey = sprintf('forum.main_topic.v3.%s.page.%d', $catKey, $page);
+        $payload = $cache->get($cacheKey, function (ItemInterface $item) use ($contentSearch, $tags, $page, $perPage) {
+            $item->expiresAfter(30);
+
+            $offset = ($page - 1) * $perPage;
+            // Fetch one extra record as a cheap "has next page" signal.
+            $window = $contentSearch->searchByTopics($tags, limit: $perPage + 1, offset: $offset);
+            $hasMore = count($window) > $perPage;
+
+            return [
+                'articles' => array_slice($window, 0, $perPage),
+                'hasMore' => $hasMore,
+            ];
+        });
+
+        $articlesPage = $payload['articles'] ?? [];
+        $hasMore = (bool) ($payload['hasMore'] ?? false);
+        $hasPrev = $page > 1;
 
         return $this->render('forum/main_topic.html.twig', [
             'mainTopicsMap' => $this->buildMainTopicsMap(),
             'categoryKey' => $catKey,
             'category' => ['name' => $category['name'] ?? ucfirst($catKey)],
             'articles' => $articlesPage,
-            'pager' => $pager,
+            'page' => $page,
+            'hasPrev' => $hasPrev,
+            'hasMore' => $hasMore,
             'deprecated' => true,
         ]);
     }
