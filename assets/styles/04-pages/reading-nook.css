@@ -280,8 +280,11 @@
     text-decoration: none;
 }
 
-.reading-nook-item__header a:hover {
-    color: var(--color-accent, #8fcb7e);
+.reading-nook-item__header a:hover,
+.reading-nook-item__header a:focus-visible {
+    color: var(--color-text, #f5f5f5);
+    text-decoration: underline;
+    text-underline-offset: 0.14em;
 }
 
 .reading-nook-item__summary {
