@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Bug] Removed runtime dependency on `api.iconify.design` during icon cache warmup/asset compilation by switching UX Icons to local `iconoir` SVG assets and disabling remote Iconify fetches.
 - [Improvement] Restyled `/reading-nook` into a cleaner personal-library dashboard: added overview stat cards, a clearer filter workbench, grouped section anchors, richer collection cards, and a dedicated right sidebar with quick jumps and popular-tag shortcuts.
 - [Bug] Fixed AssetMapper TypeScript compilation by removing an unused re-export from `assets/typescript/app.ts`; shared helpers continue to be imported directly from `assets/typescript/nostr-utils.ts` by the controllers that use them.
 - [Performance] Article pages now lazy-load related articles through a dedicated `article-related-frame` Turbo Frame endpoint; the frame renders the existing `RelatedArticles` Twig component and resolves fallback suggestions via `ContentSearchService::findRelatedArticles()`.

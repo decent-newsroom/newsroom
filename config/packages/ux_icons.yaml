@@ -1,4 +1,11 @@
 ux_icons:
+    icon_sets:
+        iconoir:
+            path: '%kernel.project_dir%/assets/icons/iconoir'
+
+    iconify:
+        enabled: false
+
     # Default attributes applied to every <twig:UX:Icon> / ux_icon() call.
     # Icons are decorative by default; set aria-label on the caller when meaningful.
     default_icon_attributes:
