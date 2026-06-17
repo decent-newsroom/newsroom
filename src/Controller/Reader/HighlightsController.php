@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Reader;
 
+use App\Dto\UserMetadata;
 use App\Message\FetchHighlightsMessage;
-use App\Repository\EventRepository;
+use App\Repository\HighlightRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\NostrLinkParser;
 use nostriphant\NIP19\Bech32;
 use Psr\Log\LoggerInterface;
@@ -21,8 +22,8 @@ class HighlightsController extends AbstractController
     private const MAX_DISPLAY_HIGHLIGHTS = 200;
 
     public function __construct(
-        private readonly EventRepository $eventRepository,
-        private readonly NostrClient $nostrClient,
+        private readonly HighlightRepository $highlightRepository,
+        private readonly RedisCacheService $redisCacheService,
         private readonly LoggerInterface $logger,
         private readonly NostrLinkParser $nostrLinkParser,
         private readonly RedisViewStore $viewStore,
@@ -95,10 +96,10 @@ class HighlightsController extends AbstractController
             }
 
             // Fallback path: Load highlights from database
-            $this->logger->debug('Redis view not found, loading from database');
+            $this->logger->debug('Redis view not found, loading highlights from Highlight repository');
 
-            // Query highlights from database
-            $highlightEvents = $this->eventRepository->findHighlights(self::MAX_DISPLAY_HIGHLIGHTS);
+            // Keep fallback source aligned with app:cache-latest-highlights.
+            $highlightsWithArticles = $this->highlightRepository->findLatestWithArticles(self::MAX_DISPLAY_HIGHLIGHTS);
 
             // Dispatch async message to fetch fresh highlights in background (fire and forget)
             try {
@@ -108,8 +109,7 @@ class HighlightsController extends AbstractController
                 $this->logger->warning('Failed to dispatch highlights fetch', ['error' => $e->getMessage()]);
             }
 
-            // Process and enrich the highlights for display
-            $highlights = $this->processHighlights($highlightEvents);
+            $highlights = $this->buildHighlightsFromDatabaseRows($highlightsWithArticles);
 
             return $this->render('pages/highlights.html.twig', [
                 'highlights' => $highlights,
@@ -131,155 +131,127 @@ class HighlightsController extends AbstractController
     }
 
 
-
     /**
-     * Process highlights to extract metadata
+     * Build highlight payloads from HighlightRepository::findLatestWithArticles rows.
+     *
+     * @param array<array{highlight: \App\Entity\Highlight, article: ?\App\Entity\Article}> $rows
+     * @return array<int, array<string, mixed>>
      */
-    private function processHighlights(array $events): array
+    private function buildHighlightsFromDatabaseRows(array $rows): array
     {
-        $processed = [];
         $pubkeys = [];
+        foreach ($rows as $item) {
+            $highlight = $item['highlight'];
+            $article = $item['article'];
 
-        foreach ($events as $event) {
-            $highlight = [
-                'id' => $event->id ?? null,
-                'content' => $event->content ?? '',
-                'created_at' => $event->created_at ?? time(),
-                'pubkey' => $event->pubkey ?? null,
-                'tags' => $event->tags ?? [],
-                'article_ref' => null,
-                'event_ref' => null,   // e-tag reference (kind:1 text notes)
-                'article_title' => null,
-                'article_author' => null,
-                'context' => null,
-                'url' => null,
-                'naddr' => null,
-                'profile' => null,
+            if ($highlight->getPubkey()) {
+                $pubkeys[] = $highlight->getPubkey();
+            }
+
+            if ($article && $article->getPubkey()) {
+                $pubkeys[] = $article->getPubkey();
+            }
+        }
+
+        $metadataMap = [];
+        $uniquePubkeys = array_values(array_unique(array_filter($pubkeys)));
+        if ($uniquePubkeys !== []) {
+            $metadataMap = $this->redisCacheService->getMultipleMetadata($uniquePubkeys);
+        }
+
+        $highlights = [];
+
+        foreach ($rows as $item) {
+            $highlightEntity = $item['highlight'];
+            $articleEntity = $item['article'];
+            $articleCoordinate = $highlightEntity->getArticleCoordinate();
+
+            if (!$articleCoordinate) {
+                continue;
+            }
+
+            $articleKind = null;
+            $articlePubkey = $articleEntity?->getPubkey();
+            $articleSlug = $articleEntity?->getSlug();
+
+            if (!$articleEntity) {
+                $parts = explode(':', $articleCoordinate, 3);
+                if (count($parts) === 3) {
+                    $articleKind = (int) $parts[0];
+                    $articlePubkey = $articlePubkey ?: $parts[1];
+                    $articleSlug = $articleSlug ?: $parts[2];
+                }
+            } else {
+                $articleKind = $articleEntity->getKind()->value;
+            }
+
+            $naddr = $this->generateNaddr($articleCoordinate, []);
+
+            $highlights[] = [
+                'id' => $highlightEntity->getEventId(),
+                'content' => $highlightEntity->getContent() ?? '',
+                'created_at' => $highlightEntity->getCreatedAt() ?? time(),
+                'pubkey' => $highlightEntity->getPubkey(),
+                'context' => $highlightEntity->getContext(),
+                'article_ref' => $articleCoordinate,
+                'article_title' => $articleEntity?->getTitle(),
+                'article_author' => $articlePubkey,
+                'article_slug' => $articleSlug,
+                'article_kind' => $articleKind,
+                'naddr' => $naddr,
+                'preview' => $naddr ? $this->createPreviewData($naddr) : null,
+                'profile' => $this->metadataToProfile($metadataMap[$highlightEntity->getPubkey()] ?? null),
+                'article_author_profile' => $articlePubkey
+                    ? $this->metadataToProfile($metadataMap[$articlePubkey] ?? null)
+                    : null,
             ];
-
-            if ($highlight['pubkey']) {
-                $pubkeys[] = $highlight['pubkey'];
-            }
-
-            $relayHints = [];
-
-            // Extract metadata from tags
-            foreach ($event->tags ?? [] as $tag) {
-                if (!is_array($tag) || count($tag) < 2) {
-                    continue;
-                }
-
-                switch ($tag[0]) {
-                    case 'a': // Article reference (kind:pubkey:identifier)
-                    case 'A':
-                        $highlight['article_ref'] = $tag[1] ?? null;
-                        // Get relay hint if available
-                        if (isset($tag[2]) && str_starts_with($tag[2], 'wss://')) {
-                            $relayHints[] = $tag[2];
-                        }
-                        // Extract article author from coordinate
-                        $parts = explode(':', $tag[1] ?? '', 3);
-                        if (count($parts) === 3) {
-                            $highlight['article_author'] = $parts[1];
-                        }
-                        break;
-                    case 'e': // Event reference (kind:1 text notes)
-                    case 'E':
-                        if (!$highlight['event_ref']) {
-                            $highlight['event_ref'] = $tag[1] ?? null;
-                        }
-                        break;
-                    case 'context':
-                        $highlight['context'] = $tag[1] ?? null;
-                        break;
-                    case 'r': // URL reference
-                        if (!$highlight['url']) {
-                            $highlight['url'] = $tag[1] ?? null;
-                        }
-                        // Also collect relay hints from r tags
-                        if (isset($tag[1]) && str_starts_with($tag[1], 'wss://')) {
-                            $relayHints[] = $tag[1];
-                        }
-                        break;
-                    case 'title':
-                        $highlight['article_title'] = $tag[1] ?? null;
-                        break;
-                }
-            }
-
-            // Include highlights that reference addressable events (articles, publications, etc.)
-            if ($highlight['article_ref']) {
-                $refParts = explode(':', $highlight['article_ref'], 3);
-                $refKind = $refParts[0] ?? null;
-
-                // Generate naddr for addressable event kinds (30xxx)
-                if ($refKind && str_starts_with($refKind, '30')) {
-                    $highlight['naddr'] = $this->generateNaddr($highlight['article_ref'], $relayHints);
-
-                    if ($highlight['naddr']) {
-                        $highlight['preview'] = $this->createPreviewData($highlight['naddr']);
-                    }
-                }
-
-                $processed[] = $highlight;
-            } elseif ($highlight['event_ref']) {
-                // Highlight pointing to a kind:1 text note via e-tag
-                $processed[] = $highlight;
-            } elseif ($highlight['url'] && !str_starts_with($highlight['url'], 'wss://')) {
-                // Highlight with a non-relay URL source
-                $processed[] = $highlight;
-            }
         }
 
-        // Sort & dedupe by source ref + highlight author (one highlight per author per source)
-        usort($processed, fn($a, $b) => $b['created_at'] <=> $a['created_at']);
-        $uniqueHighlights = [];
-        foreach ($processed as $highlight) {
-            $sourceRef = $highlight['article_ref'] ?? $highlight['event_ref'] ?? $highlight['url'] ?? '';
-            $dedupeKey = $sourceRef . '|' . ($highlight['pubkey'] ?? '');
-            if (!isset($uniqueHighlights[$dedupeKey])) {
-                $uniqueHighlights[$dedupeKey] = $highlight;
-            }
+        return $highlights;
+    }
+
+    private function metadataToProfile(mixed $metadata): ?array
+    {
+        if ($metadata === null) {
+            return null;
         }
 
-        // Batch fetch metadata for all pubkeys (local relay first, fallback to reputable relays for missing)
-        $uniquePubkeys = array_values(array_unique(array_filter($pubkeys, fn($p) => is_string($p) && strlen($p) === 64)));
-        if (!empty($uniquePubkeys)) {
-            try {
-                $metadataMap = $this->nostrClient->getMetadataForPubkeys($uniquePubkeys, true); // map pubkey => event
-                foreach ($uniqueHighlights as &$highlight) {
-                    $pubkey = $highlight['pubkey'];
-                    if ($pubkey && isset($metadataMap[$pubkey])) {
-                        $metaEvent = $metadataMap[$pubkey];
-                        // Parse metadata JSON content
-                        $profile = null;
-                        if (isset($metaEvent->content)) {
-                            $decoded = json_decode($metaEvent->content, true);
-                            if (is_array($decoded)) {
-                                $profile = [
-                                    'name' => $decoded['name'] ?? ($decoded['display_name'] ?? null),
-                                    'display_name' => $decoded['display_name'] ?? null,
-                                    'picture' => $decoded['picture'] ?? null,
-                                    'banner' => $decoded['banner'] ?? null,
-                                    'about' => $decoded['about'] ?? null,
-                                    'website' => $decoded['website'] ?? null,
-                                    'nip05' => $decoded['nip05'] ?? null,
-                                ];
-                            }
-                        }
-                        $highlight['profile'] = $profile;
-                    }
-                }
-                unset($highlight);
-            } catch (\Throwable $e) {
-                $this->logger->warning('Failed batch metadata enrichment for highlights', [
-                    'error' => $e->getMessage(),
-                    'pubkeys_count' => count($uniquePubkeys)
-                ]);
-            }
+        if ($metadata instanceof UserMetadata) {
+            return [
+                'name' => $metadata->name,
+                'display_name' => $metadata->displayName,
+                'picture' => $metadata->picture,
+                'banner' => $metadata->banner,
+                'about' => $metadata->about,
+                'website' => $metadata->getWebsite(),
+                'nip05' => $metadata->getNip05(),
+            ];
         }
 
-        return $uniqueHighlights;
+        if ($metadata instanceof \stdClass) {
+            $metadata = (array) $metadata;
+        }
+
+        if (!is_array($metadata)) {
+            return null;
+        }
+
+        $readMaybeArray = static function (mixed $value): ?string {
+            if (is_array($value)) {
+                return isset($value[0]) ? (string) $value[0] : null;
+            }
+            return is_string($value) ? $value : null;
+        };
+
+        return [
+            'name' => $metadata['name'] ?? ($metadata['display_name'] ?? null),
+            'display_name' => $metadata['display_name'] ?? null,
+            'picture' => $metadata['picture'] ?? null,
+            'banner' => $metadata['banner'] ?? null,
+            'about' => $metadata['about'] ?? null,
+            'website' => $readMaybeArray($metadata['website'] ?? null),
+            'nip05' => $readMaybeArray($metadata['nip05'] ?? null),
+        ];
     }
 
     /**
