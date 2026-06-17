@@ -430,6 +430,11 @@ topics:
     recentIn: 'Recent Articles in %topic%'
     noArticles: 'No articles found for this topic.'
 
+forum:
+    deprecated:
+        notice: 'This section is moving. Browse topics in your home feed.'
+        link: 'Go to Interests feed'
+
 # ── Collections / Lists ───────────────────────────────────────────
 lists:
     heading: 'Reading Lists'

@@ -387,6 +387,11 @@ topics:
     recentIn: 'Artículos recientes en %topic%'
     noArticles: 'No se encontraron artículos para este tema.'
 
+forum:
+    deprecated:
+        notice: 'Esta sección se está trasladando. Explora temas en tu feed de inicio.'
+        link: 'Ir al feed de intereses'
+
 # ── Colecciones / Listas ────────────────────────────────────────────
 lists:
     heading: 'Listas de lectura'

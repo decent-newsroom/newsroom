@@ -17,3 +17,23 @@
     background-color: var(--color-primary); /* Use theme success color */
     color: var(--color-text-contrast); /* Use theme text color for better contrast */
 }
+
+/* Soft deprecation notice — shown on forum pages that are being moved to feeds */
+.deprecation-notice {
+    padding: var(--spacing-2) var(--spacing-3);
+    margin: var(--spacing-2) 0 var(--spacing-4);
+    border-left: 3px solid var(--color-border);
+    background-color: var(--color-bg-light);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm, 0.875rem);
+}
+
+.deprecation-notice p {
+    margin: 0;
+}
+
+.deprecation-notice a {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+

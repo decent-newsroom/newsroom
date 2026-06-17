@@ -21,7 +21,7 @@ use App\Service\Graph\GraphMagazineListService;
 use App\Service\Nostr\NostrEventParser;
 use App\Service\ReadingListNavigationService;
 use App\Service\Search\ArticleSearchFactory;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use App\Util\CommonMark\Converter;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
@@ -1197,7 +1197,7 @@ class DefaultController extends AbstractController
         string $mag,
         EntityManagerInterface $entityManager,
         Converter $converter,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         RedisCacheService $redisCacheService,
     ): Response {
         $eventRepository = $entityManager->getRepository(Event::class);
@@ -1231,7 +1231,7 @@ class DefaultController extends AbstractController
             ]);
         }
 
-        $frontArticles = $articleSearch->findBySlugs([$articleSlug], 10);
+        $frontArticles = $contentSearch->findBySlugs([$articleSlug], 10);
         $frontArticle = null;
         foreach ($frontArticles as $candidate) {
             if ($candidate->getPubkey() === $articlePubkey) {
@@ -1830,7 +1830,7 @@ class DefaultController extends AbstractController
     public function magCategory($mag, $slug, EntityManagerInterface $entityManager,
                                 RedisCacheService $redisCacheService,
                                 LoggerInterface $logger,
-                                ArticleSearchInterface $articleSearch,
+                                ContentSearchService $contentSearch,
                                 MessageBusInterface $messageBus): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
@@ -2061,7 +2061,7 @@ class DefaultController extends AbstractController
                 }
             }
             if ($needSlugFallback) {
-                $articles = $articleSearch->findBySlugs(array_values(array_unique($slugs)), 200);
+                $articles = $contentSearch->findBySlugs(array_values(array_unique($slugs)), 200);
                 foreach ($articles as $item) {
                     $slug = $item->getSlug();
                     if ($slug === '' || $slug === null) {

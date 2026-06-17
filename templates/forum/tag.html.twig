@@ -3,6 +3,12 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ tag|capitalize }}" />
 
+    {% if deprecated is defined and deprecated %}
+        <div class="deprecation-notice">
+            <p>{{ 'forum.deprecated.notice'|trans }} <a href="{{ path('home_feed_tab', {tab: 'interests'}) }}">{{ 'forum.deprecated.link'|trans }}</a></p>
+        </div>
+    {% endif %}
+
     <div class="w-container">
         {% if articles is empty %}
             <p>{{ 'topics.noArticles'|trans }}</p>

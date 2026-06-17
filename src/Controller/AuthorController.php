@@ -17,7 +17,8 @@ use App\Service\GenericEventProjector;
 use App\Service\Nostr\NostrLinkParser;
 use App\Service\Nostr\NostrClient;
 use App\Repository\ArticleRepository;
-use App\Service\Search\ArticleSearchInterface;
+// NOTE: This controller uses ArticleRepository directly (bypasses search service)
+// to ensure article tabs are accurate regardless of Elasticsearch index lag.
 use App\Service\VanityNameService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -822,7 +823,6 @@ class AuthorController extends AbstractController
         MessageBusInterface $messageBus,
         RedisViewStore $viewStore,
         RedisViewFactory $viewFactory,
-        ArticleSearchInterface $articleSearch,
         EntityManagerInterface $em,
         string $npub = null,
         string $vanity = null
@@ -894,7 +894,7 @@ class AuthorController extends AbstractController
             // Cache is still used for speed (via Redis), but DB is the source of truth.
             if ($tab === 'articles') {
                 // No owner bypass for articles tab - consistency matters more than avoiding a DB query
-                $templateData = $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch);
+                $templateData = $this->getArticlesTabData($pubkey, $isOwner, $viewStore, $viewFactory);
 
                 // Store the fresh data for subsequent requests
                 $viewStore->storeProfileTabData($pubkey, $tab, $templateData);
@@ -936,10 +936,10 @@ class AuthorController extends AbstractController
 
                     if ($cachedIsEmpty) {
                         $templateData = match($tab) {
-                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                             'highlights' => $this->getHighlightsTabData($pubkey, $em),
-                            'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
+                            'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
                             default => [],
                         };
 
@@ -970,10 +970,10 @@ class AuthorController extends AbstractController
                 } else {
                     // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
                     $templateData = match($tab) {
-                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $articleSearch, $messageBus, $em),
+                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                         'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                         'highlights' => $this->getHighlightsTabData($pubkey, $em),
-                        'drafts' => $this->getDraftsTabData($pubkey, $articleSearch, $viewFactory, $authorMetadata),
+                        'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
                         default => [],
                     };
 
@@ -1047,10 +1047,9 @@ class AuthorController extends AbstractController
         string $pubkey,
         bool $isOwner,
         RedisViewStore $viewStore,
-        RedisViewFactory $viewFactory,
-        ArticleSearchInterface $articleSearch
+        RedisViewFactory $viewFactory
     ): array {
-        $articles = $this->getAuthorArticles($pubkey, $isOwner, $viewStore, $viewFactory, $articleSearch);
+        $articles = $this->getAuthorArticles($pubkey, $isOwner, $viewStore, $viewFactory);
 
         // Guard: if we somehow got no articles, this is likely a transient issue
         // (e.g., search index lag, database sync delay). Log it for debugging.
@@ -1073,7 +1072,6 @@ class AuthorController extends AbstractController
         RedisCacheService $redisCacheService,
         RedisViewStore $viewStore,
         RedisViewFactory $viewFactory,
-        ArticleSearchInterface $articleSearch,
         MessageBusInterface $messageBus,
         EntityManagerInterface $em
     ): array {
@@ -1755,7 +1753,6 @@ class AuthorController extends AbstractController
      */
     private function getDraftsTabData(
         string $pubkey,
-        ArticleSearchInterface $articleSearch,
         RedisViewFactory $viewFactory,
         object $author
     ): array {
@@ -1794,8 +1791,7 @@ class AuthorController extends AbstractController
         string $pubkey,
         bool $isOwner,
         RedisViewStore $viewStore,
-        RedisViewFactory $viewFactory,
-        ArticleSearchInterface $articleSearch
+        RedisViewFactory $viewFactory
     ): array {
         // The legacy `view:user:articles:<pubkey>` Redis key is NOT a
         // reliable source for an author's own articles — it was historically

@@ -3,6 +3,12 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="{{ topic.name }}" tagline="{{ tags|keys|join(', ') }}"/>
 
+    {% if deprecated is defined and deprecated %}
+        <div class="deprecation-notice">
+            <p>{{ 'forum.deprecated.notice'|trans }} <a href="{{ path('home_feed_tab', {tab: 'interests'}) }}">{{ 'forum.deprecated.link'|trans }}</a></p>
+        </div>
+    {% endif %}
+
     <div class="w-container">
         <div class="article-list">
             {% for article in articles %}

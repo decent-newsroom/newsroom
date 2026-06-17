@@ -257,6 +257,37 @@ class ContentSearchService
     }
 
     /**
+     * Find articles by slug identifiers
+     *
+     * Looks up articles by their slug values. Useful when you have a list of
+     * article slugs (e.g., from magazine/publication coordinates) and need to
+     * retrieve the full Article entities.
+     *
+     * @param string[] $slugs Array of article slug strings
+     * @param int $limit Maximum results to return
+     * @return Article[]
+     *
+     * @example
+     *   $articles = $this->contentSearch->findBySlugs(['my-article-slug'], limit: 10);
+     */
+    public function findBySlugs(array $slugs, int $limit = 200): array
+    {
+        if (empty($slugs)) {
+            return [];
+        }
+
+        try {
+            return $this->articleSearch->findBySlugs($slugs, $limit);
+        } catch (\Throwable $e) {
+            $this->logger->error('ContentSearchService::findBySlugs failed', [
+                'slugs' => $slugs,
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Check if the search backend is available
      *
      * Returns false if Elasticsearch is configured but unavailable.

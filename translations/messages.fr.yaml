@@ -387,6 +387,11 @@ topics:
     recentIn: 'Articles récents dans %topic%'
     noArticles: 'Aucun article trouvé pour ce sujet.'
 
+forum:
+    deprecated:
+        notice: 'Cette section est en cours de déplacement. Parcourez les sujets dans votre fil d''actualité.'
+        link: 'Aller au fil des intérêts'
+
 # ── Collections / Listes ───────────────────────────────────────────
 lists:
     heading: 'Listes de lecture'

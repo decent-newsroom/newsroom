@@ -12,7 +12,7 @@ use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserProfileService;
 use App\Service\Nostr\UserRelayListService;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use App\Util\ForumTopics;
 use App\Util\NostrKeyUtil;
 use Pagerfanta\Adapter\ArrayAdapter;
@@ -31,7 +31,7 @@ class ForumController extends AbstractController
 {
     #[Route('/topics', name: 'topics')]
     public function topics(
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         Request $request,
     ): Response {
         // Build flat topics map: key => ['name' => ..., 'tags' => [...]]
@@ -50,13 +50,7 @@ class ForumController extends AbstractController
         $articles = [];
 
         if ($selectedTopic && isset($topics[$selectedTopic])) {
-            $tags = array_map('strtolower', $topics[$selectedTopic]['tags']);
-            try {
-                $articles = $articleSearch->findByTopics($tags, 20, 0);
-                $articles = $this->deduplicateArticles($articles);
-            } catch (\Throwable) {
-                $articles = [];
-            }
+            $articles = $contentSearch->searchByTopics($topics[$selectedTopic]['tags'], limit: 20);
         }
 
         return $this->render('pages/topics.html.twig', [
@@ -66,41 +60,33 @@ class ForumController extends AbstractController
         ]);
     }
 
+    /**
+     * @deprecated Forum index is being replaced by topics integrated into home feeds.
+     *             Use the home feed "Interests" or topic search instead.
+     */
     #[Route('/forum', name: 'forum')]
     public function index(
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         CacheInterface $cache,
         Request $request,
         NostrClient $nostrClient
     ): Response {
-        // Optional: small cache so we don't hammer the search service on every page view
-        $categoriesWithCounts = $cache->get('forum.index.counts.v2', function (ItemInterface $item) use ($articleSearch) {
-            $item->expiresAfter(30); // 30s is a nice compromise for "live enough"
-            $allTags = $this->flattenAllTags(ForumTopics::TOPICS); // ['tag' => true, ...]
-
-            // Fetch counts via the search service
-            $counts = [];
-            if ($articleSearch->isAvailable()) {
-                try {
-                    $counts = $articleSearch->getTagCounts(array_keys($allTags)); // ['tag' => count]
-                } catch (\Throwable $e) {
-                    // Search error - return empty counts
-                }
-            }
-
-            return $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
+        $categoriesWithCounts = $cache->get('forum.index.counts.v3', function (ItemInterface $item) use ($contentSearch) {
+            $item->expiresAfter(30);
+            return $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS);
         });
 
         $userInterests = null;
         /** @var User $user */
         $user = $this->getUser();
-        if (!!$user && $articleSearch->isAvailable()) {
-            $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch);
+        if (!!$user && $contentSearch->isSearchAvailable()) {
+            $userInterests = $this->buildUserInterests($user, $nostrClient, $contentSearch);
         }
 
         return $this->render('forum/index.html.twig', [
             'topics' => $categoriesWithCounts,
             'userInterests' => $userInterests,
+            'deprecated' => true,
         ]);
     }
 
@@ -110,7 +96,7 @@ class ForumController extends AbstractController
      */
     #[Route('/my-interests', name: 'my_interests')]
     public function myInterests(
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         NostrClient $nostrClient,
         Request $request,
     ): Response {
@@ -130,7 +116,7 @@ class ForumController extends AbstractController
         }
 
         // Build the filtered interest categories using the already-fetched tags
-        $userInterests = $this->buildUserInterests($user, $nostrClient, $articleSearch, $currentInterestTags);
+        $userInterests = $this->buildUserInterests($user, $nostrClient, $contentSearch, $currentInterestTags);
 
         // Build popular tags grouped by category for the editor
         $popularTags = ForumTopics::allUniqueTags();
@@ -154,13 +140,8 @@ class ForumController extends AbstractController
         $perPage = 20;
         $articles = [];
 
-        if (!empty($interestTags) && $articleSearch->isAvailable()) {
-            try {
-                $articles = $articleSearch->findByTopics($interestTags, $perPage * 10, 0);
-                $articles = $this->deduplicateArticles($articles);
-            } catch (\Throwable $e) {
-                // Search error - return empty articles
-            }
+        if (!empty($interestTags)) {
+            $articles = $contentSearch->searchByTopics($interestTags, limit: $perPage * 10);
         }
 
         $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
@@ -186,7 +167,7 @@ class ForumController extends AbstractController
     #[Route('/my-interests/set/{dTag}', name: 'interest_set_view', requirements: ['dTag' => '.+'])]
     public function interestSetView(
         string $dTag,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         NostrClient $nostrClient,
         Request $request,
     ): Response {
@@ -215,12 +196,8 @@ class ForumController extends AbstractController
         $perPage = 20;
         $articles = [];
 
-        if (!empty($tags) && $articleSearch->isAvailable()) {
-            try {
-                $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0);
-                $articles = $this->deduplicateArticles($articles);
-            } catch (\Throwable) {
-            }
+        if (!empty($tags)) {
+            $articles = $contentSearch->searchByTopics($tags, limit: $perPage * 10);
         }
 
         $pager = new Pagerfanta(new ArrayAdapter($articles));
@@ -235,10 +212,13 @@ class ForumController extends AbstractController
         ]);
     }
 
+    /**
+     * @deprecated Forum main topic pages are being replaced by home feed topic integration.
+     */
     #[Route('/forum/main/{topic}', name: 'forum_main_topic')]
     public function mainTopic(
         string $topic,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         ArticleRepository $articleRepository,
         Request $request
     ): Response {
@@ -248,38 +228,21 @@ class ForumController extends AbstractController
         }
 
         $category = ForumTopics::TOPICS[$catKey];
-        // Collect all tags from all subcategories under this main topic
         $tags = [];
         foreach ($category['subcategories'] as $sub) {
             foreach ($sub['tags'] as $t) { $tags[] = (string)$t; }
         }
         $tags = array_values(array_unique(array_map('strtolower', array_map('trim', $tags))));
 
-        // Count each tag in this main topic in one shot
-        $tagCounts = [];
-        try {
-            $tagCounts = $articleSearch->getTagCounts($tags);
-        } catch (\Throwable $e) {
-            // Search error - return empty counts
-        }
+        $tagCounts = $contentSearch->getTopicsMetadata($tags);
 
-        // Fetch articles for the main topic (OR across all tags)
         $page = max(1, (int)$request->query->get('page', 1));
         $perPage = 20;
-        $articles = [];
+        $articles = $contentSearch->searchByTopics($tags, limit: $perPage * 10);
 
-        try {
-            $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0); // Fetch more for pagination
-            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
-        } catch (\Throwable $e) {
-            // Search error - return empty articles
-        }
-
-        // Manual pagination
         $total = count($articles);
         $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
 
-        // Create a pagerfanta instance
         $pager = new Pagerfanta(new ArrayAdapter($articles));
         $pager->setMaxPerPage($perPage);
         $pager->setCurrentPage($page);
@@ -288,15 +251,7 @@ class ForumController extends AbstractController
         $threads = $this->fetchThreadsFromDb($articleRepository, [$tags]);
         $threadsPage = array_slice($threads, ($page - 1) * $perPage, $perPage);
 
-        // Get hydrated topics
-        $topics = [];
-        try {
-            $allTags = $this->flattenAllTags(ForumTopics::TOPICS);
-            $counts = $articleSearch->getTagCounts(array_keys($allTags));
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
-        } catch (\Throwable $e) {
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
-        }
+        $topics = $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS);
 
         return $this->render('forum/main_topic.html.twig', [
             'categoryKey' => $catKey,
@@ -309,13 +264,17 @@ class ForumController extends AbstractController
             'topics' => $topics,
             'articles' => $articlesPage,
             'pager' => $pager,
+            'deprecated' => true,
         ]);
     }
 
+    /**
+     * @deprecated Forum topic pages are being replaced by home feed topic integration.
+     */
     #[Route('/forum/topic/{key}', name: 'forum_topic')]
     public function topic(
         string $key,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         NostrClient $nostrClient,
         ArticleRepository $articleRepository,
         EventRepository $eventRepository,
@@ -331,8 +290,7 @@ class ForumController extends AbstractController
         }
 
         if ($cat === 'interests' && $sub === 'all') {
-            // Special case for "All Interests" pseudo-topic
-            $allTags = []; // will be filled below
+            $allTags = [];
             /** @var User $user */
             $user = $this->getUser();
             if (!!$user) {
@@ -351,7 +309,6 @@ class ForumController extends AbstractController
                 'tags' => $allTags,
             ];
         } else if ($cat === 'isets' && $sub !== null) {
-            // Interest set: sub is "pubkey:d-tag" coordinate
             $coordParts = explode(':', $sub, 2);
             if (count($coordParts) !== 2) {
                 throw $this->createNotFoundException('Invalid interest set coordinate');
@@ -377,44 +334,20 @@ class ForumController extends AbstractController
             $topic = ForumTopics::TOPICS[$cat]['subcategories'][$sub];
         }
 
-        // Count each tag in this subcategory in one shot
         $tags = array_map('strval', $topic['tags']);
-        $tagCounts = [];
-        try {
-            $tagCounts = $articleSearch->getTagCounts($tags);
-        } catch (\Throwable $e) {
-            // Search error - return empty counts
-        }
+        $tagCounts = $contentSearch->getTopicsMetadata($tags);
 
-        // Fetch articles for the topic
         $page = max(1, (int)$request->query->get('page', 1));
         $perPage = 20;
-        $articles = [];
+        $articles = $contentSearch->searchByTopics($tags, limit: $perPage * 10);
 
-        try {
-            $articles = $articleSearch->findByTopics($tags, $perPage * 10, 0); // Fetch more for pagination
-            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
-        } catch (\Throwable $e) {
-            // Search error - return empty articles
-        }
-
-        // Manual pagination
         $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
 
-        // Create a pagerfanta instance
         $pager = new Pagerfanta(new ArrayAdapter($articles));
         $pager->setMaxPerPage($perPage);
         $pager->setCurrentPage($page);
 
-        // Get hydrated topics
-        $topics = [];
-        try {
-            $allTags = $this->flattenAllTags(ForumTopics::TOPICS);
-            $counts = $articleSearch->getTagCounts(array_keys($allTags));
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
-        } catch (\Throwable $e) {
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
-        }
+        $topics = $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS);
 
         return $this->render('forum/topic.html.twig', [
             'categoryKey' => $cat,
@@ -424,51 +357,39 @@ class ForumController extends AbstractController
             'articles' => $articlesPage,
             'pager' => $pager,
             'topics' => $topics,
+            'deprecated' => true,
         ]);
     }
 
+    /**
+     * @deprecated Forum tag pages are being replaced by home feed topic integration.
+     */
     #[Route('/forum/tag/{tag}', name: 'forum_tag')]
     public function tag(
         string $tag,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         Request $request
     ): Response {
         $tag = strtolower(trim($tag));
 
         $page = max(1, (int)$request->query->get('page', 1));
         $perPage = 20;
-        $articles = [];
+        $articles = $contentSearch->searchByTopics([$tag], limit: $perPage * 10);
 
-        try {
-            $articles = $articleSearch->findByTag($tag, $perPage * 10, 0); // Fetch more for pagination
-            $articles = $this->deduplicateArticles($articles); // Remove duplicates by npub+slug
-        } catch (\Throwable $e) {
-            // Search error - return empty articles
-        }
-
-        // Manual pagination
         $articlesPage = array_slice($articles, ($page - 1) * $perPage, $perPage);
 
-        // Create a pagerfanta instance
         $pager = new Pagerfanta(new ArrayAdapter($articles));
         $pager->setMaxPerPage($perPage);
         $pager->setCurrentPage($page);
 
-        // Get hydrated topics
-        $topics = [];
-        try {
-            $allTags = $this->flattenAllTags(ForumTopics::TOPICS);
-            $counts = $articleSearch->getTagCounts(array_keys($allTags));
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, $counts);
-        } catch (\Throwable $e) {
-            $topics = $this->hydrateCategoryCounts(ForumTopics::TOPICS, []);
-        }
+        $topics = $contentSearch->buildTaxonomyWithCounts(ForumTopics::TOPICS);
 
         return $this->render('forum/tag.html.twig', [
             'tag' => $tag,
             'articles' => $articlesPage,
             'pager' => $pager,
             'topics' => $topics,
+            'deprecated' => true,
         ]);
     }
 
@@ -520,18 +441,15 @@ class ForumController extends AbstractController
 
             $signedEvent = $data['event'];
 
-            // Validate required fields
             if (!isset($signedEvent['id'], $signedEvent['pubkey'], $signedEvent['created_at'],
                        $signedEvent['kind'], $signedEvent['tags'], $signedEvent['sig'])) {
                 return new JsonResponse(['error' => 'Missing required event fields'], 400);
             }
 
-            // Validate kind
             if ((int) $signedEvent['kind'] !== KindsEnum::INTERESTS->value) {
                 return new JsonResponse(['error' => 'Invalid event kind, expected ' . KindsEnum::INTERESTS->value], 400);
             }
 
-            // Convert to Event object
             $eventObj = new Event();
             $eventObj->setId($signedEvent['id']);
             $eventObj->setPublicKey($signedEvent['pubkey']);
@@ -541,17 +459,12 @@ class ForumController extends AbstractController
             $eventObj->setContent($signedEvent['content'] ?? '');
             $eventObj->setSignature($signedEvent['sig']);
 
-            // Verify signature
             if (!$eventObj->verify()) {
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            // Persist to local DB immediately — the DB is the authoritative local cache;
-            // we do this before relay publish so the next page load is fast regardless
-            // of whether the relay publish fully succeeds.
             $userProfileService->persistInterestEvent((object) $signedEvent);
 
-            // Collect relays for publishing
             $pubkey = $signedEvent['pubkey'];
             $relays = $userRelayListService->getRelaysForPublishing($pubkey);
 
@@ -562,10 +475,8 @@ class ForumController extends AbstractController
                 'relay_count' => count($relays),
             ]);
 
-            // Publish to relays (empty array lets NostrClient fetch author's relays)
             $relayResults = $nostrClient->publishEvent($eventObj, $relays);
 
-            // Transform results
             $successCount = 0;
             $failCount = 0;
             $relayStatuses = [];
@@ -610,81 +521,15 @@ class ForumController extends AbstractController
     // ---------- Private helpers ----------
 
     /**
-     * Flatten all tags from the taxonomy into a unique set.
-     * @return array<string, true>
-     */
-    private function flattenAllTags(array $categories): array
-    {
-        $set = [];
-        foreach ($categories as $cat) {
-            foreach ($cat['subcategories'] as $sub) {
-                foreach ($sub['tags'] as $tag) {
-                    $set[strtolower($tag)] = true;
-                }
-            }
-        }
-        return $set;
-    }
-
-    /**
-     * Rehydrate taxonomy with counts per subcategory (sum of its tags).
-     * @param array<string,int> $counts
-     */
-    private function hydrateCategoryCounts(array $taxonomy, array $counts): array
-    {
-        $out = [];
-        foreach ($taxonomy as $catKey => $cat) {
-            $subs = [];
-            foreach ($cat['subcategories'] as $subKey => $sub) {
-                $sum = 0;
-                foreach ($sub['tags'] as $tag) {
-                    $sum += $counts[strtolower($tag)] ?? 0;
-                }
-                $subs[$subKey] = $sub + ['count' => $sum];
-            }
-            $out[$catKey] = $cat;
-            $out[$catKey]['subcategories'] = $subs;
-        }
-        return $out;
-    }
-
-    /**
-     * Deduplicate articles by pubkey+slug combination.
-     * Keeps the first occurrence of each unique pubkey+slug pair.
-     *
-     * @param Article[] $articles
-     * @return Article[]
-     */
-    private function deduplicateArticles(array $articles): array
-    {
-        $seen = [];
-        $unique = [];
-
-        foreach ($articles as $article) {
-            $pubkey = $article->getPubkey();
-            $slug = $article->getSlug();
-            $key = $pubkey . '|' . $slug;
-
-            if (!isset($seen[$key])) {
-                $seen[$key] = true;
-                $unique[] = $article;
-            }
-        }
-
-        return $unique;
-    }
-
-    /**
      * Fetch latest threads for a given OR-scope of tag groups from the database.
      *
      * @param ArticleRepository $repository
-     * @param array<int,array<int,string>> $tagGroups  e.g. [ ['bitcoin','lightning'] ]
+     * @param array<int,array<int,string>> $tagGroups
      * @param int $size
      * @return array<int,array<string,mixed>>
      */
     private function fetchThreadsFromDb(ArticleRepository $repository, array $tagGroups, int $size = 200): array
     {
-        // Flatten all tags from groups
         $flatTags = [];
         foreach ($tagGroups as $g) {
             foreach ($g as $t) {
@@ -697,10 +542,8 @@ class ForumController extends AbstractController
             return [];
         }
 
-        // Use the repository's findByTopics method
         $articles = $repository->findByTopics($flatTags, $size);
 
-        // Map to the same format as fetchThreads
         return array_map(static function ($article) {
             return [
                 'id'           => $article->getId(),
@@ -714,13 +557,8 @@ class ForumController extends AbstractController
 
     /**
      * Build the user interests array for the given user.
-     * Extracted as a reusable helper for the index and myInterests actions.
-     *
-     * Returns interest set boxes (kind 30015 — referenced in kind 10015 "a" tags
-     * and/or free-floating sets authored by the user) plus an "All Interests"
-     * box that aggregates all loose "t" tags from the kind 10015 event.
      */
-    private function buildUserInterests(User $user, NostrClient $nostrClient, ArticleSearchInterface $articleSearch, ?array $prefetchedInterests = null)
+    private function buildUserInterests(User $user, NostrClient $nostrClient, ContentSearchService $contentSearch, ?array $prefetchedInterests = null): ?array
     {
         try {
             $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
@@ -728,16 +566,11 @@ class ForumController extends AbstractController
 
             $counts = [];
             if (!empty($interests)) {
-                try {
-                    $counts = $articleSearch->getTagCounts(array_values($interests));
-                } catch (\Throwable $e) {
-                    $counts = [];
-                }
+                $counts = $contentSearch->getTopicsMetadata(array_values($interests));
             }
 
             $userInterests = [];
 
-            // ── Interest set boxes (kind 30015: referenced + user-authored) ──
             try {
                 $interestSets = $nostrClient->getUserInterestSets($pubkey);
             } catch (\Throwable $e) {
@@ -745,18 +578,13 @@ class ForumController extends AbstractController
             }
 
             if (!empty($interestSets)) {
-                // Fetch counts for all interest set tags at once
                 $allSetTags = [];
                 foreach ($interestSets as $set) {
                     foreach ($set['tags'] as $tag) {
                         $allSetTags[strtolower($tag)] = true;
                     }
                 }
-                try {
-                    $setCounts = $articleSearch->getTagCounts(array_keys($allSetTags));
-                } catch (\Throwable $e) {
-                    $setCounts = [];
-                }
+                $setCounts = $contentSearch->getTopicsMetadata(array_keys($allSetTags));
                 $counts = array_merge($counts, $setCounts);
 
                 $userInterests['isets'] = [
@@ -780,7 +608,6 @@ class ForumController extends AbstractController
                 }
             }
 
-            // ── "All Interests" box (aggregates loose "t" tags from kind 10015) ──
             if (!empty($interests)) {
                 $userInterests['interests'] = [
                     'name' => 'Interests',
@@ -799,7 +626,7 @@ class ForumController extends AbstractController
 
             return !empty($userInterests) ? $userInterests : null;
         } catch (\Exception $e) {
-            // Ignore errors, just don't show user interests
+            // Ignore errors
         }
 
         return null;

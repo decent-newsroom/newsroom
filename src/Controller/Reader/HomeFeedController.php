@@ -20,7 +20,7 @@ use App\Repository\UpdateRepository;
 use App\Repository\UpdateSubscriptionRepository;
 use App\Service\MutedPubkeysService;
 use App\Service\Search\ArticleSearchFactory;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use App\Service\UserMuteListService;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
@@ -47,12 +47,13 @@ class HomeFeedController extends AbstractController
         FollowPackService $followPackService,
         UpdateRepository $updateRepository,
         UpdateSubscriptionRepository $subscriptionRepository,
+        ContentSearchService $contentSearch,
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
             'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
             'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
-            'interests' => $this->interestsTab($articleSearchFactory->create(), $nostrClient, $logger),
+            'interests' => $this->interestsTab($contentSearch, $nostrClient, $logger),
             'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
             'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
             'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
@@ -240,7 +241,7 @@ class HomeFeedController extends AbstractController
     }
 
     private function interestsTab(
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
         NostrClient $nostrClient,
         LoggerInterface $logger,
     ): Response {
@@ -262,23 +263,8 @@ class HomeFeedController extends AbstractController
         }
 
         $articles = [];
-        if (!empty($interestTags) && $articleSearch->isAvailable()) {
-            try {
-                $articles = $articleSearch->findByTopics($interestTags, 50, 0);
-
-                // Deduplicate
-                $seen = [];
-                $articles = array_values(array_filter($articles, function ($a) use (&$seen) {
-                    $pubkey = $a instanceof Article ? $a->getPubkey() : (method_exists($a, 'getPubkey') ? $a->getPubkey() : '');
-                    $slug = $a instanceof Article ? $a->getSlug() : (method_exists($a, 'getSlug') ? $a->getSlug() : '');
-                    $key = $pubkey . ':' . $slug;
-                    if (isset($seen[$key])) return false;
-                    $seen[$key] = true;
-                    return true;
-                }));
-            } catch (\Throwable $e) {
-                $logger->error('Failed to search interest articles', ['error' => $e->getMessage()]);
-            }
+        if (!empty($interestTags)) {
+            $articles = $contentSearch->searchByTopics($interestTags, limit: 50);
         }
 
         return $this->render('home/tabs/_interests.html.twig', [

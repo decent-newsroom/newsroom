@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 class ArticleSearchController extends AbstractController
 {
     public function __construct(
-        private readonly ArticleSearchInterface $articleSearch,
+        private readonly ContentSearchService $contentSearch,
     ) {
     }
 
@@ -33,7 +33,7 @@ class ArticleSearchController extends AbstractController
             return $this->json(['results' => []]);
         }
 
-        $results = $this->articleSearch->search($query, $limit);
+        $results = $this->contentSearch->search($query, $limit);
 
         return $this->json(['results' => $this->mapResults($results)]);
     }
@@ -58,7 +58,7 @@ class ArticleSearchController extends AbstractController
         }
 
         $limit = min((int) $request->query->get('limit', 20), 50);
-        $results = $this->articleSearch->findByPubkey($pubkeyHex, $limit);
+        $results = $this->contentSearch->searchByAuthor($pubkeyHex, $limit);
 
         return $this->json(['results' => $this->mapResults($results)]);
     }
@@ -107,4 +107,3 @@ class ArticleSearchController extends AbstractController
         }, $seen));
     }
 }
-

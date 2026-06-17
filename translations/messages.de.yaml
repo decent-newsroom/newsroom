@@ -384,6 +384,11 @@ topics:
     recentIn: 'Neueste Artikel in %topic%'
     noArticles: 'Keine Artikel für dieses Thema gefunden.'
 
+forum:
+    deprecated:
+        notice: 'Dieser Bereich wird verschoben. Themen im Startseiten-Feed durchsuchen.'
+        link: 'Zum Interessen-Feed'
+
 # ── Sammlungen / Listen ─────────────────────────────────────────────
 lists:
     heading: 'Leselisten'

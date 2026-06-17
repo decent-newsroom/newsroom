@@ -4,6 +4,12 @@
 {% block body %}
     <twig:Atoms:PageHeading heading="Topics" tagline="Explore your interests"/>
 
+    {% if deprecated is defined and deprecated %}
+        <div class="deprecation-notice">
+            <p>{{ 'forum.deprecated.notice'|trans }} <a href="{{ path('home_feed_tab', {tab: 'interests'}) }}">{{ 'forum.deprecated.link'|trans }}</a></p>
+        </div>
+    {% endif %}
+
 {% if userInterests %}
     <section class="d-flex gap-3 center ln-section--newsstand">
         <div class="container mt-5 mb-5">

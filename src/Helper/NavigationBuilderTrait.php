@@ -94,11 +94,9 @@ trait NavigationBuilderTrait
 
         $sections = [
             [
-                'label' => 'nav.discover',
+                'label' => '',
                 'items' => [
-                    ['label' => 'nav.articles', 'route' => 'discover'],
-                    ['label' => 'nav.topics', 'route' => 'forum'],
-                    ['label' => 'nav.highlights', 'route' => 'highlights'],
+                    ['label' => 'nav.discover', 'route' => 'discover'],
                 ],
             ],
             [

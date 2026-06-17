@@ -6,7 +6,7 @@ namespace App\Controller\Administration;
 
 use App\Entity\Event;
 use App\Enum\KindsEnum;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -32,7 +32,7 @@ class MagazineEditorController extends AbstractController
         string $slug,
         Request $request,
         EntityManagerInterface $em,
-        ArticleSearchInterface $articleSearch,
+        ContentSearchService $contentSearch,
     ): Response {
         $event = $this->findIndexEvent($em, $slug);
         if (!$event) {
@@ -47,7 +47,7 @@ class MagazineEditorController extends AbstractController
         $q = trim((string) $request->query->get('q', ''));
         $results = [];
         if ($q !== '') {
-            $results = $articleSearch->search($q, 50);
+            $results = $contentSearch->search($q, 50);
         }
 
         // Current entries from 'a' tags

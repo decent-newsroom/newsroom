@@ -387,6 +387,11 @@ topics:
     recentIn: 'Nedavni članki v %topic%'
     noArticles: 'Ni najdenih člankov na to temo.'
 
+forum:
+    deprecated:
+        notice: 'Ta razdelek se seli. Teme si oglejte v domačem viru.'
+        link: 'Na vir interesov'
+
 # ── Zbirke / Seznami ──────────────────────────────────────────────
 lists:
     heading: 'Bralni seznami'

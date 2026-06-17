@@ -3,7 +3,7 @@
 namespace App\Twig\Components\Organisms;
 
 use App\Service\Nostr\NostrClient;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -37,7 +37,7 @@ final class RelatedArticles
     private const MAX_RESULTS = 3;
 
     public function __construct(
-        private readonly ArticleSearchInterface $articleSearch,
+        private readonly ContentSearchService $contentSearch,
         private readonly NostrClient $nostrClient,
         private readonly Security $security,
         private readonly LoggerInterface $logger,
@@ -93,7 +93,7 @@ final class RelatedArticles
         }
 
         // Fetch more than needed so we can filter out the current article
-        $candidates = $this->articleSearch->findByTopics($searchTags, self::MAX_RESULTS + 5);
+        $candidates = $this->contentSearch->searchByTopics($searchTags, limit: self::MAX_RESULTS + 5);
 
         // Parse current article's slug from coordinate
         $parts = explode(':', $this->coordinate, 3);
