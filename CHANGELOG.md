@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Feature] **Internal Search API**: Introduced `ContentSearchService` (formal high-level API) wrapping low-level `ArticleSearchInterface` for site-wide content discovery. Provides semantic methods: `searchByTopics()`, `findRelatedArticles()`, `getTopicsMetadata()`, `searchByAuthor()`, `getLatest()`, `buildTaxonomyWithCounts()`, and more. Transparent Elasticsearch/Database backend switching. Handles tag normalization, deduplication, and error handling. 
 - [Feature] Navigation Refactor Phase 1 rollout: migrated `/reading-nook`, `/my-content`, `/reading-list`, `/my-magazines`, and `/media-manager` to the new Reading Nook/Newsroom layouts with local sidebar data from `NavigationBuilderTrait`; added missing nav translation keys in `messages.{en,de,es,fr,sl}.yaml`; magazine/reading-list wizard flows remain on the standard global layout as focused step-by-step flows.
 - [Infrastructure] Introduced three-layout navigation architecture to support the upcoming Navigation Refactor Plan:
   - `SidebarNav` reusable Twig component for consistent nav rendering across layouts
