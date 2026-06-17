@@ -135,17 +135,7 @@
                 <div class="settings-panel"
                      data-content--discover-tabs-target="panel"
                      data-panel="highlights">
-                    {% if highlights is empty %}
-                        <div class="no-highlights">
-                            <p>{{ 'highlights.noHighlights'|trans }}</p>
-                        </div>
-                    {% else %}
-                        <div class="highlights-grid">
-                            {% for highlight in highlights %}
-                                {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
+                    {% include 'partial/_highlights_feed.html.twig' with {highlights: highlights} only %}
                 </div>
 
                 {# Editorial Tab (Magazines, Follow Packs, Collections) #}

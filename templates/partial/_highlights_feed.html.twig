@@ -1,0 +1,17 @@
+{% if highlights|length > 0 %}
+    <div class="highlights-stats hidden">
+        <span><strong>{{ highlights|length }}</strong> highlights found</span>
+        <span>From the last 90 days</span>
+    </div>
+
+    <div class="highlights-grid">
+        {% for highlight in highlights %}
+            {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="no-highlights">
+        <p>{{ 'highlights.noHighlights'|trans }}</p>
+    </div>
+{% endif %}
+

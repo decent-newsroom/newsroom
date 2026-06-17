@@ -13,7 +13,6 @@ use App\Helper\NavigationBuilderTrait;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
-use App\Repository\HighlightRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
@@ -43,6 +42,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use App\Service\LatestArticles\LatestArticlesExclusionPolicy;
 use App\Service\Nostr\NostrClient;
 use App\Service\UserMuteListService;
+use App\Service\HighlightFeedService;
 use Pagerfanta\Adapter\ArrayAdapter;
 use Pagerfanta\Pagerfanta;
 
@@ -447,7 +447,7 @@ class DefaultController extends AbstractController
         ArticleSearchFactory $articleSearchFactory,
         UserEntityRepository $userRepository,
         ArticleRepository $articleRepository,
-        HighlightRepository $highlightRepository,
+        HighlightFeedService $highlightFeedService,
         UserMuteListService $userMuteListService,
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
@@ -550,51 +550,8 @@ class DefaultController extends AbstractController
         // Highlights tab: use the same Redis-first + repository fallback source as /highlights.
         $highlights = [];
         try {
-            $cachedHighlights = $viewStore->fetchLatestHighlights();
-
-            if ($cachedHighlights !== null) {
-                foreach ($cachedHighlights as $baseObject) {
-                    if (isset($baseObject['highlight'])) {
-                        $article = $baseObject['article'] ?? null;
-                        $highlights[] = [
-                            'id' => $baseObject['highlight']['eventId'] ?? null,
-                            'content' => $baseObject['highlight']['content'] ?? '',
-                            'created_at' => isset($baseObject['highlight']['createdAt'])
-                                ? strtotime($baseObject['highlight']['createdAt'])
-                                : time(),
-                            'pubkey' => $baseObject['highlight']['pubkey'] ?? null,
-                            'context' => $baseObject['highlight']['context'] ?? null,
-                            'article_ref' => $article && isset($article['kind'], $article['pubkey'], $article['slug'])
-                                ? $article['kind'] . ':' . $article['pubkey'] . ':' . $article['slug']
-                                : null,
-                            'article_title' => ($article && !empty($article['title'])) ? $article['title'] : null,
-                            'article_author' => $article['pubkey'] ?? null,
-                            'article_slug' => $article['slug'] ?? null,
-                            'profile' => $baseObject['author'] ?? null,
-                            'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
-                        ];
-                    }
-                }
-            } else {
-                foreach ($highlightRepository->findLatestWithArticles(200) as $item) {
-                    $highlightEntity = $item['highlight'];
-                    $articleEntity = $item['article'];
-
-                    $highlights[] = [
-                        'id' => $highlightEntity->getEventId(),
-                        'content' => $highlightEntity->getContent() ?? '',
-                        'created_at' => $highlightEntity->getCreatedAt() ?? time(),
-                        'pubkey' => $highlightEntity->getPubkey(),
-                        'context' => $highlightEntity->getContext(),
-                        'article_ref' => $highlightEntity->getArticleCoordinate(),
-                        'article_title' => $articleEntity?->getTitle(),
-                        'article_author' => $articleEntity?->getPubkey(),
-                        'article_slug' => $articleEntity?->getSlug(),
-                    ];
-                }
-            }
-
-            usort($highlights, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+            $highlightsFeed = $highlightFeedService->loadLatestHighlights(200);
+            $highlights = $highlightsFeed['highlights'];
         } catch (\Throwable) {
             // Non-critical; proceed with empty highlights.
         }
