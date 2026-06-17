@@ -1,0 +1,9 @@
+<turbo-frame id="article-related-articles">
+    {% if article and article.topics is not empty %}
+        <twig:Organisms:RelatedArticles
+            coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+            :topics="article.topics"
+            pubkey="{{ article.pubkey }}" />
+    {% endif %}
+</turbo-frame>
+

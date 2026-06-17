@@ -92,21 +92,38 @@ class ContentSearchService
     {
         try {
             $tags = $article->getTopics() ?? [];
-            if (empty($tags)) {
+            if (empty($tags) || $limit <= 0) {
                 return [];
             }
 
             $articles = $this->searchByTopics($tags, $limit * 2, 0);
 
-            // Filter out the current article itself (by pubkey + slug)
             $currentKey = $article->getPubkey() . '|' . $article->getSlug();
-            return array_filter(
-                $articles,
-                function (Article $a) use ($currentKey) {
-                    $key = $a->getPubkey() . '|' . $a->getSlug();
-                    return $key !== $currentKey;
+            $results = [];
+            $seen = [];
+
+            foreach ($articles as $candidate) {
+                $candidatePubkey = $candidate->getPubkey();
+                $candidateSlug = $candidate->getSlug();
+
+                if ($candidatePubkey === null || $candidateSlug === null) {
+                    continue;
                 }
-            );
+
+                $key = $candidatePubkey . '|' . $candidateSlug;
+                if ($key === $currentKey || isset($seen[$key])) {
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $results[] = $candidate;
+
+                if (count($results) >= $limit) {
+                    break;
+                }
+            }
+
+            return $results;
         } catch (\Throwable $e) {
             $this->logger->error('ContentSearchService::findRelatedArticles failed', [
                 'article' => $article->getId(),

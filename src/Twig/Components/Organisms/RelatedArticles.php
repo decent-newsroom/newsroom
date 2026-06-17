@@ -2,6 +2,7 @@
 
 namespace App\Twig\Components\Organisms;
 
+use App\Entity\Article;
 use App\Service\Nostr\NostrClient;
 use App\Service\Search\ContentSearchService;
 use App\Util\NostrKeyUtil;
@@ -67,6 +68,9 @@ final class RelatedArticles
     {
         $user = $this->security->getUser();
         $searchTags = array_map('strtolower', $this->topics);
+        $parts = explode(':', $this->coordinate, 3);
+        $currentSlug = $parts[2] ?? null;
+        $currentPubkey = $parts[1] ?? $this->pubkey;
 
         // For logged-in users, intersect article tags with their interests
         if ($user) {
@@ -79,8 +83,12 @@ final class RelatedArticles
                     $intersection = array_values(array_intersect($searchTags, $interestTags));
 
                     if (!empty($intersection)) {
-                        $searchTags = $intersection;
                         $this->fromInterests = true;
+                        return $this->filterCandidates(
+                            $this->contentSearch->searchByTopics($intersection, limit: self::MAX_RESULTS + 5),
+                            $currentPubkey,
+                            $currentSlug,
+                        );
                     }
                     // If no intersection, fall through to use article tags
                 }
@@ -92,16 +100,27 @@ final class RelatedArticles
             }
         }
 
-        // Fetch more than needed so we can filter out the current article
-        $candidates = $this->contentSearch->searchByTopics($searchTags, limit: self::MAX_RESULTS + 5);
+        $article = (new Article())
+            ->setPubkey($currentPubkey)
+            ->setSlug($currentSlug)
+            ->setTopics($searchTags);
 
-        // Parse current article's slug from coordinate
-        $parts = explode(':', $this->coordinate, 3);
-        $currentSlug = $parts[2] ?? null;
-        $currentPubkey = $parts[1] ?? null;
+        return $this->filterCandidates(
+            $this->contentSearch->findRelatedArticles($article, self::MAX_RESULTS + 5),
+            $currentPubkey,
+            $currentSlug,
+        );
+    }
 
+    /**
+     * @param Article[] $candidates
+     * @return Article[]
+     */
+    private function filterCandidates(array $candidates, ?string $currentPubkey, ?string $currentSlug): array
+    {
         $results = [];
         $seenCoordinates = [];
+
         foreach ($candidates as $article) {
             $articleSlug = $article->getSlug();
             $articlePubkey = $article->getPubkey();

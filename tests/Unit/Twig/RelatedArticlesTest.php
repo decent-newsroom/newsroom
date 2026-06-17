@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Twig;
 
 use App\Entity\Article;
 use App\Service\Nostr\NostrClient;
-use App\Service\Search\ArticleSearchInterface;
+use App\Service\Search\ContentSearchService;
 use App\Twig\Components\Organisms\RelatedArticles;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -16,7 +16,7 @@ final class RelatedArticlesTest extends TestCase
 {
     public function testMountDeduplicatesByPubkeyAndSlugAndExcludesCurrentArticle(): void
     {
-        $articleSearch = $this->createMock(ArticleSearchInterface::class);
+        $contentSearch = $this->createMock(ContentSearchService::class);
         $nostrClient = $this->createMock(NostrClient::class);
         $security = $this->createMock(Security::class);
         $logger = $this->createMock(LoggerInterface::class);
@@ -27,10 +27,17 @@ final class RelatedArticlesTest extends TestCase
             ->expects($this->never())
             ->method('getUserInterests');
 
-        $articleSearch
+        $contentSearch
             ->expects($this->once())
-            ->method('findByTopics')
-            ->with(['nostr'], 8)
+            ->method('findRelatedArticles')
+            ->with(
+                $this->callback(function (Article $article): bool {
+                    return $article->getPubkey() === 'current-author'
+                        && $article->getSlug() === 'current-slug'
+                        && $article->getTopics() === ['nostr'];
+                }),
+                8,
+            )
             ->willReturn([
                 $this->article('current-author', 'current-slug'),
                 $this->article('author-a', 'shared-slug'),
@@ -40,7 +47,7 @@ final class RelatedArticlesTest extends TestCase
                 $this->article('author-d', 'fourth-slug'), // beyond MAX_RESULTS after filtering
             ]);
 
-        $component = new RelatedArticles($articleSearch, $nostrClient, $security, $logger);
+        $component = new RelatedArticles($contentSearch, $nostrClient, $security, $logger);
         $component->mount('30023:current-author:current-slug', ['Nostr'], 'current-author');
 
         $this->assertSame(false, $component->fromInterests);

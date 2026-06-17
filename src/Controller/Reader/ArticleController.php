@@ -421,6 +421,35 @@ class ArticleController  extends AbstractController
         ]);
     }
 
+    #[Route('/p/{npub}/d/{slug}/related', name: 'article-related-frame', requirements: ['slug' => '.+'], priority: 6)]
+    public function articleRelatedFrame(
+        string $slug,
+        string $npub,
+        EntityManagerInterface $entityManager,
+    ): Response {
+        $slug = urldecode($slug);
+        $article = null;
+
+        try {
+            $key = new Key();
+            $pubkey = $key->convertToHex($npub);
+            $article = $entityManager->getRepository(Article::class)->findOneBy([
+                'slug' => $slug,
+                'pubkey' => $pubkey,
+            ], ['createdAt' => 'DESC']);
+
+            if ($article?->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive()) {
+                $article = null;
+            }
+        } catch (\Throwable) {
+            $article = null;
+        }
+
+        return $this->render('pages/_article_related_frame.html.twig', [
+            'article' => $article,
+        ]);
+    }
+
     #[Route('/p/{npub}/d/{slug}', name: 'author-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     #[Route('/{vanity}/d/{slug}', name: 'author-vanity-article-slug', requirements: ['slug' => '.+'], priority: 5)]
     public function authorArticle(

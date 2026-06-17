@@ -359,10 +359,10 @@
         {% endif %}
     </article>
     {% if article.topics|length > 0 and not (isDraft is defined and isDraft) %}
-        <twig:Organisms:RelatedArticles
-            coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
-            :topics="article.topics"
-            pubkey="{{ article.pubkey }}" />
+        <turbo-frame id="article-related-articles"
+                     src="{{ path('article-related-frame', {npub: npub, slug: article.slug}) }}"
+                     loading="lazy">
+        </turbo-frame>
     {% endif %}
 {% endblock %}
 

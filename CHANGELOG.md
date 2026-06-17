@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Performance] Article pages now lazy-load related articles through a dedicated `article-related-frame` Turbo Frame endpoint; the frame renders the existing `RelatedArticles` Twig component and resolves fallback suggestions via `ContentSearchService::findRelatedArticles()`.
 - [Improvement] Temporarily hid the `Editorial` tab/section on `/discover`.
 - [Improvement] Updated `/discover` tabs: renamed `Articles` to `Recent`, temporarily hid the `Activity` tab, and added a `Highlights` tab that now reuses the same shared highlight feed loader (Redis view + DB fallback) and the same Twig feed/card layout partial as `/highlights`.
 - [Bug] Fixed `/highlights` empty-page cache misses by aligning controller DB fallback with the same `Highlight` source used by `app:cache-latest-highlights` (instead of querying kind `9802` from `event`), so highlights remain visible when Redis view cache is cold or expired.
