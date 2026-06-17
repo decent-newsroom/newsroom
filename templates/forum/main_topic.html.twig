@@ -32,7 +32,7 @@
                 <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
                     {% for key, name in mainTopicsMap %}
                         <a href="{{ path('forum_main_topic', { topic: key }) }}"
-                           class="btn btn-sm {{ key == categoryKey ? 'btn-primary' : 'btn-outline-primary' }}"
+                           class="btn btn-sm {{ key == categoryKey ? 'btn-secondary' : 'btn-outline-primary' }}"
                            {% if key == categoryKey %}aria-current="page"{% endif %}>
                             {{ name }}
                         </a>
