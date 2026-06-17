@@ -68,6 +68,18 @@ nav:
     theme: 'Thème'
     cycleTheme: 'Changer de thème'
     relayFeeds: 'Fils de relais'
+    publications: 'Publications'
+    personal: 'Personnel'
+    readingNook: 'Reading Nook'
+    newMagazine: 'Nouveau magazine'
+    newReadingList: 'Nouvelle liste de lecture'
+    newArticle: 'Nouvel article'
+    backToMainNewsroom: 'Retour au Newsroom principal'
+    backToDiscover: 'Retour à Découvrir'
+    discoverMoreContent: 'Découvrir plus de contenu'
+    browseArticles: 'Parcourir les articles'
+    publishYourContent: 'Publiez votre contenu'
+    createArticle: 'Créer un article'
 
 # ── Pied de page ───────────────────────────────────────────────────
 footer:
@@ -605,6 +617,19 @@ myContent:
     articlesDirName: 'articles'
     draftsDirName: 'brouillons'
 
+newsroom:
+    nav:
+        overview: 'Vue d''ensemble'
+        my_content: 'Mon contenu'
+        articles: 'Articles'
+        drafts: 'Brouillons'
+        published: 'Publiés'
+        publications: 'Publications'
+        magazines: 'Magazines'
+        reading_lists: 'Listes de lecture'
+        media: 'Médias'
+        media_manager: 'Gestionnaire de médias'
+
 # ── Assistant magazine ────────────────────────────────────────────────
 wizard:
     magazine: 'Magazine'
@@ -955,7 +980,15 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
-    nav: 'Reading Nook' # TODO: translate
+    nav:
+        overview: 'Vue d''ensemble'
+        all_items: 'Tous les éléments'
+        saved: 'Enregistrés'
+        bookmarks: 'Signets'
+        interests: 'Intérêts'
+        collections: 'Collections'
+        reading_lists: 'Listes de lecture'
+        follow_packs: 'Packs de suivi'
     title: 'Reading Nook' # TODO: translate
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate

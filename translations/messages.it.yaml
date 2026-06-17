@@ -68,6 +68,18 @@ nav:
     theme: 'Tema'
     cycleTheme: 'Cambia tema'
     relayFeeds: 'Feed relay'
+    publications: 'Pubblicazioni'
+    personal: 'Personale'
+    readingNook: 'Reading Nook'
+    newMagazine: 'Nuova rivista'
+    newReadingList: 'Nuova lista di lettura'
+    newArticle: 'Nuovo articolo'
+    backToMainNewsroom: 'Torna al Newsroom principale'
+    backToDiscover: 'Torna a Scopri'
+    discoverMoreContent: 'Scopri altri contenuti'
+    browseArticles: 'Sfoglia articoli'
+    publishYourContent: 'Pubblica i tuoi contenuti'
+    createArticle: 'Crea articolo'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -695,6 +707,32 @@ myContent:
     readingLists: 'liste-di-lettura'
     articlesDirName: 'articoli'
     draftsDirName: 'bozze'
+
+newsroom:
+    nav:
+        overview: 'Panoramica'
+        my_content: 'I miei contenuti'
+        articles: 'Articoli'
+        drafts: 'Bozze'
+        published: 'Pubblicati'
+        publications: 'Pubblicazioni'
+        magazines: 'Riviste'
+        reading_lists: 'Liste di lettura'
+        media: 'Media'
+        media_manager: 'Gestore media'
+
+reading_nook:
+    nav:
+        overview: 'Panoramica'
+        all_items: 'Tutti gli elementi'
+        saved: 'Salvati'
+        bookmarks: 'Segnalibri'
+        interests: 'Interessi'
+        collections: 'Collezioni'
+        reading_lists: 'Liste di lettura'
+        follow_packs: 'Follow pack'
+    title: 'Reading Nook'
+    subtitle: 'Cerca e filtra le tue raccolte in un unico posto.'
 
 # ── Featured Unfold Sites ─────────────────────────────────────────
 featured_unfold:

@@ -7,6 +7,7 @@ namespace App\Controller\Newsroom;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Helper\NavigationBuilderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +23,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 class MyContentController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     #[Route('/my-content', name: 'my_content')]
     #[IsGranted('ROLE_USER')]
     public function index(EntityManagerInterface $em): Response
@@ -65,6 +68,7 @@ class MyContentController extends AbstractController
         $bookmarks = $this->fetchBookmarks($em, $pubkeyHex);
 
         return $this->render('my_content/index.html.twig', [
+            'newsroomNav' => $this->buildNewsroomNav(),
             'articles' => $articles,
             'drafts' => $drafts,
             'readingLists' => $readingLists,

@@ -9,6 +9,7 @@ use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Form\CategoryArticlesType;
 use App\Form\CategoryType;
+use App\Helper\NavigationBuilderTrait;
 use App\Service\Cache\RedisCacheService;
 use App\Service\ReadingListManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,8 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class ReadingListController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     private const SESSION_KEY = 'read_wizard';
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -143,6 +146,7 @@ class ReadingListController extends AbstractController
         }
 
         return $this->render('reading_list/index.html.twig', [
+            'newsroomNav' => $this->buildNewsroomNav(),
             'lists' => $lists,
         ]);
     }

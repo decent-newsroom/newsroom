@@ -68,6 +68,18 @@ nav:
     theme: 'Tema'
     cycleTheme: 'Zamenjaj temo'
     relayFeeds: 'Članki z relejev'
+    publications: 'Publikacije'
+    personal: 'Osebno'
+    readingNook: 'Reading Nook'
+    newMagazine: 'Nova revija'
+    newReadingList: 'Nov bralni seznam'
+    newArticle: 'Nov članek'
+    backToMainNewsroom: 'Nazaj v glavno uredništvo'
+    backToDiscover: 'Nazaj na Odkrivaj'
+    discoverMoreContent: 'Odkrij več vsebin'
+    browseArticles: 'Prebrskaj članke'
+    publishYourContent: 'Objavi svoje vsebine'
+    createArticle: 'Ustvari članek'
 
 # ── Noga ──────────────────────────────────────────────────────────
 footer:
@@ -605,6 +617,19 @@ myContent:
     articlesDirName: 'članki'
     draftsDirName: 'osnutki'
 
+newsroom:
+    nav:
+        overview: 'Pregled'
+        my_content: 'Moje vsebine'
+        articles: 'Članki'
+        drafts: 'Osnutki'
+        published: 'Objavljeno'
+        publications: 'Publikacije'
+        magazines: 'Revije'
+        reading_lists: 'Bralni seznami'
+        media: 'Mediji'
+        media_manager: 'Upravitelj medijev'
+
 # ── Čarovnik za revije ────────────────────────────────────────────
 wizard:
     magazine: 'Revija'
@@ -955,7 +980,15 @@ updates:
         alreadySubscribed: 'Že prijavljen.'
 
 reading_nook:
-    nav: 'Reading Nook' # TODO: translate
+    nav:
+        overview: 'Pregled'
+        all_items: 'Vsi elementi'
+        saved: 'Shranjeno'
+        bookmarks: 'Zaznamki'
+        interests: 'Interesi'
+        collections: 'Zbirke'
+        reading_lists: 'Bralni seznami'
+        follow_packs: 'Paketi za sledenje'
     title: 'Reading Nook' # TODO: translate
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate

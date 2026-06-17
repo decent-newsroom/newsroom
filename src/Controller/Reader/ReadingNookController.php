@@ -7,6 +7,7 @@ namespace App\Controller\Reader;
 use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
+use App\Helper\NavigationBuilderTrait;
 use App\Repository\MagazineRepository;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +19,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class ReadingNookController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     private const SECTION_BOOKMARKS = 'bookmarks';
     private const SECTION_INTERESTS = 'interests';
     private const SECTION_READING_LISTS = 'reading_lists';
@@ -83,6 +86,7 @@ final class ReadingNookController extends AbstractController
         $filteredItems = $this->applyFilters($items, $filters);
 
         return $this->render('reader/reading_nook/index.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
             'filters' => $filters,
             'items' => $filteredItems,
             'itemsBySection' => $this->groupItemsBySection($filteredItems),

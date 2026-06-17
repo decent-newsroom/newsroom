@@ -68,6 +68,18 @@ nav:
     theme: 'Theme'
     cycleTheme: 'Switch theme'
     relayFeeds: 'Relay feeds'
+    publications: 'Publications'
+    personal: 'Personal'
+    readingNook: 'Reading Nook'
+    newMagazine: 'New Magazine'
+    newReadingList: 'New Reading List'
+    newArticle: 'New Article'
+    backToMainNewsroom: 'Back to Main Newsroom'
+    backToDiscover: 'Back to Discover'
+    discoverMoreContent: 'Discover more content'
+    browseArticles: 'Browse articles'
+    publishYourContent: 'Publish your content'
+    createArticle: 'Create article'
 
 # ── Footer ────────────────────────────────────────────────────────
 footer:
@@ -792,6 +804,19 @@ myContent:
     articlesDirName: 'articles'
     draftsDirName: 'drafts'
 
+newsroom:
+    nav:
+        overview: 'Overview'
+        my_content: 'My content'
+        articles: 'Articles'
+        drafts: 'Drafts'
+        published: 'Published'
+        publications: 'Publications'
+        magazines: 'Magazines'
+        reading_lists: 'Reading lists'
+        media: 'Media'
+        media_manager: 'Media manager'
+
 # ── Featured Unfold Sites ─────────────────────────────────────────
 featured_unfold:
     label: 'Premium'
@@ -1328,7 +1353,15 @@ relay_feed:
         submit: 'Send suggestion'
 
 reading_nook:
-    nav: 'Reading Nook'
+    nav:
+        overview: 'Overview'
+        all_items: 'All items'
+        saved: 'Saved'
+        bookmarks: 'Bookmarks'
+        interests: 'Interests'
+        collections: 'Collections'
+        reading_lists: 'Reading lists'
+        follow_packs: 'Follow packs'
     title: 'Reading Nook'
     subtitle: 'Search and filter your own collections in one place.'
     create_article: 'New article'

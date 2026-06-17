@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Media;
 
+use App\Helper\NavigationBuilderTrait;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,12 +17,16 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 class MediaManagerController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     #[Route('/media-manager', name: 'media_manager')]
     public function index(): Response
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
-        return $this->render('media_manager/index.html.twig');
+        return $this->render('media_manager/index.html.twig', [
+            'newsroomNav' => $this->buildNewsroomNav(),
+        ]);
     }
 }
 

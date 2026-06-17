@@ -68,6 +68,18 @@ nav:
     theme: 'Design'
     cycleTheme: 'Design wechseln'
     relayFeeds: 'Relay-Feeds'
+    publications: 'Publikationen'
+    personal: 'Persönlich'
+    readingNook: 'Reading Nook'
+    newMagazine: 'Neues Magazin'
+    newReadingList: 'Neue Leseliste'
+    newArticle: 'Neuer Artikel'
+    backToMainNewsroom: 'Zurück zum Haupt-Newsroom'
+    backToDiscover: 'Zurück zum Entdecken'
+    discoverMoreContent: 'Mehr Inhalte entdecken'
+    browseArticles: 'Artikel durchsuchen'
+    publishYourContent: 'Veröffentliche deine Inhalte'
+    createArticle: 'Artikel erstellen'
 
 # ── Fußzeile ───────────────────────────────────────────────────────
 footer:
@@ -616,6 +628,19 @@ myContent:
     articlesDirName: 'artikel'
     draftsDirName: 'entwürfe'
 
+newsroom:
+    nav:
+        overview: 'Überblick'
+        my_content: 'Meine Inhalte'
+        articles: 'Artikel'
+        drafts: 'Entwürfe'
+        published: 'Veröffentlicht'
+        publications: 'Publikationen'
+        magazines: 'Magazine'
+        reading_lists: 'Leselisten'
+        media: 'Medien'
+        media_manager: 'Medienverwaltung'
+
 # ── Magazin-Assistent ────────────────────────────────────────────────────
 wizard:
     magazine: 'Magazin'
@@ -966,7 +991,15 @@ updates:
         alreadySubscribed: 'You are already subscribed to that source.'
 
 reading_nook:
-    nav: 'Reading Nook' # TODO: translate
+    nav:
+        overview: 'Überblick'
+        all_items: 'Alle Elemente'
+        saved: 'Gespeichert'
+        bookmarks: 'Lesezeichen'
+        interests: 'Interessen'
+        collections: 'Sammlungen'
+        reading_lists: 'Leselisten'
+        follow_packs: 'Follow-Pakete'
     title: 'Reading Nook' # TODO: translate
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate

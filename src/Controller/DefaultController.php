@@ -9,6 +9,7 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Enum\RolesEnum;
+use App\Helper\NavigationBuilderTrait;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
@@ -46,6 +47,8 @@ use Pagerfanta\Pagerfanta;
 
 class DefaultController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     /**
      * Hydrate an Event from a raw DB row without going through a full ORM query.
      */
@@ -323,6 +326,7 @@ class DefaultController extends AbstractController
         }
 
         return $this->render('pages/my-magazines.html.twig', [
+            'newsroomNav' => $this->buildNewsroomNav(),
             'pubkey' => $pubkey,
         ]);
     }
