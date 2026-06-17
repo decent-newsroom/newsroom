@@ -54,48 +54,5 @@
     </div>
 {% endmacro %}
 
-{#
-    Renders a default (hardcoded) topic sub-card with a "Clone as my set" button.
-    Allows logged-in users to turn any preconfigured topic into their own
-    kind 30015 interest set that they can later edit.
-
-    Parameters:
-      catKey   – main category key (e.g. "tech")
-      subKey   – subcategory key (e.g. "bitcoin")
-      sub      – subcategory data { name, tags, count }
-#}
-{% macro default_topic_card(catKey, subKey, sub) %}
-    <div class="sub-card"
-         {% if app.user %}
-         data-controller="nostr--nostr-interest-set-actions"
-         data-nostr--nostr-interest-set-actions-publish-url-value="{{ path('api_settings_event_publish') }}"
-         data-nostr--nostr-interest-set-actions-tags-url-value="{{ path('api_interests_current_tags') }}"
-         data-nostr--nostr-interest-set-actions-set-pubkey-value=""
-         data-nostr--nostr-interest-set-actions-set-dtag-value="{{ catKey }}-{{ subKey }}"
-         data-nostr--nostr-interest-set-actions-set-title-value="{{ sub.name }}"
-         data-nostr--nostr-interest-set-actions-set-tags-value="{{ sub.tags|json_encode }}"
-         data-nostr--nostr-interest-set-actions-followed-value="false"
-         data-nostr--nostr-interest-set-actions-owned-value="false"
-         {% endif %}>
-
-        <h3><a href="{{ path('forum_topic', {'key': catKey ~ '-' ~ subKey}) }}">{{ sub.name }}</a></h3>
-
-        <div class="d-flex flex-row">
-            <div class="tags m-0">
-                {% for tag in sub.tags %}
-                    <a class="tag" href="{{ path('forum_tag', {'tag': tag}) }}">{{ tag }}</a>
-                {% endfor %}
-            </div>
-            <div class="count">{{ sub.count|default(0) }}</div>
-        </div>
-
-        {% if app.user %}
-        <div class="sub-card__actions">
-            <button class="btn btn--sm btn--secondary"
-                    data-action="click->nostr--nostr-interest-set-actions#clone">Clone as my set</button>
-        </div>
-        {% endif %}
-    </div>
-{% endmacro %}
 
 

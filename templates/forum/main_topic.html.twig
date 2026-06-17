@@ -1,34 +1,60 @@
 {% extends 'layout.html.twig' %}
-{% import 'macros/interest_set_card.html.twig' as iset %}
+
+{% block title %}{{ category.name }} — {{ brand_name }}{% endblock %}
 
 {% block body %}
-    <twig:Atoms:PageHeading heading="{{ category.name }}"/>
+    <section class="w-container">
+        <div class="discover-section">
+            <form action="{{ path('app_search_index') }}"
+                  method="get"
+                  class="discover-search-form"
+                  data-controller="search--nostr-redirect"
+                  data-action="submit->search--nostr-redirect#submit">
+                <label class="search">
+                    <input type="search"
+                           name="q"
+                           placeholder="{{ 'discover.searchPlaceholder'|trans }}"
+                           class="form-control"
+                           data-search--nostr-redirect-target="input"
+                           required
+                    />
+                    <button type="submit" class="btn btn-primary">
+                        <twig:ux:icon name="iconoir:search" class="icon" /> {{ 'heading.search'|trans }}
+                    </button>
+                </label>
+            </form>
+        </div>
+    </section>
 
-    <div class="subcategories-grid">
-        {% set cat = topics[categoryKey] ?? null %}
-        {% if cat %}
-            {% for subKey, sub in cat.subcategories %}
-                {{ iset.default_topic_card(categoryKey, subKey, sub) }}
-            {% endfor %}
-        {% else %}
-            <div class="alert alert-info">No subcategories available for this topic.</div>
-        {% endif %}
-    </div>
+    <section class="w-container mb-3">
+        <div class="discover-section topics-strip">
+            {% if mainTopicsMap is defined and mainTopicsMap is not empty %}
+                <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
+                    {% for key, name in mainTopicsMap %}
+                        <a href="{{ path('forum_main_topic', { topic: key }) }}"
+                           class="btn btn-sm {{ key == categoryKey ? 'btn-primary' : 'btn-outline-primary' }}"
+                           {% if key == categoryKey %}aria-current="page"{% endif %}>
+                            {{ name }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </section>
 
-    <div class="w-container">
-        {% if articles is not empty %}
-            <div class="article-list" style="margin-top: 3rem;">
-                <h2 style="margin: 0 var(--spacing-3) 1rem;">Recent Articles</h2>
-                {% for article in articles %}
-                    <twig:Molecules:ArticlePreview :article="article" npub="{{ article.pubkey|toNpub }}" />
-                {% endfor %}
-            </div>
+    <section class="w-container">
+        <div class="discover-section">
+            {% if articles is empty %}
+                <div class="alert alert-info">{{ 'topics.noArticles'|trans }}</div>
+            {% else %}
+                <twig:Organisms:CardList :list="articles" class="article-list" />
+            {% endif %}
 
             {% if pager.getNbPages() > 1 %}
                 <twig:Atoms:Pagination :pager="pager" route="forum_main_topic" :routeParams="{topic: categoryKey}" />
             {% endif %}
-        {% endif %}
-    </div>
+        </div>
+    </section>
 {% endblock %}
 
 {% block aside %}{% endblock %}
