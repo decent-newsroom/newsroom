@@ -110,12 +110,6 @@
                        data-tab="highlights">
                         {{ 'nav.highlights'|trans }}
                     </a>
-                    <a href="#editorial" class="tab-link"
-                       data-action="click->content--discover-tabs#switchTab"
-                       data-content--discover-tabs-target="tab"
-                       data-tab="editorial">
-                        {{ 'discover.editorial'|trans }}
-                    </a>
                 </nav>
 
                 {# Articles Tab #}
@@ -136,48 +130,6 @@
                      data-content--discover-tabs-target="panel"
                      data-panel="highlights">
                     {% include 'partial/_highlights_feed.html.twig' with {highlights: highlights} only %}
-                </div>
-
-                {# Editorial Tab (Magazines, Follow Packs, Collections) #}
-                <div class="settings-panel"
-                     data-content--discover-tabs-target="panel"
-                     data-panel="editorial">
-                    {% if editorial is empty %}
-                        {# Fallback: show all magazines via the same component as the newsstand #}
-                        <twig:Organisms:ZineList />
-                    {% else %}
-                        {% for item in editorial %}
-                            {% if item.kind == 30040 %}
-                                {% set itemUrl = path('magazine-index', {'mag': item.slug}) %}
-                                {% set itemBadge = 'Magazine' %}
-                            {% elseif item.kind == 39089 %}
-                                {% set itemUrl = path('follow_pack_view', {'npub': item.pubkey|toNpub, 'dtag': item.slug}) %}
-                                {% set itemBadge = 'Follow Pack' %}
-                            {% else %}
-                                {% set itemUrl = path('curation-set', {'kind': item.kind, 'npub': item.pubkey|toNpub, 'slug': item.slug}) %}
-                                {% set itemBadge = item.kind == 30005 ? 'Video' : (item.kind == 30006 ? 'Pictures' : 'Collection') %}
-                            {% endif %}
-                            <div class="card p-3 ln-section--reader">
-                                {% if item.image %}
-                                    <div class="card-header m-0">
-                                        <a href="{{ itemUrl }}">
-                                            <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                                        </a>
-                                    </div>
-                                {% endif %}
-                                <div class="card-body text-center">
-                                    <h2 class="card-title">
-                                        <a href="{{ itemUrl }}">{{ item.title }}</a>
-                                    </h2>
-                                    {% if item.summary %}
-                                        <p class="lede line-clamp-5">{{ item.summary }}</p>
-                                    {% endif %}
-                                    <p><small><twig:Molecules:UserFromNpub :ident="item.pubkey" /></small></p>
-                                    <span class="badge bg-secondary">{{ itemBadge }}</span>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
                 </div>
 
                 {# Featured Writers Tab #}

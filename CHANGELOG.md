@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] Temporarily hid the `Editorial` tab/section on `/discover`.
 - [Improvement] Updated `/discover` tabs: renamed `Articles` to `Recent`, temporarily hid the `Activity` tab, and added a `Highlights` tab that now reuses the same shared highlight feed loader (Redis view + DB fallback) and the same Twig feed/card layout partial as `/highlights`.
 - [Bug] Fixed `/highlights` empty-page cache misses by aligning controller DB fallback with the same `Highlight` source used by `app:cache-latest-highlights` (instead of querying kind `9802` from `event`), so highlights remain visible when Redis view cache is cold or expired.
 - [Performance] Optimized `GET /forum/main/{topic}` for near-instant loads: removed full-list overfetch/paginate-in-PHP behavior, switched to offset window fetch (`limit = perPage + 1`) with lightweight `hasPrev/hasMore` navigation, and added short per-topic/page response caching (`forum.main_topic.v3.*`, 30s TTL); main-topic rendering now uses discover-style search + topic pills + article stream without the deprecated subcategory grid.
