@@ -16,10 +16,8 @@
     gap: var(--spacing-3);
 }
 
-.reading-nook-stat,
-.reading-nook-content,
-.reading-nook-empty,
-.reading-nook-aside__panel {
+.reading-nook-stat
+{
     border: 1px solid var(--color-border, #3a3a3a);
     background: color-mix(in oklab, var(--color-bg-light, #222624) 78%, var(--color-bg, #191c1a));
 }
