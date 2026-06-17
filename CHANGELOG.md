@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] Reading Nook now excludes authored sections (`My Content` and `My Magazines`) so `/reading-nook` focuses on read-side collections only; authored management remains in the Newsroom workspace.
 - [Bug] Removed runtime dependency on `api.iconify.design` during icon cache warmup/asset compilation by switching UX Icons to local `iconoir` SVG assets and disabling remote Iconify fetches.
 - [Improvement] Restyled `/reading-nook` into a cleaner personal-library dashboard: added overview stat cards, a clearer filter workbench, grouped section anchors, richer collection cards, and a dedicated right sidebar with quick jumps and popular-tag shortcuts.
 - [Bug] Fixed AssetMapper TypeScript compilation by removing an unused re-export from `assets/typescript/app.ts`; shared helpers continue to be imported directly from `assets/typescript/nostr-utils.ts` by the controllers that use them.

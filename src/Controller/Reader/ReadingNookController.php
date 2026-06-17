@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Reader;
 
-use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
-use App\Repository\MagazineRepository;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -25,8 +23,6 @@ final class ReadingNookController extends AbstractController
     private const SECTION_INTERESTS = 'interests';
     private const SECTION_READING_LISTS = 'reading_lists';
     private const SECTION_FOLLOW_PACKS = 'follow_packs';
-    private const SECTION_MY_CONTENT = 'my_content';
-    private const SECTION_MAGAZINES = 'magazines';
 
     /**
      * @var array<string, string>
@@ -36,8 +32,6 @@ final class ReadingNookController extends AbstractController
         self::SECTION_INTERESTS => 'reading_nook.section.interests',
         self::SECTION_READING_LISTS => 'reading_nook.section.reading_lists',
         self::SECTION_FOLLOW_PACKS => 'reading_nook.section.follow_packs',
-        self::SECTION_MY_CONTENT => 'reading_nook.section.my_content',
-        self::SECTION_MAGAZINES => 'reading_nook.section.magazines',
     ];
 
     /**
@@ -60,7 +54,6 @@ final class ReadingNookController extends AbstractController
     public function index(
         Request $request,
         EntityManagerInterface $em,
-        MagazineRepository $magazineRepository,
     ): Response {
         $user = $this->getUser();
         if ($user === null) {
@@ -72,8 +65,6 @@ final class ReadingNookController extends AbstractController
 
         $items = [
             ...$this->buildEntriesFromEvents($events),
-            ...$this->buildArticleEntries($em, $pubkeyHex),
-            ...$this->buildMagazineEntries($magazineRepository, $pubkeyHex),
         ];
 
         $filters = [
@@ -170,134 +161,6 @@ final class ReadingNookController extends AbstractController
                     $event->getContent(),
                     implode(' ', $topicTags),
                     $slug,
-                ]),
-            ];
-        }
-
-        return $entries;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildArticleEntries(EntityManagerInterface $em, string $pubkeyHex): array
-    {
-        /** @var Article[] $articlesRaw */
-        $articlesRaw = $em->getRepository(Article::class)
-            ->findBy(['pubkey' => $pubkeyHex, 'kind' => KindsEnum::LONGFORM], ['createdAt' => 'DESC']);
-
-        /** @var Article[] $draftsRaw */
-        $draftsRaw = $em->getRepository(Article::class)
-            ->findBy(['pubkey' => $pubkeyHex, 'kind' => KindsEnum::LONGFORM_DRAFT], ['createdAt' => 'DESC']);
-
-        $articles = $this->dedupeArticlesBySlug($articlesRaw);
-        $drafts = $this->dedupeArticlesBySlug($draftsRaw);
-
-        $entries = [];
-
-        foreach ($articles as $article) {
-            $topics = $this->normalizeTags($article->getTopics() ?? []);
-            $title = $article->getTitle() ?? $article->getSlug() ?? 'Untitled';
-            $summary = $article->getSummary() ?? $this->contentSnippet((string) $article->getContent(), 220);
-
-            $publicUrl = null;
-            $manageUrl = null;
-            try {
-                $publicUrl = $this->generateUrl('author-article-slug', [
-                    'npub' => NostrKeyUtil::hexToNpub((string) $article->getPubkey()),
-                    'slug' => (string) $article->getSlug(),
-                ]);
-                $manageUrl = $this->generateUrl('editor-edit-slug', ['slug' => (string) $article->getSlug()]);
-            } catch (\Throwable) {
-                $manageUrl = $this->generateUrl('editor-edit-slug', ['slug' => (string) $article->getSlug()]);
-            }
-
-            $entries[] = [
-                'section' => self::SECTION_MY_CONTENT,
-                'kind' => KindsEnum::LONGFORM->value,
-                'title' => $title,
-                'summary' => $summary,
-                'tags' => $topics,
-                'createdAt' => $article->getCreatedAt() ?? new \DateTimeImmutable(),
-                'updatedAt' => $article->getPublishedAt(),
-                'url' => $publicUrl,
-                'manageUrl' => $manageUrl,
-                'meta' => [
-                    'state' => 'published',
-                ],
-                'search' => $this->buildSearchBlob([
-                    $title,
-                    $summary,
-                    (string) $article->getContent(),
-                    implode(' ', $topics),
-                    (string) $article->getSlug(),
-                ]),
-            ];
-        }
-
-        foreach ($drafts as $draft) {
-            $topics = $this->normalizeTags($draft->getTopics() ?? []);
-            $title = $draft->getTitle() ?? $draft->getSlug() ?? 'Untitled';
-            $summary = $draft->getSummary() ?? $this->contentSnippet((string) $draft->getContent(), 220);
-
-            $entries[] = [
-                'section' => self::SECTION_MY_CONTENT,
-                'kind' => KindsEnum::LONGFORM_DRAFT->value,
-                'title' => $title,
-                'summary' => $summary,
-                'tags' => $topics,
-                'createdAt' => $draft->getCreatedAt() ?? new \DateTimeImmutable(),
-                'updatedAt' => null,
-                'url' => $this->generateUrl('editor-edit-slug-draft', ['slug' => (string) $draft->getSlug()]),
-                'manageUrl' => $this->generateUrl('editor-edit-slug-draft', ['slug' => (string) $draft->getSlug()]),
-                'meta' => [
-                    'state' => 'draft',
-                ],
-                'search' => $this->buildSearchBlob([
-                    $title,
-                    $summary,
-                    (string) $draft->getContent(),
-                    implode(' ', $topics),
-                    (string) $draft->getSlug(),
-                ]),
-            ];
-        }
-
-        return $entries;
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildMagazineEntries(MagazineRepository $magazineRepository, string $pubkeyHex): array
-    {
-        $entries = [];
-
-        foreach ($magazineRepository->findByPubkey($pubkeyHex) as $magazine) {
-            $tags = $this->normalizeTags($magazine->getTags());
-            $title = $magazine->getTitle() ?? $magazine->getSlug();
-            $summary = $magazine->getSummary() ?? '';
-
-            $entries[] = [
-                'section' => self::SECTION_MAGAZINES,
-                'kind' => KindsEnum::PUBLICATION_INDEX->value,
-                'title' => $title,
-                'summary' => $summary,
-                'tags' => $tags,
-                'createdAt' => $magazine->getCreatedAt(),
-                'updatedAt' => $magazine->getUpdatedAt(),
-                'url' => $this->generateUrl('magazine-index', ['mag' => $magazine->getSlug()]),
-                'manageUrl' => $this->generateUrl('mag_wizard_edit', ['slug' => $magazine->getSlug()]),
-                'meta' => [
-                    'slug' => $magazine->getSlug(),
-                    'categories' => count($magazine->getCategories()),
-                    'contributors' => count($magazine->getContributors()),
-                ],
-                'search' => $this->buildSearchBlob([
-                    $title,
-                    $summary,
-                    $magazine->getSlug(),
-                    implode(' ', $tags),
                 ]),
             ];
         }
@@ -634,25 +497,6 @@ final class ReadingNookController extends AbstractController
         return array_keys($normalized);
     }
 
-    /**
-     * @param Article[] $articles
-     * @return Article[]
-     */
-    private function dedupeArticlesBySlug(array $articles): array
-    {
-        $deduped = [];
-
-        foreach ($articles as $article) {
-            $slug = (string) $article->getSlug();
-            if ($slug === '' || isset($deduped[$slug])) {
-                continue;
-            }
-
-            $deduped[$slug] = $article;
-        }
-
-        return array_values($deduped);
-    }
 
     /**
      * @param array<int, string|null> $parts
