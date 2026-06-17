@@ -999,6 +999,12 @@ reading_nook:
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
+    summary:
+        total: 'Elementos totales'
+        visible: 'Visibles ahora'
+        sections: 'Secciones'
+        tags: 'Etiquetas'
+        filters: 'Filtros activos'
     sidebar:
         title: 'Quick access' # TODO: translate
         bookmarks: 'My bookmarks' # TODO: translate
@@ -1010,6 +1016,9 @@ reading_nook:
         pool_title: 'Owned pool' # TODO: translate
         pool_count: 'Total items: %count%' # TODO: translate
         filtered_count: 'Visible now: %count%' # TODO: translate
+    aside:
+        jump_to: 'Ir a la sección'
+        top_tags: 'Etiquetas populares'
     filters:
         search: 'Search content' # TODO: translate
         search_placeholder: 'Title, summary, body, tags...' # TODO: translate
@@ -1040,6 +1049,8 @@ reading_nook:
         entries: 'Entries' # TODO: translate
         topics: 'Topics' # TODO: translate
         members: 'Members' # TODO: translate
+        categories: 'Categorías'
+        contributors: 'Colaboradores'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
 

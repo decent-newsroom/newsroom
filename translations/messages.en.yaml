@@ -1371,6 +1371,12 @@ reading_nook:
     subtitle: 'Search and filter your own collections in one place.'
     create_article: 'New article'
     empty: 'No items match the current filters.'
+    summary:
+        total: 'Total items'
+        visible: 'Visible now'
+        sections: 'Sections'
+        tags: 'Tracked tags'
+        filters: 'Active filters'
     sidebar:
         title: 'Quick access'
         bookmarks: 'My bookmarks'
@@ -1382,6 +1388,9 @@ reading_nook:
         pool_title: 'Owned pool'
         pool_count: 'Total items: %count%'
         filtered_count: 'Visible now: %count%'
+    aside:
+        jump_to: 'Jump to section'
+        top_tags: 'Popular tags'
     filters:
         search: 'Search content'
         search_placeholder: 'Title, summary, body, tags...'
@@ -1412,6 +1421,8 @@ reading_nook:
         entries: 'Entries'
         topics: 'Topics'
         members: 'Members'
+        categories: 'Categories'
+        contributors: 'Contributors'
         open: 'Open'
         manage: 'Manage'
 

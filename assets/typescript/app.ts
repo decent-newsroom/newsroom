@@ -1,7 +1,3 @@
-// Entry point for TypeScript assets
-// Import and re-export Nostr utilities for global use
-
-export * from './nostr-utils';
-
-// You can add additional imports/exports here as the project grows
-// Example: import { someController } from './some-controller';
+// Entry point for TypeScript assets.
+// Keep this file import-free unless it is wired as an actual browser entrypoint.
+// The shared Nostr helpers are imported directly from `nostr-utils.ts` by controllers.
