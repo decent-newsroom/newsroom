@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Bug] Fixed `/my-content` delete action wiring by aligning the Stimulus controller filename/identifier mapping with `data-controller="content--my-content-delete"`, so the NIP-09 delete button now initializes and handles clicks correctly.
 - [Improvement] `My Bookmarks` and `My Interests` pages now render inside the Reading Nook layout shell (including the local Reading Nook sidebar) for consistent navigation in the read-side workspace.
 - [Improvement] Reading Nook now excludes authored sections (`My Content` and `My Magazines`) so `/reading-nook` focuses on read-side collections only; authored management remains in the Newsroom workspace.
 - [Bug] Removed runtime dependency on `api.iconify.design` during icon cache warmup/asset compilation by switching UX Icons to local `iconoir` SVG assets and disabling remote Iconify fetches.
