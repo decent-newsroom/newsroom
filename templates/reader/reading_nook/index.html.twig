@@ -135,13 +135,13 @@
                                             <span>{{ 'reading_nook.item.kind'|trans }} {{ item.kind }}</span>
                                         </div>
 
-                                        <header class="reading-nook-item__header">
+                                        <div class="reading-nook-item__header">
                                             {% if item.url %}
                                                 <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
                                             {% else %}
                                                 <h3><span>{{ item.title }}</span></h3>
                                             {% endif %}
-                                        </header>
+                                        </div>
 
                                         {% if item.summary %}
                                             <p class="reading-nook-item__summary">{{ item.summary }}</p>
@@ -178,14 +178,14 @@
                                         {% endif %}
 
                                         {% if item.url or item.manageUrl %}
-                                            <footer class="reading-nook-item__footer">
+                                            <div class="reading-nook-item__footer">
                                                 {% if item.url %}
                                                     <a class="btn" href="{{ item.url }}">{{ 'reading_nook.item.open'|trans }}</a>
                                                 {% endif %}
                                                 {% if item.manageUrl %}
                                                     <a class="btn btn-secondary" href="{{ item.manageUrl }}">{{ 'reading_nook.item.manage'|trans }}</a>
                                                 {% endif %}
-                                            </footer>
+                                            </div>
                                         {% endif %}
                                     </article>
                                 {% endfor %}
