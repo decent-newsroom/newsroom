@@ -102,13 +102,13 @@
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
                        data-tab="articles">
-                        {{ 'discover.articles'|trans }}
+                        {{ 'editor.recent'|trans }}
                     </a>
-                    <a href="#activity" class="tab-link"
+                    <a href="#highlights" class="tab-link"
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
-                       data-tab="activity">
-                        {{ 'discover.activity'|trans }}
+                       data-tab="highlights">
+                        {{ 'nav.highlights'|trans }}
                     </a>
                     <a href="#editorial" class="tab-link"
                        data-action="click->content--discover-tabs#switchTab"
@@ -131,16 +131,20 @@
                     {% endif %}
                 </div>
 
-                {# Activity Tab (Highlights + Comments) #}
+                {# Highlights Tab #}
                 <div class="settings-panel"
                      data-content--discover-tabs-target="panel"
-                     data-panel="activity">
-                    {% if activityItems is empty %}
+                     data-panel="highlights">
+                    {% if highlights is empty %}
                         <div class="no-highlights">
-                            <p>{{ 'discover.noActivity'|trans }}</p>
+                            <p>{{ 'highlights.noHighlights'|trans }}</p>
                         </div>
                     {% else %}
-                        {% include 'partial/_activity_items.html.twig' %}
+                        <div class="highlights-grid">
+                            {% for highlight in highlights %}
+                                {% include 'partial/_highlight_feed_card.html.twig' with {highlight: highlight} %}
+                            {% endfor %}
+                        </div>
                     {% endif %}
                 </div>
 

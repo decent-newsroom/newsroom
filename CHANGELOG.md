@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Improvement] Updated `/discover` tabs: renamed `Articles` to `Recent`, temporarily hid the `Activity` tab, and added a `Highlights` tab that reuses the same highlight feed/cards as `/highlights` (with the same Redis-first + DB fallback behavior).
 - [Bug] Fixed `/highlights` empty-page cache misses by aligning controller DB fallback with the same `Highlight` source used by `app:cache-latest-highlights` (instead of querying kind `9802` from `event`), so highlights remain visible when Redis view cache is cold or expired.
 - [Performance] Optimized `GET /forum/main/{topic}` for near-instant loads: removed full-list overfetch/paginate-in-PHP behavior, switched to offset window fetch (`limit = perPage + 1`) with lightweight `hasPrev/hasMore` navigation, and added short per-topic/page response caching (`forum.main_topic.v3.*`, 30s TTL); main-topic rendering now uses discover-style search + topic pills + article stream without the deprecated subcategory grid.
 - [Improvement] Main sidebar navigation simplified: replaced the Discover section entries with a single `Discover` menu item pointing to `/discover` (route `discover`), and removed `Topics` and `Highlights` from the global menu.

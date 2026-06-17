@@ -13,6 +13,7 @@ use App\Helper\NavigationBuilderTrait;
 use App\Message\FetchEventFromRelaysMessage;
 use App\Repository\ArticleRepository;
 use App\Repository\EventRepository;
+use App\Repository\HighlightRepository;
 use App\Repository\HiddenCoordinateRepository;
 use App\Repository\UserEntityRepository;
 use App\Service\Cache\RedisCacheService;
@@ -446,6 +447,7 @@ class DefaultController extends AbstractController
         ArticleSearchFactory $articleSearchFactory,
         UserEntityRepository $userRepository,
         ArticleRepository $articleRepository,
+        HighlightRepository $highlightRepository,
         UserMuteListService $userMuteListService,
         NostrClient $nostrClient,
         EntityManagerInterface $entityManager,
@@ -545,8 +547,8 @@ class DefaultController extends AbstractController
             }
         }
 
-        // ── Activity Tab (Highlights + Comments on long-form articles) ──────
-        $activityItems = [];
+        // Highlights tab: use the same Redis-first + repository fallback source as /highlights.
+        $highlights = [];
         try {
             $cachedHighlights = $viewStore->fetchLatestHighlights();
 
@@ -554,8 +556,7 @@ class DefaultController extends AbstractController
                 foreach ($cachedHighlights as $baseObject) {
                     if (isset($baseObject['highlight'])) {
                         $article = $baseObject['article'] ?? null;
-                        $item = [
-                            'type' => 'highlight',
+                        $highlights[] = [
                             'id' => $baseObject['highlight']['eventId'] ?? null,
                             'content' => $baseObject['highlight']['content'] ?? '',
                             'created_at' => isset($baseObject['highlight']['createdAt'])
@@ -572,91 +573,30 @@ class DefaultController extends AbstractController
                             'profile' => $baseObject['author'] ?? null,
                             'article_author_profile' => $baseObject['profiles'][$article['pubkey'] ?? ''] ?? null,
                         ];
-                        $activityItems[] = $item;
                     }
                 }
             } else {
-                // Database fallback for highlights
-                $highlightEvents = $entityManager->getRepository(Event::class)
-                    ->findBy(['kind' => KindsEnum::HIGHLIGHTS->value], ['created_at' => 'DESC'], 200);
+                foreach ($highlightRepository->findLatestWithArticles(200) as $item) {
+                    $highlightEntity = $item['highlight'];
+                    $articleEntity = $item['article'];
 
-                foreach ($highlightEvents as $event) {
-                    $item = [
-                        'type' => 'highlight',
-                        'id' => $event->getId(),
-                        'content' => $event->getContent(),
-                        'created_at' => $event->getCreatedAt(),
-                        'pubkey' => $event->getPubkey(),
-                        'context' => null,
-                        'article_ref' => null,
-                        'article_title' => null,
+                    $highlights[] = [
+                        'id' => $highlightEntity->getEventId(),
+                        'content' => $highlightEntity->getContent() ?? '',
+                        'created_at' => $highlightEntity->getCreatedAt() ?? time(),
+                        'pubkey' => $highlightEntity->getPubkey(),
+                        'context' => $highlightEntity->getContext(),
+                        'article_ref' => $highlightEntity->getArticleCoordinate(),
+                        'article_title' => $articleEntity?->getTitle(),
+                        'article_author' => $articleEntity?->getPubkey(),
+                        'article_slug' => $articleEntity?->getSlug(),
                     ];
-                    $activityItems[] = $item;
                 }
             }
 
-            // Fetch comments (kind 1111) that reference long-form articles (30023 or 30024)
-            $commentEvents = $entityManager->getRepository(Event::class)
-                ->findBy(['kind' => KindsEnum::COMMENTS->value], ['created_at' => 'DESC'], 200);
-
-            $commentRefsById = [];
-
-            foreach ($commentEvents as $event) {
-                $articleRef = null;
-                // Look for 'a' tags referencing long-form articles
-                foreach ($event->getTags() as $tag) {
-                    if (($tag[0] ?? '') === 'a' && isset($tag[1])) {
-                        $parts = explode(':', $tag[1], 3);
-                        if (count($parts) === 3) {
-                            $kind = (int)$parts[0];
-                            // kind 30023 (longform) or 30024 (draft)
-                            if (in_array($kind, [KindsEnum::LONGFORM->value, KindsEnum::LONGFORM_DRAFT->value], true)) {
-                                $articleRef = $tag[1]; // e.g., "30023:pubkey:slug"
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Only include comments that reference a long-form article
-                if ($articleRef) {
-                    $commentRefsById[$event->getId()] = $articleRef;
-                    $item = [
-                        'type' => 'comment',
-                        'id' => $event->getId(),
-                        'content' => $event->getContent(),
-                        'created_at' => $event->getCreatedAt(),
-                        'pubkey' => $event->getPubkey(),
-                        'article_ref' => $articleRef,
-                        'article_title' => null,
-                    ];
-                    $activityItems[] = $item;
-                }
-            }
-
-            // Resolve long-form article titles in batch so comment links match highlight UX.
-            if (!empty($commentRefsById)) {
-                $eventRepo = $entityManager->getRepository(Event::class);
-                $articleEventsByRef = method_exists($eventRepo, 'findByCoordinates')
-                    ? $eventRepo->findByCoordinates(array_values(array_unique($commentRefsById)))
-                    : [];
-
-                foreach ($activityItems as &$item) {
-                    if (($item['type'] ?? null) !== 'comment') {
-                        continue;
-                    }
-
-                    $ref = $item['article_ref'] ?? null;
-                    $articleEvent = $ref ? ($articleEventsByRef[$ref] ?? null) : null;
-                    $item['article_title'] = $articleEvent?->getTitle();
-                }
-                unset($item);
-            }
-
-            // Sort by created_at descending (newest first)
-            usort($activityItems, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
+            usort($highlights, fn ($a, $b) => $b['created_at'] <=> $a['created_at']);
         } catch (\Throwable) {
-            // Non-critical — proceed with empty activity
+            // Non-critical; proceed with empty highlights.
         }
 
         // ── Editorial Tab (Magazines + Follow Packs + Collections) ────────
@@ -823,7 +763,7 @@ class DefaultController extends AbstractController
         return $this->render('pages/discover.html.twig', [
             'articles' => $articles,
             'authorsMetadata' => $authorsMetadataStd,
-            'activityItems' => $activityItems,
+            'highlights' => $highlights,
             'editorial' => $editorial,
             'featuredArticles' => $featuredArticles,
             'featuredAuthorsMetadata' => $featuredAuthorsMetadata,
