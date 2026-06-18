@@ -1,0 +1,75 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Bot Analytics{% endblock %}
+
+{% block body %}
+    <div class="analytics-container">
+        <h1>Bot Analytics</h1>
+        <p><a href="{{ path('admin_analytics') }}">← Back to main analytics</a></p>
+
+        <div class="analytics-summary-row">
+            {% for period, stats in botVsHumanStats %}
+                {% set label = period == 'last_24_hours' ? 'Last 24 Hours' : (period == 'last_7_days' ? 'Last 7 Days' : 'Last 30 Days') %}
+                <div class="analytics-card">
+                    <h2>Bot vs Human — {{ label }}</h2>
+                    <ul class="analytics-stats">
+                        <li><strong>Human visits:</strong> {{ stats.human|number_format }}</li>
+                        <li><strong>Bot visits:</strong> {{ stats.bot|number_format }}</li>
+                        <li><strong>Total:</strong> {{ stats.total|number_format }}</li>
+                        <li><strong>Bot share:</strong>
+                            <span class="{{ stats.bot_pct > 50 ? 'analytics-alert' : '' }}">{{ stats.bot_pct }}%</span>
+                        </li>
+                    </ul>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="analytics-summary-row">
+            <div class="analytics-card analytics-card--wide">
+                <h2>Bot Traffic Per Day (Last 30 Days)</h2>
+                {% if botVisitsPerDayLast30Days|length > 0 %}
+                    <canvas id="botVisitsPerDayChart"
+                            data-controller="analytics--visits-per-day-chart"
+                            data-analytics--visits-per-day-chart-labels-value='{{ botVisitsPerDayLast30Days|map(s => s.day)|json_encode()|e('html_attr') }}'
+                            data-analytics--visits-per-day-chart-counts-value='{{ botVisitsPerDayLast30Days|map(s => s.count)|json_encode()|e('html_attr') }}'
+                            height="60"></canvas>
+                    <noscript><p><em>Enable JavaScript to see the chart.</em></p></noscript>
+                {% else %}
+                    <p>No bot traffic recorded in the last 30 days.</p>
+                {% endif %}
+            </div>
+
+            <div class="analytics-card">
+                <h2>Top Bot User-Agents (Last 7 Days)</h2>
+                {% if topBotUserAgents|length > 0 %}
+                    <table class="analytics-table">
+                        <thead>
+                        <tr>
+                            <th>User-Agent</th>
+                            <th class="text-right">Hits</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for row in topBotUserAgents %}
+                            <tr>
+                                <td><span title="{{ row.userAgent }}">{{ row.userAgent|length > 80 ? row.userAgent|slice(0, 80) ~ '…' : row.userAgent }}</span></td>
+                                <td class="text-right">{{ row.count|number_format }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No bot visits in the last 7 days.</p>
+                {% endif %}
+                <p class="analytics-note">Bot visits are identified by user-agent and stored with <code>is_bot = true</code>. They are excluded from all other analytics metrics on the main analytics page.</p>
+            </div>
+        </div>
+
+        <div class="analytics-info">
+            <p>
+                <strong>Bot traffic</strong> is detected and tracked separately based on known bot User-Agent patterns. These visits are excluded from the main visitor analytics to provide accurate human traffic metrics.
+            </p>
+        </div>
+    </div>
+{% endblock %}
+

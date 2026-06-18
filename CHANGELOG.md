@@ -2,6 +2,7 @@
 
 ## v0.0.46
 
+- [Performance] Split admin analytics dashboard into three focused pages: main `/admin/analytics` (core metrics: page views, unique visitors, referrers, articles, publish activity), bot analytics `/admin/analytics/bot` (bot traffic trends and user-agents), and subdomain analytics `/admin/analytics/subdomains` (Unfold site visits). Reduces initial page load from ~30 queries to ~12 queries on the main dashboard; detailed reports available via dedicated routes.
 - [Performance] Discover page `/discover` Recent tab now loads lazily via a dedicated Turbo Frame endpoint (`/discover/tab/recent`) backed by `fetchLatestArticles()` from the Redis view store (`view:articles:latest`), matching the caching strategy used by `/latest-articles`; the initial page response no longer fetches articles, reducing first-byte latency.
 - [Bug] Fixed `/my-content` delete action wiring by aligning the Stimulus controller filename/identifier mapping with `data-controller="content--my-content-delete"`, so the NIP-09 delete button now initializes and handles clicks correctly.
 - [Improvement] `My Bookmarks` and `My Interests` pages now render inside the Reading Nook layout shell (including the local Reading Nook sidebar) for consistent navigation in the read-side workspace.
