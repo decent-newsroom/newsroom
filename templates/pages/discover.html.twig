@@ -112,17 +112,18 @@
                     </a>
                 </nav>
 
-                {# Articles Tab #}
+                {# Articles Tab — loaded lazily from the cached latest articles list #}
                 <div class="settings-panel active"
                      data-content--discover-tabs-target="panel"
                      data-panel="articles">
-                    {% if articles is empty %}
-                        <div class="alert alert-info">
-                            {{ 'discover.noArticles'|trans }}
+                    <turbo-frame id="discover-tab-content"
+                                 src="{{ path('discover_tab', {tab: 'recent'}) }}"
+                                 loading="lazy">
+                        <div class="home-feed__loading">
+                            <div class="spinner"><div class="lds-dual-ring"></div></div>
+                            <p>{{ 'text.loading'|trans }}</p>
                         </div>
-                    {% else %}
-                        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
-                    {% endif %}
+                    </turbo-frame>
                 </div>
 
                 {# Highlights Tab #}

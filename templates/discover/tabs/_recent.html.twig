@@ -1,0 +1,10 @@
+<turbo-frame id="discover-tab-content">
+    {% if articles is empty %}
+        <div class="alert alert-info">
+            {{ 'discover.noArticles'|trans }}
+        </div>
+    {% else %}
+        <twig:Organisms:CardList :list="articles" :authorsMetadata="authorsMetadata" class="article-list" />
+    {% endif %}
+</turbo-frame>
+
