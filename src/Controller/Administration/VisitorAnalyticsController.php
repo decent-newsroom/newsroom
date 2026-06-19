@@ -68,30 +68,33 @@ class VisitorAnalyticsController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function detailAnalytics(VisitRepository $visitRepository): Response
     {
-        // All-time full-table scans — intentionally on a separate page
-        $totalVisits = $visitRepository->getTotalVisits();
-        $totalUniqueVisitors = $visitRepository->countUniqueVisitors();
-        $totalReferredVisits = $visitRepository->countVisitsWithReferer();
-        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
-        $bounceRate = $visitRepository->getBounceRate();
+        $since30 = new \DateTimeImmutable('-30 days');
+        $since7  = new \DateTimeImmutable('-7 days');
 
-        // Top routes (all time) and route breakdown (7d)
-        $topRoutesAllTime = $visitRepository->getMostPopularRoutes(5);
-        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute(new \DateTimeImmutable('-7 days'));
+        // All counts capped to last 30 days — no full-table scans
+        $totalVisitsLast30 = $visitRepository->countVisitsSince($since30);
+        $totalUniqueVisitorsLast30 = $visitRepository->countUniqueSessionsSince($since30);
+        $totalReferredVisitsLast30 = $visitRepository->countVisitsWithReferer($since30);
+        $bounceRate = $visitRepository->getBounceRateSince($since30);
+        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSessionSince($since30);
 
-        // Session detail
-        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession(new \DateTimeImmutable('-7 days'));
+        // Route breakdown (30d) and session detail (7d)
+        $topRoutesLast30Days = $visitRepository->getMostPopularRoutesSince($since30, 10);
+        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute($since7);
+
+        // Session detail (7d)
+        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession($since7);
 
         // Recent raw visit records
         $recentVisitRecords = $visitRepository->getRecentVisits(10);
 
         return $this->render('admin/analytics_detail.html.twig', [
-            'totalVisits' => $totalVisits,
-            'totalUniqueVisitors' => $totalUniqueVisitors,
-            'totalReferredVisits' => $totalReferredVisits,
+            'totalVisitsLast30' => $totalVisitsLast30,
+            'totalUniqueVisitorsLast30' => $totalUniqueVisitorsLast30,
+            'totalReferredVisitsLast30' => $totalReferredVisitsLast30,
             'averageVisitsPerSession' => $averageVisitsPerSession,
             'bounceRate' => $bounceRate,
-            'topRoutesAllTime' => $topRoutesAllTime,
+            'topRoutesLast30Days' => $topRoutesLast30Days,
             'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
             'recentVisitRecords' => $recentVisitRecords,

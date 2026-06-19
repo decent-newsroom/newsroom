@@ -1,0 +1,159 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Analytics Detail{% endblock %}
+
+{% block body %}
+    <div class="analytics-container">
+        <h1>Analytics — Detail View</h1>
+        <p><a href="{{ path('admin_analytics') }}">← Back to main analytics</a></p>
+
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
+                <h2>Totals (Last 30 Days)</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Page views:</strong> {{ totalVisitsLast30|number_format }}</li>
+                    <li><strong>Unique visitors:</strong> {{ totalUniqueVisitorsLast30|number_format }}</li>
+                    <li><strong>Referred visits:</strong> {{ totalReferredVisitsLast30|number_format }}</li>
+                </ul>
+            </div>
+
+            <div class="analytics-card">
+                <h2>Engagement (Last 30 Days)</h2>
+                <ul class="analytics-stats">
+                    <li><strong>Avg. Visits / Session:</strong> {{ averageVisitsPerSession }}</li>
+                    <li><strong>Bounce Rate:</strong> {{ bounceRate }}%</li>
+                </ul>
+                <p class="analytics-note">Bounce rate = sessions with only one page view.</p>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <h2>Most Popular Routes (Last 30 Days)</h2>
+            {% if topRoutesLast30Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th class="text-right">Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in topRoutesLast30Days %}
+                            <tr>
+                                <td>{{ stat.route }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No route data available for the last 30 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Visit Count by Route (Last 7 Days)</h2>
+            {% set filteredRouteVisitCounts = routeVisitCountsLast7Days|filter(stat => stat.count >= 5) %}
+            {% if filteredRouteVisitCounts|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th class="text-right">#</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in filteredRouteVisitCounts %}
+                            <tr>
+                                <td>{{ stat.route }}</td>
+                                <td class="text-right">{{ stat.count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No routes with 5 or more visits recorded in the last 7 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Sessions (Last 7 Days)</h2>
+            {% if visitsBySessionLast7Days|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th class="text-right">Visits</th>
+                            <th class="text-right">First Visit</th>
+                            <th class="text-right">Last Visit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in visitsBySessionLast7Days %}
+                            {% if stat.visitCount > 1 %}
+                            <tr>
+                                <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
+                                <td class="text-right">{{ stat.visitCount }}</td>
+                                <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
+                                <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No visitor sessions recorded in the last 7 days.</p>
+            {% endif %}
+        </div>
+
+        <div class="analytics-card">
+            <h2>Recent Visits</h2>
+            {% if recentVisitRecords|length > 0 %}
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Session ID</th>
+                            <th>Referrer</th>
+                            <th>User-Agent</th>
+                            <th>Visited At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for visit in recentVisitRecords %}
+                            <tr>
+                                <td>{{ visit.route }}</td>
+                                <td><code>{{ visit.sessionId ? visit.sessionId|slice(0, 12) ~ '...' : '—' }}</code></td>
+                                <td>
+                                    {% if visit.referer %}
+                                        {% set isHttpReferer = visit.referer starts with 'http://' or visit.referer starts with 'https://' %}
+                                        {% if isHttpReferer %}
+                                            <a href="{{ visit.referer }}" target="_blank" rel="noopener noreferrer" title="{{ visit.referer }}">
+                                                {{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}
+                                            </a>
+                                        {% else %}
+                                            <span title="{{ visit.referer }}">{{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="analytics-note">Direct / unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if visit.userAgent %}
+                                        <span title="{{ visit.userAgent }}" class="analytics-note">{{ visit.userAgent|length > 60 ? visit.userAgent|slice(0, 60) ~ '…' : visit.userAgent }}</span>
+                                    {% else %}
+                                        <span class="analytics-note">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No recent visits recorded.</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+

@@ -212,12 +212,30 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns the most popular routes (top N).
+     * Returns the most popular routes (top N) — all time, unbounded.
      */
     public function getMostPopularRoutes(int $limit = 5): array
     {
         $qb = $this->createQueryBuilder('v')
             ->select('v.route, COUNT(v.id) as count')
+            ->groupBy('v.route')
+            ->orderBy('count', 'DESC')
+            ->setMaxResults($limit);
+
+        $this->applyTrackedVisitFilters($qb);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Returns the most popular routes (top N) within a time window.
+     */
+    public function getMostPopularRoutesSince(\DateTimeImmutable $since, int $limit = 10): array
+    {
+        $qb = $this->createQueryBuilder('v')
+            ->select('v.route, COUNT(v.id) as count')
+            ->where('v.visitedAt >= :since')
+            ->setParameter('since', $since, Types::DATETIME_IMMUTABLE)
             ->groupBy('v.route')
             ->orderBy('count', 'DESC')
             ->setMaxResults($limit);
@@ -350,7 +368,7 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns the average number of visits per session.
+     * Returns the average number of visits per session (all time, unbounded).
      */
     public function getAverageVisitsPerSession(): float
     {
@@ -363,10 +381,61 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns the bounce rate (percentage of sessions with only one visit).
+     * Returns the average number of visits per session within a time window.
+     */
+    public function getAverageVisitsPerSessionSince(\DateTimeImmutable $since): float
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $assetClauses = '';
+        $params = [
+            'from' => $since->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'avg_asset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'avg_partial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+
+        $sql = "SELECT COUNT(id) AS total_visits, COUNT(DISTINCT session_id) AS unique_sessions
+                FROM visit
+                WHERE visited_at >= :from
+                AND is_bot = false
+                AND route <> :apiRoot
+                AND route NOT LIKE :apiPrefix
+                {$assetClauses}
+                {$partialClauses}";
+
+        $row = $conn->executeQuery($sql, $params)->fetchAssociative();
+        $uniqueSessions = (int) ($row['unique_sessions'] ?? 0);
+        if ($uniqueSessions === 0) {
+            return 0.0;
+        }
+        return round((int) $row['total_visits'] / $uniqueSessions, 2);
+    }
+
+    /**
+     * Returns the bounce rate (percentage of sessions with only one visit) — all-time, unbounded.
      * Uses a native SQL subquery to avoid loading all sessions into PHP memory.
      */
     public function getBounceRate(): float
+    {
+        return $this->getBounceRateSince(null);
+    }
+
+    /**
+     * Returns the bounce rate (percentage of sessions with only one visit) since a given datetime.
+     * Pass null for all-time (unbounded — use with caution on large tables).
+     */
+    public function getBounceRateSince(?\DateTimeImmutable $since): float
     {
         $conn = $this->getEntityManager()->getConnection();
 
@@ -387,6 +456,12 @@ class VisitRepository extends ServiceEntityRepository
             $params[$key] = $prefix;
         }
 
+        $sinceSql = '';
+        if ($since !== null) {
+            $sinceSql = ' AND visited_at >= :from';
+            $params['from'] = $since->format('Y-m-d H:i:s');
+        }
+
         $sql = "SELECT
                     COUNT(*) FILTER (WHERE cnt = 1) AS single_visits,
                     COUNT(*) AS total_sessions
@@ -399,6 +474,7 @@ class VisitRepository extends ServiceEntityRepository
                     AND route NOT LIKE :apiPrefix
                     {$assetClauses}
                     {$partialClauses}
+                    {$sinceSql}
                     GROUP BY session_id
                 ) sub";
 
