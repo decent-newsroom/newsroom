@@ -20,77 +20,81 @@ class VisitorAnalyticsController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function index(VisitRepository $visitRepository): Response
     {
-        // Counters for the last 24 hours and last 7 days
+        // Time-bounded counters — all fast, indexed on visited_at
         $visitsLast24Hours = $visitRepository->countVisitsSince(new \DateTimeImmutable('-24 hours'));
         $visitsLast7Days = $visitRepository->countVisitsSince(new \DateTimeImmutable('-7 days'));
+        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-24 hours'));
+        $uniqueVisitorsLast7Days = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-7 days'));
 
-        // Visits with HTTP referers
+        // Referrers (time-bounded only — no all-time scan)
         $referredVisitsLast24Hours = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-24 hours'));
         $referredVisitsLast7Days = $visitRepository->countVisitsWithReferer(new \DateTimeImmutable('-7 days'));
-        $totalReferredVisits = $visitRepository->countVisitsWithReferer();
         $topReferersLast30Days = $visitRepository->getTopReferers(15, new \DateTimeImmutable('-30 days'));
         $topExternalReferersLast30Days = $visitRepository->getTopExternalReferers($this->baseDomain, 15, new \DateTimeImmutable('-30 days'));
 
         // Most read articles in the last 24 hrs
         $topArticlesLast24Hours = $visitRepository->getMostVisitedArticlesSince(new \DateTimeImmutable('-24 hours'), 5);
 
-        // Visits by route for the last 7 days
-        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute(new \DateTimeImmutable('-7 days'));
-
-        // Unique visitors
-        $uniqueVisitorsLast24Hours = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-24 hours'));
-        $uniqueVisitorsLast7Days = $visitRepository->countUniqueSessionsSince(new \DateTimeImmutable('-7 days'));
-        $totalUniqueVisitors = $visitRepository->countUniqueVisitors();
-
-        // Visits by session for the last 7 days
-        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession(new \DateTimeImmutable('-7 days'));
-
-        // Summary metrics
-        $totalVisits = $visitRepository->getTotalVisits();
-        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
-        $bounceRate = $visitRepository->getBounceRate();
-
-        // Time series and top metrics
+        // Time series — single native SQL query each
         $dailyVisitCountsLast30Days = $visitRepository->getVisitsPerDay(30);
-        $topRoutesAllTime = $visitRepository->getMostPopularRoutes(5);
-        $recentVisitRecords = $visitRepository->getRecentVisits(10);
-
-        // Unique visitors per day for the last 7 days
         $dailyUniqueVisitorCountsLast7Days = $visitRepository->getDailyUniqueVisitors(7);
 
-        // Article publish statistics
+        // Article publish and zap stats (specific route filter — fast)
         $articlePublishStats = $visitRepository->getArticlePublishStats();
-
-        // Zap invoice statistics
         $zapInvoiceStats = $visitRepository->getZapInvoiceStats();
 
-        // Bot traffic summary (quick stats only, full details on dedicated page)
+        // Bot traffic summary (3 time-windowed counts)
         $botVsHumanStats = $visitRepository->getBotVsHumanStats();
 
         return $this->render('admin/analytics.html.twig', [
-            'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
             'visitsLast24Hours' => $visitsLast24Hours,
             'visitsLast7Days' => $visitsLast7Days,
-            'referredVisitsLast24Hours' => $referredVisitsLast24Hours,
-            'referredVisitsLast7Days' => $referredVisitsLast7Days,
-            'totalReferredVisits' => $totalReferredVisits,
             'uniqueVisitorsLast24Hours' => $uniqueVisitorsLast24Hours,
             'uniqueVisitorsLast7Days' => $uniqueVisitorsLast7Days,
-            'totalUniqueVisitors' => $totalUniqueVisitors,
-            'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
-            'totalVisits' => $totalVisits,
-            'averageVisitsPerSession' => $averageVisitsPerSession,
-            'bounceRate' => $bounceRate,
-            'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
-            'topRoutesAllTime' => $topRoutesAllTime,
+            'referredVisitsLast24Hours' => $referredVisitsLast24Hours,
+            'referredVisitsLast7Days' => $referredVisitsLast7Days,
             'topReferersLast30Days' => $topReferersLast30Days,
             'topExternalReferersLast30Days' => $topExternalReferersLast30Days,
-            'recentVisitRecords' => $recentVisitRecords,
-            'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
             'topArticlesLast24Hours' => $topArticlesLast24Hours,
+            'dailyVisitCountsLast30Days' => $dailyVisitCountsLast30Days,
+            'dailyUniqueVisitorCountsLast7Days' => $dailyUniqueVisitorCountsLast7Days,
             'articlePublishStats' => $articlePublishStats,
             'zapInvoiceStats' => $zapInvoiceStats,
             'botVsHumanStats' => $botVsHumanStats,
+        ]);
+    }
+
+    #[Route('/admin/analytics/detail', name: 'admin_analytics_detail')]
+    #[IsGranted('ROLE_ADMIN')]
+    public function detailAnalytics(VisitRepository $visitRepository): Response
+    {
+        // All-time full-table scans — intentionally on a separate page
+        $totalVisits = $visitRepository->getTotalVisits();
+        $totalUniqueVisitors = $visitRepository->countUniqueVisitors();
+        $totalReferredVisits = $visitRepository->countVisitsWithReferer();
+        $averageVisitsPerSession = $visitRepository->getAverageVisitsPerSession();
+        $bounceRate = $visitRepository->getBounceRate();
+
+        // Top routes (all time) and route breakdown (7d)
+        $topRoutesAllTime = $visitRepository->getMostPopularRoutes(5);
+        $routeVisitCountsLast7Days = $visitRepository->getVisitCountByRoute(new \DateTimeImmutable('-7 days'));
+
+        // Session detail
+        $visitsBySessionLast7Days = $visitRepository->getVisitsBySession(new \DateTimeImmutable('-7 days'));
+
+        // Recent raw visit records
+        $recentVisitRecords = $visitRepository->getRecentVisits(10);
+
+        return $this->render('admin/analytics_detail.html.twig', [
+            'totalVisits' => $totalVisits,
+            'totalUniqueVisitors' => $totalUniqueVisitors,
+            'totalReferredVisits' => $totalReferredVisits,
+            'averageVisitsPerSession' => $averageVisitsPerSession,
+            'bounceRate' => $bounceRate,
+            'topRoutesAllTime' => $topRoutesAllTime,
+            'routeVisitCountsLast7Days' => $routeVisitCountsLast7Days,
+            'visitsBySessionLast7Days' => $visitsBySessionLast7Days,
+            'recentVisitRecords' => $recentVisitRecords,
         ]);
     }
 

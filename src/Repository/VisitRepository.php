@@ -309,32 +309,44 @@ class VisitRepository extends ServiceEntityRepository
 
     /**
      * Returns daily unique visitor counts for the last N days, excluding utility routes.
+     * Uses a single SQL query instead of N separate queries.
      */
     public function getDailyUniqueVisitors(int $days = 7): array
     {
-        $result = [];
+        $from = (new \DateTimeImmutable('today'))->modify("-{$days} days");
+        $conn = $this->getEntityManager()->getConnection();
 
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $day = (new \DateTimeImmutable('today'))->modify("-{$i} days");
-            $start = $day->setTime(0, 0, 0);
-            $end = $day->setTime(23, 59, 59);
-
-            $qb = $this->createQueryBuilder('v')
-                ->select('COUNT(DISTINCT v.sessionId)')
-                ->where('v.visitedAt BETWEEN :start AND :end')
-                ->andWhere('v.sessionId IS NOT NULL')
-                ->setParameter('start', $start)
-                ->setParameter('end', $end);
-
-            $this->applyTrackedVisitFilters($qb);
-
-            $result[] = [
-                'day' => $day->format('Y-m-d'),
-                'count' => (int) $qb->getQuery()->getSingleScalarResult(),
-            ];
+        $assetClauses = '';
+        $params = [
+            'from' => $from->format('Y-m-d H:i:s'),
+            'apiRoot' => self::TRACKED_VISIT_API_ROOT,
+            'apiPrefix' => self::TRACKED_VISIT_API_PREFIX,
+        ];
+        foreach (self::ASSET_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'asset' . $i;
+            $assetClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
+        }
+        $partialClauses = '';
+        foreach (self::PARTIAL_ROUTE_PREFIXES as $i => $prefix) {
+            $key = 'partial' . $i;
+            $partialClauses .= " AND route NOT LIKE :{$key}";
+            $params[$key] = $prefix;
         }
 
-        return $result;
+        $sql = "SELECT DATE(visited_at) as day, COUNT(DISTINCT session_id) as count
+                FROM visit
+                WHERE visited_at >= :from
+                AND session_id IS NOT NULL
+                AND is_bot = false
+                AND route <> :apiRoot
+                AND route NOT LIKE :apiPrefix
+                {$assetClauses}
+                {$partialClauses}
+                GROUP BY day
+                ORDER BY day ASC";
+
+        return $conn->executeQuery($sql, $params)->fetchAllAssociative();
     }
 
     /**

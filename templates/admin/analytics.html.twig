@@ -24,7 +24,6 @@
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ referredVisitsLast24Hours|number_format }}</li>
                     <li><strong>Last 7 days:</strong> {{ referredVisitsLast7Days|number_format }}</li>
-                    <li><strong>All time:</strong> {{ totalReferredVisits|number_format }}</li>
                 </ul>
                 <p class="analytics-note">Tracked visits with a non-empty HTTP referer header. Generic visitor metrics exclude <code>/api/*</code> utility traffic.</p>
             </div>
@@ -48,7 +47,6 @@
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ visitsLast24Hours }}</li>
                     <li><strong>Last 7 days:</strong> {{ visitsLast7Days }}</li>
-                    <li><strong>All time:</strong> {{ totalVisits }}</li>
                 </ul>
                 <p class="analytics-note">Each tracked page load (bots, assets, and API utility traffic excluded).</p>
             </div>
@@ -58,9 +56,8 @@
                 <ul class="analytics-stats">
                     <li><strong>Last 24 hours:</strong> {{ uniqueVisitorsLast24Hours }}</li>
                     <li><strong>Last 7 days:</strong> {{ uniqueVisitorsLast7Days }}</li>
-                    <li><strong>All time:</strong> {{ totalUniqueVisitors }}</li>
                 </ul>
-                <p class="analytics-note">Distinct visitor IDs: session-based for logged-in users, cookie-based (<code>_nv</code>) for anonymous visitors. Not verified unique humans — one person on multiple devices counts as multiple sessions.</p>
+                <p class="analytics-note">Distinct visitor IDs: session-based for logged-in users, cookie-based (<code>_nv</code>) for anonymous visitors.</p>
             </div>
 
             <div class="analytics-card">
@@ -91,17 +88,9 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="analytics-card">
-                <h2>Engagement</h2>
-                <ul class="analytics-stats">
-                    <li><strong>Avg. Visits/Session:</strong> {{ averageVisitsPerSession }}</li>
-                    <li><strong>Bounce Rate:</strong> {{ bounceRate }}%</li>
-                </ul>
-            </div>
         </div>
 
-        {# ── Bot traffic section ───────────────────────────────────────── #}
+        {# ── Bot traffic summary ────────────────────────────────────────── #}
         <div class="analytics-summary-row">
             {% for period, stats in botVsHumanStats %}
                 {% set label = period == 'last_24_hours' ? 'Last 24 Hours' : (period == 'last_7_days' ? 'Last 7 Days' : 'Last 30 Days') %}
@@ -245,137 +234,18 @@
             {% endif %}
         </div>
 
-        <div class="analytics-card">
-            <h2>Most Popular Routes (All Time)</h2>
-            {% if topRoutesAllTime|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Route</th>
-                            <th class="text-right">Visits</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in topRoutesAllTime %}
-                            <tr>
-                                <td>{{ stat.route }}</td>
-                                <td class="text-right">{{ stat.count }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No route data available.</p>
-            {% endif %}
+        {# ── Secondary pages ───────────────────────────────────────────── #}
+        <div class="analytics-summary-row">
+            <div class="analytics-card">
+                <h2>More Analytics</h2>
+                <ul class="analytics-stats">
+                    <li><a href="{{ path('admin_analytics_detail') }}">Detail view</a> — all-time totals, bounce rate, sessions, route breakdown, recent visits</li>
+                    <li><a href="{{ path('admin_analytics_bot') }}">Bot analytics</a> — bot traffic trends and top user-agents</li>
+                    <li><a href="{{ path('admin_analytics_subdomains') }}">Subdomain analytics</a> — Unfold site visit breakdowns</li>
+                </ul>
+            </div>
         </div>
 
-        <div class="analytics-card">
-            <h2>Recent Visits</h2>
-            {% if recentVisitRecords|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Route</th>
-                            <th>Session ID</th>
-                            <th>Referrer</th>
-                            <th>User-Agent</th>
-                            <th>Visited At</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for visit in recentVisitRecords %}
-                            <tr>
-                                <td>{{ visit.route }}</td>
-                                <td><code>{{ visit.sessionId ? visit.sessionId|slice(0, 12) ~ '...' : '—' }}</code></td>
-                                <td>
-                                    {% if visit.referer %}
-                                        {% set isHttpReferer = visit.referer starts with 'http://' or visit.referer starts with 'https://' %}
-                                        {% if isHttpReferer %}
-                                            <a href="{{ visit.referer }}" target="_blank" rel="noopener noreferrer" title="{{ visit.referer }}">
-                                                {{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}
-                                            </a>
-                                        {% else %}
-                                            <span title="{{ visit.referer }}">{{ visit.referer|length > 80 ? visit.referer|slice(0, 80) ~ '…' : visit.referer }}</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="analytics-note">Direct / unknown</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if visit.userAgent %}
-                                        <span title="{{ visit.userAgent }}" class="analytics-note">{{ visit.userAgent|length > 60 ? visit.userAgent|slice(0, 60) ~ '…' : visit.userAgent }}</span>
-                                    {% else %}
-                                        <span class="analytics-note">—</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No recent visits recorded.</p>
-            {% endif %}
-        </div>
-
-        <div class="analytics-card">
-            <h2>Visit Count by Route (Last 7 Days)</h2>
-            {% set filteredRouteVisitCounts = routeVisitCountsLast7Days|filter(stat => stat.count >= 5) %}
-            {% if filteredRouteVisitCounts|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Route</th>
-                            <th class="text-right">#</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in filteredRouteVisitCounts %}
-                            <tr>
-                                <td>{{ stat.route }}</td>
-                                <td class="text-right">{{ stat.count }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No routes with 5 or more visits recorded in the last 7 days.</p>
-            {% endif %}
-        </div>
-
-        <div class="analytics-card">
-            <h2>Sessions (Last 7 Days)</h2>
-            {% if visitsBySessionLast7Days|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Session ID</th>
-                            <th class="text-right">Visits</th>
-                            <th class="text-right">First Visit</th>
-                            <th class="text-right">Last Visit</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in visitsBySessionLast7Days %}
-                            {% if stat.visitCount > 1 %}
-                            <tr>
-                                <td><code>{{ stat.sessionId|slice(0, 12) }}...</code></td>
-                                <td class="text-right">{{ stat.visitCount }}</td>
-                                <td class="text-right">{{ stat.firstVisit|date('M d, H:i') }}</td>
-                                <td class="text-right">{{ stat.lastVisit|date('M d, H:i') }}</td>
-                            </tr>
-                            {% endif %}
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No visitor sessions recorded in the last 7 days.</p>
-            {% endif %}
-        </div>
-
-        {# ── Subdomain Analytics ──────────────────────────────────────── #}
-        <h2 style="margin-top: 2rem;">Subdomain Analytics</h2>
-        <p><a href="{{ path('admin_analytics_subdomains') }}">View detailed subdomain analytics →</a></p>
 
         <div class="analytics-info">
             <p>
