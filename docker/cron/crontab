@@ -72,3 +72,7 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # so expiry only needs to run once after the month rolls over. 00:05 on the 1st of each month.
 5 0 1 * * . /etc/environment && /usr/local/bin/php /app/bin/console essayist:expire-memberships >> /var/log/cron-essayist-expire.log 2>&1
 
+# Cache XML sitemap to Redis
+# Runs every 10 minutes so Google Search Console gets instant responses
+*/10 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console app:cache-sitemap >> /var/log/cron-cache-sitemap.log 2>&1
+

@@ -19,13 +19,31 @@ class SitemapController extends AbstractController
 {
     /**
      * XML sitemap listing static pages, published articles, and magazines.
-     * Cached for 15 minutes in the HTTP layer.
+     * Served from Redis cache (pre-generated every 10 minutes by cron).
+     * Falls back to on-demand generation if cache miss.
      */
     #[Route('/sitemap.xml', name: 'sitemap', methods: ['GET'])]
     public function sitemap(
         ArticleRepository $articleRepository,
         EntityManagerInterface $entityManager,
+        \Redis $redis,
     ): Response {
+        // Try to serve from Redis cache first
+        $cached = $redis->get('sitemap:xml');
+        if ($cached !== false && $cached !== null) {
+            return new Response(
+                $cached,
+                200,
+                [
+                    'Content-Type'  => 'application/xml; charset=UTF-8',
+                    'Cache-Control' => 'public, max-age=600', // 10 minutes
+                    'X-Cache'       => 'HIT',
+                ]
+            );
+        }
+
+        // Cache miss — fall back to on-demand generation (graceful degradation)
+        // This ensures the endpoint always works, even if cron fails temporarily
         $urls = [];
 
         // ── Static pages ──────────────────────────────────────────────────────
@@ -105,16 +123,40 @@ class SitemapController extends AbstractController
             ];
         }
 
-        $response = new Response(
-            $this->renderView('sitemap.xml.twig', ['urls' => $urls]),
+        $xml = $this->generateSitemapXml($urls);
+
+        return new Response(
+            $xml,
             200,
             [
                 'Content-Type'  => 'application/xml; charset=UTF-8',
-                'Cache-Control' => 'public, max-age=900', // 15 minutes
+                'Cache-Control' => 'public, max-age=600', // 10 minutes
+                'X-Cache'       => 'MISS',
             ]
         );
+    }
 
-        return $response;
+    private function generateSitemapXml(array $urls): string
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+
+        foreach ($urls as $url) {
+            $xml .= '  <url>' . "\n";
+            $xml .= '    <loc>' . htmlspecialchars($url['loc'], ENT_XML1) . '</loc>' . "\n";
+
+            if ($url['lastmod']) {
+                $xml .= '    <lastmod>' . htmlspecialchars($url['lastmod']) . '</lastmod>' . "\n";
+            }
+
+            $xml .= '    <changefreq>' . htmlspecialchars($url['changefreq']) . '</changefreq>' . "\n";
+            $xml .= '    <priority>' . htmlspecialchars($url['priority']) . '</priority>' . "\n";
+            $xml .= '  </url>' . "\n";
+        }
+
+        $xml .= '</urlset>';
+
+        return $xml;
     }
 }
 
