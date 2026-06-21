@@ -1381,7 +1381,6 @@ class DefaultController extends AbstractController
     public function magManifest(
         string $mag,
         EntityManagerInterface $entityManager,
-        RedisCacheService $redisCacheService,
         LoggerInterface $logger,
         CacheItemPoolInterface $cache,
     ): JsonResponse
@@ -1428,125 +1427,98 @@ class DefaultController extends AbstractController
                 'chapters' => [],
             ];
 
-            // Extract category tags (30040) and chapter coordinates (30041) from magazine
-            $categoryTags = [];
-            $chapterCoordinates = [];
-            if ($magazine->getTags()) {
-                foreach ($magazine->getTags() as $tag) {
-                    if (isset($tag[0]) && $tag[0] === 'a' && isset($tag[1])) {
-                        $parts = explode(':', $tag[1], 3);
-                        if (count($parts) === 3) {
-                            $kind = (int)$parts[0];
-                            if ($kind === KindsEnum::PUBLICATION_INDEX->value) {
-                                $categoryTags[] = $tag;
-                            } elseif ($kind === KindsEnum::PUBLICATION_CONTENT->value) {
-                                $chapterCoordinates[] = $tag[1];
-                            }
-                        }
-                    }
+            $structure = $this->parseMagazineStructure($magazine);
+            $categoryCoordinates = [];
+            foreach ($structure['categoryTags'] as $categoryTag) {
+                if (isset($categoryTag[1]) && is_string($categoryTag[1])) {
+                    $categoryCoordinates[] = $categoryTag[1];
                 }
             }
 
-            $logger->info('Found category tags in magazine', [
-                'magazine' => $mag,
-                'categoryTags' => $categoryTags
-            ]);
+            /** @var ArticleRepository $articleRepository */
+            $articleRepository = $entityManager->getRepository(Article::class);
 
-            // Build each category with its articles
-            foreach ($categoryTags as $catTag) {
-                // Parse coordinate from tag[1]: "kind:pubkey:d-identifier"
-                $coordinate = $catTag[1] ?? null;
-                if (!$coordinate) {
+            $categoryMap = $eventRepository->findByCoordinates($categoryCoordinates);
+            $categoryArticlesBySlug = [];
+            $articleCoordinateIndexByCategory = [];
+            $allArticleCoordinates = [];
+
+            foreach ($categoryCoordinates as $categoryCoordinate) {
+                $parts = explode(':', $categoryCoordinate, 3);
+                $categorySlug = $parts[2] ?? '';
+                if ($categorySlug === '') {
                     continue;
                 }
 
-                $parts = explode(':', $coordinate, 3);
-                if (count($parts) !== 3) {
+                $categoryEvent = $categoryMap[$categoryCoordinate] ?? null;
+                if (!$categoryEvent instanceof Event) {
                     continue;
                 }
 
-                $catSlug = $parts[2]; // The d-identifier is the category slug
+                $articleCoordinates = [];
+                foreach ($categoryEvent->getTags() as $tag) {
+                    if (!isset($tag[0], $tag[1]) || $tag[0] !== 'a' || !is_string($tag[1])) {
+                        continue;
+                    }
 
-                // Fetch category details
-                $sql = "SELECT e.* FROM event e
-                        WHERE e.tags @> ?::jsonb
-                        ORDER BY e.created_at DESC
-                        LIMIT 1";
+                    $coordParts = explode(':', $tag[1], 3);
+                    if (count($coordParts) !== 3) {
+                        continue;
+                    }
 
-                $conn = $entityManager->getConnection();
-                $result = $conn->executeQuery($sql, [
-                    json_encode([['d', $catSlug]])
-                ]);
+                    $kind = (int) $coordParts[0];
+                    if ($kind !== KindsEnum::LONGFORM->value && $kind !== KindsEnum::LONGFORM_DRAFT->value) {
+                        continue;
+                    }
 
-                $eventData = $result->fetchAssociative();
-                if (!$eventData) {
+                    $articleCoordinates[] = [
+                        'kind' => $kind,
+                        'pubkey' => $coordParts[1],
+                        'slug' => $coordParts[2],
+                    ];
+                }
+
+                $articleCoordinateIndexByCategory[$categorySlug] = $articleCoordinates;
+                $allArticleCoordinates = array_merge($allArticleCoordinates, $articleCoordinates);
+            }
+
+            $articleMap = $articleRepository->findByCoordinates($allArticleCoordinates);
+
+            foreach ($categoryCoordinates as $categoryCoordinate) {
+                $parts = explode(':', $categoryCoordinate, 3);
+                $catSlug = $parts[2] ?? '';
+                if ($catSlug === '') {
                     continue;
                 }
 
-                // Create Event entity from database result
-                $category = new Event();
-                $category->setId($eventData['id']);
-                $category->setEventId($eventData['event_id'] ?? $eventData['id']);
-                $category->setKind((int)$eventData['kind']);
-                $category->setPubkey($eventData['pubkey']);
-                $category->setContent($eventData['content']);
-                $category->setCreatedAt((int)$eventData['created_at']);
-                $category->setTags(json_decode($eventData['tags'], true) ?? []);
-                $category->setSig($eventData['sig']);
+                $category = $categoryMap[$categoryCoordinate] ?? null;
+                if (!$category instanceof Event) {
+                    continue;
+                }
 
                 $categoryArticles = [];
-
-                // Get articles for this category
-                try {
-                    $coordinates = [];
-                    foreach ($category->getTags() as $tag) {
-                        if ($tag[0] === 'a' && isset($tag[1])) {
-                            $coordinates[] = $tag[1]; // Store full coordinate (kind:pubkey:slug)
-                        }
+                foreach ($articleCoordinateIndexByCategory[$catSlug] ?? [] as $coord) {
+                    $key = $coord['kind'] . ':' . $coord['pubkey'] . ':' . $coord['slug'];
+                    $article = $articleMap[$key] ?? null;
+                    if (!$article instanceof Article) {
+                        continue;
                     }
 
-                    if (!empty($coordinates)) {
-                        // Query database directly for each coordinate
-                        $articleRepo = $entityManager->getRepository(Article::class);
-
-                        foreach ($coordinates as $coord) {
-                            $parts = explode(':', $coord, 3);
-                            if (count($parts) !== 3) {
-                                continue;
-                            }
-
-                            [$kind, $pubkey, $slug] = $parts;
-
-                            // Find article by pubkey and slug
-                            $article = $articleRepo->findOneBy(
-                                ['pubkey' => $pubkey, 'slug' => $slug],
-                                ['createdAt' => 'DESC']
-                            );
-
-                            if ($article) {
-                                $categoryArticles[] = [
-                                    'title' => $article->getTitle(),
-                                    'slug' => $article->getSlug(),
-                                    'summary' => $article->getSummary(),
-                                    'image' => $article->getImage(),
-                                    'pubkey' => $article->getPubkey(),
-                                    'createdAt' => $article->getCreatedAt() ? $article->getCreatedAt()->format('c') : null,
-                                    'publishedAt' => $article->getPublishedAt() ? $article->getPublishedAt()->format('c') : null,
-                                    'topics' => $article->getTopics(),
-                                    'url' => $this->generateUrl('magazine-category-article', [
-                                        'slug' => $article->getSlug(),
-                                        'cat' => $catSlug,
-                                        'mag' => $mag
-                                    ], 0),
-                                ];
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $logger->warning('Failed to fetch articles for category in manifest', [
-                        'category' => $catSlug,
-                        'error' => $e->getMessage()
-                    ]);
+                    $categoryArticles[] = [
+                        'title' => $article->getTitle(),
+                        'slug' => $article->getSlug(),
+                        'summary' => $article->getSummary(),
+                        'image' => $article->getImage(),
+                        'pubkey' => $article->getPubkey(),
+                        'createdAt' => $article->getCreatedAt() ? $article->getCreatedAt()->format('c') : null,
+                        'publishedAt' => $article->getPublishedAt() ? $article->getPublishedAt()->format('c') : null,
+                        'topics' => $article->getTopics(),
+                        'url' => $this->generateUrl('magazine-category-article', [
+                            'slug' => $article->getSlug(),
+                            'cat' => $catSlug,
+                            'mag' => $mag,
+                        ], 0),
+                    ];
                 }
 
                 $manifest['categories'][] = [
@@ -1556,50 +1528,25 @@ class DefaultController extends AbstractController
                     'image' => $category->getImage(),
                     'url' => $this->generateUrl('magazine-category', [
                         'mag' => $mag,
-                        'slug' => $catSlug
+                        'slug' => $catSlug,
                     ], 0),
                     'articleCount' => count($categoryArticles),
                     'articles' => $categoryArticles,
                 ];
             }
 
-            // Build each chapter from coordinates
-            foreach ($chapterCoordinates as $coordinate) {
+            $chapterMap = $eventRepository->findByCoordinates($structure['chapterCoordinates']);
+            foreach ($structure['chapterCoordinates'] as $coordinate) {
                 $parts = explode(':', $coordinate, 3);
                 if (count($parts) !== 3) {
                     continue;
                 }
 
                 $chapterSlug = $parts[2];
-
-                // Fetch chapter details
-                $sql = "SELECT e.* FROM event e
-                        WHERE e.tags @> ?::jsonb
-                        AND e.kind = ?
-                        ORDER BY e.created_at DESC
-                        LIMIT 1";
-
-                $conn = $entityManager->getConnection();
-                $result = $conn->executeQuery($sql, [
-                    json_encode([['d', $chapterSlug]]),
-                    KindsEnum::PUBLICATION_CONTENT->value
-                ]);
-
-                $eventData = $result->fetchAssociative();
-                if (!$eventData) {
+                $chapter = $chapterMap[$coordinate] ?? null;
+                if (!$chapter instanceof Event) {
                     continue;
                 }
-
-                // Create Event entity from database result
-                $chapter = new Event();
-                $chapter->setId($eventData['id']);
-                $chapter->setEventId($eventData['event_id']);
-                $chapter->setKind((int)$eventData['kind']);
-                $chapter->setPubkey($eventData['pubkey']);
-                $chapter->setContent($eventData['content']);
-                $chapter->setCreatedAt((int)$eventData['created_at']);
-                $chapter->setTags(json_decode($eventData['tags'], true) ?? []);
-                $chapter->setSig($eventData['sig']);
 
                 $manifest['chapters'][] = [
                     'slug' => $chapterSlug,
@@ -1609,7 +1556,7 @@ class DefaultController extends AbstractController
                     'createdAt' => (new \DateTime())->setTimestamp($chapter->getCreatedAt())->format('c'),
                     'url' => $this->generateUrl('magazine-chapter', [
                         'mag' => $mag,
-                        'slug' => $chapterSlug
+                        'slug' => $chapterSlug,
                     ], 0),
                 ];
             }
