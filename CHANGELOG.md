@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Bug] Made `POST /api/index/publish` idempotent on duplicate-key persistence races: if the signed magazine index event already exists locally, the endpoint now treats it as success and still republishes to relays for propagation instead of returning a 500.
 - [Performance] Added server-side cache for magazine manifest endpoints: `/magazines/manifest.json` now caches the full catalog payload for 10 minutes, and `/mag/{mag}/manifest.json` caches per-magazine payloads for 5 minutes (keyed by index event id + created_at), reducing on-the-fly DB and JSON assembly cost.
 - [Performance] Converted magazine article reading-list prev/next navigation to lazy loading only: `DefaultController::magArticle()` no longer runs synchronous `ReadingListNavigationService::findNavigation()` on initial response, relying on the existing `article-list-nav` Turbo Frame endpoint for deferred rendering.
 - [Performance] Accelerated magazine article page loads (`/mag/{mag}/cat/{cat}/d/{slug}`): replaced per-request slug-scan/category SQL resolution with a single batched category-coordinate lookup from the magazine index, then fetch only the latest matching article revision via `findOneBy(..., ['createdAt' => 'DESC'])` instead of loading and sorting all revisions in PHP.

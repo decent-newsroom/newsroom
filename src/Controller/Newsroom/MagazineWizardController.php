@@ -16,6 +16,7 @@ use App\Service\PublicationSubdomainService;
 use App\Service\ReadingListManager;
 use App\Service\UserRolePromoter;
 use App\Util\NostrKeyUtil;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use swentel\nostr\Event\Event;
@@ -388,6 +389,7 @@ class MagazineWizardController extends AbstractController
         }
 
         // Save to persistence as Event entity
+        $skipLocalPostPersist = false;
         try {
             $event = new \App\Entity\Event();
             $event->setId($eventObj->getId());
@@ -400,26 +402,44 @@ class MagazineWizardController extends AbstractController
             $event->extractAndSetDTag();
             $entityManager->persist($event);
             $entityManager->flush();
-        } catch (\Throwable $e) {
-            $logger->error('Failed to persist index event to database', [
+        } catch (UniqueConstraintViolationException $e) {
+            // Idempotent publish: if it already exists locally, still continue and republish.
+            $skipLocalPostPersist = true;
+            $logger->info('Index event already exists locally, continuing with relay republish', [
                 'event_id' => $eventObj->getId(),
                 'slug' => $slug,
-                'error' => $e->getMessage(),
             ]);
-            return new JsonResponse(['error' => 'Database error: ' . $e->getMessage()], 500);
+        } catch (\Throwable $e) {
+            if (str_contains($e->getMessage(), '23505') || str_contains(strtolower($e->getMessage()), 'duplicate key')) {
+                // Some DB drivers wrap duplicates in generic exceptions.
+                $skipLocalPostPersist = true;
+                $logger->info('Index event already exists locally, continuing with relay republish', [
+                    'event_id' => $eventObj->getId(),
+                    'slug' => $slug,
+                ]);
+            } else {
+                $logger->error('Failed to persist index event to database', [
+                    'event_id' => $eventObj->getId(),
+                    'slug' => $slug,
+                    'error' => $e->getMessage(),
+                ]);
+                return new JsonResponse(['error' => 'Database error: ' . $e->getMessage()], 500);
+            }
         }
 
         // Update graph tables (current_record + parsed_reference) so the
         // magazine appears immediately on the newsstand / bookshelf
-        try {
-            $eventIngestionListener->processEvent($event);
-        } catch (\Throwable $e) {
-            $logger->warning('Failed to update graph tables for magazine event', [
-                'event_id' => $eventObj->getId(),
-                'slug' => $slug,
-                'error' => $e->getMessage(),
-            ]);
-            // Non-fatal: graph will be updated by backfill or relay subscription
+        if (!$skipLocalPostPersist) {
+            try {
+                $eventIngestionListener->processEvent($event);
+            } catch (\Throwable $e) {
+                $logger->warning('Failed to update graph tables for magazine event', [
+                    'event_id' => $eventObj->getId(),
+                    'slug' => $slug,
+                    'error' => $e->getMessage(),
+                ]);
+                // Non-fatal: graph will be updated by backfill or relay subscription
+            }
         }
 
         // Grant ROLE_EDITOR to the publishing user
