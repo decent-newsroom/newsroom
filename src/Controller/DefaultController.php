@@ -1508,8 +1508,10 @@ class DefaultController extends AbstractController
                         'title' => $article->getTitle(),
                         'slug' => $article->getSlug(),
                         'summary' => $article->getSummary(),
+                        'content' => $article->getContent(),
                         'image' => $article->getImage(),
                         'pubkey' => $article->getPubkey(),
+                        'kind' => $article->getKind()?->value,
                         'createdAt' => $article->getCreatedAt() ? $article->getCreatedAt()->format('c') : null,
                         'publishedAt' => $article->getPublishedAt() ? $article->getPublishedAt()->format('c') : null,
                         'topics' => $article->getTopics(),
@@ -1552,6 +1554,7 @@ class DefaultController extends AbstractController
                     'slug' => $chapterSlug,
                     'title' => $chapter->getTitle(),
                     'summary' => $chapter->getSummary(),
+                    'content' => $chapter->getContent(),
                     'image' => $chapter->getImage(),
                     'createdAt' => (new \DateTime())->setTimestamp($chapter->getCreatedAt())->format('c'),
                     'url' => $this->generateUrl('magazine-chapter', [

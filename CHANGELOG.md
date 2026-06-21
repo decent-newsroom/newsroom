@@ -46,6 +46,7 @@
 
 ## v0.0.45
 
+- [Feature] Expanded `/mag/{mag}/manifest.json` to include full text content for category article entries (`content`) and publication chapter entries (`content`), enabling complete offline/per-client perusal directly from the manifest payload.
 - [Performance] Refactored `/mag/{mag}/manifest.json` build path to use indexed coordinate resolvers (`EventRepository::findByCoordinates`, `ArticleRepository::findByCoordinates`) for category/chapter/article hydration, replacing per-item raw `event.tags` scans and N+1 article lookups.
 - [Improvement] Reading Nook subscription cards now resolve friendly publication/NIP-51 set titles using the same coordinate lookup approach as `/updates/subscriptions`, and the Reading Nook right aside now includes the theme switcher controls from user preferences.
 - [Improvement] Reading Nook now includes a Subscriptions content section in the main grid, populated from active update subscriptions (authors/publications/NIP-51 sets) with direct open/manage actions.
