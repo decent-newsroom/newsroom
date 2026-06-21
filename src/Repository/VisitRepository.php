@@ -525,23 +525,35 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns article publish statistics for different time periods.
+     * Returns article publish statistics for different time periods using a single SQL query.
      */
     public function getArticlePublishStats(): array
     {
-        $qb = $this->createQueryBuilder('v')
-            ->select('COUNT(v.id)')
-            ->where('v.route = :route')
-            ->setParameter('route', '/api/article/publish');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $allTime = (int) $qb->getQuery()->getSingleScalarResult();
+        $sql = "SELECT
+                    COUNT(*) FILTER (WHERE visited_at >= :lastHour) AS last_hour,
+                    COUNT(*) FILTER (WHERE visited_at >= :last24Hours) AS last_24_hours,
+                    COUNT(*) FILTER (WHERE visited_at >= :last7Days) AS last_7_days,
+                    COUNT(*) FILTER (WHERE visited_at >= :last30Days) AS last_30_days,
+                    COUNT(*) AS all_time
+                FROM visit
+                WHERE route = :route";
+
+        $row = $conn->executeQuery($sql, [
+            'route' => '/api/article/publish',
+            'lastHour' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
+            'last24Hours' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s'),
+            'last7Days' => (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s'),
+            'last30Days' => (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s'),
+        ])->fetchAssociative();
 
         return [
-            'last_hour' => $this->countArticlePublishSince(new \DateTimeImmutable('-1 hour')),
-            'last_24_hours' => $this->countArticlePublishSince(new \DateTimeImmutable('-24 hours')),
-            'last_7_days' => $this->countArticlePublishSince(new \DateTimeImmutable('-7 days')),
-            'last_30_days' => $this->countArticlePublishSince(new \DateTimeImmutable('-30 days')),
-            'all_time' => $allTime,
+            'last_hour' => (int) ($row['last_hour'] ?? 0),
+            'last_24_hours' => (int) ($row['last_24_hours'] ?? 0),
+            'last_7_days' => (int) ($row['last_7_days'] ?? 0),
+            'last_30_days' => (int) ($row['last_30_days'] ?? 0),
+            'all_time' => (int) ($row['all_time'] ?? 0),
         ];
     }
 
@@ -698,23 +710,35 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns zap invoice statistics for different time periods.
+     * Returns zap invoice statistics for different time periods using a single SQL query.
      */
     public function getZapInvoiceStats(): array
     {
-        $qb = $this->createQueryBuilder('v')
-            ->select('COUNT(v.id)')
-            ->where('v.route = :route')
-            ->setParameter('route', '/zap/invoice-generated');
+        $conn = $this->getEntityManager()->getConnection();
 
-        $allTime = (int) $qb->getQuery()->getSingleScalarResult();
+        $sql = "SELECT
+                    COUNT(*) FILTER (WHERE visited_at >= :lastHour) AS last_hour,
+                    COUNT(*) FILTER (WHERE visited_at >= :last24Hours) AS last_24_hours,
+                    COUNT(*) FILTER (WHERE visited_at >= :last7Days) AS last_7_days,
+                    COUNT(*) FILTER (WHERE visited_at >= :last30Days) AS last_30_days,
+                    COUNT(*) AS all_time
+                FROM visit
+                WHERE route = :route";
+
+        $row = $conn->executeQuery($sql, [
+            'route' => '/zap/invoice-generated',
+            'lastHour' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
+            'last24Hours' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s'),
+            'last7Days' => (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s'),
+            'last30Days' => (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s'),
+        ])->fetchAssociative();
 
         return [
-            'last_hour' => $this->countZapInvoicesSince(new \DateTimeImmutable('-1 hour')),
-            'last_24_hours' => $this->countZapInvoicesSince(new \DateTimeImmutable('-24 hours')),
-            'last_7_days' => $this->countZapInvoicesSince(new \DateTimeImmutable('-7 days')),
-            'last_30_days' => $this->countZapInvoicesSince(new \DateTimeImmutable('-30 days')),
-            'all_time' => $allTime,
+            'last_hour' => (int) ($row['last_hour'] ?? 0),
+            'last_24_hours' => (int) ($row['last_24_hours'] ?? 0),
+            'last_7_days' => (int) ($row['last_7_days'] ?? 0),
+            'last_30_days' => (int) ($row['last_30_days'] ?? 0),
+            'all_time' => (int) ($row['all_time'] ?? 0),
         ];
     }
 
@@ -956,34 +980,43 @@ class VisitRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns bot-vs-human visit counts for the last 24 h, 7 d and 30 d.
+     * Returns bot-vs-human visit counts for the last 24 h, 7 d and 30 d using a single SQL query.
      */
     public function getBotVsHumanStats(): array
     {
         $conn = $this->getEntityManager()->getConnection();
 
-        $periods = [
-            'last_24_hours' => '-24 hours',
-            'last_7_days'   => '-7 days',
-            'last_30_days'  => '-30 days',
-        ];
+        $sql = "SELECT
+                    'last_24_hours' AS period,
+                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last24Hours)  AS bot,
+                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last24Hours) AS human
+                FROM visit
+                UNION ALL
+                SELECT
+                    'last_7_days' AS period,
+                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last7Days)  AS bot,
+                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last7Days) AS human
+                FROM visit
+                UNION ALL
+                SELECT
+                    'last_30_days' AS period,
+                    COUNT(*) FILTER (WHERE is_bot = true AND visited_at >= :last30Days)  AS bot,
+                    COUNT(*) FILTER (WHERE is_bot = false AND visited_at >= :last30Days) AS human
+                FROM visit";
+
+        $rows = $conn->executeQuery($sql, [
+            'last24Hours' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s'),
+            'last7Days' => (new \DateTimeImmutable('-7 days'))->format('Y-m-d H:i:s'),
+            'last30Days' => (new \DateTimeImmutable('-30 days'))->format('Y-m-d H:i:s'),
+        ])->fetchAllAssociative();
 
         $result = [];
-        foreach ($periods as $key => $modifier) {
-            $from = (new \DateTimeImmutable($modifier))->format('Y-m-d H:i:s');
-            $row  = $conn->executeQuery(
-                "SELECT
-                    COUNT(*) FILTER (WHERE is_bot = true)  AS bot,
-                    COUNT(*) FILTER (WHERE is_bot = false) AS human
-                 FROM visit WHERE visited_at >= :from",
-                ['from' => $from]
-            )->fetchAssociative();
-
+        foreach ($rows as $row) {
             $bot   = (int) ($row['bot']   ?? 0);
             $human = (int) ($row['human'] ?? 0);
             $total = $bot + $human;
 
-            $result[$key] = [
+            $result[$row['period']] = [
                 'bot'        => $bot,
                 'human'      => $human,
                 'total'      => $total,

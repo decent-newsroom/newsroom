@@ -138,7 +138,7 @@ class Event
     public function getTitle(): ?string
     {
         foreach ($this->getTags() as $tag) {
-            if ($tag[0] === 'title') {
+            if (is_array($tag) && ($tag[0] ?? '') === 'title' && isset($tag[1])) {
                 return $tag[1];
             }
         }
@@ -148,7 +148,7 @@ class Event
     public function getSummary(): ?string
     {
         foreach ($this->getTags() as $tag) {
-            if ($tag[0] === 'summary') {
+            if (is_array($tag) && ($tag[0] ?? '') === 'summary' && isset($tag[1])) {
                 return $tag[1];
             }
         }
@@ -178,7 +178,7 @@ class Event
     public function getSlug(): ?string
     {
         foreach ($this->getTags() as $tag) {
-            if (key_exists(0, $tag) && $tag[0] === 'd') {
+            if (is_array($tag) && ($tag[0] ?? '') === 'd' && isset($tag[1])) {
                 return $tag[1];
             }
         }
