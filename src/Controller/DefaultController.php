@@ -19,7 +19,6 @@ use App\Service\Cache\RedisCacheService;
 use App\Service\Cache\RedisViewStore;
 use App\Service\Graph\GraphMagazineListService;
 use App\Service\Nostr\NostrEventParser;
-use App\Service\ReadingListNavigationService;
 use App\Service\Search\ArticleSearchFactory;
 use App\Service\Search\ContentSearchService;
 use App\Util\CommonMark\Converter;
@@ -2072,6 +2071,61 @@ class DefaultController extends AbstractController
         ];
     }
 
+    private function resolveCategoryArticlePubkeyFromMagazine(
+        object $magazine,
+        string $categorySlug,
+        string $articleSlug,
+        EventRepository $eventRepository,
+    ): ?string {
+        if (!method_exists($magazine, 'getTags')) {
+            return null;
+        }
+
+        $categoryCoordinates = [];
+        foreach ($magazine->getTags() as $tag) {
+            if (!isset($tag[0], $tag[1]) || $tag[0] !== 'a' || !is_string($tag[1])) {
+                continue;
+            }
+
+            $parts = explode(':', $tag[1], 3);
+            if (count($parts) !== 3 || (int) $parts[0] !== KindsEnum::PUBLICATION_INDEX->value || $parts[2] !== $categorySlug) {
+                continue;
+            }
+
+            $categoryCoordinates[] = $tag[1];
+        }
+
+        if ($categoryCoordinates === []) {
+            return null;
+        }
+
+        $categoryMap = $eventRepository->findByCoordinates($categoryCoordinates);
+
+        foreach ($categoryCoordinates as $categoryCoordinate) {
+            $categoryEvent = $categoryMap[$categoryCoordinate] ?? null;
+            if (!$categoryEvent instanceof Event) {
+                continue;
+            }
+
+            foreach ($categoryEvent->getTags() as $catTag) {
+                if (!isset($catTag[0], $catTag[1]) || $catTag[0] !== 'a' || !is_string($catTag[1])) {
+                    continue;
+                }
+
+                $coordParts = explode(':', $catTag[1], 3);
+                if (count($coordParts) !== 3 || $coordParts[2] !== $articleSlug) {
+                    continue;
+                }
+
+                if ((int) $coordParts[0] === KindsEnum::LONGFORM->value || (int) $coordParts[0] === KindsEnum::LONGFORM_DRAFT->value) {
+                    return $coordParts[1];
+                }
+            }
+        }
+
+        return null;
+    }
+
 
     /**
      * @throws InvalidArgumentException
@@ -2083,72 +2137,36 @@ class DefaultController extends AbstractController
                                EntityManagerInterface $entityManager,
                                Converter $converter,
                                LoggerInterface $logger,
-                               NostrEventParser $eventParser,
-                               ReadingListNavigationService $readingListNavigation): Response
+                               NostrEventParser $eventParser): Response
     {
         $magazine = $redisCacheService->getMagazineIndex($mag);
 
-        $article = null;
+        /** @var ArticleRepository $repository */
         $repository = $entityManager->getRepository(Article::class);
+        /** @var EventRepository $eventRepository */
+        $eventRepository = $entityManager->getRepository(Event::class);
         $slug = urldecode($slug);
 
-        // Resolve the exact coordinate from the magazine category to avoid cross-pubkey collisions
+        // Resolve the exact coordinate from this magazine/category using one batched lookup.
         $pubkeyFromCoordinate = null;
-        if ($magazine && method_exists($magazine, 'getTags')) {
-            // Find the category coordinate matching $cat in the magazine index
-            foreach ($magazine->getTags() as $tag) {
-                if ($tag[0] === 'a' && isset($tag[1])) {
-                    $parts = explode(':', $tag[1], 3);
-                    if (count($parts) === 3 && $parts[2] === $cat) {
-                        // Found the category coordinate, now fetch the category event
-                        $catSlug = $parts[2];
-                        $conn = $entityManager->getConnection();
-                        $result = $conn->executeQuery(
-                            "SELECT e.* FROM event e WHERE e.tags @> ?::jsonb ORDER BY e.created_at DESC LIMIT 1",
-                            [json_encode([['d', $catSlug]])]
-                        );
-                        $eventData = $result->fetchAssociative();
-                        if ($eventData) {
-                            $catTags = json_decode($eventData['tags'], true) ?? [];
-                            foreach ($catTags as $catTag) {
-                                if ($catTag[0] === 'a' && isset($catTag[1])) {
-                                    $coordParts = explode(':', $catTag[1], 3);
-                                    if (count($coordParts) === 3 && $coordParts[2] === $slug) {
-                                        $pubkeyFromCoordinate = $coordParts[1];
-                                        break 2;
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
+        if (is_object($magazine) && $eventRepository instanceof EventRepository) {
+            $pubkeyFromCoordinate = $this->resolveCategoryArticlePubkeyFromMagazine($magazine, $cat, $slug, $eventRepository);
         }
 
-        // Use exact coordinate (pubkey + slug) when available, fall back to slug-only lookup
+        // Fetch only the newest revision for the resolved coordinate.
         if ($pubkeyFromCoordinate) {
-            $articles = $repository->findBy(['pubkey' => $pubkeyFromCoordinate, 'slug' => $slug]);
+            $article = $repository->findOneBy(['pubkey' => $pubkeyFromCoordinate, 'slug' => $slug], ['createdAt' => 'DESC']);
         } else {
-            $articles = $repository->findBy(['slug' => $slug]);
+            $article = $repository->findOneBy(['slug' => $slug], ['createdAt' => 'DESC']);
         }
 
-        $revisions = count($articles);
-
-        if ($revisions === 0) {
+        if (!$article instanceof Article) {
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The article could not be found.',
                 'searchQuery' => $slug
             ]);
         }
 
-        if ($revisions > 1) {
-            usort($articles, function ($a, $b) {
-                return $b->getCreatedAt() <=> $a->getCreatedAt();
-            });
-        }
-
-        $article = $articles[0];
 
         // Use pre-processed HTML from database if available, otherwise convert on-the-fly
         $htmlContent = $article->getProcessedHtml();
@@ -2196,13 +2214,6 @@ class DefaultController extends AbstractController
             'slug' => $article->getSlug()
         ], 0);
 
-        // Find prev/next articles from reading lists
-        $listNav = null;
-        try {
-            $navCoordinate = '30023:' . $article->getPubkey() . ':' . $article->getSlug();
-            $listNav = $readingListNavigation->findNavigation($navCoordinate);
-        } catch (\Exception $e) {}
-
         return $this->render('pages/article.html.twig', [
             'magazine' => $magazine,
             'mag' => $mag,
@@ -2213,7 +2224,6 @@ class DefaultController extends AbstractController
             'canEdit' => false,
             'canonical' => $canonical,
             'advancedMetadata' => $advancedMetadata,
-            'listNav' => $listNav,
         ]);
     }
 
