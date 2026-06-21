@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Performance] Added server-side cache for magazine manifest endpoints: `/magazines/manifest.json` now caches the full catalog payload for 10 minutes, and `/mag/{mag}/manifest.json` caches per-magazine payloads for 5 minutes (keyed by index event id + created_at), reducing on-the-fly DB and JSON assembly cost.
 - [Performance] Converted magazine article reading-list prev/next navigation to lazy loading only: `DefaultController::magArticle()` no longer runs synchronous `ReadingListNavigationService::findNavigation()` on initial response, relying on the existing `article-list-nav` Turbo Frame endpoint for deferred rendering.
 - [Performance] Accelerated magazine article page loads (`/mag/{mag}/cat/{cat}/d/{slug}`): replaced per-request slug-scan/category SQL resolution with a single batched category-coordinate lookup from the magazine index, then fetch only the latest matching article revision via `findOneBy(..., ['createdAt' => 'DESC'])` instead of loading and sorting all revisions in PHP.
 - [Performance] Optimized admin analytics dashboard query count: consolidated `getArticlePublishStats()` and `getZapInvoiceStats()` from 5 queries each to single SQL queries using conditional aggregation; consolidated `getBotVsHumanStats()` from 3 separate time-windowed queries to a single UNION query. Reduces admin analytics page query count by ~80% for these high-impact methods, eliminating timeout issues.

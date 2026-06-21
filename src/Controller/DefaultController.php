@@ -338,10 +338,20 @@ class DefaultController extends AbstractController
     public function magazinesManifest(
         EntityManagerInterface $entityManager,
         HiddenCoordinateRepository $hiddenCoordinateRepo,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        CacheItemPoolInterface $cache,
     ): JsonResponse
     {
         try {
+            $cacheItem = $cache->getItem('magazines_manifest_v1');
+            $cachedManifest = $cacheItem->get();
+            if ($cacheItem->isHit() && is_array($cachedManifest)) {
+                return new JsonResponse($cachedManifest, 200, [
+                    'Content-Type' => 'application/json',
+                    'Cache-Control' => 'public, max-age=600',
+                ]);
+            }
+
             // Get all magazine indices from database
             $nzines = $entityManager->getRepository(Event::class)->findBy(
                 ['kind' => KindsEnum::PUBLICATION_INDEX],
@@ -417,6 +427,10 @@ class DefaultController extends AbstractController
                     'totalCategories' => array_sum(array_column($magazines, 'categoryCount')),
                 ],
             ];
+
+            $cacheItem->set($manifest);
+            $cacheItem->expiresAfter(600);
+            $cache->save($cacheItem);
 
             return new JsonResponse($manifest, 200, [
                 'Content-Type' => 'application/json',
@@ -1368,7 +1382,8 @@ class DefaultController extends AbstractController
         string $mag,
         EntityManagerInterface $entityManager,
         RedisCacheService $redisCacheService,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        CacheItemPoolInterface $cache,
     ): JsonResponse
     {
         try {
@@ -1380,6 +1395,16 @@ class DefaultController extends AbstractController
             $magazine = $this->findLatestMagazineIndexBySlug($mag, $eventRepository);
             if ($magazine === null) {
                 return new JsonResponse(['error' => 'Magazine not found'], 404);
+            }
+
+            $cacheKey = sprintf('magazine_manifest_v1_%s_%d', $magazine->getId(), $magazine->getCreatedAt());
+            $cacheItem = $cache->getItem($cacheKey);
+            $cachedManifest = $cacheItem->get();
+            if ($cacheItem->isHit() && is_array($cachedManifest)) {
+                return new JsonResponse($cachedManifest, 200, [
+                    'Content-Type' => 'application/json',
+                    'Cache-Control' => 'public, max-age=300',
+                ]);
             }
 
             // Build manifest structure
@@ -1595,6 +1620,10 @@ class DefaultController extends AbstractController
                 'totalArticles' => array_sum(array_column($manifest['categories'], 'articleCount')),
                 'totalChapters' => count($manifest['chapters']),
             ];
+
+            $cacheItem->set($manifest);
+            $cacheItem->expiresAfter(300);
+            $cache->save($cacheItem);
 
             return new JsonResponse($manifest, 200, [
                 'Content-Type' => 'application/json',
