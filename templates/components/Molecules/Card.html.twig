@@ -17,12 +17,12 @@
             </span>
         </div>
         {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
-        {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
-        {% if article.kind == 30817 and cat and mag %}
+        {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind.value ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
+        {% if article.kind.value == 30817 and cat and mag %}
             {% set link = path('magazine-category-wiki', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
         {% elseif itemNaddr %}
             {% set link = path('nevent', {nevent: itemNaddr}) %}
-        {% elseif article.kind == 30024 %}
+        {% elseif article.kind.value == 30024 %}
             {# Draft - use draft route #}
             {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
         {% else %}
