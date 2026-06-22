@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
@@ -120,8 +120,21 @@ final class BookmarkItemResolver
             $this->fetched = true;
         }
     }
+
+    /**
+     * Remove this bookmark entry.
+     *
+     * Emits an event that the parent component listens for.
+     */
+    #[LiveAction]
+    public function removeBookmark(): void
+    {
+        // Emit a custom event with the bookmark coordinates
+        // The parent component (MyBookmarks or similar) will handle the actual removal
+        $this->dispatchBrowserEvent('bookmark:removed', [
+            'type' => $this->type,
+            'value' => $this->value,
+            'relay' => $this->relay,
+        ]);
+    }
 }
-
-
-
-
