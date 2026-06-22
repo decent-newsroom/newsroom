@@ -108,7 +108,7 @@
 	#
 	# Uses `handle @blockProbes` so Caddy's subroute ordering guarantees this
 	# fires BEFORE the catch-all `handle {}` block below.
-	@blockProbes path_regexp blockProbes ^/(\.env.*|\.git(/.*)?|\.svn(/.*)?|\.hg(/.*)?|\.htaccess|\.htpasswd|web\.config|phpinfo\.php|info\.php|install\.php|setup\.php|config\.php|admin\.php|composer\.(json|lock)|wp-login\.php|xmlrpc\.php|wp-admin(/.*)?|wp-content(/.*)?|wp-includes(/.*)?|wlwmanifest\.xml|adminer\.php|phpmyadmin(/.*)?|actuator(/.*)?)(\/.*)?$
+	@blockProbes path_regexp blockProbes ^/(\.env.*|\.git(/.*)?|\.svn(/.*)?|\.hg(/.*)?|\.htaccess|\.htpasswd|web\.config|phpinfo\.php|info\.php|install\.php|setup\.php|config\.php|admin\.php|admin/_profiler(/.*)?|composer\.(json|lock)|wp-login\.php|xmlrpc\.php|wp-admin(/.*)?|wp-content(/.*)?|wp-includes(/.*)?|wlwmanifest\.xml|adminer\.php|phpmyadmin(/.*)?|actuator(/.*)?)(\/.*)?$
 	handle @blockProbes {
 		respond 404
 	}
