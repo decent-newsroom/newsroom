@@ -1,0 +1,31 @@
+﻿/* Bookmark Item Container Styles */
+.bookmark-item-container {
+    position: relative;
+    padding: 0.5rem 0;
+}
+.bookmark-item-container .flex-grow-1 {
+    min-width: 0; /* Allow flex item to shrink below its content size */
+}
+.bookmark-item-container .btn-outline-danger {
+    opacity: 0.6;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+.bookmark-item-container:hover .btn-outline-danger {
+    opacity: 1;
+}
+.bookmark-item-container .btn-outline-danger:hover {
+    background-color: var(--bs-danger);
+    color: white;
+}
+.bookmark-item-container .btn-outline-danger:active {
+    transform: scale(0.95);
+}
+/* Compact layout for bookmark items */
+.bookmark-item-entry {
+    word-break: break-word;
+}
+/* Remove default margin on tags within bookmarks */
+.bookmark-item-container .tag {
+    display: inline-block;
+    margin-right: 0.5rem;
+}
