@@ -1,6 +1,7 @@
 ﻿<?php
-declare(strict_types=1);
+
 namespace App\Twig\Components\Organisms;
+
 use App\Entity\Event;
 use App\Repository\EventRepository;
 use App\Service\Nostr\NostrClient;
