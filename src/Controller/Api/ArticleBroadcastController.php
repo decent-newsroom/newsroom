@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Repository\ArticleRepository;
 use App\Service\Nostr\NostrClient;
+use App\Service\Nostr\RelayRegistry;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use swentel\nostr\Event\Event;
@@ -21,6 +22,7 @@ class ArticleBroadcastController extends AbstractController
         private readonly NostrClient $nostrClient,
         private readonly LoggerInterface $logger,
         private readonly UserRelayListService $userRelayListService,
+        private readonly RelayRegistry $relayRegistry,
         private readonly string $essayistRelayPublicUrl = '',
         private readonly string $essayistRelayInternalUrl = '',
     ) {}
@@ -88,6 +90,38 @@ class ArticleBroadcastController extends AbstractController
     }
 
     /**
+     * Filter project relay URLs from the relay list when the local relay is
+     * present. The project relay (e.g. wss://relay.decentnewsroom.com) and the
+     * local strfry container are the same physical machine; attempting to connect
+     * to the public hostname from inside Docker hangs.
+     */
+    private function filterProjectRelaysForBroadcast(array $relays): array
+    {
+        // Project relay URLs are frontend/user-facing. They must be filtered out
+        // here because the frontend template passes them verbatim in data-relays.
+        // Ensure local relay is present, then remove project relay duplicates.
+        $local = $this->relayRegistry->getLocalRelay();
+        if ($local === null) {
+            return $relays;
+        }
+
+        $filtered = [];
+        foreach ($relays as $relay) {
+            // Skip project relay URLs when local relay is present
+            if (!$this->relayRegistry->isProjectRelay($relay)) {
+                $filtered[] = $relay;
+            }
+        }
+
+        // Ensure local relay is in the list
+        if (!in_array($local, $filtered, true)) {
+            $filtered[] = $local;
+        }
+
+        return array_values(array_unique($filtered));
+    }
+
+    /**
      * Broadcast an existing article to Nostr relays
      * Takes an article from the database and publishes it to specified relays without modifications
      */
@@ -136,6 +170,9 @@ class ArticleBroadcastController extends AbstractController
             // grant, so we can publish directly to strfry-essayist on the compose
             // network without an AUTH handshake.
             $relays = $this->remapEssayistRelays($relays);
+
+            // Filter out project relays when the local relay is present
+            $relays = $this->filterProjectRelaysForBroadcast($relays);
 
             // Find the article
             $article = null;
