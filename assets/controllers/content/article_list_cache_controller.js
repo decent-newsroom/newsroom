@@ -5,8 +5,29 @@ export default class extends Controller {
   async connect() {
     this.tabName = this.element.dataset.tab || ''
     this.cacheMaxAge = parseInt(this.element.dataset.cacheMaxAge || '300000', 10)
+    // Watch for tab changes
+    this.observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-tab') {
+          const newTab = this.element.dataset.tab
+          if (newTab && newTab !== this.tabName) {
+            this.tabName = newTab
+            this.loadFromCache()
+          }
+        }
+      })
+    })
+    this.observer.observe(this.element, {
+      attributes: true,
+      attributeFilter: ['data-tab']
+    })
     if (this.tabName) {
       await this.loadFromCache()
+    }
+  }
+  disconnect() {
+    if (this.observer) {
+      this.observer.disconnect()
     }
   }
   getFrameElement() {
@@ -135,4 +156,5 @@ export default class extends Controller {
     await this.clearCache()
   }
 }
+
 
