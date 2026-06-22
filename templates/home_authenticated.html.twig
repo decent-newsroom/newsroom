@@ -44,7 +44,7 @@
             </nav>
 
             <div class="home-feed__content" data-content--home-tabs-target="content">
-                <turbo-frame id="home-tab-content" src="{{ path('home_feed_tab', {tab: 'articles'}) }}" loading="lazy">
+                <turbo-frame id="home-tab-content" src="{{ path('home_feed_tab', {tab: 'articles'}) }}" loading="lazy" data-controller="content--article-list-cache" data-tab="articles" data-cache-max-age="300000">
                     <div class="home-feed__loading">
                         <div class="spinner"></div>
                         <p>{{ 'home_feed.loading'|trans }}</p>
@@ -58,4 +58,5 @@
 {% block aside %}
     <twig:Atoms:FeaturedWriters />
 {% endblock %}
+
 

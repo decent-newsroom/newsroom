@@ -1,49 +1,39 @@
-﻿import { Controller } from '@hotwired/stimulus'
+import { Controller } from '@hotwired/stimulus'
 import { indexedDBCache } from '../utility/indexeddb-cache.js'
 export default class extends Controller {
   static targets = ['frame', 'spinner', 'cached']
   async connect() {
     this.tabName = this.element.dataset.tab || ''
-    this.cacheMaxAge = parseInt(this.element.dataset.cacheMaxAge || '300000', 10) // 5 min default
+    this.cacheMaxAge = parseInt(this.element.dataset.cacheMaxAge || '300000', 10)
     if (this.tabName) {
-      // Try to load from cache first
       await this.loadFromCache()
     }
   }
-  /**
-   * Load tab content from IndexedDB cache
-   */
+  getFrameElement() {
+    return this.hasFrameTarget ? this.frameTarget : this.element
+  }
   async loadFromCache() {
     try {
       const cached = await indexedDBCache.getTabContent(this.tabName)
       if (cached) {
-        // Display cached content immediately
         this.displayCachedContent(cached)
-        // Check if cache is stale and fetch fresh data
         const isStale = await indexedDBCache.isStale(this.tabName, this.cacheMaxAge)
         if (isStale) {
           this.fetchFreshContent()
         }
       } else {
-        // No cache, fetch from server
         this.fetchFreshContent()
       }
     } catch (error) {
       console.warn('[ArticleListCache] Cache read failed:', error)
-      // Fallback to fetch if cache fails
       this.fetchFreshContent()
     }
   }
-  /**
-   * Display cached HTML content
-   */
   displayCachedContent(cached) {
-    if (this.hasFrameTarget && cached.html) {
-      // Mark content as cached
+    const frame = this.getFrameElement()
+    if (cached.html) {
       this.element.classList.add('from-cache')
-      // Insert cached HTML into the frame target
-      this.frameTarget.innerHTML = cached.html
-      // Add visual indicator
+      frame.innerHTML = cached.html
       if (this.hasCachedTarget) {
         this.cachedTarget.style.display = 'block'
         setTimeout(() => {
@@ -52,9 +42,6 @@ export default class extends Controller {
       }
     }
   }
-  /**
-   * Fetch fresh content from server and update cache
-   */
   async fetchFreshContent() {
     try {
       if (this.hasSpinnerTarget) {
@@ -64,23 +51,18 @@ export default class extends Controller {
         headers: {
           'Accept': 'text/html',
           'X-Requested-With': 'XMLHttpRequest',
-          'Turbo-Frame': 'tab-frame'
+          'Turbo-Frame': 'home-tab-content'
         }
       })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const html = await response.text()
-      // Extract articles from HTML (look for data attributes or elements)
       const articles = this.extractArticlesFromHtml(html)
-      // Save to cache
       await indexedDBCache.mergeNewArticles(this.tabName, articles, html)
-      // Update DOM with fresh content
-      if (this.hasFrameTarget) {
-        this.frameTarget.innerHTML = html
-        this.element.classList.remove('from-cache')
-      }
-      // Dispatch custom event for other listeners
+      const frame = this.getFrameElement()
+      frame.innerHTML = html
+      this.element.classList.remove('from-cache')
       this.dispatch('content-updated', { detail: { tab: this.tabName, articles } })
     } catch (error) {
       console.error('[ArticleListCache] Fetch failed:', error)
@@ -90,15 +72,10 @@ export default class extends Controller {
       }
     }
   }
-  /**
-   * Extract articles from HTML response
-   * Looks for article data in data-attributes or common DOM patterns
-   */
   extractArticlesFromHtml(html) {
     const articles = []
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
-    // Look for article elements with data attributes
     const articleElements = doc.querySelectorAll('[data-article-id], [data-uuid], [data-coordinate]')
     articleElements.forEach(el => {
       const article = {
@@ -115,9 +92,6 @@ export default class extends Controller {
     })
     return articles
   }
-  /**
-   * Clear cache for this tab
-   */
   async clearCache() {
     try {
       await indexedDBCache.clearTabCache(this.tabName)
@@ -126,9 +100,6 @@ export default class extends Controller {
       console.error('[ArticleListCache] Clear cache failed:', error)
     }
   }
-  /**
-   * Clear all cached article lists
-   */
   async clearAllCache() {
     try {
       await indexedDBCache.clearAllCache()
@@ -137,16 +108,12 @@ export default class extends Controller {
       console.error('[ArticleListCache] Clear all cache failed:', error)
     }
   }
-  /**
-   * Prefetch other tabs to improve perceived performance
-   */
   async prefetchTabs(tabNames) {
     try {
       for (const tab of tabNames) {
         const cached = await indexedDBCache.getTabContent(tab)
         const isStale = await indexedDBCache.isStale(tab, this.cacheMaxAge)
         if (!cached || isStale) {
-          // Queue prefetch in background (fire and forget)
           fetch(`/home/tab/${tab}`, {
             headers: {
               'Accept': 'text/html',
@@ -164,9 +131,6 @@ export default class extends Controller {
       console.warn('[ArticleListCache] Prefetch error:', error)
     }
   }
-  /**
-   * Refresh current tab content
-   */
   async refresh() {
     await this.clearCache()
   }
