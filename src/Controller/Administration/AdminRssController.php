@@ -73,9 +73,17 @@ class AdminRssController extends AbstractController
                 // Check for duplicates already in the database
                 $slugger = new AsciiSlugger();
                 foreach ($articles as &$item) {
-                    $slug = $this->generateSlug($slugger, $item['title'] ?? '', $item['pubDate'] ?? null);
-                    $item['slug'] = $slug;
-                    $item['existsInDb'] = $this->articleExistsBySourceUrl($item['link'] ?? '');
+                    try {
+                        $slug = $this->generateSlug($slugger, $item['title'] ?? '', $item['pubDate'] ?? null);
+                        $item['slug'] = $slug;
+                        $item['existsInDb'] = $this->articleExistsBySourceUrl($item['link'] ?? '');
+                    } catch (\Exception $itemError) {
+                        $this->logger->warning('Failed to process RSS article', [
+                            'title' => $item['title'] ?? 'unknown',
+                            'error' => $itemError->getMessage(),
+                        ]);
+                        $item['processingError'] = true;
+                    }
                 }
                 unset($item);
 
@@ -88,6 +96,7 @@ class AdminRssController extends AbstractController
                 $this->logger->error('RSS fetch error', [
                     'url' => $feedUrl,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
@@ -437,15 +446,25 @@ class AdminRssController extends AbstractController
         }
 
         // Check if an article with this source URL already exists.
-        // Uses PostgreSQL jsonb containment (@>) to find events whose tags
-        // array contains an ["r", "<url>"] element.
+        // Searches for the URL string in the tags JSONB array.
         $conn = $this->entityManager->getConnection();
-        $count = (int) $conn->fetchOne(
-            'SELECT COUNT(*) FROM event WHERE kind = ? AND tags @> ?::jsonb',
-            [KindsEnum::LONGFORM->value, json_encode([['r', $url]])]
-        );
+        try {
+            $count = (int) $conn->fetchOne(
+                'SELECT COUNT(*) FROM event WHERE kind = ? AND tags::text LIKE ?',
+                [
+                    KindsEnum::LONGFORM->value,
+                    '%' . $url . '%'
+                ]
+            );
 
-        return $count > 0;
+            return $count > 0;
+        } catch (\Exception $e) {
+            $this->logger->warning('Failed to check article duplicate', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
     }
 
     private function transformRelayResults(array $rawResults): array
