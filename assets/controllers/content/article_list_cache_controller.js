@@ -1,5 +1,5 @@
 ﻿import { Controller } from '@hotwired/stimulus'
-import { indexedDBCache } from '../utility/indexeddb-cache'
+import { indexedDBCache } from '../utility/indexeddb-cache.js'
 export default class extends Controller {
   static targets = ['frame', 'spinner', 'cached']
   async connect() {
