@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Feature] Added IndexedDB-backed bookmark reliability to both article-card shortcut (`ui--card-bookmark`) and article actions dropdown (`ui--article-actions-dropdown`): bookmark updates now build new kind `10003` events from the last cached snapshot, work across repeated no-reload interactions, and persist failed publishes as `pending` for automatic backoff retries using the same signed payload; success/failure metadata is tracked in IndexedDB for idempotent recovery.
 - [Bug] Fixed article broadcast hanging when publishing to relays from the article dropdown: the frontend template was passing the public project relay URL (`wss://relay.decentnewsroom.com`) in the `data-relays` attribute, which the API endpoint attempted to connect to from inside Docker, causing hangs. The broadcast controller now filters out project relay URLs when the local relay is present, preventing external connection attempts from within the Docker network.
 - [Bug] Made `POST /api/index/publish` idempotent on duplicate-key persistence races: if the signed magazine index event already exists locally, the endpoint now treats it as success and still republishes to relays for propagation instead of returning a 500.
 - [Performance] Added server-side cache for magazine manifest endpoints: `/magazines/manifest.json` now caches the full catalog payload for 10 minutes, and `/mag/{mag}/manifest.json` caches per-magazine payloads for 5 minutes (keyed by index event id + created_at), reducing on-the-fly DB and JSON assembly cost.

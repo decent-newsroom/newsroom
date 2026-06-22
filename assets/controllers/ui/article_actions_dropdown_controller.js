@@ -1,6 +1,85 @@
 import { Controller } from '@hotwired/stimulus';
 import { getSigner } from '../nostr/signer_manager.js';
 
+const DB_NAME = 'newsroom-bookmarks';
+const DB_VERSION = 1;
+const STORE_NAME = 'bookmark-events';
+const RETRY_BASE_DELAY_MS = 1200;
+const RETRY_MAX_DELAY_MS = 30000;
+
+const retryTimers = new Map();
+let retryBootstrapDone = false;
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'pubkey' });
+      }
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('IndexedDB open failed'));
+  });
+}
+
+async function withStore(mode, run) {
+  if (!window.indexedDB) return null;
+
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, mode);
+    const store = tx.objectStore(STORE_NAME);
+
+    const request = run(store);
+    tx.oncomplete = () => resolve(request?.result ?? null);
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB transaction failed'));
+    tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
+  }).finally(() => db.close());
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags.filter((tag) => Array.isArray(tag) && tag.length >= 2);
+}
+
+async function readSnapshot(pubkey) {
+  return withStore('readonly', (store) => store.get(pubkey));
+}
+
+async function writeSnapshot(snapshot) {
+  return withStore('readwrite', (store) => store.put(snapshot));
+}
+
+async function readAllSnapshots() {
+  const rows = await withStore('readonly', (store) => store.getAll());
+  return Array.isArray(rows) ? rows : [];
+}
+
+function hasCoordinate(tags, coordinate) {
+  return tags.some((tag) => Array.isArray(tag) && tag[0] === 'a' && tag[1] === coordinate);
+}
+
+function toggleCoordinate(tags, coordinate, remove) {
+  const filtered = tags.filter(
+    (tag) => !(Array.isArray(tag) && tag[0] === 'a' && tag[1] === coordinate)
+  );
+
+  if (!remove) {
+    filtered.push(['a', coordinate]);
+  }
+
+  return filtered;
+}
+
+function getRetryDelayMs(retryCount) {
+  const backoff = RETRY_BASE_DELAY_MS * Math.pow(2, Math.max(0, retryCount - 1));
+  return Math.min(backoff, RETRY_MAX_DELAY_MS);
+}
+
 /**
  * Article Actions Dropdown Controller
  *
@@ -27,17 +106,28 @@ export default class extends Controller {
   connect() {
     this.isBookmarked = false;
     this.bookmarkTags = [];
+    this.isSubmitting = false;
+    this.hasLocalMutation = false;
     this.menuOpen = false;
     this._closeOnOutsideClick = this._closeOnOutsideClick.bind(this);
+    this._onBookmarkStateChanged = this._onBookmarkStateChanged.bind(this);
+
+    document.addEventListener('bookmark:state-changed', this._onBookmarkStateChanged);
 
     // Fetch bookmark state if user is logged in
     if (this.hasBookmarkFetchUrlValue && this.bookmarkFetchUrlValue) {
       this.fetchBookmarkState();
     }
+
+    if (!retryBootstrapDone && this.hasBookmarkPublishUrlValue && this.bookmarkPublishUrlValue) {
+      retryBootstrapDone = true;
+      this.bootstrapPendingRetries();
+    }
   }
 
   disconnect() {
     document.removeEventListener('click', this._closeOnOutsideClick);
+    document.removeEventListener('bookmark:state-changed', this._onBookmarkStateChanged);
   }
 
   // ── Dropdown toggle ─────────────────────────────────────────
@@ -100,11 +190,11 @@ export default class extends Controller {
       if (!response.ok) return;
 
       const data = await response.json();
-      this.bookmarkTags = data.tags || [];
+      if (this.hasLocalMutation) return;
 
-      this.isBookmarked = this.bookmarkTags.some(
-        tag => Array.isArray(tag) && tag[0] === 'a' && tag[1] === this.coordinateValue
-      );
+      this.bookmarkTags = normalizeTags(data.tags || []);
+
+      this.isBookmarked = hasCoordinate(this.bookmarkTags, this.coordinateValue);
 
       this.updateBookmarkUI();
     } catch (e) {
@@ -116,7 +206,10 @@ export default class extends Controller {
     event.preventDefault();
     this.close();
 
-    if (!this.hasBookmarkPublishUrlValue) return;
+    if (this.isSubmitting || !this.hasBookmarkPublishUrlValue) return;
+
+    this.isSubmitting = true;
+    this.updateBookmarkUI();
 
     let signer;
     try {
@@ -124,20 +217,17 @@ export default class extends Controller {
       signer = await getSigner();
     } catch (e) {
       this.toast('No Nostr signer available', 'danger');
+      this.isSubmitting = false;
+      this.updateBookmarkUI();
       return;
     }
 
     try {
       const pubkey = await signer.getPublicKey();
-
-      let newTags;
-      if (this.isBookmarked) {
-        newTags = this.bookmarkTags.filter(
-          tag => !(Array.isArray(tag) && tag[0] === 'a' && tag[1] === this.coordinateValue)
-        );
-      } else {
-        newTags = [...this.bookmarkTags, ['a', this.coordinateValue]];
-      }
+      const baseSnapshot = await this.getBaseSnapshot(pubkey);
+      const baseTags = normalizeTags(baseSnapshot?.tags ?? this.bookmarkTags);
+      const currentlyBookmarked = hasCoordinate(baseTags, this.coordinateValue);
+      const newTags = toggleCoordinate(baseTags, this.coordinateValue, currentlyBookmarked);
 
       const skeleton = {
         kind: 10003,
@@ -148,18 +238,207 @@ export default class extends Controller {
       };
 
       const signedEvent = await signer.signEvent(skeleton);
-      await this.postJSON(this.bookmarkPublishUrlValue, { event: signedEvent });
 
-      this.isBookmarked = !this.isBookmarked;
+      const pendingSnapshot = {
+        pubkey,
+        tags: newTags,
+        event: signedEvent,
+        status: 'pending',
+        retryCount: 0,
+        nextRetryAt: null,
+        lastError: null,
+        updatedAt: Date.now(),
+        lastSuccessAt: baseSnapshot?.lastSuccessAt || null,
+      };
+
+      await writeSnapshot(pendingSnapshot);
+
+      this.hasLocalMutation = true;
+      this.isBookmarked = !currentlyBookmarked;
       this.bookmarkTags = newTags;
       this.updateBookmarkUI();
+      this.broadcastState();
 
-      const action = this.isBookmarked ? 'Bookmarked!' : 'Bookmark removed';
-      this.toast(action, 'success');
+      const published = await this.publishSnapshot(pendingSnapshot);
+
+      if (published) {
+        const action = this.isBookmarked ? 'Bookmarked!' : 'Bookmark removed';
+        this.toast(action, 'success');
+      } else {
+        this.toast('Bookmark queued for retry', 'warning');
+      }
     } catch (error) {
       console.error('[article-actions] Bookmark error:', error);
       this.toast(`Bookmark failed: ${error.message}`, 'danger');
+    } finally {
+      this.isSubmitting = false;
+      this.updateBookmarkUI();
     }
+  }
+
+  async getBaseSnapshot(pubkey) {
+    const cached = await readSnapshot(pubkey);
+    if (cached && Array.isArray(cached.tags)) {
+      return cached;
+    }
+
+    const tagsFromServer = await this.fetchTagsFromServer();
+
+    const seeded = {
+      pubkey,
+      tags: tagsFromServer,
+      event: null,
+      status: 'synced',
+      retryCount: 0,
+      nextRetryAt: null,
+      lastError: null,
+      updatedAt: Date.now(),
+      lastSuccessAt: Date.now(),
+    };
+
+    await writeSnapshot(seeded);
+
+    return seeded;
+  }
+
+  async fetchTagsFromServer() {
+    if (!this.hasBookmarkFetchUrlValue || !this.bookmarkFetchUrlValue) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(this.bookmarkFetchUrlValue, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) return [];
+      const data = await response.json();
+      return normalizeTags(data.tags || []);
+    } catch {
+      return [];
+    }
+  }
+
+  async publishSnapshot(snapshot) {
+    if (!snapshot?.event || !this.hasBookmarkPublishUrlValue || !this.bookmarkPublishUrlValue) {
+      return false;
+    }
+
+    try {
+      await this.postJSON(this.bookmarkPublishUrlValue, { event: snapshot.event });
+
+      const published = {
+        ...snapshot,
+        status: 'published',
+        retryCount: 0,
+        nextRetryAt: null,
+        lastError: null,
+        updatedAt: Date.now(),
+        lastSuccessAt: Date.now(),
+      };
+
+      await writeSnapshot(published);
+      retryTimers.delete(snapshot.pubkey);
+      return true;
+    } catch (error) {
+      await this.scheduleRetry(snapshot, error);
+      return false;
+    }
+  }
+
+  async scheduleRetry(snapshot, error = null) {
+    const retryCount = (snapshot.retryCount || 0) + 1;
+    const delay = getRetryDelayMs(retryCount);
+    const nextRetryAt = Date.now() + delay;
+
+    const pending = {
+      ...snapshot,
+      status: 'pending',
+      retryCount,
+      nextRetryAt,
+      lastError: error?.message || null,
+      updatedAt: Date.now(),
+    };
+
+    await writeSnapshot(pending);
+
+    this.scheduleRetryTimer(pending.pubkey, Math.max(300, delay));
+  }
+
+  scheduleRetryTimer(pubkey, waitMs) {
+    if (retryTimers.has(pubkey)) {
+      clearTimeout(retryTimers.get(pubkey));
+    }
+
+    const timer = setTimeout(() => {
+      retryTimers.delete(pubkey);
+      this.retryPublish(pubkey).catch((e) => {
+        console.warn('[article-actions] Retry publish failed:', e);
+      });
+    }, waitMs);
+
+    retryTimers.set(pubkey, timer);
+  }
+
+  async retryPublish(pubkey) {
+    const snapshot = await readSnapshot(pubkey);
+
+    if (!snapshot || snapshot.status !== 'pending' || !snapshot.event) {
+      return;
+    }
+
+    const waitMs = Math.max(0, (snapshot.nextRetryAt || 0) - Date.now());
+    if (waitMs > 0) {
+      this.scheduleRetryTimer(snapshot.pubkey, waitMs);
+      return;
+    }
+
+    await this.publishSnapshot(snapshot);
+  }
+
+  async bootstrapPendingRetries() {
+    try {
+      const snapshots = await readAllSnapshots();
+
+      for (const snapshot of snapshots) {
+        if (!snapshot || snapshot.status !== 'pending' || !snapshot.pubkey) {
+          continue;
+        }
+
+        if (retryTimers.has(snapshot.pubkey)) {
+          continue;
+        }
+
+        const waitMs = Math.max(0, (snapshot.nextRetryAt || Date.now()) - Date.now());
+        this.scheduleRetryTimer(snapshot.pubkey, waitMs);
+      }
+    } catch (error) {
+      console.warn('[article-actions] Failed to bootstrap pending retries:', error);
+    }
+  }
+
+  _onBookmarkStateChanged(event) {
+    const detail = event.detail || {};
+
+    if (!detail.coordinate || detail.coordinate !== this.coordinateValue) {
+      return;
+    }
+
+    if (typeof detail.bookmarked !== 'boolean') {
+      return;
+    }
+
+    this.isBookmarked = detail.bookmarked;
+    this.updateBookmarkUI();
+  }
+
+  broadcastState() {
+    document.dispatchEvent(new CustomEvent('bookmark:state-changed', {
+      detail: {
+        coordinate: this.coordinateValue,
+        bookmarked: this.isBookmarked,
+      },
+    }));
   }
 
   updateBookmarkUI() {
@@ -171,6 +450,7 @@ export default class extends Controller {
     }
     if (this.hasBookmarkItemTarget) {
       this.bookmarkItemTarget.classList.toggle('dropdown-item--active', this.isBookmarked);
+      this.bookmarkItemTarget.disabled = this.isSubmitting;
     }
   }
 

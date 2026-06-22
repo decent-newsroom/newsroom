@@ -17,6 +17,7 @@
             </span>
         </div>
         {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
+        {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
         {% if article.kind == 30817 and cat and mag %}
             {% set link = path('magazine-category-wiki', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
         {% elseif itemNaddr %}
@@ -69,6 +70,37 @@
                 <div class="card-footer__comments">
                     <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
                 </div>
+            {% endif %}
+            {% if app.user and bookmarkCoordinate %}
+                <button
+                    type="button"
+                    class="card-bookmark-btn"
+                    data-controller="ui--card-bookmark"
+                    data-ui--card-bookmark-target="button"
+                    data-action="click->ui--card-bookmark#toggle"
+                    data-ui--card-bookmark-coordinate-value="{{ bookmarkCoordinate }}"
+                    data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+                    data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
+                    data-ui--card-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
+                    data-ui--card-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
+                    title="{{ 'bookmark.add'|trans }}"
+                >
+                    <svg
+                        data-ui--card-bookmark-target="icon"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span data-ui--card-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
+                </button>
             {% endif %}
         </div>
     </div>
