@@ -19,7 +19,7 @@ use Symfony\UX\LiveComponent\DefaultActionTrait;
  * For 'e'-type items a lazy fetch from relays is triggered via a LiveAction
  * when the event is not yet in the local DB.
  */
-#[AsLiveComponent('Organisms:BookmarkItemResolver')]
+#[AsLiveComponent]
 final class BookmarkItemResolver
 {
     use DefaultActionTrait;
