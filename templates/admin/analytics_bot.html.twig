@@ -25,7 +25,7 @@
         </div>
 
         <div class="analytics-summary-row">
-            <div class="analytics-card analytics-card--wide">
+            <div class="analytics-card">
                 <h2>Bot Traffic Per Day (Last 30 Days)</h2>
                 {% if botVisitsPerDayLast30Days|length > 0 %}
                     <canvas id="botVisitsPerDayChart"
@@ -38,7 +38,8 @@
                     <p>No bot traffic recorded in the last 30 days.</p>
                 {% endif %}
             </div>
-
+        </div>
+        <div class="analytics-summary-row">
             <div class="analytics-card">
                 <h2>Top Bot User-Agents (Last 7 Days)</h2>
                 {% if topBotUserAgents|length > 0 %}
@@ -73,3 +74,5 @@
     </div>
 {% endblock %}
 
+{% block aside %}
+{% endblock %}

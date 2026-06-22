@@ -109,49 +109,6 @@
             {% endif %}
         </div>
 
-        <div class="analytics-card">
-            <h2>Recent Subdomain Visits</h2>
-            {% if recentSubdomainVisits|length > 0 %}
-                <table class="analytics-table">
-                    <thead>
-                        <tr>
-                            <th>Subdomain</th>
-                            <th>Route</th>
-                            <th>Session ID</th>
-                            <th>Referrer</th>
-                            <th>Visited At</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for visit in recentSubdomainVisits %}
-                            <tr>
-                                <td><code>{{ visit.subdomain }}</code></td>
-                                <td>{{ visit.route }}</td>
-                                <td><code>{{ visit.sessionId|slice(0, 12) }}...</code></td>
-                                <td>
-                                    {% if visit.referer %}
-                                        {% set isHttpReferer = visit.referer starts with 'http://' or visit.referer starts with 'https://' %}
-                                        {% if isHttpReferer %}
-                                            <a href="{{ visit.referer }}" target="_blank" rel="noopener noreferrer" title="{{ visit.referer }}">
-                                                {{ visit.referer|length > 60 ? visit.referer|slice(0, 60) ~ '…' : visit.referer }}
-                                            </a>
-                                        {% else %}
-                                            <span title="{{ visit.referer }}">{{ visit.referer|length > 60 ? visit.referer|slice(0, 60) ~ '…' : visit.referer }}</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="analytics-note">Direct / unknown</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ visit.visitedAt|date('Y-m-d H:i') }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No recent subdomain visits recorded.</p>
-            {% endif %}
-        </div>
-
         <div class="analytics-info">
             <p>
                 <strong>Subdomain analytics</strong> track visits to Unfold site subdomains. These pages are user-created publications hosted on subdomains of your primary domain.

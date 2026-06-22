@@ -129,7 +129,6 @@ class VisitorAnalyticsController extends AbstractController
         $subdomainVisitCountsLast30Days = $visitRepository->getSubdomainVisitCounts(new \DateTimeImmutable('-30 days'));
         $subdomainVisitsPerDayLast30Days = $visitRepository->getSubdomainVisitsPerDay(30);
         $topSubdomainRoutesLast7Days = $visitRepository->getTopSubdomainRoutes(15, new \DateTimeImmutable('-7 days'));
-        $recentSubdomainVisits = $visitRepository->getRecentSubdomainVisits(10);
 
         return $this->render('admin/analytics_subdomains.html.twig', [
             'subdomainVisitsLast24Hours' => $subdomainVisitsLast24Hours,
@@ -139,7 +138,6 @@ class VisitorAnalyticsController extends AbstractController
             'subdomainVisitCountsLast30Days' => $subdomainVisitCountsLast30Days,
             'subdomainVisitsPerDayLast30Days' => $subdomainVisitsPerDayLast30Days,
             'topSubdomainRoutesLast7Days' => $topSubdomainRoutesLast7Days,
-            'recentSubdomainVisits' => $recentSubdomainVisits,
         ]);
     }
 }

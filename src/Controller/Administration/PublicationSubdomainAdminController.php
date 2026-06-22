@@ -20,8 +20,7 @@ class PublicationSubdomainAdminController extends AbstractController
 {
     public function __construct(
         private readonly PublicationSubdomainService $service,
-        private readonly PublicationSubdomainSubscriptionRepository $repository,
-        private readonly LoggerInterface $logger,
+        private readonly PublicationSubdomainSubscriptionRepository $repository
     ) {
     }
 

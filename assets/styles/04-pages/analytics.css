@@ -25,6 +25,9 @@
 .analytics-summary-row .analytics-card {
     flex: 1;
     min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .analytics-table {

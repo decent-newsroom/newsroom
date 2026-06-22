@@ -877,22 +877,6 @@ class VisitRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
-    /**
-     * Returns recent visits on subdomains.
-     */
-    public function getRecentSubdomainVisits(int $limit = 10): array
-    {
-        $qb = $this->createQueryBuilder('v')
-            ->select('v.subdomain, v.route, v.sessionId, v.referer, v.visitedAt')
-            ->andWhere('v.subdomain IS NOT NULL')
-            ->orderBy('v.visitedAt', 'DESC')
-            ->setMaxResults($limit);
-
-        $this->applyTrackedVisitFilters($qb);
-
-        return $qb->getQuery()->getResult();
-    }
-
     private function applyTrackedVisitFilters(QueryBuilder $qb, string $alias = 'v'): void
     {
         $this->addCondition($qb, sprintf('%s.route <> :trackedVisitApiRoot', $alias));

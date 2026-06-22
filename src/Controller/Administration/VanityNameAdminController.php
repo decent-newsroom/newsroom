@@ -26,7 +26,6 @@ class VanityNameAdminController extends AbstractController
     public function __construct(
         private readonly VanityNameService $vanityNameService,
         private readonly VanityNameRepository $vanityNameRepository,
-        private readonly LoggerInterface $logger,
     ) {
     }
 
