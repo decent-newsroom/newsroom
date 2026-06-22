@@ -1,5 +1,5 @@
 {% if article is defined %}
-    <div class="card{% if isEmbed is defined and isEmbed %} embed{% endif %}">
+    <div class="card{% if isEmbed is defined and isEmbed %} embed{% endif %}" data-article-id="{{ article.id }}" data-uuid="{{ article.id }}" data-coordinate="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}" data-npub="{{ article.pubkey|toNpub }}">
         <div class="metadata">
             {% if not is_author_profile|default(false) and app.current_route != 'latest_articles' %}
                 {% set pubkey = article.pubkey %}
@@ -105,3 +105,5 @@
         </div>
     </div>
 {% endif %}
+
+

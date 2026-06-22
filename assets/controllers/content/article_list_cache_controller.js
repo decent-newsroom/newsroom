@@ -79,7 +79,7 @@ export default class extends Controller {
     const articleElements = doc.querySelectorAll('[data-article-id], [data-uuid], [data-coordinate]')
     articleElements.forEach(el => {
       const article = {
-        id: el.dataset.articleId || el.dataset.uuid || el.dataset.coordinate,
+        id: el.dataset.articleId || el.dataset.coordinate,
         uuid: el.dataset.uuid,
         coordinate: el.dataset.coordinate,
         npub: el.dataset.npub,
@@ -135,3 +135,4 @@ export default class extends Controller {
     await this.clearCache()
   }
 }
+

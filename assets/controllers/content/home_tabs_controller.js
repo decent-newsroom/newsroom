@@ -45,16 +45,13 @@ export default class extends Controller {
 
         // Update active state immediately for visual feedback
         this.tabTargets.forEach(tab => tab.classList.remove('active'));
-        clickedTab.classList.add('active');            this.activeTabValue = tabName;
-            // Update cache controller's data-tab attribute
-            const targetFrame = this.contentTarget.querySelector('turbo-frame#home-tab-content');
-            if (targetFrame) {
-                targetFrame.dataset.tab = tabName;
-            }
-
-        // Show loading indicator
+        clickedTab.classList.add('active');
+        this.activeTabValue = tabName;
+        // Show loading indicator and update cache controller
         const targetFrame = this.contentTarget.querySelector('turbo-frame#home-tab-content');
         if (targetFrame) {
+            // Update cache controller's data-tab attribute
+            targetFrame.dataset.tab = tabName;
             targetFrame.innerHTML = this._loadingHTML();
         }
 
@@ -146,5 +143,9 @@ export default class extends Controller {
         </div>`;
     }
 }
+
+
+
+
 
 
