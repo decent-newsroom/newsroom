@@ -74,47 +74,51 @@
                 </div>
 
                 <div class="rss-articles-list">
-                    {% for item in articles %}
-                        <label class="rss-article-item{% if item.existsInDb|default(false) %} rss-article-exists{% endif %}">
-                            <input type="checkbox"
-                                   name="selected[]"
-                                   value="{{ loop.index0 }}"
-                                   {% if not item.existsInDb|default(false) %}checked{% endif %}
-                                   class="rss-article-checkbox"
-                                   onchange="updateRssCount()">
-                            <div class="rss-article-content">
-                                {% if item.image %}
-                                    <img src="{{ item.image }}" alt="" class="rss-article-thumb">
-                                {% endif %}
-                                <div class="rss-article-info">
-                                    <div class="rss-article-title">
-                                        {{ item.title|default('Untitled') }}
-                                        {% if item.existsInDb|default(false) %}
-                                            <span class="rss-badge rss-badge-exists">already imported</span>
+                    {% if articles is iterable and articles|length > 0 %}
+                        {% for item in articles %}
+                            {% if item is mapping %}
+                                <label class="rss-article-item{% if item.existsInDb|default(false) %} rss-article-exists{% endif %}">
+                                    <input type="checkbox"
+                                           name="selected[]"
+                                           value="{{ loop.index0 }}"
+                                           {% if not item.existsInDb|default(false) %}checked{% endif %}
+                                           class="rss-article-checkbox"
+                                           onchange="updateRssCount()">
+                                    <div class="rss-article-content">
+                                        {% if item.image is defined and item.image is not empty %}
+                                            <img src="{{ item.image|e }}" alt="" class="rss-article-thumb">
                                         {% endif %}
+                                        <div class="rss-article-info">
+                                            <div class="rss-article-title">
+                                                {{ item.title|default('Untitled')|e }}
+                                                {% if item.existsInDb|default(false) %}
+                                                    <span class="rss-badge rss-badge-exists">already imported</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="rss-article-desc text-muted">
+                                                {{ (item.description|default('')|slice(0, 200))|e }}{% if (item.description|default('')|length > 200) %}…{% endif %}
+                                            </div>
+                                            <div class="rss-article-meta">
+                                                {% if item.pubDate is defined and item.pubDate is not empty and item.pubDate > 0 %}
+                                                    <span>{{ item.pubDate|date('M j, Y H:i', timezone=null) }}</span>
+                                                {% endif %}
+                                                {% if item.link is defined and item.link is not empty %}
+                                                    <a href="{{ item.link|e('url') }}" target="_blank" rel="noopener" class="rss-article-link" onclick="event.stopPropagation()">original ↗</a>
+                                                {% endif %}
+                                                {% if item.categories|default([])|length > 0 %}
+                                                    <span class="rss-article-tags">
+                                                        {% for cat in item.categories|slice(0, 5) %}
+                                                            <span class="rss-tag">{{ cat|e }}</span>
+                                                        {% endfor %}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="rss-article-desc text-muted">
-                                        {{ item.description|default('')|slice(0, 200) }}{% if item.description|default('')|length > 200 %}…{% endif %}
-                                    </div>
-                                    <div class="rss-article-meta">
-                                        {% if item.pubDate %}
-                                            <span>{{ item.pubDate|date('M j, Y H:i') }}</span>
-                                        {% endif %}
-                                        {% if item.link %}
-                                            <a href="{{ item.link }}" target="_blank" rel="noopener" class="rss-article-link" onclick="event.stopPropagation()">original ↗</a>
-                                        {% endif %}
-                                        {% if item.categories|default([])|length > 0 %}
-                                            <span class="rss-article-tags">
-                                                {% for cat in item.categories|slice(0, 5) %}
-                                                    <span class="rss-tag">{{ cat }}</span>
-                                                {% endfor %}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </label>
-                    {% endfor %}
+                                </label>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
 
                 <div class="rss-submit-actions">
