@@ -385,5 +385,43 @@ class ImageUploadController extends AbstractController
             'offset' => $offset,
         ]);
     }
+
+    /**
+     * Delete a user's uploaded file.
+     */
+    #[Route('/api/user-uploads/{id}', name: 'api_user_uploads_delete', methods: ['DELETE'])]
+    public function deleteUpload(int $id): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return new JsonResponse(['status' => 'error', 'message' => 'Not authenticated'], 401);
+        }
+
+        try {
+            /** @var \App\Repository\UserUploadRepository $repo */
+            $repo = $this->entityManager->getRepository(UserUpload::class);
+            $upload = $repo->find($id);
+
+            if (!$upload) {
+                return new JsonResponse(['status' => 'error', 'message' => 'Upload not found'], 404);
+            }
+
+            // Verify ownership: only the user who uploaded can delete
+            if ($upload->getNpub() !== $user->getUserIdentifier()) {
+                return new JsonResponse(['status' => 'error', 'message' => 'Unauthorized'], 403);
+            }
+
+            $this->entityManager->remove($upload);
+            $this->entityManager->flush();
+
+            return new JsonResponse(['status' => 'success', 'message' => 'Upload deleted']);
+        } catch (\Throwable $e) {
+            $this->logger->error('[Delete] Upload deletion failed', [
+                'id'        => $id,
+                'exception' => $e->getMessage(),
+            ]);
+            return new JsonResponse(['status' => 'error', 'message' => 'Failed to delete upload'], 500);
+        }
+    }
 }
 

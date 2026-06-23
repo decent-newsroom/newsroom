@@ -185,6 +185,7 @@ export default class extends Controller {
         return uploads.map(u => {
             const isImage = (u.mime_type || '').startsWith('image/');
             return {
+                id: u.id,
                 source_type: 'asset',
                 provider_id: u.provider,
                 primary_url: u.url,
@@ -269,6 +270,10 @@ export default class extends Controller {
                 </div>`;
         }
 
+        const deleteBtn = item.source_type === 'asset' && item.id
+            ? `<button class="btn btn--small btn--danger" data-action="click->media--media-library#deleteMedia" data-id="${item.id}" title="Delete this upload">Delete</button>`
+            : '';
+
         return `
             <div class="media-card" data-event-id="${item.event_id || ''}" data-url="${this.escapeHtml(item.primary_url || '')}">
                 ${previewHtml}
@@ -284,6 +289,7 @@ export default class extends Controller {
                     <button class="btn btn--small" data-action="click->media--media-library#copyUrl" data-url="${this.escapeHtml(item.primary_url || '')}">
                         Copy URL
                     </button>
+                    ${deleteBtn}
                 </div>
             </div>`;
     }
@@ -301,6 +307,46 @@ export default class extends Controller {
                 event.currentTarget.textContent = 'Copied!';
                 setTimeout(() => { event.currentTarget.textContent = 'Copy URL'; }, 2000);
             });
+        }
+    }
+
+    async deleteMedia(event) {
+        const id = event.currentTarget.dataset.id;
+        if (!id) return;
+
+        // Confirm deletion
+        if (!confirm('Are you sure you want to delete this upload? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/user-uploads/${id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.status === 'success') {
+                // Remove the card from the grid
+                const card = event.currentTarget.closest('.media-card');
+                card?.remove();
+
+                // Show success message
+                event.currentTarget.textContent = 'Deleted!';
+
+                // Check if grid is now empty and reload if needed
+                const hasCards = this.gridTarget.querySelector('.media-card');
+                if (!hasCards) {
+                    this.pageValue = Math.max(0, this.pageValue - 1);
+                    await this.loadContent();
+                }
+            } else {
+                alert('Failed to delete upload: ' + (data.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            alert('Failed to delete upload. Please try again.');
         }
     }
 
