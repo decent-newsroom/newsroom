@@ -9,6 +9,8 @@ const RETRY_MAX_DELAY_MS = 30000;
 
 const retryTimers = new Map();
 let retryBootstrapDone = false;
+let bookmarkStateCache = null;
+let bookmarkStatePromise = null;
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -80,6 +82,36 @@ function getRetryDelayMs(retryCount) {
   return Math.min(backoff, RETRY_MAX_DELAY_MS);
 }
 
+async function fetchBookmarkTagsOnce(fetchUrl) {
+  if (Array.isArray(bookmarkStateCache)) {
+    return bookmarkStateCache;
+  }
+
+  if (bookmarkStatePromise) {
+    return bookmarkStatePromise;
+  }
+
+  bookmarkStatePromise = fetch(fetchUrl, {
+    headers: { Accept: 'application/json' },
+  }).then(async (response) => {
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    bookmarkStateCache = normalizeTags(data.tags || []);
+    return bookmarkStateCache;
+  }).finally(() => {
+    bookmarkStatePromise = null;
+  });
+
+  return bookmarkStatePromise;
+}
+
+function updateBookmarkStateCache(tags) {
+  bookmarkStateCache = normalizeTags(tags);
+}
+
 export default class extends Controller {
   static targets = ['button', 'icon', 'label'];
 
@@ -116,16 +148,11 @@ export default class extends Controller {
     if (!this.hasBookmarkFetchUrlValue || !this.bookmarkFetchUrlValue) return;
 
     try {
-      const response = await fetch(this.bookmarkFetchUrlValue, {
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!response.ok) return;
-
-      const data = await response.json();
+      const tags = await fetchBookmarkTagsOnce(this.bookmarkFetchUrlValue);
+      if (!Array.isArray(tags)) return;
       if (this.hasLocalMutation) return;
 
-      this.bookmarkTags = normalizeTags(data.tags || []);
+      this.bookmarkTags = tags;
       this.isBookmarked = hasCoordinate(this.bookmarkTags, this.coordinateValue);
       this.updateUI();
     } catch (error) {
@@ -178,6 +205,7 @@ export default class extends Controller {
 
       this.hasLocalMutation = true;
       this.bookmarkTags = nextTags;
+      updateBookmarkStateCache(nextTags);
       this.isBookmarked = !currentlyBookmarked;
       this.updateUI();
       this.broadcastState();
@@ -229,13 +257,8 @@ export default class extends Controller {
     }
 
     try {
-      const response = await fetch(this.bookmarkFetchUrlValue, {
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!response.ok) return [];
-      const data = await response.json();
-      return normalizeTags(data.tags || []);
+      const tags = await fetchBookmarkTagsOnce(this.bookmarkFetchUrlValue);
+      return Array.isArray(tags) ? tags : [];
     } catch {
       return [];
     }
