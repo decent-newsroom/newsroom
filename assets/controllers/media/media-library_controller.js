@@ -311,11 +311,19 @@ export default class extends Controller {
     }
 
     async deleteMedia(event) {
-        const id = event.currentTarget.dataset.id;
+        const btn = event.currentTarget;
+        const id = btn.dataset.id;
         if (!id) return;
 
+        // Find the card element before any async operations
+        const card = btn.closest('.media-card');
+        if (!card) {
+            console.error('Could not find media-card element');
+            return;
+        }
+
         // Confirm deletion
-        if (!confirm('Are you sure you want to delete this upload? This cannot be undone.')) {
+        if (!confirm('Are you sure you want to remove this upload from the list? This does not affect the actual media hosting.')) {
             return;
         }
 
@@ -329,11 +337,7 @@ export default class extends Controller {
 
             if (response.ok && data.status === 'success') {
                 // Remove the card from the grid
-                const card = event.currentTarget.closest('.media-card');
-                card?.remove();
-
-                // Show success message
-                event.currentTarget.textContent = 'Deleted!';
+                card.remove();
 
                 // Check if grid is now empty and reload if needed
                 const hasCards = this.gridTarget.querySelector('.media-card');
