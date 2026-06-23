@@ -1619,6 +1619,7 @@ class AuthorController extends AbstractController
             $articleTitle = null;
             $articleAuthor = null;
             $url = null;
+            $eventRef = null;
             $relayHints = [];
 
             // Extract metadata from tags
@@ -1643,6 +1644,12 @@ class AuthorController extends AbstractController
                             $relayHints[] = $tag[1];
                         }
                         break;
+                    case 'e': // Event reference
+                    case 'E':
+                        if (!$eventRef) {
+                            $eventRef = $tag[1] ?? null;
+                        }
+                        break;
                     case 'a': // Article reference (kind:pubkey:identifier)
                     case 'A':
                         $articleRef = $tag[1] ?? null;
@@ -1664,6 +1671,7 @@ class AuthorController extends AbstractController
 
             $highlight = (object)[
                 'id' => $event->getId(),
+                'event_ref' => $eventRef,
                 'content' => $event->getContent(),
                 'context' => $context,
                 'sourceUrl' => $sourceUrl,

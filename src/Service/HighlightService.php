@@ -124,6 +124,7 @@ class HighlightService
 
         return array_map(function (Highlight $highlight) {
             return [
+                'event_ref' => $this->extractEventRef($highlight->getRawEvent()),
                 'content' => $highlight->getContent(),
                 'created_at' => $highlight->getCreatedAt(),
                 'pubkey' => $highlight->getPubkey(),
@@ -290,5 +291,23 @@ class HighlightService
                 'cached_at' => $h->getCachedAt()->format('Y-m-d H:i:s'),
             ], $highlights)
         ];
+    }
+
+    /**
+     * Extract event reference from raw event 'e' tags
+     */
+    private function extractEventRef(?array $rawEvent): ?string
+    {
+        if (!$rawEvent || !isset($rawEvent['tags'])) {
+            return null;
+        }
+
+        foreach ($rawEvent['tags'] as $tag) {
+            if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['e', 'E'])) {
+                return $tag[1] ?? null;
+            }
+        }
+
+        return null;
     }
 }

@@ -45,9 +45,11 @@ class HighlightFeedService
                 }
 
                 $naddr = $articleCoordinate ? $this->generateNaddr($articleCoordinate, []) : null;
+                $eventRef = $baseObject['highlight']['refs']['event_ref'] ?? null;
 
                 $highlights[] = [
                     'id' => $baseObject['highlight']['eventId'] ?? null,
+                    'event_ref' => $eventRef,
                     'content' => $baseObject['highlight']['content'] ?? '',
                     'created_at' => isset($baseObject['highlight']['createdAt'])
                         ? strtotime($baseObject['highlight']['createdAt'])
@@ -133,9 +135,11 @@ class HighlightFeedService
             }
 
             $naddr = $this->generateNaddr($articleCoordinate, []);
+            $eventRef = $this->extractEventRef($highlightEntity->getRawEvent());
 
             $highlights[] = [
                 'id' => $highlightEntity->getEventId(),
+                'event_ref' => $eventRef,
                 'content' => $highlightEntity->getContent() ?? '',
                 'created_at' => $highlightEntity->getCreatedAt() ?? time(),
                 'pubkey' => $highlightEntity->getPubkey(),
@@ -231,5 +235,22 @@ class HighlightFeedService
             return null;
         }
     }
-}
 
+    /**
+     * Extract event reference from raw event 'e' tags
+     */
+    private function extractEventRef(?array $rawEvent): ?string
+    {
+        if (!$rawEvent || !isset($rawEvent['tags'])) {
+            return null;
+        }
+
+        foreach ($rawEvent['tags'] as $tag) {
+            if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['e', 'E'])) {
+                return $tag[1] ?? null;
+            }
+        }
+
+        return null;
+    }
+}

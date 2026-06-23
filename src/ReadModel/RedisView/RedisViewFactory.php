@@ -105,6 +105,12 @@ class RedisViewFactory
             ? $createdAt
             : new \DateTimeImmutable('@' . $createdAt);
 
+        // Extract event_ref from 'e' tags in raw event
+        $eventRef = null;
+        if ($highlight->getRawEvent()) {
+            $eventRef = $this->extractEventRef($highlight->getRawEvent());
+        }
+
         return new RedisHighlightView(
             eventId: $highlight->getEventId() ?? '',
             pubkey: $highlight->getPubkey() ?? '',
@@ -113,6 +119,7 @@ class RedisViewFactory
             context: $highlight->getContext(),
             refs: [
                 'article_coordinate' => $highlight->getArticleCoordinate(),
+                'event_ref' => $eventRef,
             ],
         );
     }
@@ -434,5 +441,23 @@ class RedisViewFactory
             );
         }
         return $readingLists;
+    }
+
+    /**
+     * Extract event reference from raw event 'e' tags
+     */
+    private function extractEventRef(?array $rawEvent): ?string
+    {
+        if (!$rawEvent || !isset($rawEvent['tags'])) {
+            return null;
+        }
+
+        foreach ($rawEvent['tags'] as $tag) {
+            if (is_array($tag) && count($tag) >= 2 && in_array($tag[0], ['e', 'E'])) {
+                return $tag[1] ?? null;
+            }
+        }
+
+        return null;
     }
 }
