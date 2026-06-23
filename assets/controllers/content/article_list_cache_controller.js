@@ -5,6 +5,7 @@ export default class extends Controller {
   async connect() {
     this.tabName = this.element.dataset.tab || ''
     this.cacheMaxAge = parseInt(this.element.dataset.cacheMaxAge || '300000', 10)
+    this.currentRequestId = 0 // Track which request is active
     // Watch for tab changes
     this.observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -34,11 +35,24 @@ export default class extends Controller {
     return this.hasFrameTarget ? this.frameTarget : this.element
   }
   async loadFromCache() {
+    // Increment request ID to invalidate any pending requests for old tabs
+    this.currentRequestId++
+    const requestId = this.currentRequestId
+    const tabName = this.tabName // Capture tab name at the start of request
+
     try {
-      const cached = await indexedDBCache.getTabContent(this.tabName)
+      const cached = await indexedDBCache.getTabContent(tabName)
+
+      // Check if this request is still valid (no newer tab switch)
+      if (requestId !== this.currentRequestId) return
+
       if (cached) {
-        this.displayCachedContent(cached)
-        const isStale = await indexedDBCache.isStale(this.tabName, this.cacheMaxAge)
+        this.displayCachedContent(cached, requestId)
+        const isStale = await indexedDBCache.isStale(tabName, this.cacheMaxAge)
+
+        // Check again before fetching fresh content
+        if (requestId !== this.currentRequestId) return
+
         if (isStale) {
           this.fetchFreshContent()
         }
@@ -47,10 +61,16 @@ export default class extends Controller {
       }
     } catch (error) {
       console.warn('[ArticleListCache] Cache read failed:', error)
-      this.fetchFreshContent()
+      // Only fetch fresh if still the current request
+      if (requestId === this.currentRequestId) {
+        this.fetchFreshContent()
+      }
     }
   }
-  displayCachedContent(cached) {
+  displayCachedContent(cached, requestId) {
+    // Verify this is still the active request before updating DOM
+    if (requestId && requestId !== this.currentRequestId) return
+
     const frame = this.getFrameElement()
     if (cached.html) {
       this.element.classList.add('from-cache')
@@ -64,27 +84,43 @@ export default class extends Controller {
     }
   }
   async fetchFreshContent() {
+    // Capture request ID and tab name to detect stale responses
+    const requestId = this.currentRequestId
+    const tabName = this.tabName
+
     try {
       if (this.hasSpinnerTarget) {
         this.spinnerTarget.style.display = 'block'
       }
-      const response = await fetch(`/home/tab/${this.tabName}`, {
+      const response = await fetch(`/home/tab/${tabName}`, {
         headers: {
           'Accept': 'text/html',
           'X-Requested-With': 'XMLHttpRequest',
           'Turbo-Frame': 'home-tab-content'
         }
       })
+
+      // Check if this request is still valid before processing
+      if (requestId !== this.currentRequestId) return
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const html = await response.text()
+
+      // Check again before displaying
+      if (requestId !== this.currentRequestId) return
+
       const articles = this.extractArticlesFromHtml(html)
-      await indexedDBCache.mergeNewArticles(this.tabName, articles, html)
+      await indexedDBCache.mergeNewArticles(tabName, articles, html)
+
+      // Final check before updating DOM
+      if (requestId !== this.currentRequestId) return
+
       const frame = this.getFrameElement()
       frame.innerHTML = html
       this.element.classList.remove('from-cache')
-      this.dispatch('content-updated', { detail: { tab: this.tabName, articles } })
+      this.dispatch('content-updated', { detail: { tab: tabName, articles } })
     } catch (error) {
       console.error('[ArticleListCache] Fetch failed:', error)
     } finally {
