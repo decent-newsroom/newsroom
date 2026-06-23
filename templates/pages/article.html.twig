@@ -369,7 +369,8 @@
 {% block aside %}
     {% if not (isDraft is defined and isDraft) %}
         <turbo-frame id="article-publications"
-                     src="{{ path('article-aside-frame', {npub: npub, slug: article.slug}) }}">
+                     src="{{ path('article-aside-frame', {npub: npub, slug: article.slug}) }}"
+                     target="_top">
         </turbo-frame>
     {% endif %}
 {% endblock %}
