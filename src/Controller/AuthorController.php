@@ -936,7 +936,7 @@ class AuthorController extends AbstractController
 
                     if ($cachedIsEmpty) {
                         $templateData = match($tab) {
-                            'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                            //'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                             'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                             'highlights' => $this->getHighlightsTabData($pubkey, $em),
                             'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),
@@ -970,7 +970,7 @@ class AuthorController extends AbstractController
                 } else {
                     // Cache miss: load data synchronously, cache it, then dispatch revalidation for fresh data
                     $templateData = match($tab) {
-                        'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
+                        //'overview' => $this->getOverviewTabData($pubkey, $isOwner, $redisCacheService, $viewStore, $viewFactory, $messageBus, $em),
                         'media' => $this->getMediaTabData($pubkey, $redisCacheService),
                         'highlights' => $this->getHighlightsTabData($pubkey, $em),
                         'drafts' => $this->getDraftsTabData($pubkey, $viewFactory, $authorMetadata),

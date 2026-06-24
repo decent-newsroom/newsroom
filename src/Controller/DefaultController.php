@@ -277,13 +277,9 @@ class DefaultController extends AbstractController
     /**
      * @throws Exception
      */
-    #[Route('/', name: 'home', condition: "!request.attributes.has('_chat_community')")]
+    #[Route('/', name: 'home')]
     public function index(): Response
     {
-        if ($this->getUser()) {
-            return $this->render('home_authenticated.html.twig');
-        }
-
         return $this->render('home.html.twig');
     }
 
@@ -294,16 +290,6 @@ class DefaultController extends AbstractController
     public function newsstand(): Response
     {
         return $this->render('pages/newsstand.html.twig');
-    }
-
-    /**
-     * @deprecated The bookshelf page has been deprecated. The route is kept for backward
-     *             compatibility and now permanently redirects to the newsstand.
-     */
-    #[Route('/bookshelf', name: 'bookshelf')]
-    public function bookshelf(): Response
-    {
-        return $this->redirectToRoute('newsstand', [], 301);
     }
 
     /**
