@@ -51,12 +51,12 @@ class HomeFeedController extends AbstractController
         LoggerInterface $logger,
     ): Response {
         return match ($tab) {
-            'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
-            'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
-            'interests' => $this->interestsTab($contentSearch, $nostrClient, $logger),
-            'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
+            // 'latest' => $this->latestTab($redisCacheService, $viewStore, $exclusionPolicy, $articleSearchFactory, $userMuteListService),
+            // 'follows' => $this->followsTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $logger),
+            // 'interests' => $this->interestsTab($contentSearch, $nostrClient, $logger),
+            // 'discussed' => $this->discussedTab($articleRepository, $redisCacheService, $exclusionPolicy, $userMuteListService),
             'foryou', 'articles' => $this->articlesTab($articleRepository, $eventRepository, $userProfileService, $redisCacheService, $exclusionPolicy, $articleSearchFactory, $nostrClient, $userMuteListService, $logger),
-            'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
+            // 'media' => $this->mediaTab($eventRepository, $nostrClient, $userProfileService, $mutedPubkeysService, $userMuteListService, $logger),
             'featuredpack' => $this->featuredPackTab($followPackService, $logger),
             'activityfeed' => $this->activityFeedTab($eventRepository, $userProfileService, $logger),
             'updatesfeed' => $this->updatesFeedTab($updateRepository, $subscriptionRepository),
