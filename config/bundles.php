@@ -20,4 +20,5 @@ return [
     Symfony\UX\Turbo\TurboBundle::class => ['all' => true],
     Symfony\Bundle\MonologBundle\MonologBundle::class => ['all' => true],
     DecentNewsroom\NostrKernelBundle\NostrKernelBundle::class => ['all' => true],
+    DecentNewsroom\NostrProjectionBundle\NostrProjectionBundle::class => ['all' => true],
 ];

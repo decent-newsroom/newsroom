@@ -84,7 +84,8 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/",
-            "DecentNewsroom\\NostrKernelBundle\\": "src/NostrKernelBundle/"
+            "DecentNewsroom\\NostrKernelBundle\\": "src/NostrKernelBundle/",
+            "DecentNewsroom\\NostrProjectionBundle\\": "src/NostrProjectionBundle/"
         }
     },
     "autoload-dev": {
