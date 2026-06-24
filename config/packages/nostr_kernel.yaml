@@ -1,0 +1,7 @@
+nostr_kernel:
+  verify_signatures: true
+  strict_validation: true
+  allow_future_events_seconds: 300
+  allow_protected_events: true
+  use_native_secp256k1_if_available: true
+

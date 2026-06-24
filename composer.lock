@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "723a5265f5a7e88ddab7d23c1098b4e2",
+    "content-hash": "09f43eaae0be61e2fa8a506d17a294c1",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2593,6 +2593,63 @@
                 }
             ],
             "time": "2026-06-02T12:30:48+00:00"
+        },
+        {
+            "name": "innis/nostr-core",
+            "version": "v0.3.17",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/johninnis/nostr-core.git",
+                "reference": "f25911e17a7dc4f906183a57d8ba35ad88d55f37"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/johninnis/nostr-core/zipball/f25911e17a7dc4f906183a57d8ba35ad88d55f37",
+                "reference": "f25911e17a7dc4f906183a57d8ba35ad88d55f37",
+                "shasum": ""
+            },
+            "require": {
+                "ext-intl": "*",
+                "ext-sodium": "*",
+                "paragonie/ecc": "^2.5",
+                "paragonie/sodium_compat": "^2.0",
+                "php": "^8.3",
+                "psr/log": "^3.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^13.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Innis\\Nostr\\Core\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "John Innis",
+                    "email": "john@innis.xyz",
+                    "homepage": "https://www.innis.xyz/"
+                }
+            ],
+            "description": "Core domain entities and services for Nostr protocol implementation",
+            "keywords": [
+                "core",
+                "domain",
+                "nostr",
+                "protocol"
+            ],
+            "support": {
+                "issues": "https://github.com/johninnis/nostr-core/issues",
+                "source": "https://github.com/johninnis/nostr-core/tree/v0.3.17"
+            },
+            "time": "2026-06-16T13:20:38+00:00"
         },
         {
             "name": "laminas/laminas-diactoros",
@@ -15524,5 +15581,5 @@
         "ext-simplexml": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

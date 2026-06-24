@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Feature] Scaffolded an in-repo `DecentNewsroom\NostrKernelBundle` with Symfony bundle wiring, protocol contracts, immutable domain value objects, application-level coordinate/reference services, isolated Innis adapters (stubbed for next-pass API wiring), and focused PHPUnit coverage for event-kind/tag/coordinate/reference behavior.
 - [Bug] Reduced duplicate `GET /api/bookmarks/current` traffic on article-list pages: bookmark state fetches are now deduplicated per controller module with a shared in-flight request/cache so dozens of card/dropdown instances no longer trigger identical parallel requests.
 - [Feature] Added PWA IndexedDB caching for article lists on home page: article lists are now automatically cached in the browser's IndexedDB on first load and served instantly on subsequent visits, with background fetching of new items to keep content fresh. Improves perceived performance for repeat visitors and enables offline browsing of previously cached tabs.
 - [Feature] Added IndexedDB-backed bookmark reliability to both article-card shortcut (`ui--card-bookmark`) and article actions dropdown (`ui--article-actions-dropdown`): bookmark updates now build new kind `10003` events from the last cached snapshot, work across repeated no-reload interactions, and persist failed publishes as `pending` for automatic backoff retries using the same signed payload; success/failure metadata is tracked in IndexedDB for idempotent recovery.
