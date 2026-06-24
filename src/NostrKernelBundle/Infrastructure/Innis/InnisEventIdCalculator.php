@@ -7,13 +7,26 @@ namespace DecentNewsroom\NostrKernelBundle\Infrastructure\Innis;
 use DecentNewsroom\NostrKernelBundle\Contract\Event\EventIdCalculatorInterface;
 use DecentNewsroom\NostrKernelBundle\Domain\Event\EventId;
 use DecentNewsroom\NostrKernelBundle\Domain\Event\NostrEvent;
+use Innis\Nostr\Core\Domain\Entity\Event as InnisEvent;
+use Innis\Nostr\Core\Domain\Exception\InvalidEventException;
 
 final readonly class InnisEventIdCalculator implements EventIdCalculatorInterface
 {
+    /**
+     * @throws InvalidEventException
+     */
     public function calculate(NostrEvent $event): EventId
     {
-        // TODO(next pass): wire to innis/nostr-core event id calculator after API validation.
-        throw new \LogicException('Innis event id calculator adapter is not wired yet; inspect innis/nostr-core APIs in the next pass.');
+        $innisEvent = InnisEvent::fromArray($event->toArray());
+
+        try {
+            return new EventId($innisEvent->calculateId()->toHex());
+        } catch (InvalidEventException $e) {
+            throw new InvalidEventException(
+                message: 'Failed to calculate Nostr event id.',
+                previous: $e,
+            );
+        }
     }
 }
 

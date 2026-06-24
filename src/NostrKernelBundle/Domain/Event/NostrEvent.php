@@ -53,5 +53,18 @@ final readonly class NostrEvent
     {
         return $this->signature;
     }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id->toString(),
+            'pubkey' => $this->pubkey->toHex(),
+            'created_at' => $this->createdAt,
+            'kind' => $this->kind->value(),
+            'tags' => $this->tags->raw(),
+            'content' => $this->content,
+            'sig' => $this->signature?->toString(),
+        ];
+    }
 }
 

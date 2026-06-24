@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates \
 	curl \
 	gettext \
+    libsecp256k1-1 \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -32,6 +33,8 @@ RUN set -eux; \
         gd \
         redis \
         pcntl \
+        sodium \
+        ffi \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
