@@ -3,7 +3,10 @@
         <div class="mb-5">
             {% for preview in previews %}
                 <div class="featured-cat">
-                    <a href="{{ path('magazine-category', { slug: preview.categorySlug, mag: mag }) }}">
+                    <a
+                        href="{{ path('magazine-category', { slug: preview.categorySlug, mag: mag }) }}"
+                        data-turbo-frame="_top"
+                    >
                         {{ preview.categoryTitle ?: preview.categorySlug }}
                     </a>
                 </div>
@@ -28,4 +31,3 @@
         </div>
     {% endif %}
 </turbo-frame>
-

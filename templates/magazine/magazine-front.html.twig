@@ -60,11 +60,13 @@
     <section class="w-container mb-5">
         <turbo-frame id="magazine-chapters"
                      src="{{ path('magazine-chapters-frame', {mag: mag}) }}"
+                     target="_top"
                      loading="lazy">
         </turbo-frame>
 
         <turbo-frame id="magazine-categories"
                      src="{{ path('magazine-categories-frame', {mag: mag}) }}"
+                     target="_top"
                      loading="lazy">
         </turbo-frame>
     </section>
@@ -114,4 +116,3 @@
         }
     </script>
 {% endblock %}
-

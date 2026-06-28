@@ -244,6 +244,7 @@
     align-items: center;
     min-height: 5rem;
     border-bottom: 1px solid var(--color-border);
+    margin: 0;
 }
 
 .my-content-row:not(.my-content-row--head)::before {
@@ -293,20 +294,7 @@
     height: 2.25rem;
     display: grid;
     place-items: center;
-    border: 1px solid var(--color-border);
     color: var(--color-text-mid);
-}
-
-.my-content-row__icon--published {
-    border-left: 3px solid var(--color-primary);
-}
-
-.my-content-row__icon--drafts {
-    border-left: 3px solid var(--color-warning);
-}
-
-.my-content-row__icon--lists {
-    border-left: 3px solid var(--color-secondary);
 }
 
 .my-content-row__icon .icon {

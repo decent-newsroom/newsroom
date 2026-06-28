@@ -1,4 +1,4 @@
-<turbo-frame id="magazine-chapters">
+<turbo-frame id="magazine-chapters" target="_top">
     {% if chapters is not empty %}
         <div class="mb-5">
             <div class="mb-3">
@@ -16,7 +16,10 @@
                         {% endfor %}
 
                         <div class="card">
-                            <a href="{{ path('magazine-chapter', {mag: mag, slug: chapterSlug}) }}">
+                            <a
+                                href="{{ path('magazine-chapter', {mag: mag, slug: chapterSlug}) }}"
+                                data-turbo-frame="_top"
+                            >
                                 {% if chapterEvent.image %}
                                     <div class="card-header">
                                         <img src="{{ chapterEvent.image }}" alt="Cover image for {{ chapterEvent.title }}">
@@ -59,4 +62,3 @@
         </div>
     {% endif %}
 </turbo-frame>
-
