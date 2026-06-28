@@ -121,6 +121,7 @@
     text-decoration: none;
     color: var(--color-text);
     transition: background-color 0.2s;
+    border-left: 2px solid transparent;
 }
 
 .featured-writer-link:hover {

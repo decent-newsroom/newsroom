@@ -49,10 +49,8 @@
     position: sticky;
     top: var(--header-height);
     z-index: var(--z-sticky);
-    margin: 0 0 var(--spacing-3);
     padding: var(--spacing-3) 0;
     background: var(--color-bg);
-    border-bottom: 1px solid var(--color-border-strong);
     font-family: var(--heading-font);
     font-size: 1.35rem;
     font-weight: 600;
