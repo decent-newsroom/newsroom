@@ -1088,7 +1088,7 @@ class AuthorController extends AbstractController
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(10)
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
 
@@ -1127,7 +1127,7 @@ class AuthorController extends AbstractController
         return [
             'authorMagazines' => $authorMagazines,
             'featuredMagazines' => $featuredMagazines,
-            'existingFollowPacks' => array_values($existingFollowPacks),
+            'existingFollowPacks' => array_slice(array_values($existingFollowPacks), 0, 10),
             'featuredInFollowPacks' => $featuredInFollowPacks,
         ];
     }
@@ -1426,13 +1426,17 @@ class AuthorController extends AbstractController
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(10)
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
 
         $existingFollowPacks = [];
         foreach ($followPacks as $pack) {
             $dTag = $pack->getSlug() ?? '';
+            if ($dTag === '' || isset($existingFollowPacks[$dTag])) {
+                continue;
+            }
+
             $title = '';
             $pTags = [];
             foreach ($pack->getTags() as $tag) {
@@ -1443,13 +1447,16 @@ class AuthorController extends AbstractController
                     $pTags[] = $tag[1];
                 }
             }
-            $existingFollowPacks[] = [
+            // Results are newest-first, so the first event for each d-tag wins.
+            $existingFollowPacks[$dTag] = [
                 'dTag' => $dTag,
                 'title' => $title,
                 'memberCount' => count($pTags),
                 'memberPubkeys' => $pTags,
+                'pubkey' => $pubkey,
             ];
         }
+        $existingFollowPacks = array_slice(array_values($existingFollowPacks), 0, 10);
         $data['existingFollowPacks'] = $existingFollowPacks;
 
         // Pre-populate existing pack members if user has a selected coordinate

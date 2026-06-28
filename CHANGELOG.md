@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Bug] Deduplicated authored follow packs on profile Editorial tabs by newest d-tag revision before applying the ten-pack display limit, across both synchronous and cached profile data paths.
 - [Bug] Restored full-width bookmarked article cards by applying the width contract to the previously classless `ArticleFromCoordinate` wrapper while retaining the existing resolver flex layout.
 - [Improvement] Standardized Newsstand magazine covers in centered 16:9 frames with consistent cropping and added a full-width bottom rule between magazine entries.
 - [Bug] Fixed `/my-content` sorting when Nostr event update dates are Unix timestamps instead of `DateTimeInterface` objects.

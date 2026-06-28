@@ -399,7 +399,7 @@ class RevalidateProfileCacheHandler
             ->setParameter('pubkey', $pubkey)
             ->setParameter('kind', KindsEnum::FOLLOW_PACK->value)
             ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(10)
+            ->setMaxResults(200)
             ->getQuery()
             ->getResult();
 
@@ -438,7 +438,7 @@ class RevalidateProfileCacheHandler
             ];
         }
 
-        return array_values($existingFollowPacks);
+        return array_slice(array_values($existingFollowPacks), 0, 10);
     }
 
     /**
@@ -500,4 +500,3 @@ class RevalidateProfileCacheHandler
         return array_values($featuredByCoordinate);
     }
 }
-
