@@ -1,31 +1,48 @@
-﻿/* Bookmark Item Container Styles */
 .bookmark-item-container {
     position: relative;
-    padding: 0.5rem 0;
+    width: 100%;
+    padding: var(--spacing-2) 0;
 }
+
 .bookmark-item-container .flex-grow-1 {
-    min-width: 0; /* Allow flex item to shrink below its content size */
+    width: 100%;
+    min-width: 0;
 }
-.bookmark-item-container .btn-outline-danger {
-    opacity: 0.6;
-    transition: opacity 0.2s ease, background-color 0.2s ease;
+
+.article-from-coordinate {
+    width: 100%;
+    min-width: 0;
 }
-.bookmark-item-container:hover .btn-outline-danger {
-    opacity: 1;
-}
-.bookmark-item-container .btn-outline-danger:hover {
-    background-color: var(--bs-danger);
-    color: white;
-}
-.bookmark-item-container .btn-outline-danger:active {
-    transform: scale(0.95);
-}
-/* Compact layout for bookmark items */
+
 .bookmark-item-entry {
     word-break: break-word;
 }
-/* Remove default margin on tags within bookmarks */
+
 .bookmark-item-container .tag {
     display: inline-block;
-    margin-right: 0.5rem;
+    margin-right: var(--spacing-2);
+}
+
+.bookmark-item-remove {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.bookmark-item-remove:hover,
+.bookmark-item-remove:focus-visible {
+    border-color: var(--color-error-border);
+    color: var(--color-error);
+}
+
+.bookmark-item-remove .icon {
+    width: 1rem;
+    height: 1rem;
 }

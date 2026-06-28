@@ -1,4 +1,4 @@
-<div {{ attributes }}>
+<div {{ attributes.defaults({class: 'article-from-coordinate'}) }}>
     {% if error and parsedPubkey and parsedSlug %}
         {# Article not found – show fetch placeholder #}
         <twig:Molecules:CardPlaceholder :item="{

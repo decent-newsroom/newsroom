@@ -5,13 +5,14 @@
                 <twig:Organisms:ArticleFromCoordinate :coordinate="value" />
             </div>
             <button
-                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                class="bookmark-item-remove"
                 title="{{ 'bookmark.remove'|trans }}"
+                aria-label="{{ 'bookmark.remove'|trans }}"
                 data-action="live#action"
                 data-live-action-param="removeBookmark"
                 data-live-value-param="{{ value|json_encode }}"
             >
-                ?
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
             </button>
         </div>
     {% elseif type == 'e' %}
@@ -38,13 +39,14 @@
                 {% endif %}
             </div>
             <button
-                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                class="bookmark-item-remove"
                 title="{{ 'bookmark.remove'|trans }}"
+                aria-label="{{ 'bookmark.remove'|trans }}"
                 data-action="live#action"
                 data-live-action-param="removeBookmark"
                 data-live-value-param="{{ value|json_encode }}"
             >
-                ?
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
             </button>
         </div>
     {% elseif type == 'p' %}
@@ -55,13 +57,14 @@
                 </div>
             </div>
             <button
-                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                class="bookmark-item-remove"
                 title="{{ 'bookmark.remove'|trans }}"
+                aria-label="{{ 'bookmark.remove'|trans }}"
                 data-action="live#action"
                 data-live-action-param="removeBookmark"
                 data-live-value-param="{{ value|json_encode }}"
             >
-                ?
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
             </button>
         </div>
     {% elseif type == 't' %}
@@ -72,13 +75,14 @@
                 </div>
             </div>
             <button
-                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                class="bookmark-item-remove"
                 title="{{ 'bookmark.remove'|trans }}"
+                aria-label="{{ 'bookmark.remove'|trans }}"
                 data-action="live#action"
                 data-live-action-param="removeBookmark"
                 data-live-value-param="{{ value|json_encode }}"
             >
-                ?
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
             </button>
         </div>
     {% else %}
@@ -89,13 +93,14 @@
                 </div>
             </div>
             <button
-                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                class="bookmark-item-remove"
                 title="{{ 'bookmark.remove'|trans }}"
+                aria-label="{{ 'bookmark.remove'|trans }}"
                 data-action="live#action"
                 data-live-action-param="removeBookmark"
                 data-live-value-param="{{ value|json_encode }}"
             >
-                ?
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
             </button>
         </div>
     {% endif %}

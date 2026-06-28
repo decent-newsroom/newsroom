@@ -26,6 +26,7 @@ import './styles/03-components/tabs.css';
 import './styles/03-components/cards-shared.css';
 import './styles/03-components/card.css';
 import './styles/03-components/card-placeholder.css';
+import './styles/03-components/bookmarks.css';
 import './styles/03-components/dropdown.css';
 import './styles/03-components/form.css';
 import './styles/03-components/article.css';
