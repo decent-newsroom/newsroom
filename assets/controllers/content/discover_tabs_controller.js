@@ -24,11 +24,16 @@ export default class extends Controller {
 
     activateTab(tabName) {
         this.tabTargets.forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === tabName);
+            const isActive = t.dataset.tab === tabName;
+            t.classList.toggle('active', isActive);
+            if (isActive) {
+                t.setAttribute('aria-current', 'page');
+            } else {
+                t.removeAttribute('aria-current');
+            }
         });
         this.panelTargets.forEach(p => {
             p.classList.toggle('active', p.dataset.panel === tabName);
         });
     }
 }
-

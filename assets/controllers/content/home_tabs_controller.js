@@ -44,8 +44,12 @@ export default class extends Controller {
         this.previousTab = this.activeTabValue;
 
         // Update active state immediately for visual feedback
-        this.tabTargets.forEach(tab => tab.classList.remove('active'));
+        this.tabTargets.forEach(tab => {
+            tab.classList.remove('active');
+            tab.removeAttribute('aria-current');
+        });
         clickedTab.classList.add('active');
+        clickedTab.setAttribute('aria-current', 'page');
         this.activeTabValue = tabName;
         // Show loading indicator and update cache controller
         const targetFrame = this.contentTarget.querySelector('turbo-frame#home-tab-content');
@@ -115,7 +119,13 @@ export default class extends Controller {
         if (!this.previousTab) return;
         this.activeTabValue = this.previousTab;
         this.tabTargets.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === this.previousTab);
+            const isActive = tab.dataset.tab === this.previousTab;
+            tab.classList.toggle('active', isActive);
+            if (isActive) {
+                tab.setAttribute('aria-current', 'page');
+            } else {
+                tab.removeAttribute('aria-current');
+            }
         });
         this.previousTab = null;
     }

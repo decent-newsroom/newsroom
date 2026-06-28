@@ -101,7 +101,7 @@ export default class extends Controller {
         if (this.isDesktop()) return; // only needed mobile
         const open = document.querySelectorAll('nav.is-open, aside.is-open');
         if (!open.length) return;
-        const inside = e.target.closest('nav, aside, .mobile-toggles');
+        const inside = e.target.closest('nav, aside, [aria-controls="leftNav"], [aria-controls="rightNav"]');
         if (!inside) {
             open.forEach(el => this.closeElement(el));
             ['leftNav', 'rightNav'].forEach(id => this.syncAria(id));
@@ -112,4 +112,3 @@ export default class extends Controller {
         return this.mediaQuery.matches;
     }
 }
-

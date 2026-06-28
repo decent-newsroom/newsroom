@@ -36,6 +36,12 @@
 {% block body %}
     {# Search Section #}
     <section class="w-container">
+        <header class="discover-header">
+            <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
+            <h1>{{ 'nav.discover'|trans }}</h1>
+            <p class="lede">{{ 'brand.description'|trans }}</p>
+        </header>
+
         <div class="discover-section">
             <form action="{{ path('app_search_index') }}"
                   method="get"
@@ -91,7 +97,7 @@
         <div class="discover-section">
             {# Tabs Navigation #}
             <div data-controller="content--discover-tabs">
-                <nav class="profile-tabs">
+                <nav class="profile-tabs" aria-label="{{ 'nav.discover'|trans }}">
                     <a href="#featured-writers" class="tab-link"
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
@@ -99,6 +105,7 @@
                         {{ 'discover.featuredWriters'|trans }}
                     </a>
                     <a href="#articles" class="tab-link active"
+                       aria-current="page"
                        data-action="click->content--discover-tabs#switchTab"
                        data-content--discover-tabs-target="tab"
                        data-tab="articles">

@@ -1,203 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Lobster&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
-
-
-:root {
-    --color-bg: #191c1a;        /* Near-neutral dark with subtle warmth */
-    --color-bg-light: #222624;  /* Slightly lighter charcoal */
-    --color-bg-primary: #1e2321; /* Deep muted container */
-    --color-bg-muted: #282c2a;  /* Muted gray for subtle containers */
-    --color-text: #e8e8e8;       /* Light gray for readability */
-    --color-text-mid: #c0c0c0;   /* Mid gray */
-    --color-text-muted: #8a8a8a; /* Muted gray for captions, timestamps */
-    --color-text-contrast: #000; /* Black text for contrast */
-    --color-primary: #7a9b6d;   /* Mossy green primary */
-    --color-primary-link: #888; /* Darker gray for links — good contrast on dark bg */
-    --color-secondary: #D4803F; /* Burnt orange secondary — warm complement (≥ 5:1 on dark bg) */
-    --color-secondary-light: #E8A76A; /* Lighter orange for hovers */
-    --color-secondary-bg: rgba(212, 128, 63, 0.12); /* Ultra-light orange background */
-    --color-border: #313634;     /* Neutral border with faint warmth */
-    --font-family: 'Montserrat', serif; /* Set the Montserrat font as default */
-    --main-body-font: 'Newsreader', serif; /* Set the font for the main body */
-    --heading-font: 'EB Garamond', serif; /* Set the font for headings */
-    --brand-font: 'Lobster', serif; /* A classic, refined branding font */
-    --brand-color: white;
-
-    --color-accent-strong: #E1B574;  /* warm goldenrod (strong accent) */
-    --color-accent: #8FCB7E;           /* fresh moss (main accent) */
-    --color-accent-600: #7FBF70;
-    --color-accent-500: #8FCB7E;
-    --color-accent-400: #A5D692;
-    --color-accent-300: #BCE3A9;
-    --color-teal-500: #78C8BD;
-    --color-teal-400: #8ED5CC;
-    --color-lilac-500: #B98BDC;
-    --color-lilac-400: #C7A1E3;
-
-    /* Semantic status colors */
-    --color-success: #22c55e;
-    --color-success-bg: rgba(22, 197, 94, 0.1);
-    --color-success-border: rgba(22, 197, 94, 0.3);
-    --color-error: #ef4444;
-    --color-error-bg: rgba(239, 68, 68, 0.1);
-    --color-error-border: rgba(239, 68, 68, 0.3);
-    --color-warning: #f59e0b;
-    --color-warning-bg: rgba(245, 158, 11, 0.1);
-    --color-warning-border: rgba(245, 158, 11, 0.3);
-    --color-info: #3b82f6;
-    --color-info-bg: rgba(59, 130, 246, 0.1);
-    --color-info-border: rgba(59, 130, 246, 0.3);
-
-    /* Nostr / link accent (used for npub links, nostr identifiers) */
-    --color-nostr: #6c5ce7;
-    --color-nostr-bg: rgba(108, 92, 231, 0.1);
-    --color-nostr-profile: #00b894;
-
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
-    --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.4);
-
-    /* Z-index scale */
-    --z-dropdown: 1000;
-    --z-sticky: 1000;
-    --z-overlay: 1050;
-    --z-modal: 1100;
-    --z-toast: 9999;
-
-    /* Transitions */
-    --transition-fast: 0.15s ease;
-    --transition-base: 0.2s ease;
-    --transition-slow: 0.3s ease;
-
-    /* Layout */
-    --header-height: 60px;
-    --header-height-with-gap: 80px;
-    --sidebar-width: 240px;
-    --aside-width: 350px;
-    --content-max-width: 640px;
-
-    /* Font sizes */
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.1rem;
-    --font-size-xl: 1.5rem;
-    --font-size-2xl: 2.2rem;
-    --font-size-3xl: 3.2rem;
-}
-
-/*
- * OS-level preference fallback.
- * Applies light-theme variables when the browser reports prefers-color-scheme: light
- * AND no explicit data-theme attribute has been set yet (i.e. before JS runs,
- * or if JS is disabled). Once the inline <script> in base.html.twig sets
- * data-theme, the [data-theme="light"] selector below takes precedence.
+/**
+ * Compatibility aliases for page styles that predate the shared token system.
+ *
+ * New work should use the --color-* tokens defined in design-system.css.
  */
-@media (prefers-color-scheme: light) {
-    :root:not([data-theme]) {
-        --color-bg: #f4f1ee;
-        --color-bg-light: #e8e4df;
-        --color-bg-muted: #ddd8d2;
-        --color-text: #2a2a2a;
-        --color-text-mid: #3a3a3a;
-        --color-text-muted: #666666;
-        --color-text-contrast: #f4f1ee;
-        --color-primary-link: #495544;
-        --color-secondary: #A0541B;
-        --color-secondary-light: #8B4716;
-        --color-secondary-bg: rgba(160, 84, 27, 0.10);
-        --color-border: #ccc8c2;
-        --brand-color: black;
+:root {
+    --color-accent-strong: var(--color-secondary);
+    --color-accent: var(--color-primary);
+    --color-accent-600: var(--color-primary);
+    --color-accent-500: var(--color-primary);
+    --color-accent-400: var(--color-primary-light);
+    --color-accent-300: var(--color-bg-primary);
+    --color-accent-soft: var(--color-secondary-bg);
+    --color-teal-500: var(--color-primary);
+    --color-teal-400: var(--color-bg-primary);
+    --color-lilac-500: var(--color-nostr);
+    --color-lilac-400: var(--color-nostr);
 
-        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-        --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
-        --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.2);
-
-        --color-accent-strong: #A07230;
-        --color-accent: #4E8C3E;
-        --color-accent-600: #427A34;
-        --color-accent-500: #4E8C3E;
-        --color-accent-400: #5C9A4C;
-        --color-accent-300: #6AA85A;
-        --color-teal-500: #3A8E82;
-        --color-teal-400: #489E93;
-        --color-lilac-500: #7E52B3;
-        --color-lilac-400: #8E62C0;
-    }
+    --primary-color: var(--color-primary);
+    --text-primary: var(--color-text);
+    --text-secondary: var(--color-text-muted);
+    --border-color: var(--color-border);
+    --card-bg: var(--color-bg-light);
+    --hover-bg: var(--color-bg-primary);
+    --placeholder-bg: var(--color-bg-muted);
+    --surface-1: var(--color-bg-light);
+    --surface-2: var(--color-bg-primary);
+    --surface: var(--color-bg-light);
+    --surface-dark: var(--color-bg-primary);
+    --background: var(--color-bg);
+    --text-1: var(--color-text);
+    --text-2: var(--color-text-muted);
+    --primary: var(--color-primary);
+    --hover: var(--color-bg-primary);
+    --code-bg: var(--color-bg-muted);
+    --gutter: var(--spacing-4);
 }
-
-[data-theme="light"] {
-    --color-bg: #f4f1ee;
-    --color-bg-light: #e8e4df;
-    --color-bg-muted: #ddd8d2;
-    --color-text: #2a2a2a;
-    --color-text-mid: #3a3a3a;
-    --color-text-muted: #666666;
-    --color-text-contrast: #f4f1ee;
-    --color-primary-link: #495544; /* Darker green for links */
-    --color-secondary: #A0541B; /* Darker burnt orange — ≥ 4.5:1 on light bg */
-    --color-secondary-light: #8B4716; /* Deeper orange for hovers */
-    --color-secondary-bg: rgba(160, 84, 27, 0.10);
-    --color-border: #ccc8c2;
-    --brand-color: black;
-
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
-    --shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.2);
-
-    --color-accent-strong: #A07230;  /* darkened goldenrod for light bg */
-    --color-accent: #4E8C3E;           /* darkened moss for light bg */
-    --color-accent-600: #427A34;
-    --color-accent-500: #4E8C3E;
-    --color-accent-400: #5C9A4C;
-    --color-accent-300: #6AA85A;
-    --color-teal-500: #3A8E82;
-    --color-teal-400: #489E93;
-    --color-lilac-500: #7E52B3;
-    --color-lilac-400: #8E62C0;
-}
-
-[data-theme="space"] {
-    --color-bg: #111118;             /* Near-black with faint cool undertone */
-    --color-bg-light: #1a1a24;       /* Slightly lighter for contrast */
-    --color-bg-primary: #1e1b2a;     /* Subtle purple hint for rich containers */
-    --color-bg-muted: #242330;       /* Muted container */
-
-    --color-text: #f0eef8;           /* Near-white with a faint lavender cast */
-    --color-text-mid: #b8aed0;       /* Soft pastel lavender */
-    --color-text-muted: #8a80a8;     /* Muted text for captions */
-    --color-text-contrast: #0a0a10;  /* Near-black for contrast */
-
-    --color-primary: #c095f4;        /* Vibrant purple (the brand accent) */
-    --color-primary-light: #d4b5f8;  /* Lighter variant for hovers/effects */
-    --color-primary-link: #b49af7;
-    --color-secondary: #e8bb8d;      /* Warm tan/peach for complementary balance */
-    --color-secondary-light: #f4d6b6; /* Lighter peach tone */
-    --color-secondary-bg: rgba(232, 187, 141, 0.08); /* Subtle peach background */
-
-    --color-border: #2c2a3a;         /* Neutral with faint purple */
-
-    --brand-color: rgb(147, 51, 234);
-
-    --color-accent-strong: #e0b574;  /* Warm goldenrod (unchanged) */
-    --color-accent: #d0aaf7;         /* Lighter purple for hover — distinct from primary */
-    --color-accent-600: #b88ef0;
-    --color-accent-500: #d0aaf7;
-    --color-accent-400: #dfc0fa;
-    --color-accent-300: #ebd5fc;
-    --color-teal-500: #78C8BD;
-    --color-teal-400: #8ED5CC;
-    --color-lilac-500: #B98BDC;
-    --color-lilac-400: #C7A1E3;
-
-    --color-nostr: #b49af7;
-    --color-nostr-bg: rgba(167, 139, 250, 0.12);
-    --color-nostr-profile: #34d399;
-}
-

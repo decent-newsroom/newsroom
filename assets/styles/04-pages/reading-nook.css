@@ -10,28 +10,10 @@
     gap: var(--spacing-4);
 }
 
-.reading-nook-overview {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: var(--spacing-3);
+.reading-nook-compact-summary {
+    display: none;
 }
 
-.reading-nook-stat
-{
-    border: 1px solid var(--color-border, #3a3a3a);
-    background: color-mix(in oklab, var(--color-bg-light, #222624) 78%, var(--color-bg, #191c1a));
-}
-
-.reading-nook-stat {
-    padding: var(--spacing-3);
-    display: grid;
-    gap: var(--spacing-2);
-    align-content: start;
-    border-top: 3px solid var(--color-accent, #8fcb7e);
-    min-width: 0;
-}
-
-.reading-nook-stat__label,
 .reading-nook-group__eyebrow,
 .reading-nook-item__topline span,
 .reading-nook-aside__panel h2,
@@ -42,7 +24,6 @@
     text-transform: uppercase;
 }
 
-.reading-nook-stat__label,
 .reading-nook-group__eyebrow,
 .reading-nook-item__topline span,
 .reading-nook-field label,
@@ -50,14 +31,7 @@
     color: var(--color-text-muted, #8a8a8a);
 }
 
-.reading-nook-stat__value {
-    font-size: clamp(1.7rem, 3vw, 2.6rem);
-    line-height: 1;
-    color: var(--color-text, #f5f5f5);
-}
-
 .reading-nook-content {
-    padding: clamp(var(--spacing-3), 1.75vw, var(--spacing-5));
     display: grid;
     gap: var(--spacing-4);
 }
@@ -393,18 +367,43 @@
         width: min(1200px, 100%);
     }
 
-    .reading-nook-overview {
+    .reading-nook-compact-summary {
+        display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-block: 1px solid var(--color-border);
+    }
+
+    .reading-nook-compact-summary div {
+        display: flex;
+        min-width: 0;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--spacing-2);
+        padding: var(--spacing-2) var(--spacing-3);
+        border-right: 1px solid var(--color-border);
+    }
+
+    .reading-nook-compact-summary div:last-child {
+        border-right: 0;
+    }
+
+    .reading-nook-compact-summary span {
+        color: var(--color-text-mid);
+        font-size: var(--font-size-xs);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .reading-nook-compact-summary strong {
+        color: var(--color-text);
+        font-size: var(--font-size-lg);
     }
 }
 
 @media (max-width: 980px) {
     .reading-nook-page {
         gap: var(--spacing-3);
-    }
-
-    .reading-nook-overview {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .reading-nook-field {
@@ -426,11 +425,20 @@
         margin-bottom: var(--spacing-5);
     }
 
-    .reading-nook-overview {
+    .reading-nook-compact-summary {
         grid-template-columns: 1fr;
     }
 
-    .reading-nook-content,
+    .reading-nook-compact-summary div {
+        padding-inline: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .reading-nook-compact-summary div:last-child {
+        border-bottom: 0;
+    }
+
     .reading-nook-filters,
     .reading-nook-item,
     .reading-nook-empty {

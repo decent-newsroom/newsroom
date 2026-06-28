@@ -65,6 +65,7 @@ nav:
     backToTop: 'Nach oben'
     closeLeftSidebar: 'Linke Seitenleiste schließen'
     closeRightSidebar: 'Rechte Seitenleiste schließen'
+    openNavigation: 'Navigation öffnen'
     theme: 'Design'
     cycleTheme: 'Design wechseln'
     relayFeeds: 'Relay-Feeds'
@@ -1065,4 +1066,3 @@ reading_nook:
         contributors: 'Mitwirkende'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
-

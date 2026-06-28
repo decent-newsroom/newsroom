@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block layout %}
+    <div class="app-shell" data-controller="ui--sidebar-toggle">
+        <div class="app-shell__sidebar">
+            {% block sidebar %}{% endblock %}
+        </div>
+
+        <main id="main-content" class="app-shell__main">
+            {% block body %}{% endblock %}
+        </main>
+
+        <aside id="rightNav" class="app-shell__context">
+            {% block aside %}{% endblock %}
+        </aside>
+
+        <div data-controller="ui--back-to-top">
+            <button
+                type="button"
+                class="back-to-top-btn"
+                data-ui--back-to-top-target="button"
+                data-action="click->ui--back-to-top#scrollToTop"
+                aria-label="{{ 'nav.backToTop'|trans }}"
+                title="{{ 'nav.backToTop'|trans }}"
+            >
+                {{ ux_icon('iconoir:nav-arrow-up', {class: 'icon'}) }}
+            </button>
+        </div>
+    </div>
+{% endblock %}

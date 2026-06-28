@@ -9,6 +9,7 @@ import './bootstrap.js';
 // 01 - Base styles (theme, fonts, typography, reset)
 import './styles/01-base/fonts.css';
 import './styles/01-base/theme.css';
+import './styles/01-base/design-system.css';
 import './styles/01-base/spacing.css';
 import './styles/01-base/reset.css';
 import './styles/01-base/typography.css';
@@ -16,9 +17,12 @@ import './styles/01-base/typography.css';
 // 02 - Layout (grid, header, navigation, main content)
 import './styles/02-layout/layout.css';
 import './styles/02-layout/header.css';
+import './styles/02-layout/shell.css';
 
 // 03 - Components (reusable UI components)
 import './styles/03-components/button.css';
+import './styles/03-components/icons.css';
+import './styles/03-components/tabs.css';
 import './styles/03-components/cards-shared.css';
 import './styles/03-components/card.css';
 import './styles/03-components/card-placeholder.css';
@@ -108,4 +112,3 @@ import 'katex/dist/katex.min.css';
 function highlightCode() { Prism.highlightAll(); }
 highlightCode();
 document.addEventListener('turbo:load', highlightCode);
-

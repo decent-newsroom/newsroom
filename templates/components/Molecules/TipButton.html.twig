@@ -16,9 +16,9 @@
 
     {% if this.open %}
         <div class="zap-modal-overlay" data-action="click->live#action" data-live-action-param="closeDialog">
-            <div class="zap-modal-content card shadow-lg" onclick="event.stopPropagation()">
+            <div class="zap-modal-content card" onclick="event.stopPropagation()">
                 <div class="card-body">
-                    <div class="d-flex flex-row justify-content-between align-items-center mb-3">
+                    <div class="zap-modal-header d-flex flex-row justify-content-between align-items-center mb-3">
                         <div>
                             <h5 class="m-0">{{ 'tip.send'|trans }}</h5>
                             {% if recipientPubkey %}
@@ -27,10 +27,12 @@
                         </div>
                         <button
                             type="button"
-                            class="btn btn-secondary"
+                            class="zap-modal-close icon-button"
                             data-action="live#action"
                             data-live-action-param="closeDialog"
-                        >{{ 'tip.close'|trans }}</button>
+                            aria-label="{{ 'tip.close'|trans }}"
+                            title="{{ 'tip.close'|trans }}"
+                        >{{ ux_icon('iconoir:xmark', {class: 'icon'}) }}</button>
                     </div>
 
                     {# Phase: select payment method #}
@@ -305,4 +307,3 @@
         </div>
     {% endif %}
 </div>
-

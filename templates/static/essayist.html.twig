@@ -20,7 +20,7 @@
                         {% if isPending %}
                             <span class="btn btn--disabled" aria-disabled="true">{{ 'essayist.landing.join.pendingBody'|trans }}</span>
                         {% else %}
-                            <form method="post" action="{{ path('app_static_essayist_request_access') }}" style="display:inline;">
+                            <form method="post" action="{{ path('app_static_essayist_request_access') }}" style="display:inline;" class="m-0">
                                 <input type="hidden" name="_token" value="{{ csrf_token('essayist_request_access') }}">
                                 <button type="submit" class="btn btn--primary">{{ 'essayist.landing.join.requestCta'|trans }}</button>
                             </form>

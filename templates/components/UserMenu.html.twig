@@ -32,16 +32,6 @@
                    data-action="click->nostr--logout#handleLogout">{{ 'heading.logout'|trans }}</a>
             </li>
         </ul>
-    {% else %}
-        <div class="nav-section" data-controller="utility--login-modal">
-            <div class="nav-section__label">{{ 'heading.logIn'|trans }}</div>
-            <ul class="user-nav">
-                <li>
-                    <twig:Atoms:Button {{ ...stimulus_action('utility--login-modal', 'openDialog') }} tag="a" class="btn-sm">{{ 'auth.login'|trans }}</twig:Atoms:Button>
-                </li>
-            </ul>
-            <twig:LoginModal />
-        </div>
     {% endif %}
   </div>
 </div>

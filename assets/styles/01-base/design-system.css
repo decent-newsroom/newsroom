@@ -1,0 +1,174 @@
+/**
+ * Decent Newsroom design tokens
+ *
+ * A flat editorial system: hierarchy comes from type, spacing, and rules.
+ * Surfaces have square edges and no elevation.
+ */
+:root {
+    color-scheme: dark;
+
+    /* Surfaces and ink */
+    --color-bg: #101411;
+    --color-bg-light: #171d19;
+    --color-bg-primary: #1b221d;
+    --color-bg-muted: #202821;
+    --color-surface-raised: var(--color-bg-light);
+    --color-text: #f2f0e8;
+    --color-text-mid: #c0c6bf;
+    --color-text-muted: #89928a;
+    --color-text-contrast: #0f1711;
+    --color-border: #303a32;
+    --color-border-strong: #536056;
+
+    /* Brand and semantic accents */
+    --color-primary: #a8c99f;
+    --color-primary-light: #c4ddbd;
+    --color-primary-link: #b9d8b1;
+    --color-secondary: #dfb474;
+    --color-secondary-light: #edcb98;
+    --color-secondary-bg: rgba(223, 180, 116, 0.1);
+    --brand-color: var(--color-text);
+
+    --color-success: #76b784;
+    --color-success-bg: rgba(118, 183, 132, 0.1);
+    --color-success-border: #50845b;
+    --color-error: #e2857c;
+    --color-error-bg: rgba(226, 133, 124, 0.1);
+    --color-error-border: #a25c56;
+    --color-warning: #dfb474;
+    --color-warning-bg: rgba(223, 180, 116, 0.1);
+    --color-warning-border: #98733f;
+    --color-info: #8fb6c7;
+    --color-info-bg: rgba(143, 182, 199, 0.1);
+    --color-info-border: #5e7d8a;
+    --color-nostr: #b9a5dd;
+    --color-nostr-bg: rgba(185, 165, 221, 0.1);
+    --color-nostr-profile: #7fc4ad;
+
+    /* Typography */
+    --font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --main-body-font: "EB Garamond", Georgia, serif;
+    --heading-font: "EB Garamond", Georgia, serif;
+    --brand-font: "EB Garamond", Georgia, serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+    --font-size-3xl: 2.75rem;
+
+    /* Geometry: intentionally square and flat */
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-overlay: none;
+
+    /* Layout */
+    --header-height: 64px;
+    --header-height-with-gap: 64px;
+    --sidebar-width: 216px;
+    --aside-width: 288px;
+    --content-max-width: 760px;
+    --page-max-width: 1480px;
+
+    /* Interaction */
+    --transition-fast: 140ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
+    --focus-ring: 2px solid var(--color-primary-light);
+
+    /* Stacking */
+    --z-dropdown: 1000;
+    --z-sticky: 1000;
+    --z-overlay: 1050;
+    --z-modal: 1100;
+    --z-toast: 9999;
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+
+    --color-bg: #f4f1e9;
+    --color-bg-light: #fbf9f3;
+    --color-bg-primary: #eeebe2;
+    --color-bg-muted: #e6e2d8;
+    --color-surface-raised: var(--color-bg-light);
+    --color-text: #182019;
+    --color-text-mid: #49534b;
+    --color-text-muted: #6e786f;
+    --color-text-contrast: #f8fbf8;
+    --color-border: #cfd4cc;
+    --color-border-strong: #aab3aa;
+    --color-primary: #356a4b;
+    --color-primary-light: #28573e;
+    --color-primary-link: #2d6546;
+    --color-secondary: #95591f;
+    --color-secondary-light: #754315;
+    --color-secondary-bg: rgba(149, 89, 31, 0.08);
+    --color-info: #24576b;
+    --color-info-bg: rgba(36, 87, 107, 0.09);
+    --color-info-border: #6f909d;
+    --brand-color: var(--color-text);
+    --color-nostr: #684b9c;
+    --color-nostr-bg: rgba(104, 75, 156, 0.08);
+    --color-nostr-profile: #287a61;
+}
+
+[data-theme="space"] {
+    color-scheme: dark;
+
+    --color-bg: #111017;
+    --color-bg-light: #191721;
+    --color-bg-primary: #201d2a;
+    --color-bg-muted: #272330;
+    --color-surface-raised: var(--color-bg-light);
+    --color-text: #f4f0f8;
+    --color-text-mid: #c4bdce;
+    --color-text-muted: #91889c;
+    --color-text-contrast: #17121e;
+    --color-border: #373140;
+    --color-border-strong: #554b61;
+    --color-primary: #c4a7e7;
+    --color-primary-light: #dbc5f0;
+    --color-primary-link: #d2b9ec;
+    --color-secondary: #dfb684;
+    --color-secondary-light: #efd0a8;
+    --color-secondary-bg: rgba(223, 182, 132, 0.1);
+    --brand-color: var(--color-text);
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+        color-scheme: light;
+
+        --color-bg: #f4f1e9;
+        --color-bg-light: #fbf9f3;
+        --color-bg-primary: #eeebe2;
+        --color-bg-muted: #e6e2d8;
+        --color-surface-raised: var(--color-bg-light);
+        --color-text: #182019;
+        --color-text-mid: #49534b;
+        --color-text-muted: #6e786f;
+        --color-text-contrast: #f8fbf8;
+        --color-border: #cfd4cc;
+        --color-border-strong: #aab3aa;
+        --color-primary: #356a4b;
+        --color-primary-light: #28573e;
+        --color-primary-link: #2d6546;
+        --color-secondary: #95591f;
+        --color-secondary-light: #754315;
+        --color-secondary-bg: rgba(149, 89, 31, 0.08);
+        --color-info: #24576b;
+        --color-info-bg: rgba(36, 87, 107, 0.09);
+        --color-info-border: #6f909d;
+        --brand-color: var(--color-text);
+        --color-nostr: #684b9c;
+        --color-nostr-bg: rgba(104, 75, 156, 0.08);
+        --color-nostr-profile: #287a61;
+    }
+}

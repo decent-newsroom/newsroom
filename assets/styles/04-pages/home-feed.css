@@ -1,45 +1,37 @@
-/* Home Feed — tabbed interface for logged-in users */
+.home-feed-header {
+    margin-bottom: var(--spacing-6);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 1px solid var(--color-border-strong);
+}
+
+.home-feed-header h1 {
+    margin: 0;
+}
 
 .home-feed {
-    margin-top: 1rem;
+    margin-top: var(--spacing-4);
+}
+
+.home-feed__tabs {
+    position: sticky;
+    top: var(--header-height);
 }
 
 .home-feed__content {
     min-height: 300px;
-    margin-top: 1rem;
 }
 
 .home-feed__loading {
     display: flex;
-    flex-direction: column;
+    min-height: 18rem;
     align-items: center;
     justify-content: center;
-    padding: 3rem 1rem;
-    color: var(--color-text-muted, #666);
+    flex-direction: column;
+    padding: var(--spacing-6) var(--spacing-3);
+    color: var(--color-text-muted);
+    border-block: 1px solid var(--color-border);
 }
 
 .home-feed__loading .spinner {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-3);
 }
-
-/* Responsive tab adjustments */
-@media (max-width: 768px) {
-    .home-feed__tabs {
-        gap: 0.25rem;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        top: 60px;
-    }
-
-    .home-feed__tabs::-webkit-scrollbar {
-        display: none;
-    }
-
-    .home-feed__tabs .tab-link {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.875rem;
-        white-space: nowrap;
-    }
-}
-

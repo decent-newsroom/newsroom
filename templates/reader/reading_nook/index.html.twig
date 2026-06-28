@@ -12,27 +12,19 @@
     <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
 
     <div class="reading-nook-shell">
-        <section class="reading-nook-overview">
-            <article class="reading-nook-stat">
-                <span class="reading-nook-stat__label">{{ 'reading_nook.summary.total'|trans }}</span>
-                <strong class="reading-nook-stat__value">{{ totalCount }}</strong>
-            </article>
-            <article class="reading-nook-stat">
-                <span class="reading-nook-stat__label">{{ 'reading_nook.summary.visible'|trans }}</span>
-                <strong class="reading-nook-stat__value">{{ filteredCount }}</strong>
-            </article>
-            <article class="reading-nook-stat">
-                <span class="reading-nook-stat__label">{{ 'reading_nook.summary.sections'|trans }}</span>
-                <strong class="reading-nook-stat__value">{{ sectionKeys|length }}</strong>
-            </article>
-            <article class="reading-nook-stat">
-                <span class="reading-nook-stat__label">{{ 'reading_nook.summary.tags'|trans }}</span>
-                <strong class="reading-nook-stat__value">{{ allTags|length }}</strong>
-            </article>
-            <article class="reading-nook-stat">
-                <span class="reading-nook-stat__label">{{ 'reading_nook.summary.filters'|trans }}</span>
-                <strong class="reading-nook-stat__value">{{ activeFilterCount }}</strong>
-            </article>
+        <section class="reading-nook-compact-summary" aria-label="{{ 'reading_nook.title'|trans }}">
+            <div>
+                <span>{{ 'reading_nook.summary.total'|trans }}</span>
+                <strong>{{ totalCount }}</strong>
+            </div>
+            <div>
+                <span>{{ 'reading_nook.summary.visible'|trans }}</span>
+                <strong>{{ filteredCount }}</strong>
+            </div>
+            <div>
+                <span>{{ 'reading_nook.summary.filters'|trans }}</span>
+                <strong>{{ activeFilterCount }}</strong>
+            </div>
         </section>
 
         <div class="reading-nook-content">
@@ -73,9 +65,9 @@
                     </div>
                 </div>
 
-                <div class="reading-nook-filters__actions">
-                    <button type="submit" class="btn">{{ 'reading_nook.filters.apply'|trans }}</button>
+                <div class="reading-nook-filters__actions actions">
                     <a class="btn btn-secondary" href="{{ path('reading_nook') }}">{{ 'reading_nook.filters.reset'|trans }}</a>
+                    <button type="submit" class="btn">{{ 'reading_nook.filters.apply'|trans }}</button>
                 </div>
             </form>
 
@@ -223,33 +215,6 @@
         </section>
 
         <section class="reading-nook-aside__panel">
-            <h2>{{ 'settings.preferences.theme'|trans }}</h2>
-            <div data-controller="ui--theme"
-                 data-ui--theme-sync-url-value="{{ path('app_theme_switch', {theme: '__THEME__'}) }}">
-                <div class="preferences-theme-options">
-                    <button class="preferences-theme-option"
-                            data-action="click->ui--theme#pick"
-                            data-ui--theme-theme-param="dark"
-                            data-ui--theme-target="option">
-                        {{ 'settings.preferences.themeDark'|trans }}
-                    </button>
-                    <button class="preferences-theme-option"
-                            data-action="click->ui--theme#pick"
-                            data-ui--theme-theme-param="light"
-                            data-ui--theme-target="option">
-                        {{ 'settings.preferences.themeLight'|trans }}
-                    </button>
-                    <button class="preferences-theme-option"
-                            data-action="click->ui--theme#pick"
-                            data-ui--theme-theme-param="space"
-                            data-ui--theme-target="option">
-                        {{ 'settings.preferences.themeSpace'|trans }}
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <section class="reading-nook-aside__panel">
             <h2>{{ 'reading_nook.aside.jump_to'|trans }}</h2>
             <nav class="reading-nook-aside__nav">
                 {% for section in sectionKeys %}
@@ -285,4 +250,3 @@
         </section>
     </div>
 {% endblock %}
-

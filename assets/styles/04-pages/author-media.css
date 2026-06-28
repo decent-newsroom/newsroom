@@ -1,35 +1,3 @@
-.profile-tabs {
-    display: flex;
-    gap: 1rem;
-    margin: 1.5rem 0;
-    flex-wrap: wrap;
-    justify-content: center;
-    background: var(--color-bg);
-    z-index: 10;
-}
-
-.tab-link {
-    padding: 0.75rem 1.5rem;
-    text-decoration: none;
-    color: #666;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-}
-
-.tab-link:hover {
-    color: #333;
-    border-bottom-color: #ccc;
-    text-decoration: none;
-}
-
-.tab-link.active {
-    color: #0066cc;
-    border-bottom-color: #0066cc;
-    font-weight: 600;
-}
-
 .masonry-grid {
     /* Simple CSS column masonry */
     column-count: 2;
@@ -500,4 +468,3 @@
     font-size: 0.8em;
     margin-right: 0.5em;
 }
-

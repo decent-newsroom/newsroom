@@ -65,6 +65,7 @@ nav:
     backToTop: 'Back to top'
     closeLeftSidebar: 'Close left sidebar'
     closeRightSidebar: 'Close right sidebar'
+    openNavigation: 'Open navigation'
     theme: 'Theme'
     cycleTheme: 'Switch theme'
     relayFeeds: 'Relay feeds'
@@ -1427,4 +1428,3 @@ reading_nook:
         contributors: 'Contributors'
         open: 'Open'
         manage: 'Manage'
-

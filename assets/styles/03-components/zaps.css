@@ -17,10 +17,38 @@
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
+    background: var(--color-bg-light);
+    color: var(--color-text);
+    border: 1px solid var(--color-border-strong);
 }
 
 .zap-modal-content .card-body {
     padding: var(--spacing-4);
+    background: var(--color-bg-light);
+}
+
+.zap-modal-header {
+    padding-bottom: var(--spacing-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.zap-modal-close,
+button.zap-modal-close {
+    width: 2.25rem;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+}
+
+.zap-modal-close:hover,
+button.zap-modal-close:hover {
+    border-color: var(--color-border-strong);
+    background: transparent;
+    color: var(--color-text);
 }
 
 .qr-container svg {
@@ -51,4 +79,3 @@ body:has(.zap-modal-overlay) {
 .zap-pending-note small {
     color: var(--color-text-muted);
 }
-

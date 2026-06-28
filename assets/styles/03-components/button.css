@@ -1,102 +1,116 @@
 /**
- * Button Component
- * Primary button styles and variants
- *
- * Hierarchy:
- *   .btn (default)         — solid green primary, accent hover
- *   .btn.btn-secondary     — orange outline, fills orange on hover (ghost)
- *   .btn.btn-secondary-filled — solid orange, lighter orange on hover
- *   .btn.btn-accent        — light green bg, primary text
+ * Buttons use contrast and rules rather than elevation.
  */
-
-button, .btn, a.btn {
+button,
+.btn,
+a.btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--color-primary);
+    border-radius: 0;
     background: var(--color-primary);
     color: var(--color-text-contrast);
-    border: 1px solid var(--color-primary);
-    padding: 0.75em 1.5em;
-    font-family: var(--font-family), sans-serif;
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-}
-
-button:hover, .btn:hover, a.btn:hover {
-    background: var(--color-accent);
-    color: var(--color-text-contrast);
-    border: 1px solid var(--color-accent);
-}
-
-button:active, .btn:active, a.btn:active {
-    background: var(--color-primary);
-    border: 1px solid var(--color-primary);
-}
-
-a.btn, a.btn:hover, a.btn:active {
-    text-decoration: none;
-    display: inline-block;
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
     text-align: center;
-}
-
-/* ── Accent: light green background, green text ── */
-
-.btn.btn-accent {
-    background-color: var(--color-accent-300);
-    border-color: var(--color-accent-300);
-    color: var(--color-primary);
     text-decoration: none;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast);
 }
 
-.btn.btn-accent:hover {
-    background-color: var(--color-accent-400);
-    border-color: var(--color-accent-400);
-    color: var(--color-primary);
-    text-decoration: none;
-}
-
-.btn.btn-accent:active {
-    background-color: var(--color-accent-300);
-    border-color: var(--color-accent-300);
-}
-
-/* ── Secondary (ghost): transparent, orange border ── */
-
-.btn.btn-secondary {
-    color: var(--color-secondary);
-    background-color: transparent;
-    border: 1px solid var(--color-secondary);
-    text-decoration: none;
-}
-
-.btn.btn-secondary:hover {
-    background-color: var(--color-secondary);
+button:hover,
+.btn:hover,
+a.btn:hover {
+    border-color: var(--color-primary-light);
+    background: var(--color-primary-light);
     color: var(--color-text-contrast);
-    border-color: var(--color-secondary);
     text-decoration: none;
 }
 
-.btn.btn-secondary:active {
-    background-color: var(--color-secondary-light);
-    border-color: var(--color-secondary-light);
-    color: var(--color-text-contrast);
+button:active,
+.btn:active,
+a.btn:active {
+    border-color: var(--color-text);
 }
 
-/* ── Secondary filled: solid orange ── */
+.btn.btn-secondary,
+.btn.btn-outline-primary,
+.btn--secondary {
+    border-color: var(--color-border-strong);
+    background: transparent;
+    color: var(--color-text);
+}
+
+.btn.btn-secondary:hover,
+.btn.btn-outline-primary:hover,
+.btn--secondary:hover {
+    border-color: var(--color-text);
+    background: var(--color-text);
+    color: var(--color-bg);
+}
 
 .btn.btn-secondary-filled {
-    background-color: var(--color-secondary);
     border-color: var(--color-secondary);
+    background: var(--color-secondary);
     color: var(--color-text-contrast);
-    text-decoration: none;
 }
 
 .btn.btn-secondary-filled:hover {
-    background-color: var(--color-secondary-light);
     border-color: var(--color-secondary-light);
+    background: var(--color-secondary-light);
+}
+
+.btn.btn-accent {
+    border-color: var(--color-primary);
+    background: transparent;
+    color: var(--color-primary-link);
+}
+
+.btn.btn-accent:hover {
+    background: var(--color-primary);
     color: var(--color-text-contrast);
-    text-decoration: none;
 }
 
-.btn.btn-secondary-filled:active {
-    background-color: var(--color-secondary);
-    border-color: var(--color-secondary);
+.btn-sm,
+.btn.btn-sm {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.7rem;
+    font-size: var(--font-size-xs);
 }
 
+.btn--lg {
+    min-height: 3rem;
+    padding: 0.8rem 1.3rem;
+}
+
+.icon-button {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text);
+}
+
+.icon-button:hover {
+    border-color: var(--color-border-strong);
+    background: transparent;
+    color: var(--color-primary-link);
+}
+
+button:disabled,
+.btn[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

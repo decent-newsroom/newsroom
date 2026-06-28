@@ -1,17 +1,27 @@
-<nav class="sidebar-nav">
-    {# Back link (optional, e.g., "Back to newsroom") #}
+<nav {{ attributes.defaults({id: 'leftNav', class: 'app-sidebar'}) }}>
+    <div class="app-sidebar__mobile-header">
+        <span class="brand">{{ brand_name }}</span>
+        <button
+            type="button"
+            class="icon-button"
+            data-action="click->ui--sidebar-toggle#close"
+            aria-label="{{ 'nav.closeLeftSidebar'|trans }}"
+        >
+            {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
+        </button>
+    </div>
+
     {% if backLink %}
         <div class="sidebar-nav__back">
             <a href="{{ path(backLink.route) }}">
-                {% if backLink.icon %}
-                    <span class="icon">{{ backLink.icon }}</span>
+                {% if backLink.icon|default(null) %}
+                    {{ ux_icon(backLink.icon, {class: 'icon'}) }}
                 {% endif %}
                 {{ backLink.label|trans }}
             </a>
         </div>
     {% endif %}
 
-    {# Sections #}
     {% for section in sections %}
         <div class="nav-section">
             {% if section.label %}
@@ -20,11 +30,14 @@
             <ul class="user-nav">
                 {% for item in section.items %}
                     <li>
-                        <a href="{{ path(item.route) }}">
-                            {% if item.icon is defined %}
-                                <span class="icon">{{ item.icon }}</span>
+                        <a
+                            href="{{ path(item.route) }}"
+                            {% if app.current_route == item.route %}aria-current="page"{% endif %}
+                        >
+                            {% if item.icon|default(null) %}
+                                {{ ux_icon(item.icon, {class: 'icon'}) }}
                             {% endif %}
-                            {{ item.label|trans }}
+                            <span>{{ item.label|trans }}</span>
                         </a>
                     </li>
                 {% endfor %}
@@ -32,9 +45,9 @@
         </div>
     {% endfor %}
 
-    {# Optional footer component (e.g., UserMenu) #}
     {% if footerComponent %}
-        {{ include(footerComponent) }}
+        <div class="app-sidebar__footer">
+            {{ include(footerComponent) }}
+        </div>
     {% endif %}
 </nav>
-

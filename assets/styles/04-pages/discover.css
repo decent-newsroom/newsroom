@@ -1,5 +1,14 @@
 /* Discover Page Styles */
 
+.discover-header {
+    margin-bottom: var(--spacing-5);
+    padding-bottom: var(--spacing-4);
+}
+
+.discover-header h1 {
+    margin-bottom: var(--spacing-2);
+}
+
 /* Discover Search Form */
 .discover-search-form {
     max-width: 100%;
@@ -7,7 +16,7 @@
 
 .discover-search-form .search {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--spacing-2);
     align-items: center;
     width: 100%;
 }
@@ -15,12 +24,14 @@
 .discover-search-form input[type="search"] {
     flex: 1;
     padding: 0.75rem 1rem;
-    transition: border-color 0.2s;
+    border-color: var(--color-border-strong);
+    transition: border-color var(--transition-fast);
 }
 
 .discover-search-form input[type="search"]:focus {
-    outline: none;
-    border-color: var(--primary-color, #007bff);
+    border-color: var(--color-primary);
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .discover-search-form button[type="submit"] {
@@ -40,17 +51,17 @@
     font-size: 1.75rem;
     font-weight: 700;
     margin-bottom: 0.25rem;
-    color: var(--text-primary, #1a1a1a);
+    color: var(--color-text);
 }
 
 .discover-section .section-subheading {
     font-size: 0.95rem;
-    color: var(--text-secondary, #666);
+    color: var(--color-text-muted);
     margin-bottom: 1.5rem;
 }
 
 .discover-section .section-header {
-    border-bottom: 2px solid var(--border-color, #e0e0e0);
+    border-bottom: 1px solid var(--color-border-strong);
     padding-bottom: 1rem;
     margin-bottom: 2rem;
 }
@@ -69,16 +80,16 @@
 }
 
 .discover-sidebar .sidebar-section {
-    background: var(--card-bg, #f8f9fa);
+    background: transparent;
     padding: 1.5rem;
-    border: 1px solid var(--border-color, #e0e0e0);
+    border: 1px solid var(--color-border);
 }
 
 .discover-sidebar h3 {
     font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    color: var(--text-primary, #1a1a1a);
+    color: var(--color-text);
 }
 
 .discover-sidebar ul li {
@@ -86,13 +97,13 @@
 }
 
 .discover-sidebar ul li a {
-    color: var(--text-primary, #1a1a1a);
+    color: var(--color-text);
     text-decoration: none;
     transition: color 0.2s;
 }
 
 .discover-sidebar ul li a:hover {
-    color: var(--primary-color, #007bff);
+    color: var(--color-primary-link);
 }
 
 /* Featured Writers Section */
@@ -119,12 +130,13 @@
     gap: 0.75rem;
     padding: 0.5rem;
     text-decoration: none;
-    color: var(--text-primary, #1a1a1a);
+    color: var(--color-text);
     transition: background-color 0.2s;
 }
 
 .featured-writer-link:hover {
-    background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+    background-color: transparent;
+    border-left: 2px solid var(--color-border-strong);
     text-decoration: none;
 }
 
@@ -140,7 +152,7 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: var(--placeholder-bg, #e0e0e0);
+    background: var(--color-bg-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -150,7 +162,7 @@
 .featured-writer-avatar-placeholder .icon {
     width: 20px;
     height: 20px;
-    color: var(--text-secondary, #666);
+    color: var(--color-text-muted);
 }
 
 .featured-writer-info {
@@ -171,7 +183,7 @@
 
 .featured-writer-nip05 {
     font-size: 0.75rem;
-    color: var(--text-secondary, #666);
+    color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -201,6 +213,5 @@
         justify-content: center;
     }
 }
-
 
 

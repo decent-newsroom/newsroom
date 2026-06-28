@@ -1,109 +1,105 @@
 {% if article is defined %}
-    <div class="card{% if isEmbed is defined and isEmbed %} embed{% endif %}" data-article-id="{{ article.id }}" data-uuid="{{ article.id }}" data-coordinate="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}" data-npub="{{ article.pubkey|toNpub }}">
-        <div class="metadata">
-            {% if not is_author_profile|default(false) and app.current_route != 'latest_articles' %}
-                {% set pubkey = article.pubkey %}
-                {% set user = authors_metadata|default([])[pubkey] ?? null %}
-                <p class="m-0">by <twig:Molecules:UserFromNpub :user="user" :ident="pubkey" /></p>
-            {% endif %}
-            {# Show published date; if article has been edited (created_at ≠ published_at), show edit indicator #}
-            {% set displayDate = (article.publishedAt is not null) ? article.publishedAt : article.createdAt %}
-            {% set isEdited = article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
-            <span>
-                <small>{{ displayDate|date('F j Y') }}</small>
-            {% if isEdited %}
-                <small class="article-edited-note" title="{{ 'text.edited'|trans }}: {{ article.createdAt|date('F j, Y') }}">· {{ 'text.edited'|trans }} {{ article.createdAt|date('M j, Y') }}</small>
-            {% endif %}
-            </span>
-        </div>
-        {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
-        {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind.value ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
-        {% if article.kind.value == 30817 and cat and mag %}
-            {% set link = path('magazine-category-wiki', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
-        {% elseif itemNaddr %}
-            {% set link = path('nevent', {nevent: itemNaddr}) %}
-        {% elseif article.kind.value == 30024 %}
-            {# Draft - use draft route #}
-            {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
-        {% else %}
-            {# Regular article #}
-            {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode }) %}
+    {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
+    {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind.value ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
 
-            {% if cat  and mag %}
-                {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
-            {% endif %}
+    {% if article.kind.value == 30817 and cat and mag %}
+        {% set link = path('magazine-category-wiki', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
+    {% elseif itemNaddr %}
+        {% set link = path('nevent', {nevent: itemNaddr}) %}
+    {% elseif article.kind.value == 30024 %}
+        {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode}) %}
+    {% else %}
+        {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode}) %}
+        {% if cat and mag %}
+            {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
         {% endif %}
-        <a href="{{ link }}" data-turbo-frame="_top">
-            <div class="card-header">
-                {% if article.image %}
-                    <img src="{{ article.image }}" alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" >
-                    <div class="card-placeholder-bg" style="display:none; background-color: hsl({{ (article.slug|default(article.title))|pastelHue }}, 70%, 85%);"></div>
-                {% else %}
-                    <div class="card-placeholder-bg" style="background-color: hsl({{ (article.slug|default(article.title))|pastelHue }}, 70%, 85%);"></div>
+    {% endif %}
+
+    {% set displayDate = article.publishedAt is not null ? article.publishedAt : article.createdAt %}
+    {% set isEdited = article.publishedAt is not null and article.createdAt is not null and article.publishedAt|date('U') != article.createdAt|date('U') %}
+    {% set isEssayistExclusive = article.essayistExclusive|default(false) %}
+
+    <article
+        class="card article-card{% if isEmbed|default(false) %} embed{% endif %}{% if not article.image %} article-card--text-only{% endif %}"
+        data-article-id="{{ article.id }}"
+        data-uuid="{{ article.id }}"
+        data-coordinate="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}"
+        data-npub="{{ article.pubkey|toNpub }}"
+    >
+        <a class="article-card__link" href="{{ link }}" data-turbo-frame="_top">
+            <div class="article-card__content">
+                <div class="metadata">
+                    {% if not is_author_profile|default(false) and app.current_route != 'latest_articles' %}
+                        {% set pubkey = article.pubkey %}
+                        {% set user = authors_metadata|default([])[pubkey] ?? null %}
+                        <span>{{ 'text.by'|trans }} <twig:Molecules:UserFromNpub :user="user" :ident="pubkey" /></span>
+                    {% endif %}
+                    <span>
+                        <time datetime="{{ displayDate|date('c') }}">{{ displayDate|date('M j, Y') }}</time>
+                        {% if isEdited %}
+                            <span class="article-edited-note" title="{{ 'text.edited'|trans }}: {{ article.createdAt|date('F j, Y') }}">· {{ 'text.edited'|trans }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                {% if source_labels|default([])|length > 0 or category_label|default(null) or isEssayistExclusive %}
+                    <div class="card-sources">
+                        {% if category_label|default(null) %}
+                            <span class="source-badge source-badge--category">{{ category_label }}</span>
+                        {% endif %}
+                        {% if isEssayistExclusive %}
+                            <span class="source-badge source-badge--essayist" title="{{ 'home_feed.source.essayist_title'|trans }}">{{ 'home_feed.source.essayist'|trans }}</span>
+                        {% endif %}
+                        {% for label in source_labels|default([]) %}
+                            <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <h2 class="card-title line-clamp-5">{{ article.title }}</h2>
+                {% if article.summary %}
+                    <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
+                        {{ article.summary }}
+                    </p>
                 {% endif %}
             </div>
-            {% set isEssayistExclusive = article.essayistExclusive|default(false) %}
-            {% if source_labels|default([])|length > 0 or category_label|default(null) or isEssayistExclusive %}
-                <div class="card-sources">
-                    {% if category_label|default(null) %}
-                        <span class="source-badge source-badge--category">{{ category_label }}</span>
-                    {% endif %}
-                    {% if isEssayistExclusive %}
-                        <span class="source-badge source-badge--essayist" title="{{ 'home_feed.source.essayist_title'|trans }}">{{ 'home_feed.source.essayist'|trans }}</span>
-                    {% endif %}
-                    {% for label in source_labels|default([]) %}
-                        <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            <div class="card-body">
-                    <h2 class="card-title line-clamp-5">{{ article.title }}</h2>
-                    {% if article.summary %}
-                        <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
-                            {{ article.summary }}
-                        </p>
-                    {% endif %}
-            </div>
-        </a>
-        <div class="card-footer">
-            {% if comment_count|default(0) > 0 %}
-                <div class="card-footer__comments">
-                    <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
-                </div>
-            {% endif %}
-            {% if app.user and bookmarkCoordinate %}
-                <button
-                    type="button"
-                    class="card-bookmark-btn"
-                    data-controller="ui--card-bookmark"
-                    data-ui--card-bookmark-target="button"
-                    data-action="click->ui--card-bookmark#toggle"
-                    data-ui--card-bookmark-coordinate-value="{{ bookmarkCoordinate }}"
-                    data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
-                    data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
-                    data-ui--card-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
-                    data-ui--card-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
-                    title="{{ 'bookmark.add'|trans }}"
-                >
-                    <svg
-                        data-ui--card-bookmark-target="icon"
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
+
+            {% if article.image %}
+                <figure class="article-card__media">
+                    <img
+                        src="{{ article.image }}"
+                        alt="{{ 'card.coverImageAlt'|trans({'%title%': article.title}) }}"
+                        loading="lazy"
+                        decoding="async"
                     >
-                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <span data-ui--card-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
-                </button>
+                </figure>
             {% endif %}
-        </div>
-    </div>
+        </a>
+
+        {% if comment_count|default(0) > 0 or (app.user and bookmarkCoordinate) %}
+            <div class="card-footer">
+                {% if comment_count|default(0) > 0 %}
+                    <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
+                {% endif %}
+                {% if app.user and bookmarkCoordinate %}
+                    <button
+                        type="button"
+                        class="card-bookmark-btn"
+                        data-controller="ui--card-bookmark"
+                        data-ui--card-bookmark-target="button"
+                        data-action="click->ui--card-bookmark#toggle"
+                        data-ui--card-bookmark-coordinate-value="{{ bookmarkCoordinate }}"
+                        data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+                        data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
+                        data-ui--card-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
+                        data-ui--card-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
+                        title="{{ 'bookmark.add'|trans }}"
+                    >
+                        {{ ux_icon('iconoir:bookmark', {class: 'icon', 'data-ui--card-bookmark-target': 'icon'}) }}
+                        <span data-ui--card-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+    </article>
 {% endif %}
-
-

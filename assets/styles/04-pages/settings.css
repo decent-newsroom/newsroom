@@ -13,11 +13,13 @@
 /* ===== Tabs ===== */
 .settings-tabs {
     display: flex;
-    justify-content: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     gap: var(--spacing-1);
     margin-bottom: var(--spacing-4);
-    overflow-x: auto;
+    overflow: visible;
     background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .settings-tab {
@@ -25,7 +27,7 @@
     color: var(--color-text-mid);
     text-decoration: none;
     border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
+    margin-bottom: -1px;
     font-weight: 500;
     white-space: nowrap;
     transition: color 0.2s, border-color 0.2s;
@@ -509,8 +511,10 @@
     }
 
     .settings-tab {
+        flex: 1 1 auto;
         padding: var(--spacing-2);
         font-size: 0.9rem;
+        text-align: center;
     }
 
     .settings-profile-preview__banner {
@@ -664,4 +668,3 @@
     font-style: italic;
     padding: var(--spacing-3) 0;
 }
-

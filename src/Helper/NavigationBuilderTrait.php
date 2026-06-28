@@ -22,27 +22,27 @@ trait NavigationBuilderTrait
             [
                 'label' => 'reading_nook.nav.overview',
                 'items' => [
-                    ['label' => 'reading_nook.nav.all_items', 'route' => 'reading_nook'],
+                    ['label' => 'reading_nook.nav.all_items', 'route' => 'reading_nook', 'icon' => 'iconoir:home'],
                 ],
             ],
             [
                 'label' => 'reading_nook.nav.saved',
                 'items' => [
-                    ['label' => 'reading_nook.nav.bookmarks', 'route' => 'my_bookmarks'],
-                    ['label' => 'reading_nook.nav.interests', 'route' => 'my_interests'],
+                    ['label' => 'reading_nook.nav.bookmarks', 'route' => 'my_bookmarks', 'icon' => 'iconoir:bookmark'],
+                    ['label' => 'reading_nook.nav.interests', 'route' => 'my_interests', 'icon' => 'iconoir:compass'],
                 ],
             ],
             [
                 'label' => 'reading_nook.nav.collections',
                 'items' => [
-                    ['label' => 'reading_nook.nav.reading_lists', 'route' => 'reading_list_index'],
-                    ['label' => 'reading_nook.nav.follow_packs', 'route' => 'follow_packs'],
+                    ['label' => 'reading_nook.nav.reading_lists', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
+                    ['label' => 'reading_nook.nav.follow_packs', 'route' => 'follow_packs', 'icon' => 'iconoir:community'],
                 ],
             ],
             [
                 'label' => 'updates.pageTitle',
                 'items' => [
-                    ['label' => 'updates.manageSubscriptions', 'route' => 'updates_subscriptions'],
+                    ['label' => 'updates.manageSubscriptions', 'route' => 'updates_subscriptions', 'icon' => 'iconoir:rss-feed'],
                 ],
             ],
         ];
@@ -59,27 +59,27 @@ trait NavigationBuilderTrait
             [
                 'label' => 'newsroom.nav.overview',
                 'items' => [
-                    ['label' => 'newsroom.nav.my_content', 'route' => 'my_content'],
-                ],
-            ],
-            [
-                'label' => 'newsroom.nav.articles',
-                'items' => [
-                    ['label' => 'newsroom.nav.drafts', 'route' => 'my_content'],
-                    ['label' => 'newsroom.nav.published', 'route' => 'my_content'],
+                    ['label' => 'newsroom.nav.my_content', 'route' => 'my_content', 'icon' => 'iconoir:home'],
                 ],
             ],
             [
                 'label' => 'newsroom.nav.publications',
                 'items' => [
-                    ['label' => 'newsroom.nav.magazines', 'route' => 'my_magazines'],
-                    ['label' => 'newsroom.nav.reading_lists', 'route' => 'reading_list_index'],
+                    ['label' => 'newsroom.nav.magazines', 'route' => 'my_magazines', 'icon' => 'iconoir:book-stack'],
+                    ['label' => 'newsroom.nav.reading_lists', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
                 ],
             ],
             [
                 'label' => 'newsroom.nav.media',
                 'items' => [
-                    ['label' => 'newsroom.nav.media_manager', 'route' => 'media_manager'],
+                    ['label' => 'newsroom.nav.media_manager', 'route' => 'media_manager', 'icon' => 'iconoir:compass'],
+                ],
+            ],
+            [
+                'label' => 'nav.create',
+                'items' => [
+                    ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
+                    ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
                 ],
             ],
         ];
@@ -134,5 +134,4 @@ trait NavigationBuilderTrait
         return $sections;
     }
 }
-
 

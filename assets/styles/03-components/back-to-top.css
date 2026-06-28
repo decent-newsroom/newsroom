@@ -1,47 +1,40 @@
-/**
- * Back to Top Button
- * Floating button that appears when the user scrolls down
- */
-
 .back-to-top-btn {
     position: fixed;
-    bottom: var(--spacing-5);
-    right: var(--spacing-5);
-    z-index: 1000;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    line-height: 1;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    cursor: pointer;
+    right: var(--spacing-4);
+    bottom: var(--spacing-4);
+    z-index: var(--z-sticky);
     display: flex;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
     opacity: 0;
-    transform: translateY(12px);
-    transition: opacity 0.25s ease, transform 0.25s ease, background-color 0.15s ease;
     pointer-events: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transform: translateY(8px);
+    transition:
+        opacity var(--transition-base),
+        transform var(--transition-base);
 }
 
 .back-to-top-btn.visible {
     opacity: 1;
-    transform: translateY(0);
     pointer-events: auto;
+    transform: translateY(0);
 }
 
 .back-to-top-btn:hover {
-    background: var(--color-primary);
-    color: var(--color-bg);
     border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-text-contrast);
 }
 
-.back-to-top-btn svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    stroke: currentColor;
+.back-to-top-btn .icon {
+    width: 1.2rem;
+    height: 1.2rem;
 }

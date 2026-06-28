@@ -303,6 +303,15 @@
                     data-panel="relays"
                 >
                     {% include 'editor/panels/_relays.html.twig' with { form: form } %}
+
+                    {# Consume every conditional/unrendered form field here.
+                       Otherwise form_end() appends Essayist checkboxes after
+                       .editor-main, outside the Relays panel and sidebar. #}
+                    <div class="hidden" aria-hidden="true">
+                        {{ form_row(form.pubkey, {'value': app.user ? app.user.userIdentifier|toHex : ''}) }}
+                        {{ form_row(form.loginMethod, {'value': app.session.get('nostr_sign_method', '')}) }}
+                        {{ form_rest(form) }}
+                    </div>
                 </div>
 
                 {# Media panel temporarily hidden - will be redesigned later
@@ -315,12 +324,10 @@
                 </div>
                 #}
             </section>
-        </aside>
 
-        {{ form_row(form.pubkey, {'value': app.user ? app.user.userIdentifier|toHex : ''}) }}
-        {{ form_row(form.loginMethod, {'value': app.session.get('nostr_sign_method', '')}) }}
+        </aside>
     </div>
-    {{ form_end(form) }}
+    {{ form_end(form, {render_rest: false}) }}
 
     {# Hidden container for Nostr publishing (no JSON textarea, uses canonical panel) #}
     <div {{ stimulus_controller('nostr--nostr-publish', {

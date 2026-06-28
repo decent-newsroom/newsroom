@@ -1,106 +1,68 @@
-{% extends 'base.html.twig' %}
+{% extends 'app-shell.html.twig' %}
 
-{% block layout %}
-    <div class="layout" data-controller="ui--sidebar-toggle">
-        <div class="aside-wrapper">
-            {# Global main navigation #}
-            <nav id="leftNav">
-                <header>
-                    <button class="close" data-action="click->ui--sidebar-toggle#close" aria-label="{{ 'nav.closeLeftSidebar'|trans }}">✕</button>
-                </header>
+{% block sidebar %}
+    {% set mainNav = [
+        {
+            label: 'nav.discover',
+            items: [
+                {label: 'nav.articles', route: 'discover', icon: 'iconoir:compass'},
+                {label: 'nav.relayFeeds', route: 'relay_feed_index', icon: 'iconoir:rss-feed'}
+            ]
+        },
+        {
+            label: 'nav.publications',
+            items: [
+                {label: 'nav.newsstand', route: 'newsstand', icon: 'iconoir:book-stack'}
+            ]
+        }
+    ] %}
 
-                <div class="nav-section">
-                    <div class="nav-section__label">{{ 'nav.discover'|trans }}</div>
-                    <ul class="user-nav">
-                        <li><a href="{{ path('discover') }}">{{ 'nav.articles'|trans }}</a></li>
-                        <li><a href="{{ path('relay_feed_index') }}">{{ 'nav.relayFeeds'|trans }}</a></li>
-                    </ul>
-                </div>
+    {% if app.user %}
+        {% set mainNav = mainNav|merge([
+            {
+                label: 'nav.personal',
+                items: [
+                    {label: 'nav.readingNook', route: 'reading_nook', icon: 'iconoir:bookmark'},
+                    {label: 'nav.newsroom', route: 'my_content', icon: 'iconoir:home'}
+                ]
+            },
+            {
+                label: 'nav.create',
+                items: [
+                    {label: 'nav.newArticle', route: 'editor-create', icon: 'iconoir:edit-pencil'},
+                    {label: 'nav.newMagazine', route: 'mag_wizard_new', icon: 'iconoir:plus'},
+                    {label: 'nav.newReadingList', route: 'reading_list_index', icon: 'iconoir:journal-page'}
+                ]
+            }
+        ]) %}
+    {% endif %}
 
-                <div class="nav-section">
-                    <div class="nav-section__label">{{ 'nav.publications'|trans }}</div>
-                    <ul class="user-nav">
-                        <li><a href="{{ path('newsstand') }}">{{ 'nav.newsstand'|trans }}</a></li>
-                    </ul>
-                </div>
+    <twig:SidebarNav
+        id="leftNav"
+        :sections="mainNav"
+        :footerComponent="'components/UserMenu.html.twig'"
+    />
+{% endblock %}
 
-                {% if app.user %}
-                    <div class="nav-section">
-                        <div class="nav-section__label">{{ 'nav.personal'|trans }}</div>
-                        <ul class="user-nav">
-                            <li><a href="{{ path('reading_nook') }}">{{ 'nav.readingNook'|trans }}</a></li>
-                            <li><a href="{{ path('my_content') }}">{{ 'nav.newsroom'|trans }}</a></li>
-                        </ul>
-                    </div>
+{% block aside %}
+    {% if app.user %}
+        <section class="context-panel">
+            <p class="eyebrow">{{ 'nav.publications'|trans }}</p>
+            <h2>{{ 'nav.startBlog'|trans }}</h2>
+            <a class="btn btn--secondary" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
+        </section>
+    {% else %}
+        {% include 'blog-journey/_login_cta_card.html.twig' %}
+    {% endif %}
 
-                    <div class="nav-section">
-                        <div class="nav-section__label">{{ 'nav.create'|trans }}</div>
-                        <ul class="user-nav">
-                            <li><a href="{{ path('mag_wizard_new') }}">{{ 'nav.newMagazine'|trans }}</a></li>
-                            <li><a href="{{ path('reading_list_index') }}">{{ 'nav.newReadingList'|trans }}</a></li>
-                            <li><a href="{{ path('editor-create') }}">{{ 'nav.newArticle'|trans }}</a></li>
-                        </ul>
-                    </div>
-                {% endif %}
-
-                <twig:UserMenu />
-
-                {% block nav %}{% endblock %}
-            </nav>
-        </div>
-        <main>
-            {% block body %}{% endblock %}
-
-        </main>
-        <div>
-            <aside id="rightNav">
-                <header>
-                    <button class="close" data-action="click->sidebar-toggle#close" aria-label="{{ 'nav.closeRightSidebar'|trans }}">✕</button>
-                </header>
-                {% if app.user %}
-                    <div class="d-flex gap-3 center mt-3 mb-3 p-3 ln-section--reader">
-                        <div class="text-center">Turn your articles into a publication.</div>
-                        <a class="btn" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
-                    </div>
-                {% else %}
-                    <div class="mt-3 mb-3">
-                        {% include 'blog-journey/_login_cta_card.html.twig' %}
-                    </div>
-                {% endif %}
-                {% block aside %}
-                    {# Contribution invitation section #}
-                    {% if contribution_npub and contribution_lud16 %}
-                        <div class="contribution-section mt-3 mb-3 p-3 ln-section--newsstand">
-                            <div class="text-center mb-2">
-                                <strong>{{ 'contribution.title'|trans }}</strong>
-                            </div>
-                            <p class="small text-muted mb-2 text-center hidden">
-                                {{ 'contribution.description'|trans }}
-                            </p>
-                            <div class="text-center">
-                                <twig:Molecules:ZapButton
-                                    btnClass="btn-sm w-100"
-                                    recipientPubkey="{{ contribution_npub|toHex }}"
-                                    recipientLud16="{{ contribution_lud16 }}"
-                                />
-                            </div>
-                        </div>
-                    {% endif %}
-                {% endblock %}
-            </aside>
-        </div>
-
-        {# Back to top button #}
-        <div data-controller="ui--back-to-top">
-            <button class="back-to-top-btn"
-                    data-ui--back-to-top-target="button"
-                    data-action="click->ui--back-to-top#scrollToTop"
-                    aria-label="{{ 'nav.backToTop'|trans }}"
-                    title="{{ 'nav.backToTop'|trans }}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="18 15 12 9 6 15"></polyline>
-                </svg>
-            </button>
-        </div>
-    </div>
+    {% if contribution_npub and contribution_lud16 %}
+        <section class="context-panel">
+            <p class="eyebrow">{{ 'contribution.title'|trans }}</p>
+            <twig:Molecules:ZapButton
+                btnClass="btn-sm w-100"
+                recipientPubkey="{{ contribution_npub|toHex }}"
+                recipientLud16="{{ contribution_lud16 }}"
+            />
+        </section>
+    {% endif %}
 {% endblock %}

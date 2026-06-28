@@ -1,0 +1,60 @@
+.profile-tabs {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-4);
+    margin: 0 0 var(--spacing-5);
+    padding: 0;
+    overflow-x: auto;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    scrollbar-width: none;
+}
+
+.profile-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.profile-tabs .tab-link,
+.tab-link {
+    flex: 0 0 auto;
+    padding: var(--spacing-3) 0 calc(var(--spacing-3) - 1px);
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-muted);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition:
+        border-color var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.profile-tabs .tab-link:hover,
+.tab-link:hover {
+    border-bottom-color: var(--color-border-strong);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.profile-tabs .tab-link.active,
+.profile-tabs .tab-link[aria-current="page"],
+.tab-link.active {
+    border-bottom-color: var(--color-primary);
+    color: var(--color-primary-link);
+}
+
+@media (max-width: 560px) {
+    .profile-tabs {
+        gap: var(--spacing-3);
+    }
+
+    .profile-tabs .tab-link,
+    .tab-link {
+        font-size: 0.7rem;
+    }
+}

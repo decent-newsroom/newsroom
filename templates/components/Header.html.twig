@@ -1,10 +1,68 @@
-<header class="header" data-controller="ui--menu" {{ attributes }}>
-    <div class="container">
-        <div class="mobile-toggles" data-controller="ui--sidebar-toggle">
-            <button class="toggle" aria-controls="leftNav" aria-expanded="false" data-action="click->ui--sidebar-toggle#toggle">☰</button>
-        </div>
-        <div class="header__logo">
-            <h1 class="brand"><a href="/">{{ brand_name }}</a></h1>
+<header
+    class="site-header"
+    data-controller="ui--sidebar-toggle ui--theme"
+    data-ui--theme-sync-url-value="{{ path('app_theme_switch', {theme: '__THEME__'}) }}"
+    {{ attributes }}
+>
+    <div class="site-header__inner">
+        <button
+            type="button"
+            class="icon-button site-header__menu"
+            aria-controls="leftNav"
+            aria-expanded="false"
+            aria-label="{{ 'nav.openNavigation'|trans }}"
+            data-action="click->ui--sidebar-toggle#toggle"
+        >
+            {{ ux_icon('iconoir:menu', {class: 'icon'}) }}
+        </button>
+
+        <a class="site-header__brand brand" href="{{ path('home') }}">
+            {{ brand_name }}
+        </a>
+
+        <form class="site-header__search" action="{{ path('app_search_index') }}" method="get" role="search">
+            <label class="visually-hidden" for="global-search">{{ 'heading.search'|trans }}</label>
+            <input
+                id="global-search"
+                type="search"
+                name="q"
+                placeholder="{{ 'text.search'|trans }}"
+                autocomplete="off"
+            >
+            <button class="icon-button" type="submit" aria-label="{{ 'heading.search'|trans }}">
+                {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+            </button>
+        </form>
+
+        <div class="site-header__actions">
+            {% if app.user %}
+                <a class="site-header__action site-header__action--primary" href="{{ path('editor-create') }}">
+                    {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                    <span>{{ 'nav.article'|trans }}</span>
+                </a>
+            {% endif %}
+
+            <button
+                type="button"
+                class="icon-button"
+                aria-label="{{ 'nav.cycleTheme'|trans }}"
+                title="{{ 'nav.cycleTheme'|trans }}"
+                data-action="click->ui--theme#cycle"
+            >
+                {{ ux_icon('iconoir:half-moon', {class: 'icon'}) }}
+            </button>
+
+            {% if app.user %}
+                <a class="site-header__action" href="{{ path('settings') }}">
+                    {{ ux_icon('iconoir:community', {class: 'icon'}) }}
+                    <span>{{ 'nav.settings'|trans }}</span>
+                </a>
+            {% else %}
+                <a class="site-header__action" href="{{ path('app_login') }}">
+                    {{ ux_icon('iconoir:log-in', {class: 'icon'}) }}
+                    <span>{{ 'text.signIn'|trans }}</span>
+                </a>
+            {% endif %}
         </div>
     </div>
 </header>

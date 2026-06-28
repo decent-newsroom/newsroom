@@ -34,9 +34,9 @@ textarea {
 
 input, textarea, select {
     color: var(--color-text);
-    border: 1px solid var(--color-primary);
-    background: border-box;
-    border-radius: 0;  /* Sharp edges */
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0;
+    background: var(--color-bg);
 }
 
 input, textarea, select {
@@ -51,7 +51,8 @@ textarea, input, select {
 
 input:focus, textarea:focus, select:focus {
     border-color: var(--color-primary);
-    outline: none;
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .help-text {

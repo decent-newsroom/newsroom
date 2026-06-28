@@ -65,6 +65,7 @@ nav:
     backToTop: 'Na vrh'
     closeLeftSidebar: 'Zapri levi meni'
     closeRightSidebar: 'Zapri desni meni'
+    openNavigation: 'Odpri navigacijo'
     theme: 'Tema'
     cycleTheme: 'Zamenjaj temo'
     relayFeeds: 'Članki z relejev'
@@ -1054,4 +1055,3 @@ reading_nook:
         contributors: 'Sodelujoči'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
-

@@ -1,4 +1,4 @@
-{% extends 'layout.html.twig' %}
+{% extends 'layout-full.html.twig' %}
 
 {% block title %}Decent Newsroom — A decentralized platform for collaborative publishing{% endblock %}
 
@@ -8,7 +8,6 @@
     <meta property="og:description" content="Explore, publish articles, and create magazines on Nostr">
     <meta property="og:url" content="{{ url('home') }}">
 
-    {# Override default WebSite schema with more detailed home page schema #}
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
@@ -17,153 +16,92 @@
         "alternateName": "Decent Newsroom",
         "description": "A decentralized platform for collaborative publishing on Nostr",
         "url": "{{ url('home') }}",
-        "headline": "Explore, publish articles, and create magazines",
-        "about": [
-            {
-                "@type": "Thing",
-                "name": "Decentralized Publishing"
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
             },
-            {
-                "@type": "Thing",
-                "name": "Nostr Protocol"
-            },
-            {
-                "@type": "Thing",
-                "name": "Digital Magazines"
-            }
-        ],
-        "potentialAction": [
-            {
-                "@type": "SearchAction",
-                "target": {
-                    "@type": "EntryPoint",
-                    "urlTemplate": "{{ url('app_search_index') }}?q={search_term_string}"
-                },
-                "query-input": "required name=search_term_string"
-            },
-            {
-                "@type": "ReadAction",
-                "target": {
-                    "@type": "EntryPoint",
-                    "urlTemplate": "{{ url('newsstand') }}"
-                },
-                "name": "Browse Newsstand"
-            }
-        ],
-        "publisher": {
-            "@type": "Organization",
-            "name": "Newsroom",
-            "url": "{{ url('home') }}"
+            "query-input": "required name=search_term_string"
         }
     }
     </script>
 {% endblock %}
 
 {% block body %}
-
-    <section class="ln-hero d-flex gap-3 center">
-        <h1 class="brand">{{ brand_name }}</h1>
-        <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
-        <p class="lede mb-5">{{ 'home.hero.lede'|trans }}</p>
-    </section>
-
-    <!-- Preview -->
-    <!--twig:Organisms:MagazinePreview subdomain="newsroommag" /-->
-
-    <section class="ln-hero d-flex gap-3 center">
-        <h1>{{ 'journey.landing.hero'|trans }}</h1>
-        <p class="eyebrow">{{ 'journey.landing.eyebrow'|trans }}</p>
-        <p class="lede measure mb-3">Decent Newsroom lets you take articles you've published on Nostr and organize them into a magazine: with categories, guest posts, stable article pages, and optional hosted subdomains.</p>
-        <div class="cta-row mb-1">
-            <a class="btn btn--primary btn--lg" href="/blog/setup">{{ 'journey.landing.cta'|trans }}</a>
-        </div>
-        <div class="cta-row mb-5">
-            <p>See it live: <a href="https://newsroommag.decentnewsroom.com">Newsroom Magazine</a></p>
-        </div>
-    </section>
-
-    <section class="ln-hero d-flex gap-3 center mt-0 pt-0">
-        <div class="ln-hero__frame">
-            <div class="frame">
-                <img class="ln-preview-img" src="{{ asset('images/preview-unfold.png') }}" alt="{{ 'journey.landing.organized.heading'|trans }}" loading="eager" width="560">
+    <main class="home-landing">
+        <section class="landing-hero">
+            <div class="landing-hero__copy">
+                <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
+                <h1 class="brand">{{ brand_name }}</h1>
+                <p class="lede">{{ 'home.hero.lede'|trans }}</p>
+                <div class="landing-actions">
+                    <a class="btn btn--lg" href="{{ path('discover') }}">{{ 'home.explore.cta'|trans }}</a>
+                    <a class="btn btn--secondary btn--lg" href="{{ path('blog_journey_landing') }}">{{ 'journey.landing.cta'|trans }}</a>
+                </div>
             </div>
-        </div>
-    </section>
 
-    <section class="d-flex gap-3 center ln-section--newsstand">
-        <div class="container mt-5">
-            <h1>{{ 'home.newsstand.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.newsstand.description'|trans }}</p>
-            <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('newsstand') }}">{{ 'home.newsstand.cta'|trans }}</a>
+            <figure class="landing-hero__preview">
+                <img
+                    src="{{ asset('images/preview-unfold.png') }}"
+                    alt="{{ 'journey.landing.organized.heading'|trans }}"
+                    loading="eager"
+                    width="760"
+                >
+            </figure>
+        </section>
+
+        <section class="landing-paths">
+            <div class="landing-path">
+                <p class="eyebrow">{{ 'home.newsstand.eyebrow'|trans }}</p>
+                <h2>{{ 'home.newsstand.heading'|trans }}</h2>
+                <p>{{ 'home.newsstand.description'|trans }}</p>
+                <a class="text-link" href="{{ path('newsstand') }}">
+                    {{ 'home.newsstand.cta'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
             </div>
-        </div>
-    </section>
 
-    <section class="d-flex gap-3 center ln-section--search">
-        <div class="container mt-5">
-            <h1>{{ 'home.explore.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.explore.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.explore.description'|trans }}</p>
-            <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('discover') }}">{{ 'home.explore.cta'|trans }}</a>
+            <div class="landing-path">
+                <p class="eyebrow">{{ 'home.explore.eyebrow'|trans }}</p>
+                <h2>{{ 'home.explore.heading'|trans }}</h2>
+                <p>{{ 'home.explore.description'|trans }}</p>
+                <a class="text-link" href="{{ path('discover') }}">
+                    {{ 'home.explore.cta'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
             </div>
-        </div>
-    </section>
 
-    <section class="d-flex gap-3 center ln-section--editor">
-        <div class="container mt-5">
-            <h1>{{ 'home.editor.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.editor.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.editor.description'|trans }}</p>
-            <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('editor-create') }}">{{ 'home.editor.cta'|trans }}</a>
+            <div class="landing-path">
+                <p class="eyebrow">{{ 'home.editor.eyebrow'|trans }}</p>
+                <h2>{{ 'home.editor.heading'|trans }}</h2>
+                <p>{{ 'home.editor.description'|trans }}</p>
+                <a class="text-link" href="{{ path('editor-create') }}">
+                    {{ 'home.editor.cta'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
             </div>
-        </div>
-    </section>
 
-    <section class="d-flex gap-3 center ln-section--newsroom">
-        <div class="container mt-5">
-            <h1>{{ 'home.newsroom.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.newsroom.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.newsroom.description'|trans }}</p>
-            <div class="cta-row">
-                <a class="btn" href="{{ path('blog_journey_landing') }}">{{ 'home.newsroom.cta'|trans }}</a>
+            <div class="landing-path">
+                <p class="eyebrow">{{ 'home.newsroom.eyebrow'|trans }}</p>
+                <h2>{{ 'home.newsroom.heading'|trans }}</h2>
+                <p>{{ 'home.newsroom.description'|trans }}</p>
+                <a class="text-link" href="{{ path('blog_journey_landing') }}">
+                    {{ 'home.newsroom.cta'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="d-flex gap-3 center ln-section--unfold">
-        <div class="container mt-5">
-            <h1>{{ 'home.unfold.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.unfold.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.unfold.description'|trans }}</p>
-            <div class="cta-row">
-                <a class="btn btn--primary" href="{{ path('unfold') }}">{{ 'home.unfold.cta'|trans }}</a>
+        <section class="landing-feature">
+            <div>
+                <p class="eyebrow">{{ 'home.unfold.eyebrow'|trans }}</p>
+                <h2>{{ 'home.unfold.heading'|trans }}</h2>
             </div>
-        </div>
-    </section>
-
-
-    <section class="d-flex gap-3 center ln-section--marketplace hidden">
-        <div class="container mt-5">
-            <h1>{{ 'home.marketplace.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'home.marketplace.eyebrow'|trans }}</p>
-        </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'home.marketplace.description'|trans }}</p>
-        </div>
-    </section>
-
+            <div>
+                <p class="lede">{{ 'home.unfold.description'|trans }}</p>
+                <a class="btn btn--secondary" href="{{ path('unfold') }}">{{ 'home.unfold.cta'|trans }}</a>
+            </div>
+        </section>
+    </main>
 {% endblock %}

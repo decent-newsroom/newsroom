@@ -3,14 +3,20 @@
 {% block title %}Home — {{ brand_name }}{% endblock %}
 
 {% block body %}
-    <twig:Organisms:EssayistPromo />
-
     <section class="w-container">
+        <header class="home-feed-header">
+            <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
+            <h1>{{ 'home_feed.tab.articles'|trans }}</h1>
+        </header>
+
+        <twig:Organisms:EssayistPromo />
+
         <div class="home-feed" data-controller="content--home-tabs" data-content--home-tabs-active-tab-value="articles">
 
-            <nav class="profile-tabs home-feed__tabs">
+            <nav class="profile-tabs home-feed__tabs" aria-label="{{ 'nav.articles'|trans }}">
                 <a href="{{ path('home_feed_tab', {tab: 'articles'}) }}"
                    class="tab-link active"
+                   aria-current="page"
                    data-content--home-tabs-target="tab"
                    data-tab="articles"
                    data-action="click->content--home-tabs#switchTab">

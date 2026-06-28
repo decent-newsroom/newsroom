@@ -83,7 +83,8 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [Expression Runner OpenAPI Spec](Nostr/expression-runner-openapi.md) — OpenAPI contract for NIP-EX/NIP-FX/NIP-GX expression validation and evaluation
 
 ### UI & Navigation
- - [My Content Page](Newsroom/my-content-page.md) — Unified content management view
+- [Editorial Design System](Newsroom/editorial-design-system.md) — Flat visual system, shared shell, navigation, and story-feed patterns
+- [My Content Page](Newsroom/my-content-page.md) — Unified content management view
 - [Newsroom Navigation Refactor Plan](Newsroom/newsroom-navigation-refactor-plan.md) — Planned split between Reading Nook, Newsroom, and a simplified global sidebar
 - [Navigation Layouts Implementation](Newsroom/navigation-layouts-implementation.md) — Technical guide for three-layout architecture (global, Reading Nook, Newsroom)
 - [Phase 1 Architecture Summary](Newsroom/phase-1-architecture-summary.md) — Infrastructure overview and next steps for developers

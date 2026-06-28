@@ -65,6 +65,7 @@ nav:
     backToTop: 'Ir arriba'
     closeLeftSidebar: 'Cerrar barra lateral izquierda'
     closeRightSidebar: 'Cerrar barra lateral derecha'
+    openNavigation: 'Abrir navegación'
     theme: 'Tema'
     cycleTheme: 'Cambiar tema'
     relayFeeds: 'Feeds de relay'
@@ -1055,4 +1056,3 @@ reading_nook:
         contributors: 'Colaboradores'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
-
