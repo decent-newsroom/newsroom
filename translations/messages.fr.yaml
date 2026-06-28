@@ -611,17 +611,80 @@ feedback:
     preview: 'Aperçu'
 
 # ── Mon contenu ──────────────────────────────────────────────────────
-myContent:
-    heading: 'mon-contenu'
-    newArticle: '+ Article'
-    newList: '+ Liste'
-    name: 'Nom'
-    dateModified: 'Date de modification'
-    items: 'Éléments'
-    kind: 'Type'
-    readingLists: 'listes-de-lecture'
-    articlesDirName: 'articles'
-    draftsDirName: 'brouillons'
+my_content:
+    eyebrow: 'Rédaction'
+    title: 'Mon contenu'
+    description: 'Rédigez, publiez et organisez votre travail depuis un espace éditorial unique.'
+    untitled: 'Sans titre'
+    no_identifier: 'Aucun identifiant'
+    results_count: '%count% résultats'
+    action:
+        new_article: 'Nouvel article'
+        new_list: 'Nouvelle liste'
+        open_bookmarks: 'Signets dans le coin lecture'
+        edit: 'Modifier'
+        view: 'Voir'
+        copy_coordinate: 'Copier la coordonnée'
+        delete: 'Supprimer'
+        menu: 'Actions pour %title%'
+        close: 'Fermer'
+        cancel: 'Annuler'
+        confirm_delete: 'Envoyer la demande de suppression'
+    summary:
+        label: 'Résumé du contenu'
+        published: 'Publiés'
+        drafts: 'Brouillons'
+        lists: 'Listes'
+    tabs:
+        label: 'Filtrer le contenu'
+        all: 'Tout'
+        drafts: 'Brouillons'
+        published: 'Publiés'
+        lists: 'Listes'
+    filter:
+        search_label: 'Rechercher du contenu'
+        search_placeholder: 'Rechercher titres, résumés ou identifiants'
+        sort_label: 'Trier'
+        sort_recent: 'Récemment mis à jour'
+        sort_title: 'Titre A–Z'
+        apply: 'Appliquer'
+        clear: 'Effacer les filtres'
+    column:
+        content: 'Contenu'
+        status: 'Statut'
+        updated: 'Mis à jour'
+        items: 'Éléments'
+        actions: 'Actions'
+    status:
+        published: 'Publié'
+        draft: 'Brouillon'
+        empty: 'Vide'
+    type:
+        reading_list: 'Liste de lecture'
+        articles_notes: 'Articles / notes'
+        videos: 'Vidéos'
+        pictures: 'Images'
+    empty:
+        title: 'Aucun contenu ne correspond'
+        description: 'Essayez un autre filtre ou commencez un nouvel article.'
+    pagination:
+        label: 'Pages de contenu'
+        previous: 'Précédent'
+        next: 'Suivant'
+        page: 'Page %current% sur %total%'
+    delete:
+        eyebrow: 'NIP-09'
+        title: 'Supprimer l’article publié ?'
+        confirm_description: 'Cette action envoie une demande de suppression signée pour « %title% ». Les relais peuvent conserver des copies.'
+        event_content: 'Demande de suppression pour %title%'
+        missing_event: 'L’identifiant d’événement de l’article est manquant.'
+        connecting: 'Connexion au signataire…'
+        signing: 'Demande de signature…'
+        publishing: 'Publication de la demande de suppression…'
+        rejected: 'La demande de suppression n’a pas été acceptée par les relais.'
+        success: 'Demande de suppression publiée.'
+        failed: 'Échec de la demande de suppression : %error%'
+        sent: 'Demande de suppression envoyée'
 
 newsroom:
     nav:

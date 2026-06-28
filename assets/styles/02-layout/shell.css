@@ -185,10 +185,9 @@ body.no-scroll {
         display: flex;
         min-height: 3.5rem;
         align-items: center;
-        justify-content: space-between;
+        justify-content: end;
         margin-bottom: var(--spacing-3);
         background: var(--color-bg);
-        border-bottom: 1px solid var(--color-border);
     }
 
     .app-shell__main {

@@ -211,6 +211,10 @@ main.editor-layout {
     z-index: 100;
 }
 
+.editor-pane--edit .ql-toolbar  {
+    color: var(--color-text);
+}
+
 .editor-pane--edit .ql-toolbar .ql-view-font-select {
     min-width: 120px;
     height: 30px;
@@ -430,6 +434,7 @@ main.editor-layout {
     max-width: 100%;
     min-width: 0;
     font-size: 0.875rem;
+    margin-bottom: var(--spacing-2);
 }
 
 .essayist-publish-options {
@@ -1071,20 +1076,6 @@ main.editor-layout {
     .editor-mobile-actions .btn {
         width: 100%;
     }
-}
-
-/* Dark theme support */
-[data-theme="dark"] .editor-layout,
-[data-theme="dark"] .editor-shell {
-    --background: #1f2937;
-    --surface: #111827;
-    --surface-dark: #0f172a;
-    --border-color: #374151;
-    --text-primary: #f9fafb;
-    --text-secondary: #9ca3af;
-    --hover: #374151;
-    --primary: #3b82f6;
-    --code-bg: #374151;
 }
 
 /* JSON Panel Styles */

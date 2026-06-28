@@ -14,9 +14,9 @@
         </div>
     {% endif %}
 
-    {% if not isLoggedIn %}
+    {% if not app.user %}
         <div class="notice info mb-4">
-            <p>You'll need a Nostr identity to publish your magazine.
+            <p>You'll need a Nostr identity to publish your magazine.</p>
         </div>
     {% endif %}
 

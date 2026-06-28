@@ -1,57 +1,56 @@
-# My Content Page & Editor Sidebar Update
+# My Content Publishing Inventory
 
 ## Summary
 
-Removed reading lists from the editor sidebar to reduce clutter, and created a new **My Content** page (`/my-content`) that provides a genuine **filesystem browser** view of the user's articles, drafts, and reading lists — styled after macOS Finder list-view / VS Code file explorer.
+`/my-content` is the authenticated author's publishing workspace. It brings published articles, drafts, reading lists, and curation sets into one compact inventory while keeping reader-owned bookmarks in the Reading Nook.
 
-## Changes
+## Information architecture
 
-### Editor Sidebar (simplified)
-- **Template**: `templates/editor/panels/_articlelist.html.twig` — removed the entire reading-list `<details>/<summary>` expandable section. The sidebar now only shows:
-  - A "Manage all content →" link to the new My Content page
-  - Published articles (with "A" badge)
-  - Drafts (with "D" badge)
-- **Controller**: `src/Controller/Editor/EditorController.php` — removed `$readingLists` variable and `buildAndCacheUserReadingLists()` calls from both `newArticle()` and `previewArticle()` methods. Removed unused `RedisViewStore` parameter from those methods.
-- **Layout**: `templates/editor/layout.html.twig` — removed `readingLists` from the template include's `with` block.
+- **Published**: the newest revision of each kind `30023` article coordinate.
+- **Drafts**: the newest revision of each kind `30024` draft coordinate.
+- **Lists**: kind `30040` reading lists and kinds `30004`, `30005`, and `30006` curation sets.
+- **Bookmarks**: intentionally excluded. They remain available from the Reading Nook link in the page summary.
 
-### My Content Page (new) — Filesystem Browser
-- **Route**: `GET /my-content` (name: `my_content`, requires `ROLE_USER`)
-- **Controller**: `src/Controller/Newsroom/MyContentController.php`
-  - Fetches published articles (kind 30023), collapsed by slug
-  - Fetches drafts (kind 30024), collapsed by slug
-  - Fetches reading lists (kind 30040) and curation sets (kinds 30004, 30005, 30006)
-- **Template**: `templates/my_content/index.html.twig` — genuine filesystem layout:
-  - **Toolbar**: breadcrumb path (`~/my-content`) + "New Article" / "New List" buttons
-  - **Column headers**: Name, Date Modified, Items, Kind
-  - **Three collapsible folders** (`<details>`):
-    - `📁 drafts/` — draft articles
-    - `📁 articles/` — published articles
-    - `📁 reading-lists/` — reading lists & curation sets (30040, 30004, 30005, 30006)
-  - **File rows**: emoji icons per type, clickable names, inline action buttons (↗ view, ✎ compose, ⧉ copy coordinate)
-  - **Status bar**: item counts
-- **CSS**: `assets/styles/04-pages/my-content.css`
-  - Monospace font (SF Mono / Cascadia Code / Fira Code / Consolas)
-  - 4-column grid rows (Name / Date / Items / Kind)
-  - Dark-themed using existing CSS variables
-  - CSS-only chevrons for folder expand/collapse
-  - Hover highlight on file rows
-  - Responsive: collapses to 2 columns on mobile
+The summary strip shows authored-content counts without duplicating large dashboard cards. Tabs filter the inventory by content state, and the search and sort controls use query parameters so filtered views can be bookmarked or shared.
 
-### Navigation
-- Added "My Content" link to the left navigation sidebar (`templates/layout.html.twig`) under the Newsroom section
-- Added `.articlelist-manage-link` CSS to `assets/styles/editor-layout.css` for the sidebar link
+## Inventory behavior
 
-## File List
-| File | Action |
-|------|--------|
-| `src/Controller/Editor/EditorController.php` | Modified — removed reading list data fetching |
-| `src/Controller/Newsroom/MyContentController.php` | **New** — My Content page controller |
-| `templates/editor/panels/_articlelist.html.twig` | Modified — removed reading list section |
-| `templates/editor/layout.html.twig` | Modified — removed `readingLists` from include |
-| `templates/layout.html.twig` | Modified — added "My Content" nav link |
-| `templates/my_content/index.html.twig` | **New** — Filesystem browser template |
-| `assets/styles/04-pages/my-content.css` | **New** — Filesystem browser styles |
-| `assets/styles/editor-layout.css` | Modified — added `.articlelist-manage-link` styles |
-| `assets/app.js` | Modified — imported `my-content.css` |
-| `CHANGELOG.md` | Modified — added feature entries |
+The inventory uses a consistent row model:
 
+- Title and summary or protocol identifier.
+- Published, draft, or list status.
+- Last update date.
+- Item count for lists.
+- An overflow menu containing only relevant actions.
+
+Article and draft titles open the editor. Reading-list titles open the list composer, while other curation-set titles open their public view. Protocol coordinates are available from the overflow menu instead of occupying a primary table column.
+
+The controller paginates the filtered inventory at 25 items per page. Article revision deduplication is performed in PostgreSQL with `DISTINCT ON (slug)` through `ArticleRepository::findLatestRevisionsByAuthorAndKind()`, avoiding hydration of every historical revision.
+
+## Deletion
+
+Published articles with an event ID expose a delete action. The action opens an accessible native dialog that explains the NIP-09 behavior before requesting a signature. On confirmation the Stimulus controller:
+
+1. Builds a kind `5` event with `e` and `a` tags.
+2. Requests a signature from the configured signer.
+3. Publishes the event through the user-context publish endpoint.
+4. Reports progress and failure through translated toast messages.
+
+The dialog explicitly notes that relays may retain copies.
+
+## Responsive design
+
+Desktop uses a compact five-column inventory. On narrower screens rows become stacked records with status and update metadata beneath the title. Tabs scroll horizontally without vertical overflow, actions remain in the overflow menu, and the three-value summary stays compact with the Reading Nook link beneath it.
+
+The page follows the shared editorial design system: sharp borders, no rounded surfaces, no shadows, Iconoir icons, and monospace reserved for identifiers.
+
+## Main files
+
+| File | Responsibility |
+|---|---|
+| `src/Controller/Newsroom/MyContentController.php` | Builds, filters, sorts, and paginates the inventory |
+| `src/Repository/ArticleRepository.php` | Fetches the newest article revision per slug |
+| `templates/my_content/index.html.twig` | Inventory, controls, menus, and delete dialog |
+| `assets/styles/04-pages/my-content.css` | Flat responsive page styling |
+| `assets/controllers/content/my_content_delete_controller.js` | Accessible NIP-09 deletion flow |
+| `translations/messages.*.yaml` | User-facing copy in all supported locales |

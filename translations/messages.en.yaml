@@ -797,18 +797,81 @@ feedback:
     sendFeedback: 'Send Feedback'
     preview: 'Preview'
 
-# ── My Content (file server view) ────────────────────────────────
-myContent:
-    heading: 'my-content'
-    newArticle: '+ Article'
-    newList: '+ List'
-    name: 'Name'
-    dateModified: 'Date Modified'
-    items: 'Items'
-    kind: 'Kind'
-    readingLists: 'reading-lists'
-    articlesDirName: 'articles'
-    draftsDirName: 'drafts'
+# ── My Content ───────────────────────────────────────────────────
+my_content:
+    eyebrow: 'Newsroom'
+    title: 'My Content'
+    description: 'Draft, publish, and organize your work from one focused publishing desk.'
+    untitled: 'Untitled'
+    no_identifier: 'No identifier'
+    results_count: '%count% results'
+    action:
+        new_article: 'New article'
+        new_list: 'New list'
+        open_bookmarks: 'Bookmarks in the Reading Nook'
+        edit: 'Edit'
+        view: 'View'
+        copy_coordinate: 'Copy coordinate'
+        delete: 'Delete'
+        menu: 'Actions for %title%'
+        close: 'Close'
+        cancel: 'Cancel'
+        confirm_delete: 'Send delete request'
+    summary:
+        label: 'Content summary'
+        published: 'Published'
+        drafts: 'Drafts'
+        lists: 'Lists'
+    tabs:
+        label: 'Filter content'
+        all: 'All'
+        drafts: 'Drafts'
+        published: 'Published'
+        lists: 'Lists'
+    filter:
+        search_label: 'Search content'
+        search_placeholder: 'Search titles, summaries, or identifiers'
+        sort_label: 'Sort'
+        sort_recent: 'Recently updated'
+        sort_title: 'Title A–Z'
+        apply: 'Apply'
+        clear: 'Clear filters'
+    column:
+        content: 'Content'
+        status: 'Status'
+        updated: 'Updated'
+        items: 'Items'
+        actions: 'Actions'
+    status:
+        published: 'Published'
+        draft: 'Draft'
+        empty: 'Empty'
+    type:
+        reading_list: 'Reading list'
+        articles_notes: 'Articles / notes'
+        videos: 'Videos'
+        pictures: 'Pictures'
+    empty:
+        title: 'Nothing matches this view'
+        description: 'Try another filter, or start a new article.'
+    pagination:
+        label: 'Content pages'
+        previous: 'Previous'
+        next: 'Next'
+        page: 'Page %current% of %total%'
+    delete:
+        eyebrow: 'NIP-09'
+        title: 'Delete published article?'
+        confirm_description: 'This sends a signed delete request for “%title%”. Relays may retain copies.'
+        event_content: 'Delete request for %title%'
+        missing_event: 'The article event ID is missing.'
+        connecting: 'Connecting to signer…'
+        signing: 'Requesting signature…'
+        publishing: 'Publishing delete request…'
+        rejected: 'The delete request was not accepted by relays.'
+        success: 'Delete request published.'
+        failed: 'Delete request failed: %error%'
+        sent: 'Delete request sent'
 
 newsroom:
     nav:

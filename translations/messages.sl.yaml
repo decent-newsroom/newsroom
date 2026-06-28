@@ -611,17 +611,80 @@ feedback:
     preview: 'Predogled'
 
 # ── Moja vsebina ──────────────────────────────────────────────────
-myContent:
-    heading: 'moja-vsebina'
-    newArticle: '+ Članek'
-    newList: '+ Seznam'
-    name: 'Ime'
-    dateModified: 'Datum spremembe'
-    items: 'Elementi'
-    kind: 'Vrsta'
-    readingLists: 'bralni-seznami'
-    articlesDirName: 'članki'
-    draftsDirName: 'osnutki'
+my_content:
+    eyebrow: 'Uredništvo'
+    title: 'Moja vsebina'
+    description: 'Pišite, objavljajte in urejajte svoje delo na enem preglednem uredniškem mestu.'
+    untitled: 'Brez naslova'
+    no_identifier: 'Brez identifikatorja'
+    results_count: '%count% rezultatov'
+    action:
+        new_article: 'Nov članek'
+        new_list: 'Nov seznam'
+        open_bookmarks: 'Zaznamki v bralnem kotičku'
+        edit: 'Uredi'
+        view: 'Poglej'
+        copy_coordinate: 'Kopiraj koordinato'
+        delete: 'Izbriši'
+        menu: 'Dejanja za %title%'
+        close: 'Zapri'
+        cancel: 'Prekliči'
+        confirm_delete: 'Pošlji zahtevo za izbris'
+    summary:
+        label: 'Povzetek vsebine'
+        published: 'Objavljeno'
+        drafts: 'Osnutki'
+        lists: 'Seznami'
+    tabs:
+        label: 'Filtriranje vsebine'
+        all: 'Vse'
+        drafts: 'Osnutki'
+        published: 'Objavljeno'
+        lists: 'Seznami'
+    filter:
+        search_label: 'Išči po vsebini'
+        search_placeholder: 'Išči naslove, povzetke ali identifikatorje'
+        sort_label: 'Razvrsti'
+        sort_recent: 'Nazadnje posodobljeno'
+        sort_title: 'Naslov A–Ž'
+        apply: 'Uporabi'
+        clear: 'Počisti filtre'
+    column:
+        content: 'Vsebina'
+        status: 'Stanje'
+        updated: 'Posodobljeno'
+        items: 'Elementi'
+        actions: 'Dejanja'
+    status:
+        published: 'Objavljeno'
+        draft: 'Osnutek'
+        empty: 'Prazno'
+    type:
+        reading_list: 'Bralni seznam'
+        articles_notes: 'Članki / zapiski'
+        videos: 'Videi'
+        pictures: 'Slike'
+    empty:
+        title: 'V tem pogledu ni zadetkov'
+        description: 'Poskusite drug filter ali začnite nov članek.'
+    pagination:
+        label: 'Strani vsebine'
+        previous: 'Prejšnja'
+        next: 'Naslednja'
+        page: 'Stran %current% od %total%'
+    delete:
+        eyebrow: 'NIP-09'
+        title: 'Izbrišem objavljeni članek?'
+        confirm_description: 'S tem pošljete podpisano zahtevo za izbris vsebine »%title%«. Releji lahko obdržijo kopije.'
+        event_content: 'Zahteva za izbris vsebine %title%'
+        missing_event: 'Manjka ID dogodka članka.'
+        connecting: 'Povezovanje s podpisnikom…'
+        signing: 'Zahtevanje podpisa…'
+        publishing: 'Objavljanje zahteve za izbris…'
+        rejected: 'Releji niso sprejeli zahteve za izbris.'
+        success: 'Zahteva za izbris je objavljena.'
+        failed: 'Zahteva za izbris ni uspela: %error%'
+        sent: 'Zahteva za izbris poslana'
 
 newsroom:
     nav:

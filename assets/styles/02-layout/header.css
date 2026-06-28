@@ -9,7 +9,7 @@
 
 .site-header__inner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 40rem) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(13rem, 32rem) minmax(0, 1fr);
     width: 100%;
     min-height: var(--header-height);
     max-width: var(--page-max-width);

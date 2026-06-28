@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Bug] Fixed the magazine setup wizard crashing when `isLoggedIn` was not supplied by using Twig's authenticated user context directly.
+- [Improvement] Rebuilt `/my-content` as a responsive publishing inventory with compact authored-content counts, server-backed tabs/search/sorting/pagination, explicit Iconoir action menus, Reading Nook bookmark separation, an accessible translated NIP-09 confirmation dialog, and database-side latest-revision selection.
 - [Bug] Increased light-theme informational text contrast with a dedicated deep blue-teal foreground, matching tint, and stronger border tokens.
 - [Improvement] Removed the redundant Reading Nook dashboard stat cards on desktop and replaced them below the contextual-aside breakpoint with a compact three-value summary that becomes an aside-style key/value list on mobile.
 - [Improvement] Removed the duplicate theme selector from the Reading Nook sidebar now that theme switching is available globally in the masthead.

@@ -1,324 +1,326 @@
 {% extends 'newsroom-layout.html.twig' %}
 
+{% set currentQuery = {type: activeType, q: searchQuery, sort: sort} %}
+
 {% block body %}
-<div class="fs">
-    <div class="fs-toolbar">
-        <div class="fs-toolbar__path">
-            <span class="fs-toolbar__segment fs-toolbar__segment--root">~</span>
-            <span class="fs-toolbar__sep">/</span>
-            <span class="fs-toolbar__segment">my-content</span>
+<section
+    class="my-content-page"
+    data-controller="content--my-content-delete"
+    data-content--my-content-delete-publish-url-value="{{ path('api_settings_event_publish') }}"
+    data-content--my-content-delete-missing-event-message-value="{{ 'my_content.delete.missing_event'|trans }}"
+    data-content--my-content-delete-confirm-template-value="{{ 'my_content.delete.confirm_description'|trans({'%title%': '__TITLE__'}) }}"
+    data-content--my-content-delete-content-template-value="{{ 'my_content.delete.event_content'|trans({'%title%': '__TITLE__'}) }}"
+    data-content--my-content-delete-connecting-message-value="{{ 'my_content.delete.connecting'|trans }}"
+    data-content--my-content-delete-signing-message-value="{{ 'my_content.delete.signing'|trans }}"
+    data-content--my-content-delete-publishing-message-value="{{ 'my_content.delete.publishing'|trans }}"
+    data-content--my-content-delete-rejected-message-value="{{ 'my_content.delete.rejected'|trans }}"
+    data-content--my-content-delete-success-message-value="{{ 'my_content.delete.success'|trans }}"
+    data-content--my-content-delete-failed-template-value="{{ 'my_content.delete.failed'|trans({'%error%': '__ERROR__'}) }}"
+    data-content--my-content-delete-sent-label-value="{{ 'my_content.delete.sent'|trans }}"
+>
+    <header class="my-content-header">
+        <div class="my-content-header__copy">
+            <p class="eyebrow">{{ 'my_content.eyebrow'|trans }}</p>
+            <h1>{{ 'my_content.title'|trans }}</h1>
+            <p>{{ 'my_content.description'|trans }}</p>
         </div>
-        <div class="fs-toolbar__actions">
-            <a class="fs-toolbar__btn" href="{{ path('editor-create') }}" title="New Article">+ Article</a>
-            <a class="fs-toolbar__btn" href="{{ path('read_wizard_new') }}" title="New Reading List">+ List</a>
+        <div class="my-content-header__actions">
+            <a class="btn btn--secondary" href="{{ path('read_wizard_new') }}">
+                {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+                {{ 'my_content.action.new_list'|trans }}
+            </a>
+            <a class="btn" href="{{ path('editor-create') }}">
+                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                {{ 'my_content.action.new_article'|trans }}
+            </a>
         </div>
+    </header>
+
+    <div class="my-content-summary" aria-label="{{ 'my_content.summary.label'|trans }}">
+        <div>
+            <strong>{{ counts.published }}</strong>
+            <span>{{ 'my_content.summary.published'|trans }}</span>
+        </div>
+        <div>
+            <strong>{{ counts.drafts }}</strong>
+            <span>{{ 'my_content.summary.drafts'|trans }}</span>
+        </div>
+        <div>
+            <strong>{{ counts.lists }}</strong>
+            <span>{{ 'my_content.summary.lists'|trans }}</span>
+        </div>
+        <a href="{{ path('reading_nook') }}">
+            {{ ux_icon('iconoir:bookmark', {class: 'icon'}) }}
+            <span>{{ 'my_content.action.open_bookmarks'|trans }}</span>
+            {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+        </a>
     </div>
 
-    <div class="fs-row fs-row--head">
-        <span class="fs-col fs-col--name">Name</span>
-        <span class="fs-col fs-col--date">Date Modified</span>
-        <span class="fs-col fs-col--size">Items</span>
-        <span class="fs-col fs-col--kind">Kind</span>
+    <nav class="my-content-tabs" aria-label="{{ 'my_content.tabs.label'|trans }}">
+        {% for type, label in {
+            all: 'my_content.tabs.all',
+            drafts: 'my_content.tabs.drafts',
+            published: 'my_content.tabs.published',
+            lists: 'my_content.tabs.lists'
+        } %}
+            <a
+                href="{{ path('my_content', {type: type, q: searchQuery, sort: sort}) }}"
+                {% if activeType == type %}aria-current="page"{% endif %}
+            >
+                <span>{{ label|trans }}</span>
+                <strong>{{ attribute(counts, type) }}</strong>
+            </a>
+        {% endfor %}
+    </nav>
+
+    <form class="my-content-toolbar" action="{{ path('my_content') }}" method="get">
+        <input type="hidden" name="type" value="{{ activeType }}">
+        <label class="my-content-search">
+            <span class="visually-hidden">{{ 'my_content.filter.search_label'|trans }}</span>
+            {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+            <input
+                type="search"
+                name="q"
+                value="{{ searchQuery }}"
+                placeholder="{{ 'my_content.filter.search_placeholder'|trans }}"
+                autocomplete="off"
+            >
+        </label>
+        <label class="my-content-sort">
+            <span>{{ 'my_content.filter.sort_label'|trans }}</span>
+            <select name="sort">
+                <option value="recent"{% if sort == 'recent' %} selected{% endif %}>{{ 'my_content.filter.sort_recent'|trans }}</option>
+                <option value="title"{% if sort == 'title' %} selected{% endif %}>{{ 'my_content.filter.sort_title'|trans }}</option>
+            </select>
+        </label>
+        <button class="btn btn-sm" type="submit">{{ 'my_content.filter.apply'|trans }}</button>
+        {% if searchQuery or sort != 'recent' %}
+            <a class="my-content-toolbar__clear" href="{{ path('my_content', {type: activeType}) }}">
+                {{ 'my_content.filter.clear'|trans }}
+            </a>
+        {% endif %}
+    </form>
+
+    <div class="my-content-results">
+        <p>{{ 'my_content.results_count'|trans({'%count%': filteredCount}) }}</p>
+        {% if totalPages > 1 %}
+            <p>{{ 'my_content.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</p>
+        {% endif %}
     </div>
 
-    {# ── /reading-lists ───────────────────────────────────────────────── #}
-    <details class="fs-folder" open>
-        <summary class="fs-row fs-row--folder">
-            <span class="fs-col fs-col--name">
-                <span class="fs-chevron"></span>
-                <span class="fs-icon fs-icon--folder"></span>
-                reading-lists
-            </span>
-            <span class="fs-col fs-col--date">—</span>
-            <span class="fs-col fs-col--size">{{ readingLists|length }} item{{ readingLists|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">-</span>
-        </summary>
-        <div class="fs-folder__children">
-            {% for item in readingLists %}
-                <details class="fs-subfolder">
-                    <summary class="fs-row fs-row--subfolder">
-                        <span class="fs-col fs-col--name">
-                            <span class="fs-chevron"></span>
-                            {% if item.kind == 30040 %}
-                                <span class="fs-icon fs-icon--readinglist"></span>
-                            {% elseif item.kind == 30005 %}
-                                <span class="fs-icon fs-icon--video"></span>
-                            {% elseif item.kind == 30006 %}
-                                <span class="fs-icon fs-icon--image"></span>
-                            {% else %}
-                                <span class="fs-icon fs-icon--curation"></span>
-                            {% endif %}
-                            <span class="fs-link" title="{{ item.slug ?: '' }}">
-                                {{ item.title }}
-                            </span>
-                            {% if item.isEmpty %}
-                                <span class="fs-badge fs-badge--warn">empty</span>
-                            {% endif %}
-                        </span>
-                        <span class="fs-col fs-col--date">{{ item.createdAt|date('Y-m-d H:i') }}</span>
-                        <span class="fs-col fs-col--size">{{ item.itemCount }} item{{ item.itemCount != 1 ? 's' : '' }}</span>
-                        <span class="fs-col fs-col--kind">
-                            {{ item.type }}
-                            {% if item.kind == 30040 %}
-                                {% if item.rawType == 'magazine' %}
-                                    <a href="{{ path('mag_wizard_edit', {'slug': item.slug}) }}" class="fs-action" title="Edit in magazine wizard">✎</a>
-                                {% else %}
-                                    <a href="{{ path('read_wizard_articles', {'load': item.slug}) }}" class="fs-action" title="Open composer">✎</a>
-                                    <a href="{{ path('mag_wizard_edit', {'slug': item.slug}) }}" class="fs-action" title="Edit as magazine">⊞</a>
-                                {% endif %}
-                            {% endif %}
-                            {% if item.slug %}
-                                {% if item.kind == 30040 %}
-                                    <a href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}" class="fs-action" title="View">↗</a>
-                                {% else %}
-                                    <a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}" class="fs-action" title="View">↗</a>
-                                {% endif %}
-                            {% endif %}
-                            {% if item.slug and item.pubkey and item.kind is defined %}
-                                <span data-controller="utility--copy-to-clipboard">
-                                    <code class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ item.kind }}:{{ item.pubkey }}:{{ item.slug }}</code>
-                                    <button class="fs-action"
-                                            data-utility--copy-to-clipboard-target="copyButton"
-                                            data-action="click->utility--copy-to-clipboard#copyToClipboard"
-                                            title="Copy coordinate">⧉</button>
-                                </span>
-                            {% endif %}
-                        </span>
-                    </summary>
-                    <div class="fs-subfolder__children">
-                        {% for article in item.articles %}
-                            <div class="fs-row fs-row--nested-file">
-                                <span class="fs-col fs-col--name">
-                                    {% if article.found %}
-                                    <a href="{{ path('editor-edit-slug', {slug: article.slug}) }}" class="fs-link{% if not article.found %} fs-link--dim{% endif %}" title="{{ article.coordinate }}">
-                                        {{ article.title }}
-                                    </a>
-                                    {% else %}
-                                    <span class="fs-link fs-link--dim" title="{{ article.coordinate }}">
-                                        {{ article.title }}
-                                    </span>
-                                    {% endif %}
-                                </span>
-                                <span class="fs-col fs-col--date">{{ article.createdAt ? article.createdAt|date('Y-m-d H:i') : '—' }}</span>
-                                <span class="fs-col fs-col--size">—</span>
-                                <span class="fs-col fs-col--kind">
-                                    {% if article.found %}
-                                        Article
-                                        <a href="{{ path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}" class="fs-action" title="View">↗</a>
-                                    {% else %}
-                                        <span class="fs-badge fs-badge--warn">not found</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                        {% else %}
-                            <div class="fs-row fs-row--nested-empty">
-                                <span class="fs-col fs-col--name fs-empty-msg">
-                                    <span class="fs-icon fs-icon--empty"></span>
-                                    (no articles)
-                                </span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </details>
-            {% else %}
-                <div class="fs-row fs-row--empty">
-                    <span class="fs-col fs-col--name fs-empty-msg">
-                        <span class="fs-icon fs-icon--empty"></span>
-                        (empty)
-                    </span>
-                </div>
-            {% endfor %}
+    <div class="my-content-inventory">
+        <div class="my-content-row my-content-row--head" aria-hidden="true">
+            <span>{{ 'my_content.column.content'|trans }}</span>
+            <span>{{ 'my_content.column.status'|trans }}</span>
+            <span>{{ 'my_content.column.updated'|trans }}</span>
+            <span>{{ 'my_content.column.items'|trans }}</span>
+            <span>{{ 'my_content.column.actions'|trans }}</span>
         </div>
-    </details>
 
-    {# ── /bookmarks ───────────────────────────────────────────────────── #}
-    <details class="fs-folder">
-        <summary class="fs-row fs-row--folder">
-            <span class="fs-col fs-col--name">
-                <span class="fs-chevron"></span>
-                <span class="fs-icon fs-icon--folder"></span>
-                bookmarks
-            </span>
-            <span class="fs-col fs-col--date">—</span>
-            <span class="fs-col fs-col--size">{{ bookmarks|length }} item{{ bookmarks|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">-</span>
-        </summary>
-        <div class="fs-folder__children">
-            {% for bm in bookmarks %}
-                <details class="fs-subfolder">
-                    <summary class="fs-row fs-row--subfolder">
-                        <span class="fs-col fs-col--name">
-                            <span class="fs-chevron"></span>
-                            <span class="fs-icon fs-icon--bookmark"></span>
-                            <span class="fs-link" title="{{ bm.identifier ?: '' }}">
-                                {{ bm.title }}
-                            </span>
-                        </span>
-                        <span class="fs-col fs-col--date">{{ bm.createdAt|date('Y-m-d H:i') }}</span>
-                        <span class="fs-col fs-col--size">{{ bm.itemCount }} item{{ bm.itemCount != 1 ? 's' : '' }}</span>
-                        <span class="fs-col fs-col--kind">{{ bm.type }}</span>
-                    </summary>
-                    <div class="fs-subfolder__children">
-                        {% for item in bm.items %}
-                            <div class="fs-row fs-row--nested-file">
-                                <span class="fs-col fs-col--name">
-                                    {% if item.type == 'a' %}
-                                        {% if item.found is defined and item.found %}
-                                            <span class="fs-icon fs-icon--article"></span>
-                                            <a href="{{ path('editor-edit-slug', {slug: item.slug}) }}" class="fs-link" title="{{ item.value }}">
-                                                {{ item.label }}
-                                            </a>
-                                        {% else %}
-                                            <span class="fs-icon fs-icon--missing"></span>
-                                            <span class="fs-link fs-link--dim" title="{{ item.value }}">{{ item.label }}</span>
-                                        {% endif %}
-                                    {% elseif item.type == 'e' %}
-                                        <span class="fs-icon fs-icon--event"></span>
-                                        <a href="{{ path('nevent', {nevent: item.value|nEncode}) }}" class="fs-link" title="{{ item.value }}">{{ item.label }}</a>
-                                    {% elseif item.type == 'p' %}
-                                        <span class="fs-icon fs-icon--profile"></span>
-                                        <a href="{{ path('author-redirect', {pubkey: item.value}) }}" class="fs-link" title="{{ item.value }}">{{ item.value|toNpub|shortenNpub }}</a>
-                                    {% elseif item.type == 't' %}
-                                        <span class="fs-icon fs-icon--tag"></span>
-                                        <span class="fs-link">{{ item.label }}</span>
-                                    {% endif %}
-                                </span>
-                                <span class="fs-col fs-col--date">—</span>
-                                <span class="fs-col fs-col--size">—</span>
-                                <span class="fs-col fs-col--kind">
-                                    {% if item.type == 'a' %}
-                                        {% if item.found is defined and item.found %}
-                                            Article
-                                            <a href="{{ path('author-article-slug', {npub: item.pubkey|toNpub, slug: item.slug}) }}" class="fs-action" title="View">↗</a>
-                                        {% else %}
-                                            <span class="fs-badge fs-badge--warn">not indexed</span>
-                                        {% endif %}
-                                    {% elseif item.type == 'e' %}
-                                        Event
-                                        <a href="{{ path('nevent', {nevent: item.value|nEncode}) }}" class="fs-action" title="View event">↗</a>
-                                    {% elseif item.type == 'p' %}
-                                        Profile
-                                        <a href="{{ path('author-redirect', {pubkey: item.value}) }}" class="fs-action" title="View profile">↗</a>
-                                    {% elseif item.type == 't' %}
-                                        Tag
-                                    {% endif %}
-                                </span>
-                            </div>
+        {% for item in contentItems %}
+            {% set title = item.title|default('my_content.untitled'|trans) %}
+            <article class="my-content-row" data-content-type="{{ item.category }}">
+                <div class="my-content-row__main">
+                    <span class="my-content-row__icon my-content-row__icon--{{ item.category }}" aria-hidden="true">
+                        {% if item.category == 'published' %}
+                            {{ ux_icon('iconoir:page', {class: 'icon'}) }}
+                        {% elseif item.category == 'drafts' %}
+                            {{ ux_icon('iconoir:page-edit', {class: 'icon'}) }}
                         {% else %}
-                            <div class="fs-row fs-row--nested-empty">
-                                <span class="fs-col fs-col--name fs-empty-msg">
-                                    <span class="fs-icon fs-icon--empty"></span>
-                                    (no items)
-                                </span>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </details>
-            {% else %}
-                <div class="fs-row fs-row--empty">
-                    <span class="fs-col fs-col--name fs-empty-msg">
-                        <span class="fs-icon fs-icon--empty"></span>
-                        (no bookmarks)
-                    </span>
-                </div>
-            {% endfor %}
-        </div>
-    </details>
-
-    {# ── /articles ────────────────────────────────────────────────────── #}
-    <details class="fs-folder" open>
-        <summary class="fs-row fs-row--folder">
-            <span class="fs-col fs-col--name">
-                <span class="fs-chevron"></span>
-                <span class="fs-icon fs-icon--folder"></span>
-                articles
-            </span>
-            <span class="fs-col fs-col--date">—</span>
-            <span class="fs-col fs-col--size">{{ articles|length }} item{{ articles|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">-</span>
-        </summary>
-        <div class="fs-folder__children">
-            {% for article in articles %}
-                <div class="fs-row fs-row--file">
-                    <span class="fs-col fs-col--name">
-                        <span class="fs-icon fs-icon--article"></span>
-                        <a href="{{ path('editor-edit-slug', {slug: article.slug}) }}" class="fs-link" title="{{ article.slug }}">
-                            {{ article.title|default('Untitled') }}
-                        </a>
-                    </span>
-                    <span class="fs-col fs-col--date">{{ article.publishedAt|date('Y-m-d H:i') }}</span>
-                    <span class="fs-col fs-col--size">—</span>
-                    <span class="fs-col fs-col--kind">
-                        Article
-                        <a href="{{ path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) }}" class="fs-action" title="View published">↗</a>
-                        {% if article.eventId %}
-                            <button
-                                type="button"
-                                class="fs-action"
-                                title="Sign delete request"
-                                data-controller="content--my-content-delete"
-                                data-action="click->content--my-content-delete#requestDelete"
-                                data-content--my-content-delete-publish-url-value="{{ path('api_settings_event_publish') }}"
-                                data-content--my-content-delete-event-id-value="{{ article.eventId }}"
-                                data-content--my-content-delete-coordinate-value="30023:{{ article.pubkey }}:{{ article.slug }}"
-                                data-content--my-content-delete-article-title-value="{{ article.title|default('Untitled') }}"
-                            >del</button>
+                            {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
                         {% endif %}
                     </span>
+                    <div>
+                        <h2>
+                            {% if item.category == 'published' %}
+                                <a href="{{ path('editor-edit-slug', {slug: item.article.slug}) }}">{{ title }}</a>
+                            {% elseif item.category == 'drafts' %}
+                                <a href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">{{ title }}</a>
+                            {% elseif item.list.kind == 30040 and item.list.slug %}
+                                <a href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">{{ title }}</a>
+                            {% elseif item.list.slug %}
+                                <a href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">{{ title }}</a>
+                            {% else %}
+                                {{ title }}
+                            {% endif %}
+                        </h2>
+                        {% if item.summary %}
+                            <p>{{ item.summary }}</p>
+                        {% else %}
+                            <p class="my-content-row__slug">
+                                {% if item.category == 'lists' %}
+                                    {{ item.list.slug|default('my_content.no_identifier'|trans) }}
+                                {% else %}
+                                    {{ item.article.slug }}
+                                {% endif %}
+                            </p>
+                        {% endif %}
+                    </div>
                 </div>
-            {% endfor %}
-            {% if articles|length == 0 %}
-                <div class="fs-row fs-row--empty">
-                    <span class="fs-col fs-col--name fs-empty-msg">
-                        <span class="fs-icon fs-icon--empty"></span>
-                        (empty)
-                    </span>
-                </div>
-            {% endif %}
-        </div>
-    </details>
 
-    {# ── /drafts ──────────────────────────────────────────────────────── #}
-    <details class="fs-folder" open>
-        <summary class="fs-row fs-row--folder">
-            <span class="fs-col fs-col--name">
-                <span class="fs-chevron"></span>
-                <span class="fs-icon fs-icon--folder"></span>
-                drafts
-            </span>
-            <span class="fs-col fs-col--date">—</span>
-            <span class="fs-col fs-col--size">{{ drafts|length }} item{{ drafts|length != 1 ? 's' : '' }}</span>
-            <span class="fs-col fs-col--kind">-</span>
-        </summary>
-        <div class="fs-folder__children">
-            {% for draft in drafts %}
-                <div class="fs-row fs-row--file">
-                    <span class="fs-col fs-col--name">
-                        <span class="fs-icon fs-icon--draft"></span>
-                        <a href="{{ path('editor-edit-slug-draft', {slug: draft.slug}) }}" class="fs-link" title="{{ draft.slug }}">
-                            {{ draft.title|default('Untitled') }}
-                        </a>
-                    </span>
-                    <span class="fs-col fs-col--date">{{ draft.createdAt|date('Y-m-d H:i') }}</span>
-                    <span class="fs-col fs-col--size">—</span>
-                    <span class="fs-col fs-col--kind">Draft</span>
+                <div class="my-content-row__status">
+                    {% if item.category == 'published' %}
+                        <span class="my-content-status my-content-status--published">{{ 'my_content.status.published'|trans }}</span>
+                    {% elseif item.category == 'drafts' %}
+                        <span class="my-content-status my-content-status--draft">{{ 'my_content.status.draft'|trans }}</span>
+                    {% else %}
+                        <span class="my-content-status my-content-status--list">{{ item.list.typeKey|trans }}</span>
+                        {% if item.list.isEmpty %}
+                            <small>{{ 'my_content.status.empty'|trans }}</small>
+                        {% endif %}
+                    {% endif %}
                 </div>
-            {% else %}
-                <div class="fs-row fs-row--empty">
-                    <span class="fs-col fs-col--name fs-empty-msg">
-                        <span class="fs-icon fs-icon--empty"></span>
-                        (empty)
-                    </span>
-                </div>
-            {% endfor %}
-        </div>
-    </details>
 
-    <div class="fs-statusbar">
-        {{ drafts|length }} draft{{ drafts|length != 1 ? 's' : '' }},
-        {{ articles|length }} article{{ articles|length != 1 ? 's' : '' }},
-        {{ readingLists|length }} list{{ readingLists|length != 1 ? 's' : '' }},
-        {{ bookmarks|length }} bookmark{{ bookmarks|length != 1 ? 's' : '' }}
+                <time datetime="{{ item.updatedAt ? item.updatedAt|date('c') : '' }}">
+                    {{ item.updatedAt ? item.updatedAt|date('Y-m-d') : '—' }}
+                </time>
+
+                <span class="my-content-row__count">
+                    {{ item.category == 'lists' ? item.list.itemCount : '—' }}
+                </span>
+
+                <details class="my-content-menu" name="my-content-actions">
+                    <summary aria-label="{{ 'my_content.action.menu'|trans({'%title%': title}) }}">
+                        {{ ux_icon('iconoir:more-horiz', {class: 'icon'}) }}
+                    </summary>
+                    <div class="my-content-menu__panel">
+                        {% if item.category == 'published' %}
+                            <a href="{{ path('editor-edit-slug', {slug: item.article.slug}) }}">
+                                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                                {{ 'my_content.action.edit'|trans }}
+                            </a>
+                            <a href="{{ path('author-article-slug', {npub: item.article.pubkey|toNpub, slug: item.article.slug}) }}">
+                                {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+                                {{ 'my_content.action.view'|trans }}
+                            </a>
+                        {% elseif item.category == 'drafts' %}
+                            <a href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">
+                                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                                {{ 'my_content.action.edit'|trans }}
+                            </a>
+                        {% elseif item.list.kind == 30040 and item.list.slug %}
+                            <a href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">
+                                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                                {{ 'my_content.action.edit'|trans }}
+                            </a>
+                            <a href="{{ path('reading-list', {slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
+                                {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+                                {{ 'my_content.action.view'|trans }}
+                            </a>
+                        {% elseif item.list.slug %}
+                            <a href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
+                                {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+                                {{ 'my_content.action.view'|trans }}
+                            </a>
+                        {% endif %}
+
+                        {% if item.category == 'lists' and item.list.slug %}
+                            {% set coordinate = item.list.kind ~ ':' ~ item.list.pubkey ~ ':' ~ item.list.slug %}
+                        {% elseif item.category == 'drafts' %}
+                            {% set coordinate = '30024:' ~ item.article.pubkey ~ ':' ~ item.article.slug %}
+                        {% elseif item.category == 'published' %}
+                            {% set coordinate = '30023:' ~ item.article.pubkey ~ ':' ~ item.article.slug %}
+                        {% else %}
+                            {% set coordinate = null %}
+                        {% endif %}
+
+                        {% if coordinate %}
+                            <span data-controller="utility--copy-to-clipboard">
+                                <code class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ coordinate }}</code>
+                                <button
+                                    type="button"
+                                    data-utility--copy-to-clipboard-target="copyButton"
+                                    data-action="click->utility--copy-to-clipboard#copyToClipboard"
+                                >
+                                    {{ ux_icon('iconoir:copy', {class: 'icon'}) }}
+                                    {{ 'my_content.action.copy_coordinate'|trans }}
+                                </button>
+                            </span>
+                        {% endif %}
+
+                        {% if item.category == 'published' and item.article.eventId %}
+                            <hr>
+                            <button
+                                type="button"
+                                class="my-content-menu__danger"
+                                data-action="click->content--my-content-delete#open"
+                                data-event-id="{{ item.article.eventId }}"
+                                data-coordinate="30023:{{ item.article.pubkey }}:{{ item.article.slug }}"
+                                data-article-title="{{ title }}"
+                            >
+                                {{ ux_icon('iconoir:trash', {class: 'icon'}) }}
+                                <span data-delete-label>{{ 'my_content.action.delete'|trans }}</span>
+                            </button>
+                        {% endif %}
+                    </div>
+                </details>
+            </article>
+        {% else %}
+            <div class="my-content-empty">
+                {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+                <h2>{{ 'my_content.empty.title'|trans }}</h2>
+                <p>{{ 'my_content.empty.description'|trans }}</p>
+                {% if searchQuery or activeType != 'all' %}
+                    <a class="btn btn--secondary" href="{{ path('my_content') }}">{{ 'my_content.filter.clear'|trans }}</a>
+                {% else %}
+                    <a class="btn" href="{{ path('editor-create') }}">{{ 'my_content.action.new_article'|trans }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
     </div>
-</div>
+
+    {% if totalPages > 1 %}
+        <nav class="my-content-pagination" aria-label="{{ 'my_content.pagination.label'|trans }}">
+            {% if page > 1 %}
+                <a class="btn btn--secondary btn-sm my-content-pagination__previous" href="{{ path('my_content', currentQuery|merge({page: page - 1})) }}">
+                    {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
+                    {{ 'my_content.pagination.previous'|trans }}
+                </a>
+            {% endif %}
+            <span>{{ 'my_content.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</span>
+            {% if page < totalPages %}
+                <a class="btn btn--secondary btn-sm my-content-pagination__next" href="{{ path('my_content', currentQuery|merge({page: page + 1})) }}">
+                    {{ 'my_content.pagination.next'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
+            {% endif %}
+        </nav>
+    {% endif %}
+
+    <dialog
+        class="my-content-delete-dialog"
+        data-content--my-content-delete-target="dialog"
+        data-action="click->content--my-content-delete#dismissOnBackdrop"
+        aria-labelledby="my-content-delete-title"
+    >
+        <div class="my-content-delete-dialog__header">
+            <div>
+                <p class="eyebrow">{{ 'my_content.delete.eyebrow'|trans }}</p>
+                <h2 id="my-content-delete-title">{{ 'my_content.delete.title'|trans }}</h2>
+            </div>
+            <button
+                type="button"
+                class="my-content-delete-dialog__close"
+                data-action="click->content--my-content-delete#cancel"
+                aria-label="{{ 'my_content.action.close'|trans }}"
+            >
+                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
+            </button>
+        </div>
+        <p data-content--my-content-delete-target="description"></p>
+        <div class="my-content-delete-dialog__actions">
+            <button type="button" class="btn btn--secondary" data-action="click->content--my-content-delete#cancel">
+                {{ 'my_content.action.cancel'|trans }}
+            </button>
+            <button
+                type="button"
+                class="btn my-content-delete-dialog__confirm"
+                data-content--my-content-delete-target="confirm"
+                data-action="click->content--my-content-delete#confirm"
+            >
+                {{ 'my_content.action.confirm_delete'|trans }}
+            </button>
+        </div>
+    </dialog>
+</section>
 {% endblock %}

@@ -8,17 +8,17 @@ use App\Entity\Article;
 use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
+use App\Repository\ArticleRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use swentel\nostr\Key\Key;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * My Content Controller
- *
- * Provides a unified "file manager" view of a user's articles, drafts,
+ * Provides a searchable publishing inventory for a user's articles, drafts,
  * and reading lists / curation sets.
  */
 class MyContentController extends AbstractController
@@ -27,71 +27,141 @@ class MyContentController extends AbstractController
 
     #[Route('/my-content', name: 'my_content')]
     #[IsGranted('ROLE_USER')]
-    public function index(EntityManagerInterface $em): Response
+    public function index(EntityManagerInterface $em, Request $request): Response
     {
         $key = new Key();
         $pubkeyHex = $key->convertToHex($this->getUser()->getUserIdentifier());
 
-        // ── Published articles ────────────────────────────────────────────
-        $allArticles = $em->getRepository(Article::class)
-            ->findBy(
-                ['pubkey' => $pubkeyHex, 'kind' => KindsEnum::LONGFORM],
-                ['createdAt' => 'DESC']
-            );
-
-        // Collapse by slug – keep only the latest revision
-        $articles = array_values(array_reduce($allArticles, function ($carry, $item) {
-            if (!isset($carry[$item->getSlug()])) {
-                $carry[$item->getSlug()] = $item;
-            }
-            return $carry;
-        }, []) ?? []);
-
-        // ── Drafts ────────────────────────────────────────────────────────
-        $allDrafts = $em->getRepository(Article::class)
-            ->findBy(
-                ['pubkey' => $pubkeyHex, 'kind' => KindsEnum::LONGFORM_DRAFT],
-                ['createdAt' => 'DESC']
-            );
-
-        $drafts = array_values(array_reduce($allDrafts, function ($carry, $item) {
-            if (!isset($carry[$item->getSlug()])) {
-                $carry[$item->getSlug()] = $item;
-            }
-            return $carry;
-        }, []) ?? []);
-
-        // ── Reading lists & curation sets ─────────────────────────────────
+        /** @var ArticleRepository $articleRepository */
+        $articleRepository = $em->getRepository(Article::class);
+        $articles = $articleRepository->findLatestRevisionsByAuthorAndKind($pubkeyHex, KindsEnum::LONGFORM);
+        $drafts = $articleRepository->findLatestRevisionsByAuthorAndKind($pubkeyHex, KindsEnum::LONGFORM_DRAFT);
         $readingLists = $this->fetchReadingLists($em, $pubkeyHex);
 
-        // ── Bookmarks ─────────────────────────────────────────────────────
-        $bookmarks = $this->fetchBookmarks($em, $pubkeyHex);
+        $contentItems = [];
+        foreach ($articles as $article) {
+            $contentItems[] = [
+                'category' => 'published',
+                'title' => $article->getTitle() ?: $article->getSlug(),
+                'summary' => $article->getSummary(),
+                'updatedAt' => $article->getPublishedAt() ?? $article->getCreatedAt(),
+                'searchText' => implode(' ', array_filter([
+                    $article->getTitle(),
+                    $article->getSummary(),
+                    $article->getSlug(),
+                ])),
+                'article' => $article,
+            ];
+        }
+
+        foreach ($drafts as $draft) {
+            $contentItems[] = [
+                'category' => 'drafts',
+                'title' => $draft->getTitle() ?: $draft->getSlug(),
+                'summary' => $draft->getSummary(),
+                'updatedAt' => $draft->getCreatedAt(),
+                'searchText' => implode(' ', array_filter([
+                    $draft->getTitle(),
+                    $draft->getSummary(),
+                    $draft->getSlug(),
+                ])),
+                'article' => $draft,
+            ];
+        }
+
+        foreach ($readingLists as $readingList) {
+            $contentItems[] = [
+                'category' => 'lists',
+                'title' => $readingList['title'],
+                'summary' => $readingList['summary'],
+                'updatedAt' => $readingList['createdAt'],
+                'searchText' => implode(' ', array_filter([
+                    $readingList['title'],
+                    $readingList['summary'],
+                    $readingList['slug'],
+                ])),
+                'list' => $readingList,
+            ];
+        }
+
+        $counts = [
+            'all' => count($contentItems),
+            'published' => count($articles),
+            'drafts' => count($drafts),
+            'lists' => count($readingLists),
+        ];
+
+        $activeType = $request->query->getString('type', 'all');
+        if (!in_array($activeType, ['all', 'drafts', 'published', 'lists'], true)) {
+            $activeType = 'all';
+        }
+
+        $searchQuery = trim($request->query->getString('q'));
+        $normalizedQuery = mb_strtolower($searchQuery);
+        $sort = $request->query->getString('sort', 'recent');
+        if (!in_array($sort, ['recent', 'title'], true)) {
+            $sort = 'recent';
+        }
+
+        $filteredItems = array_values(array_filter(
+            $contentItems,
+            static function (array $item) use ($activeType, $normalizedQuery): bool {
+                if ($activeType !== 'all' && $item['category'] !== $activeType) {
+                    return false;
+                }
+
+                return $normalizedQuery === ''
+                    || str_contains(mb_strtolower($item['searchText']), $normalizedQuery);
+            },
+        ));
+
+        usort(
+            $filteredItems,
+            static function (array $left, array $right) use ($sort): int {
+                if ($sort === 'title') {
+                    return strnatcasecmp((string) $left['title'], (string) $right['title']);
+                }
+
+                return ($right['updatedAt']?->getTimestamp() ?? 0)
+                    <=> ($left['updatedAt']?->getTimestamp() ?? 0);
+            },
+        );
+
+        $pageSize = 25;
+        $filteredCount = count($filteredItems);
+        $totalPages = max(1, (int) ceil($filteredCount / $pageSize));
+        $page = min(max(1, $request->query->getInt('page', 1)), $totalPages);
+        $visibleItems = array_slice($filteredItems, ($page - 1) * $pageSize, $pageSize);
 
         return $this->render('my_content/index.html.twig', [
             'newsroomNav' => $this->buildNewsroomNav(),
-            'articles' => $articles,
-            'drafts' => $drafts,
-            'readingLists' => $readingLists,
-            'bookmarks' => $bookmarks,
+            'contentItems' => $visibleItems,
+            'counts' => $counts,
+            'activeType' => $activeType,
+            'searchQuery' => $searchQuery,
+            'sort' => $sort,
+            'filteredCount' => $filteredCount,
+            'page' => $page,
+            'totalPages' => $totalPages,
         ]);
     }
 
     /**
-     * Fetch reading lists and curation sets for the given pubkey.
-     * Reuses the same logic that was in ReadingListController::index.
+     * Fetch the latest reading-list and curation-set revision for each slug.
+     *
+     * @return array<int, array<string, mixed>>
      */
     private function fetchReadingLists(EntityManagerInterface $em, string $pubkeyHex): array
     {
-        $repo = $em->getRepository(Event::class);
-
-        $events = $repo->createQueryBuilder('e')
+        $events = $em->getRepository(Event::class)
+            ->createQueryBuilder('e')
             ->where('e.kind IN (:kinds)')
             ->andWhere('e.pubkey = :pubkey')
             ->setParameter('kinds', [
-                KindsEnum::PUBLICATION_INDEX->value,  // 30040
-                KindsEnum::CURATION_SET->value,       // 30004
-                KindsEnum::CURATION_VIDEOS->value,    // 30005
-                KindsEnum::CURATION_PICTURES->value,  // 30006
+                KindsEnum::PUBLICATION_INDEX->value,
+                KindsEnum::CURATION_SET->value,
+                KindsEnum::CURATION_VIDEOS->value,
+                KindsEnum::CURATION_PICTURES->value,
             ])
             ->setParameter('pubkey', $pubkeyHex)
             ->orderBy('e.created_at', 'DESC')
@@ -101,13 +171,12 @@ class MyContentController extends AbstractController
         $lists = [];
         $seenSlugs = [];
 
-        foreach ($events as $ev) {
-            if (!$ev instanceof Event) {
+        foreach ($events as $event) {
+            if (!$event instanceof Event) {
                 continue;
             }
 
-            $tags = $ev->getTags();
-            $kind = $ev->getKind();
+            $kind = $event->getKind();
             $hasMagazineReferences = false;
             $hasAnyATags = false;
             $hasAnyETags = false;
@@ -116,257 +185,67 @@ class MyContentController extends AbstractController
             $summary = null;
             $itemCount = 0;
 
-            $typeLabel = match ($kind) {
-                30040 => 'Reading List',
-                30004 => 'Articles/Notes',
-                30005 => 'Videos',
-                30006 => 'Pictures',
-                default => null,
+            $typeKey = match ($kind) {
+                KindsEnum::PUBLICATION_INDEX->value => 'my_content.type.reading_list',
+                KindsEnum::CURATION_SET->value => 'my_content.type.articles_notes',
+                KindsEnum::CURATION_VIDEOS->value => 'my_content.type.videos',
+                KindsEnum::CURATION_PICTURES->value => 'my_content.type.pictures',
+                default => 'my_content.type.reading_list',
             };
 
-            $coordinates = []; // Full coordinate strings (e.g. "30023:pubkey:slug")
-
-            foreach ($tags as $t) {
-                if (!is_array($t)) {
+            foreach ($event->getTags() as $tag) {
+                if (!is_array($tag)) {
                     continue;
                 }
-                if (($t[0] ?? null) === 'title') { $title = (string)($t[1] ?? ''); }
-                if (($t[0] ?? null) === 'summary') { $summary = (string)($t[1] ?? ''); }
-                if (($t[0] ?? null) === 'd') { $slug = (string)($t[1] ?? ''); }
 
-                if (($t[0] ?? null) === 'a' && isset($t[1])) {
+                if (($tag[0] ?? null) === 'title') {
+                    $title = (string) ($tag[1] ?? '');
+                }
+                if (($tag[0] ?? null) === 'summary') {
+                    $summary = (string) ($tag[1] ?? '');
+                }
+                if (($tag[0] ?? null) === 'd') {
+                    $slug = (string) ($tag[1] ?? '');
+                }
+                if (($tag[0] ?? null) === 'a' && isset($tag[1])) {
                     $hasAnyATags = true;
-                    $itemCount++;
-                    $coordinates[] = (string)$t[1];
-                    if (str_starts_with((string)$t[1], '30040:')) {
+                    ++$itemCount;
+                    if (str_starts_with((string) $tag[1], '30040:')) {
                         $hasMagazineReferences = true;
                     }
                 }
-                if (($t[0] ?? null) === 'e' && isset($t[1])) {
+                if (($tag[0] ?? null) === 'e' && isset($tag[1])) {
                     $hasAnyETags = true;
-                    $itemCount++;
+                    ++$itemCount;
                 }
             }
 
-            // Skip magazine indexes (events that reference other 30040 events)
-            if ($kind === 30040 && $hasMagazineReferences) {
+            // Magazine indexes reference other 30040 events; they are managed
+            // from the dedicated magazine workspace.
+            if ($kind === KindsEnum::PUBLICATION_INDEX->value && $hasMagazineReferences) {
                 continue;
             }
 
-            $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
-            if (isset($seenSlugs[$slug ?? $keySlug])) {
+            $dedupeKey = $kind . ':' . ($slug ?: '__no_slug__:' . $event->getId());
+            if (isset($seenSlugs[$dedupeKey])) {
                 continue;
             }
-            $seenSlugs[$slug ?? $keySlug] = true;
+            $seenSlugs[$dedupeKey] = true;
 
             $lists[] = [
-                'id' => $ev->getId(),
-                'title' => $title ?: '(untitled)',
+                'id' => $event->getId(),
+                'title' => $title ?: $slug,
                 'summary' => $summary,
                 'slug' => $slug,
-                'createdAt' => $ev->getCreatedAt(),
-                'pubkey' => $ev->getPubkey(),
+                'createdAt' => $event->getCreatedAt(),
+                'pubkey' => $event->getPubkey(),
                 'kind' => $kind,
-                'type' => $typeLabel,
+                'typeKey' => $typeKey,
                 'itemCount' => $itemCount,
                 'isEmpty' => !$hasAnyATags && !$hasAnyETags,
-                'articles' => $this->resolveCoordinates($em, $coordinates),
             ];
         }
 
         return $lists;
     }
-
-    /**
-     * Fetch bookmarks and bookmark sets for the given pubkey.
-     * Kinds: 10003 (Bookmarks), 30003 (Bookmark Sets).
-     *
-     * @return array<array{title: string, kind: int, type: string, createdAt: mixed, itemCount: int, items: array}>
-     */
-    private function fetchBookmarks(EntityManagerInterface $em, string $pubkeyHex): array
-    {
-        $repo = $em->getRepository(Event::class);
-
-        $events = $repo->createQueryBuilder('e')
-            ->where('e.pubkey = :pubkey')
-            ->andWhere('e.kind IN (:kinds)')
-            ->setParameter('pubkey', $pubkeyHex)
-            ->setParameter('kinds', [
-                KindsEnum::BOOKMARKS->value,      // 10003
-                KindsEnum::BOOKMARK_SETS->value,   // 30003
-            ])
-            ->orderBy('e.created_at', 'DESC')
-            ->setMaxResults(50)
-            ->getQuery()
-            ->getResult();
-
-        $bookmarks = [];
-        $seenIdentifiers = [];
-
-        foreach ($events as $ev) {
-            if (!$ev instanceof Event) {
-                continue;
-            }
-
-            $tags = $ev->getTags();
-            $kind = $ev->getKind();
-            $title = null;
-            $identifier = null;
-            $summary = null;
-            $items = [];
-
-            $typeLabel = match ($kind) {
-                KindsEnum::BOOKMARKS->value => 'Bookmarks',
-                KindsEnum::BOOKMARK_SETS->value => 'Bookmark Set',
-                default => 'Bookmarks',
-            };
-
-            foreach ($tags as $t) {
-                if (!is_array($t) || count($t) < 2) {
-                    continue;
-                }
-                switch ($t[0]) {
-                    case 'd':
-                        $identifier = (string)$t[1];
-                        break;
-                    case 'title':
-                        $title = (string)$t[1];
-                        break;
-                    case 'summary':
-                        $summary = (string)$t[1];
-                        break;
-                    case 'e':
-                        $items[] = ['type' => 'e', 'value' => $t[1], 'label' => substr($t[1], 0, 12) . '…', 'relay' => $t[2] ?? null];
-                        break;
-                    case 'a':
-                        $items[] = ['type' => 'a', 'value' => $t[1], 'label' => $t[1], 'relay' => $t[2] ?? null];
-                        break;
-                    case 'p':
-                        $items[] = ['type' => 'p', 'value' => $t[1], 'label' => substr($t[1], 0, 12) . '…'];
-                        break;
-                    case 't':
-                        $items[] = ['type' => 't', 'value' => $t[1], 'label' => '#' . $t[1]];
-                        break;
-                }
-            }
-
-            // Collapse 30003 by identifier (d-tag); 10003 is a singleton
-            $dedupeKey = $kind === KindsEnum::BOOKMARK_SETS->value
-                ? ($identifier ?: '__no_id__:' . $ev->getId())
-                : '__bookmarks_' . $kind;
-
-            if (isset($seenIdentifiers[$dedupeKey])) {
-                continue;
-            }
-            $seenIdentifiers[$dedupeKey] = true;
-
-            // Resolve 'a' tag coordinates to article titles
-            $aCoordinates = array_filter($items, fn($i) => $i['type'] === 'a');
-            $resolvedArticles = $this->resolveCoordinates(
-                $em,
-                array_map(fn($i) => $i['value'], $aCoordinates)
-            );
-            $resolvedByCoord = [];
-            foreach ($resolvedArticles as $r) {
-                $resolvedByCoord[$r['coordinate']] = $r;
-            }
-
-            // Enrich items with resolved titles
-            foreach ($items as &$item) {
-                if ($item['type'] === 'a' && isset($resolvedByCoord[$item['value']])) {
-                    $resolved = $resolvedByCoord[$item['value']];
-                    $item['label'] = $resolved['title'];
-                    $item['found'] = $resolved['found'];
-                    $item['slug'] = $resolved['slug'];
-                    $item['pubkey'] = $resolved['pubkey'];
-                } else {
-                    $item['found'] = $item['type'] !== 'a'; // non-'a' items are always "found"
-                }
-            }
-            unset($item);
-
-            $bookmarks[] = [
-                'id' => $ev->getId(),
-                'title' => $title ?: ($identifier ?: ($kind === KindsEnum::BOOKMARKS->value ? 'Bookmarks' : '(untitled)')),
-                'summary' => $summary,
-                'identifier' => $identifier,
-                'kind' => $kind,
-                'type' => $typeLabel,
-                'createdAt' => $ev->getCreatedAt(),
-                'itemCount' => count($items),
-                'items' => $items,
-            ];
-        }
-
-        return $bookmarks;
-    }
-
-    /**
-     * Resolve an array of Nostr coordinate strings (kind:pubkey:slug) to Article entities.
-     *
-     * @param  string[] $coordinates  e.g. ["30023:abc123:my-article", …]
-     * @return array<array{title: string, slug: string, pubkey: string, kind: int, createdAt: \DateTimeInterface|null, coordinate: string}>
-     */
-    private function resolveCoordinates(EntityManagerInterface $em, array $coordinates): array
-    {
-        if (empty($coordinates)) {
-            return [];
-        }
-
-        // Parse coordinates into lookup-friendly parts
-        $parsed = [];
-        foreach ($coordinates as $coord) {
-            $parts = explode(':', $coord, 3);
-            if (count($parts) === 3) {
-                $parsed[] = [
-                    'kind' => (int) $parts[0],
-                    'pubkey' => $parts[1],
-                    'slug' => $parts[2],
-                    'coordinate' => $coord,
-                ];
-            }
-        }
-
-        if (empty($parsed)) {
-            return [];
-        }
-
-        // Batch-query all slugs at once, then match in PHP
-        $slugs = array_unique(array_column($parsed, 'slug'));
-        $dbArticles = $em->getRepository(Article::class)
-            ->createQueryBuilder('a')
-            ->where('a.slug IN (:slugs)')
-            ->setParameter('slugs', $slugs)
-            ->orderBy('a.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
-
-        // Index by pubkey:slug (keep latest only)
-        $indexed = [];
-        foreach ($dbArticles as $a) {
-            $key = $a->getPubkey() . ':' . $a->getSlug();
-            if (!isset($indexed[$key])) {
-                $indexed[$key] = $a;
-            }
-        }
-
-        // Build result in original coordinate order
-        $result = [];
-        foreach ($parsed as $p) {
-            $key = $p['pubkey'] . ':' . $p['slug'];
-            $article = $indexed[$key] ?? null;
-            $result[] = [
-                'title' => $article ? ($article->getTitle() ?: $p['slug']) : $p['slug'],
-                'slug' => $p['slug'],
-                'pubkey' => $p['pubkey'],
-                'kind' => $article ? $article->getKind() : $p['kind'],
-                'createdAt' => $article?->getCreatedAt(),
-                'coordinate' => $p['coordinate'],
-                'found' => $article !== null,
-            ];
-        }
-
-        return $result;
-    }
 }
-

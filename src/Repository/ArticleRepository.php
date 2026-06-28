@@ -18,6 +18,52 @@ class ArticleRepository extends ServiceEntityRepository
     }
 
     /**
+     * Return the newest revision of each slug for one author and event kind.
+     *
+     * The DISTINCT ON query keeps revision collapsing in PostgreSQL instead of
+     * hydrating every historical revision and reducing the result in PHP.
+     *
+     * @return Article[]
+     */
+    public function findLatestRevisionsByAuthorAndKind(string $pubkey, KindsEnum $kind): array
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $ids = $connection->fetchFirstColumn(
+            <<<'SQL'
+                SELECT latest.id
+                FROM (
+                    SELECT DISTINCT ON (slug) id, slug, created_at
+                    FROM article
+                    WHERE pubkey = :pubkey
+                      AND kind = :kind
+                      AND slug IS NOT NULL
+                    ORDER BY slug, created_at DESC
+                ) latest
+                ORDER BY latest.created_at DESC
+                SQL,
+            [
+                'pubkey' => $pubkey,
+                'kind' => $kind->value,
+            ],
+            [
+                'pubkey' => ParameterType::STRING,
+                'kind' => ParameterType::INTEGER,
+            ],
+        );
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('a')
+            ->where('a.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('a.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Find latest articles, grouped by slug (one per slug), excluding muted pubkeys
      *
      * @param int $limit
@@ -911,5 +957,4 @@ class ArticleRepository extends ServiceEntityRepository
         );
     }
 }
-
 

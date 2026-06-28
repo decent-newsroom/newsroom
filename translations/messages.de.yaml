@@ -622,17 +622,80 @@ feedback:
     preview: 'Vorschau'
 
 # ── Meine Inhalte ────────────────────────────────────────────────────────
-myContent:
-    heading: 'meine-inhalte'
-    newArticle: '+ Artikel'
-    newList: '+ Liste'
-    name: 'Name'
-    dateModified: 'Änderungsdatum'
-    items: 'Einträge'
-    kind: 'Art'
-    readingLists: 'leselisten'
-    articlesDirName: 'artikel'
-    draftsDirName: 'entwürfe'
+my_content:
+    eyebrow: 'Newsroom'
+    title: 'Meine Inhalte'
+    description: 'Entwirf, veröffentliche und organisiere deine Arbeit an einem übersichtlichen Redaktionsplatz.'
+    untitled: 'Ohne Titel'
+    no_identifier: 'Keine Kennung'
+    results_count: '%count% Ergebnisse'
+    action:
+        new_article: 'Neuer Artikel'
+        new_list: 'Neue Liste'
+        open_bookmarks: 'Lesezeichen in der Leseecke'
+        edit: 'Bearbeiten'
+        view: 'Ansehen'
+        copy_coordinate: 'Koordinate kopieren'
+        delete: 'Löschen'
+        menu: 'Aktionen für %title%'
+        close: 'Schließen'
+        cancel: 'Abbrechen'
+        confirm_delete: 'Löschanfrage senden'
+    summary:
+        label: 'Inhaltsübersicht'
+        published: 'Veröffentlicht'
+        drafts: 'Entwürfe'
+        lists: 'Listen'
+    tabs:
+        label: 'Inhalte filtern'
+        all: 'Alle'
+        drafts: 'Entwürfe'
+        published: 'Veröffentlicht'
+        lists: 'Listen'
+    filter:
+        search_label: 'Inhalte durchsuchen'
+        search_placeholder: 'Titel, Zusammenfassungen oder Kennungen durchsuchen'
+        sort_label: 'Sortieren'
+        sort_recent: 'Zuletzt aktualisiert'
+        sort_title: 'Titel A–Z'
+        apply: 'Anwenden'
+        clear: 'Filter löschen'
+    column:
+        content: 'Inhalt'
+        status: 'Status'
+        updated: 'Aktualisiert'
+        items: 'Einträge'
+        actions: 'Aktionen'
+    status:
+        published: 'Veröffentlicht'
+        draft: 'Entwurf'
+        empty: 'Leer'
+    type:
+        reading_list: 'Leseliste'
+        articles_notes: 'Artikel / Notizen'
+        videos: 'Videos'
+        pictures: 'Bilder'
+    empty:
+        title: 'Keine passenden Inhalte'
+        description: 'Versuche einen anderen Filter oder beginne einen neuen Artikel.'
+    pagination:
+        label: 'Inhaltsseiten'
+        previous: 'Zurück'
+        next: 'Weiter'
+        page: 'Seite %current% von %total%'
+    delete:
+        eyebrow: 'NIP-09'
+        title: 'Veröffentlichten Artikel löschen?'
+        confirm_description: 'Dies sendet eine signierte Löschanfrage für „%title%“. Relays können Kopien behalten.'
+        event_content: 'Löschanfrage für %title%'
+        missing_event: 'Die Event-ID des Artikels fehlt.'
+        connecting: 'Verbindung zum Signer wird hergestellt…'
+        signing: 'Signatur wird angefordert…'
+        publishing: 'Löschanfrage wird veröffentlicht…'
+        rejected: 'Die Löschanfrage wurde von den Relays nicht akzeptiert.'
+        success: 'Löschanfrage veröffentlicht.'
+        failed: 'Löschanfrage fehlgeschlagen: %error%'
+        sent: 'Löschanfrage gesendet'
 
 newsroom:
     nav:

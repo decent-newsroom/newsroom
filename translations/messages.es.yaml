@@ -611,17 +611,80 @@ feedback:
     preview: 'Vista previa'
 
 # ── Mi contenido ────────────────────────────────────────────────────────────
-myContent:
-    heading: 'mi-contenido'
-    newArticle: '+ Artículo'
-    newList: '+ Lista'
-    name: 'Nombre'
-    dateModified: 'Fecha de modificación'
-    items: 'Elementos'
-    kind: 'Tipo'
-    readingLists: 'listas-de-lectura'
-    articlesDirName: 'artículos'
-    draftsDirName: 'borradores'
+my_content:
+    eyebrow: 'Redacción'
+    title: 'Mi contenido'
+    description: 'Redacta, publica y organiza tu trabajo desde un único espacio editorial.'
+    untitled: 'Sin título'
+    no_identifier: 'Sin identificador'
+    results_count: '%count% resultados'
+    action:
+        new_article: 'Nuevo artículo'
+        new_list: 'Nueva lista'
+        open_bookmarks: 'Marcadores en el rincón de lectura'
+        edit: 'Editar'
+        view: 'Ver'
+        copy_coordinate: 'Copiar coordenada'
+        delete: 'Eliminar'
+        menu: 'Acciones para %title%'
+        close: 'Cerrar'
+        cancel: 'Cancelar'
+        confirm_delete: 'Enviar solicitud de eliminación'
+    summary:
+        label: 'Resumen del contenido'
+        published: 'Publicados'
+        drafts: 'Borradores'
+        lists: 'Listas'
+    tabs:
+        label: 'Filtrar contenido'
+        all: 'Todo'
+        drafts: 'Borradores'
+        published: 'Publicados'
+        lists: 'Listas'
+    filter:
+        search_label: 'Buscar contenido'
+        search_placeholder: 'Buscar títulos, resúmenes o identificadores'
+        sort_label: 'Ordenar'
+        sort_recent: 'Actualizado recientemente'
+        sort_title: 'Título A–Z'
+        apply: 'Aplicar'
+        clear: 'Borrar filtros'
+    column:
+        content: 'Contenido'
+        status: 'Estado'
+        updated: 'Actualizado'
+        items: 'Elementos'
+        actions: 'Acciones'
+    status:
+        published: 'Publicado'
+        draft: 'Borrador'
+        empty: 'Vacía'
+    type:
+        reading_list: 'Lista de lectura'
+        articles_notes: 'Artículos / notas'
+        videos: 'Vídeos'
+        pictures: 'Imágenes'
+    empty:
+        title: 'Nada coincide con esta vista'
+        description: 'Prueba otro filtro o comienza un artículo nuevo.'
+    pagination:
+        label: 'Páginas de contenido'
+        previous: 'Anterior'
+        next: 'Siguiente'
+        page: 'Página %current% de %total%'
+    delete:
+        eyebrow: 'NIP-09'
+        title: '¿Eliminar el artículo publicado?'
+        confirm_description: 'Esto envía una solicitud de eliminación firmada para «%title%». Los relays pueden conservar copias.'
+        event_content: 'Solicitud de eliminación de %title%'
+        missing_event: 'Falta el ID del evento del artículo.'
+        connecting: 'Conectando con el firmante…'
+        signing: 'Solicitando firma…'
+        publishing: 'Publicando solicitud de eliminación…'
+        rejected: 'Los relays no aceptaron la solicitud de eliminación.'
+        success: 'Solicitud de eliminación publicada.'
+        failed: 'La solicitud de eliminación falló: %error%'
+        sent: 'Solicitud de eliminación enviada'
 
 newsroom:
     nav:
