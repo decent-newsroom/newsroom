@@ -1,17 +1,18 @@
 {% if article is defined %}
     {% set itemNaddr = attribute(article, 'naddr', [], 'any', true) ? attribute(article, 'naddr') : null %}
-    {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? article.kind.value ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
+    {% set articleKind = article.kind.value|default(article.kind|default(30023)) %}
+    {% set bookmarkCoordinate = (article.slug is defined and article.slug and article.pubkey is defined and article.pubkey) ? articleKind ~ ':' ~ article.pubkey ~ ':' ~ article.slug : null %}
 
-    {% if article.kind.value == 30817 and cat and mag %}
-        {% set link = path('magazine-category-wiki', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
+    {% if articleKind == 30817 and cat and mag %}
+        {% set link = path('magazine-category-wiki', {slug: article.slug, cat: cat, mag: mag}) %}
     {% elseif itemNaddr %}
         {% set link = path('nevent', {nevent: itemNaddr}) %}
-    {% elseif article.kind.value == 30024 %}
-        {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode}) %}
+    {% elseif articleKind == 30024 %}
+        {% set link = path('author-draft-slug', {npub: article.pubkey|toNpub, slug: article.slug}) %}
     {% else %}
-        {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug|url_encode}) %}
+        {% set link = path('author-article-slug', {npub: article.pubkey|toNpub, slug: article.slug}) %}
         {% if cat and mag %}
-            {% set link = path('magazine-category-article', {slug: article.slug|url_encode, cat: cat, mag: mag}) %}
+            {% set link = path('magazine-category-article', {slug: article.slug, cat: cat, mag: mag}) %}
         {% endif %}
     {% endif %}
 
@@ -23,10 +24,10 @@
         class="card article-card{% if isEmbed|default(false) %} embed{% endif %}{% if not article.image %} article-card--text-only{% endif %}"
         data-article-id="{{ article.id }}"
         data-uuid="{{ article.id }}"
-        data-coordinate="{{ article.kind.value }}:{{ article.pubkey }}:{{ article.slug }}"
+        data-coordinate="{{ articleKind }}:{{ article.pubkey }}:{{ article.slug }}"
         data-npub="{{ article.pubkey|toNpub }}"
     >
-        <a class="article-card__link" href="{{ link }}" data-turbo-frame="_top">
+        <div class="article-card__body">
             <div class="article-card__content">
                 <div class="metadata">
                     {% if not is_author_profile|default(false) and app.current_route != 'latest_articles' %}
@@ -56,7 +57,9 @@
                     </div>
                 {% endif %}
 
-                <h2 class="card-title line-clamp-5">{{ article.title }}</h2>
+                <h2 class="card-title line-clamp-5">
+                    <a class="article-card__title-link" href="{{ link }}" data-turbo-frame="_top">{{ article.title }}</a>
+                </h2>
                 {% if article.summary %}
                     <p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">
                         {{ article.summary }}
@@ -74,7 +77,7 @@
                     >
                 </figure>
             {% endif %}
-        </a>
+        </div>
 
         {% if comment_count|default(0) > 0 or (app.user and bookmarkCoordinate) %}
             <div class="card-footer">

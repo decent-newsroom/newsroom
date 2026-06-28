@@ -284,7 +284,7 @@ home:
         heading: 'Descubrir'
         eyebrow: 'joyas ocultas'
         description: 'Nuestra búsqueda está especializada en contenido largo de Nostr.'
-        cta: 'Buscar'
+        cta: 'Descubrir'
     editor:
         heading: 'Editor de artículos'
         eyebrow: 'para todos'
@@ -294,7 +294,7 @@ home:
         heading: 'Redacción'
         eyebrow: 'como ninguna otra'
         description: 'Crea tu propia revista, define categorías, gestiona contribuciones y colabora con editores y colaboradores.'
-        cta: 'Crear una revista'
+        cta: 'Empezar una revista'
     unfold:
         heading: 'Unfold'
         eyebrow: 'tu revista'

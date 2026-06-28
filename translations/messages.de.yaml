@@ -284,7 +284,7 @@ home:
         heading: 'Entdecken'
         eyebrow: 'verborgene Schätze'
         description: 'Unsere Suche ist spezialisiert auf lange Nostr-Inhalte.'
-        cta: 'Suchen'
+        cta: 'Entdecken'
     editor:
         heading: 'Artikeleditor'
         eyebrow: 'für jeden'
@@ -294,7 +294,7 @@ home:
         heading: 'Newsroom'
         eyebrow: 'wie kein anderer'
         description: 'Erstellen Sie Ihr eigenes Magazin, definieren Sie Kategorien, verwalten Sie Einreichungen und arbeiten Sie mit Redakteuren und Mitwirkenden zusammen.'
-        cta: 'Magazin erstellen'
+        cta: 'Magazin starten'
     unfold:
         heading: 'Unfold'
         eyebrow: 'Ihr Magazin'

@@ -297,7 +297,7 @@ home:
         heading: 'Explore'
         eyebrow: 'hidden gems'
         description: 'Our search is specialized for long-form Nostr content.'
-        cta: 'Search'
+        cta: 'Discover'
     editor:
         heading: 'Article Editor'
         eyebrow: 'for anyone'
@@ -307,7 +307,7 @@ home:
         heading: 'Newsroom'
         eyebrow: 'like no other'
         description: 'Create your own magazine, define categories, manage submissions, and collaborate with editors and contributors.'
-        cta: 'Create a magazine'
+        cta: 'Start a magazine'
     blog:
         cta: 'Start a magazine'
     unfold:

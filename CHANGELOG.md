@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Bug] Repaired article-card HTML by replacing the nested full-card anchor with a valid stretched title link, normalizing enum and integer event kinds in coordinates, and removing double URL encoding from article slugs.
+- [Improvement] Simplified homepage calls to action: renamed Search to Discover and linked Start a magazine directly to the magazine setup wizard instead of the redundant journey landing step.
 - [Bug] Fixed the magazine setup wizard crashing when `isLoggedIn` was not supplied by using Twig's authenticated user context directly.
 - [Improvement] Rebuilt `/my-content` as a responsive publishing inventory with compact authored-content counts, server-backed tabs/search/sorting/pagination, explicit Iconoir action menus, Reading Nook bookmark separation, an accessible translated NIP-09 confirmation dialog, and database-side latest-revision selection.
 - [Bug] Increased light-theme informational text contrast with a dedicated deep blue-teal foreground, matching tint, and stronger border tokens.
