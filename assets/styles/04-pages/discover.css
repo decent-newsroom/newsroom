@@ -36,6 +36,16 @@
     height: 1.25rem;
 }
 
+.discover-section {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .discover-section {
+        display: block;
+    }
+}
+
 .discover-section .section-heading {
     font-size: 1.75rem;
     font-weight: 700;
