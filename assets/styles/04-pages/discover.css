@@ -36,12 +36,12 @@
     height: 1.25rem;
 }
 
-.discover-section {
+.discover-section.search {
     display: none;
 }
 
 @media (max-width: 640px) {
-    .discover-section {
+    .discover-section.search {
         display: block;
     }
 }
