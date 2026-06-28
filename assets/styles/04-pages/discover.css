@@ -1,14 +1,3 @@
-/* Discover Page Styles */
-
-.discover-header {
-    margin-bottom: var(--spacing-5);
-    padding-bottom: var(--spacing-4);
-}
-
-.discover-header h1 {
-    margin-bottom: var(--spacing-2);
-}
-
 /* Discover Search Form */
 .discover-search-form {
     max-width: 100%;

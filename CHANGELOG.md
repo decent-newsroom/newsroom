@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Improvement] Standardized Newsstand magazine covers in centered 16:9 frames with consistent cropping and added a full-width bottom rule between magazine entries.
 - [Bug] Fixed `/my-content` sorting when Nostr event update dates are Unix timestamps instead of `DateTimeInterface` objects.
 - [Bug] Added dedicated high-contrast highlight foreground, background, and border tokens for dark and light themes and applied them consistently to feed marks, inline highlights, compact cards, popovers, and active highlight controls.
 - [Bug] Repaired article-card HTML by replacing the nested full-card anchor with a valid stretched title link, normalizing enum and integer event kinds in coordinates, and removing double URL encoding from article slugs.

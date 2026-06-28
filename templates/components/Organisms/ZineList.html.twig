@@ -1,15 +1,20 @@
-<div {{ attributes }}>
+<div {{ attributes.defaults({class: 'zine-list'}) }}>
     {% if nzines is not empty %}
     {% for item in nzines %}
-        <div class="card p-3 ln-section--reader">
+        <article class="card ln-section--reader zine-list__item">
             {% if item.image is defined and item.image %}
-                <div class="card-header m-0">
+                <div class="zine-list__cover">
                     <a href="{{ path('magazine-index', {mag: item.slug}) }}">
-                        <img src="{{ item.image }}" alt="{{ item.title|default(item.slug|default('Magazine')) }}" loading="lazy">
+                        <img
+                            src="{{ item.image }}"
+                            alt="{{ item.title|default(item.slug|default('Magazine')) }}"
+                            loading="lazy"
+                            decoding="async"
+                        >
                     </a>
                 </div>
             {% endif %}
-            <div class="card-body text-center">
+            <div class="card-body text-center zine-list__body">
                 <h2 class="card-title">
                     <a href="{{ path('magazine-index', {mag: item.slug}) }}">
                     {% if item and item.title %}
@@ -40,7 +45,7 @@
                     </div>
                 {% endif %}
             </div>
-        </div>
+        </article>
     {% endfor %}
     {% else %}
     <p><small>No magazines yet.</small></p>

@@ -60,6 +60,7 @@ import './styles/03-components/source-badge.css';
 import './styles/03-components/web-preview.css';
 import './styles/03-components/updates.css';
 import './styles/03-components/login-modal.css';
+import './styles/03-components/zine-list.css';
 
 // Toast notifications
 import './styles/toast.css';

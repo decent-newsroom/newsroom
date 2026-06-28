@@ -36,12 +36,6 @@
 {% block body %}
     {# Search Section #}
     <section class="w-container">
-        <header class="discover-header">
-            <p class="eyebrow">{{ 'brand.tagline'|trans }}</p>
-            <h1>{{ 'nav.discover'|trans }}</h1>
-            <p class="lede">{{ 'brand.description'|trans }}</p>
-        </header>
-
         <div class="discover-section">
             <form action="{{ path('app_search_index') }}"
                   method="get"
@@ -158,6 +152,5 @@
 {% endblock %}
 
 {% block aside %}
-    <twig:Organisms:FeaturedUnfoldSites />
     <twig:Atoms:FeaturedWriters />
 {% endblock %}
