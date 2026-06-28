@@ -417,7 +417,7 @@ final class ReadingNookController extends AbstractController
             $title = $this->resolveSubscriptionTitle($type, $sourceValue, $eventRepository, $em)
                 ?? $subscription->getLabel()
                 ?? $this->subscriptionFallbackTitle($type, $sourceValue);
-            $summary = $this->subscriptionSummary($type, $sourceValue);
+            $summary = $this->subscriptionSummary($type);
 
             $entries[] = [
                 'section' => self::SECTION_SUBSCRIPTIONS,
@@ -499,12 +499,12 @@ final class ReadingNookController extends AbstractController
         return $parts[2] ?? $sourceValue;
     }
 
-    private function subscriptionSummary(UpdateSourceTypeEnum $type, string $sourceValue): string
+    private function subscriptionSummary(UpdateSourceTypeEnum $type): string
     {
         return match ($type) {
             UpdateSourceTypeEnum::NPUB => 'Author updates subscription',
-            UpdateSourceTypeEnum::PUBLICATION => 'Publication updates subscription: ' . $sourceValue,
-            UpdateSourceTypeEnum::NIP51_SET => 'NIP-51 set updates subscription: ' . $sourceValue,
+            UpdateSourceTypeEnum::PUBLICATION => 'Publication updates subscription',
+            UpdateSourceTypeEnum::NIP51_SET => 'NIP-51 set updates subscription',
         };
     }
 
