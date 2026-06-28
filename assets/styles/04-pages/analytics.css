@@ -4,13 +4,6 @@
     padding: var(--spacing-4);
 }
 
-.analytics-card {
-    background: lightgray;
-    padding: var(--spacing-4);
-    margin-bottom: var(--spacing-4);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
 .analytics-card--wide {
     flex: 2;
 }
@@ -38,6 +31,7 @@
 .analytics-table th, .analytics-table td {
     padding: var(--spacing-2);
     border-bottom: 1px solid var(--color-border);
+    line-break: anywhere;
 }
 
 .analytics-table th {
