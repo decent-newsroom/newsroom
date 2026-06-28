@@ -75,6 +75,7 @@
         </label>
         <button class="btn btn-sm" type="submit">{{ 'my_content.filter.apply'|trans }}</button>
         {% if searchQuery or sort != 'recent' %}
+            <br>
             <a class="my-content-toolbar__clear" href="{{ path('my_content', {type: activeType}) }}">
                 {{ 'my_content.filter.clear'|trans }}
             </a>
