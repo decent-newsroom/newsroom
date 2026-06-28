@@ -8,6 +8,10 @@ export default class extends Controller {
   static targets = ['input', 'preview'];
   static values = {
     url: String,  // API endpoint for fetching article info
+    loadingMessage: { type: String, default: 'Loading...' },
+    unknownAuthorMessage: { type: String, default: 'Unknown author' },
+    notFoundMessage: { type: String, default: 'Article not found locally' },
+    loadErrorMessage: { type: String, default: 'Could not load preview' },
   };
 
   connect() {
@@ -34,7 +38,7 @@ export default class extends Controller {
     const coordinate = element.dataset.coordinate;
     if (!coordinate) return;
 
-    element.innerHTML = '<small class="text-muted">Loading...</small>';
+    element.innerHTML = `<small class="text-muted">${this.escapeHtml(this.loadingMessageValue)}</small>`;
 
     try {
       const response = await fetch(this.urlValue, {
@@ -53,15 +57,15 @@ export default class extends Controller {
       const data = await response.json();
 
       if (data.title) {
-        const author = data.author || 'Unknown author';
-        element.innerHTML = `<strong>${this.escapeHtml(data.title)}</strong> <span class="text-muted">by ${this.escapeHtml(author)}</span>`;
+        const author = data.author || this.unknownAuthorMessageValue;
+        element.innerHTML = `<strong>${this.escapeHtml(data.title)}</strong> <span class="text-muted">${this.escapeHtml(author)}</span>`;
       } else if (data.error) {
         element.innerHTML = `<small class="text-warning">${this.escapeHtml(data.error)}</small>`;
       } else {
-        element.innerHTML = '<small class="text-muted">Article not found locally</small>';
+        element.innerHTML = `<small class="text-muted">${this.escapeHtml(this.notFoundMessageValue)}</small>`;
       }
     } catch (error) {
-      element.innerHTML = '<small class="text-muted">Could not load preview</small>';
+      element.innerHTML = `<small class="text-muted">${this.escapeHtml(this.loadErrorMessageValue)}</small>`;
     }
   }
 
@@ -78,7 +82,7 @@ export default class extends Controller {
 
     // Show loading state
     if (previewEl) {
-      previewEl.innerHTML = '<small class="text-muted">Loading...</small>';
+      previewEl.innerHTML = `<small class="text-muted">${this.escapeHtml(this.loadingMessageValue)}</small>`;
     }
 
     try {
@@ -99,17 +103,17 @@ export default class extends Controller {
 
       if (previewEl) {
         if (data.title) {
-          const author = data.author || 'Unknown author';
-          previewEl.innerHTML = `<small class="text-success"><strong>${this.escapeHtml(data.title)}</strong> by ${this.escapeHtml(author)}</small>`;
+          const author = data.author || this.unknownAuthorMessageValue;
+          previewEl.innerHTML = `<small class="text-success"><strong>${this.escapeHtml(data.title)}</strong> <span>${this.escapeHtml(author)}</span></small>`;
         } else if (data.error) {
           previewEl.innerHTML = `<small class="text-warning">${this.escapeHtml(data.error)}</small>`;
         } else {
-          previewEl.innerHTML = '<small class="text-muted">Article not found locally</small>';
+          previewEl.innerHTML = `<small class="text-muted">${this.escapeHtml(this.notFoundMessageValue)}</small>`;
         }
       }
     } catch (error) {
       if (previewEl) {
-        previewEl.innerHTML = '<small class="text-muted">Could not load preview</small>';
+        previewEl.innerHTML = `<small class="text-muted">${this.escapeHtml(this.loadErrorMessageValue)}</small>`;
       }
     }
   }

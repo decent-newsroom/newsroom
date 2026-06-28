@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Improvement] Consolidated reading-list article editing and review into one modern Newsroom workspace with resolved article titles and coordinates, immediate add/remove controls, live event synchronization, draft saving, and in-place signing/publishing; the former review URL now redirects compatibly.
 - [Bug] Fixed magazine category and chapter links loading their destination pages inside lazy Turbo Frames by applying `target="_top"` to the source frames and explicit top-level link targets.
 - [Bug] Deduplicated authored follow packs on profile Editorial tabs by newest d-tag revision before applying the ten-pack display limit, across both synchronous and cached profile data paths.
 - [Bug] Restored full-width bookmarked article cards by applying the width contract to the previously classless `ArticleFromCoordinate` wrapper while retaining the existing resolver flex layout.

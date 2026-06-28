@@ -1129,3 +1129,42 @@ reading_nook:
         contributors: 'Mitwirkende'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
+
+reading_list_editor:
+    eyebrow: 'Leselisten-Editor'
+    category_eyebrow: 'Kategorie-Editor'
+    description: 'Füge Artikel hinzu, entferne sie und prüfe die Sammlung vor der Veröffentlichung.'
+    saved: 'Änderungen am Entwurf gespeichert.'
+    action:
+        edit_details: 'Details bearbeiten'
+        cancel: 'Abbrechen'
+        add_article: 'Artikel hinzufügen'
+        save_draft: 'Entwurf speichern'
+        sign_publish: 'Signieren & veröffentlichen'
+    summary:
+        articles: 'Artikel'
+        type: 'Typ'
+        identifier: 'Kennung'
+        category: 'Kategorie'
+        reading_list: 'Leseliste'
+    articles:
+        eyebrow: 'Kuration'
+        title: 'Artikel in dieser Liste'
+        description: 'Jede Zeile zeigt den ermittelten Titel und die Nostr-Koordinate. Füge eine Koordinate oder naddr ein, um einen Artikel hinzuzufügen.'
+    article:
+        column_article: 'Artikel und Koordinate'
+        column_action: 'Aktion'
+        coordinate_label: 'Artikelkoordinate oder naddr'
+        placeholder: 'naddr1... oder 30023:pubkey:d-tag'
+        loading: 'Artikeltitel wird geladen…'
+        unknown_author: 'Unbekannter Autor'
+        not_found: 'Artikel wurde lokal nicht gefunden'
+        load_error: 'Artikelvorschau konnte nicht geladen werden'
+        remove: 'Artikel entfernen'
+        invalid: 'Korrigiere ungültige Artikelkoordinaten vor der Veröffentlichung.'
+    publish:
+        eyebrow: 'Bereit, wenn du es bist'
+        title: 'Signieren und veröffentlichen'
+        description: 'Die sichtbare Artikelliste wird für das Event verwendet. Deine NIP-07-Erweiterung oder dein verbundener Signer signiert es.'
+        login_required: 'Zum Veröffentlichen dieser Liste ist eine Nostr-Identität erforderlich.'
+        event_preview: 'Nostr-Event-Vorschau'

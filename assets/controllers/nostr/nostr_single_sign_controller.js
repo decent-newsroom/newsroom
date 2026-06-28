@@ -29,6 +29,10 @@ export default class extends Controller {
     (this.element.closest('.editor-layout') || document).addEventListener('nostr:sign', this.handleSignEvent);
   }
 
+  eventValueChanged() {
+    this.preparePreview();
+  }
+
   disconnect() {
     (this.element.closest('.editor-layout') || document).removeEventListener('nostr:sign', this.handleSignEvent);
   }

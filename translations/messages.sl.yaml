@@ -1118,3 +1118,42 @@ reading_nook:
         contributors: 'Sodelujoči'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
+
+reading_list_editor:
+    eyebrow: 'Urejevalnik bralnega seznama'
+    category_eyebrow: 'Urejevalnik kategorije'
+    description: 'Pred objavo dodajte, odstranite in preglejte članke v tej zbirki.'
+    saved: 'Spremembe osnutka so shranjene.'
+    action:
+        edit_details: 'Uredi podrobnosti'
+        cancel: 'Prekliči'
+        add_article: 'Dodaj članek'
+        save_draft: 'Shrani osnutek'
+        sign_publish: 'Podpiši in objavi'
+    summary:
+        articles: 'Članki'
+        type: 'Vrsta'
+        identifier: 'Identifikator'
+        category: 'Kategorija'
+        reading_list: 'Bralni seznam'
+    articles:
+        eyebrow: 'Kuriranje'
+        title: 'Članki na tem seznamu'
+        description: 'Vsaka vrstica prikazuje najdeni naslov in koordinato Nostr. Za dodajanje članka prilepite koordinato ali naddr.'
+    article:
+        column_article: 'Članek in koordinata'
+        column_action: 'Dejanje'
+        coordinate_label: 'Koordinata članka ali naddr'
+        placeholder: 'naddr1... ali 30023:pubkey:d-tag'
+        loading: 'Nalaganje naslova članka…'
+        unknown_author: 'Neznani avtor'
+        not_found: 'Članka ni v lokalni zbirki'
+        load_error: 'Predogleda članka ni bilo mogoče naložiti'
+        remove: 'Odstrani članek'
+        invalid: 'Pred objavo popravite neveljavne koordinate člankov.'
+    publish:
+        eyebrow: 'Ko ste pripravljeni'
+        title: 'Podpiši in objavi'
+        description: 'Dogodek se sestavi iz prikazanega seznama člankov. Podpiše ga razširitev NIP-07 ali povezani podpisnik.'
+        login_required: 'Za objavo tega seznama potrebujete identiteto Nostr.'
+        event_preview: 'Predogled dogodka Nostr'

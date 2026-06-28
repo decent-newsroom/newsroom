@@ -1491,3 +1491,42 @@ reading_nook:
         contributors: 'Contributors'
         open: 'Open'
         manage: 'Manage'
+
+reading_list_editor:
+    eyebrow: 'Reading list editor'
+    category_eyebrow: 'Category editor'
+    description: 'Add, remove, and review the articles in this collection before publishing it.'
+    saved: 'Draft changes saved.'
+    action:
+        edit_details: 'Edit details'
+        cancel: 'Cancel'
+        add_article: 'Add article'
+        save_draft: 'Save draft'
+        sign_publish: 'Sign & publish'
+    summary:
+        articles: 'Articles'
+        type: 'Type'
+        identifier: 'Identifier'
+        category: 'Category'
+        reading_list: 'Reading list'
+    articles:
+        eyebrow: 'Curation'
+        title: 'Articles in this list'
+        description: 'Each row shows the resolved title and its Nostr coordinate. Paste a coordinate or naddr to add another article.'
+    article:
+        column_article: 'Article and coordinate'
+        column_action: 'Action'
+        coordinate_label: 'Article coordinate or naddr'
+        placeholder: 'naddr1... or 30023:pubkey:d-tag'
+        loading: 'Loading article title…'
+        unknown_author: 'Unknown author'
+        not_found: 'Article not found locally'
+        load_error: 'Could not load article preview'
+        remove: 'Remove article'
+        invalid: 'Correct invalid article coordinates before publishing.'
+    publish:
+        eyebrow: 'Ready when you are'
+        title: 'Sign and publish'
+        description: 'The visible article list is used to build the event. Your NIP-07 extension or connected signer will sign it.'
+        login_required: 'A Nostr identity is required to publish this list.'
+        event_preview: 'Nostr event preview'

@@ -1118,3 +1118,42 @@ reading_nook:
         contributors: 'Contributeurs'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
+
+reading_list_editor:
+    eyebrow: 'Éditeur de liste de lecture'
+    category_eyebrow: 'Éditeur de catégorie'
+    description: 'Ajoutez, retirez et vérifiez les articles de cette collection avant de la publier.'
+    saved: 'Modifications du brouillon enregistrées.'
+    action:
+        edit_details: 'Modifier les détails'
+        cancel: 'Annuler'
+        add_article: 'Ajouter un article'
+        save_draft: 'Enregistrer le brouillon'
+        sign_publish: 'Signer et publier'
+    summary:
+        articles: 'Articles'
+        type: 'Type'
+        identifier: 'Identifiant'
+        category: 'Catégorie'
+        reading_list: 'Liste de lecture'
+    articles:
+        eyebrow: 'Curation'
+        title: 'Articles de cette liste'
+        description: 'Chaque ligne affiche le titre trouvé et sa coordonnée Nostr. Collez une coordonnée ou un naddr pour ajouter un article.'
+    article:
+        column_article: 'Article et coordonnée'
+        column_action: 'Action'
+        coordinate_label: 'Coordonnée de l’article ou naddr'
+        placeholder: 'naddr1... ou 30023:pubkey:d-tag'
+        loading: 'Chargement du titre de l’article…'
+        unknown_author: 'Auteur inconnu'
+        not_found: 'Article introuvable localement'
+        load_error: 'Impossible de charger l’aperçu de l’article'
+        remove: 'Retirer l’article'
+        invalid: 'Corrigez les coordonnées d’article non valides avant de publier.'
+    publish:
+        eyebrow: 'Quand vous êtes prêt'
+        title: 'Signer et publier'
+        description: 'La liste d’articles visible sert à construire l’événement. Votre extension NIP-07 ou votre signataire connecté le signera.'
+        login_required: 'Une identité Nostr est requise pour publier cette liste.'
+        event_preview: 'Aperçu de l’événement Nostr'

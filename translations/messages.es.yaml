@@ -1119,3 +1119,42 @@ reading_nook:
         contributors: 'Colaboradores'
         open: 'Open' # TODO: translate
         manage: 'Manage' # TODO: translate
+
+reading_list_editor:
+    eyebrow: 'Editor de listas de lectura'
+    category_eyebrow: 'Editor de categorías'
+    description: 'Añade, elimina y revisa los artículos de esta colección antes de publicarla.'
+    saved: 'Cambios del borrador guardados.'
+    action:
+        edit_details: 'Editar detalles'
+        cancel: 'Cancelar'
+        add_article: 'Añadir artículo'
+        save_draft: 'Guardar borrador'
+        sign_publish: 'Firmar y publicar'
+    summary:
+        articles: 'Artículos'
+        type: 'Tipo'
+        identifier: 'Identificador'
+        category: 'Categoría'
+        reading_list: 'Lista de lectura'
+    articles:
+        eyebrow: 'Curación'
+        title: 'Artículos de esta lista'
+        description: 'Cada fila muestra el título resuelto y su coordenada Nostr. Pega una coordenada o naddr para añadir otro artículo.'
+    article:
+        column_article: 'Artículo y coordenada'
+        column_action: 'Acción'
+        coordinate_label: 'Coordenada del artículo o naddr'
+        placeholder: 'naddr1... o 30023:pubkey:d-tag'
+        loading: 'Cargando el título del artículo…'
+        unknown_author: 'Autor desconocido'
+        not_found: 'El artículo no se encontró localmente'
+        load_error: 'No se pudo cargar la vista previa del artículo'
+        remove: 'Eliminar artículo'
+        invalid: 'Corrige las coordenadas de artículo no válidas antes de publicar.'
+    publish:
+        eyebrow: 'Cuando quieras'
+        title: 'Firmar y publicar'
+        description: 'La lista de artículos visible se usa para crear el evento. Tu extensión NIP-07 o firmante conectado lo firmará.'
+        login_required: 'Se necesita una identidad Nostr para publicar esta lista.'
+        event_preview: 'Vista previa del evento Nostr'

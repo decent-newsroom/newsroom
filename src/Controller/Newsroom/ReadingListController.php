@@ -242,6 +242,7 @@ class ReadingListController extends AbstractController
     public function articles(Request $request, ReadingListManager $readingListManager): Response
     {
         $draft = $this->getDraft($request);
+        $saved = false;
 
         $loadSlug = $request->query->get('load');
         if ($loadSlug) {
@@ -269,7 +270,7 @@ class ReadingListController extends AbstractController
             // Transform any naddr values to coordinates in the articles array
             if (!empty($draft->articles)) {
                 $draft->articles = array_map(function($article) {
-                    if (is_string($article) && str_starts_with($article, 'naddr1')) {
+                    if (str_starts_with($article, 'naddr1')) {
                         $coordinate = $this->parseNaddr($article);
                         return $coordinate ?? $article;
                     }
@@ -287,11 +288,22 @@ class ReadingListController extends AbstractController
             }
 
             $this->saveDraft($request, $draft);
-            return $this->redirectToRoute('read_wizard_review');
+            $saved = true;
         }
 
+        $type = $request->getSession()->get('read_wizard_type', 'reading-list');
+
         return $this->render('reading_list/reading_articles.html.twig', [
+            'newsroomNav' => $this->buildNewsroomNav(),
             'form' => $form->createView(),
+            'draft' => $draft,
+            'eventJson' => json_encode(
+                $this->buildReadingListEvent($draft, $type),
+                JSON_UNESCAPED_SLASHES,
+            ),
+            'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
+            'isMagazineCategory' => $type === 'category',
+            'saved' => $saved,
         ]);
     }
 
@@ -358,70 +370,9 @@ class ReadingListController extends AbstractController
     #[Route('/reading-list/wizard/review', name: 'read_wizard_review')]
     public function review(Request $request): Response
     {
-        $draft = $this->getDraft($request);
-        if (!$draft) {
-            return $this->redirectToRoute('read_wizard_setup');
-        }
-
-        // Transform any remaining naddr values to coordinates (safety check)
-        if (!empty($draft->articles)) {
-            $transformed = false;
-            $draft->articles = array_map(function($article) use (&$transformed) {
-                if (is_string($article) && str_starts_with($article, 'naddr1')) {
-                    $coordinate = $this->parseNaddr($article);
-                    if ($coordinate) {
-                        $transformed = true;
-                        return $coordinate;
-                    }
-                }
-                return $article;
-            }, $draft->articles);
-
-            // If we transformed any naddr values, save the updated draft
-            if ($transformed) {
-                $this->saveDraft($request, $draft);
-            }
-        }
-
-        // Transform existingListCoordinate if it's an naddr (safety check)
-        if ($draft->existingListCoordinate && str_starts_with($draft->existingListCoordinate, 'naddr1')) {
-            $coordinate = $this->parseNaddr($draft->existingListCoordinate);
-            if ($coordinate) {
-                $draft->existingListCoordinate = $coordinate;
-                $this->saveDraft($request, $draft);
-            }
-        }
-
-        // Determine the type based on session flag
-        $type = $request->getSession()->get('read_wizard_type', 'reading-list');
-
-        // Build a single category event skeleton
-        $tags = [];
-        $tags[] = ['d', $draft->slug];
-        $tags[] = ['type', $type];
-        $tags[] = ['alt', 'This is a publication viewable on Decent Newsroom at decentnewsroom.com'];
-        if ($draft->title) { $tags[] = ['title', $draft->title]; }
-        if ($draft->summary) { $tags[] = ['summary', $draft->summary]; }
-        if ($draft->image) { $tags[] = ['image', $draft->image]; }
-        if ($draft->author) { $tags[] = ['author', $draft->author]; }
-        foreach ($draft->tags as $t) { $tags[] = ['t', $t]; }
-        foreach ($draft->articles as $a) {
-            if (is_string($a) && $a !== '') { $tags[] = ['a', $a]; }
-        }
-
-        $event = [
-            'kind' => 30040,
-            'created_at' => time(),
-            'tags' => $tags,
-            'content' => '',
-        ];
-
-        return $this->render('reading_list/reading_review.html.twig', [
-            'draft' => $draft,
-            'eventJson' => json_encode($event, JSON_UNESCAPED_SLASHES),
-            'csrfToken' => $this->container->get('security.csrf.token_manager')->getToken('nostr_publish')->getValue(),
-            'isMagazineCategory' => $type === 'category',
-        ]);
+        return $this->redirectToRoute(
+            $this->getDraft($request) ? 'read_wizard_articles' : 'read_wizard_setup',
+        );
     }
 
     #[Route('/reading-list/wizard/cancel', name: 'read_wizard_cancel', methods: ['GET'])]
@@ -437,7 +388,7 @@ class ReadingListController extends AbstractController
     {
         $coordinate = $request->request->get('coordinate');
         if (!$coordinate) {
-            return $this->redirectToRoute('read_wizard_review');
+            return $this->redirectToRoute('read_wizard_articles');
         }
 
         $draft = $this->getDraft($request);
@@ -446,7 +397,7 @@ class ReadingListController extends AbstractController
             $this->saveDraft($request, $draft);
         }
 
-        return $this->redirectToRoute('read_wizard_review');
+        return $this->redirectToRoute('read_wizard_articles');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -614,7 +565,7 @@ class ReadingListController extends AbstractController
         if (!empty($data->articles)) {
             $originalArticles = $data->articles;
             $data->articles = array_map(function($article) {
-                if (is_string($article) && str_starts_with($article, 'naddr1')) {
+                if (str_starts_with($article, 'naddr1')) {
                     $coordinate = $this->parseNaddr($article);
                     return $coordinate ?? $article;
                 }
@@ -653,10 +604,50 @@ class ReadingListController extends AbstractController
         $request->getSession()->remove('read_wizard_type');
     }
 
+    /**
+     * @return array{kind: int, created_at: int, tags: list<list<string>>, content: string}
+     */
+    private function buildReadingListEvent(CategoryDraft $draft, string $type): array
+    {
+        $tags = [
+            ['d', $draft->slug],
+            ['type', $type],
+            ['alt', 'This is a publication viewable on Decent Newsroom at decentnewsroom.com'],
+        ];
+
+        if ($draft->title) {
+            $tags[] = ['title', $draft->title];
+        }
+        if ($draft->summary) {
+            $tags[] = ['summary', $draft->summary];
+        }
+        if ($draft->image) {
+            $tags[] = ['image', $draft->image];
+        }
+        if ($draft->author) {
+            $tags[] = ['author', $draft->author];
+        }
+        foreach ($draft->tags as $tag) {
+            $tags[] = ['t', $tag];
+        }
+        foreach ($draft->articles as $article) {
+            if ($article !== '') {
+                $tags[] = ['a', $article];
+            }
+        }
+
+        return [
+            'kind' => KindsEnum::PUBLICATION_INDEX->value,
+            'created_at' => time(),
+            'tags' => $tags,
+            'content' => '',
+        ];
+    }
+
     private function slugifyWithRandom(string $title): string
     {
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $title)) ?? '');
-        $slug = trim(preg_replace('/-+/', '-', $slug) ?? '', '-');
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $title)));
+        $slug = trim(preg_replace('/-+/', '-', $slug), '-');
         $rand = substr(bin2hex(random_bytes(4)), 0, 6);
         return $slug !== '' ? ($slug . '-' . $rand) : $rand;
     }
