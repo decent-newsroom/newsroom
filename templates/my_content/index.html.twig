@@ -36,26 +36,6 @@
         </div>
     </header>
 
-    <div class="my-content-summary" aria-label="{{ 'my_content.summary.label'|trans }}">
-        <div>
-            <strong>{{ counts.published }}</strong>
-            <span>{{ 'my_content.summary.published'|trans }}</span>
-        </div>
-        <div>
-            <strong>{{ counts.drafts }}</strong>
-            <span>{{ 'my_content.summary.drafts'|trans }}</span>
-        </div>
-        <div>
-            <strong>{{ counts.lists }}</strong>
-            <span>{{ 'my_content.summary.lists'|trans }}</span>
-        </div>
-        <a href="{{ path('reading_nook') }}">
-            {{ ux_icon('iconoir:bookmark', {class: 'icon'}) }}
-            <span>{{ 'my_content.action.open_bookmarks'|trans }}</span>
-            {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-        </a>
-    </div>
-
     <nav class="my-content-tabs" aria-label="{{ 'my_content.tabs.label'|trans }}">
         {% for type, label in {
             all: 'my_content.tabs.all',
@@ -323,4 +303,12 @@
         </div>
     </dialog>
 </section>
+{% endblock %}
+
+{% block aside %}
+<a href="{{ path('reading_nook') }}">
+    {{ ux_icon('iconoir:bookmark', {class: 'icon'}) }}
+    <span>{{ 'my_content.action.open_bookmarks'|trans }}</span>
+    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+</a>
 {% endblock %}
