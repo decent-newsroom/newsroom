@@ -122,8 +122,8 @@ class MyContentController extends AbstractController
                     return strnatcasecmp((string) $left['title'], (string) $right['title']);
                 }
 
-                return ($right['updatedAt']?->getTimestamp() ?? 0)
-                    <=> ($left['updatedAt']?->getTimestamp() ?? 0);
+                return self::toTimestamp($right['updatedAt'])
+                    <=> self::toTimestamp($left['updatedAt']);
             },
         );
 
@@ -144,6 +144,15 @@ class MyContentController extends AbstractController
             'page' => $page,
             'totalPages' => $totalPages,
         ]);
+    }
+
+    private static function toTimestamp(mixed $value): int
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->getTimestamp();
+        }
+
+        return is_numeric($value) ? (int) $value : 0;
     }
 
     /**

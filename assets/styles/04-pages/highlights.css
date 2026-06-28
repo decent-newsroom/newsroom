@@ -91,8 +91,8 @@
 }
 
 .highlight-mark {
-    background: var(--color-accent-300);
-    color: var(--color-text-contrast);
+    background: var(--color-highlight);
+    color: var(--color-highlight-text);
     padding: 0.1em 0.2em;
     font-weight: 500;
 }
@@ -155,24 +155,27 @@
 }
 
 .article-highlight.visible {
-    background: var(--color-accent-300);
-    border-bottom-color: var(--color-accent-300);
+    background: var(--color-highlight);
+    border-bottom-color: var(--color-highlight-border);
+    color: var(--color-highlight-text);
 }
 
 .article-highlight.visible:hover {
-    background: var(--color-accent-300);
-    border-bottom-color: var(--color-accent);
+    background: var(--color-highlight);
+    border-bottom-color: var(--color-highlight-text);
 }
 
 /* Toggle button active state */
 .btn[aria-pressed="true"] {
-    background-color: var(--color-accent-300);
-    border-color: var(--color-accent-300);
+    background-color: var(--color-highlight);
+    border-color: var(--color-highlight-border);
+    color: var(--color-highlight-text);
 }
 
 .btn[aria-pressed="true"]:hover {
-    color: var(--color-text);
-    background-color: var(--color-accent-400);
+    color: var(--color-highlight-text);
+    background-color: var(--color-highlight);
+    border-color: var(--color-highlight-text);
 }
 
 /* Article page highlight compact cards */
@@ -199,10 +202,10 @@
 }
 
 .highlight-mark-compact {
-    background: var(--color-accent-300);
+    background: var(--color-highlight);
+    color: var(--color-highlight-text);
     padding: 0.1em 0.2em;
     font-weight: 500;
-    border-radius: 2px;
 }
 
 .context-text-compact {
@@ -266,8 +269,9 @@
 }
 
 .highlight-popover__btn:hover {
-    background: var(--color-accent-300);
-    border-color: var(--color-accent);
+    background: var(--color-highlight);
+    border-color: var(--color-highlight-border);
+    color: var(--color-highlight-text);
 }
 
 .highlight-popover__btn svg {
@@ -284,4 +288,3 @@
         transform: translateY(0);
     }
 }
-

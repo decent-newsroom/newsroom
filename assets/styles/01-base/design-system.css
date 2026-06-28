@@ -44,6 +44,9 @@
     --color-nostr: #b9a5dd;
     --color-nostr-bg: rgba(185, 165, 221, 0.1);
     --color-nostr-profile: #7fc4ad;
+    --color-highlight: #d8bd70;
+    --color-highlight-text: #101411;
+    --color-highlight-border: #f0d98f;
 
     /* Typography */
     --font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -113,6 +116,9 @@
     --color-info: #24576b;
     --color-info-bg: rgba(36, 87, 107, 0.09);
     --color-info-border: #6f909d;
+    --color-highlight: #c99b27;
+    --color-highlight-text: #182019;
+    --color-highlight-border: #7b5a0d;
     --brand-color: var(--color-text);
     --color-nostr: #684b9c;
     --color-nostr-bg: rgba(104, 75, 156, 0.08);
