@@ -324,6 +324,7 @@
 
     .reading-list-editor__header-actions {
         justify-content: flex-start;
+        flex-shrink: 0;
     }
 
     .reading-list-editor__columns {
