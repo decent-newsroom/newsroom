@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Bug] Added the cron daemon package to the shared FrankenPHP image so the cron service can install its schedule and run jobs.
 - [Bug] Fixed the interest-set editor so existing kind `30015` `d` tags populate the Identifier field and are preserved when publishing replacements.
 - [Bug] Reading Nook topic lists now label untitled kind `10015` lists as `My interests`, and kind `30015` interest-set Manage actions open the specific set editor instead of the generic interests page.
 - [Bug] Removed the redundant standalone remove control from article-coordinate bookmarks on `/my-bookmarks`.

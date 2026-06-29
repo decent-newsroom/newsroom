@@ -17,6 +17,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	acl \
 	ca-certificates \
+	cron \
 	curl \
 	gettext \
 	&& rm -rf /var/lib/apt/lists/*
