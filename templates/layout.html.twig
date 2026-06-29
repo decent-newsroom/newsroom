@@ -49,7 +49,8 @@
         <section class="context-panel">
             <p class="eyebrow">{{ 'nav.publications'|trans }}</p>
             <h2>{{ 'nav.startBlog'|trans }}</h2>
-            <a class="btn btn--secondary" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
+            <p>{{ 'journey.landing.hero'|trans }}</p>
+            <a class="btn" href="{{ path('mag_wizard_new') }}">{{ 'nav.startBlog'|trans }}</a>
         </section>
     {% else %}
         {% include 'blog-journey/_login_cta_card.html.twig' %}
@@ -63,6 +64,7 @@
                 recipientPubkey="{{ contribution_npub|toHex }}"
                 recipientLud16="{{ contribution_lud16 }}"
             />
+            <a class="btn btn-secondary" href="/feedback">{{ 'feedback.sendFeedback'|trans }}</a>
         </section>
     {% endif %}
 {% endblock %}
