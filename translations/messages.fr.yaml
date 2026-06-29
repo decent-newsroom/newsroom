@@ -1130,6 +1130,7 @@ reading_list_editor:
     category_eyebrow: 'Éditeur de catégorie'
     description: 'Ajoutez, retirez et vérifiez les articles de cette collection avant de la publier.'
     saved: 'Modifications du brouillon enregistrées.'
+    draft_storage_notice: 'Un brouillon enregistré n’est conservé que pendant cette session de navigateur et peut être perdu. Signez-le et publiez-le pour conserver vos modifications.'
     action:
         edit_details: 'Modifier les détails'
         cancel: 'Annuler'

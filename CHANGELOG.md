@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Improvement] Clarified beside the reading-list editor’s Save draft action that session-only drafts can be lost and should be signed and published to preserve changes.
+- [Bug] Contained the reading-list Nostr event preview within the editor width so long event values scroll inside the preview instead of stretching the page layout.
 - [Improvement] Reading Nook author subscription cards now resolve npub/hex sources to the profile metadata display name, with profile name and shortened identifier fallbacks.
 - [Improvement] Standardized buffered and live Relay Feed entries on the shared Discover article-card layout, including responsive cover treatment, metadata, links, and authenticated bookmark controls.
 - [Bug] Fixed bookmark removal invoking a nonexistent `BookmarkItemResolver::removeBookmark()` LiveAction; removals now preserve the list, request a user signature in the browser, publish the replacement NIP-51 event, and keep standard bookmark state synchronized.

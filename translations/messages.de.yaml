@@ -1141,6 +1141,7 @@ reading_list_editor:
     category_eyebrow: 'Kategorie-Editor'
     description: 'Füge Artikel hinzu, entferne sie und prüfe die Sammlung vor der Veröffentlichung.'
     saved: 'Änderungen am Entwurf gespeichert.'
+    draft_storage_notice: 'Ein gespeicherter Entwurf bleibt nur in dieser Browsersitzung erhalten und kann verloren gehen. Signiere und veröffentliche ihn, um deine Änderungen zu sichern.'
     action:
         edit_details: 'Details bearbeiten'
         cancel: 'Abbrechen'

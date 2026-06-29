@@ -1504,6 +1504,7 @@ reading_list_editor:
     category_eyebrow: 'Category editor'
     description: 'Add, remove, and review the articles in this collection before publishing it.'
     saved: 'Draft changes saved.'
+    draft_storage_notice: 'Saving a draft keeps it only in this browser session, so it can be lost. Sign and publish to preserve your changes.'
     action:
         edit_details: 'Edit details'
         cancel: 'Cancel'

@@ -1131,6 +1131,7 @@ reading_list_editor:
     category_eyebrow: 'Editor de categorías'
     description: 'Añade, elimina y revisa los artículos de esta colección antes de publicarla.'
     saved: 'Cambios del borrador guardados.'
+    draft_storage_notice: 'Un borrador guardado solo se conserva durante esta sesión del navegador y puede perderse. Fírmalo y publícalo para conservar tus cambios.'
     action:
         edit_details: 'Editar detalles'
         cancel: 'Cancelar'

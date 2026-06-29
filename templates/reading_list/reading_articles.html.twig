@@ -169,10 +169,22 @@
                     {{ ux_icon('iconoir:plus', {class: 'icon'}) }}
                     {{ 'reading_list_editor.action.add_article'|trans }}
                 </button>
-                <button class="btn btn--secondary" type="submit">
-                    {{ ux_icon('iconoir:check', {class: 'icon'}) }}
-                    {{ 'reading_list_editor.action.save_draft'|trans }}
-                </button>
+                <div class="reading-list-editor__draft-action">
+                    <button
+                        class="btn btn--secondary"
+                        type="submit"
+                        aria-describedby="reading-list-draft-storage-notice"
+                    >
+                        {{ ux_icon('iconoir:check', {class: 'icon'}) }}
+                        {{ 'reading_list_editor.action.save_draft'|trans }}
+                    </button>
+                    <p
+                        id="reading-list-draft-storage-notice"
+                        class="reading-list-editor__draft-storage-notice"
+                    >
+                        {{ 'reading_list_editor.draft_storage_notice'|trans }}
+                    </p>
+                </div>
             </div>
         </div>
     {{ form_end(form) }}

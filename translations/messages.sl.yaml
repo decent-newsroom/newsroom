@@ -1130,6 +1130,7 @@ reading_list_editor:
     category_eyebrow: 'Urejevalnik kategorije'
     description: 'Pred objavo dodajte, odstranite in preglejte članke v tej zbirki.'
     saved: 'Spremembe osnutka so shranjene.'
+    draft_storage_notice: 'Shranjeni osnutek se ohrani le v tej seji brskalnika in se lahko izgubi. Podpišite in objavite ga, da ohranite spremembe.'
     action:
         edit_details: 'Uredi podrobnosti'
         cancel: 'Prekliči'
