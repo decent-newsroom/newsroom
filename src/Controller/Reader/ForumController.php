@@ -167,7 +167,7 @@ class ForumController extends AbstractController
 
         return $this->render('forum/interest_set_edit.html.twig', [
             'readingNookNav' => $this->buildReadingNookNav(),
-            'set' => $this->buildInterestSetPayload($event),
+            'set' => $this->buildInterestSetPayload($event, $dTag),
             'groupedTags' => ForumTopics::groupedTags(),
         ]);
     }
@@ -504,9 +504,9 @@ class ForumController extends AbstractController
     /**
      * @return array{pubkey: string, dTag: string, title: string, tags: string[]}
      */
-    private function buildInterestSetPayload(StoredEvent $event): array
+    private function buildInterestSetPayload(StoredEvent $event, string $routeDTag): array
     {
-        $dTag = $event->getDTag() ?? '';
+        $dTag = $event->getSlug() ?: ($event->getDTag() ?: $routeDTag);
         $title = $event->getTitle() ?? $this->firstTagValue($event->getTags(), ['title', 'name']) ?? $dTag;
 
         return [
