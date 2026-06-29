@@ -71,4 +71,5 @@
 
 .article__image img {
     margin: 0 auto;
+    max-height: 80vh;
 }

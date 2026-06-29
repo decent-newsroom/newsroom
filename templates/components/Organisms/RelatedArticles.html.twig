@@ -1,5 +1,5 @@
 {% if articles|length > 0 %}
-<section class="related-articles" aria-label="{{ 'article.relatedArticles'|trans }}">
+<section class="w-container related-articles" aria-label="{{ 'article.relatedArticles'|trans }}">
     <p class="related-articles__heading">
         {% if fromInterests %}
             {{ 'article.relatedFromInterests'|trans }}
@@ -7,12 +7,8 @@
             {{ 'article.relatedArticles'|trans }}
         {% endif %}
     </p>
-    <div class="related-articles__grid">
-        {% for article in articles %}
-            <div class="related-articles__item">
-                <twig:Molecules:Card :article="article" />
-            </div>
-        {% endfor %}
-    </div>
+    {% for article in articles %}
+        <twig:Molecules:Card :article="article" />
+    {% endfor %}
 </section>
 {% endif %}

@@ -140,7 +140,6 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-text-contrast, #999);
     opacity: 0.45;
     pointer-events: none;
     user-select: none;
