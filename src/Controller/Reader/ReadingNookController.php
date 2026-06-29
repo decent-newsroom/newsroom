@@ -12,6 +12,7 @@ use App\Enum\UpdateSourceTypeEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\EventRepository;
 use App\Repository\UpdateSubscriptionRepository;
+use App\Service\Cache\RedisCacheService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +24,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ReadingNookController extends AbstractController
 {
     use NavigationBuilderTrait;
+
+    public function __construct(
+        private readonly RedisCacheService $redisCacheService,
+    ) {}
 
     private const SECTION_BOOKMARKS = 'bookmarks';
     private const SECTION_INTERESTS = 'interests';
@@ -450,7 +455,26 @@ final class ReadingNookController extends AbstractController
         EventRepository $eventRepository,
         EntityManagerInterface $em,
     ): ?string {
-        if ($type !== UpdateSourceTypeEnum::PUBLICATION && $type !== UpdateSourceTypeEnum::NIP51_SET) {
+        if ($type === UpdateSourceTypeEnum::NPUB) {
+            try {
+                $pubkey = NostrKeyUtil::isNpub($sourceValue)
+                    ? NostrKeyUtil::npubToHex($sourceValue)
+                    : $sourceValue;
+
+                if (!NostrKeyUtil::isHexPubkey($pubkey)) {
+                    return null;
+                }
+
+                $metadata = $this->redisCacheService->getMetadata($pubkey);
+                foreach ([$metadata->displayName, $metadata->name] as $name) {
+                    if (is_string($name) && trim($name) !== '') {
+                        return trim($name);
+                    }
+                }
+            } catch (\Throwable) {
+                return null;
+            }
+
             return null;
         }
 
@@ -629,5 +653,3 @@ final class ReadingNookController extends AbstractController
         return mb_strtolower($joined);
     }
 }
-
-

@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Improvement] Reading Nook author subscription cards now resolve npub/hex sources to the profile metadata display name, with profile name and shortened identifier fallbacks.
 - [Improvement] Standardized buffered and live Relay Feed entries on the shared Discover article-card layout, including responsive cover treatment, metadata, links, and authenticated bookmark controls.
 - [Bug] Fixed bookmark removal invoking a nonexistent `BookmarkItemResolver::removeBookmark()` LiveAction; removals now preserve the list, request a user signature in the browser, publish the replacement NIP-51 event, and keep standard bookmark state synchronized.
 - [Improvement] Standardized locally resolved article references, including articles shown below Discover highlights, on the same shared article card component used by the Discover Recent and Featured Writers tabs.
