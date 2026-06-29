@@ -442,12 +442,18 @@ bookmarks:
     heading: 'Segnalibri'
     tagline: 'i tuoi contenuti salvati'
     untitledList: 'Lista senza titolo'
+    itemSingular: 'elemento'
+    itemPlural: 'elementi'
     noItems: 'Nessun elemento in questa lista'
     noBookmarks: 'Nessun segnalibro trovato.'
     noBookmarksHint: 'Aggiungi segnalibri agli articoli dal tuo client Nostr e appariranno qui.'
 bookmark:
     add: 'Segnalibro'
     remove: 'Salvato'
+    removeAction: 'Rimuovi segnalibro'
+    removed: 'Segnalibro rimosso'
+    removeFailed: 'Impossibile rimuovere il segnalibro'
+    signerUnavailable: 'Nessun firmatario Nostr disponibile'
 
 # ── Follows ───────────────────────────────────────────────────────
 follows:
@@ -1169,3 +1175,5 @@ updates:
     errors:
         invalidInput: 'Could not recognize that identifier.'
         alreadySubscribed: 'You are already subscribed to that source.'
+relay_feed:
+    untitled: 'Senza titolo'

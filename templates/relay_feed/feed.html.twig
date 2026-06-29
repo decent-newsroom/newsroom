@@ -8,6 +8,15 @@
      data-content--relay-feed-topic-value="{{ mercure_topic }}"
      data-content--relay-feed-keepalive-url-value="{{ path('relay_feed_keepalive', { key: relay_key }) }}"
      data-content--relay-feed-muted-pubkeys-value="{{ muted_pubkeys|json_encode }}"
+     data-content--relay-feed-by-label-value="{{ 'text.by'|trans|e('html_attr') }}"
+     data-content--relay-feed-untitled-label-value="{{ 'relay_feed.untitled'|trans|e('html_attr') }}"
+     data-content--relay-feed-cover-image-alt-template-value="{{ 'card.coverImageAlt'|trans({'%title%': '__TITLE__'})|e('html_attr') }}"
+     data-content--relay-feed-logged-in-value="{{ app.user ? 'true' : 'false' }}"
+     data-content--relay-feed-bookmark-fetch-url-value="{{ app.user ? path('api_bookmarks_current') : '' }}"
+     data-content--relay-feed-bookmark-publish-url-value="{{ app.user ? path('api_bookmarks_publish') : '' }}"
+     data-content--relay-feed-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
+     data-content--relay-feed-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
+     data-content--relay-feed-bookmark-icon-value="{{ ux_icon('iconoir:bookmark', {class: 'icon', 'data-ui--card-bookmark-target': 'icon'})|e('html_attr') }}"
 >
     <div class="relay-feed__header">
         <div class="relay-feed__meta">
@@ -38,5 +47,4 @@
     </div>
 </div>
 {% endblock %}
-
 

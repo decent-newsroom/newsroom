@@ -1,22 +1,13 @@
 <div {{ attributes }}>
     {% if type == 'a' %}
-        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2">
+        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 <twig:Organisms:ArticleFromCoordinate :coordinate="value" />
             </div>
-            <button
-                class="bookmark-item-remove"
-                title="{{ 'bookmark.remove'|trans }}"
-                aria-label="{{ 'bookmark.remove'|trans }}"
-                data-action="live#action"
-                data-live-action-param="removeBookmark"
-                data-live-value-param="{{ value|json_encode }}"
-            >
-                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
-            </button>
+            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% elseif type == 'e' %}
-        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2">
+        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 {% if event %}
                     {% include 'partial/_bookmark_event_card.html.twig' with {event: event} %}
@@ -38,70 +29,34 @@
                     </div>
                 {% endif %}
             </div>
-            <button
-                class="bookmark-item-remove"
-                title="{{ 'bookmark.remove'|trans }}"
-                aria-label="{{ 'bookmark.remove'|trans }}"
-                data-action="live#action"
-                data-live-action-param="removeBookmark"
-                data-live-value-param="{{ value|json_encode }}"
-            >
-                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
-            </button>
+            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% elseif type == 'p' %}
-        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2">
+        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 <div class="bookmark-item-entry">
                     <twig:Molecules:UserFromNpub ident="{{ value|toNpub }}" />
                 </div>
             </div>
-            <button
-                class="bookmark-item-remove"
-                title="{{ 'bookmark.remove'|trans }}"
-                aria-label="{{ 'bookmark.remove'|trans }}"
-                data-action="live#action"
-                data-live-action-param="removeBookmark"
-                data-live-value-param="{{ value|json_encode }}"
-            >
-                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
-            </button>
+            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% elseif type == 't' %}
-        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2">
+        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 <div class="bookmark-item-entry">
                     <a class="tag" href="{{ path('forum_tag', {tag: value}) }}">{{ value }}</a>
                 </div>
             </div>
-            <button
-                class="bookmark-item-remove"
-                title="{{ 'bookmark.remove'|trans }}"
-                aria-label="{{ 'bookmark.remove'|trans }}"
-                data-action="live#action"
-                data-live-action-param="removeBookmark"
-                data-live-value-param="{{ value|json_encode }}"
-            >
-                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
-            </button>
+            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% else %}
-        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2">
+        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
             <div class="flex-grow-1">
                 <div class="bookmark-item-entry text-muted">
                     <span class="tag">{{ type }}</span> - {{ value }}
                 </div>
             </div>
-            <button
-                class="bookmark-item-remove"
-                title="{{ 'bookmark.remove'|trans }}"
-                aria-label="{{ 'bookmark.remove'|trans }}"
-                data-action="live#action"
-                data-live-action-param="removeBookmark"
-                data-live-value-param="{{ value|json_encode }}"
-            >
-                {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
-            </button>
+            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% endif %}
 </div>

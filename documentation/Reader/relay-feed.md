@@ -64,7 +64,7 @@ POST /relay-feed/{key}/keepalive   (every 5 min from Stimulus)
 | `StartRelayFeedMessage` | `src/Message/StartRelayFeedMessage.php` | Messenger message carrying relay URL + key |
 | `StartRelayFeedHandler` | `src/MessageHandler/StartRelayFeedHandler.php` | WebSocket subscription loop, Mercure publisher, self-re-dispatch |
 | `RelayFeedController` | `src/Controller/Reader/RelayFeedController.php` | HTTP routes: index (dropdown), start (POST + allowlist check), show, keepalive |
-| Twig templates | `templates/relay_feed/` | `index.html.twig` (form), `feed.html.twig` (live feed), `_card.html.twig` (card partial) |
+| Twig templates | `templates/relay_feed/` | `index.html.twig` (form), `feed.html.twig` (live feed), `_card.html.twig` (adapter to `Molecules:Card`) |
 | Stimulus controller | `assets/controllers/content/relay_feed_controller.js` | EventSource subscription, card rendering, keepalive ping |
 | CSS | `assets/styles/04-pages/relay-feed.css` | Page scaffold only (header, indicator, form). Cards use the shared `.card` system. |
 
@@ -99,7 +99,13 @@ When the project relay's public hostname (e.g. `wss://relay.decentnewsroom.com`)
 
 ### Card rendering
 
-Both the server-side Twig partial (`templates/relay_feed/_card.html.twig`) and the Stimulus controller's `_prependCard()` method produce identical `.card` markup — the same structure used by the `Molecules:Card` component across the app. The list container uses `.article-list`. No card-specific CSS exists in `relay-feed.css`.
+Buffered articles are normalized by `templates/relay_feed/_card.html.twig` and
+rendered through the shared `Molecules:Card` component used by Discover's
+Recent and Featured Writers tabs. Live Mercure arrivals cannot invoke Twig in
+the browser, so `relay_feed_controller.js::_prependCard()` emits the same
+`.article-card` structure, metadata, responsive media classes, stretched title
+link, and bookmark footer. The list container uses `.article-list`; no
+card-specific CSS exists in `relay-feed.css`.
 
 Author bylines are shown on both buffered and live cards:
 - **Buffered/server-rendered cards** use `<twig:Molecules:UserFromNpub>` with `article.pubkey`, which resolves profile metadata and links to the author page.

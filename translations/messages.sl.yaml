@@ -418,12 +418,18 @@ bookmarks:
     heading: 'Zaznamki'
     tagline: 'vaše shranjene vsebine'
     untitledList: 'Seznam brez naslova'
+    itemSingular: 'element'
+    itemPlural: 'elementi'
     noItems: 'Ni elementov na tem seznamu'
     noBookmarks: 'Ni najdenih zaznamkov.'
     noBookmarksHint: 'Zaznamujte članke v svojem Nostr odjemalcu in se bodo prikazali tukaj.'
 bookmark:
     add: 'Zaznamek'
     remove: 'Zaznamovano'
+    removeAction: 'Odstrani zaznamek'
+    removed: 'Zaznamek odstranjen'
+    removeFailed: 'Zaznamka ni bilo mogoče odstraniti'
+    signerUnavailable: 'Podpisovalnik Nostr ni na voljo'
 
 # ── Sledenje ──────────────────────────────────────────────────────
 follows:
@@ -1157,3 +1163,5 @@ reading_list_editor:
         description: 'Dogodek se sestavi iz prikazanega seznama člankov. Podpiše ga razširitev NIP-07 ali povezani podpisnik.'
         login_required: 'Za objavo tega seznama potrebujete identiteto Nostr.'
         event_preview: 'Predogled dogodka Nostr'
+relay_feed:
+    untitled: 'Brez naslova'

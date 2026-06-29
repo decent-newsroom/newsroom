@@ -46,7 +46,7 @@ Kind 10003 events were not being deduplicated in the bookmarks display. If a use
 | Method | Path | Route Name | Purpose |
 |--------|------|------------|---------|
 | GET | `/api/bookmarks/current` | `api_bookmarks_current` | Returns the user's current kind 10003 event tags as JSON |
-| POST | `/api/bookmarks/publish` | `api_bookmarks_publish` | Receives a signed kind 10003 event, validates, persists, and broadcasts |
+| POST | `/api/bookmarks/publish` | `api_bookmarks_publish` | Receives a signed bookmark/list event, validates ownership, persists, and broadcasts |
 
 **Publish flow**:
 1. Validate signed event structure and kind (must be 10003)
@@ -67,11 +67,20 @@ The `ui--article-actions-dropdown` Stimulus controller (`assets/controllers/ui/a
 fetches the user's current bookmarks on connect, renders a filled/unfilled bookmark icon in the dropdown,
 and on toggle builds a new kind 10003 event with the article's `a` tag added/removed, signs, and publishes.
 
+The bookmarks page uses `ui--bookmark-list` for removal. It preserves the
+current list's non-target tags and content, removes the selected `e`, `a`, `p`,
+or `t` tag, asks the user's signer to sign the replacement event, and publishes
+it through the same endpoint. Standard kind 10003 removals also update the
+shared IndexedDB bookmark snapshot and notify article-card bookmark controls.
+`BookmarkItemResolver` remains a Live Component only for lazy event fetching;
+bookmark removal is deliberately not a LiveAction because the server cannot
+sign on the user's behalf.
+
 ## Files
 
 - `src/Controller/Reader/BookmarksController.php` — dedup logic + API endpoints
+- `assets/controllers/ui/bookmark_list_controller.js` — signed removal from the bookmarks page
 - `assets/controllers/ui/article_actions_dropdown_controller.js` — bookmark toggle (inside consolidated dropdown)
 - `templates/components/Molecules/ArticleActionsDropdown.html.twig` — dropdown template with bookmark item
 - `templates/pages/article.html.twig` — bookmark button placement
 - `translations/messages.{en,de,es,fr,sl}.yaml` — bookmark translations
-

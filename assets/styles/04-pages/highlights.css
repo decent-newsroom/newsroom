@@ -41,6 +41,10 @@
     position: relative;
 }
 
+.highlight-content p {
+    line-height: 1.5;
+}
+
 .highlight-content .content-preview {
     max-height: 280px;
     overflow: hidden;

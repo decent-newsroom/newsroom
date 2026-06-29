@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------
    Relay Feed page  (relay_feed/index.html.twig, relay_feed/feed.html.twig)
-   Cards use the shared .card / .card-header / .card-body / .card-footer
-   system; the list uses .article-list. Only page-level scaffold lives here.
+   Cards use the shared .article-card system; the list uses .article-list.
+   Only page-level scaffold lives here.
    ------------------------------------------------------------------ */
 
 /* Index page — relay selector form */
@@ -138,5 +138,4 @@
         top: var(--header-height);
     }
 }
-
 

@@ -13,7 +13,7 @@
 
         {# Toggle editor button #}
         <div class="container mt-3 mb-3">
-            <button class="btn btn--secondary"
+            <button class="btn"
                     type="button"
                     data-action="click->nostr--nostr-interests#toggleEditor">
                 {% if currentInterestTags is not empty %}
@@ -106,7 +106,7 @@
     {# ── Existing interests display ── #}
     {% if userInterests %}
         <section class="w-container mb-1">
-            <div class="topics-strip">
+            <div class="topics-strip m-4">
                 <div class="topics-buttons d-flex flex-row flex-wrap gap-2 justify-content-center">
                     {% for catKey, category in userInterests %}
                         {% for subKey, sub in category.subcategories %}

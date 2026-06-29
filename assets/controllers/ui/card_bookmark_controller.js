@@ -365,6 +365,11 @@ export default class extends Controller {
   _onBookmarkStateChanged(event) {
     const detail = event.detail || {};
 
+    if (Array.isArray(detail.tags)) {
+      this.bookmarkTags = normalizeTags(detail.tags);
+      updateBookmarkStateCache(detail.tags);
+    }
+
     if (!detail.coordinate || detail.coordinate !== this.coordinateValue) {
       return;
     }
@@ -437,6 +442,4 @@ export default class extends Controller {
     }
   }
 }
-
-
 

@@ -78,7 +78,7 @@ class RelayFeedBufferService
      * Push a raw article card to the head of the rolling buffer.
      * Trims the list to BUFFER_MAX entries (newest first).
      *
-     * @param array{id:string, pubkey:string, created_at:int, title:string, summary:string, image:string, d_tag:string, naddr:string, relay:string} $card
+     * @param array{id:string, pubkey:string, npub:string, created_at:int, title:string, summary:string, image:string, d_tag:string, naddr:string, relay:string} $card
      */
     public function pushToBuffer(string $key, array $card): void
     {
@@ -108,4 +108,3 @@ class RelayFeedBufferService
         ));
     }
 }
-

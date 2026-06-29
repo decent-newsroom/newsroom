@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Improvement] Standardized buffered and live Relay Feed entries on the shared Discover article-card layout, including responsive cover treatment, metadata, links, and authenticated bookmark controls.
+- [Bug] Fixed bookmark removal invoking a nonexistent `BookmarkItemResolver::removeBookmark()` LiveAction; removals now preserve the list, request a user signature in the browser, publish the replacement NIP-51 event, and keep standard bookmark state synchronized.
 - [Improvement] Standardized locally resolved article references, including articles shown below Discover highlights, on the same shared article card component used by the Discover Recent and Featured Writers tabs.
 - [Improvement] Consolidated reading-list article editing and review into one modern Newsroom workspace with resolved article titles and coordinates, immediate add/remove controls, live event synchronization, draft saving, and in-place signing/publishing; the former review URL now redirects compatibly.
 - [Bug] Fixed magazine category and chapter links loading their destination pages inside lazy Turbo Frames by applying `target="_top"` to the source frames and explicit top-level link targets.

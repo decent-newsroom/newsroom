@@ -461,12 +461,18 @@ bookmarks:
     heading: 'Bookmarks'
     tagline: 'your saved content'
     untitledList: 'Untitled List'
+    itemSingular: 'item'
+    itemPlural: 'items'
     noItems: 'No items in this list'
     noBookmarks: 'No bookmarks found.'
     noBookmarksHint: 'Bookmark articles from your Nostr client and they will appear here.'
 bookmark:
     add: 'Bookmark'
     remove: 'Bookmarked'
+    removeAction: 'Remove bookmark'
+    removed: 'Bookmark removed'
+    removeFailed: 'Could not remove bookmark'
+    signerUnavailable: 'No Nostr signer is available'
 
 # ── Follows ───────────────────────────────────────────────────────
 follows:
@@ -1408,6 +1414,7 @@ updatesPro:
 relay_feed:
     title: 'Relay Feed'
     subtitle: 'Browse the live article stream from a Nostr relay.'
+    untitled: 'Untitled'
     relay_url_label: 'Relay'
     start_button: 'Open Feed'
     error_not_allowed: 'That relay is not available for feed subscriptions.'

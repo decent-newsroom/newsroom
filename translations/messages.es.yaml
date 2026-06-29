@@ -418,12 +418,18 @@ bookmarks:
     heading: 'Marcadores'
     tagline: 'tu contenido guardado'
     untitledList: 'Lista sin título'
+    itemSingular: 'elemento'
+    itemPlural: 'elementos'
     noItems: 'No hay elementos en esta lista'
     noBookmarks: 'No se encontraron marcadores.'
     noBookmarksHint: 'Marca artículos desde tu cliente Nostr y aparecerán aquí.'
 bookmark:
     add: 'Guardar'
     remove: 'Guardado'
+    removeAction: 'Eliminar marcador'
+    removed: 'Marcador eliminado'
+    removeFailed: 'No se pudo eliminar el marcador'
+    signerUnavailable: 'No hay ningún firmante Nostr disponible'
 
 # ── Seguidos ──────────────────────────────────────────────────────────
 follows:
@@ -1158,3 +1164,5 @@ reading_list_editor:
         description: 'La lista de artículos visible se usa para crear el evento. Tu extensión NIP-07 o firmante conectado lo firmará.'
         login_required: 'Se necesita una identidad Nostr para publicar esta lista.'
         event_preview: 'Vista previa del evento Nostr'
+relay_feed:
+    untitled: 'Sin título'

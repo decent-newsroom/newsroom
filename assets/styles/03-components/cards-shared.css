@@ -37,7 +37,7 @@
     gap: var(--spacing-3);
     color: var(--color-text-muted);
     font-family: var(--font-family);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     line-height: 1.4;
 }
 

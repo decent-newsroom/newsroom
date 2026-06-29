@@ -127,7 +127,10 @@ class RelayFeedController extends AbstractController
 //        }
 
         // Filter buffered articles server-side so muted authors are hidden on page load.
-        $articles = $buffer->getBuffer($key);
+        $articles = array_values(array_filter(
+            $buffer->getBuffer($key),
+            static fn (array $article): bool => !empty($article['d_tag']),
+        ));
 //        if ($mutedPubkeys !== []) {
 //            $mutedSet = array_flip($mutedPubkeys);
 //            $articles = array_values(
@@ -187,7 +190,6 @@ class RelayFeedController extends AbstractController
         ));
     }
 }
-
 
 
 

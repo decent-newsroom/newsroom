@@ -117,7 +117,7 @@ class BookmarksController extends AbstractController
     }
 
     /**
-     * Publish a signed kind 10003 bookmark event.
+     * Publish a signed NIP-51 bookmark or curation-list event.
      * Persists locally via GenericEventProjector (which handles replaceable-event
      * deduplication) and broadcasts to the user's relays.
      */
@@ -148,9 +148,18 @@ class BookmarksController extends AbstractController
                 return new JsonResponse(['error' => 'Missing required event fields'], 400);
             }
 
-            // Validate kind
-            if ((int) $signedEvent['kind'] !== KindsEnum::BOOKMARKS->value) {
-                return new JsonResponse(['error' => 'Invalid event kind, expected ' . KindsEnum::BOOKMARKS->value], 400);
+            // Only bookmark/list kinds rendered by this controller may be replaced here.
+            $allowedKinds = array_map(
+                static fn (KindsEnum $kind): int => $kind->value,
+                self::BOOKMARK_KINDS,
+            );
+            if (!in_array((int) $signedEvent['kind'], $allowedKinds, true)) {
+                return new JsonResponse(['error' => 'Invalid bookmark list event kind'], 400);
+            }
+
+            $authenticatedPubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            if (!hash_equals($authenticatedPubkey, (string) $signedEvent['pubkey'])) {
+                return new JsonResponse(['error' => 'Signed event does not belong to the authenticated user'], 403);
             }
 
             // Convert to swentel Event object for signature verification
@@ -402,8 +411,9 @@ class BookmarksController extends AbstractController
             'description' => $summary,
             'image' => $image,
             'items' => $items,
+            'tags' => $event->getTags(),
+            'content' => $event->getContent(),
             'createdAt' => $event->getCreatedAt(),
         ];
     }
 }
-

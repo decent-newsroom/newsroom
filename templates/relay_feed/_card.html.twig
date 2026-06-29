@@ -1,32 +1,14 @@
-<div class="card">
-    <div class="metadata">
-        {% if article.pubkey is defined and article.pubkey %}
-            <p class="m-0">by <twig:Molecules:UserFromNpub :ident="article.pubkey" /></p>
-        {% endif %}
-        {% if article.created_at is defined and article.created_at %}
-            <span><small>{{ article.created_at|date('F j Y', 'UTC') }}</small></span>
-        {% endif %}
-    </div>
-    {% if article.naddr is defined and article.naddr %}
-        <a href="{{ path('article-naddr', { naddr: article.naddr }) }}" data-turbo-frame="_top">
-    {% endif %}
-    <div class="card-header">
-        {% if article.image is defined and article.image %}
-            <img src="{{ article.image }}"
-                 alt="{{ article.title is defined ? article.title : '' }}"
-                 loading="lazy"
-            >
-        {% endif %}
-    </div>
-    <div class="card-body">
-        <h2 class="card-title line-clamp-5">
-            {{ article.title is defined and article.title ? article.title : 'Untitled' }}
-        </h2>
-        {% if article.summary is defined and article.summary %}
-            <p class="lede line-clamp-5">{{ article.summary }}</p>
-        {% endif %}
-    </div>
-    {% if article.naddr is defined and article.naddr %}</a>{% endif %}
-    <div class="card-footer"></div>
-</div>
+{% set articleCard = {
+    id: article.id,
+    slug: article.d_tag,
+    title: article.title ?: ('relay_feed.untitled'|trans),
+    pubkey: article.pubkey,
+    createdAt: article.created_at,
+    publishedAt: null,
+    summary: article.summary,
+    image: article.image,
+    kind: 30023,
+    naddr: article.naddr,
+} %}
 
+<twig:Molecules:Card :article="articleCard" />

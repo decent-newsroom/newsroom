@@ -216,6 +216,10 @@ final class StartRelayFeedHandler
             };
         }
 
+        if ($dTag === '') {
+            return null;
+        }
+
         // Build an naddr so the card can link directly to the article route.
         $naddr = '';
         try {

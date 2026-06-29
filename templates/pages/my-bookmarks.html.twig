@@ -7,7 +7,20 @@
         {% if bookmarks|length > 0 %}
             <div class="bookmarks-list d-flex">
                 {% for bookmark in bookmarks %}
-                    <div class="bookmark-item card">
+                    <div
+                        class="bookmark-item card"
+                        data-controller="ui--bookmark-list"
+                        data-ui--bookmark-list-kind-value="{{ bookmark.kind }}"
+                        data-ui--bookmark-list-tags-value="{{ bookmark.tags|json_encode|e('html_attr') }}"
+                        data-ui--bookmark-list-content-value="{{ bookmark.content|e('html_attr') }}"
+                        data-ui--bookmark-list-publish-url-value="{{ path('api_bookmarks_publish') }}"
+                        data-ui--bookmark-list-empty-message-value="{{ 'bookmarks.noItems'|trans|e('html_attr') }}"
+                        data-ui--bookmark-list-item-singular-value="{{ 'bookmarks.itemSingular'|trans|e('html_attr') }}"
+                        data-ui--bookmark-list-item-plural-value="{{ 'bookmarks.itemPlural'|trans|e('html_attr') }}"
+                        data-ui--bookmark-list-removed-message-value="{{ 'bookmark.removed'|trans|e('html_attr') }}"
+                        data-ui--bookmark-list-remove-failed-message-value="{{ 'bookmark.removeFailed'|trans|e('html_attr') }}"
+                        data-ui--bookmark-list-signer-unavailable-message-value="{{ 'bookmark.signerUnavailable'|trans|e('html_attr') }}"
+                    >
                         <div class="bookmark-header d-flex flex-row justify-content-between p-1 ln-section--newsstand">
                             <span class="bookmark-kind-badge">{{ bookmark.listType }}</span>
                             {% if bookmark.listType != 'Bookmarks' %}
@@ -26,14 +39,22 @@
 
                         {% if bookmark.items|length > 0 %}
                             <div class="bookmark-items-count p-1 ln-section--newsstand">
-                                <small>{{ bookmark.items|length }} item{{ bookmark.items|length > 1 ? 's' : '' }}</small>
+                                <small data-ui--bookmark-list-target="count">
+                                    {{ bookmark.items|length }}
+                                    {{ (bookmark.items|length == 1 ? 'bookmarks.itemSingular' : 'bookmarks.itemPlural')|trans }}
+                                </small>
                             </div>
 
-                            <div class="bookmark-items-list mt-3">
+                            <div class="bookmark-items-list mt-3" data-ui--bookmark-list-target="items">
                                 {% for item in bookmark.items %}
                                     {% if item.type == 'e' and item.value and resolvedEvents[item.value] is defined %}
                                         {# Event already in DB – render directly, no LiveComponent needed #}
-                                        {% include 'partial/_bookmark_event_card.html.twig' with {event: resolvedEvents[item.value]} %}
+                                        <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>
+                                            <div class="flex-grow-1">
+                                                {% include 'partial/_bookmark_event_card.html.twig' with {event: resolvedEvents[item.value]} %}
+                                            </div>
+                                            {% include 'partial/_bookmark_remove_button.html.twig' with {type: item.type, value: item.value} only %}
+                                        </div>
                                     {% else %}
                                         <twig:Organisms:BookmarkItemResolver
                                             :type="item.type"
@@ -57,4 +78,3 @@
         {% endif %}
     </div>
 {% endblock %}
-

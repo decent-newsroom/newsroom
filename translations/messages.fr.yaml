@@ -418,12 +418,18 @@ bookmarks:
     heading: 'Signets'
     tagline: 'votre contenu sauvegardé'
     untitledList: 'Liste sans titre'
+    itemSingular: 'élément'
+    itemPlural: 'éléments'
     noItems: 'Aucun élément dans cette liste'
     noBookmarks: 'Aucun signet trouvé.'
     noBookmarksHint: 'Ajoutez des articles en signet depuis votre client Nostr et ils apparaîtront ici.'
 bookmark:
     add: 'Signet'
     remove: 'Sauvegardé'
+    removeAction: 'Supprimer le signet'
+    removed: 'Signet supprimé'
+    removeFailed: 'Impossible de supprimer le signet'
+    signerUnavailable: 'Aucun signataire Nostr disponible'
 
 # ── Abonnements ────────────────────────────────────────────────────
 follows:
@@ -1157,3 +1163,5 @@ reading_list_editor:
         description: 'La liste d’articles visible sert à construire l’événement. Votre extension NIP-07 ou votre signataire connecté le signera.'
         login_required: 'Une identité Nostr est requise pour publier cette liste.'
         event_preview: 'Aperçu de l’événement Nostr'
+relay_feed:
+    untitled: 'Sans titre'

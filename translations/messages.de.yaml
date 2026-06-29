@@ -415,12 +415,18 @@ bookmarks:
     heading: 'Lesezeichen'
     tagline: 'Ihre gespeicherten Inhalte'
     untitledList: 'Unbenannte Liste'
+    itemSingular: 'Eintrag'
+    itemPlural: 'Einträge'
     noItems: 'Keine Einträge in dieser Liste'
     noBookmarks: 'Keine Lesezeichen gefunden.'
     noBookmarksHint: 'Setzen Sie Lesezeichen in Ihrem Nostr-Client, und sie erscheinen hier.'
 bookmark:
     add: 'Lesezeichen'
     remove: 'Gespeichert'
+    removeAction: 'Lesezeichen entfernen'
+    removed: 'Lesezeichen entfernt'
+    removeFailed: 'Lesezeichen konnte nicht entfernt werden'
+    signerUnavailable: 'Kein Nostr-Signierer verfügbar'
 
 # ── Folgen ────────────────────────────────────────────────────────────
 follows:
@@ -1168,3 +1174,5 @@ reading_list_editor:
         description: 'Die sichtbare Artikelliste wird für das Event verwendet. Deine NIP-07-Erweiterung oder dein verbundener Signer signiert es.'
         login_required: 'Zum Veröffentlichen dieser Liste ist eine Nostr-Identität erforderlich.'
         event_preview: 'Nostr-Event-Vorschau'
+relay_feed:
+    untitled: 'Ohne Titel'

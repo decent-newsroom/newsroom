@@ -34,7 +34,6 @@ button:hover,
 a.btn:hover {
     border-color: var(--color-primary-light);
     background: var(--color-primary-light);
-    color: var(--color-text-contrast);
     text-decoration: none;
 }
 

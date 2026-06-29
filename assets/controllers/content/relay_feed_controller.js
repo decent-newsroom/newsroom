@@ -11,9 +11,18 @@ import { Controller } from '@hotwired/stimulus';
  */
 export default class extends Controller {
     static values = {
-        topic:        String,
-        keepaliveUrl: String,
-        mutedPubkeys: Array,
+        topic:                 String,
+        keepaliveUrl:          String,
+        mutedPubkeys:          Array,
+        byLabel:               String,
+        untitledLabel:         String,
+        coverImageAltTemplate: String,
+        loggedIn:              Boolean,
+        bookmarkFetchUrl:      String,
+        bookmarkPublishUrl:    String,
+        bookmarkAddLabel:      String,
+        bookmarkRemoveLabel:   String,
+        bookmarkIcon:          String,
     };
 
     static targets = ['list', 'count', 'indicator', 'empty'];
@@ -25,7 +34,7 @@ export default class extends Controller {
     keepaliveTimer = null;
 
     connect() {
-        this._cardCount = this.listTarget.querySelectorAll('.card').length;
+        this._cardCount = this.listTarget.querySelectorAll('.article-card').length;
         this._updateCount();
 
         this._openEventSource();
@@ -92,11 +101,10 @@ export default class extends Controller {
     }
 
     /**
-     * Build and prepend a card element from raw JSON card data.
-     * Uses the same .card / .card-header / .card-body / .card-footer structure
-     * as the server-side Card component so no extra CSS is needed.
+     * Build and prepend the same article-card structure emitted by
+     * Molecules:Card for the server-rendered buffer.
      *
-     * @param {{ id:string, pubkey:string, npub?:string, created_at:number, title:string, summary:string, image:string, naddr:string }} card
+     * @param {{ id:string, pubkey:string, npub?:string, created_at:number, title:string, summary:string, image:string, d_tag:string, naddr:string }} card
      */
     _prependCard(card) {
         // Remove the "waiting" empty state on first card
@@ -104,55 +112,101 @@ export default class extends Controller {
             this.emptyTarget.remove();
         }
 
-        const title   = card.title   || 'Untitled';
+        const title   = card.title   || this.untitledLabelValue;
         const summary = card.summary || '';
         const image   = card.image   || '';
         const naddr   = card.naddr   || '';
         const pubkey  = card.pubkey  || '';
         const npub    = card.npub    || '';
+        const slug    = card.d_tag   || '';
         const time    = card.created_at ? new Date(card.created_at * 1000) : null;
 
         const timeIso   = time ? time.toISOString() : '';
         const timeLabel = time
-            ? time.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+            ? time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
             : '';
 
-        const articleUrl = naddr ? `/article/${naddr}` : null;
+        const articleUrl = naddr ? `/e/${encodeURIComponent(naddr)}` : null;
+        const coordinate = pubkey && slug ? `30023:${pubkey}:${slug}` : '';
+        const imageAlt = this.coverImageAltTemplateValue.replace('__TITLE__', title);
 
-        const shortHex = pubkey ? `${pubkey.slice(0, 8)}...` : '';
+        const shortAuthor = npub
+            ? `${npub.slice(0, 12)}...`
+            : (pubkey ? `${pubkey.slice(0, 8)}...` : '');
         const authorHtml = npub
-            ? `<p class="m-0">by <a href="/p/${this._escape(npub)}" data-turbo-frame="_top">${this._escape(npub.slice(0, 12))}...</a></p>`
-            : (shortHex ? `<p class="m-0">by ${this._escape(shortHex)}</p>` : '');
+            ? `<a href="/p/${this._escape(npub)}" data-turbo-frame="_top">${this._escape(shortAuthor)}</a>`
+            : this._escape(shortAuthor);
+        const bookmarkHtml = this.loggedInValue && coordinate
+            ? `
+                <div class="card-footer">
+                    <button
+                        type="button"
+                        class="card-bookmark-btn"
+                        data-controller="ui--card-bookmark"
+                        data-ui--card-bookmark-target="button"
+                        data-action="click->ui--card-bookmark#toggle"
+                        data-ui--card-bookmark-coordinate-value="${this._escape(coordinate)}"
+                        data-ui--card-bookmark-bookmark-fetch-url-value="${this._escape(this.bookmarkFetchUrlValue)}"
+                        data-ui--card-bookmark-bookmark-publish-url-value="${this._escape(this.bookmarkPublishUrlValue)}"
+                        data-ui--card-bookmark-add-label-value="${this._escape(this.bookmarkAddLabelValue)}"
+                        data-ui--card-bookmark-remove-label-value="${this._escape(this.bookmarkRemoveLabelValue)}"
+                        title="${this._escape(this.bookmarkAddLabelValue)}"
+                    >
+                        ${this.bookmarkIconValue}
+                        <span data-ui--card-bookmark-target="label">${this._escape(this.bookmarkAddLabelValue)}</span>
+                    </button>
+                </div>
+            `
+            : '';
 
-        const cardEl = document.createElement('div');
-        cardEl.className = 'card';
+        const cardEl = document.createElement('article');
+        cardEl.className = `card article-card${image ? '' : ' article-card--text-only'}`;
+        cardEl.dataset.articleId = card.id || '';
+        cardEl.dataset.uuid = card.id || '';
+        cardEl.dataset.coordinate = coordinate;
+        cardEl.dataset.npub = npub;
 
         cardEl.innerHTML = `
-            <div class="metadata">
-                ${authorHtml}
-                ${timeIso ? `<span><small><time datetime="${timeIso}">${timeLabel}</time></small></span>` : ''}
+            <div class="article-card__body">
+                <div class="article-card__content">
+                    <div class="metadata">
+                        ${shortAuthor ? `<span>${this._escape(this.byLabelValue)} ${authorHtml}</span>` : ''}
+                        ${timeIso ? `<span><time datetime="${timeIso}">${timeLabel}</time></span>` : ''}
+                    </div>
+                    <h2 class="card-title line-clamp-5">
+                        ${articleUrl
+                            ? `<a class="article-card__title-link" href="${articleUrl}" data-turbo-frame="_top">${this._escape(title)}</a>`
+                            : this._escape(title)}
+                    </h2>
+                    ${summary
+                        ? `<p class="lede line-clamp-5" data-controller="utility--katex" data-utility--katex-display-value="false">${this._escape(summary)}</p>`
+                        : ''}
+                </div>
+                ${image
+                    ? `
+                        <figure class="article-card__media">
+                            <img
+                                src="${this._escape(image)}"
+                                alt="${this._escape(imageAlt)}"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        </figure>
+                    `
+                    : ''}
             </div>
-            ${articleUrl ? `<a href="${articleUrl}" data-turbo-frame="_top">` : ''}
-            <div class="card-header">
-                ${image ? `<img src="${this._escape(image)}" alt="${this._escape(title)}" loading="lazy">` : ''}
-            </div>
-            <div class="card-body">
-                <h2 class="card-title line-clamp-5">${this._escape(title)}</h2>
-                ${summary ? `<p class="lede line-clamp-5">${this._escape(summary)}</p>` : ''}
-            </div>
-            ${articleUrl ? `</a>` : ''}
-            <div class="card-footer"></div>
+            ${bookmarkHtml}
         `;
 
         this.listTarget.prepend(cardEl);
 
         // Trim the visible list to BUFFER_MAX (100)
-        const cards = this.listTarget.querySelectorAll('.card');
+        const cards = this.listTarget.querySelectorAll('.article-card');
         if (cards.length > 100) {
             cards[cards.length - 1].remove();
         }
 
-        this._cardCount++;
+        this._cardCount = Math.min(cards.length, 100);
         this._updateCount();
     }
 
@@ -202,4 +256,3 @@ export default class extends Controller {
             .replace(/'/g, '&#39;');
     }
 }
-

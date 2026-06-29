@@ -1,0 +1,11 @@
+<button
+    type="button"
+    class="bookmark-item-remove"
+    title="{{ 'bookmark.removeAction'|trans }}"
+    aria-label="{{ 'bookmark.removeAction'|trans }}"
+    data-action="click->ui--bookmark-list#remove"
+    data-ui--bookmark-list-type-param="{{ type }}"
+    data-ui--bookmark-list-value-param="{{ value }}"
+>
+    {{ ux_icon('iconoir:xmark', {class: 'icon'}) }}
+</button>
