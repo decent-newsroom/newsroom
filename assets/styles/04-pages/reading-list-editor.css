@@ -52,6 +52,12 @@
     gap: var(--spacing-2);
 }
 
+.reading-list-editor__header-actions .btn,
+.reading-list-editor__collection-actions .btn {
+    align-self: start;
+}
+
+
 .reading-list-editor .icon {
     width: 1.05rem;
     height: 1.05rem;
@@ -223,6 +229,7 @@
 .reading-list-article__remove:focus-visible {
     border-color: var(--color-error);
     color: var(--color-error);
+    background: none;
 }
 
 .reading-list-editor__collection-actions {
