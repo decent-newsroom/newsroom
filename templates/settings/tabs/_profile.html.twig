@@ -28,7 +28,7 @@
                     {{ (profile.display_name ?? profile.name ?? npub[:2])|slice(0, 2)|upper }}
                 </div>
             {% endif %}
-            <div>
+            <div class="d-flex align-items-center">
                 <strong>{{ profile.display_name ?? profile.name ?? 'Anonymous' }}</strong>
                 {% if profile.nip05 %}
                     <span class="text-muted">{{ profile.nip05 }}</span>
