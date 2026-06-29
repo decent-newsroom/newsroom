@@ -752,6 +752,33 @@ reading_nook:
         categories: 'Categorie'
         contributors: 'Collaboratori'
 
+interest_set_editor:
+    heading: 'Edit interest set' # TODO: translate
+    tagline: 'Update this kind:30015 topic list and publish a replacement event.' # TODO: translate
+    title_label: 'Title' # TODO: translate
+    d_tag_label: 'Identifier' # TODO: translate
+    selected_tags: 'Selected tags' # TODO: translate
+    no_tags_selected: 'No tags selected' # TODO: translate
+    custom_tags: 'Add custom tags' # TODO: translate
+    custom_placeholder: 'e.g. bitcoin, nostr, photography' # TODO: translate
+    add_tag: 'Add' # TODO: translate
+    popular_tags: 'Popular tags' # TODO: translate
+    remove_tag: 'Remove tag' # TODO: translate
+    publish: 'Sign & publish interest set' # TODO: translate
+    back_to_set: 'Back to interest set' # TODO: translate
+    status:
+        signer_connecting: 'Connecting to signer...' # TODO: translate
+        preparing: 'Preparing interest set...' # TODO: translate
+        signing: 'Requesting signature...' # TODO: translate
+        publishing: 'Publishing interest set...' # TODO: translate
+        success: 'Interest set published. Refreshing...' # TODO: translate
+    error:
+        tag_required: 'Please select at least one tag.' # TODO: translate
+        title_required: 'Please add a title.' # TODO: translate
+        signer_unavailable: 'No Nostr signer available.' # TODO: translate
+        signer_mismatch: 'The connected signer does not own this interest set.' # TODO: translate
+        failed: 'Publishing failed' # TODO: translate
+
 # ── Featured Unfold Sites ─────────────────────────────────────────
 featured_unfold:
     label: 'Premium'

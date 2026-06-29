@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Reader;
 
+use App\Entity\Event as StoredEvent;
 use App\Entity\User;
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
@@ -141,6 +142,33 @@ class ForumController extends AbstractController
             'popularTags' => $popularTags,
             'groupedTags' => $groupedTags,
             'currentInterestTags' => $currentInterestTags,
+        ]);
+    }
+
+    /**
+     * Edit an owned kind:30015 interest set.
+     */
+    #[Route('/my-interests/set/{dTag}/edit', name: 'interest_set_edit', requirements: ['dTag' => '.+'])]
+    public function interestSetEdit(
+        string $dTag,
+        EventRepository $eventRepository,
+    ): Response {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('my_interests');
+        }
+
+        $pubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        $event = $eventRepository->findByNaddr(KindsEnum::INTEREST_SETS->value, $pubkeyHex, $dTag);
+        if (!$event instanceof StoredEvent) {
+            throw $this->createNotFoundException('Interest set not found.');
+        }
+
+        return $this->render('forum/interest_set_edit.html.twig', [
+            'readingNookNav' => $this->buildReadingNookNav(),
+            'set' => $this->buildInterestSetPayload($event),
+            'groupedTags' => ForumTopics::groupedTags(),
         ]);
     }
 
@@ -473,6 +501,67 @@ class ForumController extends AbstractController
         return $mainTopicsMap;
     }
 
+    /**
+     * @return array{pubkey: string, dTag: string, title: string, tags: string[]}
+     */
+    private function buildInterestSetPayload(StoredEvent $event): array
+    {
+        $dTag = $event->getDTag() ?? '';
+        $title = $event->getTitle() ?? $this->firstTagValue($event->getTags(), ['title', 'name']) ?? $dTag;
+
+        return [
+            'pubkey' => $event->getPubkey(),
+            'dTag' => $dTag,
+            'title' => $title,
+            'tags' => $this->extractTopicTags($event->getTags()),
+        ];
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $tags
+     * @param string[] $names
+     */
+    private function firstTagValue(array $tags, array $names): ?string
+    {
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || !isset($tag[0], $tag[1])) {
+                continue;
+            }
+
+            if (in_array((string) $tag[0], $names, true)) {
+                $value = trim((string) $tag[1]);
+                if ($value !== '') {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $tags
+     * @return string[]
+     */
+    private function extractTopicTags(array $tags): array
+    {
+        $values = [];
+        foreach ($tags as $tag) {
+            if (!is_array($tag) || ($tag[0] ?? null) !== 't' || !isset($tag[1])) {
+                continue;
+            }
+
+            $value = strtolower(trim((string) $tag[1]));
+            if ($value !== '') {
+                $values[$value] = true;
+            }
+        }
+
+        ksort($values);
+
+        return array_keys($values);
+    }
+
     private function buildUserInterests(User $user, NostrClient $nostrClient, ContentSearchService $contentSearch, ?array $prefetchedInterests = null): ?array
     {
         try {
@@ -544,4 +633,3 @@ class ForumController extends AbstractController
         }
     }
 }
-

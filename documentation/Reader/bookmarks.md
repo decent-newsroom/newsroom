@@ -72,6 +72,9 @@ current list's non-target tags and content, removes the selected `e`, `a`, `p`,
 or `t` tag, asks the user's signer to sign the replacement event, and publishes
 it through the same endpoint. Standard kind 10003 removals also update the
 shared IndexedDB bookmark snapshot and notify article-card bookmark controls.
+Article-coordinate bookmarks rely on the article card's `Bookmarked` shortcut
+for removal, so the bookmarks page does not render a second standalone remove
+control for `a` tags.
 `BookmarkItemResolver` remains a Live Component only for lazy event fetching;
 bookmark removal is deliberately not a LiveAction because the server cannot
 sign on the user's behalf.

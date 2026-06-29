@@ -4,7 +4,6 @@
             <div class="flex-grow-1">
                 <twig:Organisms:ArticleFromCoordinate :coordinate="value" />
             </div>
-            {% include 'partial/_bookmark_remove_button.html.twig' with {type: type, value: value} only %}
         </div>
     {% elseif type == 'e' %}
         <div class="bookmark-item-container d-flex justify-content-between align-items-start gap-2" data-bookmark-list-item>

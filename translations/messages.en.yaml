@@ -1499,6 +1499,33 @@ reading_nook:
         open: 'Open'
         manage: 'Manage'
 
+interest_set_editor:
+    heading: 'Edit interest set'
+    tagline: 'Update this kind:30015 topic list and publish a replacement event.'
+    title_label: 'Title'
+    d_tag_label: 'Identifier'
+    selected_tags: 'Selected tags'
+    no_tags_selected: 'No tags selected'
+    custom_tags: 'Add custom tags'
+    custom_placeholder: 'e.g. bitcoin, nostr, photography'
+    add_tag: 'Add'
+    popular_tags: 'Popular tags'
+    remove_tag: 'Remove tag'
+    publish: 'Sign & publish interest set'
+    back_to_set: 'Back to interest set'
+    status:
+        signer_connecting: 'Connecting to signer...'
+        preparing: 'Preparing interest set...'
+        signing: 'Requesting signature...'
+        publishing: 'Publishing interest set...'
+        success: 'Interest set published. Refreshing...'
+    error:
+        tag_required: 'Please select at least one tag.'
+        title_required: 'Please add a title.'
+        signer_unavailable: 'No Nostr signer available.'
+        signer_mismatch: 'The connected signer does not own this interest set.'
+        failed: 'Publishing failed'
+
 reading_list_editor:
     eyebrow: 'Reading list editor'
     category_eyebrow: 'Category editor'

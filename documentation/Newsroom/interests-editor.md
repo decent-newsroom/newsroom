@@ -4,6 +4,11 @@
 
 The My Interests page (`/my-interests`) now includes an interactive editor that allows users to create or edit their Nostr interests list (NIP-51, kind 10015). Previously, users had to use an external Nostr client to publish an interests event. Now they can do it directly from the application.
 
+Owned interest sets (NIP-51, kind `30015`) can be edited at
+`/my-interests/set/{dTag}/edit`. The editor preserves the set's `d` tag,
+updates its title and `t` tags, then signs and publishes a replacement
+kind `30015` event through the generic signed-event publish endpoint.
+
 ## How It Works
 
 ### User Flow
@@ -24,6 +29,7 @@ The My Interests page (`/my-interests`) now includes an interactive editor that 
 #### Backend
 
 - **`ForumController::myInterests()`** — passes `popularTags`, `groupedTags`, and `currentInterestTags` to the template
+- **`ForumController::interestSetEdit()`** — loads an owned kind `30015` event by `d` tag and renders its title/tag editor
 - **`ForumController::publishInterests()`** — new `POST /api/interests/publish` endpoint that:
   - Receives a signed kind 10015 event
   - Validates required fields and event kind
@@ -43,6 +49,7 @@ The My Interests page (`/my-interests`) now includes an interactive editor that 
   - Kind 10015 event skeleton construction
   - Signer integration via shared `getSigner()` from `signer_manager.js`
   - Backend publishing and page reload
+- **`nostr_interest_set_editor_controller.js`** — Stimulus controller for replacing owned kind `30015` interest sets with updated title and topic tags
 
 #### Styles
 
@@ -79,7 +86,8 @@ Kind 10015 is a replaceable event — publishing a new one replaces any previous
 - `src/Controller/Reader/ForumController.php` — added publish endpoint, passed editor data to template
 - `src/Util/ForumTopics.php` — added `allUniqueTags()` and `groupedTags()` static methods
 - `assets/controllers/nostr/nostr_interests_controller.js` — new Stimulus controller
+- `assets/controllers/nostr/nostr_interest_set_editor_controller.js` — interest-set replacement editor
 - `assets/styles/04-pages/forum.css` — interests editor styles
 - `templates/forum/my_interests.html.twig` — added editor UI
+- `templates/forum/interest_set_edit.html.twig` — added kind 30015 set editor UI
 - `CHANGELOG.md` — feature entry
-

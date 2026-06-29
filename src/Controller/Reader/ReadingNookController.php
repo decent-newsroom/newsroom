@@ -157,7 +157,7 @@ final class ReadingNookController extends AbstractController
 
             $tags = $event->getTags();
             $slug = $event->getSlug();
-            $title = $this->firstTagValue($tags, ['title', 'name']) ?? $slug ?? 'Untitled';
+            $title = $this->firstTagValue($tags, ['title', 'name']) ?? $slug ?? $this->defaultTitleForKind($kind);
             $summary = $this->firstTagValue($tags, ['summary', 'description']) ?? $this->contentSnippet($event->getContent(), 220);
             $topicTags = $this->extractTagValues($tags, 't');
 
@@ -394,6 +394,10 @@ final class ReadingNookController extends AbstractController
         }
 
         if ($section === self::SECTION_INTERESTS) {
+            if ($kind === KindsEnum::INTEREST_SETS->value && $slug !== null && $slug !== '') {
+                return $this->generateUrl('interest_set_edit', ['dTag' => $slug]);
+            }
+
             return $this->generateUrl('my_interests');
         }
 
@@ -618,6 +622,14 @@ final class ReadingNookController extends AbstractController
         }
 
         return mb_substr($plain, 0, $maxLen - 1) . '...';
+    }
+
+    private function defaultTitleForKind(int $kind): string
+    {
+        return match ($kind) {
+            KindsEnum::INTERESTS->value => 'My interests',
+            default => 'Untitled',
+        };
     }
 
     /**

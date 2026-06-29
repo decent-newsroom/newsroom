@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Bug] Reading Nook topic lists now label untitled kind `10015` lists as `My interests`, and kind `30015` interest-set Manage actions open the specific set editor instead of the generic interests page.
+- [Bug] Removed the redundant standalone remove control from article-coordinate bookmarks on `/my-bookmarks`.
 - [Improvement] Clarified beside the reading-list editor’s Save draft action that session-only drafts can be lost and should be signed and published to preserve changes.
 - [Bug] Contained the reading-list Nostr event preview within the editor width so long event values scroll inside the preview instead of stretching the page layout.
 - [Improvement] Reading Nook author subscription cards now resolve npub/hex sources to the profile metadata display name, with profile name and shortened identifier fallbacks.

@@ -54,12 +54,9 @@
             <code>{{ draft.slug }}</code>
         </div>
         <div class="reading-list-editor__header-actions">
-            <a class="btn btn--secondary" href="{{ path('read_wizard_setup') }}">
+            <a class="btn btn-secondary" href="{{ path('read_wizard_setup') }}">
                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                 {{ 'reading_list_editor.action.edit_details'|trans }}
-            </a>
-            <a class="btn btn--secondary" href="{{ path('read_wizard_cancel') }}">
-                {{ 'reading_list_editor.action.cancel'|trans }}
             </a>
         </div>
     </header>

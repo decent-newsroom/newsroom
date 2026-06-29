@@ -1,0 +1,125 @@
+{% extends 'reading-nook-layout.html.twig' %}
+
+{% block title %}{{ 'interest_set_editor.heading'|trans }} - {{ brand_name }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading
+        :heading="'interest_set_editor.heading'|trans"
+        :tagline="'interest_set_editor.tagline'|trans"
+    />
+
+    <div class="interests-editor-wrapper"
+         {{ stimulus_controller('nostr--nostr-interest-set-editor', {
+             publishUrl: path('api_settings_event_publish'),
+             redirectUrl: path('interest_set_view', {dTag: set.dTag}),
+             setPubkey: set.pubkey,
+             setDtag: set.dTag,
+             currentTags: set.tags|default([]),
+             messages: {
+                 noTagsSelected: 'interest_set_editor.no_tags_selected'|trans,
+                 tagRequired: 'interest_set_editor.error.tag_required'|trans,
+                 titleRequired: 'interest_set_editor.error.title_required'|trans,
+                 signerConnecting: 'interest_set_editor.status.signer_connecting'|trans,
+                 signerUnavailable: 'interest_set_editor.error.signer_unavailable'|trans,
+                 signerMismatch: 'interest_set_editor.error.signer_mismatch'|trans,
+                 preparing: 'interest_set_editor.status.preparing'|trans,
+                 signing: 'interest_set_editor.status.signing'|trans,
+                 publishing: 'interest_set_editor.status.publishing'|trans,
+                 success: 'interest_set_editor.status.success'|trans,
+                 failed: 'interest_set_editor.error.failed'|trans,
+                 removeTag: 'interest_set_editor.remove_tag'|trans,
+             },
+         }) }}>
+        <div class="interests-editor interests-editor--open">
+            <div class="interests-editor__inner">
+                <div class="interests-custom">
+                    <label for="interest-set-title">{{ 'interest_set_editor.title_label'|trans }}</label>
+                    <div class="interests-custom__row">
+                        <input
+                            id="interest-set-title"
+                            type="text"
+                            value="{{ set.title }}"
+                            maxlength="120"
+                            data-nostr--nostr-interest-set-editor-target="titleInput"
+                        >
+                    </div>
+                </div>
+
+                <div class="interests-custom">
+                    <label>{{ 'interest_set_editor.d_tag_label'|trans }}</label>
+                    <div class="interests-custom__row">
+                        <input type="text" value="{{ set.dTag }}" readonly>
+                    </div>
+                </div>
+
+                <div class="interests-selected">
+                    <h4>{{ 'interest_set_editor.selected_tags'|trans }}</h4>
+                    <div
+                        class="interests-selected__list"
+                        data-nostr--nostr-interest-set-editor-target="selectedList"
+                    >
+                        <span class="text-muted">{{ 'interest_set_editor.no_tags_selected'|trans }}</span>
+                    </div>
+                </div>
+
+                <div class="interests-custom">
+                    <label for="interest-set-custom-input">{{ 'interest_set_editor.custom_tags'|trans }}</label>
+                    <div class="interests-custom__row">
+                        <input
+                            type="text"
+                            id="interest-set-custom-input"
+                            placeholder="{{ 'interest_set_editor.custom_placeholder'|trans }}"
+                            data-nostr--nostr-interest-set-editor-target="customInput"
+                            data-action="keydown->nostr--nostr-interest-set-editor#addCustomTag"
+                        >
+                        <button
+                            type="button"
+                            class="btn btn--secondary"
+                            data-action="click->nostr--nostr-interest-set-editor#addCustomTag"
+                        >
+                            {{ 'interest_set_editor.add_tag'|trans }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="interests-popular" data-nostr--nostr-interest-set-editor-target="tagChips">
+                    <h4>{{ 'interest_set_editor.popular_tags'|trans }}</h4>
+                    {% for group in groupedTags|default([]) %}
+                        <div class="interests-category">
+                            <h5>{{ group.name }}</h5>
+                            <div class="interests-chips">
+                                {% for tag in group.tags %}
+                                    <button
+                                        type="button"
+                                        class="interests-chip"
+                                        data-tag="{{ tag }}"
+                                        data-action="click->nostr--nostr-interest-set-editor#toggleTag"
+                                    >
+                                        #{{ tag }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="interests-actions">
+                    <button
+                        type="button"
+                        class="btn btn--primary"
+                        data-nostr--nostr-interest-set-editor-target="publishButton"
+                        data-action="click->nostr--nostr-interest-set-editor#publish"
+                    >
+                        {{ 'interest_set_editor.publish'|trans }}
+                    </button>
+                    <a class="btn btn-secondary" href="{{ path('interest_set_view', {dTag: set.dTag}) }}">
+                        {{ 'interest_set_editor.back_to_set'|trans }}
+                    </a>
+                    <div data-nostr--nostr-interest-set-editor-target="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block aside %}{% endblock %}
