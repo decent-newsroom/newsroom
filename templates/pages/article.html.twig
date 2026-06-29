@@ -260,7 +260,7 @@
 
             {% if article.raw is defined and article.raw.tags is defined and article.raw.tags|length > 0 %}
                 {% if reference_tags|length > 0 %}
-                    <section class="article-references-section p-0">
+                    <section class="article-references-section p-0 my-5">
                         <ul class="reference-list list-unstyled">
                             {% for tag in reference_tags %}
                                 {% if tag[1] is defined and not (tag[1] starts with 'ws://') and not (tag[1] starts with 'wss://') %}
@@ -288,7 +288,7 @@
         </div>
 
         {% if is_granted('ROLE_ADMIN') %}
-        <details>
+        <details class="my-3">
             <summary>Raw event</summary>
             <pre>{{ article.raw|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
         </details>
