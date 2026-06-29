@@ -166,30 +166,30 @@
                     </summary>
                     <div class="my-content-menu__panel">
                         {% if item.category == 'published' %}
-                            <a href="{{ path('editor-edit-slug', {slug: item.article.slug}) }}">
+                            <a class="btn" href="{{ path('editor-edit-slug', {slug: item.article.slug}) }}">
                                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                                 {{ 'my_content.action.edit'|trans }}
                             </a>
-                            <a href="{{ path('author-article-slug', {npub: item.article.pubkey|toNpub, slug: item.article.slug}) }}">
+                            <a class="btn" href="{{ path('author-article-slug', {npub: item.article.pubkey|toNpub, slug: item.article.slug}) }}">
                                 {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
                                 {{ 'my_content.action.view'|trans }}
                             </a>
                         {% elseif item.category == 'drafts' %}
-                            <a href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">
+                            <a class="btn" href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">
                                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                                 {{ 'my_content.action.edit'|trans }}
                             </a>
                         {% elseif item.list.kind == 30040 and item.list.slug %}
-                            <a href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">
+                            <a class="btn" href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">
                                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                                 {{ 'my_content.action.edit'|trans }}
                             </a>
-                            <a href="{{ path('reading-list', {slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
+                            <a class="btn" href="{{ path('reading-list', {slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
                                 {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
                                 {{ 'my_content.action.view'|trans }}
                             </a>
                         {% elseif item.list.slug %}
-                            <a href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
+                            <a class="btn" href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
                                 {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
                                 {{ 'my_content.action.view'|trans }}
                             </a>
@@ -242,7 +242,7 @@
                 <h2>{{ 'my_content.empty.title'|trans }}</h2>
                 <p>{{ 'my_content.empty.description'|trans }}</p>
                 {% if searchQuery or activeType != 'all' %}
-                    <a class="btn btn--secondary" href="{{ path('my_content') }}">{{ 'my_content.filter.clear'|trans }}</a>
+                    <a class="btn btn-secondary" href="{{ path('my_content') }}">{{ 'my_content.filter.clear'|trans }}</a>
                 {% else %}
                     <a class="btn" href="{{ path('editor-create') }}">{{ 'my_content.action.new_article'|trans }}</a>
                 {% endif %}
@@ -253,14 +253,14 @@
     {% if totalPages > 1 %}
         <nav class="my-content-pagination" aria-label="{{ 'my_content.pagination.label'|trans }}">
             {% if page > 1 %}
-                <a class="btn btn--secondary btn-sm my-content-pagination__previous" href="{{ path('my_content', currentQuery|merge({page: page - 1})) }}">
+                <a class="btn btn-secondary btn-sm my-content-pagination__previous" href="{{ path('my_content', currentQuery|merge({page: page - 1})) }}">
                     {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
                     {{ 'my_content.pagination.previous'|trans }}
                 </a>
             {% endif %}
             <span>{{ 'my_content.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</span>
             {% if page < totalPages %}
-                <a class="btn btn--secondary btn-sm my-content-pagination__next" href="{{ path('my_content', currentQuery|merge({page: page + 1})) }}">
+                <a class="btn btn-secondary btn-sm my-content-pagination__next" href="{{ path('my_content', currentQuery|merge({page: page + 1})) }}">
                     {{ 'my_content.pagination.next'|trans }}
                     {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
                 </a>
@@ -290,7 +290,7 @@
         </div>
         <p data-content--my-content-delete-target="description"></p>
         <div class="my-content-delete-dialog__actions">
-            <button type="button" class="btn btn--secondary" data-action="click->content--my-content-delete#cancel">
+            <button type="button" class="btn btn-secondary" data-action="click->content--my-content-delete#cancel">
                 {{ 'my_content.action.cancel'|trans }}
             </button>
             <button

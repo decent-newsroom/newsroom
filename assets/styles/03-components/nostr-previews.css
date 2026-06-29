@@ -4,11 +4,6 @@
  * Converted from SCSS to plain CSS
  */
 
-.nostr-article-preview.card {
-    padding-bottom: var(--spacing-2);
-    background: var(--color-bg-light);
-}
-
 .nostr-preview {
     margin-top: var(--spacing-2);
 }
@@ -27,7 +22,7 @@
     font-size: 0.9rem;
 }
 
-.nostr-preview .card-footer {
+.nostr-preview .nostr-event-preview .card-footer {
     padding: var(--spacing-2) var(--spacing-3);
 }
 
@@ -40,22 +35,6 @@
     max-height: 500px;
     overflow-y: auto;
     padding-right: var(--spacing-2);
-}
-
-/* Article preview card */
-.nostr-article-preview .article-preview-image img {
-    max-height: 200px;
-    width: 100%;
-    object-fit: cover;
-}
-
-.nostr-article-preview .card-title a {
-    color: var(--color-text);
-    transition: color 0.2s;
-}
-
-.nostr-article-preview .card-title a:hover {
-    color: var(--color-primary);
 }
 
 /* Style for nostr links in text */

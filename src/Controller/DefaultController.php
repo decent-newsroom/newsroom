@@ -2291,12 +2291,8 @@ class DefaultController extends AbstractController
             $article = $repository->findOneBy(['slug' => $identifier, 'pubkey' => $pubkey]);
 
             if ($article) {
-                $key = new Key();
-                $npub = $key->convertPublicKeyToBech32($article->getPubkey());
-
                 return $this->render('components/Molecules/ArticlePreview.html.twig', [
                     'article' => $article,
-                    'npub' => $npub
                 ]);
             }
 
