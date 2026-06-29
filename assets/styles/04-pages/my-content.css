@@ -431,6 +431,7 @@
     min-height: 2.5rem;
     display: flex;
     align-items: center;
+    justify-content: start;
     gap: var(--spacing-2);
     padding: var(--spacing-2);
     border: 0;
@@ -450,6 +451,7 @@
     color: var(--color-primary-link);
     text-decoration: underline;
     text-underline-offset: 0.15em;
+    background: none;
 }
 
 .my-content-menu__panel > span {
