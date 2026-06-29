@@ -51,6 +51,7 @@
             </p>
             <h1>{{ draft.title }}</h1>
             <p>{{ draft.summary ?: 'reading_list_editor.description'|trans }}</p>
+            <code>{{ draft.slug }}</code>
         </div>
         <div class="reading-list-editor__header-actions">
             <a class="btn btn--secondary" href="{{ path('read_wizard_setup') }}">
@@ -62,21 +63,6 @@
             </a>
         </div>
     </header>
-
-    <div class="reading-list-editor__summary">
-        <div>
-            <strong data-publishing--reading-list-workspace-target="articleCount">{{ draft.articles|filter(a => a)|length }}</strong>
-            <span>{{ 'reading_list_editor.summary.articles'|trans }}</span>
-        </div>
-        <div>
-            <strong>{{ isMagazineCategory ? 'reading_list_editor.summary.category'|trans : 'reading_list_editor.summary.reading_list'|trans }}</strong>
-            <span>{{ 'reading_list_editor.summary.type'|trans }}</span>
-        </div>
-        <div>
-            <strong>{{ draft.slug }}</strong>
-            <span>{{ 'reading_list_editor.summary.identifier'|trans }}</span>
-        </div>
-    </div>
 
     {% if saved %}
         <div class="notice success" role="status">
