@@ -397,6 +397,13 @@ forum:
 lists:
     heading: 'Listes de lecture'
     eyebrow: 'pour collections, curations, cours et plus'
+    itemCount: '{0} 0 élément|{1} 1 élément|]1,Inf] %count% éléments'
+    noLists: 'Aucune liste de lecture pour le moment.'
+    type:
+        readingList: 'Liste de lecture'
+        articlesNotes: 'Articles/notes'
+        playlist: 'Playlist'
+        gallery: 'Galerie'
 
 # ── Mes listes de lecture ──────────────────────────────────────────
 myReadingLists:

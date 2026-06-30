@@ -1,47 +1,58 @@
-<div {{ attributes }}>
+<div {{ attributes.defaults({class: 'reading-list-directory article-list'}) }}>
   {% set items = this.lists %}
   {% if items is not empty %}
       {% for item in items %}
-      <div class="card p-3 ln-section--reader">
-          {% if item.image|default(null) %}
-              {% if item.kind == 30040 %}
-                  <div class="card-header m-0">
-                      <a href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">
-                          <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                      </a>
+          {% set itemLink = item.kind == 30040
+              ? path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub })
+              : path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub })
+          %}
+          {% set typeKey = item.kind == 30040 ? 'lists.type.readingList' : (item.kind == 30004 ? 'lists.type.articlesNotes' : (item.kind == 30005 ? 'lists.type.playlist' : 'lists.type.gallery')) %}
+
+          <article class="card article-card reading-list-card{% if not item.image|default(null) %} article-card--text-only{% endif %}">
+              <div class="article-card__body">
+                  <div class="article-card__content">
+                      <div class="metadata">
+                          <span>
+                              {{ 'text.by'|trans }}
+                              {% if item.author is defined and item.author %}
+                                  {{ item.author }}
+                              {% else %}
+                                  <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                              {% endif %}
+                          </span>
+                          <span>
+                              <time datetime="{{ item.createdAt|date('c') }}">{{ item.createdAt|date('M j, Y') }}</time>
+                          </span>
+                      </div>
+
+                      <div class="card-sources reading-list-card__sources">
+                          <span class="source-badge source-badge--category">{{ typeKey|trans }}</span>
+                          <span class="source-badge">{{ 'lists.itemCount'|trans({'%count%': item.itemCount}) }}</span>
+                      </div>
+
+                      <h2 class="card-title line-clamp-5">
+                          <a class="article-card__title-link" href="{{ itemLink }}" data-turbo-frame="_top">{{ item.title }}</a>
+                      </h2>
+
+                      {% if item.summary is defined and item.summary %}
+                          <p class="lede line-clamp-5">{{ item.summary }}</p>
+                      {% endif %}
                   </div>
-              {% else %}
-                  <div class="card-header m-0">
-                      <a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">
-                          <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                      </a>
-                  </div>
-              {% endif %}
-          {% endif %}
-          <div class="card-body text-center">
-          {% if item.kind == 30040 %}
-              <h2 class="card-title"><a href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">{{ item.title }}</a></h2>
-          {% else %}
-              <h2 class="card-title"><a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">{{ item.title }}</a></h2>
-          {% endif %}
-          {% if item.summary is defined and item.summary %}
-              <p class="eyebrow line-clamp-5">{{ item.summary }}</p>
-          {% endif %}
-          <div class="d-flex flex-row gap-2 align-items-center justify-content-center">
-              <span class="badge bg-secondary">{{ item.type }}</span>
-              <span class="badge bg-info text-dark">{{ item.itemCount }} item{{ item.itemCount != 1 ? 's' : '' }}</span>
-          </div>
-          <p>by
-              {% if item.author is defined and item.author %}
-                  {{ item.author }}
-              {% else %}
-                  <twig:Molecules:UserFromNpub :ident="item.pubkey" />
-              {% endif %}
-          </p>
-          </div>
-      </div>
+
+                  {% if item.image|default(null) %}
+                      <figure class="article-card__media reading-list-card__media">
+                          <img
+                              src="{{ item.image }}"
+                              alt="{{ 'card.coverImageAlt'|trans({'%title%': item.title}) }}"
+                              loading="lazy"
+                              decoding="async"
+                          >
+                      </figure>
+                  {% endif %}
+              </div>
+          </article>
       {% endfor %}
   {% else %}
-    <p><small>No reading lists yet.</small></p>
+    <p class="reading-list-directory__empty"><small>{{ 'lists.noLists'|trans }}</small></p>
   {% endif %}
 </div>

@@ -421,6 +421,13 @@ topics:
 lists:
     heading: 'Liste di lettura'
     eyebrow: 'per collezioni, curazioni, corsi e altro'
+    itemCount: '{0} 0 elementi|{1} 1 elemento|]1,Inf] %count% elementi'
+    noLists: 'Ancora nessuna lista di lettura.'
+    type:
+        readingList: 'Lista di lettura'
+        articlesNotes: 'Articoli/note'
+        playlist: 'Playlist'
+        gallery: 'Galleria'
 
 # ── My Reading Lists ──────────────────────────────────────────────
 myReadingLists:

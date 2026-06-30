@@ -397,6 +397,13 @@ forum:
 lists:
     heading: 'Bralni seznami'
     eyebrow: 'za sezname, zbirke, tečaje in še kaj'
+    itemCount: '{0} 0 elementov|{1} 1 element|]1,Inf] %count% elementov'
+    noLists: 'Bralnih seznamov še ni.'
+    type:
+        readingList: 'Bralni seznam'
+        articlesNotes: 'Članki/zapisi'
+        playlist: 'Seznam predvajanja'
+        gallery: 'Galerija'
 
 # ── Moji bralni seznami ───────────────────────────────────────────
 myReadingLists:

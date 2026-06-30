@@ -1,14 +1,13 @@
 {% extends 'layout.html.twig' %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand">
+    <section class="lists-page__header ln-section--newsstand">
         <div class="container mt-5 mb-5">
             <h1>{{ 'lists.heading'|trans }}</h1>
             <p class="eyebrow">{{ 'lists.eyebrow'|trans }}</p>
         </div>
     </section>
-    <div class="w-container mb-5 mt-5">
+    <div class="lists-page__content w-container mb-5 mt-5">
         <twig:Organisms:ReadingListList />
     </div>
 {% endblock %}
-

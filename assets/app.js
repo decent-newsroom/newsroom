@@ -88,6 +88,7 @@ import './styles/04-pages/reading-list-editor.css';
 import './styles/04-pages/media-manager.css';
 import './styles/04-pages/home-feed.css';
 import './styles/04-pages/settings.css';
+import './styles/04-pages/lists.css';
 import './styles/04-pages/curation-page.css';
 import './styles/04-pages/curation-picture-grid.css';
 import './styles/04-pages/curation-video-playlist.css';

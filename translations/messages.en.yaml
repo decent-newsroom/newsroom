@@ -440,6 +440,13 @@ forum:
 lists:
     heading: 'Reading Lists'
     eyebrow: 'for collections, curations, courses and more'
+    itemCount: '{0} 0 items|{1} 1 item|]1,Inf] %count% items'
+    noLists: 'No reading lists yet.'
+    type:
+        readingList: 'Reading List'
+        articlesNotes: 'Articles/Notes'
+        playlist: 'Playlist'
+        gallery: 'Gallery'
 
 # ── My Reading Lists ──────────────────────────────────────────────
 myReadingLists:

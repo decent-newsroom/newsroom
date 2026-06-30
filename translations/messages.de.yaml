@@ -394,6 +394,13 @@ forum:
 lists:
     heading: 'Leselisten'
     eyebrow: 'für Sammlungen, Kuratierungen, Kurse und mehr'
+    itemCount: '{0} 0 Einträge|{1} 1 Eintrag|]1,Inf] %count% Einträge'
+    noLists: 'Noch keine Leselisten.'
+    type:
+        readingList: 'Leseliste'
+        articlesNotes: 'Artikel/Notizen'
+        playlist: 'Playlist'
+        gallery: 'Galerie'
 
 # ── Meine Leselisten ────────────────────────────────────────────────
 myReadingLists:
