@@ -1,4 +1,4 @@
-<turbo-frame id="article-list-nav">
+<turbo-frame id="article-list-nav" target="_top">
     {% if listNav is not null and (listNav.prevArticle or listNav.nextArticle) %}
         <section class="article-prev-next" aria-label="Reading list navigation">
             {% if listNav.listTitle %}

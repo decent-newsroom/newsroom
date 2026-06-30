@@ -325,14 +325,18 @@
         {% if not (isDraft is defined and isDraft) %}
         <turbo-frame id="article-list-nav"
                      src="{{ path('article-list-nav-frame', {npub: npub, slug: article.slug}) }}"
-                     loading="lazy">
+                     loading="lazy"
+                     target="_top"
+        >
         </turbo-frame>
         {% endif %}
     </article>
     {% if article.topics|length > 0 and not (isDraft is defined and isDraft) %}
         <turbo-frame id="article-related-articles"
                      src="{{ path('article-related-frame', {npub: npub, slug: article.slug}) }}"
-                     loading="lazy">
+                     loading="lazy"
+                     target="_top"
+        >
         </turbo-frame>
     {% endif %}
 {% endblock %}
