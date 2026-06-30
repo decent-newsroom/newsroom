@@ -165,17 +165,6 @@
     background: transparent;
 }
 
-.ln-section--search,
-.ln-section--reader,
-.ln-section--newsroom {
-    border-left-color: var(--color-primary);
-}
-
-.ln-section--newsstand,
-.ln-section--unfold {
-    border-left-color: var(--color-secondary);
-}
-
 .magazine-hero {
     position: relative;
 }
