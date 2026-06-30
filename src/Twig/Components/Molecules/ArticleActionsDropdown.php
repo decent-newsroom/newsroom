@@ -13,7 +13,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 /**
  * Secondary article actions kept behind the social strip's overflow button.
  */
-#[AsTwigComponent]
+#[AsTwigComponent('Molecules:ArticleActionsDropdown')]
 final class ArticleActionsDropdown
 {
     public function __construct(private readonly Security $security)

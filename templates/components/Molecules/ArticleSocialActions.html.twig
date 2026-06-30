@@ -1,6 +1,18 @@
 {% set articleKind = article.kind.value|default(article.kind|default(30023)) %}
+{% set socialAttributes = attributes.without(
+    'article',
+    'coordinate',
+    'canonicalUrl',
+    'naddrEncoded',
+    'commentFormId',
+    'recipientLud16',
+    'recipientLud06',
+    'isProtected',
+    'highlightCount',
+    'relays'
+).defaults({class: 'article-social-actions'}) %}
 
-<nav {{ attributes.defaults({class: 'article-social-actions'}) }}
+<nav {{ socialAttributes }}
      aria-label="{{ 'articleSocial.label'|trans }}"
      data-controller="ui--article-social-actions"
      data-ui--article-social-actions-coordinate-value="{{ coordinate }}"

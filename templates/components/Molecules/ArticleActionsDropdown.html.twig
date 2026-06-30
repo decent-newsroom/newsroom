@@ -1,4 +1,14 @@
-<div {{ attributes.defaults({class: 'article-actions-dropdown'}) }}
+{% set dropdownAttributes = attributes.without(
+    'article',
+    'coordinate',
+    'canonicalUrl',
+    'naddrEncoded',
+    'isProtected',
+    'highlightCount',
+    'relays'
+).defaults({class: 'article-actions-dropdown'}) %}
+
+<div {{ dropdownAttributes }}
      data-controller="ui--article-actions-dropdown"
      data-ui--article-actions-dropdown-coordinate-value="{{ coordinate }}">
     <div class="dropdown">
