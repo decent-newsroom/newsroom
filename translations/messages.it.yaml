@@ -763,6 +763,16 @@ reading_nook:
         follow_packs: 'Follow pack'
     title: 'Reading Nook'
     subtitle: 'Cerca e filtra le tue raccolte in un unico posto.'
+    empty: 'Nessun elemento corrisponde ai filtri correnti.'
+    results_count: '%count% elementi'
+    column:
+        item: 'Elemento'
+        section: 'Sezione'
+        date: 'Data'
+        count: 'Conteggio'
+        actions: 'Azioni'
+    action:
+        menu: 'Azioni per %title%'
     summary:
         total: 'Elementi totali'
         visible: 'Visibili ora'

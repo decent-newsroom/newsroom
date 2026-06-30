@@ -1467,6 +1467,15 @@ reading_nook:
     subtitle: 'Search and filter your own collections in one place.'
     create_article: 'New article'
     empty: 'No items match the current filters.'
+    results_count: '%count% items'
+    column:
+        item: 'Item'
+        section: 'Section'
+        date: 'Date'
+        count: 'Count'
+        actions: 'Actions'
+    action:
+        menu: 'Actions for %title%'
     summary:
         total: 'Total items'
         visible: 'Visible now'

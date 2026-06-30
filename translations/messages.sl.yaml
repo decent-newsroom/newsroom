@@ -1093,6 +1093,15 @@ reading_nook:
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
+    results_count: '%count% elementov'
+    column:
+        item: 'Element'
+        section: 'Odsek'
+        date: 'Datum'
+        count: 'Število'
+        actions: 'Dejanja'
+    action:
+        menu: 'Dejanja za %title%'
     summary:
         total: 'Skupaj elementov'
         visible: 'Trenutno vidno'

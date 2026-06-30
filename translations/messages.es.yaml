@@ -1094,6 +1094,15 @@ reading_nook:
     subtitle: 'Search and filter your own collections in one place.' # TODO: translate
     create_article: 'New article' # TODO: translate
     empty: 'No items match the current filters.' # TODO: translate
+    results_count: '%count% elementos'
+    column:
+        item: 'Elemento'
+        section: 'Sección'
+        date: 'Fecha'
+        count: 'Cantidad'
+        actions: 'Acciones'
+    action:
+        menu: 'Acciones para %title%'
     summary:
         total: 'Elementos totales'
         visible: 'Visibles ahora'
