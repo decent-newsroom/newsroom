@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Improvement] Restyled `/follow-packs` with the shared flat article-card row layout, including curator metadata, pack counts, descriptions, and cover images.
 - [Improvement] Restyled the public `/lists` curation directory as flat article-card rows with metadata, summaries, cover images, and translated item counts.
 - [Bug] Fixed anchor and heading permalink jumps so targets are not hidden beneath the fixed page header.
 - [Bug] Rendered trusted `https://*.nostria.app` article links as images, including Markdown links whose label points at the same hosted media URL.

@@ -965,6 +965,7 @@ followPacks:
     eyebrow: 'colecciones curadas de autores'
     create: 'Crear paquete'
     noPacks: 'Aún no hay paquetes de seguimiento con artículos.'
+    type: 'Paquete de seguimiento'
     writers: 'autores'
     articles: 'artículos'
     curatedBy: 'Curado por'

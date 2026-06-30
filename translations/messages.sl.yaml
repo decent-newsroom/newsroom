@@ -965,6 +965,7 @@ followPacks:
     eyebrow: 'izbrane zbirke avtorjev'
     create: 'Ustvari paket'
     noPacks: 'Še ni paketov za sledenje s članki.'
+    type: 'Paket za sledenje'
     writers: 'avtorjev'
     articles: 'člankov'
     curatedBy: 'Izbral/a'

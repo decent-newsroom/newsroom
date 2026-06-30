@@ -1160,6 +1160,7 @@ followPacks:
     eyebrow: 'collezioni curate di autori'
     create: 'Crea pacchetto'
     noPacks: 'Nessun pacchetto di follow con articoli ancora.'
+    type: 'Pacchetto di follow'
     writers: 'autori'
     articles: 'articoli'
     curatedBy: 'Curato da'

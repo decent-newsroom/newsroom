@@ -1323,6 +1323,7 @@ followPacks:
     eyebrow: 'curated writer collections'
     create: 'Create Follow Pack'
     noPacks: 'No follow packs with articles yet.'
+    type: 'Follow Pack'
     writers: 'writers'
     articles: 'articles'
     curatedBy: 'Curated by'

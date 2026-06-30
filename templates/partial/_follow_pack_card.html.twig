@@ -9,32 +9,49 @@
     pack.dtag         string
     pack.memberCount  int
     pack.articleCount int|null     (optional)
+    pack.createdAt    int|null     (optional)
 #}
 {% set npub = pack.npub ?? (pack.pubkey|hex_to_npub) %}
-<div class="card p-3 ln-section--reader">
-    {% if pack.image %}
-        <div class="card-header m-0">
-            <a href="{{ path('follow_pack_view', { npub: npub, dtag: pack.dtag }) }}" data-turbo-frame="_top">
-                <img src="{{ pack.image }}" alt="{{ pack.title }}" loading="lazy">
-            </a>
-        </div>
-    {% endif %}
-    <div class="card-body text-center">
-        <h2 class="card-title">
-            <a href="{{ path('follow_pack_view', { npub: npub, dtag: pack.dtag }) }}" data-turbo-frame="_top">
-                {{ pack.title }}
-            </a>
-        </h2>
-        {% if pack.description %}
-            <p class="eyebrow line-clamp-5">{{ pack.description }}</p>
-        {% endif %}
-        <div class="d-flex flex-row gap-2 align-items-center justify-content-center mb-2">
-            <span class="badge bg-secondary">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
-            {% if pack.articleCount is defined and pack.articleCount is not null %}
-                <span class="badge bg-info text-dark">{{ pack.articleCount }} {{ 'followPacks.articles'|trans }}</span>
+{% set packLink = path('follow_pack_view', { npub: npub, dtag: pack.dtag }) %}
+
+<article class="card article-card follow-pack-card{% if not pack.image %} article-card--text-only{% endif %}">
+    <div class="article-card__body">
+        <div class="article-card__content">
+            <div class="metadata">
+                <span>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></span>
+                {% if pack.createdAt is defined and pack.createdAt %}
+                    <span><time datetime="{{ pack.createdAt|date('c') }}">{{ pack.createdAt|date('M j, Y') }}</time></span>
+                {% endif %}
+            </div>
+
+            <div class="card-sources follow-pack-card__sources">
+                <span class="source-badge source-badge--category">{{ 'followPacks.type'|trans }}</span>
+                <span class="source-badge">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
+                {% if pack.articleCount is defined and pack.articleCount is not null %}
+                    <span class="source-badge">{{ pack.articleCount }} {{ 'followPacks.articles'|trans }}</span>
+                {% endif %}
+            </div>
+
+            <h2 class="card-title line-clamp-5">
+                <a class="article-card__title-link" href="{{ packLink }}" data-turbo-frame="_top">
+                    {{ pack.title }}
+                </a>
+            </h2>
+
+            {% if pack.description %}
+                <p class="lede line-clamp-5">{{ pack.description }}</p>
             {% endif %}
         </div>
-        <p>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></p>
-    </div>
-</div>
 
+        {% if pack.image %}
+            <figure class="article-card__media follow-pack-card__media">
+                <img
+                    src="{{ pack.image }}"
+                    alt="{{ 'card.coverImageAlt'|trans({'%title%': pack.title}) }}"
+                    loading="lazy"
+                    decoding="async"
+                >
+            </figure>
+        {% endif %}
+    </div>
+</article>

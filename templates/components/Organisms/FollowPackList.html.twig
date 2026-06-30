@@ -1,10 +1,10 @@
-<div {{ attributes }}>
+<div {{ attributes.defaults({class: 'follow-pack-directory article-list'}) }}>
     {% set packs = this.packs %}
     {% if packs is not empty %}
         {% for pack in packs %}
             {% include 'partial/_follow_pack_card.html.twig' %}
         {% endfor %}
     {% else %}
-        <p><small>{{ 'followPacks.noPacks'|trans }}</small></p>
+        <p class="follow-pack-directory__empty"><small>{{ 'followPacks.noPacks'|trans }}</small></p>
     {% endif %}
 </div>

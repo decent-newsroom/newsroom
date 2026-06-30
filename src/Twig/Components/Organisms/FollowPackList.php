@@ -40,6 +40,7 @@ final class FollowPackList
      *     pubkey: string,
      *     npub: string,
      *     dtag: string,
+     *     createdAt: int,
      *     authorName: string,
      *     authorPicture: string,
      * }>
@@ -177,6 +178,7 @@ final class FollowPackList
                 'pubkey' => $pubkey,
                 'npub' => $npub,
                 'dtag' => $pack['dtag'],
+                'createdAt' => $pack['event']->getCreatedAt(),
                 'authorName' => $std->display_name ?? $std->name ?? '',
                 'authorPicture' => $std->picture ?? '',
             ];
@@ -185,4 +187,3 @@ final class FollowPackList
         return $result;
     }
 }
-
