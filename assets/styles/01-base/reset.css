@@ -12,6 +12,14 @@ body {
     padding: 0;
 }
 
+html {
+    scroll-padding-top: var(--anchor-scroll-offset);
+}
+
+:where([id]) {
+    scroll-margin-top: var(--anchor-scroll-offset);
+}
+
 /* ── Consistent scrollbars ─────────────────────────────────────────
  * Thin, theme-aware scrollbars across all scrollable containers.
  * Uses scrollbar-width (Firefox) + ::-webkit-scrollbar (Chrome/Edge/Safari).
@@ -41,4 +49,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background-color: var(--color-text-muted);
 }
-

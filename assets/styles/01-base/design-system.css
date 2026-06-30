@@ -74,6 +74,7 @@
     /* Layout */
     --header-height: 64px;
     --header-height-with-gap: 64px;
+    --anchor-scroll-offset: calc(var(--header-height) + var(--spacing-3));
     --sidebar-width: 216px;
     --aside-width: 288px;
     --content-max-width: 760px;
