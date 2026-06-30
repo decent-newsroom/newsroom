@@ -76,6 +76,7 @@
                 <button class="btn btn-sm" type="submit">{{ 'reading_nook.filters.apply'|trans }}</button>
 
                 {% if activeFilterCount > 0 %}
+                    <br>
                     <a class="reading-nook-toolbar__clear" href="{{ path('reading_nook') }}">
                         {{ 'reading_nook.filters.reset'|trans }}
                     </a>
@@ -109,11 +110,12 @@
                     <span>{{ 'reading_nook.column.section'|trans }}</span>
                     <span>{{ 'reading_nook.column.date'|trans }}</span>
                     <span>{{ 'reading_nook.column.count'|trans }}</span>
-                    <span>{{ 'reading_nook.column.actions'|trans }}</span>
+                    <span>&nbsp;</span> {# actions #}
                 </div>
 
                 {% for item in items %}
                     {% set title = item.title %}
+                    {% set titleUrl = item.url ?: item.manageUrl %}
                     {% set rowDate = item.updatedAt ? item.updatedAt : item.createdAt %}
                     {% set countValue = null %}
                     {% set countLabel = null %}
@@ -145,8 +147,8 @@
                             </span>
                             <div>
                                 <h2>
-                                    {% if item.url %}
-                                        <a href="{{ item.url }}">{{ title }}</a>
+                                    {% if titleUrl %}
+                                        <a href="{{ titleUrl }}">{{ title }}</a>
                                     {% else %}
                                         <span>{{ title }}</span>
                                     {% endif %}

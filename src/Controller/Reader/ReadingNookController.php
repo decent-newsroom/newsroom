@@ -627,6 +627,7 @@ final class ReadingNookController extends AbstractController
     private function defaultTitleForKind(int $kind): string
     {
         return match ($kind) {
+            KindsEnum::BOOKMARKS->value => 'Bookmarks',
             KindsEnum::INTERESTS->value => 'My interests',
             default => 'Untitled',
         };

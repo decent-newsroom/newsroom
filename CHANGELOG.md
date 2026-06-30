@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Bug] Reading Nook now labels the default kind `10003` bookmark list as `Bookmarks`.
 - [Improvement] Reworked `/reading-nook` from grouped collection cards into a Newsroom-style searchable inventory table with section tabs, compact metadata columns, and row action menus.
 - [Improvement] Restyled `/follow-packs` with the shared flat article-card row layout, including curator metadata, pack counts, descriptions, and cover images.
 - [Improvement] Restyled the public `/lists` curation directory as flat article-card rows with metadata, summaries, cover images, and translated item counts.
