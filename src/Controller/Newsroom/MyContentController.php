@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Newsroom;
 
 use App\Entity\Article;
-use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Helper\NavigationBuilderTrait;
 use App\Repository\ArticleRepository;
@@ -19,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Provides a searchable publishing inventory for a user's articles, drafts,
- * and reading lists / curation sets.
+ * and article publishing work.
  */
 class MyContentController extends AbstractController
 {
@@ -36,7 +35,6 @@ class MyContentController extends AbstractController
         $articleRepository = $em->getRepository(Article::class);
         $articles = $articleRepository->findLatestRevisionsByAuthorAndKind($pubkeyHex, KindsEnum::LONGFORM);
         $drafts = $articleRepository->findLatestRevisionsByAuthorAndKind($pubkeyHex, KindsEnum::LONGFORM_DRAFT);
-        $readingLists = $this->fetchReadingLists($em, $pubkeyHex);
 
         $contentItems = [];
         foreach ($articles as $article) {
@@ -69,30 +67,14 @@ class MyContentController extends AbstractController
             ];
         }
 
-        foreach ($readingLists as $readingList) {
-            $contentItems[] = [
-                'category' => 'lists',
-                'title' => $readingList['title'],
-                'summary' => $readingList['summary'],
-                'updatedAt' => $readingList['createdAt'],
-                'searchText' => implode(' ', array_filter([
-                    $readingList['title'],
-                    $readingList['summary'],
-                    $readingList['slug'],
-                ])),
-                'list' => $readingList,
-            ];
-        }
-
         $counts = [
             'all' => count($contentItems),
             'published' => count($articles),
             'drafts' => count($drafts),
-            'lists' => count($readingLists),
         ];
 
         $activeType = $request->query->getString('type', 'all');
-        if (!in_array($activeType, ['all', 'drafts', 'published', 'lists'], true)) {
+        if (!in_array($activeType, ['all', 'drafts', 'published'], true)) {
             $activeType = 'all';
         }
 
@@ -153,108 +135,5 @@ class MyContentController extends AbstractController
         }
 
         return is_numeric($value) ? (int) $value : 0;
-    }
-
-    /**
-     * Fetch the latest reading-list and curation-set revision for each slug.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function fetchReadingLists(EntityManagerInterface $em, string $pubkeyHex): array
-    {
-        $events = $em->getRepository(Event::class)
-            ->createQueryBuilder('e')
-            ->where('e.kind IN (:kinds)')
-            ->andWhere('e.pubkey = :pubkey')
-            ->setParameter('kinds', [
-                KindsEnum::PUBLICATION_INDEX->value,
-                KindsEnum::CURATION_SET->value,
-                KindsEnum::CURATION_VIDEOS->value,
-                KindsEnum::CURATION_PICTURES->value,
-            ])
-            ->setParameter('pubkey', $pubkeyHex)
-            ->orderBy('e.created_at', 'DESC')
-            ->getQuery()
-            ->getResult();
-
-        $lists = [];
-        $seenSlugs = [];
-
-        foreach ($events as $event) {
-            if (!$event instanceof Event) {
-                continue;
-            }
-
-            $kind = $event->getKind();
-            $hasMagazineReferences = false;
-            $hasAnyATags = false;
-            $hasAnyETags = false;
-            $title = null;
-            $slug = null;
-            $summary = null;
-            $itemCount = 0;
-
-            $typeKey = match ($kind) {
-                KindsEnum::PUBLICATION_INDEX->value => 'my_content.type.reading_list',
-                KindsEnum::CURATION_SET->value => 'my_content.type.articles_notes',
-                KindsEnum::CURATION_VIDEOS->value => 'my_content.type.videos',
-                KindsEnum::CURATION_PICTURES->value => 'my_content.type.pictures',
-                default => 'my_content.type.reading_list',
-            };
-
-            foreach ($event->getTags() as $tag) {
-                if (!is_array($tag)) {
-                    continue;
-                }
-
-                if (($tag[0] ?? null) === 'title') {
-                    $title = (string) ($tag[1] ?? '');
-                }
-                if (($tag[0] ?? null) === 'summary') {
-                    $summary = (string) ($tag[1] ?? '');
-                }
-                if (($tag[0] ?? null) === 'd') {
-                    $slug = (string) ($tag[1] ?? '');
-                }
-                if (($tag[0] ?? null) === 'a' && isset($tag[1])) {
-                    $hasAnyATags = true;
-                    ++$itemCount;
-                    if (str_starts_with((string) $tag[1], '30040:')) {
-                        $hasMagazineReferences = true;
-                    }
-                }
-                if (($tag[0] ?? null) === 'e' && isset($tag[1])) {
-                    $hasAnyETags = true;
-                    ++$itemCount;
-                }
-            }
-
-            // Magazine indexes reference other 30040 events; they are managed
-            // from the dedicated magazine workspace.
-            if ($kind === KindsEnum::PUBLICATION_INDEX->value && $hasMagazineReferences) {
-                continue;
-            }
-
-            $dedupeKey = $kind . ':' . ($slug ?: '__no_slug__:' . $event->getId());
-            if (isset($seenSlugs[$dedupeKey])) {
-                continue;
-            }
-            $seenSlugs[$dedupeKey] = true;
-
-            $lists[] = [
-                'id' => $event->getId(),
-                'title' => $title ?: $slug,
-                'summary' => $summary,
-                'slug' => $slug,
-                'createdAt' => $event->getCreatedAt(),
-                'pubkey' => $event->getPubkey(),
-                'kind' => $kind,
-                'typeKey' => $typeKey,
-                'itemCount' => $itemCount,
-                'isEmpty' => !$hasAnyATags && !$hasAnyETags,
-            ];
-        }
-
-        return $lists;
     }
 }

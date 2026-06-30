@@ -30,6 +30,11 @@ class ReadingListController extends AbstractController
     use NavigationBuilderTrait;
 
     private const SESSION_KEY = 'read_wizard';
+    private const TYPE_ALL = 'all';
+    private const TYPE_READING_LISTS = 'reading_lists';
+    private const TYPE_ARTICLES_NOTES = 'articles_notes';
+    private const TYPE_VIDEOS = 'videos';
+    private const TYPE_PICTURES = 'pictures';
 
     // ─────────────────────────────────────────────────────────────────────────
     // Index & Compose Routes
@@ -39,9 +44,8 @@ class ReadingListController extends AbstractController
      * Display the user's reading lists and curation sets.
      */
     #[Route('/reading-list', name: 'reading_list_index')]
-    public function index(EntityManagerInterface $em): Response
+    public function index(EntityManagerInterface $em, Request $request): Response
     {
-        $lists = [];
         $user = $this->getUser();
         $pubkeyHex = null;
         if ($user) {
@@ -53,102 +57,193 @@ class ReadingListController extends AbstractController
             }
         }
 
-        if ($pubkeyHex) {
-            $repo = $em->getRepository(Event::class);
-            // Query for reading lists (30040) and all curation set types (30004, 30005, 30006)
-            $events = $repo->createQueryBuilder('e')
-                ->where('e.kind IN (:kinds)')
-                ->andWhere('e.pubkey = :pubkey')
-                ->setParameter('kinds', [
-                    KindsEnum::PUBLICATION_INDEX->value,  // 30040
-                    KindsEnum::CURATION_SET->value,       // 30004
-                    KindsEnum::CURATION_VIDEOS->value,    // 30005
-                    KindsEnum::CURATION_PICTURES->value   // 30006
-                ])
-                ->setParameter('pubkey', $pubkeyHex)
-                ->orderBy('e.created_at', 'DESC')
-                ->getQuery()
-                ->getResult();
+        $lists = $pubkeyHex ? $this->fetchUserLists($em, $pubkeyHex) : [];
 
-            $seenSlugs = [];
-            foreach ($events as $ev) {
-                if (!$ev instanceof Event) continue;
-                $tags = $ev->getTags();
-                $kind = $ev->getKind();
-                $typeTag = null;
-                $hasAnyATags = false;
-                $hasAnyETags = false;
-                $hasMagazineReferences = false;
-                $title = null; $slug = null; $summary = null;
-                $itemCount = 0;
-                $image = null;
-
-                // Determine type label from kind
-                $typeLabel = match($kind) {
-                    30040 => 'Reading List',
-                    30004 => 'Articles/Notes',
-                    30005 => 'Videos',
-                    30006 => 'Pictures',
-                    default => null,
-                };
-
-                foreach ($tags as $t) {
-                    if (is_array($t)) {
-                        if (($t[0] ?? null) === 'type') { $typeTag = $t[1] ?? null; }
-                        if (($t[0] ?? null) === 'title') { $title = (string)($t[1] ?? ''); }
-                        if (($t[0] ?? null) === 'summary') { $summary = (string)($t[1] ?? ''); }
-                        if (($t[0] ?? null) === 'd') { $slug = (string)($t[1] ?? ''); }
-                        if (($t[0] ?? null) === 'image') { $image = (string)($t[1] ?? ''); }
-
-                        // Count all 'a' tags (coordinate references)
-                        if (($t[0] ?? null) === 'a' && isset($t[1])) {
-                            $hasAnyATags = true;
-                            $itemCount++;
-                            // Check if this references other 30040 events (magazine index)
-                            if (str_starts_with((string)$t[1], '30040:')) {
-                                $hasMagazineReferences = true;
-                            }
-                        }
-                        // Count all 'e' tags (event ID references)
-                        if (($t[0] ?? null) === 'e' && isset($t[1])) {
-                            $hasAnyETags = true;
-                            $itemCount++;
-                        }
-                    }
-                }
-
-                // For kind 30040, skip magazine indexes (events that reference other 30040 events)
-                if ($kind === 30040 && $hasMagazineReferences) {
-                    continue;
-                }
-
-                // Collapse by slug: keep only newest per slug
-                $keySlug = $slug ?: ('__no_slug__:' . $ev->getId());
-                if (isset($seenSlugs[$slug ?? $keySlug])) {
-                    continue;
-                }
-                $seenSlugs[$slug ?? $keySlug] = true;
-
-                $lists[] = [
-                    'id' => $ev->getId(),
-                    'title' => $title ?: '(untitled)',
-                    'summary' => $summary,
-                    'image' => $image ?: null,
-                    'slug' => $slug,
-                    'createdAt' => $ev->getCreatedAt(),
-                    'pubkey' => $ev->getPubkey(),
-                    'kind' => $kind,
-                    'type' => $typeLabel,
-                    'itemCount' => $itemCount,
-                    'isEmpty' => !$hasAnyATags && !$hasAnyETags,
-                ];
-            }
+        $counts = [
+            self::TYPE_ALL => count($lists),
+            self::TYPE_READING_LISTS => 0,
+            self::TYPE_ARTICLES_NOTES => 0,
+            self::TYPE_VIDEOS => 0,
+            self::TYPE_PICTURES => 0,
+        ];
+        foreach ($lists as $list) {
+            ++$counts[$list['category']];
         }
+
+        $activeType = $request->query->getString('type', self::TYPE_ALL);
+        if (!array_key_exists($activeType, $counts)) {
+            $activeType = self::TYPE_ALL;
+        }
+
+        $searchQuery = trim($request->query->getString('q'));
+        $normalizedQuery = mb_strtolower($searchQuery);
+        $sort = $request->query->getString('sort', 'recent');
+        if (!in_array($sort, ['recent', 'title'], true)) {
+            $sort = 'recent';
+        }
+
+        $filteredLists = array_values(array_filter(
+            $lists,
+            static function (array $list) use ($activeType, $normalizedQuery): bool {
+                if ($activeType !== self::TYPE_ALL && $list['category'] !== $activeType) {
+                    return false;
+                }
+
+                return $normalizedQuery === ''
+                    || str_contains(mb_strtolower($list['searchText']), $normalizedQuery);
+            },
+        ));
+
+        usort(
+            $filteredLists,
+            static function (array $left, array $right) use ($sort): int {
+                if ($sort === 'title') {
+                    return strnatcasecmp((string) $left['title'], (string) $right['title']);
+                }
+
+                return $right['createdAt'] <=> $left['createdAt'];
+            },
+        );
+
+        $pageSize = 25;
+        $filteredCount = count($filteredLists);
+        $totalPages = max(1, (int) ceil($filteredCount / $pageSize));
+        $page = min(max(1, $request->query->getInt('page', 1)), $totalPages);
+        $visibleLists = array_slice($filteredLists, ($page - 1) * $pageSize, $pageSize);
 
         return $this->render('reading_list/index.html.twig', [
             'newsroomNav' => $this->buildNewsroomNav(),
-            'lists' => $lists,
+            'lists' => $visibleLists,
+            'counts' => $counts,
+            'activeType' => $activeType,
+            'searchQuery' => $searchQuery,
+            'sort' => $sort,
+            'filteredCount' => $filteredCount,
+            'page' => $page,
+            'totalPages' => $totalPages,
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchUserLists(EntityManagerInterface $em, string $pubkeyHex): array
+    {
+        $events = $em->getRepository(Event::class)
+            ->createQueryBuilder('e')
+            ->where('e.kind IN (:kinds)')
+            ->andWhere('e.pubkey = :pubkey')
+            ->setParameter('kinds', [
+                KindsEnum::PUBLICATION_INDEX->value,
+                KindsEnum::CURATION_SET->value,
+                KindsEnum::CURATION_VIDEOS->value,
+                KindsEnum::CURATION_PICTURES->value,
+            ])
+            ->setParameter('pubkey', $pubkeyHex)
+            ->orderBy('e.created_at', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $lists = [];
+        $seenSlugs = [];
+
+        foreach ($events as $event) {
+            if (!$event instanceof Event) {
+                continue;
+            }
+
+            $kind = $event->getKind();
+            $hasAnyATags = false;
+            $hasAnyETags = false;
+            $hasMagazineReferences = false;
+            $title = null;
+            $slug = null;
+            $summary = null;
+            $itemCount = 0;
+
+            foreach ($event->getTags() as $tag) {
+                if (!is_array($tag)) {
+                    continue;
+                }
+
+                if (($tag[0] ?? null) === 'title') {
+                    $title = trim((string) ($tag[1] ?? ''));
+                }
+                if (($tag[0] ?? null) === 'summary') {
+                    $summary = trim((string) ($tag[1] ?? ''));
+                }
+                if (($tag[0] ?? null) === 'd') {
+                    $slug = trim((string) ($tag[1] ?? ''));
+                }
+                if (($tag[0] ?? null) === 'a' && isset($tag[1])) {
+                    $hasAnyATags = true;
+                    ++$itemCount;
+                    if (str_starts_with((string) $tag[1], '30040:')) {
+                        $hasMagazineReferences = true;
+                    }
+                }
+                if (($tag[0] ?? null) === 'e' && isset($tag[1])) {
+                    $hasAnyETags = true;
+                    ++$itemCount;
+                }
+            }
+
+            if ($kind === KindsEnum::PUBLICATION_INDEX->value && $hasMagazineReferences) {
+                continue;
+            }
+
+            $dedupeKey = sprintf('%d:%s', $kind, $slug ?: '__no_slug__:' . $event->getId());
+            if (isset($seenSlugs[$dedupeKey])) {
+                continue;
+            }
+            $seenSlugs[$dedupeKey] = true;
+
+            $category = $this->categoryForKind($kind);
+            $resolvedTitle = $title !== '' && $title !== null ? $title : $slug;
+
+            $lists[] = [
+                'id' => $event->getId(),
+                'title' => $resolvedTitle,
+                'summary' => $summary !== '' ? $summary : null,
+                'slug' => $slug !== '' ? $slug : null,
+                'createdAt' => $event->getCreatedAt(),
+                'pubkey' => $event->getPubkey(),
+                'kind' => $kind,
+                'category' => $category,
+                'typeKey' => $this->typeTranslationKey($category),
+                'itemCount' => $itemCount,
+                'isEmpty' => !$hasAnyATags && !$hasAnyETags,
+                'searchText' => implode(' ', array_filter([
+                    $resolvedTitle,
+                    $summary,
+                    $slug,
+                    (string) $kind,
+                    $category,
+                ])),
+            ];
+        }
+
+        return $lists;
+    }
+
+    private function categoryForKind(int $kind): string
+    {
+        return match ($kind) {
+            KindsEnum::CURATION_SET->value => self::TYPE_ARTICLES_NOTES,
+            KindsEnum::CURATION_VIDEOS->value => self::TYPE_VIDEOS,
+            KindsEnum::CURATION_PICTURES->value => self::TYPE_PICTURES,
+            default => self::TYPE_READING_LISTS,
+        };
+    }
+
+    private function typeTranslationKey(string $category): string
+    {
+        return match ($category) {
+            self::TYPE_ARTICLES_NOTES => 'myReadingLists.type.articles_notes',
+            self::TYPE_VIDEOS => 'myReadingLists.type.videos',
+            self::TYPE_PICTURES => 'myReadingLists.type.pictures',
+            default => 'myReadingLists.type.reading_list',
+        };
     }
 
     #[Route('/reading-list/compose', name: 'reading_list_compose')]

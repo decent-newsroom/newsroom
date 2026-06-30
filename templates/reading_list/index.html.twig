@@ -1,89 +1,215 @@
 {% extends 'newsroom-layout.html.twig' %}
 
-{% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand">
-        <div class="container mt-5 mb-1">
-            <h1>{{ 'myReadingLists.heading'|trans }}</h1>
-        </div>
-        <div class="cta-row mb-5">
-            <a class="btn btn-primary" href="{{ path('read_wizard_new') }}">{{ 'text.createNew'|trans }}</a>
-        </div>
-    </section>
+{% set currentQuery = {type: activeType, q: searchQuery, sort: sort} %}
 
-    <div class="w-container mb-5 mt-5">
-      {% if lists is defined and lists|length %}
-        <ul class="list-unstyled d-grid gap-2 mb-4">
-          {% for item in lists %}
-            <li class="card p-3">
-              {% if item.image|default(null) %}
-                <div class="card-header m-0 mb-2">
-                  {% if item.kind == 30040 %}
-                    <a href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">
-                      <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                    </a>
-                  {% else %}
-                    <a href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">
-                      <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
-                    </a>
-                  {% endif %}
-                </div>
-              {% endif %}
-              <div class="d-flex justify-content-between align-items-start gap-3">
-                <div class="flex-fill">
-                  <h3 class="h5 m-0">{{ item.title }}</h3>
-                  {% if item.summary %}<p class="small mt-1 mb-0 line-clamp-5">{{ item.summary }}</p>{% endif %}
-                  <small class="text-muted">slug: {{ item.slug ?: '—' }} • created: {{ item.createdAt|date('Y-m-d H:i') }}</small>
-                  {% if item.type %}
-                    <span class="badge bg-secondary">{{ item.type }}</span>
-                  {% endif %}
-                  {% if item.isEmpty %}
-                    <span class="badge bg-warning text-dark ms-1">Empty</span>
-                  {% elseif item.itemCount is defined %}
-                    <span class="badge bg-info text-dark ms-1">{{ item.itemCount }} item{{ item.itemCount != 1 ? 's' : '' }}</span>
-                  {% endif %}
-                </div>
-                <div class="d-flex flex-row flex-wrap gap-2">
-                  {# Only show Open Composer for reading lists (kind 30040), not for curation sets #}
-                  {% if item.kind == 30040 %}
-                    <a class="btn btn-sm btn-primary" href="{{ path('read_wizard_articles', {'load': item.slug}) }}">{{ 'myReadingLists.openComposer'|trans }}</a>
-                  {% endif %}
-                    {% if item.slug %}
-                    {# Use appropriate route based on kind #}
-                    {% if item.kind == 30040 %}
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub }) }}">View</a>
-                    <span data-controller="utility--copy-to-clipboard">
-                      <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ absolute_url(path('reading-list', { slug: item.slug, npub: item.pubkey|toNpub })) }}</span>
-                      <button class="btn btn-sm btn-secondary"
-                              data-utility--copy-to-clipboard-target="copyButton"
-                              data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy link</button>
-                    </span>
-                    {% else %}
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub }) }}">View</a>
-                    <span data-controller="utility--copy-to-clipboard">
-                      <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ absolute_url(path('curation-set', { kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub })) }}</span>
-                      <button class="btn btn-sm btn-secondary"
-                              data-utility--copy-to-clipboard-target="copyButton"
-                              data-action="click->utility--copy-to-clipboard#copyToClipboard">Copy link</button>
-                    </span>
-                    {% endif %}
-                    {% endif %}
-                    {% if item.slug and item.pubkey and item.kind is defined %}
-                        <div data-controller="utility--copy-to-clipboard">
-                            <code class="hidden bg-light px-1" data-utility--copy-to-clipboard-target="textToCopy">{{ item.kind }}:{{ item.pubkey }}:{{ item.slug }}</code>
-                            <button class="btn btn-sm btn-secondary"
-                                    data-utility--copy-to-clipboard-target="copyButton"
-                                    data-action="click->utility--copy-to-clipboard#copyToClipboard"
-                                    title="Copy coordinate">Copy coordinate</button>
-                        </div>
-                    {% endif %}
-                </div>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p><small>{% if app.user %}{{ 'myReadingLists.noListsLoggedIn'|trans }}{% else %}{{ 'myReadingLists.noListsAnon'|trans }}{% endif %}</small></p>
-      {% endif %}
+{% block body %}
+<section class="my-content-page reading-list-index-page">
+    <header class="my-content-header">
+        <div class="my-content-header__copy">
+            <p class="eyebrow">{{ 'nav.newsroom'|trans }}</p>
+            <h1>{{ 'myReadingLists.heading'|trans }}</h1>
+            <p>{{ 'myReadingLists.description'|trans }}</p>
+        </div>
+        <div class="my-content-header__actions">
+            <a class="btn" href="{{ path('read_wizard_new') }}">
+                {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+                {{ 'myReadingLists.action.new'|trans }}
+            </a>
+        </div>
+    </header>
+
+    <nav class="my-content-tabs" aria-label="{{ 'myReadingLists.tabs.label'|trans }}">
+        {% for type, label in {
+            all: 'myReadingLists.tabs.all',
+            reading_lists: 'myReadingLists.tabs.reading_lists',
+            articles_notes: 'myReadingLists.tabs.articles_notes',
+            videos: 'myReadingLists.tabs.videos',
+            pictures: 'myReadingLists.tabs.pictures'
+        } %}
+            <a
+                href="{{ path('reading_list_index', {type: type, q: searchQuery, sort: sort}) }}"
+                {% if activeType == type %}aria-current="page"{% endif %}
+            >
+                <span>{{ label|trans }}</span>
+                <strong>{{ attribute(counts, type) }}</strong>
+            </a>
+        {% endfor %}
+    </nav>
+
+    <form class="my-content-toolbar" action="{{ path('reading_list_index') }}" method="get">
+        <input type="hidden" name="type" value="{{ activeType }}">
+        <label class="my-content-search">
+            <span class="visually-hidden">{{ 'myReadingLists.filter.search_label'|trans }}</span>
+            {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+            <input
+                type="search"
+                name="q"
+                value="{{ searchQuery }}"
+                placeholder="{{ 'myReadingLists.filter.search_placeholder'|trans }}"
+                autocomplete="off"
+            >
+        </label>
+        <label class="my-content-sort">
+            <span>{{ 'myReadingLists.filter.sort_label'|trans }}</span>
+            <select name="sort">
+                <option value="recent"{% if sort == 'recent' %} selected{% endif %}>{{ 'myReadingLists.filter.sort_recent'|trans }}</option>
+                <option value="title"{% if sort == 'title' %} selected{% endif %}>{{ 'myReadingLists.filter.sort_title'|trans }}</option>
+            </select>
+        </label>
+        <button class="btn btn-sm" type="submit">{{ 'myReadingLists.filter.apply'|trans }}</button>
+        {% if searchQuery or sort != 'recent' %}
+            <a class="my-content-toolbar__clear" href="{{ path('reading_list_index', {type: activeType}) }}">
+                {{ 'myReadingLists.filter.clear'|trans }}
+            </a>
+        {% endif %}
+    </form>
+
+    <div class="my-content-results">
+        <p>{{ 'myReadingLists.results_count'|trans({'%count%': filteredCount}) }}</p>
+        {% if totalPages > 1 %}
+            <p>{{ 'myReadingLists.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</p>
+        {% endif %}
     </div>
 
+    <div class="my-content-inventory reading-list-inventory">
+        <div class="my-content-row my-content-row--head" aria-hidden="true">
+            <span>{{ 'myReadingLists.column.list'|trans }}</span>
+            <span>{{ 'myReadingLists.column.type'|trans }}</span>
+            <span>{{ 'myReadingLists.column.updated'|trans }}</span>
+            <span>{{ 'myReadingLists.column.items'|trans }}</span>
+            <span>&nbsp;</span> {# actions #}
+        </div>
+
+        {% for item in lists %}
+            {% set title = item.title|default('myReadingLists.untitled'|trans) %}
+            {% set manageUrl = null %}
+            {% if item.kind == 30040 and item.slug %}
+                {% set manageUrl = path('read_wizard_articles', {load: item.slug}) %}
+            {% endif %}
+            {% if item.slug %}
+                {% if item.kind == 30040 %}
+                    {% set viewUrl = path('reading-list', {slug: item.slug, npub: item.pubkey|toNpub}) %}
+                {% else %}
+                    {% set viewUrl = path('curation-set', {kind: item.kind, slug: item.slug, npub: item.pubkey|toNpub}) %}
+                {% endif %}
+            {% else %}
+                {% set viewUrl = null %}
+            {% endif %}
+            {% set titleUrl = manageUrl ?: viewUrl %}
+            {% set coordinate = item.slug ? item.kind ~ ':' ~ item.pubkey ~ ':' ~ item.slug : null %}
+
+            <article class="my-content-row" data-content-type="{{ item.category }}">
+                <div class="my-content-row__main">
+                    <span class="my-content-row__icon my-content-row__icon--list" aria-hidden="true">
+                        {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+                    </span>
+                    <div>
+                        <h2>
+                            {% if titleUrl %}
+                                <a href="{{ titleUrl }}">{{ title }}</a>
+                            {% else %}
+                                {{ title }}
+                            {% endif %}
+                        </h2>
+                        {% if item.summary %}
+                            <p>{{ item.summary }}</p>
+                        {% else %}
+                            <p class="my-content-row__slug">{{ item.slug|default('myReadingLists.no_identifier'|trans) }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="my-content-row__status">
+                    <span class="my-content-status my-content-status--list">{{ item.typeKey|trans }}</span>
+                    {% if item.isEmpty %}
+                        <small>{{ 'myReadingLists.empty'|trans }}</small>
+                    {% endif %}
+                </div>
+
+                <time datetime="{{ item.createdAt|date('c') }}">
+                    {{ item.createdAt|date('Y-m-d') }}
+                </time>
+
+                <span class="my-content-row__count">{{ item.itemCount }}</span>
+
+                {% if manageUrl or viewUrl or coordinate %}
+                    <details class="my-content-menu" name="reading-list-actions">
+                        <summary aria-label="{{ 'myReadingLists.action.menu'|trans({'%title%': title}) }}">
+                            {{ ux_icon('iconoir:plus', {class: 'icon'}) }}
+                        </summary>
+                        <div class="my-content-menu__panel">
+                            {% if manageUrl %}
+                                <a class="btn" href="{{ manageUrl }}">
+                                    {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                                    {{ 'myReadingLists.action.manage'|trans }}
+                                </a>
+                            {% endif %}
+                            {% if viewUrl %}
+                                <a class="btn" href="{{ viewUrl }}">
+                                    {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+                                    {{ 'myReadingLists.view'|trans }}
+                                </a>
+                                <span data-controller="utility--copy-to-clipboard">
+                                    <span class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ absolute_url(viewUrl) }}</span>
+                                    <button
+                                        type="button"
+                                        data-utility--copy-to-clipboard-target="copyButton"
+                                        data-action="click->utility--copy-to-clipboard#copyToClipboard"
+                                    >
+                                        {{ ux_icon('iconoir:copy', {class: 'icon'}) }}
+                                        {{ 'myReadingLists.copyLink'|trans }}
+                                    </button>
+                                </span>
+                            {% endif %}
+                            {% if coordinate %}
+                                <span data-controller="utility--copy-to-clipboard">
+                                    <code class="hidden" data-utility--copy-to-clipboard-target="textToCopy">{{ coordinate }}</code>
+                                    <button
+                                        type="button"
+                                        data-utility--copy-to-clipboard-target="copyButton"
+                                        data-action="click->utility--copy-to-clipboard#copyToClipboard"
+                                    >
+                                        {{ ux_icon('iconoir:copy', {class: 'icon'}) }}
+                                        {{ 'myReadingLists.copyCoordinate'|trans }}
+                                    </button>
+                                </span>
+                            {% endif %}
+                        </div>
+                    </details>
+                {% else %}
+                    <span class="my-content-row__no-actions" aria-hidden="true">&nbsp;</span>
+                {% endif %}
+            </article>
+        {% else %}
+            <div class="my-content-empty">
+                {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+                <h2>{{ 'myReadingLists.empty_title'|trans }}</h2>
+                <p>{% if app.user %}{{ 'myReadingLists.noListsLoggedIn'|trans }}{% else %}{{ 'myReadingLists.noListsAnon'|trans }}{% endif %}</p>
+                {% if searchQuery or activeType != 'all' %}
+                    <a class="btn btn-secondary" href="{{ path('reading_list_index') }}">{{ 'myReadingLists.filter.clear'|trans }}</a>
+                {% elseif app.user %}
+                    <a class="btn" href="{{ path('read_wizard_new') }}">{{ 'myReadingLists.action.new'|trans }}</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if totalPages > 1 %}
+        <nav class="my-content-pagination" aria-label="{{ 'myReadingLists.pagination.label'|trans }}">
+            {% if page > 1 %}
+                <a class="btn btn-secondary btn-sm my-content-pagination__previous" href="{{ path('reading_list_index', currentQuery|merge({page: page - 1})) }}">
+                    {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
+                    {{ 'myReadingLists.pagination.previous'|trans }}
+                </a>
+            {% endif %}
+            <span>{{ 'myReadingLists.pagination.page'|trans({'%current%': page, '%total%': totalPages}) }}</span>
+            {% if page < totalPages %}
+                <a class="btn btn-secondary btn-sm my-content-pagination__next" href="{{ path('reading_list_index', currentQuery|merge({page: page + 1})) }}">
+                    {{ 'myReadingLists.pagination.next'|trans }}
+                    {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                </a>
+            {% endif %}
+        </nav>
+    {% endif %}
+</section>
 {% endblock %}

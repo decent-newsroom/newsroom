@@ -405,6 +405,10 @@ lists:
 # ── Meine Leselisten ────────────────────────────────────────────────
 myReadingLists:
     heading: 'Meine Leselisten'
+    description: 'Verwalten Sie Leselisten und NIP-51-Kurationssets in einer durchsuchbaren Tabelle.'
+    untitled: 'Unbenannte Liste'
+    no_identifier: 'Keine Kennung'
+    results_count: '%count% Listen'
     openComposer: 'Composer öffnen'
     view: 'Anzeigen'
     copyLink: 'Link kopieren'
@@ -412,6 +416,41 @@ myReadingLists:
     noListsLoggedIn: 'Keine Leselisten gefunden.'
     noListsAnon: 'Melden Sie sich an, um Ihre Listen zu durchsuchen und zu bearbeiten.'
     empty: 'Leer'
+    empty_title: 'Nichts passt zu dieser Ansicht'
+    action:
+        new: 'Neue Liste'
+        manage: 'Verwalten'
+        menu: 'Aktionen für %title%'
+    tabs:
+        label: 'Listen filtern'
+        all: 'Alle'
+        reading_lists: 'Leselisten'
+        articles_notes: 'Artikel / Notizen'
+        videos: 'Videos'
+        pictures: 'Bilder'
+    filter:
+        search_label: 'Listen suchen'
+        search_placeholder: 'Titel, Zusammenfassungen oder Kennungen suchen'
+        sort_label: 'Sortieren'
+        sort_recent: 'Zuletzt aktualisiert'
+        sort_title: 'Titel A-Z'
+        apply: 'Anwenden'
+        clear: 'Filter löschen'
+    column:
+        list: 'Liste'
+        type: 'Typ'
+        updated: 'Aktualisiert'
+        items: 'Einträge'
+    type:
+        reading_list: 'Leseliste'
+        articles_notes: 'Artikel / Notizen'
+        videos: 'Videos'
+        pictures: 'Bilder'
+    pagination:
+        label: 'Listenseiten'
+        previous: 'Zurück'
+        next: 'Weiter'
+        page: 'Seite %current% von %total%'
 
 # ── Meine Magazine ───────────────────────────────────────────────────
 myMagazines:

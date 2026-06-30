@@ -20,14 +20,11 @@
 >
     <header class="my-content-header">
         <div class="my-content-header__copy">
-            <h1>{{ 'my_content.eyebrow'|trans }}</h1>
+            <p class="eyebrow">{{ 'my_content.eyebrow'|trans }}</p>
+            <h1>{{ 'my_content.title'|trans }}</h1>
             <p>{{ 'my_content.description'|trans }}</p>
         </div>
         <div class="my-content-header__actions">
-            <a class="btn btn--secondary" href="{{ path('read_wizard_new') }}">
-                {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
-                {{ 'my_content.action.new_list'|trans }}
-            </a>
             <a class="btn" href="{{ path('editor-create') }}">
                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                 {{ 'my_content.action.new_article'|trans }}
@@ -39,8 +36,7 @@
         {% for type, label in {
             all: 'my_content.tabs.all',
             drafts: 'my_content.tabs.drafts',
-            published: 'my_content.tabs.published',
-            lists: 'my_content.tabs.lists'
+            published: 'my_content.tabs.published'
         } %}
             <a
                 href="{{ path('my_content', {type: type, q: searchQuery, sort: sort}) }}"
@@ -74,7 +70,6 @@
         </label>
         <button class="btn btn-sm" type="submit">{{ 'my_content.filter.apply'|trans }}</button>
         {% if searchQuery or sort != 'recent' %}
-            <br>
             <a class="my-content-toolbar__clear" href="{{ path('my_content', {type: activeType}) }}">
                 {{ 'my_content.filter.clear'|trans }}
             </a>
@@ -93,7 +88,6 @@
             <span>{{ 'my_content.column.content'|trans }}</span>
             <span>{{ 'my_content.column.status'|trans }}</span>
             <span>{{ 'my_content.column.updated'|trans }}</span>
-            <span>{{ 'my_content.column.items'|trans }}</span>
             <span>&nbsp;</span> {# actions #}
         </div>
 
@@ -104,36 +98,22 @@
                     <span class="my-content-row__icon my-content-row__icon--{{ item.category }}" aria-hidden="true">
                         {% if item.category == 'published' %}
                             {{ ux_icon('iconoir:page-flip', {class: 'icon'}) }}
-                        {% elseif item.category == 'drafts' %}
-                            {{ ux_icon('iconoir:page-edit', {class: 'icon'}) }}
                         {% else %}
-                            {{ ux_icon('iconoir:journal-page', {class: 'icon'}) }}
+                            {{ ux_icon('iconoir:page-edit', {class: 'icon'}) }}
                         {% endif %}
                     </span>
                     <div>
                         <h2>
                             {% if item.category == 'published' %}
                                 <a href="{{ path('editor-edit-slug', {slug: item.article.slug}) }}">{{ title }}</a>
-                            {% elseif item.category == 'drafts' %}
-                                <a href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">{{ title }}</a>
-                            {% elseif item.list.kind == 30040 and item.list.slug %}
-                                <a href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">{{ title }}</a>
-                            {% elseif item.list.slug %}
-                                <a href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">{{ title }}</a>
                             {% else %}
-                                {{ title }}
+                                <a href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">{{ title }}</a>
                             {% endif %}
                         </h2>
                         {% if item.summary %}
                             <p>{{ item.summary }}</p>
                         {% else %}
-                            <p class="my-content-row__slug">
-                                {% if item.category == 'lists' %}
-                                    {{ item.list.slug|default('my_content.no_identifier'|trans) }}
-                                {% else %}
-                                    {{ item.article.slug }}
-                                {% endif %}
-                            </p>
+                            <p class="my-content-row__slug">{{ item.article.slug }}</p>
                         {% endif %}
                     </div>
                 </div>
@@ -141,23 +121,14 @@
                 <div class="my-content-row__status">
                     {% if item.category == 'published' %}
                         <span class="my-content-status my-content-status--published">{{ 'my_content.status.published'|trans }}</span>
-                    {% elseif item.category == 'drafts' %}
-                        <span class="my-content-status my-content-status--draft">{{ 'my_content.status.draft'|trans }}</span>
                     {% else %}
-                        <span class="my-content-status my-content-status--list">{{ item.list.typeKey|trans }}</span>
-                        {% if item.list.isEmpty %}
-                            <small>{{ 'my_content.status.empty'|trans }}</small>
-                        {% endif %}
+                        <span class="my-content-status my-content-status--draft">{{ 'my_content.status.draft'|trans }}</span>
                     {% endif %}
                 </div>
 
                 <time datetime="{{ item.updatedAt ? item.updatedAt|date('c') : '' }}">
                     {{ item.updatedAt ? item.updatedAt|date('Y-m-d') : '—' }}
                 </time>
-
-                <span class="my-content-row__count">
-                    {{ item.category == 'lists' ? item.list.itemCount : '—' }}
-                </span>
 
                 <details class="my-content-menu" name="my-content-actions">
                     <summary aria-label="{{ 'my_content.action.menu'|trans({'%title%': title}) }}">
@@ -173,30 +144,14 @@
                                 {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
                                 {{ 'my_content.action.view'|trans }}
                             </a>
-                        {% elseif item.category == 'drafts' %}
+                        {% else %}
                             <a class="btn" href="{{ path('editor-edit-slug-draft', {slug: item.article.slug}) }}">
                                 {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
                                 {{ 'my_content.action.edit'|trans }}
                             </a>
-                        {% elseif item.list.kind == 30040 and item.list.slug %}
-                            <a class="btn" href="{{ path('read_wizard_articles', {load: item.list.slug}) }}">
-                                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
-                                {{ 'my_content.action.edit'|trans }}
-                            </a>
-                            <a class="btn" href="{{ path('reading-list', {slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
-                                {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
-                                {{ 'my_content.action.view'|trans }}
-                            </a>
-                        {% elseif item.list.slug %}
-                            <a class="btn" href="{{ path('curation-set', {kind: item.list.kind, slug: item.list.slug, npub: item.list.pubkey|toNpub}) }}">
-                                {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
-                                {{ 'my_content.action.view'|trans }}
-                            </a>
                         {% endif %}
 
-                        {% if item.category == 'lists' and item.list.slug %}
-                            {% set coordinate = item.list.kind ~ ':' ~ item.list.pubkey ~ ':' ~ item.list.slug %}
-                        {% elseif item.category == 'drafts' %}
+                        {% if item.category == 'drafts' %}
                             {% set coordinate = '30024:' ~ item.article.pubkey ~ ':' ~ item.article.slug %}
                         {% elseif item.category == 'published' %}
                             {% set coordinate = '30023:' ~ item.article.pubkey ~ ':' ~ item.article.slug %}

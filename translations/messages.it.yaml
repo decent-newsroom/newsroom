@@ -432,6 +432,10 @@ lists:
 # ── My Reading Lists ──────────────────────────────────────────────
 myReadingLists:
     heading: 'Le mie liste di lettura'
+    description: 'Gestisci liste di lettura e raccolte NIP-51 in una tabella ricercabile.'
+    untitled: 'Lista senza titolo'
+    no_identifier: 'Nessun identificatore'
+    results_count: '%count% liste'
     openComposer: 'Apri compositore'
     view: 'Visualizza'
     copyLink: 'Copia link'
@@ -439,6 +443,41 @@ myReadingLists:
     noListsLoggedIn: 'Nessuna lista di lettura trovata.'
     noListsAnon: 'Accedi per sfogliare e modificare le tue liste.'
     empty: 'Vuota'
+    empty_title: 'Nessun risultato per questa vista'
+    action:
+        new: 'Nuova lista'
+        manage: 'Gestisci'
+        menu: 'Azioni per %title%'
+    tabs:
+        label: 'Filtra liste'
+        all: 'Tutte'
+        reading_lists: 'Liste di lettura'
+        articles_notes: 'Articoli / note'
+        videos: 'Video'
+        pictures: 'Immagini'
+    filter:
+        search_label: 'Cerca liste'
+        search_placeholder: 'Cerca titoli, riassunti o identificatori'
+        sort_label: 'Ordina'
+        sort_recent: 'Aggiornate di recente'
+        sort_title: 'Titolo A-Z'
+        apply: 'Applica'
+        clear: 'Cancella filtri'
+    column:
+        list: 'Lista'
+        type: 'Tipo'
+        updated: 'Aggiornata'
+        items: 'Elementi'
+    type:
+        reading_list: 'Lista di lettura'
+        articles_notes: 'Articoli / note'
+        videos: 'Video'
+        pictures: 'Immagini'
+    pagination:
+        label: 'Pagine liste'
+        previous: 'Precedente'
+        next: 'Successiva'
+        page: 'Pagina %current% di %total%'
 
 # ── My Magazines ──────────────────────────────────────────────────
 myMagazines:

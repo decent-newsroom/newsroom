@@ -408,6 +408,10 @@ lists:
 # ── Moji bralni seznami ───────────────────────────────────────────
 myReadingLists:
     heading: 'Moji bralni seznami'
+    description: 'Upravljajte bralne sezname in NIP-51 kurirane zbirke v iskalni tabeli.'
+    untitled: 'Seznam brez naslova'
+    no_identifier: 'Brez identifikatorja'
+    results_count: '%count% seznamov'
     openComposer: 'Odpri urejevalnik'
     view: 'Poglej'
     copyLink: 'Kopiraj povezavo'
@@ -415,6 +419,41 @@ myReadingLists:
     noListsLoggedIn: 'Ni najdenih bralnih seznamov.'
     noListsAnon: 'Prijavite se za brskanje in urejanje seznamov.'
     empty: 'Prazno'
+    empty_title: 'Nič se ne ujema s tem pogledom'
+    action:
+        new: 'Nov seznam'
+        manage: 'Upravljaj'
+        menu: 'Dejanja za %title%'
+    tabs:
+        label: 'Filtriraj sezname'
+        all: 'Vse'
+        reading_lists: 'Bralni seznami'
+        articles_notes: 'Članki / zapisi'
+        videos: 'Videi'
+        pictures: 'Slike'
+    filter:
+        search_label: 'Išči sezname'
+        search_placeholder: 'Išči naslove, povzetke ali identifikatorje'
+        sort_label: 'Razvrsti'
+        sort_recent: 'Nedavno posodobljeno'
+        sort_title: 'Naslov A-Z'
+        apply: 'Uporabi'
+        clear: 'Počisti filtre'
+    column:
+        list: 'Seznam'
+        type: 'Vrsta'
+        updated: 'Posodobljeno'
+        items: 'Elementi'
+    type:
+        reading_list: 'Bralni seznam'
+        articles_notes: 'Članki / zapisi'
+        videos: 'Videi'
+        pictures: 'Slike'
+    pagination:
+        label: 'Strani seznamov'
+        previous: 'Prejšnja'
+        next: 'Naslednja'
+        page: 'Stran %current% od %total%'
 
 # ── Moje revije ───────────────────────────────────────────────────
 myMagazines:

@@ -451,6 +451,10 @@ lists:
 # ── My Reading Lists ──────────────────────────────────────────────
 myReadingLists:
     heading: 'My Reading Lists'
+    description: 'Manage reading lists and NIP-51 curation sets in one searchable table.'
+    untitled: 'Untitled list'
+    no_identifier: 'No identifier'
+    results_count: '%count% lists'
     openComposer: 'Open Composer'
     view: 'View'
     copyLink: 'Copy link'
@@ -458,6 +462,41 @@ myReadingLists:
     noListsLoggedIn: 'No reading lists found.'
     noListsAnon: 'Log in to browse and edit your lists.'
     empty: 'Empty'
+    empty_title: 'Nothing matches this view'
+    action:
+        new: 'New list'
+        manage: 'Manage'
+        menu: 'Actions for %title%'
+    tabs:
+        label: 'Filter lists'
+        all: 'All'
+        reading_lists: 'Reading lists'
+        articles_notes: 'Articles / notes'
+        videos: 'Videos'
+        pictures: 'Pictures'
+    filter:
+        search_label: 'Search lists'
+        search_placeholder: 'Search titles, summaries, or identifiers'
+        sort_label: 'Sort'
+        sort_recent: 'Recently updated'
+        sort_title: 'Title A-Z'
+        apply: 'Apply'
+        clear: 'Clear filters'
+    column:
+        list: 'List'
+        type: 'Type'
+        updated: 'Updated'
+        items: 'Items'
+    type:
+        reading_list: 'Reading list'
+        articles_notes: 'Articles / notes'
+        videos: 'Videos'
+        pictures: 'Pictures'
+    pagination:
+        label: 'List pages'
+        previous: 'Previous'
+        next: 'Next'
+        page: 'Page %current% of %total%'
 
 # ── My Magazines ──────────────────────────────────────────────────
 myMagazines:

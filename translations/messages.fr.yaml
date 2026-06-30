@@ -408,6 +408,10 @@ lists:
 # ── Mes listes de lecture ──────────────────────────────────────────
 myReadingLists:
     heading: 'Mes listes de lecture'
+    description: 'Gérez vos listes de lecture et ensembles de curation NIP-51 dans un tableau consultable.'
+    untitled: 'Liste sans titre'
+    no_identifier: 'Aucun identifiant'
+    results_count: '%count% listes'
     openComposer: 'Ouvrir le compositeur'
     view: 'Voir'
     copyLink: 'Copier le lien'
@@ -415,6 +419,41 @@ myReadingLists:
     noListsLoggedIn: 'Aucune liste de lecture trouvée.'
     noListsAnon: 'Connectez-vous pour parcourir et modifier vos listes.'
     empty: 'Vide'
+    empty_title: 'Aucun résultat pour cette vue'
+    action:
+        new: 'Nouvelle liste'
+        manage: 'Gérer'
+        menu: 'Actions pour %title%'
+    tabs:
+        label: 'Filtrer les listes'
+        all: 'Tout'
+        reading_lists: 'Listes de lecture'
+        articles_notes: 'Articles / notes'
+        videos: 'Vidéos'
+        pictures: 'Images'
+    filter:
+        search_label: 'Rechercher des listes'
+        search_placeholder: 'Rechercher titres, résumés ou identifiants'
+        sort_label: 'Trier'
+        sort_recent: 'Récemment mises à jour'
+        sort_title: 'Titre A-Z'
+        apply: 'Appliquer'
+        clear: 'Effacer les filtres'
+    column:
+        list: 'Liste'
+        type: 'Type'
+        updated: 'Mise à jour'
+        items: 'Éléments'
+    type:
+        reading_list: 'Liste de lecture'
+        articles_notes: 'Articles / notes'
+        videos: 'Vidéos'
+        pictures: 'Images'
+    pagination:
+        label: 'Pages de listes'
+        previous: 'Précédent'
+        next: 'Suivant'
+        page: 'Page %current% sur %total%'
 
 # ── Mes magazines ──────────────────────────────────────────────────
 myMagazines:

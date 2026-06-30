@@ -408,6 +408,10 @@ lists:
 # ── Mis listas de lectura ───────────────────────────────────────────
 myReadingLists:
     heading: 'Mis listas de lectura'
+    description: 'Gestiona listas de lectura y conjuntos de curación NIP-51 en una tabla con búsqueda.'
+    untitled: 'Lista sin título'
+    no_identifier: 'Sin identificador'
+    results_count: '%count% listas'
     openComposer: 'Abrir compositor'
     view: 'Ver'
     copyLink: 'Copiar enlace'
@@ -415,6 +419,41 @@ myReadingLists:
     noListsLoggedIn: 'No se encontraron listas de lectura.'
     noListsAnon: 'Inicia sesión para explorar y editar tus listas.'
     empty: 'Vacío'
+    empty_title: 'Nada coincide con esta vista'
+    action:
+        new: 'Nueva lista'
+        manage: 'Gestionar'
+        menu: 'Acciones para %title%'
+    tabs:
+        label: 'Filtrar listas'
+        all: 'Todo'
+        reading_lists: 'Listas de lectura'
+        articles_notes: 'Artículos / notas'
+        videos: 'Vídeos'
+        pictures: 'Imágenes'
+    filter:
+        search_label: 'Buscar listas'
+        search_placeholder: 'Buscar títulos, resúmenes o identificadores'
+        sort_label: 'Ordenar'
+        sort_recent: 'Actualizadas recientemente'
+        sort_title: 'Título A-Z'
+        apply: 'Aplicar'
+        clear: 'Limpiar filtros'
+    column:
+        list: 'Lista'
+        type: 'Tipo'
+        updated: 'Actualizada'
+        items: 'Elementos'
+    type:
+        reading_list: 'Lista de lectura'
+        articles_notes: 'Artículos / notas'
+        videos: 'Vídeos'
+        pictures: 'Imágenes'
+    pagination:
+        label: 'Páginas de listas'
+        previous: 'Anterior'
+        next: 'Siguiente'
+        page: 'Página %current% de %total%'
 
 # ── Mis revistas ─────────────────────────────────────────────────────
 myMagazines:
