@@ -390,6 +390,10 @@
     grid-template-columns: minmax(0, 1fr) 9.5rem 7rem 4rem 2.75rem;
 }
 
+.reading-list-inventory .my-content-row__count {
+    padding-inline: var(--spacing-3);
+}
+
 .my-content-row__no-actions {
     justify-self: center;
 }
