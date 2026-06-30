@@ -11,10 +11,6 @@
     gap: var(--spacing-4);
 }
 
-.reading-nook-compact-summary {
-    display: none;
-}
-
 .reading-nook-tabs {
     display: flex;
     gap: var(--spacing-4);
@@ -523,41 +519,6 @@
     width: 100%;
 }
 
-@media (max-width: 1200px) {
-    .reading-nook-compact-summary {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        border-block: 1px solid var(--color-border);
-    }
-
-    .reading-nook-compact-summary div {
-        min-width: 0;
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--spacing-2);
-        padding: var(--spacing-2) var(--spacing-3);
-        border-right: 1px solid var(--color-border);
-    }
-
-    .reading-nook-compact-summary div:last-child {
-        border-right: 0;
-    }
-
-    .reading-nook-compact-summary span {
-        color: var(--color-text-mid);
-        font-size: var(--font-size-xs);
-        font-weight: 700;
-        letter-spacing: 0;
-        text-transform: uppercase;
-    }
-
-    .reading-nook-compact-summary strong {
-        color: var(--color-text);
-        font-size: var(--font-size-lg);
-    }
-}
-
 @media (max-width: 900px) {
     .reading-nook-toolbar {
         grid-template-columns: minmax(0, 1fr) auto;
@@ -623,20 +584,6 @@
     .reading-nook-page {
         width: min(100%, calc(100% - 1rem));
         margin-bottom: var(--spacing-5);
-    }
-
-    .reading-nook-compact-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .reading-nook-compact-summary div {
-        padding-inline: 0;
-        border-right: 0;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .reading-nook-compact-summary div:last-child {
-        border-bottom: 0;
     }
 
     .reading-nook-toolbar {

@@ -17,20 +17,6 @@
     <twig:Atoms:PageHeading :heading="'reading_nook.title'|trans" :tagline="'reading_nook.subtitle'|trans" />
 
     <div class="reading-nook-shell">
-        <section class="reading-nook-compact-summary" aria-label="{{ 'reading_nook.title'|trans }}">
-            <div>
-                <span>{{ 'reading_nook.summary.total'|trans }}</span>
-                <strong>{{ totalCount }}</strong>
-            </div>
-            <div>
-                <span>{{ 'reading_nook.summary.visible'|trans }}</span>
-                <strong>{{ filteredCount }}</strong>
-            </div>
-            <div>
-                <span>{{ 'reading_nook.summary.filters'|trans }}</span>
-                <strong>{{ activeFilterCount }}</strong>
-            </div>
-        </section>
 
         <div class="reading-nook-content">
             <nav class="reading-nook-tabs" aria-label="{{ 'reading_nook.filters.section'|trans }}">
