@@ -95,6 +95,7 @@ class Converter implements MarkdownConverterInterface
             if ($resolvedFormat === 'asciidoc') {
                 $html = $this->asciidocConverter->convert($content);
                 $html = $this->restoreMathPlaceholders($html);
+                $html = $this->processTrustedImageLinks($html);
                 return $this->processNostrLinks($html);
             }
 
@@ -106,6 +107,7 @@ class Converter implements MarkdownConverterInterface
             if ($this->isAsciiDoc($content)) {
                 $html = $this->asciidocConverter->convert($content);
                 $html = $this->restoreMathPlaceholders($html);
+                $html = $this->processTrustedImageLinks($html);
                 return $this->processNostrLinks($html);
             }
 
@@ -880,6 +882,8 @@ class Converter implements MarkdownConverterInterface
         // escaping is no longer a concern.
         $html = $this->restoreMathPlaceholders($html);
 
+        $html = $this->processTrustedImageLinks($html);
+
         return $this->processNostrLinks($html);
     }
 
@@ -969,6 +973,80 @@ class Converter implements MarkdownConverterInterface
         $content = $this->replaceBareTextNostr($content, $eventsById, $metadataByHex, $eventsByNaddr);
 
         return $content;
+    }
+
+    private function processTrustedImageLinks(string $content): string
+    {
+        if (stripos($content, 'nostria.app') === false || !str_contains($content, '<a ')) {
+            return $content;
+        }
+
+        if (!class_exists(\DOMDocument::class)) {
+            return $content;
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $previousUseInternalErrors = libxml_use_internal_errors(true);
+        $loaded = $dom->loadHTML(
+            '<?xml encoding="UTF-8"><div id="newsroom-trusted-image-root">' . $content . '</div>',
+            LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED,
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousUseInternalErrors);
+
+        if (!$loaded) {
+            return $content;
+        }
+
+        $root = $dom->getElementById('newsroom-trusted-image-root');
+        if (!$root) {
+            return $content;
+        }
+
+        $anchors = iterator_to_array($root->getElementsByTagName('a'));
+
+        foreach ($anchors as $anchor) {
+            if (!$anchor instanceof \DOMElement) {
+                continue;
+            }
+
+            $href = trim($anchor->getAttribute('href'));
+            if (!$this->isTrustedNostriaImageUrl($href)) {
+                continue;
+            }
+
+            $image = $dom->createElement('img');
+            $image->setAttribute('src', $href);
+            $image->setAttribute('alt', trim($anchor->textContent) ?: $href);
+
+            $anchor->parentNode?->replaceChild($image, $anchor);
+        }
+
+        $processed = '';
+        foreach ($root->childNodes as $child) {
+            $processed .= $dom->saveHTML($child);
+        }
+
+        return $processed;
+    }
+
+    private function isTrustedNostriaImageUrl(string $url): bool
+    {
+        if ($url === '') {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return false;
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        return $scheme === 'https'
+            && $host !== 'nostria.app'
+            && str_ends_with($host, '.nostria.app');
     }
 
     /** @return array{0: array<string,int>, 1: array<string,int>, 2: array<string,array>} [$eventIds, $pubkeyHexes, $naddrCoords] */

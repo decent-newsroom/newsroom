@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Bug] Rendered trusted `https://*.nostria.app` article links as images, including Markdown links whose label points at the same hosted media URL.
 - [Improvement] Reworked article engagement into a compact social action strip with comment, like, bookmark, share, tip/payment-target, and overflow actions, plus signed NIP-25 article likes.
 - [Improvement] Moved article highlight visibility to a single top-of-article toggle beside reading-list actions, removed the redundant Turbo-frame proxy/dropdown toggle, and fixed disabled inline highlights rendering with a transparent background.
 - [Bug] Added the cron daemon package to the shared FrankenPHP image so the cron service can install its schedule and run jobs.
