@@ -58,6 +58,7 @@
         </label>
         <button class="btn btn-sm" type="submit">{{ 'myReadingLists.filter.apply'|trans }}</button>
         {% if searchQuery or sort != 'recent' %}
+            <br>
             <a class="my-content-toolbar__clear" href="{{ path('reading_list_index', {type: activeType}) }}">
                 {{ 'myReadingLists.filter.clear'|trans }}
             </a>

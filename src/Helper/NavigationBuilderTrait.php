@@ -80,7 +80,7 @@ trait NavigationBuilderTrait
                 'items' => [
                     ['label' => 'nav.newArticle', 'route' => 'editor-create', 'icon' => 'iconoir:edit-pencil'],
                     ['label' => 'nav.newMagazine', 'route' => 'mag_wizard_new', 'icon' => 'iconoir:plus'],
-                    ['label' => 'nav.newReadingList', 'route' => 'reading_list_index', 'icon' => 'iconoir:journal-page'],
+                    ['label' => 'nav.newReadingList', 'route' => 'read_wizard_new', 'icon' => 'iconoir:journal-page'],
                 ],
             ],
         ];
