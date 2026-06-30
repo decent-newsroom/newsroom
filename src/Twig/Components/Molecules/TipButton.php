@@ -50,6 +50,12 @@ final class TipButton
     #[LiveProp]
     public ?string $recipientLud06 = null;
 
+    #[LiveProp]
+    public string $btnClass = '';
+
+    #[LiveProp]
+    public bool $iconOnly = false;
+
     // UI state
     #[LiveProp(writable: true)]
     public bool $open = false;
@@ -497,7 +503,6 @@ final class TipButton
         return $this->recipientPubkey;
     }
 }
-
 
 
 

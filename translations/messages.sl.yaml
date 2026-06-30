@@ -486,6 +486,23 @@ articleActions:
     highlights: 'Označbe'
     protectedBadge: 'Zaščiteno (NIP-70)'
     protectedNote: 'Ta članek je zaščiten z NIP-70. Samo avtor ga lahko znova odda na releje.'
+    nostrIdentifiers: 'Nostr identifikatorji'
+    protectedShort: 'Zaščiteno'
+    adminOnly: 'admin'
+
+articleSocial:
+    label: 'Družabna dejanja članka'
+    comment: 'Komentiraj'
+    like: 'Všečkaj'
+    liked: 'Všečkano'
+    bookmark: 'Zaznamek'
+    bookmarked: 'Dodano med zaznamke'
+    signInToBookmark: 'Prijavite se za zaznamek'
+    share: 'Deli'
+    copied: 'Povezava kopirana'
+    shareFailed: 'Članka ni bilo mogoče deliti'
+    signerUnavailable: 'Nostr podpisnik ni na voljo'
+    likeFailed: 'Všečka ni bilo mogoče objaviti'
 
 # ── Razločevanje člankov ──────────────────────────────────────────
 disambiguation:

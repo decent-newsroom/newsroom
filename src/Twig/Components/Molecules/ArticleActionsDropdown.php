@@ -11,10 +11,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
- * Consolidated article actions dropdown.
- *
- * Groups secondary article actions (share, bookmark, broadcast, highlights)
- * into a single dropdown, keeping Zap and Reading List as standalone buttons.
+ * Secondary article actions kept behind the social strip's overflow button.
  */
 #[AsTwigComponent]
 final class ArticleActionsDropdown
@@ -28,19 +25,19 @@ final class ArticleActionsDropdown
     /** Nostr coordinate, e.g. "30023:<pubkey>:<slug>" */
     public string $coordinate = '';
 
-    /** Canonical URL of the article */
+    /** Canonical URL of the article. */
     public string $canonicalUrl = '';
 
-    /** naddr-encoded identifier for the article */
+    /** naddr-encoded identifier for the article. */
     public string $naddrEncoded = '';
 
-    /** Whether the article is protected (has '-' tag) */
+    /** Whether the article is protected (has '-' tag). */
     public bool $isProtected = false;
 
-    /** Number of highlights */
+    /** Number of highlights. */
     public int $highlightCount = 0;
 
-    /** User's write relays (null if not logged in) */
+    /** User's write relays (null if not logged in). */
     public ?array $relays = null;
 
     /**
@@ -94,4 +91,3 @@ final class ArticleActionsDropdown
         }
     }
 }
-

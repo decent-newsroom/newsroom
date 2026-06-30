@@ -10,7 +10,12 @@
             data-live-action-param="openDialog"
             title="{{ 'tip.send'|trans }}"
         >
-            <span class="tip-trigger__label">{{ 'tip.button'|trans }}</span>
+            {% if iconOnly|default(false) %}
+                {{ ux_icon('iconoir:zap', {class: 'icon article-social-actions__icon', 'aria-hidden': 'true'}) }}
+                <span class="visually-hidden">{{ 'tip.button'|trans }}</span>
+            {% else %}
+                <span class="tip-trigger__label">{{ 'tip.button'|trans }}</span>
+            {% endif %}
         </button>
     {% endif %}
 

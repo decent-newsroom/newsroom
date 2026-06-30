@@ -2,6 +2,7 @@
 
 ## v0.0.47
 
+- [Improvement] Reworked article engagement into a compact social action strip with comment, like, bookmark, share, tip/payment-target, and overflow actions, plus signed NIP-25 article likes.
 - [Bug] Added the cron daemon package to the shared FrankenPHP image so the cron service can install its schedule and run jobs.
 - [Bug] Fixed the interest-set editor so existing kind `30015` `d` tags populate the Identifier field and are preserved when publishing replacements.
 - [Bug] Reading Nook topic lists now label untitled kind `10015` lists as `My interests`, and kind `30015` interest-set Manage actions open the specific set editor instead of the generic interests page.

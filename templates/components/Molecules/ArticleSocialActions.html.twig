@@ -1,0 +1,99 @@
+{% set articleKind = article.kind.value|default(article.kind|default(30023)) %}
+
+<nav {{ attributes.defaults({class: 'article-social-actions'}) }}
+     aria-label="{{ 'articleSocial.label'|trans }}"
+     data-controller="ui--article-social-actions"
+     data-ui--article-social-actions-coordinate-value="{{ coordinate }}"
+     data-ui--article-social-actions-author-pubkey-value="{{ article.pubkey }}"
+     data-ui--article-social-actions-article-kind-value="{{ articleKind }}"
+     data-ui--article-social-actions-comment-form-id-value="{{ commentFormId }}"
+     data-ui--article-social-actions-canonical-url-value="{{ canonicalUrl|e('html_attr') }}"
+     data-ui--article-social-actions-article-title-value="{{ article.title|e('html_attr') }}"
+     data-ui--article-social-actions-reaction-fetch-url-value="{{ path('api_reactions_current', {coordinate: coordinate}) }}"
+     data-ui--article-social-actions-reaction-publish-url-value="{{ path('api_reactions_publish') }}"
+     data-ui--article-social-actions-copied-label-value="{{ 'articleSocial.copied'|trans|e('html_attr') }}"
+     data-ui--article-social-actions-share-failed-label-value="{{ 'articleSocial.shareFailed'|trans|e('html_attr') }}"
+     data-ui--article-social-actions-signer-unavailable-label-value="{{ 'articleSocial.signerUnavailable'|trans|e('html_attr') }}"
+     data-ui--article-social-actions-liked-label-value="{{ 'articleSocial.liked'|trans|e('html_attr') }}"
+     data-ui--article-social-actions-like-failed-label-value="{{ 'articleSocial.likeFailed'|trans|e('html_attr') }}">
+    <button
+        type="button"
+        class="icon-button article-social-actions__button"
+        data-action="click->ui--article-social-actions#openComment"
+        aria-controls="{{ commentFormId }}"
+        title="{{ 'articleSocial.comment'|trans }}"
+    >
+        {{ ux_icon('iconoir:chat-bubble', {class: 'icon article-social-actions__icon', 'aria-hidden': 'true'}) }}
+        <span class="visually-hidden">{{ 'articleSocial.comment'|trans }}</span>
+    </button>
+
+    <button
+        type="button"
+        class="icon-button article-social-actions__button"
+        data-ui--article-social-actions-target="likeButton"
+        data-action="click->ui--article-social-actions#publishLike"
+        title="{{ 'articleSocial.like'|trans }}"
+        aria-pressed="false"
+    >
+        {{ ux_icon('iconoir:heart', {class: 'icon article-social-actions__icon', 'data-ui--article-social-actions-target': 'likeIcon', 'aria-hidden': 'true'}) }}
+        <span class="visually-hidden">{{ 'articleSocial.like'|trans }}</span>
+        <span class="article-social-actions__count" data-ui--article-social-actions-target="likeCount" hidden></span>
+    </button>
+
+    {% if app.user %}
+        <button
+            type="button"
+            class="icon-button article-social-actions__button"
+            data-controller="ui--card-bookmark"
+            data-ui--card-bookmark-target="button"
+            data-action="click->ui--card-bookmark#toggle"
+            data-ui--card-bookmark-coordinate-value="{{ coordinate }}"
+            data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+            data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
+            data-ui--card-bookmark-add-label-value="{{ 'articleSocial.bookmark'|trans|e('html_attr') }}"
+            data-ui--card-bookmark-remove-label-value="{{ 'articleSocial.bookmarked'|trans|e('html_attr') }}"
+            title="{{ 'articleSocial.bookmark'|trans }}"
+        >
+            {{ ux_icon('iconoir:bookmark', {class: 'icon article-social-actions__icon', 'data-ui--card-bookmark-target': 'icon', 'aria-hidden': 'true'}) }}
+            <span class="visually-hidden" data-ui--card-bookmark-target="label">{{ 'articleSocial.bookmark'|trans }}</span>
+        </button>
+    {% else %}
+        <a
+            class="icon-button article-social-actions__button"
+            href="{{ path('app_login') }}"
+            title="{{ 'articleSocial.signInToBookmark'|trans }}"
+        >
+            {{ ux_icon('iconoir:bookmark', {class: 'icon article-social-actions__icon', 'aria-hidden': 'true'}) }}
+            <span class="visually-hidden">{{ 'articleSocial.signInToBookmark'|trans }}</span>
+        </a>
+    {% endif %}
+
+    <button
+        type="button"
+        class="icon-button article-social-actions__button"
+        data-action="click->ui--article-social-actions#share"
+        title="{{ 'articleSocial.share'|trans }}"
+    >
+        {{ ux_icon('iconoir:share-ios', {class: 'icon article-social-actions__icon', 'aria-hidden': 'true'}) }}
+        <span class="visually-hidden">{{ 'articleSocial.share'|trans }}</span>
+    </button>
+
+    <twig:Molecules:TipButton
+        recipientPubkey="{{ article.pubkey }}"
+        :recipientLud16="recipientLud16"
+        :recipientLud06="recipientLud06"
+        :iconOnly="true"
+        btnClass="icon-button article-social-actions__button article-social-actions__button--tip"
+    />
+
+    <twig:Molecules:ArticleActionsDropdown
+        class="article-actions-dropdown article-social-actions__more"
+        :article="article"
+        :coordinate="coordinate"
+        :canonicalUrl="canonicalUrl"
+        :naddrEncoded="naddrEncoded"
+        :isProtected="isProtected"
+        :highlightCount="highlightCount"
+        :relays="relays"
+    />
+</nav>

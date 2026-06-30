@@ -483,6 +483,23 @@ articleActions:
     highlights: 'Markierungen'
     protectedBadge: 'Geschützt (NIP-70)'
     protectedNote: 'Dieser Artikel ist NIP-70-geschützt. Nur der Autor kann ihn erneut an Relays senden.'
+    nostrIdentifiers: 'Nostr-Kennungen'
+    protectedShort: 'Geschützt'
+    adminOnly: 'Admin'
+
+articleSocial:
+    label: 'Soziale Artikelaktionen'
+    comment: 'Kommentieren'
+    like: 'Gefällt mir'
+    liked: 'Gefällt dir'
+    bookmark: 'Lesezeichen'
+    bookmarked: 'Als Lesezeichen gespeichert'
+    signInToBookmark: 'Zum Speichern anmelden'
+    share: 'Teilen'
+    copied: 'Link kopiert'
+    shareFailed: 'Dieser Artikel konnte nicht geteilt werden'
+    signerUnavailable: 'Kein Nostr-Signer verfügbar'
+    likeFailed: 'Gefällt mir konnte nicht veröffentlicht werden'
 
 # ── Artikelunterscheidung ─────────────────────────────────────────────
 disambiguation:

@@ -112,65 +112,32 @@
             {% endif %}
         {% endfor %}
 
+        {% set articleCoordinate = '30023:' ~ article.pubkey ~ ':' ~ article.slug %}
+        {% set isProtected = not (isDraft is defined and isDraft) ? article.isNip70Protected() : false %}
+        {% set userRelays = null %}
+        {% if app.user %}
+            {% set relayData = app.user.relays %}
+            {% set userRelays = relayData is not null and relayData.write is defined ? relayData.write : (relayData is not null and relayData.all is defined ? relayData.all : null) %}
+        {% endif %}
+        {% set recipientLud16 = author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null %}
+        {% set recipientLud06 = author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null %}
+
         {% if isDraft is defined and isDraft %}
         <div class="article-actions">
             <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">{{ 'article.editDraft'|trans }}</a>
         </div>
         {% else %}
+            {% if canEdit or app.user %}
             <div class="article-actions">
                 {% if canEdit %}
                     <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">{{ 'article.editArticle'|trans }}</a>
                 {% endif %}
 
                 {% if app.user %}
-                    <twig:ReadingListDropdown coordinate="30023:{{ article.pubkey }}:{{ article.slug }}" />
+                    <twig:ReadingListDropdown :coordinate="articleCoordinate" />
                 {% endif %}
-
-                {# Zap Button with split payment support #}
-                {% set zapSplitObjects = advancedMetadata.zapSplits|default([]) %}
-                {% set zapSplits = [] %}
-                {% for split in zapSplitObjects %}
-                    {% set zapSplits = zapSplits|merge([{
-                        'recipient': split.recipient,
-                        'relay': split.relay,
-                        'weight': split.weight
-                    }]) %}
-                {% endfor %}
-                {% if zapSplits|length > 0 %}
-                    {% if author.lud16 %}
-                    <twig:Molecules:ZapButton
-                        recipientPubkey="{{ article.pubkey }}"
-                        recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-                        :zapSplits="zapSplits" />
-                    {% endif %}
-                {% elseif author.lud16 %}
-                    <twig:Molecules:ZapButton
-                        recipientPubkey="{{ article.pubkey }}"
-                        recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
-                {% endif %}
-
-                <twig:Molecules:TipButton
-                    recipientPubkey="{{ article.pubkey }}"
-                    :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
-                    :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
-                />
-
-                {# Consolidated actions dropdown: share, bookmark, broadcast, highlights #}
-                {% set isProtected = article.isNip70Protected() %}
-                {% set userRelays = null %}
-                {% if app.user %}
-                    {% set relayData = app.user.relays %}
-                    {% set userRelays = relayData is not null and relayData.write is defined ? relayData.write : (relayData is not null and relayData.all is defined ? relayData.all : null) %}
-                {% endif %}
-                <twig:Molecules:ArticleActionsDropdown
-                    :article="article"
-                    coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
-                    canonicalUrl="{{ canonical }}"
-                    naddrEncoded="{{ article|naddrEncode }}"
-                    :isProtected="isProtected"
-                    :highlightCount="0"
-                    :relays="userRelays" />
             </div>
+            {% endif %}
         {% endif %}
 
         <div class="card heading">
@@ -295,47 +262,39 @@
         {% endif %}
 
         {% if not (isDraft is defined and isDraft) %}
+        <twig:Molecules:ArticleSocialActions
+            :article="article"
+            :coordinate="articleCoordinate"
+            :canonicalUrl="canonical"
+            :naddrEncoded="article|naddrEncode"
+            :recipientLud16="recipientLud16"
+            :recipientLud06="recipientLud06"
+            :isProtected="isProtected"
+            :highlightCount="0"
+            :relays="userRelays"
+        />
+
         {% set articleRoot = {
             tag: 'A',
-            value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+            value: articleCoordinate,
             relay: null,
             pubkey: article.pubkey,
             kind: 30023
         } %}
-        <div class="flex flex-row gap-2 flex-wrap mb-2">
-        <details class="comment-form-toggle">
-            <summary class="btn btn-primary comment-form-toggle__cta">{{ 'comments.writeCta'|trans }}</summary>
+        <details id="article-comment-form" class="comment-form-toggle article-social-comment-form">
+            <summary class="comment-form-toggle__cta">{{ 'comments.writeCta'|trans }}</summary>
             <twig:Organisms:CommentForm
                 :publish_url="path('comment_publish')"
                 :csrf_token="csrf_token('comment_publish')"
                 :root_context="articleRoot"
                 :parent_context="{
                     tag: 'a',
-                    value: '30023:' ~ article.pubkey ~ ':' ~ article.slug,
+                    value: articleCoordinate,
                     relay: null,
                     pubkey: article.pubkey,
                     kind: 30023
                 }" />
         </details>
-
-        {% if author.lud16 is defined and author.lud16 %}
-            {% if zapSplits is defined and zapSplits|length > 0 %}
-                <twig:Molecules:ZapButton
-                    recipientPubkey="{{ article.pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}"
-                    :zapSplits="zapSplits" />
-            {% else %}
-                <twig:Molecules:ZapButton
-                    recipientPubkey="{{ article.pubkey }}"
-                    recipientLud16="{{ author.lud16 is iterable ? author.lud16|first : author.lud16 }}" />
-            {% endif %}
-        {% endif %}
-        <twig:Molecules:TipButton
-            recipientPubkey="{{ article.pubkey }}"
-            :recipientLud16="author.lud16 is defined and author.lud16 ? (author.lud16 is iterable ? author.lud16|first : author.lud16) : null"
-            :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
-        />
-        </div>
 
         <turbo-frame id="article-comments"
                      src="{{ path('article-comments-frame', {npub: npub, slug: article.slug}) }}"

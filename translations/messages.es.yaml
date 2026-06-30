@@ -486,6 +486,23 @@ articleActions:
     highlights: 'Resaltados'
     protectedBadge: 'Protegido (NIP-70)'
     protectedNote: 'Este artículo está protegido por NIP-70. Solo el autor puede volver a transmitirlo a más relays.'
+    nostrIdentifiers: 'Identificadores Nostr'
+    protectedShort: 'Protegido'
+    adminOnly: 'admin'
+
+articleSocial:
+    label: 'Acciones sociales del artículo'
+    comment: 'Comentar'
+    like: 'Me gusta'
+    liked: 'Te gusta'
+    bookmark: 'Marcador'
+    bookmarked: 'Guardado'
+    signInToBookmark: 'Inicia sesión para guardar'
+    share: 'Compartir'
+    copied: 'Enlace copiado'
+    shareFailed: 'No se pudo compartir este artículo'
+    signerUnavailable: 'No hay firmador Nostr disponible'
+    likeFailed: 'No se pudo publicar el me gusta'
 
 # ── Desambiguación de artículos ────────────────────────────────────────
 disambiguation:

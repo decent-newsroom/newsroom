@@ -486,6 +486,23 @@ articleActions:
     highlights: 'Surlignements'
     protectedBadge: 'Protégé (NIP-70)'
     protectedNote: "Cet article est protégé par NIP-70. Seul l'auteur peut le rediffuser vers d'autres relais."
+    nostrIdentifiers: 'Identifiants Nostr'
+    protectedShort: 'Protégé'
+    adminOnly: 'admin'
+
+articleSocial:
+    label: "Actions sociales de l'article"
+    comment: 'Commenter'
+    like: "J'aime"
+    liked: "Aimé"
+    bookmark: 'Signet'
+    bookmarked: 'Enregistré'
+    signInToBookmark: 'Connectez-vous pour enregistrer'
+    share: 'Partager'
+    copied: 'Lien copié'
+    shareFailed: 'Impossible de partager cet article'
+    signerUnavailable: 'Aucun signataire Nostr disponible'
+    likeFailed: "Impossible de publier le j'aime"
 
 # ── Désambiguïsation d'articles ────────────────────────────────────
 disambiguation:
