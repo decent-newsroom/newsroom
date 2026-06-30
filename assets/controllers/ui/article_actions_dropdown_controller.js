@@ -4,8 +4,7 @@ import { Controller } from '@hotwired/stimulus';
  * Overflow actions for article pages.
  *
  * The primary social actions live in ui--article-social-actions. This controller
- * keeps the secondary menu focused on Nostr identifiers, relay broadcast, and
- * highlight visibility.
+ * keeps the secondary menu focused on Nostr identifiers and relay broadcast.
  */
 export default class extends Controller {
   static targets = ['trigger', 'menu'];
@@ -119,21 +118,6 @@ export default class extends Controller {
       this.toast(`Broadcast failed: ${error.message}`, 'danger', 5000);
     } finally {
       btn.classList.remove('loading');
-    }
-  }
-
-  toggleHighlights(event) {
-    event.preventDefault();
-    this.close();
-
-    const article = this.element.closest('[data-controller*="ui--highlights-toggle"]');
-    if (!article) {
-      return;
-    }
-
-    const btn = article.querySelector('[data-ui--highlights-toggle-target="button"]');
-    if (btn) {
-      btn.click();
     }
   }
 

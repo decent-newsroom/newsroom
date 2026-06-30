@@ -5,6 +5,7 @@
 
 article {
     margin-bottom: var(--spacing-5);
+    overflow-wrap: break-word;
 }
 
 .article-main {

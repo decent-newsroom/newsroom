@@ -26,8 +26,6 @@ final class ArticleSocialActions
 
     public bool $isProtected = false;
 
-    public int $highlightCount = 0;
-
     /** @var string[]|null */
     public ?array $relays = null;
 }

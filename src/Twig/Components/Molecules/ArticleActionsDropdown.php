@@ -34,9 +34,6 @@ final class ArticleActionsDropdown
     /** Whether the article is protected (has '-' tag). */
     public bool $isProtected = false;
 
-    /** Number of highlights. */
-    public int $highlightCount = 0;
-
     /** User's write relays (null if not logged in). */
     public ?array $relays = null;
 

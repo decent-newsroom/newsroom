@@ -5,18 +5,8 @@
          data-content--highlights-frame-items-value="{{ highlights|json_encode|e('html_attr') }}">
     </div>
 
-    <button data-ui--highlights-toggle-target="button"
-            data-action="click->ui--highlights-toggle#toggle"
-            class="btn btn-secondary"
-            type="button"
-            aria-pressed="false"
-            title="Toggle highlights"
-            hidden>
-        Highlights ({{ highlights|length }})
-    </button>
-
     <div class="highlights-bottom-section">
-        <h3 class="highlights-bottom-heading hidden">Highlights ({{ highlights|length }})</h3>
+        <h3 class="highlights-bottom-heading hidden">{{ 'articleActions.highlights'|trans }} ({{ highlights|length }})</h3>
         <div class="highlights-bottom-grid">
             {% for highlight in highlights %}
                 <div class="highlight-card-compact">
@@ -54,4 +44,3 @@
     </div>
 {% endif %}
 </turbo-frame>
-

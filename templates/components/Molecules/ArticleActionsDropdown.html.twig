@@ -4,7 +4,6 @@
     'canonicalUrl',
     'naddrEncoded',
     'isProtected',
-    'highlightCount',
     'relays'
 ).defaults({class: 'article-actions-dropdown'}) %}
 
@@ -83,14 +82,6 @@
                     </button>
                 {% endif %}
             {% endif %}
-
-            <hr class="dropdown-divider">
-            <button class="dropdown-item"
-                    type="button"
-                    data-action="click->ui--article-actions-dropdown#toggleHighlights">
-                {{ ux_icon('iconoir:edit-pencil', {class: 'icon action-icon', 'aria-hidden': 'true'}) }}
-                {{ 'articleActions.highlights'|trans }}{% if highlightCount > 0 %} ({{ highlightCount }}){% endif %}
-            </button>
         </div>
     </div>
 </div>

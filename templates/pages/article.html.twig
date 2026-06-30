@@ -127,8 +127,9 @@
             <a class="btn btn-primary" href="{{ path('editor-edit-slug-draft', {'slug': article.slug}) }}">{{ 'article.editDraft'|trans }}</a>
         </div>
         {% else %}
-            {% if canEdit or app.user %}
-            <div class="article-actions">
+            <div class="article-actions"
+                 data-ui--highlights-toggle-target="actionBar"
+                 {% if not canEdit and not app.user %}data-highlights-only="true" hidden{% endif %}>
                 {% if canEdit %}
                     <a class="btn btn-primary" href="{{ path('editor-edit-slug', {'slug': article.slug}) }}">{{ 'article.editArticle'|trans }}</a>
                 {% endif %}
@@ -136,8 +137,21 @@
                 {% if app.user %}
                     <twig:ReadingListDropdown :coordinate="articleCoordinate" />
                 {% endif %}
+
+                <button data-ui--highlights-toggle-target="button"
+                        data-action="click->ui--highlights-toggle#toggle"
+                        class="btn btn-secondary article-highlights-toggle"
+                        type="button"
+                        aria-pressed="false"
+                        title="{{ 'articleActions.highlights'|trans }}"
+                        hidden>
+                    {{ ux_icon('iconoir:edit-pencil', {class: 'icon article-highlights-toggle__icon', 'aria-hidden': 'true'}) }}
+                    <span>{{ 'articleActions.highlights'|trans }}</span>
+                    <span class="article-highlights-toggle__count"
+                          data-ui--highlights-toggle-target="count"
+                          hidden></span>
+                </button>
             </div>
-            {% endif %}
         {% endif %}
 
         <div class="card heading">
@@ -270,7 +284,6 @@
             :recipientLud16="recipientLud16"
             :recipientLud06="recipientLud06"
             :isProtected="isProtected"
-            :highlightCount="0"
             :relays="userRelays"
         />
 
@@ -304,8 +317,7 @@
 
         {% if not (isDraft is defined and isDraft) %}
             <turbo-frame id="article-highlights"
-                         src="{{ path('article-highlights-frame', {npub: npub, slug: article.slug}) }}"
-                         loading="lazy">
+                         src="{{ path('article-highlights-frame', {npub: npub, slug: article.slug}) }}">
             </turbo-frame>
         {% endif %}
 
