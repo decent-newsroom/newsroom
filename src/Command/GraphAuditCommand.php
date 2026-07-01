@@ -35,6 +35,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class GraphAuditCommand extends Command
 {
     private const BATCH_SIZE = 500;
+    private const MIN_FRESHNESS_CHUNK_SIZE = 25;
 
     /** @var int Per-query statement timeout in seconds (0 = no timeout) */
     private const QUERY_TIMEOUT_SECONDS = 120;
@@ -200,74 +201,52 @@ class GraphAuditCommand extends Command
         // Count total current_record entries to process
         $totalRecords = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM current_record');
         $checkLimit = $limit > 0 ? $limit : $totalRecords;
+        $targetRecords = min($checkLimit, $totalRecords);
 
         if ($totalRecords === 0) {
             $io->info('✓ No current_record entries to check.');
             return [];
         }
 
-        $io->info(sprintf('Checking %d current_record entries in batches of %d…', min($checkLimit, $totalRecords), self::BATCH_SIZE));
+        $io->info(sprintf('Checking %d current_record entries in batches of up to %d…', $targetRecords, self::BATCH_SIZE));
 
         $stale = [];
-        $offset = 0;
+        $cursor = '';
         $checked = 0;
-        $io->progressStart(min($checkLimit, $totalRecords));
+        $io->progressStart($targetRecords);
 
-        while ($offset < $checkLimit && !$this->interrupted) {
-            $batchLimit = min(self::BATCH_SIZE, $checkLimit - $offset);
-
-            $sql = <<<SQL
-                SELECT
-                    cr.coord,
-                    cr.current_event_id AS stored_event_id,
-                    cr.kind,
-                    cr.pubkey,
-                    cr.d_tag,
-                    newest.id AS actual_event_id,
-                    newest.created_at AS actual_created_at,
-                    cr.current_created_at AS stored_created_at
-                FROM (
-                    SELECT * FROM current_record ORDER BY record_uid LIMIT :batch_limit OFFSET :batch_offset
-                ) cr
-                JOIN LATERAL (
-                    SELECT e.id, e.created_at
-                    FROM event e
-                    WHERE e.kind = cr.kind
-                      AND e.pubkey = cr.pubkey
-                      AND (
-                          (cr.d_tag IS NOT NULL AND e.d_tag = cr.d_tag)
-                          OR (cr.d_tag IS NULL AND e.d_tag IS NULL)
-                      )
-                    ORDER BY e.created_at DESC, e.id ASC
-                    LIMIT 1
-                ) newest ON TRUE
-                WHERE newest.id != cr.current_event_id
-            SQL;
+        while ($checked < $targetRecords && !$this->interrupted) {
+            $batchLimit = min(self::BATCH_SIZE, $targetRecords - $checked);
 
             try {
-                $rows = $this->connection->fetchAllAssociative($sql, [
-                    'batch_limit' => $batchLimit,
-                    'batch_offset' => $offset,
-                ], [
-                    'batch_limit' => ParameterType::INTEGER,
-                    'batch_offset' => ParameterType::INTEGER,
-                ]);
+                $batchRows = $this->fetchCurrentRecordBatch($cursor, $batchLimit);
+
+                if (empty($batchRows)) {
+                    break;
+                }
+
+                $rows = $this->findStaleCurrentRecordsWithFallback($batchRows);
 
                 foreach ($rows as $row) {
                     $stale[] = $row;
                 }
             } catch (\Throwable $e) {
-                $io->error(sprintf('Failed at offset %d: %s', $offset, $e->getMessage()));
+                $io->error(sprintf('Failed near item %d: %s', $checked, $e->getMessage()));
                 $this->logger->error('Graph audit: current_record freshness check failed', [
-                    'offset' => $offset,
+                    'checked' => $checked,
+                    'cursor' => $cursor,
+                    'batch_limit' => $batchLimit,
                     'error' => $e->getMessage(),
                 ]);
                 break;
             }
 
-            $checked += $batchLimit;
-            $io->progressAdvance($batchLimit);
-            $offset += $batchLimit;
+            $processed = count($batchRows);
+            $checked += $processed;
+            $io->progressAdvance($processed);
+
+            $lastRow = $batchRows[array_key_last($batchRows)];
+            $cursor = (string) $lastRow['record_uid'];
 
             $this->dispatchSignals();
         }
@@ -290,6 +269,155 @@ class GraphAuditCommand extends Command
         }
 
         return $stale;
+    }
+
+    /**
+     * @return array<int, array{record_uid: string, coord: string, stored_event_id: string, kind: int|string, pubkey: string, d_tag: ?string, stored_created_at: int|string}>
+     */
+    private function fetchCurrentRecordBatch(string $cursor, int $batchLimit): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT record_uid, coord, current_event_id AS stored_event_id, kind, pubkey, d_tag, current_created_at AS stored_created_at FROM current_record WHERE record_uid > :cursor ORDER BY record_uid ASC LIMIT :batch_limit',
+            [
+                'cursor' => $cursor,
+                'batch_limit' => $batchLimit,
+            ],
+            [
+                'cursor' => ParameterType::STRING,
+                'batch_limit' => ParameterType::INTEGER,
+            ],
+        );
+    }
+
+    /**
+     * Retry stale detection with smaller chunks when PostgreSQL cancels large batches.
+     *
+     * @param array<int, array{record_uid: string, coord: string, stored_event_id: string, kind: int|string, pubkey: string, d_tag: ?string, stored_created_at: int|string}> $batchRows
+     * @return array<int, array<string, mixed>>
+     */
+    private function findStaleCurrentRecordsWithFallback(array $batchRows): array
+    {
+        try {
+            return $this->findStaleCurrentRecordsForBatch($batchRows);
+        } catch (\Throwable $e) {
+            if (!$this->isStatementTimeoutException($e) || count($batchRows) <= self::MIN_FRESHNESS_CHUNK_SIZE) {
+                throw $e;
+            }
+
+            $mid = intdiv(count($batchRows), 2);
+            $left = array_slice($batchRows, 0, $mid);
+            $right = array_slice($batchRows, $mid);
+
+            $this->logger->warning('Graph audit: freshness batch timed out, splitting batch', [
+                'batch_size' => count($batchRows),
+                'left_size' => count($left),
+                'right_size' => count($right),
+            ]);
+
+            return array_merge(
+                $this->findStaleCurrentRecordsWithFallback($left),
+                $this->findStaleCurrentRecordsWithFallback($right),
+            );
+        }
+    }
+
+    /**
+     * @param array<int, array{record_uid: string, coord: string, stored_event_id: string, kind: int|string, pubkey: string, d_tag: ?string, stored_created_at: int|string}> $batchRows
+     * @return array<int, array<string, mixed>>
+     */
+    private function findStaleCurrentRecordsForBatch(array $batchRows): array
+    {
+        if (empty($batchRows)) {
+            return [];
+        }
+
+        $values = [];
+        $params = [];
+        $types = [];
+
+        foreach ($batchRows as $i => $row) {
+            $values[] = sprintf('(:coord%d, :stored_event_id%d, :kind%d, :pubkey%d, :d_tag%d, :stored_created_at%d)', $i, $i, $i, $i, $i, $i);
+
+            $params["coord{$i}"] = $row['coord'];
+            $types["coord{$i}"] = ParameterType::STRING;
+
+            $params["stored_event_id{$i}"] = $row['stored_event_id'];
+            $types["stored_event_id{$i}"] = ParameterType::STRING;
+
+            $params["kind{$i}"] = (int) $row['kind'];
+            $types["kind{$i}"] = ParameterType::INTEGER;
+
+            $params["pubkey{$i}"] = $row['pubkey'];
+            $types["pubkey{$i}"] = ParameterType::STRING;
+
+            $params["d_tag{$i}"] = $row['d_tag'];
+            $types["d_tag{$i}"] = $row['d_tag'] === null ? ParameterType::NULL : ParameterType::STRING;
+
+            $params["stored_created_at{$i}"] = (string) $row['stored_created_at'];
+            $types["stored_created_at{$i}"] = ParameterType::STRING;
+        }
+
+        $sql = <<<SQL
+            WITH batch (coord, stored_event_id, kind, pubkey, d_tag, stored_created_at) AS (
+                VALUES
+                %s
+            ),
+            newest AS (
+                SELECT DISTINCT ON (e.kind, e.pubkey, e.d_tag)
+                    e.kind,
+                    e.pubkey,
+                    e.d_tag,
+                    e.id,
+                    e.created_at
+                FROM event e
+                INNER JOIN batch b
+                    ON e.kind = b.kind
+                   AND e.pubkey = b.pubkey
+                   AND e.d_tag IS NOT DISTINCT FROM b.d_tag
+                ORDER BY e.kind, e.pubkey, e.d_tag, e.created_at DESC, e.id ASC
+            )
+            SELECT
+                b.coord,
+                b.stored_event_id,
+                b.kind,
+                b.pubkey,
+                b.d_tag,
+                n.id AS actual_event_id,
+                n.created_at AS actual_created_at,
+                b.stored_created_at
+            FROM batch b
+            INNER JOIN newest n
+                ON n.kind = b.kind
+               AND n.pubkey = b.pubkey
+               AND n.d_tag IS NOT DISTINCT FROM b.d_tag
+            WHERE n.id <> b.stored_event_id
+        SQL;
+
+        $fullSql = sprintf($sql, implode(",\n", $values));
+
+        return $this->connection->fetchAllAssociative($fullSql, $params, $types);
+    }
+
+    private function isStatementTimeoutException(\Throwable $e): bool
+    {
+        $current = $e;
+
+        while ($current !== null) {
+            $message = $current->getMessage();
+            $code = (string) $current->getCode();
+
+            if (
+                $code === '57014'
+                || str_contains($message, 'SQLSTATE[57014]')
+                || str_contains(strtolower($message), 'statement timeout')
+            ) {
+                return true;
+            }
+
+            $current = $current->getPrevious();
+        }
+
+        return false;
     }
 
     /**

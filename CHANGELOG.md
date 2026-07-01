@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Bug] Hardened `dn:graph:audit` current-record freshness checks against PostgreSQL `statement_timeout` cancellations: replaced offset-based scanning with keyset batching and added adaptive timeout fallback that recursively splits timed-out batches, so `--fix` can progress on large datasets instead of failing at offset 0.
 - [Feature] Added publication relay broadcasting from magazine action menus: logged-in users can now rebroadcast kind `30040` publication index events to their write relays via the new `POST /api/broadcast-publication` endpoint.
 - [Bug] Markdown conversion now preserves single newlines as `<br />` soft line breaks within the same paragraph instead of collapsing them.
 - [Feature] Added authenticated My Books support in `/bookshelf` using signed kind `30045` directory events (`d=my-book-collection`), including add/remove actions on search and reader pages, a new `/bookshelf/my-books` inventory route, and relay-backed persistence through `/api/bookshelf/directory`.
