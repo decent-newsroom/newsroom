@@ -845,6 +845,8 @@ class Converter implements MarkdownConverterInterface
         $headingsCount = preg_match_all('/^#+\s.*$/m', $markdown);
 
         $config = [
+            // Keep single newlines as line breaks within the same paragraph.
+            'renderer'         => ['soft_break' => "<br />\n"],
             'table_of_contents' => ['min_heading_level' => 1, 'max_heading_level' => 3],
             'heading_permalink' => ['symbol' => '§'],
             'autolink'          => ['allowed_protocols' => ['https'], 'default_protocol' => 'https'],

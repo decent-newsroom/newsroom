@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Bug] Markdown conversion now preserves single newlines as `<br />` soft line breaks within the same paragraph instead of collapsing them.
 - [Feature] Added authenticated My Books support in `/bookshelf` using signed kind `30045` directory events (`d=my-book-collection`), including add/remove actions on search and reader pages, a new `/bookshelf/my-books` inventory route, and relay-backed persistence through `/api/bookshelf/directory`.
 - [Improvement] Restyle search bar in `/bookshelf`, preserve query, update translations.
 - [Bug] Fixed `/bookshelf` thumbnails to use the `image` tag only; when missing or invalid, the UI now consistently falls back to the existing placeholder monogram.
