@@ -3,6 +3,7 @@
 ## v0.0.48
 
 - [Bug] Fixed Essayist protected-event relay rejects (`Protected event and no serviceUrl configured`) by wiring `strfry-essayist` `serviceUrl` from `ESSAYIST_RELAY_PUBLIC_URL` at container startup.
+- [Bug] Wired the default `strfry` relay `serviceUrl` from `RELAY_PUBLIC_URL` at container startup so protected-event handling has a canonical relay URL.
 - [Bug] Improved publish reliability for users on AUTH-only write relays: when publish results include AUTH-required relays, the app now replays the user's pending relay AUTH challenges to Mercure so signer prompts are resent immediately.
 - [Bug] Hardened `dn:graph:audit` current-record freshness checks against PostgreSQL `statement_timeout` cancellations: replaced offset-based scanning with keyset batching and added adaptive timeout fallback that recursively splits timed-out batches, so `--fix` can progress on large datasets instead of failing at offset 0.
 - [Feature] Added publication relay broadcasting from magazine action menus: logged-in users can now rebroadcast kind `30040` publication index events to their write relays via the new `POST /api/broadcast-publication` endpoint.
