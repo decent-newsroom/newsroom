@@ -1,32 +1,46 @@
-{% extends 'layout.html.twig' %}
+{% extends 'expressions-layout.html.twig' %}
 
-{% block title %}{{ 'expressionsList.heading'|trans }} — {{ brand_name }}{% endblock %}
-
-{% block ogtags %}
-    {{ parent() }}
-    <meta property="og:title" content="{{ 'expressionsList.heading'|trans }} - {{ brand_name }}">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="{{ app.request.uri }}">
-    <meta property="og:description" content="{{ 'expressionsList.eyebrow'|trans }}">
-    <meta property="og:site_name" content="{{ brand_name }}">
-{% endblock %}
+{% set currentTab = activeTab|default('expressions') %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand">
-        <div class="container mt-5 mb-5">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1>{{ 'expressionsList.heading'|trans }}</h1>
-            </div>
-            <p class="eyebrow">{{ 'expressionsList.eyebrow'|trans }}</p>
-            <div class="d-flex justify-content-between align-items-center">
-            {% if app.user %}
-                <a href="{{ path('expression_create') }}" class="btn btn-sm">{{ 'expressionsList.createNew'|trans }}</a>
-            {% endif %}
-            </div>
+<section class="my-content-page expression-workspace-page">
+    <header class="my-content-header expression-workspace-header">
+        <div class="my-content-header__copy">
+            <p class="eyebrow">{{ 'expressions.workspace.eyebrow'|trans }}</p>
+            <h1>{{ 'expressions.workspace.title'|trans }}</h1>
+            <p>{{ 'expressions.workspace.description'|trans }}</p>
         </div>
-    </section>
-    <section class="mb-5">
-        <twig:Organisms:ExpressionList />
-    </section>
+        <div class="my-content-header__actions">
+            <a class="btn" href="{{ path('expression_create') }}">
+                {{ ux_icon('iconoir:edit-pencil', {class: 'icon'}) }}
+                {{ 'expressionsList.createNew'|trans }}
+            </a>
+        </div>
+    </header>
+
+    <nav class="my-content-tabs" aria-label="{{ 'expressions.workspace.tabs.label'|trans }}">
+        <a href="{{ path('expressions_workspace', {tab: 'expressions'}) }}" {% if currentTab == 'expressions' %}aria-current="page"{% endif %}>
+            <span>{{ 'expressions.workspace.tabs.expressions'|trans }}</span>
+        </a>
+        <a href="{{ path('expressions_workspace', {tab: 'spells'}) }}" {% if currentTab == 'spells' %}aria-current="page"{% endif %}>
+            <span>{{ 'expressions.workspace.tabs.spells'|trans }}</span>
+        </a>
+    </nav>
+
+    <div class="my-content-results expression-workspace-links">
+        <p>{{ 'expressions.workspace.testing_hint'|trans }}</p>
+        <a href="{{ path(currentTab == 'spells' ? 'spell_list' : 'expression_list') }}">{{ 'expressions.workspace.open_public_list'|trans }}</a>
+    </div>
+
+    {% if currentTab == 'spells' %}
+        <section class="expression-workspace-list">
+            <twig:Organisms:SpellList />
+        </section>
+    {% else %}
+        <section class="expression-workspace-list">
+            <twig:Organisms:ExpressionList />
+        </section>
+    {% endif %}
+</section>
 {% endblock %}
 

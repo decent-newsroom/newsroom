@@ -68,9 +68,7 @@ export default class extends Controller {
 
     this._renderStages();
     this.updatePreview();
-    this.galleryTarget.style.display = 'none';
-    this.builderTarget.style.display = '';
-    this.resultTarget.style.display = 'none';
+    this._showPanels({ gallery: false, builder: true, result: false });
   }
 
   /* ------------------------------------------------------------------ */
@@ -92,14 +90,11 @@ export default class extends Controller {
 
     this._renderStages();
     this.updatePreview();
-    this.galleryTarget.style.display = 'none';
-    this.builderTarget.style.display = '';
-    this.resultTarget.style.display = 'none';
+    this._showPanels({ gallery: false, builder: true, result: false });
   }
 
   backToTemplates() {
-    this.galleryTarget.style.display = '';
-    this.builderTarget.style.display = 'none';
+    this._showPanels({ gallery: true, builder: false, result: false });
   }
 
   reset() {
@@ -108,9 +103,7 @@ export default class extends Controller {
     this.titleInputTarget.value = '';
     this.dtagInputTarget.value = '';
     this.contentInputTarget.value = '';
-    this.galleryTarget.style.display = '';
-    this.builderTarget.style.display = 'none';
-    this.resultTarget.style.display = 'none';
+    this._showPanels({ gallery: true, builder: false, result: false });
   }
 
   /* ------------------------------------------------------------------ */
@@ -524,8 +517,7 @@ export default class extends Controller {
       const feedUrl = this.feedBaseUrlValue.replace('__NADDR__', naddr);
 
       this.feedUrlTarget.value = feedUrl;
-      this.builderTarget.style.display = 'none';
-      this.resultTarget.style.display = '';
+      this._showPanels({ gallery: false, builder: false, result: true });
 
       this._toast('Expression published successfully!', 'success');
 
@@ -1057,6 +1049,12 @@ export default class extends Controller {
     if (typeof window.showToast === 'function') {
       window.showToast(message, type, duration);
     }
+  }
+
+  _showPanels({ gallery, builder, result }) {
+    this.galleryTarget.classList.toggle('hidden', !gallery);
+    this.builderTarget.classList.toggle('hidden', !builder);
+    this.resultTarget.classList.toggle('hidden', !result);
   }
 }
 

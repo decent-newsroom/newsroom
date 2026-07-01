@@ -1454,6 +1454,26 @@ expressions:
     feedUrl: 'Feed API URL'
     copyUrl: 'Copy URL'
     createAnother: 'Create Another'
+    workspace:
+        eyebrow: 'personal feed lab'
+        title: 'Expressions Workspace'
+        description: 'Create and edit feed expressions, then test expressions and spells as live feeds.'
+        tabs:
+            label: 'Expression testing views'
+            expressions: 'Expressions'
+            spells: 'Spells'
+        testing_hint: 'Switch between expression and spell feeds while iterating on your setup.'
+        open_public_list: 'Open public directory'
+        nav:
+            overview: 'Workspace'
+            workspace: 'Expressions home'
+            create_expression: 'Create expression'
+            feed_testing: 'Feed testing'
+            expressions: 'All expressions'
+            spells: 'All spells'
+        aside:
+            title: 'Build and test feed logic'
+            cta: 'Create expression'
 
 # ── Expressions List page ─────────────────────────────────────────
 expressionsList:

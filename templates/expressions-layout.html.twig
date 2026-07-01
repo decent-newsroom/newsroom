@@ -1,0 +1,23 @@
+{% extends 'app-shell.html.twig' %}
+
+{% block sidebar %}
+    <twig:SidebarNav
+        id="leftNav"
+        :sections="expressionsNav"
+        :backLink="{label: 'nav.backToDiscover', route: 'discover', icon: 'iconoir:arrow-right'}"
+        :footerComponent="'components/UserMenu.html.twig'"
+    />
+{% endblock %}
+
+{% block aside %}
+    {% if app.user %}
+        <section class="context-panel">
+            <p class="eyebrow">{{ 'nav.expressions'|trans }}</p>
+            <h2>{{ 'expressions.workspace.aside.title'|trans }}</h2>
+            <a class="btn" href="{{ path('expression_create') }}">{{ 'expressions.workspace.aside.cta'|trans }}</a>
+        </section>
+    {% else %}
+        {% include 'blog-journey/_login_cta_card.html.twig' %}
+    {% endif %}
+{% endblock %}
+

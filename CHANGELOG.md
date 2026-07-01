@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Feature] Added a new authenticated `Expressions` personal workspace (`/expressions/workspace`) with Reading Nook/Newsroom shell styling, local sidebar navigation, and integrated expression/spell feed-testing tabs; expression create/edit screens now render inside the same section shell.
 - [Bug] Fixed Essayist protected-event relay rejects (`Protected event and no serviceUrl configured`) by wiring `strfry-essayist` `serviceUrl` from `ESSAYIST_RELAY_PUBLIC_URL` at container startup.
 - [Bug] Wired the default `strfry` relay `serviceUrl` from `RELAY_PUBLIC_URL` at container startup so protected-event handling has a canonical relay URL.
 - [Bug] Fixed editor event signing to avoid duplicate NIP-70 protected tags (`["-"]`) when `Publish ONLY to Essayist` is selected on already-protected drafts/articles.

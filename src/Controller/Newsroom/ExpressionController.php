@@ -7,6 +7,7 @@ namespace App\Controller\Newsroom;
 use App\Dto\UserMetadata;
 use App\Enum\KindsEnum;
 use App\ExpressionBundle\Service\ExpressionService;
+use App\Helper\NavigationBuilderTrait;
 use App\Message\EvaluateExpressionMessage;
 use App\Repository\EventRepository;
 use App\Service\Cache\RedisCacheService;
@@ -33,6 +34,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 class ExpressionController extends AbstractController
 {
+    use NavigationBuilderTrait;
+
     /**
      * Returns the predefined expression templates derived from NIP-EX examples.
      * Each template has a name, description, and pre-filled tags array.
@@ -141,10 +144,25 @@ class ExpressionController extends AbstractController
         ];
     }
 
+    #[Route('/expressions/workspace', name: 'expressions_workspace')]
+    #[IsGranted('ROLE_USER')]
+    public function workspace(Request $request): Response
+    {
+        $tab = $request->query->getString('tab', 'expressions');
+        if (!in_array($tab, ['expressions', 'spells'], true)) {
+            $tab = 'expressions';
+        }
+
+        return $this->render('expressions/index.html.twig', [
+            'expressionsNav' => $this->buildExpressionsNav(),
+            'activeTab' => $tab,
+        ]);
+    }
+
     #[Route('/expressions', name: 'expression_list')]
     public function list(): Response
     {
-        return $this->render('expressions/index.html.twig');
+        return $this->render('expressions/catalog.html.twig');
     }
 
     #[Route('/expressions/create', name: 'expression_create')]
@@ -152,6 +170,7 @@ class ExpressionController extends AbstractController
     public function create(): Response
     {
         return $this->render('expressions/create.html.twig', [
+            'expressionsNav' => $this->buildExpressionsNav(),
             'templates' => $this->getTemplates(),
             'existingEvent' => null,
         ]);
@@ -205,6 +224,7 @@ class ExpressionController extends AbstractController
         ];
 
         return $this->render('expressions/create.html.twig', [
+            'expressionsNav' => $this->buildExpressionsNav(),
             'templates' => $this->getTemplates(),
             'existingEvent' => $existingEvent,
         ]);

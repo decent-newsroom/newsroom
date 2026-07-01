@@ -1,4 +1,41 @@
-/* Expression Creator Page */
+/* Expressions workspace and builder */
+
+.expression-workspace-page {
+  margin-bottom: var(--spacing-6);
+}
+
+.expression-workspace-header {
+  padding-bottom: var(--spacing-3);
+}
+
+.expression-workspace-links a {
+  color: var(--color-text-mid);
+  font-size: var(--font-size-sm);
+}
+
+.expression-workspace-links a:hover,
+.expression-workspace-links a:focus-visible {
+  color: var(--color-primary-link);
+}
+
+.expression-workspace-list > div {
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.expression-workspace-list .card {
+  border: 1px solid var(--color-border);
+  background: transparent;
+}
+
+.expression-workspace-list .card-body {
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.expression-builder-page .expression-creator {
+  max-width: min(980px, 100%);
+}
 
 .expression-creator {
   max-width: 900px;

@@ -87,6 +87,31 @@ trait NavigationBuilderTrait
     }
 
     /**
+     * Build the Expressions local navigation structure.
+     *
+     * @return array<int, array{label: string, items: array<int, array{label: string, route: string}>}>
+     */
+    protected function buildExpressionsNav(): array
+    {
+        return [
+            [
+                'label' => 'expressions.workspace.nav.overview',
+                'items' => [
+                    ['label' => 'expressions.workspace.nav.workspace', 'route' => 'expressions_workspace', 'icon' => 'iconoir:home'],
+                    ['label' => 'expressions.workspace.nav.create_expression', 'route' => 'expression_create', 'icon' => 'iconoir:edit-pencil'],
+                ],
+            ],
+            [
+                'label' => 'expressions.workspace.nav.feed_testing',
+                'items' => [
+                    ['label' => 'expressions.workspace.nav.expressions', 'route' => 'expression_list', 'icon' => 'iconoir:list-select'],
+                    ['label' => 'expressions.workspace.nav.spells', 'route' => 'spell_list', 'icon' => 'iconoir:magic-wand'],
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Build the Mercury-backed Bookshelf navigation structure.
      *
      * @return array<int, array{label: string, items: array<int, array{label: string, route: string, icon: string}>}>
@@ -145,6 +170,7 @@ trait NavigationBuilderTrait
                 'items' => [
                     ['label' => 'nav.readingNook', 'route' => 'reading_nook'],
                     ['label' => 'nav.newsroom', 'route' => 'my_content'],
+                    ['label' => 'nav.expressions', 'route' => 'expressions_workspace'],
                 ],
             ];
             $sections[] = [
