@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { getSigner, getRemoteSignerSession } from './signer_manager.js';
+import { getSigner, getRemoteSignerSession, resendPendingRelayAuthChallenges } from './signer_manager.js';
 
 export default class extends Controller {
   static targets = ['status', 'publishButton', 'computedPreview'];
@@ -177,6 +177,10 @@ export default class extends Controller {
 
     const result = await res.json();
 
+    if (this.hasPendingAuthRelayResults(result.relayResults)) {
+      this.replayPendingAuthChallenges();
+    }
+
     // Display relay results if available
     if (result.relayResults) {
       this.displayRelayResults(result.relayResults);
@@ -190,6 +194,20 @@ export default class extends Controller {
   }
   ensureContent(evt) {
     if (typeof evt.content !== 'string') evt.content = '';
+  }
+
+  hasPendingAuthRelayResults(relayResults) {
+    return Array.isArray(relayResults) && relayResults.some((result) => result?.type === 'auth');
+  }
+
+  replayPendingAuthChallenges() {
+    resendPendingRelayAuthChallenges()
+      .then((data) => {
+        console.debug('[nostr_single_sign] Replayed pending relay AUTH challenges', data);
+      })
+      .catch((error) => {
+        console.warn('[nostr_single_sign] Failed to replay pending relay AUTH challenges', error);
+      });
   }
 
   displayRelayResults(relayResults) {

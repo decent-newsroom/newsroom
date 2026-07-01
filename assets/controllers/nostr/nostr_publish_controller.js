@@ -2,7 +2,7 @@ import { Controller } from '@hotwired/stimulus';
 import { EditorView, basicSetup } from 'codemirror';
 import { json } from '@codemirror/lang-json';
 import { npubToHex, extractNostrTags, decodeNip19 } from '../../typescript/nostr-utils.ts';
-import { getRemoteSignerSession } from './signer_manager.js';
+import { getRemoteSignerSession, resendPendingRelayAuthChallenges } from './signer_manager.js';
 
 // Inline utility functions (simplified versions)
 function buildAdvancedTags(metadata) {
@@ -280,6 +280,10 @@ export default class extends Controller {
 
       // Send to backend
       const result = await this.sendToBackend(signedEvent, this.collectFormData());
+
+      if (this.hasPendingAuthRelayResults(result.relayResults)) {
+        this.replayPendingAuthChallenges();
+      }
 
       // Show appropriate success message
       if (result.isDraft) {
@@ -732,6 +736,20 @@ export default class extends Controller {
       // No successes
       window.showToast(`✗ Publishing uncertain (${unknownCount} unknown, ${failureCount} failed)`, 'warning', 8000);
     }
+  }
+
+  hasPendingAuthRelayResults(relayResults) {
+    return Array.isArray(relayResults) && relayResults.some((result) => result?.type === 'auth');
+  }
+
+  replayPendingAuthChallenges() {
+    resendPendingRelayAuthChallenges()
+      .then((data) => {
+        console.debug('[nostr-publish] Replayed pending relay AUTH challenges', data);
+      })
+      .catch((error) => {
+        console.warn('[nostr-publish] Failed to replay pending relay AUTH challenges', error);
+      });
   }
 
   showStatus(message) {

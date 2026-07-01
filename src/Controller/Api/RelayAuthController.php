@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
@@ -27,6 +31,7 @@ class RelayAuthController extends AbstractController
 
     public function __construct(
         private readonly \Redis $redis,
+        private readonly HubInterface $hub,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -126,6 +131,94 @@ class RelayAuthController extends AbstractController
             ]);
             return new JsonResponse(['error' => 'Internal error'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Replay this user's still-pending AUTH challenges to Mercure.
+     *
+     * Useful when a publish attempt encountered AUTH relays and the signer did
+     * not receive the first challenge broadcast.
+     */
+    #[Route('/api/relay-auth/pending/resend', name: 'api_relay_auth_resend_pending', methods: ['POST'])]
+    public function resendPendingForCurrentUser(): JsonResponse
+    {
+        /** @var User|null $user */
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            return new JsonResponse(['error' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            $userPubkeyHex = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => 'Invalid user identity'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $resent = 0;
+        $topic = '/relay-auth/' . $userPubkeyHex;
+        $iterator = null;
+
+        try {
+            do {
+                $keys = $this->redis->scan($iterator, self::PENDING_KEY_PREFIX . '*', 200);
+                if (!is_array($keys)) {
+                    continue;
+                }
+
+                foreach ($keys as $pendingKey) {
+                    if (!str_starts_with($pendingKey, self::PENDING_KEY_PREFIX)) {
+                        continue;
+                    }
+
+                    $pendingJson = $this->redis->get($pendingKey);
+                    if (!is_string($pendingJson) || $pendingJson === '') {
+                        continue;
+                    }
+
+                    $pending = json_decode($pendingJson, true);
+                    if (!is_array($pending) || ($pending['pubkey'] ?? null) !== $userPubkeyHex) {
+                        continue;
+                    }
+
+                    $relay = $pending['relay'] ?? null;
+                    $challenge = $pending['challenge'] ?? null;
+                    if (!is_string($relay) || $relay === '' || !is_string($challenge) || $challenge === '') {
+                        continue;
+                    }
+
+                    $requestId = substr($pendingKey, strlen(self::PENDING_KEY_PREFIX));
+                    if ($requestId === '') {
+                        continue;
+                    }
+
+                    $this->hub->publish(new Update(
+                        $topic,
+                        json_encode([
+                            'requestId' => $requestId,
+                            'relay' => $relay,
+                            'challenge' => $challenge,
+                        ], JSON_THROW_ON_ERROR),
+                    ));
+                    $resent++;
+                }
+            } while ($iterator !== 0);
+        } catch (\Throwable $e) {
+            $this->logger->warning('RelayAuthController: failed to replay pending challenges', [
+                'pubkey' => substr($userPubkeyHex, 0, 8) . '...',
+                'error' => $e->getMessage(),
+            ]);
+
+            return new JsonResponse(['error' => 'Failed to replay pending challenges'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if ($resent > 0) {
+            $this->logger->info('RelayAuthController: replayed pending AUTH challenges', [
+                'pubkey' => substr($userPubkeyHex, 0, 8) . '...',
+                'count' => $resent,
+            ]);
+        }
+
+        return new JsonResponse(['status' => 'ok', 'resent' => $resent]);
     }
 }
 

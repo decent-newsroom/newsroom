@@ -144,6 +144,22 @@ export async function syncServerSessionIfPending() {
   }
 }
 
+export async function resendPendingRelayAuthChallenges() {
+  const response = await fetch('/api/relay-auth/pending/resend', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to resend pending relay AUTH challenges (HTTP ${response.status})`);
+  }
+
+  return response.json().catch(() => ({ resent: 0 }));
+}
+
 // Self-register: retry pending NIP-46 server session on every Turbo page load.
 // This module is statically imported by several Stimulus controllers (e.g.
 // article_actions_dropdown, reading_list_dropdown, relay_auth) so the listener
