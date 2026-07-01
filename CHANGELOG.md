@@ -43,6 +43,9 @@
 - [Bug] Changed Settings tabs from an overflowing scroll container to a wrapping tab row, preventing the unwanted vertical scrollbar.
 - [Bug] Corrected the desktop masthead grid from four columns to three balanced regions so the brand, search, and actions align predictably.
 - [Improvement] Introduced a flat editorial design system across the shared application shell: consolidated dark/light/space tokens, removed rounded and elevated shared surfaces, added a search/action masthead, unified global/Reading Nook/Newsroom navigation with responsive and active-route behavior, redesigned public and authenticated home hierarchy, modernized Discover, and converted article feeds to compact responsive story rows.
+
+## 0.0.46
+
 - [Feature] Scaffolded an in-repo `DecentNewsroom\NostrKernelBundle` with Symfony bundle wiring, protocol contracts, immutable domain value objects, application-level coordinate/reference services, isolated Innis adapters (stubbed for next-pass API wiring), and focused PHPUnit coverage for event-kind/tag/coordinate/reference behavior.
 - [Bug] Reduced duplicate `GET /api/bookmarks/current` traffic on article-list pages: bookmark state fetches are now deduplicated per controller module with a shared in-flight request/cache so dozens of card/dropdown instances no longer trigger identical parallel requests.
 - [Feature] Added PWA IndexedDB caching for article lists on home page: article lists are now automatically cached in the browser's IndexedDB on first load and served instantly on subsequent visits, with background fetching of new items to keep content fresh. Improves perceived performance for repeat visitors and enables offline browsing of previously cached tabs.
