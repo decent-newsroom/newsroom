@@ -273,7 +273,7 @@ services:
         sed "s|__DEFAULT_SERVICE_URL__|$${DEFAULT_SERVICE_URL}|g" /etc/strfry.conf > /tmp/strfry.conf
         cp /app/write-policy.sh /usr/local/bin/default-write-policy.sh
         chmod +x /usr/local/bin/default-write-policy.sh
-        ./strfry relay /tmp/strfry.conf &
+        ./strfry --config /tmp/strfry.conf relay &
         ./strfry router /etc/router.conf &
         wait
     volumes:
@@ -314,7 +314,7 @@ services:
         # and chmod +x there before starting strfry.
         cp /app/write-policy.sh /usr/local/bin/essayist-write-policy.sh
         chmod +x /usr/local/bin/essayist-write-policy.sh
-        exec ./strfry relay /tmp/strfry.conf
+        exec ./strfry --config /tmp/strfry.conf relay
     volumes:
         - ./docker/strfry-essayist/strfry.conf:/etc/strfry.conf:ro
         - ./docker/strfry-essayist/write-policy.sh:/app/write-policy.sh:ro
