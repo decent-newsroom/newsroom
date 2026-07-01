@@ -193,6 +193,17 @@ services:
   strfry-essayist:
     image: dockurr/strfry:latest
     profiles: !reset []
+    command:
+      - /bin/sh
+      - -c
+      - |
+        export ESSAYIST_SERVICE_URL="${ESSAYIST_RELAY_PUBLIC_URL:-wss://essayist.localhost}"
+        sed "s|__ESSAYIST_SERVICE_URL__|$${ESSAYIST_SERVICE_URL}|g" /etc/strfry.conf > /tmp/strfry.conf
+        cp /app/write-policy.sh /usr/local/bin/essayist-write-policy.sh
+        chmod +x /usr/local/bin/essayist-write-policy.sh
+        exec ./strfry relay /tmp/strfry.conf
+    environment:
+      ESSAYIST_RELAY_PUBLIC_URL: ${ESSAYIST_RELAY_PUBLIC_URL:?ESSAYIST_RELAY_PUBLIC_URL must be set}
   essayist-gateway:
     profiles: !reset []
     depends_on:
