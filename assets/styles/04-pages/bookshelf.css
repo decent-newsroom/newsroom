@@ -194,9 +194,7 @@
 }
 
 .bookshelf-book__open {
-    padding: var(--spacing-3);
     white-space: nowrap;
-    text-decoration: none;
 }
 
 .bookshelf-book__actions {
@@ -206,20 +204,13 @@
 }
 
 .bookshelf-directory-action {
-    min-height: 2.25rem;
-    padding: 0.35rem var(--spacing-3);
-    border: 1px solid var(--color-border-strong);
-    background: transparent;
-    color: var(--color-text);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+    white-space: nowrap;
 }
 
-.bookshelf-directory-action:hover,
-.bookshelf-directory-action:focus-visible,
 .bookshelf-directory-action.is-active {
-    border-color: var(--color-primary-link);
-    color: var(--color-primary-link);
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-text-contrast);
 }
 
 .bookshelf-directory-action:disabled {

@@ -80,13 +80,13 @@
                     </div>
 
                     <div class="bookshelf-book__actions">
-                        <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id}) }}">
+                        <a class="bookshelf-book__open btn btn-secondary btn-sm" href="{{ path('bookshelf_read', {id: book.id}) }}">
                             {{ 'bookshelf.read_book'|trans }}
                             {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
                         </a>
                         <button
                             type="button"
-                            class="bookshelf-directory-action"
+                            class="bookshelf-directory-action btn btn-secondary btn-sm"
                             data-ui--bookshelf-directory-target="toggle"
                             data-action="click->ui--bookshelf-directory#toggle"
                             data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
