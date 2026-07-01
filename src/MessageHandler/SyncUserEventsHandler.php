@@ -54,6 +54,7 @@ use swentel\nostr\Subscription\Subscription;
  *   30023  — long-form articles (NIP-23)
  *   30024  — long-form drafts (NIP-23)
  *   30040  — publication index (NKBIP-01)
+ *   30045  — filesystem directory (NKBIP-04)
  *   34139  — playlists
  */
 #[AsMessageHandler]
@@ -85,6 +86,7 @@ class SyncUserEventsHandler
         KindsEnum::LONGFORM->value,           // 30023
         KindsEnum::LONGFORM_DRAFT->value,     // 30024
         KindsEnum::PUBLICATION_INDEX->value,  // 30040
+        KindsEnum::DIRECTORY->value,          // 30045
         KindsEnum::PLAYLIST->value,           // 34139
     ];
 
@@ -403,4 +405,3 @@ class SyncUserEventsHandler
         return $forwarded;
     }
 }
-

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Controller\Reader;
 
 use App\Helper\NavigationBuilderTrait;
+use App\Service\Bookshelf\BookshelfDirectoryService;
 use App\Service\Mercury\MercuryApiException;
 use App\Service\Mercury\MercuryBookService;
 use App\Util\AsciiDoc\AsciiDocConverter;
+use App\Util\NostrKeyUtil;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,7 +21,11 @@ final class BookshelfController extends AbstractController
     use NavigationBuilderTrait;
 
     #[Route('/bookshelf', name: 'bookshelf', methods: ['GET'])]
-    public function index(Request $request, MercuryBookService $bookService): Response
+    public function index(
+        Request $request,
+        MercuryBookService $bookService,
+        BookshelfDirectoryService $directoryService,
+    ): Response
     {
         $query = trim((string) $request->query->get('q', ''));
         $books = [];
@@ -41,6 +47,7 @@ final class BookshelfController extends AbstractController
 
         return $this->render('pages/bookshelf.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
+            ...$this->directoryContext($directoryService),
             'query' => $query,
             'searched' => $searched,
             'queryTooShort' => $queryTooShort,
@@ -59,10 +66,12 @@ final class BookshelfController extends AbstractController
         string $id,
         Request $request,
         MercuryBookService $bookService,
+        BookshelfDirectoryService $directoryService,
         AsciiDocConverter $asciiDocConverter,
         LoggerInterface $logger,
     ): Response {
         $query = trim((string) $request->query->get('q', ''));
+        $directoryContext = $this->directoryContext($directoryService);
 
         try {
             $book = $bookService->getBook(strtolower($id));
@@ -74,6 +83,7 @@ final class BookshelfController extends AbstractController
 
             return $this->render('bookshelf/read.html.twig', [
                 'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
+                ...$directoryContext,
                 'book' => null,
                 'available' => false,
                 'query' => $query,
@@ -83,6 +93,7 @@ final class BookshelfController extends AbstractController
         if ($book === null) {
             return $this->render('bookshelf/read.html.twig', [
                 'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
+                ...$directoryContext,
                 'book' => null,
                 'available' => true,
                 'query' => $query,
@@ -113,9 +124,40 @@ final class BookshelfController extends AbstractController
 
         return $this->render('bookshelf/read.html.twig', [
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
+            ...$directoryContext,
             'book' => $book,
             'available' => true,
             'query' => $query,
         ]);
+    }
+
+    /**
+     * @return array{
+     *     directoryTags: array<int, array<int, string>>,
+     *     directoryCoordinates: string[],
+     *     directoryIdentifier: string
+     * }
+     */
+    private function directoryContext(BookshelfDirectoryService $directoryService): array
+    {
+        $tags = [];
+        $coordinates = [];
+        $user = $this->getUser();
+
+        if ($user !== null) {
+            $pubkey = NostrKeyUtil::npubToHex($user->getUserIdentifier());
+            $tags = $directoryService->getEditableTagsForUser($pubkey);
+            foreach ($directoryService->extractBookReferences($tags) as $reference) {
+                if ($reference['coordinate'] !== null) {
+                    $coordinates[] = $reference['coordinate'];
+                }
+            }
+        }
+
+        return [
+            'directoryTags' => $tags,
+            'directoryCoordinates' => $coordinates,
+            'directoryIdentifier' => BookshelfDirectoryService::IDENTIFIER,
+        ];
     }
 }

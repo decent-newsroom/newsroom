@@ -35,6 +35,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *   - kind 30006 — curation sets — pictures (NIP-51)
  *   - kind 30015 — interest sets (NIP-51)
  *   - kind 30024 — long-form drafts (NIP-23)
+ *   - kind 30045 — filesystem directories (NKBIP-04)
  *   - kind 34139 — playlists
  *   - kind 39089 — follow packs
  *
@@ -82,6 +83,7 @@ class SubscribeLocalUserContextCommand extends Command
         KindsEnum::CURATION_PICTURES->value,   // 30006
         KindsEnum::INTEREST_SETS->value,       // 30015
         KindsEnum::LONGFORM_DRAFT->value,      // 30024
+        KindsEnum::DIRECTORY->value,           // 30045
         KindsEnum::PLAYLIST->value,            // 34139
         KindsEnum::FOLLOW_PACK->value,         // 39089
     ];
@@ -105,6 +107,7 @@ class SubscribeLocalUserContextCommand extends Command
         30006 => 'Curation sets (pictures)',
         30015 => 'Interest sets',
         30024 => 'Long-form drafts',
+        30045 => 'Filesystem directories',
         34139 => 'Playlists',
         39089 => 'Follow packs',
     ];
@@ -234,6 +237,5 @@ class SubscribeLocalUserContextCommand extends Command
         }
     }
 }
-
 
 

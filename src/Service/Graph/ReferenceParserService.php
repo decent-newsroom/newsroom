@@ -22,6 +22,7 @@ class ReferenceParserService
         30005, // CURATION_VIDEOS
         30006, // CURATION_PICTURES
         30003, // BOOKMARK_SETS
+        30045, // DIRECTORY — NKBIP-04 filesystem directory
     ];
 
     /** Kinds that the graph should track as resolvable targets. */
@@ -34,6 +35,7 @@ class ReferenceParserService
         30005, // CURATION_VIDEOS
         30006, // CURATION_PICTURES
         30003, // BOOKMARK_SETS
+        30045, // DIRECTORY
         30078, // APP_DATA
     ];
 
@@ -128,6 +130,10 @@ class ReferenceParserService
             };
         }
 
+        if ($sourceKind === KindsEnum::DIRECTORY->value) {
+            return 'contains';
+        }
+
         // Curation sets containing articles
         if (in_array($sourceKind, [
             KindsEnum::CURATION_SET->value,
@@ -141,4 +147,3 @@ class ReferenceParserService
         return 'references';
     }
 }
-

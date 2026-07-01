@@ -117,6 +117,76 @@ final class MercuryBookService
     }
 
     /**
+     * Resolve directory entries through Mercury while preserving their declared order.
+     *
+     * @param array<int, array{
+     *     type: 'a'|'e',
+     *     coordinate: ?string,
+     *     relay: ?string,
+     *     eventId: ?string,
+     *     pubkey: ?string
+     * }> $references
+     * @return array<int, array<string, mixed>>
+     */
+    public function getBooksForReferences(array $references): array
+    {
+        $eventIds = [];
+        $authors = [];
+
+        foreach ($references as $reference) {
+            if ($reference['eventId'] !== null) {
+                $eventIds[] = $reference['eventId'];
+            }
+            if ($reference['coordinate'] !== null && $reference['pubkey'] !== null) {
+                $authors[] = $reference['pubkey'];
+            }
+        }
+
+        $events = $this->apiClient->getPublicationEventsByIds($eventIds);
+        $eventsById = [];
+        $eventsByCoordinate = [];
+        $this->indexPublicationEvents($events, $eventsById, $eventsByCoordinate);
+
+        $unresolvedCoordinates = array_filter(
+            $references,
+            static fn (array $reference): bool => $reference['coordinate'] !== null
+                && !isset($eventsByCoordinate[$reference['coordinate']]),
+        );
+        if ($unresolvedCoordinates !== []) {
+            $fallbackEvents = $this->apiClient->getPublicationsByAuthors(
+                array_values(array_unique($authors)),
+                min(self::MAX_SEARCH_RESULTS * 5, 500),
+            );
+            $this->indexPublicationEvents($fallbackEvents, $eventsById, $eventsByCoordinate);
+        }
+
+        $books = [];
+        $seen = [];
+        foreach ($references as $reference) {
+            $event = $reference['eventId'] !== null
+                ? ($eventsById[$reference['eventId']] ?? null)
+                : null;
+            if ($event === null && $reference['coordinate'] !== null) {
+                $event = $eventsByCoordinate[$reference['coordinate']] ?? null;
+            }
+            if ($event === null) {
+                continue;
+            }
+
+            $book = $this->mapIndexEvent($event);
+            if ($book === null || isset($seen[$book['coordinate']])) {
+                continue;
+            }
+
+            $seen[$book['coordinate']] = true;
+            unset($book['chapterRefs']);
+            $books[] = $book;
+        }
+
+        return $books;
+    }
+
+    /**
      * @param array<string, mixed> $event
      * @return array<string, mixed>|null
      */
@@ -154,6 +224,7 @@ final class MercuryBookService
             'version' => $this->firstTagValue($tags, 'version'),
             'type' => $this->firstTagValue($tags, 'type') ?? 'book',
             'topics' => $this->tagValues($tags, 't'),
+            'relay' => $this->apiClient->getRelayHint(),
             'createdAt' => (int) ($event['created_at'] ?? 0),
             'chapterCount' => count($chapterRefs),
             'chapterRefs' => $chapterRefs,
@@ -229,6 +300,30 @@ final class MercuryBookService
             $current = $eventsByCoordinate[$coordinate] ?? null;
             if ($current === null || (int) ($event['created_at'] ?? 0) > (int) ($current['created_at'] ?? 0)) {
                 $eventsByCoordinate[$coordinate] = $event;
+            }
+        }
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $events
+     * @param array<string, array<string, mixed>> $eventsById
+     * @param array<string, array<string, mixed>> $eventsByCoordinate
+     */
+    private function indexPublicationEvents(array $events, array &$eventsById, array &$eventsByCoordinate): void
+    {
+        foreach ($events as $event) {
+            $book = $this->mapIndexEvent($event);
+            if ($book === null) {
+                continue;
+            }
+
+            $eventsById[$book['id']] = $event;
+            $current = $eventsByCoordinate[$book['coordinate']] ?? null;
+            if (
+                $current === null
+                || (int) ($event['created_at'] ?? 0) > (int) ($current['created_at'] ?? 0)
+            ) {
+                $eventsByCoordinate[$book['coordinate']] = $event;
             }
         }
     }

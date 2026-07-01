@@ -359,6 +359,23 @@ bookshelf:
     nav:
         library: 'Library'
         search: 'Search books'
+        my_books: 'My Books'
+    add_to_my_books: 'Add to My Books'
+    remove_from_my_books: 'Remove from My Books'
+    saved_to_my_books: 'Saved to My Books.'
+    removed_from_my_books: 'Removed from My Books.'
+    directory_publish_failed: 'Could not update My Books right now. Please try again.'
+    directory_signer_unavailable: 'No Nostr signer is available. Connect a signer and try again.'
+    directory_limit_reached: 'My Books is limited to %limit% items.'
+    my_books:
+        heading: 'My Books'
+        tagline: 'your personal bookshelf directory'
+        results: '%count% books in your directory.'
+        find_more: 'Find more books'
+        missing: '%count% saved books are currently unavailable from Mercury.'
+        empty_title: 'Your shelf is empty'
+        empty_description: 'Save books from search results to keep a personal list of favorites.'
+        browse: 'Browse Bookshelf'
     source:
         eyebrow: 'Remote collection'
         title: 'Powered by Mercury'

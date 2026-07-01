@@ -75,6 +75,68 @@ final class MercuryApiClient
      */
     public function getEventsByIds(array $eventIds): array
     {
+        return $this->getEventsByIdsAndKind($eventIds, 30041);
+    }
+
+    /**
+     * @param string[] $eventIds
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPublicationEventsByIds(array $eventIds): array
+    {
+        return $this->getEventsByIdsAndKind($eventIds, 30040);
+    }
+
+    /**
+     * @param string[] $authors
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPublicationsByAuthors(array $authors, int $limit): array
+    {
+        $authors = array_values(array_unique(array_filter(
+            $authors,
+            static fn (string $author): bool => preg_match('/^[a-f0-9]{64}$/i', $author) === 1,
+        )));
+
+        if ($authors === []) {
+            return [];
+        }
+
+        return $this->filterEvents([
+            'authors' => $authors,
+            'kinds' => [30040],
+            'limit' => max(1, min($limit, 500)),
+        ]);
+    }
+
+    public function getRelayHint(): ?string
+    {
+        $parts = parse_url($this->mercuryApiBaseUrl);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        $scheme = match (strtolower((string) $parts['scheme'])) {
+            'https' => 'wss',
+            'http' => 'ws',
+            'wss', 'ws' => strtolower((string) $parts['scheme']),
+            default => null,
+        };
+        if ($scheme === null) {
+            return null;
+        }
+
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+
+        return sprintf('%s://%s%s', $scheme, $parts['host'], $port);
+    }
+
+    /**
+     * @param string[] $eventIds
+     * @return array<int, array<string, mixed>>
+     */
+    private function getEventsByIdsAndKind(array $eventIds, int $kind): array
+    {
         $eventIds = array_values(array_unique(array_filter(
             $eventIds,
             static fn (string $id): bool => preg_match('/^[a-f0-9]{64}$/i', $id) === 1,
@@ -86,7 +148,7 @@ final class MercuryApiClient
                 ...$events,
                 ...$this->filterEvents([
                     'ids' => $batch,
-                    'kinds' => [30041],
+                    'kinds' => [$kind],
                     'limit' => count($batch),
                 ]),
             ];

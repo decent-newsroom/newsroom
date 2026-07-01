@@ -363,6 +363,23 @@ bookshelf:
     nav:
         library: 'Biblioteca'
         search: 'Cerca libri'
+        my_books: 'I miei libri'
+    add_to_my_books: 'Aggiungi ai miei libri'
+    remove_from_my_books: 'Rimuovi dai miei libri'
+    saved_to_my_books: 'Salvato nei miei libri.'
+    removed_from_my_books: 'Rimosso dai miei libri.'
+    directory_publish_failed: 'Impossibile aggiornare I miei libri ora. Riprova.'
+    directory_signer_unavailable: 'Nessun signer Nostr disponibile. Collega un signer e riprova.'
+    directory_limit_reached: 'I miei libri e limitato a %limit% elementi.'
+    my_books:
+        heading: 'I miei libri'
+        tagline: 'la tua directory personale di libri'
+        results: '%count% libri nella tua directory.'
+        find_more: 'Trova altri libri'
+        missing: '%count% libri salvati non sono al momento disponibili da Mercury.'
+        empty_title: 'La tua libreria e vuota'
+        empty_description: 'Salva libri dai risultati di ricerca per mantenere un elenco personale di preferiti.'
+        browse: 'Sfoglia la Libreria'
     source:
         eyebrow: 'Collezione remota'
         title: 'Basato su Mercury'

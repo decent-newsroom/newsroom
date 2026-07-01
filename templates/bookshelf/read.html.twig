@@ -33,7 +33,21 @@
 {% endblock %}
 
 {% block body %}
-<section class="bookshelf-reader">
+<section
+    class="bookshelf-reader"
+    {% if app.user %}
+        data-controller="ui--bookshelf-directory"
+        data-ui--bookshelf-directory-publish-url-value="{{ path('bookshelf_directory_publish') }}"
+        data-ui--bookshelf-directory-csrf-token-value="{{ csrf_token('bookshelf_directory') }}"
+        data-ui--bookshelf-directory-directory-identifier-value="{{ directoryIdentifier }}"
+        data-ui--bookshelf-directory-initial-tags-value="{{ directoryTags|json_encode|e('html_attr') }}"
+        data-ui--bookshelf-directory-added-message-value="{{ 'bookshelf.saved_to_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-removed-message-value="{{ 'bookshelf.removed_from_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-publish-failed-message-value="{{ 'bookshelf.directory_publish_failed'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-signer-unavailable-message-value="{{ 'bookshelf.directory_signer_unavailable'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-limit-reached-message-value="{{ 'bookshelf.directory_limit_reached'|trans({'%limit%': 500})|e('html_attr') }}"
+    {% endif %}
+>
     <a class="bookshelf-reader__back" href="{{ path('bookshelf', query ? {q: query} : {}) }}">
         {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
         {{ 'bookshelf.back'|trans }}
@@ -84,6 +98,23 @@
                     {{ 'bookshelf.original_source'|trans }}
                     {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
                 </a>
+            {% endif %}
+
+            {% if app.user and book.coordinate is defined %}
+                <button
+                    type="button"
+                    class="bookshelf-directory-action"
+                    data-ui--bookshelf-directory-target="toggle"
+                    data-action="click->ui--bookshelf-directory#toggle"
+                    data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
+                    data-ui--bookshelf-directory-relay-param="{{ book.relay|default('') }}"
+                    data-ui--bookshelf-directory-event-id-param="{{ book.id }}"
+                    data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
+                    data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
+                    aria-pressed="{{ book.coordinate in directoryCoordinates ? 'true' : 'false' }}"
+                >
+                    {{ book.coordinate in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
+                </button>
             {% endif %}
         </header>
 

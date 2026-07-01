@@ -1,0 +1,108 @@
+{% extends 'bookshelf-layout.html.twig' %}
+
+{% block title %}{{ 'bookshelf.my_books.heading'|trans }} | {{ 'bookshelf.heading'|trans }}{% endblock %}
+
+{% block body %}
+<section
+    class="bookshelf-page"
+    data-controller="ui--bookshelf-directory"
+    data-ui--bookshelf-directory-publish-url-value="{{ path('bookshelf_directory_publish') }}"
+    data-ui--bookshelf-directory-csrf-token-value="{{ csrf_token('bookshelf_directory') }}"
+    data-ui--bookshelf-directory-directory-identifier-value="{{ directoryIdentifier }}"
+    data-ui--bookshelf-directory-initial-tags-value="{{ directoryTags|json_encode|e('html_attr') }}"
+    data-ui--bookshelf-directory-added-message-value="{{ 'bookshelf.saved_to_my_books'|trans|e('html_attr') }}"
+    data-ui--bookshelf-directory-removed-message-value="{{ 'bookshelf.removed_from_my_books'|trans|e('html_attr') }}"
+    data-ui--bookshelf-directory-publish-failed-message-value="{{ 'bookshelf.directory_publish_failed'|trans|e('html_attr') }}"
+    data-ui--bookshelf-directory-signer-unavailable-message-value="{{ 'bookshelf.directory_signer_unavailable'|trans|e('html_attr') }}"
+    data-ui--bookshelf-directory-limit-reached-message-value="{{ 'bookshelf.directory_limit_reached'|trans({'%limit%': 500})|e('html_attr') }}"
+>
+    <twig:Atoms:PageHeading :heading="'bookshelf.my_books.heading'|trans" :tagline="'bookshelf.my_books.tagline'|trans" />
+
+    <div class="bookshelf-results">
+        <p>{{ 'bookshelf.my_books.results'|trans({'%count%': books|length}) }}</p>
+        <a href="{{ path('bookshelf') }}">{{ 'bookshelf.my_books.find_more'|trans }}</a>
+    </div>
+
+    {% if missingBookCount > 0 %}
+        <div class="bookshelf-notice" role="status">
+            <p>{{ 'bookshelf.my_books.missing'|trans({'%count%': missingBookCount}) }}</p>
+        </div>
+    {% endif %}
+
+    {% if not available %}
+        <div class="bookshelf-notice" role="status">
+            <h2>{{ 'bookshelf.unavailable_title'|trans }}</h2>
+            <p>{{ 'bookshelf.unavailable_description'|trans }}</p>
+        </div>
+    {% elseif books is empty %}
+        <div class="bookshelf-empty">
+            {{ ux_icon('iconoir:bookmark-book', {class: 'icon'}) }}
+            <h2>{{ 'bookshelf.my_books.empty_title'|trans }}</h2>
+            <p>{{ 'bookshelf.my_books.empty_description'|trans }}</p>
+            <a class="btn" href="{{ path('bookshelf') }}">{{ 'bookshelf.my_books.browse'|trans }}</a>
+        </div>
+    {% else %}
+        <div class="bookshelf-inventory" data-ui--bookshelf-directory-target="inventory">
+            {% for book in books %}
+                <article class="bookshelf-book" data-ui--bookshelf-directory-item="{{ book.coordinate }}">
+                    {% if book.coverImage %}
+                        <a class="bookshelf-book__cover" href="{{ path('bookshelf_read', {id: book.id}) }}" tabindex="-1" aria-hidden="true">
+                            <img src="{{ book.coverImage }}" alt="" loading="lazy">
+                        </a>
+                    {% else %}
+                        <div class="bookshelf-book__monogram" aria-hidden="true">
+                            {{ book.title|first|upper }}
+                        </div>
+                    {% endif %}
+
+                    <div class="bookshelf-book__body">
+                        <p class="bookshelf-book__format">{{ book.type|upper }}</p>
+                        <h2>
+                            <a href="{{ path('bookshelf_read', {id: book.id}) }}">{{ book.title }}</a>
+                        </h2>
+
+                        {% if book.authors is not empty %}
+                            <p class="bookshelf-book__authors">
+                                {{ 'bookshelf.by_author'|trans({'%author%': book.authors|join(', ')}) }}
+                            </p>
+                        {% endif %}
+
+                        {% if book.summary %}
+                            <p>{{ book.summary }}</p>
+                        {% endif %}
+
+                        <div class="bookshelf-book__meta">
+                            <span>{{ 'bookshelf.chapter_count'|trans({'%count%': book.chapterCount}) }}</span>
+                            {% if book.language %}<span>{{ book.language|upper }}</span>{% endif %}
+                            {% if book.releaseDate %}<span>{{ book.releaseDate }}</span>{% endif %}
+                            {% if book.version %}<span>{{ book.version }}</span>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bookshelf-book__actions">
+                        <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id}) }}">
+                            {{ 'bookshelf.read_book'|trans }}
+                            {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                        </a>
+                        <button
+                            type="button"
+                            class="bookshelf-directory-action"
+                            data-ui--bookshelf-directory-target="toggle"
+                            data-action="click->ui--bookshelf-directory#toggle"
+                            data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
+                            data-ui--bookshelf-directory-relay-param="{{ book.relay|default('') }}"
+                            data-ui--bookshelf-directory-event-id-param="{{ book.id }}"
+                            data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
+                            data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
+                            aria-pressed="true"
+                        >
+                            {{ 'bookshelf.remove_from_my_books'|trans }}
+                        </button>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
+

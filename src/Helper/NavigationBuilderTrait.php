@@ -98,6 +98,11 @@ trait NavigationBuilderTrait
                 'label' => 'bookshelf.nav.library',
                 'items' => [
                     ['label' => 'bookshelf.nav.search', 'route' => 'bookshelf', 'icon' => 'iconoir:book-stack'],
+                    ...($isAuthenticated ? [[
+                        'label' => 'bookshelf.nav.my_books',
+                        'route' => 'bookshelf_my_books',
+                        'icon' => 'iconoir:bookmark-book',
+                    ]] : []),
                 ],
             ],
         ];

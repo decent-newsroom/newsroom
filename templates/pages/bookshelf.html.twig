@@ -21,7 +21,21 @@
 {% endblock %}
 
 {% block body %}
-<section class="bookshelf-page">
+<section
+    class="bookshelf-page"
+    {% if app.user %}
+        data-controller="ui--bookshelf-directory"
+        data-ui--bookshelf-directory-publish-url-value="{{ path('bookshelf_directory_publish') }}"
+        data-ui--bookshelf-directory-csrf-token-value="{{ csrf_token('bookshelf_directory') }}"
+        data-ui--bookshelf-directory-directory-identifier-value="{{ directoryIdentifier }}"
+        data-ui--bookshelf-directory-initial-tags-value="{{ directoryTags|json_encode|e('html_attr') }}"
+        data-ui--bookshelf-directory-added-message-value="{{ 'bookshelf.saved_to_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-removed-message-value="{{ 'bookshelf.removed_from_my_books'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-publish-failed-message-value="{{ 'bookshelf.directory_publish_failed'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-signer-unavailable-message-value="{{ 'bookshelf.directory_signer_unavailable'|trans|e('html_attr') }}"
+        data-ui--bookshelf-directory-limit-reached-message-value="{{ 'bookshelf.directory_limit_reached'|trans({'%limit%': 500})|e('html_attr') }}"
+    {% endif %}
+>
     <twig:Atoms:PageHeading :heading="'bookshelf.heading'|trans" :tagline="'bookshelf.eyebrow'|trans" />
 
     <div class="bookshelf-intro">
@@ -113,10 +127,28 @@
                         {% endif %}
                     </div>
 
-                    <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id, q: query}) }}">
-                        {{ 'bookshelf.read_book'|trans }}
-                        {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
-                    </a>
+                    <div class="bookshelf-book__actions">
+                        <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id, q: query}) }}">
+                            {{ 'bookshelf.read_book'|trans }}
+                            {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                        </a>
+                        {% if app.user and book.coordinate is defined %}
+                            <button
+                                type="button"
+                                class="bookshelf-directory-action"
+                                data-ui--bookshelf-directory-target="toggle"
+                                data-action="click->ui--bookshelf-directory#toggle"
+                                data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
+                                data-ui--bookshelf-directory-relay-param="{{ book.relay|default('') }}"
+                                data-ui--bookshelf-directory-event-id-param="{{ book.id }}"
+                                data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
+                                data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
+                                aria-pressed="{{ book.coordinate in directoryCoordinates ? 'true' : 'false' }}"
+                            >
+                                {{ book.coordinate in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
+                            </button>
+                        {% endif %}
+                    </div>
                 </article>
             {% else %}
                 <div class="bookshelf-empty">

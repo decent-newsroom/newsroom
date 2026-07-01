@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Feature] Added authenticated My Books support in `/bookshelf` using signed kind `30045` directory events (`d=my-book-collection`), including add/remove actions on search and reader pages, a new `/bookshelf/my-books` inventory route, and relay-backed persistence through `/api/bookshelf/directory`.
 - [Improvement] Restyle search bar in `/bookshelf`, preserve query, update translations.
 
 ## v0.0.47

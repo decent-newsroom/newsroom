@@ -199,6 +199,34 @@
     text-decoration: none;
 }
 
+.bookshelf-book__actions {
+    display: grid;
+    justify-items: end;
+    gap: var(--spacing-2);
+}
+
+.bookshelf-directory-action {
+    min-height: 2.25rem;
+    padding: 0.35rem var(--spacing-3);
+    border: 1px solid var(--color-border-strong);
+    background: transparent;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.bookshelf-directory-action:hover,
+.bookshelf-directory-action:focus-visible,
+.bookshelf-directory-action.is-active {
+    border-color: var(--color-primary-link);
+    color: var(--color-primary-link);
+}
+
+.bookshelf-directory-action:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 .bookshelf-book__open .icon,
 .bookshelf-reader__back .icon,
 .bookshelf-reader__source .icon,
@@ -461,6 +489,11 @@
     .bookshelf-book__open {
         grid-column: 2;
         padding: 0;
+    }
+
+    .bookshelf-book__actions {
+        grid-column: 2;
+        justify-items: start;
     }
 
     .bookshelf-reader__metadata {

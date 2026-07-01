@@ -121,6 +121,7 @@ class RecordIdentityService
             KindsEnum::CURATION_VIDEOS->value,
             KindsEnum::CURATION_PICTURES->value => 'curation_set',
             KindsEnum::BOOKMARK_SETS->value => 'bookmark_set',
+            KindsEnum::DIRECTORY->value => 'directory',          // 30045 — NKBIP-04
             KindsEnum::APP_DATA->value => 'app_data',           // 30078
             default => 'unknown',
         };
@@ -172,4 +173,3 @@ class RecordIdentityService
         return $parts['kind'] . ':' . $parts['pubkey'] . ':' . $parts['d_tag'];
     }
 }
-
