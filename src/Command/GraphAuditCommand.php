@@ -336,7 +336,8 @@ class GraphAuditCommand extends Command
         $types = [];
 
         foreach ($batchRows as $i => $row) {
-            $values[] = sprintf('(:coord%d, :stored_event_id%d, :kind%d, :pubkey%d, :d_tag%d, :stored_created_at%d)', $i, $i, $i, $i, $i, $i);
+            // Explicit casts avoid PostgreSQL inferring text for VALUES columns.
+            $values[] = sprintf('(:coord%d::text, :stored_event_id%d::text, :kind%d::integer, :pubkey%d::text, :d_tag%d::text, :stored_created_at%d::bigint)', $i, $i, $i, $i, $i, $i);
 
             $params["coord{$i}"] = $row['coord'];
             $types["coord{$i}"] = ParameterType::STRING;
