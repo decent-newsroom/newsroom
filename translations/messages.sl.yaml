@@ -376,7 +376,7 @@ bookshelf:
     source:
         eyebrow: 'Remote collection'
         title: 'Powered by Mercury'
-        description: 'Book indexes and chapters are fetched on demand from the Mercury REST API. Nothing is imported into the local publication catalogue.'
+        description: 'Book indexes and chapters are fetched on demand from the Mercury REST API. '
         api_link: 'View Mercury API'
 
 # ── Odkrivanje / Iskanje ──────────────────────────────────────────
