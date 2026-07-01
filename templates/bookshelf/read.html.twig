@@ -100,23 +100,24 @@
                 </a>
             {% endif %}
 
-            {% if app.user and book.coordinate is defined %}
-                <button
-                    type="button"
-                    class="bookshelf-directory-action btn btn-secondary btn-sm"
-                    data-ui--bookshelf-directory-target="toggle"
-                    data-action="click->ui--bookshelf-directory#toggle"
-                    data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
-                    data-ui--bookshelf-directory-relay-param="{{ book.relay|default('') }}"
-                    data-ui--bookshelf-directory-event-id-param="{{ book.id }}"
-                    data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
-                    data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
-                    aria-pressed="{{ book.coordinate in directoryCoordinates ? 'true' : 'false' }}"
-                >
-                    {{ book.coordinate in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
-                </button>
-            {% endif %}
         </header>
+
+        {% if app.user and book.coordinate is defined %}
+            <button
+                type="button"
+                class="bookshelf-directory-action btn btn-secondary btn-sm"
+                data-ui--bookshelf-directory-target="toggle"
+                data-action="click->ui--bookshelf-directory#toggle"
+                data-ui--bookshelf-directory-coordinate-param="{{ book.coordinate }}"
+                data-ui--bookshelf-directory-relay-param="{{ book.relay|default('') }}"
+                data-ui--bookshelf-directory-event-id-param="{{ book.id }}"
+                data-label-add="{{ 'bookshelf.add_to_my_books'|trans|e('html_attr') }}"
+                data-label-remove="{{ 'bookshelf.remove_from_my_books'|trans|e('html_attr') }}"
+                aria-pressed="{{ book.coordinate in directoryCoordinates ? 'true' : 'false' }}"
+            >
+                {{ book.coordinate in directoryCoordinates ? 'bookshelf.remove_from_my_books'|trans : 'bookshelf.add_to_my_books'|trans }}
+            </button>
+        {% endif %}
 
         {% if book.missingChapterCount > 0 or book.truncated %}
             <div class="bookshelf-notice" role="status">

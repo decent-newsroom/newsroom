@@ -186,6 +186,7 @@
 
 .bookshelf-directory-action {
     white-space: nowrap;
+    justify-self: start;
 }
 
 .bookshelf-directory-action.is-active {

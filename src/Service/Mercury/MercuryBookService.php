@@ -217,7 +217,7 @@ final class MercuryBookService
             'title' => $this->firstTagValue($tags, 'title') ?? $identifier,
             'summary' => $this->firstNonEmptyTagValue($tags, ['summary', 'description']),
             'authors' => $this->tagValues($tags, 'author'),
-            'coverImage' => $this->httpUrlTag($tags, 'image'),
+            'coverImage' => $this->resolveCoverImage($tags),
             'source' => $this->httpUrlTag($tags, 'source'),
             'language' => $this->firstTagValue($tags, 'l'),
             'releaseDate' => $this->firstNonEmptyTagValue($tags, ['release_date', 'published_on']),
@@ -430,14 +430,40 @@ final class MercuryBookService
      */
     private function httpUrlTag(array $tags, string $name): ?string
     {
-        $url = $this->firstTagValue($tags, $name);
-        if ($url === null || filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return $this->normalizeHttpUrl($this->firstTagValue($tags, $name));
+    }
+
+    /**
+     * @param array<int, array<int, mixed>> $tags
+     */
+    private function resolveCoverImage(array $tags): ?string
+    {
+        return $this->httpUrlTag($tags, 'image');
+    }
+
+    private function normalizeHttpUrl(?string $url): ?string
+    {
+        if ($url === null) {
+            return null;
+        }
+
+        $url = trim($url);
+        if ($url === '') {
             return null;
         }
 
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
 
-        return in_array($scheme, ['http', 'https'], true) ? $url : null;
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            return null;
+        }
+
+        $host = (string) parse_url($url, PHP_URL_HOST);
+        if ($host === '') {
+            return null;
+        }
+
+        return $url;
     }
 
     private function humanizeIdentifier(string $identifier): string
