@@ -3,6 +3,7 @@
 ## v0.0.48
 
 - [Feature] Added a new authenticated `Expressions` personal workspace (`/expressions/workspace`) with Reading Nook/Newsroom shell styling, local sidebar navigation, and integrated expression/spell feed-testing tabs; expression create/edit screens now render inside the same section shell.
+- [Bug] Moved relay public URL settings to `relay.auth.serviceUrl` in both `docker/strfry/strfry.conf` and `docker/strfry-essayist/strfry.conf` so NIP-42 AUTH uses the correct namespace.
 - [Bug] Fixed `strfry`/`strfry-essayist` startup command ordering in compose files to use `./strfry --config /tmp/strfry.conf relay`, ensuring the generated templated config file is actually loaded.
 - [Bug] Applied the same startup `serviceUrl` templating flow to `strfry-essayist` in `compose.prod.yaml`, so `ESSAYIST_RELAY_PUBLIC_URL` is re-injected on every restart.
 - [Bug] Fixed Essayist protected-event relay rejects (`Protected event and no serviceUrl configured`) by wiring `strfry-essayist` `serviceUrl` from `ESSAYIST_RELAY_PUBLIC_URL` at container startup.

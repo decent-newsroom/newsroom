@@ -3,11 +3,12 @@
         <div class="mb-5">
             {% for preview in previews %}
                 <div class="featured-cat">
+                    <span>Latest from </span>
                     <a
                         href="{{ path('magazine-category', { slug: preview.categorySlug, mag: mag }) }}"
                         data-turbo-frame="_top"
                     >
-                        <span>Latest from</span> {{ preview.categoryTitle ?: preview.categorySlug }}
+                        {{ preview.categoryTitle ?: preview.categorySlug }}
                     </a>
                 </div>
                 {% if preview.article %}
