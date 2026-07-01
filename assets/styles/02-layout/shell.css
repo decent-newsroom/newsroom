@@ -25,6 +25,10 @@ body.no-scroll {
     overflow: hidden;
 }
 
+.full-page__mobile-navigation {
+    display: none;
+}
+
 .app-shell__context {
     position: sticky;
     top: var(--header-height);
@@ -148,6 +152,10 @@ body.no-scroll {
 }
 
 @media (max-width: 900px) {
+    .full-page__mobile-navigation {
+        display: block;
+    }
+
     .app-shell {
         display: block;
     }

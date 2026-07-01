@@ -19,6 +19,7 @@ For public-facing onboarding content, use `docs-public/`. For environment setup 
 - [Comments](Newsroom/comments.md) — Kind 1111 comment system with async relay fetch
 - [Highlights](Reader/highlights.md) — Kind 9802 highlight display and caching
 - [Reading Lists](Newsroom/reading-lists.md) — Curated article lists with workflow state machine
+- [Mercury Bookshelf](Reader/mercury-bookshelf.md) — Remote NKBIP-01 book search and continuous chapter reader
 - [Home Feed](Reader/home-feed-logged-in.md) — Tabbed feed for logged-in users (Latest, Follows, Interests, Podcasts, News Bots)
 - [Notifications Center](Notifications/notifications-center.md) — Per-user subscriptions (npub / publication / NIP-51 set) with real-time Mercure toasts for kinds 30023 and 30040
 

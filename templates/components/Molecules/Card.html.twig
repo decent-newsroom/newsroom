@@ -43,20 +43,6 @@
                     </span>
                 </div>
 
-                {% if source_labels|default([])|length > 0 or category_label|default(null) or isEssayistExclusive %}
-                    <div class="card-sources">
-                        {% if category_label|default(null) %}
-                            <span class="source-badge source-badge--category">{{ category_label }}</span>
-                        {% endif %}
-                        {% if isEssayistExclusive %}
-                            <span class="source-badge source-badge--essayist" title="{{ 'home_feed.source.essayist_title'|trans }}">{{ 'home_feed.source.essayist'|trans }}</span>
-                        {% endif %}
-                        {% for label in source_labels|default([]) %}
-                            <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
                 <h2 class="card-title line-clamp-5">
                     <a class="article-card__title-link" href="{{ link }}" data-turbo-frame="_top">{{ article.title }}</a>
                 </h2>
@@ -79,30 +65,39 @@
             {% endif %}
         </div>
 
-        {% if comment_count|default(0) > 0 or (app.user and bookmarkCoordinate) %}
-            <div class="card-footer">
-                {% if comment_count|default(0) > 0 %}
-                    <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
+        <div class="card-footer">
+            {% if source_labels|default([])|length > 0 or category_label|default(null) or isEssayistExclusive %}
+                {% if category_label|default(null) %}
+                    <span class="source-badge source-badge--category">{{ category_label }}</span>
                 {% endif %}
-                {% if app.user and bookmarkCoordinate %}
-                    <button
-                        type="button"
-                        class="card-bookmark-btn"
-                        data-controller="ui--card-bookmark"
-                        data-ui--card-bookmark-target="button"
-                        data-action="click->ui--card-bookmark#toggle"
-                        data-ui--card-bookmark-coordinate-value="{{ bookmarkCoordinate }}"
-                        data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
-                        data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
-                        data-ui--card-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
-                        data-ui--card-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
-                        title="{{ 'bookmark.add'|trans }}"
-                    >
-                        {{ ux_icon('iconoir:bookmark', {class: 'icon', 'data-ui--card-bookmark-target': 'icon'}) }}
-                        <span data-ui--card-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
-                    </button>
+                {% if isEssayistExclusive %}
+                    <span class="source-badge source-badge--essayist" title="{{ 'home_feed.source.essayist_title'|trans }}">{{ 'home_feed.source.essayist'|trans }}</span>
                 {% endif %}
-            </div>
-        {% endif %}
+                {% for label in source_labels|default([]) %}
+                    <span class="source-badge source-badge--{{ label }}">{{ ('home_feed.source.' ~ label)|trans }}</span>
+                {% endfor %}
+            {% endif %}
+            {% if comment_count|default(0) > 0 %}
+                <span>{{ 'home_feed.discussed.commentCount'|trans({'%count%': comment_count}) }}</span>
+            {% endif %}
+            {% if app.user and bookmarkCoordinate %}
+                <button
+                    type="button"
+                    class="card-bookmark-btn"
+                    data-controller="ui--card-bookmark"
+                    data-ui--card-bookmark-target="button"
+                    data-action="click->ui--card-bookmark#toggle"
+                    data-ui--card-bookmark-coordinate-value="{{ bookmarkCoordinate }}"
+                    data-ui--card-bookmark-bookmark-fetch-url-value="{{ path('api_bookmarks_current') }}"
+                    data-ui--card-bookmark-bookmark-publish-url-value="{{ path('api_bookmarks_publish') }}"
+                    data-ui--card-bookmark-add-label-value="{{ 'bookmark.add'|trans|e('html_attr') }}"
+                    data-ui--card-bookmark-remove-label-value="{{ 'bookmark.remove'|trans|e('html_attr') }}"
+                    title="{{ 'bookmark.add'|trans }}"
+                >
+                    {{ ux_icon('iconoir:bookmark', {class: 'icon', 'data-ui--card-bookmark-target': 'icon'}) }}
+                    <span data-ui--card-bookmark-target="label">{{ 'bookmark.add'|trans }}</span>
+                </button>
+            {% endif %}
+        </div>
     </article>
 {% endif %}

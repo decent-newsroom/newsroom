@@ -87,6 +87,35 @@ trait NavigationBuilderTrait
     }
 
     /**
+     * Build the Mercury-backed Bookshelf navigation structure.
+     *
+     * @return array<int, array{label: string, items: array<int, array{label: string, route: string, icon: string}>}>
+     */
+    protected function buildBookshelfNav(bool $isAuthenticated = false): array
+    {
+        $sections = [
+            [
+                'label' => 'bookshelf.nav.library',
+                'items' => [
+                    ['label' => 'bookshelf.nav.search', 'route' => 'bookshelf', 'icon' => 'iconoir:book-stack'],
+                    ['label' => 'nav.newsstand', 'route' => 'newsstand', 'icon' => 'iconoir:journal-page'],
+                ],
+            ],
+        ];
+
+        if ($isAuthenticated) {
+            $sections[] = [
+                'label' => 'nav.personal',
+                'items' => [
+                    ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
+                ],
+            ];
+        }
+
+        return $sections;
+    }
+
+    /**
      * Build the main global navigation structure.
      *
      * @param bool|null $isAuthenticated If null, checks $this->getUser() (only works when used in AbstractController)
@@ -110,6 +139,7 @@ trait NavigationBuilderTrait
                 'label' => 'nav.publications',
                 'items' => [
                     ['label' => 'nav.newsstand', 'route' => 'newsstand'],
+                    ['label' => 'nav.bookshelf', 'route' => 'bookshelf'],
                 ],
             ],
         ];
@@ -135,4 +165,3 @@ trait NavigationBuilderTrait
         return $sections;
     }
 }
-

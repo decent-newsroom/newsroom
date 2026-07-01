@@ -2,6 +2,8 @@
 
 ## v0.0.47
 
+- [Feature] Added a standalone Mercury-backed `/bookshelf` with remote kind `30040` metadata search, replaceable-event deduplication, batched kind `30041` chapter retrieval in index order, and a continuous AsciiDoc book reader that does not fall back to the local relay catalogue.
+- [Bug] Restored the mobile navigation drawer on full-width guest pages, including the anonymous home page.
 - [Improvement] Moved reading lists and curation sets out of `/my-content` into a Newsroom-style searchable `/reading-list` inventory, leaving My Content focused on authored articles and drafts.
 - [Bug] Reading Nook now labels the default kind `10003` bookmark list as `Bookmarks`.
 - [Improvement] Reworked `/reading-nook` from grouped collection cards into a Newsroom-style searchable inventory table with section tabs, compact metadata columns, and row action menus.

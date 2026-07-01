@@ -1,0 +1,22 @@
+{% extends 'app-shell.html.twig' %}
+
+{% block sidebar %}
+    <twig:SidebarNav
+        id="leftNav"
+        :sections="bookshelfNav"
+        :backLink="{label: 'nav.backToDiscover', route: 'discover', icon: 'iconoir:arrow-right'}"
+        :footerComponent="app.user ? 'components/UserMenu.html.twig' : null"
+    />
+{% endblock %}
+
+{% block aside %}
+    <section class="bookshelf-aside">
+        <p class="eyebrow">{{ 'bookshelf.source.eyebrow'|trans }}</p>
+        <h2>{{ 'bookshelf.source.title'|trans }}</h2>
+        <p>{{ 'bookshelf.source.description'|trans }}</p>
+        <a href="https://mercury-relay.imwald.eu/api/swagger/index.html" target="_blank" rel="noreferrer">
+            {{ 'bookshelf.source.api_link'|trans }}
+            {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+        </a>
+    </section>
+{% endblock %}

@@ -9,7 +9,7 @@ export default class extends Controller {
     static targets = [ ];
 
     connect() {
-        this.mediaQuery = window.matchMedia('(min-width: 769px)');
+        this.mediaQuery = window.matchMedia('(min-width: 901px)');
         this.resizeListener = () => this.handleResize();
         this.keyListener = (e) => this.handleKeydown(e);
         this.clickOutsideListener = (e) => this.handleDocumentClick(e);

@@ -2,6 +2,10 @@
 
 {% block layout %}
     <div class="full-page">
+        <div class="full-page__mobile-navigation" data-controller="ui--sidebar-toggle">
+            {% include 'partial/_main_sidebar.html.twig' %}
+        </div>
+
         {% block body %}{% endblock %}
     </div>
 {% endblock %}

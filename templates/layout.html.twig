@@ -1,47 +1,7 @@
 {% extends 'app-shell.html.twig' %}
 
 {% block sidebar %}
-    {% set mainNav = [
-        {
-            label: 'nav.discover',
-            items: [
-                {label: 'nav.articles', route: 'discover', icon: 'iconoir:compass'},
-                {label: 'nav.relayFeeds', route: 'relay_feed_index', icon: 'iconoir:rss-feed'}
-            ]
-        },
-        {
-            label: 'nav.publications',
-            items: [
-                {label: 'nav.newsstand', route: 'newsstand', icon: 'iconoir:book-stack'}
-            ]
-        }
-    ] %}
-
-    {% if app.user %}
-        {% set mainNav = mainNav|merge([
-            {
-                label: 'nav.personal',
-                items: [
-                    {label: 'nav.readingNook', route: 'reading_nook', icon: 'iconoir:bookmark'},
-                    {label: 'nav.newsroom', route: 'my_content', icon: 'iconoir:home'}
-                ]
-            },
-            {
-                label: 'nav.create',
-                items: [
-                    {label: 'nav.newArticle', route: 'editor-create', icon: 'iconoir:edit-pencil'},
-                    {label: 'nav.newMagazine', route: 'mag_wizard_new', icon: 'iconoir:plus'},
-                    {label: 'nav.newReadingList', route: 'reading_list_index', icon: 'iconoir:journal-page'}
-                ]
-            }
-        ]) %}
-    {% endif %}
-
-    <twig:SidebarNav
-        id="leftNav"
-        :sections="mainNav"
-        :footerComponent="'components/UserMenu.html.twig'"
-    />
+    {% include 'partial/_main_sidebar.html.twig' %}
 {% endblock %}
 
 {% block aside %}

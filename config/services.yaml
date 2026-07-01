@@ -10,6 +10,8 @@ parameters:
     elasticsearch_enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     relay_gateway_default: 'false'
     relay_gateway_enabled: '%env(bool:default:relay_gateway_default:RELAY_GATEWAY_ENABLED)%'
+    mercury.api_base_url_default: 'https://mercury-relay.imwald.eu'
+    mercury.api_base_url: '%env(default:mercury.api_base_url_default:MERCURY_API_BASE_URL)%'
 
     # Essayist gateway membership cache (see documentation/essayist-gateway.md).
     essayist.membership.key_prefix: 'essayist_member:'
@@ -91,6 +93,7 @@ services:
             $kernelCacheDir: '%kernel.cache_dir%'
             $essayistRelayPublicUrl: '%essayist.relay_public_url%'
             $essayistRelayInternalUrl: '%essayist.relay_internal_url%'
+            $mercuryApiBaseUrl: '%mercury.api_base_url%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -477,4 +480,3 @@ services:
 
     App\ExpressionBundle\Source\SourceResolverInterface:
         alias: App\ExpressionBundle\Source\SourceResolver
-

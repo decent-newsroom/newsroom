@@ -1,0 +1,175 @@
+{% extends 'bookshelf-layout.html.twig' %}
+
+{% block title %}
+    {% if book %}{{ book.title }}{% else %}{{ 'bookshelf.not_available'|trans }}{% endif %} | {{ 'bookshelf.heading'|trans }}
+{% endblock %}
+
+{% block ogtags %}
+    {{ parent() }}
+    {% if book %}
+        <meta property="og:title" content="{{ book.title }}">
+        <meta property="og:type" content="book">
+        <meta property="og:url" content="{{ app.request.uri }}">
+        {% if book.summary %}<meta property="og:description" content="{{ book.summary }}">{% endif %}
+        {% if book.image %}<meta property="og:image" content="{{ book.image }}">{% endif %}
+
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Book",
+            "name": {{ book.title|json_encode|raw }},
+            "url": {{ app.request.uri|json_encode|raw }},
+            "author": [
+                {% for author in book.authors %}
+                    {"@type": "Person", "name": {{ author|json_encode|raw }}}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            "inLanguage": {{ book.language|default(null)|json_encode|raw }},
+            "image": {{ book.image|default(null)|json_encode|raw }},
+            "isBasedOn": {{ book.source|default(null)|json_encode|raw }}
+        }
+        </script>
+    {% endif %}
+{% endblock %}
+
+{% block body %}
+<section class="bookshelf-reader">
+    <a class="bookshelf-reader__back" href="{{ path('bookshelf') }}">
+        {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
+        {{ 'bookshelf.back'|trans }}
+    </a>
+
+    {% if book %}
+        <header class="bookshelf-reader__header">
+            <p class="eyebrow">{{ book.type|upper }} · {{ 'bookshelf.powered_by'|trans }}</p>
+            <h1>{{ book.title }}</h1>
+
+            {% if book.authors is not empty %}
+                <p class="bookshelf-reader__authors">
+                    {{ 'bookshelf.by_author'|trans({'%author%': book.authors|join(', ')}) }}
+                </p>
+            {% endif %}
+
+            {% if book.summary %}
+                <p class="bookshelf-reader__summary">{{ book.summary }}</p>
+            {% endif %}
+
+            <dl class="bookshelf-reader__metadata">
+                <div>
+                    <dt>{{ 'bookshelf.chapters'|trans }}</dt>
+                    <dd>{{ book.availableChapterCount }} / {{ book.chapterCount }}</dd>
+                </div>
+                {% if book.language %}
+                    <div>
+                        <dt>{{ 'bookshelf.language'|trans }}</dt>
+                        <dd>{{ book.language|upper }}</dd>
+                    </div>
+                {% endif %}
+                {% if book.releaseDate %}
+                    <div>
+                        <dt>{{ 'bookshelf.released'|trans }}</dt>
+                        <dd>{{ book.releaseDate }}</dd>
+                    </div>
+                {% endif %}
+                {% if book.version %}
+                    <div>
+                        <dt>{{ 'bookshelf.version'|trans }}</dt>
+                        <dd>{{ book.version }}</dd>
+                    </div>
+                {% endif %}
+            </dl>
+
+            {% if book.source %}
+                <a class="bookshelf-reader__source" href="{{ book.source }}" target="_blank" rel="noreferrer">
+                    {{ 'bookshelf.original_source'|trans }}
+                    {{ ux_icon('iconoir:open-new-window', {class: 'icon'}) }}
+                </a>
+            {% endif %}
+        </header>
+
+        {% if book.missingChapterCount > 0 or book.truncated %}
+            <div class="bookshelf-notice" role="status">
+                <h2>{{ 'bookshelf.incomplete_title'|trans }}</h2>
+                <p>
+                    {% if book.truncated %}
+                        {{ 'bookshelf.truncated_description'|trans }}
+                    {% else %}
+                        {{ 'bookshelf.incomplete_description'|trans({'%count%': book.missingChapterCount}) }}
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+
+        <details class="bookshelf-toc">
+            <summary>{{ 'bookshelf.table_of_contents'|trans }}</summary>
+            <ol>
+                {% for chapter in book.chapters %}
+                    <li>
+                        <a href="#chapter-{{ chapter.position }}">{{ chapter.title }}</a>
+                        {% if not chapter.available %}
+                            <span>{{ 'bookshelf.chapter_unavailable_short'|trans }}</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        </details>
+
+        <div class="bookshelf-chapters">
+            {% for chapter in book.chapters %}
+                <article id="chapter-{{ chapter.position }}" class="bookshelf-chapter">
+                    <header>
+                        <p>{{ 'bookshelf.chapter_number'|trans({'%number%': chapter.position}) }}</p>
+                        <h2>{{ chapter.title }}</h2>
+                        {% if chapter.summary %}<p>{{ chapter.summary }}</p>{% endif %}
+                    </header>
+
+                    {% if chapter.available %}
+                        <div class="bookshelf-chapter__content" data-controller="utility--katex" data-utility--katex-display-value="true">
+                            {{ chapter.html|raw }}
+                        </div>
+                    {% else %}
+                        <div class="bookshelf-chapter__missing">
+                            <p>{{ 'bookshelf.chapter_unavailable'|trans }}</p>
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bookshelf-unavailable">
+            {{ ux_icon('iconoir:book-stack', {class: 'icon'}) }}
+            <h1>{{ 'bookshelf.not_available'|trans }}</h1>
+            <p>
+                {% if available %}
+                    {{ 'bookshelf.not_found_description'|trans }}
+                {% else %}
+                    {{ 'bookshelf.unavailable_description'|trans }}
+                {% endif %}
+            </p>
+            <a class="btn" href="{{ path('bookshelf') }}">{{ 'bookshelf.search_again'|trans }}</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block aside %}
+    {% if book %}
+        <section class="bookshelf-aside">
+            <p class="eyebrow">{{ 'bookshelf.source.eyebrow'|trans }}</p>
+            <h2>{{ 'bookshelf.reading_now'|trans }}</h2>
+            <dl>
+                <div>
+                    <dt>{{ 'bookshelf.chapters'|trans }}</dt>
+                    <dd>{{ book.chapterCount }}</dd>
+                </div>
+                <div>
+                    <dt>{{ 'bookshelf.available_chapters'|trans }}</dt>
+                    <dd>{{ book.availableChapterCount }}</dd>
+                </div>
+            </dl>
+            <a href="#chapter-1">{{ 'bookshelf.begin_reading'|trans }}</a>
+        </section>
+    {% else %}
+        {{ parent() }}
+    {% endif %}
+{% endblock %}

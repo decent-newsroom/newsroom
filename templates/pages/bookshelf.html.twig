@@ -1,57 +1,131 @@
-{% extends 'layout.html.twig' %}
+{% extends 'bookshelf-layout.html.twig' %}
+
+{% block title %}{{ 'bookshelf.heading'|trans }} | Decent Newsroom{% endblock %}
 
 {% block ogtags %}
     {{ parent() }}
-    <meta property="og:title" content="{{ 'bookshelf.heading'|trans }} - Newsroom">
+    <meta property="og:title" content="{{ 'bookshelf.heading'|trans }} - Decent Newsroom">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ app.request.uri }}">
     <meta property="og:description" content="{{ 'bookshelf.description'|trans }}">
-    <meta property="og:site_name" content="Newsroom">
 
-    {# JSON-LD Structured Data for Bookshelf #}
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": {{ 'bookshelf.heading'|trans|json_encode|raw }},
         "description": {{ 'bookshelf.description'|trans|json_encode|raw }},
-        "url": {{ app.request.uri|json_encode|raw }},
-        "isPartOf": {
-            "@type": "WebSite",
-            "name": "Newsroom",
-            "url": "{{ url('home') }}"
-        },
-        "about": {
-            "@type": "Thing",
-            "name": "Digital Books"
-        }
+        "url": {{ app.request.uri|json_encode|raw }}
     }
     </script>
 {% endblock %}
 
 {% block body %}
-    <section class="d-flex gap-3 center ln-section--newsstand">
-        <div class="container mt-5 mb-5">
-            <h1>{{ 'bookshelf.heading'|trans }}</h1>
-            <p class="eyebrow">{{ 'bookshelf.eyebrow'|trans }}</p>
-        </div>
-    </section>
-    <section class="mb-5">
-        <twig:Organisms:BookList />
-    </section>
+<section class="bookshelf-page">
+    <twig:Atoms:PageHeading :heading="'bookshelf.heading'|trans" :tagline="'bookshelf.eyebrow'|trans" />
 
-    <section class="d-flex gap-3 center ln-section--newsstand">
-        <div class="container mt-5">
-            <h1>{{ 'bookshelf.moreSoon'|trans }}</h1>
-            <p class="eyebrow">{{ 'bookshelf.onlyBeginning'|trans }}</p>
+    <div class="bookshelf-intro">
+        <p>{{ 'bookshelf.description'|trans }}</p>
+        <p>{{ 'bookshelf.search_hint'|trans }}</p>
+    </div>
+
+    <form class="bookshelf-search" action="{{ path('bookshelf') }}" method="get">
+        <label for="bookshelf-query">{{ 'bookshelf.search_label'|trans }}</label>
+        <div class="bookshelf-search__control">
+            {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+            <input
+                id="bookshelf-query"
+                type="search"
+                name="q"
+                value="{{ query }}"
+                minlength="2"
+                maxlength="120"
+                placeholder="{{ 'bookshelf.search_placeholder'|trans }}"
+                autocomplete="off"
+            >
+            <button class="btn" type="submit">{{ 'bookshelf.search_action'|trans }}</button>
         </div>
-        <div class="mb-5">
-            <p class="measure">{{ 'bookshelf.gotIdea'|trans }}</p>
+    </form>
+
+    {% if not available %}
+        <div class="bookshelf-notice" role="status">
+            <h2>{{ 'bookshelf.unavailable_title'|trans }}</h2>
+            <p>{{ 'bookshelf.unavailable_description'|trans }}</p>
         </div>
-    </section>
+    {% elseif queryTooShort %}
+        <div class="bookshelf-notice" role="status">
+            <p>{{ 'bookshelf.query_too_short'|trans }}</p>
+        </div>
+    {% elseif searched %}
+        <div class="bookshelf-results">
+            <p>{{ 'bookshelf.results'|trans({'%count%': books|length, '%query%': query}) }}</p>
+            <a href="{{ path('bookshelf') }}">{{ 'bookshelf.clear_search'|trans }}</a>
+        </div>
+
+        <div class="bookshelf-inventory">
+            {% for book in books %}
+                <article class="bookshelf-book">
+                    {% if book.image %}
+                        <a class="bookshelf-book__cover" href="{{ path('bookshelf_read', {id: book.id}) }}" tabindex="-1" aria-hidden="true">
+                            <img src="{{ book.image }}" alt="" loading="lazy">
+                        </a>
+                    {% else %}
+                        <div class="bookshelf-book__monogram" aria-hidden="true">
+                            {{ book.title|first|upper }}
+                        </div>
+                    {% endif %}
+
+                    <div class="bookshelf-book__body">
+                        <p class="bookshelf-book__format">{{ book.type|upper }}</p>
+                        <h2>
+                            <a href="{{ path('bookshelf_read', {id: book.id}) }}">{{ book.title }}</a>
+                        </h2>
+
+                        {% if book.authors is not empty %}
+                            <p class="bookshelf-book__authors">
+                                {{ 'bookshelf.by_author'|trans({'%author%': book.authors|join(', ')}) }}
+                            </p>
+                        {% endif %}
+
+                        {% if book.summary %}
+                            <p>{{ book.summary }}</p>
+                        {% endif %}
+
+                        <div class="bookshelf-book__meta">
+                            <span>{{ 'bookshelf.chapter_count'|trans({'%count%': book.chapterCount}) }}</span>
+                            {% if book.language %}<span>{{ book.language|upper }}</span>{% endif %}
+                            {% if book.releaseDate %}<span>{{ book.releaseDate }}</span>{% endif %}
+                            {% if book.version %}<span>{{ book.version }}</span>{% endif %}
+                        </div>
+
+                        {% if book.topics is not empty %}
+                            <div class="bookshelf-book__topics">
+                                {% for topic in book.topics|slice(0, 5) %}
+                                    <span>#{{ topic }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id}) }}">
+                        {{ 'bookshelf.read_book'|trans }}
+                        {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
+                    </a>
+                </article>
+            {% else %}
+                <div class="bookshelf-empty">
+                    {{ ux_icon('iconoir:book-stack', {class: 'icon'}) }}
+                    <h2>{{ 'bookshelf.no_results_title'|trans }}</h2>
+                    <p>{{ 'bookshelf.no_results_description'|trans }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bookshelf-start">
+            {{ ux_icon('iconoir:book-stack', {class: 'icon'}) }}
+            <h2>{{ 'bookshelf.start_title'|trans }}</h2>
+            <p>{{ 'bookshelf.start_description'|trans }}</p>
+        </div>
+    {% endif %}
+</section>
 {% endblock %}
-
-{% block aside %}
-    <twig:Atoms:FeaturedWriters />
-{% endblock %}
-
