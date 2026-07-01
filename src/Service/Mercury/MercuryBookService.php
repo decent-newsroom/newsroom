@@ -40,9 +40,6 @@ final class MercuryBookService
                 $books[$coordinate] = $book;
             }
 
-            if (count($order) >= self::MAX_SEARCH_RESULTS) {
-                break;
-            }
         }
 
         return array_map(function (string $coordinate) use ($books): array {
@@ -50,7 +47,7 @@ final class MercuryBookService
             unset($book['chapterRefs']);
 
             return $book;
-        }, $order);
+        }, array_slice($order, 0, self::MAX_SEARCH_RESULTS));
     }
 
     /**
@@ -352,7 +349,13 @@ final class MercuryBookService
     {
         $value = preg_replace('/^pg\d+-chapter-\d+-?/i', '', $identifier) ?? $identifier;
         $value = trim(str_replace(['-', '_'], ' ', $value));
+        $value = mb_convert_case($value, MB_CASE_TITLE);
+        $value = preg_replace_callback(
+            '/\b[ivxlcdm]+\b/i',
+            static fn (array $match): string => strtoupper($match[0]),
+            $value,
+        ) ?? $value;
 
-        return $value !== '' ? mb_convert_case($value, MB_CASE_TITLE) : $identifier;
+        return $value !== '' ? $value : $identifier;
     }
 }

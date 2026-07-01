@@ -32,7 +32,6 @@
     <form class="bookshelf-search" action="{{ path('bookshelf') }}" method="get">
         <label for="bookshelf-query">{{ 'bookshelf.search_label'|trans }}</label>
         <div class="bookshelf-search__control">
-            {{ ux_icon('iconoir:search', {class: 'icon'}) }}
             <input
                 id="bookshelf-query"
                 type="search"
@@ -43,7 +42,9 @@
                 placeholder="{{ 'bookshelf.search_placeholder'|trans }}"
                 autocomplete="off"
             >
-            <button class="btn" type="submit">{{ 'bookshelf.search_action'|trans }}</button>
+            <button class="icon-button" type="submit" aria-label="{{ 'bookshelf.search_action'|trans }}">
+                {{ ux_icon('iconoir:search', {class: 'icon'}) }}
+            </button>
         </div>
     </form>
 

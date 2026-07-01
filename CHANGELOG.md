@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.48
+
+- [Improvement] Restyle search bar in `/bookshelf`.
+
 ## v0.0.47
 
 - [Feature] Added a standalone Mercury-backed `/bookshelf` with remote kind `30040` metadata search, replaceable-event deduplication, batched kind `30041` chapter retrieval in index order, and a continuous AsciiDoc book reader that does not fall back to the local relay catalogue.

@@ -98,19 +98,9 @@ trait NavigationBuilderTrait
                 'label' => 'bookshelf.nav.library',
                 'items' => [
                     ['label' => 'bookshelf.nav.search', 'route' => 'bookshelf', 'icon' => 'iconoir:book-stack'],
-                    ['label' => 'nav.newsstand', 'route' => 'newsstand', 'icon' => 'iconoir:journal-page'],
                 ],
             ],
         ];
-
-        if ($isAuthenticated) {
-            $sections[] = [
-                'label' => 'nav.personal',
-                'items' => [
-                    ['label' => 'nav.readingNook', 'route' => 'reading_nook', 'icon' => 'iconoir:bookmark'],
-                ],
-            ];
-        }
 
         return $sections;
     }

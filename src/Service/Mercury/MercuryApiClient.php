@@ -77,7 +77,7 @@ final class MercuryApiClient
     {
         $eventIds = array_values(array_unique(array_filter(
             $eventIds,
-            static fn (mixed $id): bool => is_string($id) && preg_match('/^[a-f0-9]{64}$/i', $id) === 1,
+            static fn (string $id): bool => preg_match('/^[a-f0-9]{64}$/i', $id) === 1,
         )));
 
         $events = [];
@@ -103,7 +103,7 @@ final class MercuryApiClient
     {
         $authors = array_values(array_unique(array_filter(
             $authors,
-            static fn (mixed $author): bool => is_string($author) && $author !== '',
+            static fn (string $author): bool => $author !== '',
         )));
 
         if ($authors === []) {
