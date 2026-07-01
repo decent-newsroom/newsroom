@@ -9,25 +9,6 @@
     gap: var(--spacing-5);
 }
 
-.bookshelf-intro {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(14rem, 1fr);
-    gap: var(--spacing-6);
-    padding-bottom: var(--spacing-4);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.bookshelf-intro p {
-    margin: 0;
-    color: var(--color-text-mid);
-}
-
-.bookshelf-intro p:first-child {
-    max-width: 62ch;
-    color: var(--color-text);
-    font-size: var(--font-size-lg);
-}
-
 .bookshelf-search {
     display: grid;
     gap: var(--spacing-2);

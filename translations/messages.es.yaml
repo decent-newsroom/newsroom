@@ -316,9 +316,6 @@ newsstand:
 bookshelf:
     heading: 'Bookshelf'
     eyebrow: 'books carried by Nostr'
-    description: 'Busca libros indexados por Mercury'
-    description_prefix: 'Busca libros indexados por'
-    description_suffix: ''
     noBooks: 'No books yet.'
     search_hint: 'Mercury is the only catalogue and content source used here.'
     search_label: 'Find a book'

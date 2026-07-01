@@ -317,9 +317,6 @@ newsstand:
 bookshelf:
     heading: 'Libreria'
     eyebrow: 'libri trasportati da Nostr'
-    description: 'Cerca libri indicizzati da Mercury'
-    description_prefix: 'Cerca libri indicizzati da'
-    description_suffix: ''
     noBooks: 'Nessun libro ancora.'
     moreSoon: 'Altri libri in arrivo'
     onlyBeginning: 'questo è solo l''inizio'

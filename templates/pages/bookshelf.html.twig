@@ -38,16 +38,6 @@
 >
     <twig:Atoms:PageHeading :heading="'bookshelf.heading'|trans" :tagline="'bookshelf.eyebrow'|trans" />
 
-    <div class="bookshelf-intro">
-        <p>
-            {{ 'bookshelf.description_prefix'|trans }}
-            <a href="https://mercury-relay.imwald.eu/" target="_blank" rel="noreferrer">
-                Mercury
-            </a>{{ 'bookshelf.description_suffix'|trans }}
-        </p>
-        <p>{{ 'bookshelf.search_hint'|trans }}</p>
-    </div>
-
     <form class="bookshelf-search" action="{{ path('bookshelf') }}" method="get">
         <label for="bookshelf-query">{{ 'bookshelf.search_label'|trans }}</label>
         <div class="bookshelf-search__control">

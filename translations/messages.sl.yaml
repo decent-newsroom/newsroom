@@ -316,9 +316,6 @@ newsstand:
 bookshelf:
     heading: 'Bookshelf'
     eyebrow: 'books carried by Nostr'
-    description: 'Išči knjige, ki jih indeksira Mercury'
-    description_prefix: 'Išči knjige, ki jih indeksira'
-    description_suffix: ''
     noBooks: 'No books yet.'
     search_hint: 'Mercury is the only catalogue and content source used here.'
     search_label: 'Find a book'

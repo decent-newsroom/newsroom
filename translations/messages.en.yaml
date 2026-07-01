@@ -331,9 +331,6 @@ newsstand:
 bookshelf:
     heading: 'Bookshelf'
     eyebrow: 'books carried by Nostr'
-    description: 'Search books indexed by Mercury'
-    description_prefix: 'Search books indexed by'
-    description_suffix: ''
     noBooks: 'No books yet.'
     moreSoon: 'More books soon'
     onlyBeginning: 'this is only the beginning'
