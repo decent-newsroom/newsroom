@@ -409,6 +409,8 @@ All Essayist-specific knobs are now config — there is no hardcoded URL shape. 
 
 For 404 errors, service health issues, or configuration problems, see **[`documentation/Essayist/troubleshooting.md`](../Essayist/troubleshooting.md)**.
 
+If `strfry-essayist` logs `Protected event and no serviceUrl configured`, the relay started without a canonical public URL. Ensure `ESSAYIST_RELAY_PUBLIC_URL` is set and that the compose startup renders `serviceUrl` into the strfry config before launching the relay process.
+
 ---
 
 ## Open Items
