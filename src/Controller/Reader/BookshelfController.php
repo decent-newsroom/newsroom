@@ -57,10 +57,13 @@ final class BookshelfController extends AbstractController
     )]
     public function read(
         string $id,
+        Request $request,
         MercuryBookService $bookService,
         AsciiDocConverter $asciiDocConverter,
         LoggerInterface $logger,
     ): Response {
+        $query = trim((string) $request->query->get('q', ''));
+
         try {
             $book = $bookService->getBook(strtolower($id));
         } catch (MercuryApiException $exception) {
@@ -73,6 +76,7 @@ final class BookshelfController extends AbstractController
                 'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
                 'book' => null,
                 'available' => false,
+                'query' => $query,
             ], new Response(status: Response::HTTP_SERVICE_UNAVAILABLE));
         }
 
@@ -81,6 +85,7 @@ final class BookshelfController extends AbstractController
                 'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
                 'book' => null,
                 'available' => true,
+                'query' => $query,
             ], new Response(status: Response::HTTP_NOT_FOUND));
         }
 
@@ -110,6 +115,7 @@ final class BookshelfController extends AbstractController
             'bookshelfNav' => $this->buildBookshelfNav($this->getUser() !== null),
             'book' => $book,
             'available' => true,
+            'query' => $query,
         ]);
     }
 }

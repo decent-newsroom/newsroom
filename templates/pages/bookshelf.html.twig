@@ -25,7 +25,12 @@
     <twig:Atoms:PageHeading :heading="'bookshelf.heading'|trans" :tagline="'bookshelf.eyebrow'|trans" />
 
     <div class="bookshelf-intro">
-        <p>{{ 'bookshelf.description'|trans }}</p>
+        <p>
+            {{ 'bookshelf.description_prefix'|trans }}
+            <a href="https://mercury-relay.imwald.eu/" target="_blank" rel="noreferrer">
+                Mercury
+            </a>{{ 'bookshelf.description_suffix'|trans }}
+        </p>
         <p>{{ 'bookshelf.search_hint'|trans }}</p>
     </div>
 
@@ -66,9 +71,9 @@
         <div class="bookshelf-inventory">
             {% for book in books %}
                 <article class="bookshelf-book">
-                    {% if book.image %}
-                        <a class="bookshelf-book__cover" href="{{ path('bookshelf_read', {id: book.id}) }}" tabindex="-1" aria-hidden="true">
-                            <img src="{{ book.image }}" alt="" loading="lazy">
+                    {% if book.coverImage %}
+                        <a class="bookshelf-book__cover" href="{{ path('bookshelf_read', {id: book.id, q: query}) }}" tabindex="-1" aria-hidden="true">
+                            <img src="{{ book.coverImage }}" alt="" loading="lazy">
                         </a>
                     {% else %}
                         <div class="bookshelf-book__monogram" aria-hidden="true">
@@ -79,7 +84,7 @@
                     <div class="bookshelf-book__body">
                         <p class="bookshelf-book__format">{{ book.type|upper }}</p>
                         <h2>
-                            <a href="{{ path('bookshelf_read', {id: book.id}) }}">{{ book.title }}</a>
+                            <a href="{{ path('bookshelf_read', {id: book.id, q: query}) }}">{{ book.title }}</a>
                         </h2>
 
                         {% if book.authors is not empty %}
@@ -108,7 +113,7 @@
                         {% endif %}
                     </div>
 
-                    <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id}) }}">
+                    <a class="bookshelf-book__open" href="{{ path('bookshelf_read', {id: book.id, q: query}) }}">
                         {{ 'bookshelf.read_book'|trans }}
                         {{ ux_icon('iconoir:arrow-right', {class: 'icon'}) }}
                     </a>

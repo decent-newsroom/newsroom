@@ -2,7 +2,7 @@
 
 ## v0.0.48
 
-- [Improvement] Restyle search bar in `/bookshelf`.
+- [Improvement] Restyle search bar in `/bookshelf`, preserve query, update translations.
 
 ## v0.0.47
 

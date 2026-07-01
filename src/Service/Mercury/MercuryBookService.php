@@ -147,7 +147,7 @@ final class MercuryBookService
             'title' => $this->firstTagValue($tags, 'title') ?? $identifier,
             'summary' => $this->firstNonEmptyTagValue($tags, ['summary', 'description']),
             'authors' => $this->tagValues($tags, 'author'),
-            'image' => $this->httpUrlTag($tags, 'image'),
+            'coverImage' => $this->httpUrlTag($tags, 'image'),
             'source' => $this->httpUrlTag($tags, 'source'),
             'language' => $this->firstTagValue($tags, 'l'),
             'releaseDate' => $this->firstNonEmptyTagValue($tags, ['release_date', 'published_on']),

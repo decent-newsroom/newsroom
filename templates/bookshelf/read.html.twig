@@ -11,7 +11,7 @@
         <meta property="og:type" content="book">
         <meta property="og:url" content="{{ app.request.uri }}">
         {% if book.summary %}<meta property="og:description" content="{{ book.summary }}">{% endif %}
-        {% if book.image %}<meta property="og:image" content="{{ book.image }}">{% endif %}
+        {% if book.coverImage %}<meta property="og:image" content="{{ book.coverImage }}">{% endif %}
 
         <script type="application/ld+json">
         {
@@ -25,7 +25,7 @@
                 {% endfor %}
             ],
             "inLanguage": {{ book.language|default(null)|json_encode|raw }},
-            "image": {{ book.image|default(null)|json_encode|raw }},
+            "image": {{ book.coverImage|default(null)|json_encode|raw }},
             "isBasedOn": {{ book.source|default(null)|json_encode|raw }}
         }
         </script>
@@ -34,7 +34,7 @@
 
 {% block body %}
 <section class="bookshelf-reader">
-    <a class="bookshelf-reader__back" href="{{ path('bookshelf') }}">
+    <a class="bookshelf-reader__back" href="{{ path('bookshelf', query ? {q: query} : {}) }}">
         {{ ux_icon('iconoir:arrow-left', {class: 'icon'}) }}
         {{ 'bookshelf.back'|trans }}
     </a>
@@ -146,7 +146,7 @@
                     {{ 'bookshelf.unavailable_description'|trans }}
                 {% endif %}
             </p>
-            <a class="btn" href="{{ path('bookshelf') }}">{{ 'bookshelf.search_again'|trans }}</a>
+            <a class="btn" href="{{ path('bookshelf', query ? {q: query} : {}) }}">{{ 'bookshelf.search_again'|trans }}</a>
         </div>
     {% endif %}
 </section>

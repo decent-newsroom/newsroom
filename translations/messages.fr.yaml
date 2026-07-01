@@ -316,9 +316,11 @@ newsstand:
 bookshelf:
     heading: 'Bookshelf'
     eyebrow: 'books carried by Nostr'
-    description: 'Search books indexed by Mercury and read their ordered NKBIP-01 chapters without waiting for relay discovery.'
+    description: 'Recherchez des livres indexés par Mercury'
+    description_prefix: 'Recherchez des livres indexés par'
+    description_suffix: ''
     noBooks: 'No books yet.'
-    search_hint: 'Mercury is the only catalogue and content source used here. If a book is not available there, the bookshelf says so plainly.'
+    search_hint: 'Mercury is the only catalogue and content source used here.'
     search_label: 'Find a book'
     search_placeholder: 'Search by title, author, source, or identifier…'
     search_action: 'Search books'

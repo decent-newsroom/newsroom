@@ -107,19 +107,6 @@
     border-bottom: 1px solid var(--color-border);
 }
 
-.bookshelf-book::before {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 2px;
-    background: transparent;
-}
-
-.bookshelf-book:hover::before,
-.bookshelf-book:focus-within::before {
-    background: var(--color-primary);
-}
-
 .bookshelf-book__cover,
 .bookshelf-book__monogram {
     width: 6rem;
@@ -137,7 +124,7 @@
 
 .bookshelf-book__monogram {
     color: var(--color-primary-link);
-    font-family: var(--font-family);
+    font-family: var(--font-family), serif;
     font-size: 2.75rem;
     font-weight: 700;
 }
