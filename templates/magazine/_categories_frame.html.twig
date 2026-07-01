@@ -7,7 +7,7 @@
                         href="{{ path('magazine-category', { slug: preview.categorySlug, mag: mag }) }}"
                         data-turbo-frame="_top"
                     >
-                        {{ preview.categoryTitle ?: preview.categorySlug }}
+                        <span>Latest from</span> {{ preview.categoryTitle ?: preview.categorySlug }}
                     </a>
                 </div>
                 {% if preview.article %}
@@ -17,7 +17,7 @@
                 {% else %}
                     <div class="card mb-4">
                         <div class="card-body">
-                            <p class="text-muted mb-0">No cached preview article available yet.</p>
+                            <p class="text-muted mb-0">No preview article available yet.</p>
                         </div>
                     </div>
                 {% endif %}
