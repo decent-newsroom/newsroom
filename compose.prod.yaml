@@ -168,9 +168,11 @@ services:
       - /bin/sh
       - -c
       - |
+        export DEFAULT_SERVICE_URL="${RELAY_PUBLIC_URL:-wss://relay.localhost}"
+        sed "s|__DEFAULT_SERVICE_URL__|$${DEFAULT_SERVICE_URL}|g" /etc/strfry.conf > /tmp/strfry.conf
         cp /app/write-policy.sh /usr/local/bin/default-write-policy.sh
         chmod +x /usr/local/bin/default-write-policy.sh
-        ./strfry relay /etc/strfry.conf &
+        ./strfry relay /tmp/strfry.conf &
         ./strfry router /etc/router.conf &
         wait
     volumes:
@@ -180,6 +182,8 @@ services:
       - ./docker/strfry/router.conf:/etc/router.conf:ro
       - strfry_data:/var/lib/strfry
     ports: !reset []
+    environment:
+      RELAY_PUBLIC_URL: ${RELAY_PUBLIC_URL:-wss://relay.localhost}
 ###< strfry relay ###
 
 ###> strfry-essayist relay (prod overrides) ###
