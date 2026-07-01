@@ -570,9 +570,15 @@ export default class extends Controller {
       tags.push(['client', 'Decent Newsroom']);
     }
 
+    // Add advanced metadata tags
+    if (formData.advancedMetadata) {
+      const advancedTags = buildAdvancedTags(formData.advancedMetadata);
+      tags.push(...advancedTags);
+    }
+
     // NIP-70: when publishing ONLY to Essayist, mark the event as protected so
-    // cooperating relays do not re-broadcast it. Idempotent — only added if
-    // not already present (e.g. via advancedMetadata.isProtected).
+    // cooperating relays do not re-broadcast it. Idempotent against existing
+    // advanced metadata or already-loaded protected tags.
     if (formData.publishOnlyToEssayist) {
       const hasProtectedTag = tags.some(t => Array.isArray(t) && t[0] === '-');
       if (!hasProtectedTag) {
@@ -580,11 +586,6 @@ export default class extends Controller {
       }
     }
 
-    // Add advanced metadata tags
-    if (formData.advancedMetadata) {
-      const advancedTags = buildAdvancedTags(formData.advancedMetadata);
-      tags.push(...advancedTags);
-    }
 
     // Auto-generate p/e/a tags from nostr: references in content (NIP-27)
     // Collect mention names from Quill's nostrMention embeds (hex → displayName)
