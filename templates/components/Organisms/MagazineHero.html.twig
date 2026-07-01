@@ -5,21 +5,21 @@
 
     {% if not preview|default(false) and magazine is defined and magazine %}
         {# Floating actions menu in the top-right corner #}
-        <div data-controller="utility--share-dropdown" class="dropdown share-dropdown magazine-hero__actions">
-            <button data-utility--share-dropdown-target="button"
+        <div data-controller="ui--magazine-actions-dropdown" class="dropdown share-dropdown magazine-hero__actions">
+            <button data-ui--magazine-actions-dropdown-target="button"
                     class="btn btn-sm"
                     type="button"
                     aria-haspopup="true"
                     aria-expanded="false"
-                    data-action="click->utility--share-dropdown#toggle">
+                    data-action="click->ui--magazine-actions-dropdown#toggle">
                 ⋯
             </button>
-            <div data-utility--share-dropdown-target="menu"
+            <div data-ui--magazine-actions-dropdown-target="menu"
                  class="dropdown-menu dropdown-menu-end"
                  style="display:none;position:absolute;z-index:1000;min-width:200px;">
                 <button class="dropdown-item"
                         type="button"
-                        data-action="click->utility--share-dropdown#copy"
+                        data-action="click->ui--magazine-actions-dropdown#copy"
                         data-copy="{{ url('magazine-index', {mag: mag}) }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h6m0 0v6m0-6L10 19l-7-7" />
@@ -28,13 +28,24 @@
                 </button>
                 <button class="dropdown-item"
                         type="button"
-                        data-action="click->utility--share-dropdown#copy"
+                        data-action="click->ui--magazine-actions-dropdown#copy"
                         data-copy="{{ magazine|naddrEncode }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align:middle;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
                     </svg>
                     Naddr
                 </button>
+                {% if app.user %}
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item"
+                            type="button"
+                            data-action="click->ui--magazine-actions-dropdown#broadcast"
+                            data-event-id="{{ magazine.id }}"
+                            data-coordinate="{{ magazine.kind }}:{{ magazine.pubkey }}:{{ magazine.slug ?? mag }}">
+                        {{ ux_icon('iconoir:rss-feed', {class: 'icon action-icon', 'aria-hidden': 'true'}) }}
+                        Broadcast to Relays
+                    </button>
+                {% endif %}
                 {% if app.user and not isOwner|default(false) %}
                     <div class="dropdown-divider"></div>
                     <form method="post" action="{{ path('updates_subscriptions_add') }}" class="m-0">
