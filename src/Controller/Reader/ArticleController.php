@@ -532,11 +532,7 @@ class ArticleController  extends AbstractController
         // article author may access. Everyone else gets the standard not-found view so the
         // existence of the exclusive is not disclosed.
         if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
-            return $this->render('pages/article_not_found.html.twig', [
-                'message' => 'The article could not be found.',
-                'searchQuery' => $slug,
-                'essayistAccessDenied' => true,
-            ]);
+            return $this->render('pages/article_essayist_access_required.html.twig');
         }
 
         // Parse advanced metadata from raw event for zap splits etc.

@@ -1,0 +1,23 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ 'article.essayistAccessDeniedTitle'|trans }}{% endblock %}
+
+{% block body %}
+    <twig:Atoms:PageHeading heading="{{ 'article.essayistAccessDeniedTitle'|trans }}" />
+    <div class="w-container">
+        <section class="text-center">
+            <div class="notice warning mt-4">
+                <h3 class="h5 mb-3">{{ 'article.essayistAccessDeniedTitle'|trans }}</h3>
+                <p>{{ 'article.essayistAccessDeniedHint'|trans }}</p>
+                <a href="{{ path('app_static_essayist') }}" class="btn btn-primary mt-2">
+                    {{ 'article.essayistAccessDeniedCta'|trans }}
+                </a>
+            </div>
+        </section>
+
+        <section class="text-center mt-5">
+            <a href="{{ path('home') }}" class="btn btn-secondary">{{ 'article.returnHome'|trans }}</a>
+        </section>
+    </div>
+{% endblock %}
+
