@@ -43,10 +43,7 @@ function buildAdvancedTags(metadata) {
     tags.push(['expiration', metadata.expirationTimestamp.toString()]);
   }
 
-  // Protected event
-  if (metadata.isProtected) {
-    tags.push(['-']);
-  }
+  // Intentionally do not emit NIP-70 protected tags from editor metadata.
 
   // Sources (r tags)
   if (metadata.sources && Array.isArray(metadata.sources)) {
@@ -576,15 +573,6 @@ export default class extends Controller {
       tags.push(...advancedTags);
     }
 
-    // NIP-70: when publishing ONLY to Essayist, mark the event as protected so
-    // cooperating relays do not re-broadcast it. Idempotent against existing
-    // advanced metadata or already-loaded protected tags.
-    if (formData.publishOnlyToEssayist) {
-      const hasProtectedTag = tags.some(t => Array.isArray(t) && t[0] === '-');
-      if (!hasProtectedTag) {
-        tags.push(['-']);
-      }
-    }
 
 
     // Auto-generate p/e/a tags from nostr: references in content (NIP-27)

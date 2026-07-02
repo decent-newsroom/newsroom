@@ -4,6 +4,9 @@
 
 - [Bug] Made `POST /api/fetch-chapter` idempotent for duplicate event saves: unique-constraint races are now treated as success, and the magazine chapters frame cache is invalidated after fetch completion so missing-chapter placeholders do not persist.
 - [Feature] Added a new authenticated `Expressions` personal workspace (`/expressions/workspace`) with Reading Nook/Newsroom shell styling, local sidebar navigation, and integrated expression/spell feed-testing tabs; expression create/edit screens now render inside the same section shell.
+- [Bug] Removed editor-side NIP-70 protected tag emission for article publishes; Essayist-only publishes now rely on local `essayist_exclusive` marking and Essayist relay context instead.
+- [Bug] Essayist-exclusive article visibility now includes the article author in addition to current Essayist members/admins.
+- [Feature] Added an `Essayist exclusive` flag on article pages so members/authors can clearly see when an article is restricted to Essayist access.
 - [Bug] Moved relay public URL settings to `relay.auth.serviceUrl` in both `docker/strfry/strfry.conf` and `docker/strfry-essayist/strfry.conf` so NIP-42 AUTH uses the correct namespace.
 - [Bug] Fixed `strfry`/`strfry-essayist` startup command ordering in compose files to use `./strfry --config /tmp/strfry.conf relay`, ensuring the generated templated config file is actually loaded.
 - [Bug] Applied the same startup `serviceUrl` templating flow to `strfry-essayist` in `compose.prod.yaml`, so `ESSAYIST_RELAY_PUBLIC_URL` is re-injected on every restart.

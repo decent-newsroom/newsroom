@@ -177,11 +177,18 @@
                     </span>
                 </div>
             {% endif %}
-            {% if isProtected %}
-                <div class="article-protected-notice">
-                    <span class="article-protected-badge" title="{{ 'articleActions.protectedNote'|trans }}">
-                        {{ 'articleActions.protectedBadge'|trans }}
-                    </span>
+            {% if article.essayistExclusive or isProtected %}
+                <div class="article-flags">
+                    {% if article.essayistExclusive %}
+                        <span class="article-flag article-flag--essayist" title="{{ 'articleActions.essayistExclusiveNote'|trans }}">
+                            {{ 'articleActions.essayistExclusiveBadge'|trans }}
+                        </span>
+                    {% endif %}
+                    {% if isProtected %}
+                        <span class="article-flag article-flag--protected" title="{{ 'articleActions.protectedNote'|trans }}">
+                            {{ 'articleActions.protectedBadge'|trans }}
+                        </span>
+                    {% endif %}
                 </div>
             {% endif %}
         </div>

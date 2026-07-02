@@ -32,19 +32,36 @@ class ArticleController  extends AbstractController
     ) {}
 
     /**
-     * True when the current viewer is allowed to read Essayist-exclusive
-     * articles (logged-in member, candidate, early bird, or admin).
+     * True when the current viewer can read Essayist-exclusive articles.
+     * Access is granted to current members/admins, or to the article's author.
      */
-    private function viewerCanSeeEssayistExclusive(): bool
+    private function viewerCanSeeEssayistExclusive(?Article $article = null): bool
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
             return false;
         }
+
         $roles = $user->getRoles();
-        return in_array('ROLE_ADMIN', $roles, true)
+        if (in_array('ROLE_ADMIN', $roles, true)
             || in_array(RolesEnum::ESSAYIST_MEMBER->value, $roles, true)
-            || in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true);
+            || in_array(RolesEnum::ESSAYIST_EARLY_BIRD->value, $roles, true)
+        ) {
+            return true;
+        }
+
+        if (!$article instanceof Article) {
+            return false;
+        }
+
+        try {
+            $key = new Key();
+            $viewerPubkey = $key->convertToHex($user->getUserIdentifier());
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return hash_equals(strtolower((string) $article->getPubkey()), strtolower($viewerPubkey));
     }
 
     /**
@@ -438,7 +455,7 @@ class ArticleController  extends AbstractController
                 'pubkey' => $pubkey,
             ], ['createdAt' => 'DESC']);
 
-            if ($article?->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive()) {
+            if ($article?->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
                 $article = null;
             }
         } catch (\Throwable) {
@@ -511,10 +528,10 @@ class ArticleController  extends AbstractController
             ]);
         }
 
-        // Gate Essayist-exclusive articles: only logged-in members or admins
-        // may access. Everyone else gets the standard not-found view so the
+        // Gate Essayist-exclusive articles: current members/admins or the
+        // article author may access. Everyone else gets the standard not-found view so the
         // existence of the exclusive is not disclosed.
-        if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive()) {
+        if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The article could not be found.',
                 'searchQuery' => $slug

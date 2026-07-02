@@ -498,7 +498,7 @@ class EditorController extends AbstractController
                     // explicitly asked for an Essayist-only distribution.
                     $relays = [$essayistRelayPublicUrl];
                     $ensureLocalRelay = false;
-                    $logger->info('Publishing ONLY to Essayist relay (NIP-70 protected)', [
+                    $logger->info('Publishing ONLY to Essayist relay', [
                         'event_id' => $eventObj->getId(),
                         'pubkey'   => substr($signedEvent['pubkey'] ?? '', 0, 16),
                     ]);

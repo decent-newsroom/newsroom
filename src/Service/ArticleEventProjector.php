@@ -56,13 +56,11 @@ class ArticleEventProjector
      * @param bool   $markEssayistExclusive When true, the persisted `Article` row
      *               is flagged `essayist_exclusive = true`. Callers should only
      *               pass `true` when they have already verified that the event
-     *               legitimately belongs to the Essayist surface — i.e. it was
-     *               received from `strfry-essayist` AND carries the NIP-70 `["-"]`
-     *               (protected) tag. The NIP-70 tag on its own is not enough,
-     *               since any author on any relay can use it for unrelated
-     *               reasons. The generic ingestion path (local strfry router,
-     *               gateway, fetch handlers) always passes `false` so unrelated
-     *               protected events from public relays are not shadow-hidden.
+     *               belongs to the Essayist surface (for example: received from
+     *               the internal Essayist relay or posted Essayist-only from the editor).
+     *               Generic ingestion paths (local strfry router, gateway, fetch
+     *               handlers) should pass `false` so public-relay content is not
+     *               shadow-hidden by mistake.
      * @throws \Exception
      */
     public function projectArticleFromEvent(object $event, string $relayUrl, bool $markEssayistExclusive = false): void
@@ -90,9 +88,8 @@ class ArticleEventProjector
             $article = $this->articleFactory->createFromLongFormContentEvent($event);
 
             // Caller-asserted Essayist-exclusivity (see method docblock). The
-            // factory deliberately does not derive this from the `-` tag alone
-            // because NIP-70 is a generic marker; only the caller knows whether
-            // the source relay context makes the marker meaningful here.
+            // factory deliberately does not infer this on its own; only the
+            // caller knows whether the source relay context is Essayist-only.
             if ($markEssayistExclusive) {
                 $article->setEssayistExclusive(true);
             }

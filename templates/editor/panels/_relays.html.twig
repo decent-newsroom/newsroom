@@ -31,8 +31,8 @@
            - "Also publish to Essayist": appends the Essayist relay to the
              outbound list alongside the user's regular NIP-65 outbox relays.
            - "Publish ONLY to Essayist": restricts the publish target list
-             to the Essayist relay only and marks the event with the NIP-70
-             `-` protected tag so cooperating relays do not re-broadcast it. #}
+             to the Essayist relay only and stores the article as
+             essayist-exclusive in Decent Newsroom. #}
         {% set is_essayist_member = is_granted('ROLE_ESSAYIST_MEMBER') %}
         {% set is_admin_preview = is_granted('ROLE_ADMIN') and not is_essayist_member %}
         {% if essayist_relay_url is defined and essayist_relay_url and (is_essayist_member or is_admin_preview) %}
@@ -74,9 +74,7 @@
                      data-ui--essayist-publish-options-target="onlyWarning"
                      hidden>
                     This article will only be visible to Essayist members and
-                    will not appear on public feeds. The event is marked with a
-                    NIP-70 <code>-</code> tag so cooperating relays do not
-                    re-broadcast it.
+                    the author, and will not appear on public feeds.
                 </div>
             </div>
         {% endif %}

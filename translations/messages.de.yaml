@@ -596,6 +596,8 @@ articleActions:
     highlights: 'Markierungen'
     protectedBadge: 'Geschützt (NIP-70)'
     protectedNote: 'Dieser Artikel ist NIP-70-geschützt. Nur der Autor kann ihn erneut an Relays senden.'
+    essayistExclusiveBadge: 'Essayist-exklusiv'
+    essayistExclusiveNote: 'Dieser Artikel ist nur für den Autor und aktuelle Essayist-Mitglieder sichtbar.'
     nostrIdentifiers: 'Nostr-Kennungen'
     protectedShort: 'Geschützt'
     adminOnly: 'Admin'

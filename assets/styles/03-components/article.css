@@ -12,18 +12,28 @@ article {
     margin-top: var(--spacing-5);
 }
 
-/* NIP-70 protected article notice */
-.article-protected-notice {
+/* Article flags (Essayist-exclusive, protected) */
+.article-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
     padding: var(--spacing-1) 0 var(--spacing-2);
 }
 
-.article-protected-badge {
+.article-flag {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
     font-size: 0.75rem;
+    line-height: 1;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--color-border);
     color: var(--color-text-muted, #6b7280);
     cursor: help;
+}
+
+.article-flag--essayist {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
 }
 
 .article-main h2, .article-main h3,

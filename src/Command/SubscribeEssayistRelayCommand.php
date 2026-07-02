@@ -17,9 +17,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 /**
  * Subscribes to the internal Essayist relay (`strfry-essayist:7779`) for kind
  * 30023/30024 longform events and persists them through the standard
- * `ArticleEventProjector`. The factory honors the NIP-70 `["-"]` (protected)
- * tag at projection time and flips `essayist_exclusive = true` so the rest
- * of the app keeps these articles out of anonymous feeds and searches.
+ * `ArticleEventProjector`. Events received from this relay are persisted as
+ * `essayist_exclusive = true` so the rest of the app keeps them out of
+ * anonymous feeds and searches.
  *
  * The Essayist relay is only reachable on the internal Docker network and
  * only when the `essayist` compose profile is active. If the configured URL
@@ -52,9 +52,8 @@ final class SubscribeEssayistRelayCommand extends Command
         $this->setHelp(
             'Subscribes to the internal strfry-essayist relay for article events ' .
             '(kinds 30023, 30024) and persists them to the database via ArticleEventProjector. ' .
-            'Articles carrying the NIP-70 ["-"] protected tag are flagged essayist_exclusive ' .
-            'by ArticleFactory at projection time. This command is intended to run as part of ' .
-            'app:run-relay-workers when the essayist Docker profile is active.'
+            'Events coming from this relay are marked essayist_exclusive at projection time. ' .
+            'This command is intended to run as part of app:run-relay-workers when the essayist Docker profile is active.'
         );
     }
 
@@ -84,47 +83,28 @@ final class SubscribeEssayistRelayCommand extends Command
                         $eventId = substr($event->id ?? 'unknown', 0, 16) . '...';
                         $pubkey  = substr($event->pubkey ?? 'unknown', 0, 16) . '...';
                         $kind    = $event->kind ?? 'unknown';
-                        $isProtected = false;
-                        if (isset($event->tags) && is_array($event->tags)) {
-                            foreach ($event->tags as $tag) {
-                                if (is_array($tag) && ($tag[0] ?? null) === '-') {
-                                    $isProtected = true;
-                                    break;
-                                }
-                            }
-                        }
+                        $markEssayistExclusive = true;
 
                         $io->writeln(sprintf(
-                            '[%s] <fg=green>Essayist event:</> %s (kind: %s, pubkey: %s%s)',
+                            '[%s] <fg=green>Essayist event:</> %s (kind: %s, pubkey: %s)',
                             date('Y-m-d H:i:s'),
                             $eventId,
                             $kind,
                             $pubkey,
-                            $isProtected ? ', <fg=yellow>NIP-70 protected</>' : ''
                         ));
 
                         try {
-                            // Only flag `essayist_exclusive` when the event
-                            // carries the NIP-70 `["-"]` tag *and* arrived
-                            // here (= from strfry-essayist). The combination
-                            // is what disambiguates the otherwise-generic
-                            // NIP-70 marker: an author who tags `-` on the
-                            // members-only relay is using our exclusive
-                            // feature; an author who tags `-` on a public
-                            // relay (and whose event reaches us via the
-                            // local strfry router or NIP-65 outbox fetch)
-                            // is exercising their own privacy choice and
-                            // must not be shadow-hidden from anonymous
-                            // readers here.
+                            // Events hydrated from the internal Essayist relay
+                            // are treated as Essayist-exclusive content.
                             $this->projector->projectArticleFromEvent(
                                 $event,
                                 $relayUrl,
-                                $isProtected,
+                                $markEssayistExclusive,
                             );
                             $io->writeln(sprintf(
                                 '[%s] <fg=green>✓</> Article saved%s',
                                 date('Y-m-d H:i:s'),
-                                $isProtected ? ' (essayist_exclusive)' : ''
+                                $markEssayistExclusive ? ' (essayist_exclusive)' : ''
                             ));
                         } catch (\InvalidArgumentException $e) {
                             $io->writeln(sprintf(

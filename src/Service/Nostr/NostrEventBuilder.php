@@ -132,10 +132,6 @@ class NostrEventBuilder
             $tags[] = ['expiration', (string)$metadata->expirationTimestamp];
         }
 
-        // Protected event
-        if ($metadata->isProtected) {
-            $tags[] = ['-'];
-        }
 
         // Sources (r tags)
         foreach ($metadata->sources as $source) {

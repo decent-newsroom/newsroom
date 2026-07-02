@@ -599,6 +599,8 @@ articleActions:
     highlights: 'Označbe'
     protectedBadge: 'Zaščiteno (NIP-70)'
     protectedNote: 'Ta članek je zaščiten z NIP-70. Samo avtor ga lahko znova odda na releje.'
+    essayistExclusiveBadge: 'Ekskluzivno za Essayist'
+    essayistExclusiveNote: 'Ta članek je na voljo samo avtorju in trenutnim članom Essayist.'
     nostrIdentifiers: 'Nostr identifikatorji'
     protectedShort: 'Zaščiteno'
     adminOnly: 'admin'

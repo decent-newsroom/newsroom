@@ -599,6 +599,8 @@ articleActions:
     highlights: 'Surlignements'
     protectedBadge: 'Protégé (NIP-70)'
     protectedNote: "Cet article est protégé par NIP-70. Seul l'auteur peut le rediffuser vers d'autres relais."
+    essayistExclusiveBadge: 'Exclusif Essayist'
+    essayistExclusiveNote: "Cet article est disponible uniquement pour l'auteur et les membres Essayist actifs."
     nostrIdentifiers: 'Identifiants Nostr'
     protectedShort: 'Protégé'
     adminOnly: 'admin'

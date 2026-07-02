@@ -694,6 +694,8 @@ articleActions:
     highlights: 'Highlights'
     protectedBadge: 'Protected (NIP-70)'
     protectedNote: 'This article is NIP-70 protected. Only the author can re-broadcast it to additional relays.'
+    essayistExclusiveBadge: 'Essayist exclusive'
+    essayistExclusiveNote: 'This article is available to the author and current Essayist members only.'
     nostrIdentifiers: 'Nostr identifiers'
     protectedShort: 'Protected'
     adminOnly: 'admin'
