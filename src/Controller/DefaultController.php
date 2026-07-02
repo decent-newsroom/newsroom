@@ -1071,7 +1071,11 @@ class DefaultController extends AbstractController
     }
 
     #[Route('/mag/{mag}/chapters-frame', name: 'magazine-chapters-frame')]
-    public function magChaptersFrame(string $mag, EntityManagerInterface $entityManager): Response
+    public function magChaptersFrame(
+        string $mag,
+        EntityManagerInterface $entityManager,
+        CacheItemPoolInterface $cache,
+    ): Response
     {
         $eventRepository = $entityManager->getRepository(Event::class);
         if (!$eventRepository instanceof EventRepository) {
@@ -1083,13 +1087,25 @@ class DefaultController extends AbstractController
             return $this->render('magazine/_chapters_frame.html.twig', ['mag' => $mag, 'chapters' => []]);
         }
 
+        $cacheKey = 'magazine_chapters_frame_' . $mag;
+        $cacheItem = $cache->getItem($cacheKey);
+        if ($cacheItem->isHit() && is_string($cacheItem->get())) {
+            return new Response((string) $cacheItem->get());
+        }
+
         $structure = $this->parseMagazineStructure($magazine);
         $chapters = $this->resolveMagazineChapters($structure['chapterCoordinates'], $eventRepository);
 
-        return $this->render('magazine/_chapters_frame.html.twig', [
+        $html = $this->renderView('magazine/_chapters_frame.html.twig', [
             'mag' => $mag,
             'chapters' => $chapters,
         ]);
+
+        $cacheItem->set($html);
+        $cacheItem->expiresAfter(600);
+        $cache->save($cacheItem);
+
+        return new Response($html);
     }
 
     #[Route('/mag/{mag}/categories-frame', name: 'magazine-categories-frame')]

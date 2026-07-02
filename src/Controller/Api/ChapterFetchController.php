@@ -2,10 +2,12 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Event;
 use App\Enum\KindsEnum;
 use App\Service\Nostr\NostrClient;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Entity\Event;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,7 +20,8 @@ class ChapterFetchController extends AbstractController
     public function __construct(
         private readonly NostrClient $nostrClient,
         private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly CacheItemPoolInterface $cache,
     ) {}
 
     /**
@@ -38,6 +41,7 @@ class ChapterFetchController extends AbstractController
         }
 
         $coordinate = $data['coordinate'] ?? null;
+        $mag = $data['mag'] ?? null;
 
         if (!$coordinate) {
             return new JsonResponse([
@@ -90,30 +94,44 @@ class ChapterFetchController extends AbstractController
                 ], 404);
             }
 
-            // Save the chapter event to the database
-            $event = new Event();
-            $event->setId($nostrEvent->id);
-            $event->setEventId($nostrEvent->id);
-            $event->setKind($nostrEvent->kind);
-            $event->setPubkey($nostrEvent->pubkey);
-            $event->setContent($nostrEvent->content);
-            $event->setCreatedAt($nostrEvent->created_at);
-            $event->setTags($nostrEvent->tags);
-            $event->setSig($nostrEvent->sig);
+            $alreadyExists = $this->entityManager->find(Event::class, $nostrEvent->id) instanceof Event;
 
-            $this->entityManager->persist($event);
-            $this->entityManager->flush();
+            if (!$alreadyExists) {
+                $event = new Event();
+                $event->setId($nostrEvent->id);
+                $event->setEventId($nostrEvent->id);
+                $event->setKind($nostrEvent->kind);
+                $event->setPubkey($nostrEvent->pubkey);
+                $event->setContent($nostrEvent->content);
+                $event->setCreatedAt($nostrEvent->created_at);
+                $event->setTags($nostrEvent->tags);
+                $event->setSig($nostrEvent->sig);
 
-            $this->logger->info('Chapter successfully fetched and saved', [
+                try {
+                    $this->entityManager->persist($event);
+                    $this->entityManager->flush();
+                } catch (UniqueConstraintViolationException) {
+                    // Race-safe idempotency: if another request saved first, treat as success.
+                    $alreadyExists = true;
+                }
+            }
+
+            $this->invalidateMagazineChaptersCache($mag);
+
+            $this->logger->info('Chapter fetch completed', [
                 'coordinate' => $coordinate,
-                'event_id' => $nostrEvent->id
+                'event_id' => $nostrEvent->id,
+                'already_exists' => $alreadyExists,
             ]);
 
             return new JsonResponse([
                 'success' => true,
-                'message' => 'Chapter successfully fetched from Nostr and saved to database',
+                'message' => $alreadyExists
+                    ? 'Chapter already exists locally; cache refreshed.'
+                    : 'Chapter successfully fetched from Nostr and saved to database.',
                 'coordinate' => $coordinate,
-                'event_id' => $nostrEvent->id
+                'event_id' => $nostrEvent->id,
+                'already_exists' => $alreadyExists,
             ]);
 
         } catch (\Exception $e) {
@@ -130,5 +148,13 @@ class ChapterFetchController extends AbstractController
             ], 500);
         }
     }
-}
 
+    private function invalidateMagazineChaptersCache(mixed $mag): void
+    {
+        if (!is_string($mag) || $mag === '') {
+            return;
+        }
+
+        $this->cache->deleteItem('magazine_chapters_frame_' . $mag);
+    }
+}
