@@ -534,7 +534,8 @@ class ArticleController  extends AbstractController
         if ($article->isEssayistExclusive() && !$this->viewerCanSeeEssayistExclusive($article)) {
             return $this->render('pages/article_not_found.html.twig', [
                 'message' => 'The article could not be found.',
-                'searchQuery' => $slug
+                'searchQuery' => $slug,
+                'essayistAccessDenied' => true,
             ]);
         }
 

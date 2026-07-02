@@ -459,11 +459,6 @@
         font-size: 2rem;
     }
 
-    .bookshelf-book__open {
-        grid-column: 2;
-        padding: 0;
-    }
-
     .bookshelf-book__actions {
         grid-column: 2;
         justify-items: start;

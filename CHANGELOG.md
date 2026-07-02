@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Improvement] Opening an Essayist-exclusive article as a non-member now shows a dedicated membership-required message with a direct `Become a member` CTA instead of the generic not-found search flow.
 - [Bug] Made `POST /api/fetch-chapter` idempotent for duplicate event saves: unique-constraint races are now treated as success, and the magazine chapters frame cache is invalidated after fetch completion so missing-chapter placeholders do not persist.
 - [Feature] Added a new authenticated `Expressions` personal workspace (`/expressions/workspace`) with Reading Nook/Newsroom shell styling, local sidebar navigation, and integrated expression/spell feed-testing tabs; expression create/edit screens now render inside the same section shell.
 - [Bug] Removed editor-side NIP-70 protected tag emission for article publishes; Essayist-only publishes now rely on local `essayist_exclusive` marking and Essayist relay context instead.
