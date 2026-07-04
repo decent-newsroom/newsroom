@@ -1,5 +1,7 @@
 # Notifications Center
 
+> Status: design/schema note. The database migrations for notification subscriptions/items exist, but the current codebase does not include the `NotificationsController`, repository, templates, Stimulus stream controller, or CSS referenced below.
+
 Per-user notification feed with real-time Mercure toasts. Scope is deliberately narrow: users subscribe to **sources** (npub / publication / NIP-51 set) and are notified **only** when a new **long-form article (kind 30023)** or **publication index (kind 30040)** from that source is ingested by the application.
 
 Out of scope by design:
@@ -154,4 +156,3 @@ All routes require `ROLE_USER`.
 - No rate limit on fan-out (yet). If an author floods the network, every subscriber gets every event. Track per-subscription token-bucket here if it becomes a problem.
 - Retention: no pruning cron yet. A 90-day purge is a natural follow-up.
 - NIP-51 set expansion is computed per event, not cached. If a heavily-subscribed set becomes a hot path, wrap `NotificationMatcher::expandSet` in a short-TTL Redis cache keyed by the set coordinate + the set event's `created_at`.
-

@@ -26,7 +26,7 @@ There are five paths that can create or replace an `Article` row:
 | Strfry subscription worker | `app:run-relay-workers` | `ArticleEventProjector::projectArticleFromEvent` |
 | Author refresh | `FetchAuthorContentHandler` | `ArticleEventProjector::projectArticleFromEvent` *(was direct persist)* |
 | Editor publish | `POST /api/article/publish` | direct persist + `ReplaceableEventCleanupService::removeOlderArticleRevisions` *(was direct persist + nothing)* |
-| Sync article fetch | `ArticleController` (`/a/{naddr}`) | `ArticleEventProjector::projectArticleFromEvent` |
+| Sync article fetch | `ArticleController` (`/article/{naddr}`) | `ArticleEventProjector::projectArticleFromEvent` |
 | Backfill / RSS / API fetch / embed prefetch | various | `ArticleEventProjector::projectArticleFromEvent` |
 
 Every path either runs through the projector (which contains the NIP-01
@@ -163,4 +163,3 @@ A `resetManager()` call follows so the EM is usable for the next message.
 - The `Event` entity's `removeOlderEventVersions` cleanup still uses bulk
   DQL `DELETE` because `Event` is not indexed by FOS Elastica — there is
   no listener that needs to fire.
-

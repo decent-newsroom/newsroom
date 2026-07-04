@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Docs] Reviewed `documentation/` against the current codebase and corrected stale command names, route examples, moved controller paths, localization counts, broadcast UI component references, and status notes for unimplemented analytics/notification docs.
 - [Docs] Aligned `docs-public` with the current Symfony/Nostr architecture: removed obsolete private-chat claims and deleted stale chat documentation/config artifacts, corrected current editor/newsroom/article/subscription routes, refreshed Messenger transport and cron descriptions, and removed the stale `app:index-articles` command reference.
 - [Improvement] Opening an Essayist-exclusive article as a non-member now renders a dedicated Essayist access-required page with a direct `Become a member` CTA instead of the generic not-found page.
 - [Bug] Made `POST /api/fetch-chapter` idempotent for duplicate event saves: unique-constraint races are now treated as success, and the magazine chapters frame cache is invalidated after fetch completion so missing-chapter placeholders do not persist.

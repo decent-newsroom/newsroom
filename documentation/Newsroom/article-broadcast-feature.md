@@ -57,24 +57,33 @@ The article broadcast feature allows you to send existing articles from your dat
 ```
 
 ### 2. JavaScript Controller
-**File**: `assets/controllers/ui/article_broadcast_controller.js`
+**File**: `assets/controllers/ui/article_actions_dropdown_controller.js`
 
-**Stimulus Controller**: `ui--article-broadcast`
+**Stimulus Controller**: `ui--article-actions-dropdown`
 
 **Values**:
-- `articleIdValue` - Database ID of article
 - `coordinateValue` - Nostr coordinate (kind:pubkey:slug)
+- `relaysValue` - Relay URLs supplied by the article page for the current user/context
 
 **Actions**:
-- `broadcast` - Triggers the broadcast
+- `broadcast` - Posts to `/api/broadcast-article` and reports the result through the global toast system
 
 ### 3. Twig Component
-**Template**: `templates/components/Molecules/BroadcastButton.html.twig`
-**Component**: `src/Twig/Components/Molecules/BroadcastButton.php`
+Broadcast is exposed through the article overflow menu, not a standalone button component.
+
+**Template**: `templates/components/Molecules/ArticleActionsDropdown.html.twig`
+**Component**: `src/Twig/Components/Molecules/ArticleActionsDropdown.php`
 
 **Usage**:
 ```twig
-<twig:Molecules:BroadcastButton :article="article" />
+<twig:Molecules:ArticleActionsDropdown
+    :article="article"
+    coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+    canonicalUrl="{{ canonical }}"
+    naddrEncoded="{{ article|naddrEncode }}"
+    :isProtected="isProtected"
+    :highlightCount="highlights is defined ? highlights|length : 0"
+    :relays="userRelays" />
 ```
 
 ## How It Works
@@ -83,7 +92,7 @@ The article broadcast feature allows you to send existing articles from your dat
 ```
 1. User clicks "Broadcast to Relays" button
    ↓
-2. JavaScript controller captures click
+2. Article actions dropdown controller captures click
    ↓
 3. POST /api/broadcast-article with article ID/coordinate
    ↓
@@ -105,7 +114,7 @@ The article broadcast feature allows you to send existing articles from your dat
    ↓
 11. Returns summary (success/failed per relay)
    ↓
-12. UI shows result: "Broadcast! (4/5 relays)"
+12. UI shows a toast with the success/failure summary
 ```
 
 ### Relay Selection
@@ -283,12 +292,17 @@ fetch('/api/broadcast-article', {
 });
 ```
 
-### Example 4: Using Twig Component
+### Example 4: Using Article Actions Dropdown
 ```twig
 {# In article view template #}
-<div class="article-actions">
-    <twig:Molecules:BroadcastButton :article="article" />
-</div>
+<twig:Molecules:ArticleActionsDropdown
+    :article="article"
+    coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+    canonicalUrl="{{ canonical }}"
+    naddrEncoded="{{ article|naddrEncode }}"
+    :isProtected="isProtected"
+    :highlightCount="highlights is defined ? highlights|length : 0"
+    :relays="userRelays" />
 ```
 
 ### Example 5: Batch Broadcast
@@ -304,47 +318,47 @@ foreach ($articles as $article) {
 
 ## UI Integration
 
-### Button States
+### Menu Item States
 
 **Default State**:
 ```html
-📡 Broadcast to Relays
+Broadcast to Relays
 ```
 
 **Loading State**:
 ```html
-⟳ Broadcasting...
+Broadcasting...
 ```
 
 **Success State**:
 ```html
-✓ Broadcast! (4/5 relays)
+Broadcasted to 4/5 relays
 ```
 
 **Error State**:
 ```html
-⚠ Failed - Try Again
+Broadcast failed
 ```
 
-### Where to Add Broadcast Button
+### Where Broadcast Appears
 
-1. **Article view page** - Let readers broadcast articles they like
-2. **Author dashboard** - Broadcast own articles to new relays
-3. **Admin panel** - Mass re-broadcast for maintenance
-4. **Reading lists** - Broadcast articles in curated lists
-5. **Search results** - Quick broadcast from search
+Broadcast is currently exposed from the article page's consolidated article actions dropdown. The API can also support future placements such as author dashboards, admin maintenance tools, reading lists, or search results.
 
 Example placement:
 ```twig
-{# templates/article/view.html.twig #}
+{# templates/pages/article.html.twig #}
 <article>
     <h1>{{ article.title }}</h1>
-    
-    <div class="article-actions">
-        {# Other actions: share, bookmark, etc. #}
-        <twig:Molecules:BroadcastButton :article="article" />
-    </div>
-    
+
+    <twig:Molecules:ArticleActionsDropdown
+        :article="article"
+        coordinate="30023:{{ article.pubkey }}:{{ article.slug }}"
+        canonicalUrl="{{ canonical }}"
+        naddrEncoded="{{ article|naddrEncode }}"
+        :isProtected="isProtected"
+        :highlightCount="highlights is defined ? highlights|length : 0"
+        :relays="userRelays" />
+
     <div class="content">
         {{ article.processedHtml|raw }}
     </div>

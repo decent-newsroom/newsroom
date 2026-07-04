@@ -19,7 +19,7 @@ When a user's session expires during article editing, the `getUser()` method ret
   2. Convert hex pubkey to npub format
   3. Look up the User entity in the database by npub
   4. Retrieve stored relays from User entity if available
-  5. Fall back to `AuthorRelayService::getRelaysForPublishing()` if no stored relays
+  5. Fall back to `UserRelayListService::getRelaysForPublishing()` if no stored relays
   6. Use fallback relays as last resort
 
 **Benefits:**
@@ -35,7 +35,7 @@ if ($user) {
     // Session expired - get relays from event's pubkey
     // 1. Convert pubkey to npub
     // 2. Find User entity in database
-    // 3. Get relays from User entity or AuthorRelayService
+    // 3. Get relays from User entity or UserRelayListService
 } else {
     // Last resort - use fallback relays
 }
@@ -72,7 +72,7 @@ if (empty($relays)) {
 ### Dependencies
 - `swentel\nostr\Key\Key` - For pubkey conversion (hex to bech32)
 - `UserEntityRepository` - For looking up User entities by npub
-- `AuthorRelayService` - For fetching relays from various sources
+- `UserRelayListService` - For stale-while-revalidate relay resolution from cache, DB, network, and fallback relays
 
 ### Error Handling
 - All relay fetching operations are wrapped in try-catch blocks
@@ -111,7 +111,7 @@ Added detailed logging to track fallback behavior:
 ## Related Files
 - `src/Controller/Editor/EditorController.php`
 - `src/Controller/Api/ArticleBroadcastController.php`
-- `src/Service/AuthorRelayService.php`
+- `src/Service/Nostr/UserRelayListService.php`
 - `src/Repository/UserEntityRepository.php`
 
 ## Future Improvements
@@ -122,4 +122,3 @@ Added detailed logging to track fallback behavior:
 
 ## Date
 February 11, 2026
-

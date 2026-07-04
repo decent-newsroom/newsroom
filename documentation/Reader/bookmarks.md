@@ -86,4 +86,4 @@ sign on the user's behalf.
 - `assets/controllers/ui/article_actions_dropdown_controller.js` — bookmark toggle (inside consolidated dropdown)
 - `templates/components/Molecules/ArticleActionsDropdown.html.twig` — dropdown template with bookmark item
 - `templates/pages/article.html.twig` — bookmark button placement
-- `translations/messages.{en,de,es,fr,sl}.yaml` — bookmark translations
+- `translations/messages.{en,de,es,fr,it,sl}.yaml` — bookmark translations

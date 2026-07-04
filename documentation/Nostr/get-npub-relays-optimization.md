@@ -1,4 +1,6 @@
-# getNpubRelays Optimization - January 2026
+# Relay List Resolution Optimization - January 2026
+
+> Status: superseded by `UserRelayListService`. The old `AuthorRelayService` mentioned in historical notes was removed; current code centralizes relay-list resolution in `src/Service/Nostr/UserRelayListService.php`.
 
 ## Summary
 
@@ -15,7 +17,7 @@ The `getNpubRelays()` method in `NostrClient` has been significantly optimized t
 **Problems:**
 - Made network calls on every cache miss
 - Queried multiple relays even if data was already in database
-- Didn't leverage the AuthorRelayService optimization
+- Didn't leverage centralized relay-list resolution
 - Didn't use persisted kind:10002 events
 
 ## New Optimized Implementation
@@ -23,13 +25,13 @@ The `getNpubRelays()` method in `NostrClient` has been significantly optimized t
 **New approach (multi-level fallback):**
 1. ✅ **Check cache** (1 hour TTL)
 2. ✅ **Check database first** - Query persisted kind:10002 events via `EventRepository::findLatestRelayListByPubkey()`
-3. ✅ **Use AuthorRelayService** - Optimized network fetching with connection pooling
+3. ✅ **Use UserRelayListService** - Stale-while-revalidate relay resolution with cache, DB, network, and fallback layers
 4. ✅ **Fallback to reputable relays** - Only if all else fails
 
 ### Benefits
 
 1. **Reduced Network Calls**: Database queries are much faster than network calls
-2. **Better Relay Pool Management**: Uses `AuthorRelayService` which has:
+2. **Better Relay Pool Management**: Uses `UserRelayListService` which has:
    - Connection pooling via `NostrRelayPool`
    - Optimized profile relay list (only queries 2 specific relays)
    - Proper read/write relay distinction per NIP-65
@@ -49,12 +51,12 @@ The `getNpubRelays()` method in `NostrClient` has been significantly optimized t
 
 **Added Dependencies:**
 - `EventRepository` - For querying persisted relay events
-- `AuthorRelayService` - For optimized network fetching
+- `UserRelayListService` - For optimized relay-list resolution
 - `NostrKeyUtil` - For npub/hex conversion
 
 **New Helper Methods:**
 - `getRelaysFromDatabase()` - Queries Event table for kind:10002
-- `getRelaysFromAuthorService()` - Uses AuthorRelayService
+- `getRelaysFromUserRelayListService()` - Uses `UserRelayListService`
 - `isValidRelayUrl()` - Validates relay URLs (extracted for reuse)
 
 ## Integration with Profile Projections
@@ -94,7 +96,7 @@ Potential further optimizations:
 
 ## Related Components
 
-- `AuthorRelayService` - Optimized relay fetching with NIP-65 support
+- `UserRelayListService` - Optimized relay fetching with NIP-65 support
 - `NostrRelayPool` - Connection pooling to avoid duplicate WebSocket connections
 - `EventRepository::findLatestRelayListByPubkey()` - Database query for relay events
 - `UpdateProfileProjectionHandler` - Profile projection updates
@@ -112,7 +114,7 @@ Example log output:
 ```
 [debug] Using cached relays for npub npub1abc...
 [debug] Loaded relays from database pubkey=abc123... count=5 age=3600
-[debug] Fetched relays from network via AuthorRelayService pubkey=def456... count=3
+[debug] Fetched relays from network via UserRelayListService pubkey=def456... count=3
 [debug] No relays found, using reputable fallback pubkey=xyz789...
 ```
 

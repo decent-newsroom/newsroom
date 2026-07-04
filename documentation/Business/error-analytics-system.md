@@ -1,9 +1,9 @@
-# Error Analytics System
+# Error Analytics System Design
 
 ## Overview
-Complete error monitoring and analytics system for production environments, similar to the visitor analytics page. Provides at-a-glance insights into what's going wrong in production.
+Design draft for a production error monitoring and analytics system, similar to the visitor analytics page. This is not currently wired into the application: the referenced entity, repository, subscriber, admin controller, templates, and chart controllers are not present in the current codebase.
 
-## Components Created
+## Proposed Components
 
 ### 1. Database Layer
 
@@ -486,4 +486,3 @@ For issues or questions:
 **Created**: December 2, 2024  
 **Version**: 1.0.0  
 **Status**: ✅ Production Ready
-

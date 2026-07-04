@@ -44,7 +44,7 @@ The component:
 
 ### Controller: `ExpressionController`
 
-- **File:** `src/Controller/ExpressionController.php`
+- **File:** `src/Controller/Newsroom/ExpressionController.php`
 - **List route:** Renders `expressions/index.html.twig` using `<twig:Organisms:ExpressionList />`
 - **View route:** Fetches expression event by naddr coordinates, evaluates it via `ExpressionService::evaluateCached()`, paginates results, resolves author metadata, renders as article cards via `<twig:Organisms:CardList />`
 
@@ -68,10 +68,9 @@ Link added to the sidebar navigation under the "Newsroom" section, visible to al
 
 ### Translations
 
-Keys added across all 5 locales (en, de, es, fr, sl):
+Keys are maintained across all six locale files (en, de, es, fr, it, sl):
 
 - `nav.expressions` — sidebar link label
 - `expressionsList.*` — list page strings (heading, eyebrow, noExpressions, stages, createdBy, viewResults, edit)
 - `expressionView.*` — view page strings (by, noResults, loginRequired, backToList)
 - `expressions.*` — builder form strings (title, titlePlaceholder, content, contentPlaceholder, etc.)
-

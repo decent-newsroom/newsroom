@@ -19,7 +19,7 @@ The site footer uses a two-column grid layout on screens ≥768px, collapsing to
 - **Component class:** `src/Twig/Components/Footer.php`
 - **CSS:** `assets/styles/02-layout/layout.css` (footer section)
 - **Twig globals used:** `project_npub`, `dev_npub`, `brand_name`, `brand_version` (defined in `config/packages/twig.yaml`)
-- **Translation keys:** `footer.product`, `footer.community`, `footer.project`, `footer.developer`, `footer.pricing` (all 5 locales)
+- **Translation keys:** `footer.product`, `footer.community`, `footer.project`, `footer.developer`, `footer.pricing` (all six locales)
 
 ### Responsive Breakpoint
 
@@ -58,4 +58,3 @@ Grid layout:
 ### Translation Keys
 
 All pricing text uses `pricing.*` keys from `translations/messages.{locale}.yaml`. Each tier has: `name`, `period`, `feature1`–`feature4`, and `cta`.
-

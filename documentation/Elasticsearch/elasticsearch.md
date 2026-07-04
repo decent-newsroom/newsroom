@@ -25,6 +25,5 @@ Elasticsearch indexes only published articles (kind 30023). Drafts (kind 30024) 
 docker compose exec php bin/console fos:elastica:populate
 
 # Index specific articles
-docker compose exec php bin/console app:index-articles
+docker compose exec php bin/console articles:index
 ```
-

@@ -14,7 +14,7 @@ Highlights are Nostr kind 9802 events (NIP-84) — user-selected excerpts from a
 | Fetch command | `src/Command/FetchHighlightsCommand.php` |
 | Cache command | `src/Command/CacheLatestHighlightsCommand.php` |
 | Feed controller | `src/Controller/Reader/HighlightsController.php` |
-| Publish controller | `src/Controller/HighlightController.php` |
+| Publish controller | `src/Controller/Newsroom/HighlightController.php` |
 | Stimulus controller | `assets/controllers/nostr/nostr_highlight_controller.js` |
 | Toggle controller | `assets/controllers/ui/highlights_toggle_controller.js` |
 | CSS | `assets/styles/04-pages/highlights.css` |

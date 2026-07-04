@@ -16,7 +16,7 @@ The settings page (`/settings`) provides a centralized location for authenticate
 
 ### Controller
 
-`src/Controller/SettingsController.php` handles:
+`src/Controller/User/SettingsController.php` handles:
 - Loading all user context events from the DB via `EventRepository::findLatestByPubkeyAndKind()`
 - Parsing kind 0 profile metadata from both JSON content and tags
 - Looking up subscriptions (vanity name, active indexing, publication subdomain)
@@ -107,4 +107,3 @@ Settings is accessible from:
 - Direct URL: `/settings`
 
 Tab deep-linking via URL hash: `/settings#events`, `/settings#subscriptions`
-

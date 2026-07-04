@@ -40,7 +40,7 @@ Added `ArticleRepository::findLatestByPubkeys()` with:
 | File | Change |
 |------|--------|
 | `src/Controller/Reader/HomeFeedController.php` | Rewrote `followsTab()` to use DB-only lookup, removed relay pool and NostrClient dependencies |
-| `src/Controller/FollowsController.php` | Same DB-only optimization for the standalone `/follows` route |
+| `src/Controller/Newsroom/FollowsController.php` | Same DB-first optimization for the standalone `/follows` route |
 | `src/Repository/ArticleRepository.php` | Added `findLatestByPubkeys()` method |
 | `src/Entity/Article.php` | Added ORM index annotation `idx_article_pubkey_created` |
 | `migrations/Version20260320180000.php` | Migration to create the composite index |
@@ -61,4 +61,3 @@ Run the migration inside the Docker container:
 ```bash
 docker compose exec php bin/console doctrine:migrations:migrate
 ```
-

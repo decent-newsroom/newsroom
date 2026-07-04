@@ -81,7 +81,7 @@ This keeps visitor counts focused on navigational page traffic instead of intern
 
 Editor preview routes serve HTML fragments (partials), not full pages. They are excluded at **capture time** — never persisted — and also at **query time** as a safety net for any previously recorded rows:
 
-- `/editor/markdown/preview` — Markdown preview panel in the editor
+- `/editor/markdown/preview` — legacy Markdown preview panel exclusion kept for historical rows and compatibility
 - `/article-editor/preview/` — article editor live preview
 
 ## Affected files
@@ -97,5 +97,4 @@ Editor preview routes serve HTML fragments (partials), not full pages. They are 
 
 - Existing utility metrics that rely on the `visit` table, including article publish activity and zap invoice generation tracking, continue to work.
 - Because `/api/*` rows are excluded from generic visitor analytics queries, API traffic is not included in visit totals, route tables, recent visits, or unique-visitor calculations.
-
 

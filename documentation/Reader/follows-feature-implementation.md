@@ -5,16 +5,16 @@ Implemented a new `/follows` route that displays articles from users in the logg
 
 ## Files Created
 
-### 1. Controller: `src/Controller/FollowsController.php`
+### 1. Controller: `src/Controller/Newsroom/FollowsController.php`
 - **Route**: `/follows` (name: `follows`)
 - **Functionality**:
   - Checks if user is logged in
   - If not logged in: Shows a notice prompting user to sign in
   - If logged in:
-    - Retrieves user's follow list from Nostr (kind 3 events)
+    - Reads the user's latest kind 3 follow list from the local event table, with relay backfill when it is missing
     - Extracts followed pubkeys from 'p' tags
     - Queries articles from followed authors
-    - Fetches author metadata (kind 0 events) for display
+    - Resolves author metadata from the Redis metadata cache for display
     - Returns up to 50 latest articles ordered by creation date
   - Handles errors gracefully with appropriate error messages
 
@@ -37,9 +37,9 @@ Implemented a new `/follows` route that displays articles from users in the logg
 ## How It Works
 
 1. **Follow List Retrieval**:
-   - Queries the `Event` table for kind 3 (FOLLOWS) events for the current user
-   - Takes the most recent follow list event
-   - Extracts all pubkeys from 'p' tags in the event
+   - Queries the `Event` table for the latest kind 3 (FOLLOWS) event for the current user
+   - Extracts all pubkeys from `p` tags in the event
+   - Falls back to `UserProfileService::getFollows()` when the local event is missing, so the event can be backfilled from relays for later DB-first reads
 
 2. **Article Fetching**:
    - Uses Doctrine QueryBuilder to fetch articles where `pubkey` is in the follow list
@@ -47,9 +47,9 @@ Implemented a new `/follows` route that displays articles from users in the logg
    - Limits to 50 most recent articles
 
 3. **Author Metadata**:
-   - For each unique author, fetches their kind 0 (METADATA) event
-   - Decodes JSON metadata to display author information
-   - Falls back to truncated pubkey if metadata is unavailable
+   - Collects unique article author pubkeys
+   - Resolves author metadata with `RedisCacheService::getMultipleMetadata()`
+   - Falls back to truncated pubkey if metadata is unavailable in the cache
 
 ## User Experience
 
@@ -82,4 +82,3 @@ Implemented a new `/follows` route that displays articles from users in the logg
 - Cache follow lists for better performance
 - Add ability to refresh/sync follow list from relays
 - Show statistics (number of new articles since last visit)
-

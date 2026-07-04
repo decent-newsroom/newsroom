@@ -111,6 +111,5 @@ The following components were deleted as they are fully superseded by this dropd
 ### Modified
 - `templates/pages/article.html.twig` — replaced individual actions with dropdown
 - `assets/app.js` — added CSS import
-- `translations/messages.{en,de,es,fr,sl}.yaml` — added `articleActions.*` keys
+- `translations/messages.{en,de,es,fr,it,sl}.yaml` — added `articleActions.*` keys
 - `CHANGELOG.md` — feature entry
-
