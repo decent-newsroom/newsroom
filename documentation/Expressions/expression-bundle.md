@@ -10,7 +10,7 @@ A self-contained Symfony bundle at `src/ExpressionBundle/` that parses `kind:308
 
 **Authentication requirement:** Only logged-in users can call the expression runner. The API endpoint requires authentication, and `RuntimeContext` always has a valid user pubkey. This guarantees that runtime variables (`$me`, `$contacts`, `$interests`) can always be resolved and simplifies caching to a per-user model.
 
-Follows the same bundle pattern as `ChatBundle` and `UnfoldBundle`.
+Follows the same self-contained bundle pattern as `UnfoldBundle`.
 
 ---
 

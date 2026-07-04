@@ -68,7 +68,7 @@ Articles (kind 30023) are **replaceable addressable events**: the combination of
 
 ### 1. Write
 
-The author opens the editor (`/editor`). The article body is written in Markdown, with a rich-text editor (Quill) providing formatting tools. Images are uploaded to a Blossom or NIP-96 compatible media server, and the resulting URLs are embedded in the content.
+The author opens the editor (`/article-editor/create`). The article body is written in Markdown, with a rich-text editor (Quill) providing formatting tools. Images are uploaded to a Blossom or NIP-96 compatible media server, and the resulting URLs are embedded in the content.
 
 The editor auto-saves drafts as kind 30024 events (or as local database records before publish). Drafts are only visible to the author.
 
@@ -204,7 +204,6 @@ Nostr's event model is simple by design. Decent Newsroom adds the editorial and 
 | Kind 30023 events | Rich editor, draft management, publishing workflow |
 | Kind 30040 index events | Magazine wizard, category management, Unfold hosting |
 | Kind 9802 highlights | Text selection UI, highlight publishing, display on articles |
-| Kind 42 chat messages | Structured NIP-28 chat rooms on subdomains |
 | Kind 20/21/22 media | Media manager, discovery, curation |
 | NIP-57 zap receipts | Lightning payment UI, zap display |
 | Relay lists (kind 10002) | Relay list editor, health monitoring, gateway management |
