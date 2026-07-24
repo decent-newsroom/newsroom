@@ -2,6 +2,7 @@
 
 ## v0.0.48
 
+- [Bug] Fixed `sitemap.xml` generating `http://localhost` URLs in production: the cron-generated sitemap now respects a configurable `DEFAULT_URI` env var (wired into the router's `default_uri`) so absolute URLs are correct when generated in CLI (non-HTTP) context.
 - [Docs] Reviewed `documentation/` against the current codebase and corrected stale command names, route examples, moved controller paths, localization counts, broadcast UI component references, and status notes for unimplemented analytics/notification docs.
 - [Docs] Aligned `docs-public` with the current Symfony/Nostr architecture: removed obsolete private-chat claims and deleted stale chat documentation/config artifacts, corrected current editor/newsroom/article/subscription routes, refreshed Messenger transport and cron descriptions, and removed the stale `app:index-articles` command reference.
 - [Improvement] Opening an Essayist-exclusive article as a non-member now renders a dedicated Essayist access-required page with a direct `Become a member` CTA instead of the generic not-found page.
