@@ -2,6 +2,11 @@
 
 ## v0.0.48
 
+- [Copy] Removed the inaccurate "bypass quality gates" claim from Active Indexing marketing/help copy (subscription page, pricing `indexing.feature2` across all locales, `active-indexing:fetch` command help, and the feature doc), since active subscribers are not actually exempt from indexer QA. Now reads "Reliable, ongoing indexing".
+- [Bug] Fixed Active Indexing content never being fetched: `active-indexing:fetch` and `active-indexing:manage-subscriptions` were implemented but not scheduled in the crontab (only `active-indexing:check-receipts` ran). Added hourly cron entries so subscriber content is pulled from declared relays and subscription expiry/grace/role-revocation is processed.
+- [Bug] Fixed the misleading crontab comment claiming `active-indexing:check-receipts` handled expiry/grace transitions; it only matches zap receipts.
+- [Improvement] Cleaned up `ActiveIndexingService`: removed the unused `NostrSigner` dependency and the computed-but-unused `recipientPubkeyHex`/`Key` conversion left over from an abandoned zap-request flow, and corrected the invoice comment to reflect that plain LNURL-pay subscriptions are activated manually/via admin (no zap receipt is produced).
+- [Improvement] Scoped `active-indexing:check-receipts` to Updates Pro only (its sole working use): Active Indexing uses plain LNURL invoices that never emit a kind-9735 receipt, so the dead Active Indexing branch was removed from the worker.
 - [Feature] Added an admin-only `Mute` shortcut on author profiles (`Molecules:AdminMuteButton` Live Component): admins can apply `ROLE_MUTED` to an author directly from their profile without visiting the administration dashboard. The button only renders for admins (via `is_granted('ROLE_ADMIN')`) while that author is not already muted; muting refreshes the muted-pubkeys cache.
 - [Feature] Added `admin:delete-muted-events` console command: bulk-deletes all stored events, articles, highlights and magazines authored by every muted user (`ROLE_MUTED`) with cascade cleanup. Supports `--dry-run` preview and `--confirm` to skip the prompt.
 - [Feature] Added `admin:list-muted-pubkeys` console command: prints every muted user (`ROLE_MUTED`) as a hex pubkey, one per line with no styling, for copy-pasting into the strfry blocklist (`/etc/strfry-blocked-pubkeys.txt`).

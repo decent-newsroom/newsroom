@@ -50,10 +50,19 @@ PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 # graph tables (current_record, parsed_reference). Auto-repairs issues.
 0 3 * * * . /etc/environment && /usr/local/bin/php /app/bin/console dn:graph:audit --fix >> /var/log/cron-graph-audit.log 2>&1
 
-# Subscription payment checks (Active Indexing + Updates Pro)
-# Checks for zap receipts matching pending invoices; also processes expiry / grace transitions.
+# Subscription payment checks (Updates Pro)
+# Matches zap receipts to pending Updates Pro invoices and activates them.
+# Active Indexing uses plain LNURL invoices (no zap receipt) and is activated manually/via admin.
 */5 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console active-indexing:check-receipts >> /var/log/cron-zap-receipts.log 2>&1
 */59 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console updates-pro:expire-subscriptions >> /var/log/cron-updates-pro-expire.log 2>&1
+
+# Active Indexing content fetch — pull subscribers' content from their declared relays
+# Runs hourly; dispatches async fetch messages per active subscriber.
+0 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console active-indexing:fetch --since-hours=24 >> /var/log/cron-active-indexing-fetch.log 2>&1
+
+# Active Indexing subscription lifecycle — move expired subs to grace, end grace, revoke roles
+# Runs hourly.
+30 * * * * . /etc/environment && /usr/local/bin/php /app/bin/console active-indexing:manage-subscriptions >> /var/log/cron-active-indexing-manage.log 2>&1
 
 # Vanity name payment checks — activate paid vanity names after Lightning payment confirmed
 # Runs every 5 minutes to pick up zap receipts quickly

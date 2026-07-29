@@ -19,8 +19,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use swentel\nostr\Key\Key;
 
 /**
- * Fetches content for all active indexing subscribers from their declared relays.
- * This command bypasses QA gates - content from active subscribers goes directly to indexing.
+ * Fetches content for all active indexing subscribers from their declared relays
+ * and dispatches it into the normal ingestion/indexing pipeline.
  */
 #[AsCommand(
     name: 'active-indexing:fetch',
@@ -63,8 +63,8 @@ class ActiveIndexingFetchCommand extends Command
             )
             ->setHelp(
                 'This command fetches content for users with ROLE_ACTIVE_INDEXING from their ' .
-                'declared relay list (NIP-65) or custom relays. Content from these users ' .
-                'bypasses QA gates and is indexed directly.'
+                'declared relay list (NIP-65) or custom relays and dispatches it into the ' .
+                'normal ingestion/indexing pipeline.'
             );
     }
 

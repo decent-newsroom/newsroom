@@ -8,7 +8,6 @@ use App\Entity\Event;
 use App\Enum\ActiveIndexingStatus;
 use App\Enum\KindsEnum;
 use App\Repository\EventRepository;
-use App\Service\ActiveIndexingService;
 use App\Service\UpdateProService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -20,19 +19,22 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use swentel\nostr\Key\Key;
 
 /**
- * Worker that monitors for zap receipts (kind 9735) that match pending subscription invoices.
- * When a matching receipt is found, the subscription is activated.
+ * Worker that monitors for zap receipts (kind 9735) that match pending Updates Pro
+ * invoices. When a matching receipt is found, the subscription is activated.
+ *
+ * Active Indexing subscriptions are intentionally not handled here: they use plain
+ * LNURL-pay invoices (no zap request) which never produce a kind-9735 receipt, so
+ * they are activated manually via `active-indexing:activate` or the admin dashboard.
  */
 #[AsCommand(
     name: 'active-indexing:check-receipts',
-    description: 'Check for zap receipts matching pending subscription invoices'
+    description: 'Check for zap receipts matching pending Updates Pro invoices'
 )]
 class SubscriptionZapReceiptWorkerCommand extends Command
 {
     private readonly string $recipientPubkeyHex;
 
     public function __construct(
-        private readonly ActiveIndexingService $activeIndexingService,
         private readonly UpdateProService $notificationProService,
         private readonly EventRepository $eventRepository,
         private readonly LoggerInterface $logger,
@@ -62,7 +64,7 @@ class SubscriptionZapReceiptWorkerCommand extends Command
             )
             ->setHelp(
                 'This command checks for zap receipt events (kind 9735) that match pending ' .
-                'subscription invoices. Run this frequently via cron (e.g., every 5 minutes).'
+                'Updates Pro invoices. Run this frequently via cron (e.g., every 5 minutes).'
             );
     }
 
@@ -71,112 +73,62 @@ class SubscriptionZapReceiptWorkerCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $sinceMinutes = (int) $input->getOption('since-minutes');
 
-        $io->title('Subscription Zap Receipt Worker');
+        $io->title('Updates Pro Zap Receipt Worker');
 
-        // Get pending subscriptions
-        $pendingSubscriptions = $this->activeIndexingService->getPendingSubscriptions();
+        $pendingPro = $this->notificationProService->getPendingSubscriptions();
 
-        if (empty($pendingSubscriptions)) {
-            $io->info('No pending subscriptions to check.');
+        if (empty($pendingPro)) {
+            $io->info('No pending Updates Pro subscriptions to check.');
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Checking %d pending subscription(s)...', count($pendingSubscriptions)));
+        $io->info(sprintf('Checking %d pending subscription(s)...', count($pendingPro)));
 
         // Build a map of bolt11 -> subscription for quick lookup
-        $invoiceMap = [];
-        foreach ($pendingSubscriptions as $subscription) {
-            $bolt11 = $subscription->getPendingInvoiceBolt11();
+        $proInvoiceMap = [];
+        foreach ($pendingPro as $sub) {
+            $bolt11 = $sub->getPendingInvoiceBolt11();
             if ($bolt11) {
-                // Store lowercase for comparison
-                $invoiceMap[strtolower($bolt11)] = $subscription;
+                $proInvoiceMap[strtolower($bolt11)] = $sub;
             }
         }
 
-        if (empty($invoiceMap)) {
+        if (empty($proInvoiceMap)) {
             $io->info('No pending invoices to match.');
             return Command::SUCCESS;
         }
 
-        // Get recent zap receipts to DN's pubkey
+        // Get recent zap receipts to the recipient pubkey
         $since = (new \DateTime("-{$sinceMinutes} minutes"))->getTimestamp();
         $zapReceipts = $this->findZapReceiptsForRecipient($this->recipientPubkeyHex, $since);
 
         $io->info(sprintf('Found %d recent zap receipt(s) to check.', count($zapReceipts)));
 
-        $activatedCount = 0;
-
+        $proActivated = 0;
         foreach ($zapReceipts as $receipt) {
-            // Extract bolt11 from the receipt
             $bolt11FromReceipt = $this->extractBolt11FromReceipt($receipt);
-
             if (!$bolt11FromReceipt) {
                 continue;
             }
-
             $bolt11Lower = strtolower($bolt11FromReceipt);
-
-            if (isset($invoiceMap[$bolt11Lower])) {
-                $subscription = $invoiceMap[$bolt11Lower];
-
-                // Check if this is a renewal or new activation
-                if ($subscription->getStatus() === ActiveIndexingStatus::PENDING) {
-                    $this->activeIndexingService->activateSubscription($subscription, $receipt->getId());
-                    $io->success(sprintf('Activated subscription for %s', $subscription->getNpub()));
+            if (isset($proInvoiceMap[$bolt11Lower])) {
+                $sub = $proInvoiceMap[$bolt11Lower];
+                if ($sub->getStatus() === ActiveIndexingStatus::PENDING) {
+                    $this->notificationProService->activateSubscription($sub, $receipt->getId());
+                    $io->success(sprintf('Activated Updates Pro for %s', $sub->getNpub()));
                 } else {
-                    // It's a renewal
-                    $this->activeIndexingService->renewSubscription($subscription, $receipt->getId());
-                    $io->success(sprintf('Renewed subscription for %s', $subscription->getNpub()));
+                    $this->notificationProService->renewSubscription($sub, $receipt->getId());
+                    $io->success(sprintf('Renewed Updates Pro for %s', $sub->getNpub()));
                 }
-
-                $activatedCount++;
-
-                // Remove from map to avoid processing again
-                unset($invoiceMap[$bolt11Lower]);
+                $proActivated++;
+                unset($proInvoiceMap[$bolt11Lower]);
             }
         }
 
-        if ($activatedCount > 0) {
-            $io->success(sprintf('Processed %d subscription payment(s).', $activatedCount));
+        if ($proActivated > 0) {
+            $io->success(sprintf('Processed %d Updates Pro payment(s).', $proActivated));
         } else {
             $io->info('No matching payments found.');
-        }
-
-        // ── Updates Pro ────────────────────────────────────────────────
-        $pendingPro = $this->notificationProService->getPendingSubscriptions();
-        if (!empty($pendingPro)) {
-            $proInvoiceMap = [];
-            foreach ($pendingPro as $sub) {
-                $bolt11 = $sub->getPendingInvoiceBolt11();
-                if ($bolt11) {
-                    $proInvoiceMap[strtolower($bolt11)] = $sub;
-                }
-            }
-
-            $proActivated = 0;
-            foreach ($zapReceipts as $receipt) {
-                $bolt11FromReceipt = $this->extractBolt11FromReceipt($receipt);
-                if (!$bolt11FromReceipt) {
-                    continue;
-                }
-                $bolt11Lower = strtolower($bolt11FromReceipt);
-                if (isset($proInvoiceMap[$bolt11Lower])) {
-                    $sub = $proInvoiceMap[$bolt11Lower];
-                    if ($sub->getStatus() === ActiveIndexingStatus::PENDING) {
-                        $this->notificationProService->activateSubscription($sub, $receipt->getId());
-                        $io->success(sprintf('Activated Updates Pro for %s', $sub->getNpub()));
-                    } else {
-                        $this->notificationProService->renewSubscription($sub, $receipt->getId());
-                        $io->success(sprintf('Renewed Updates Pro for %s', $sub->getNpub()));
-                    }
-                    $proActivated++;
-                    unset($proInvoiceMap[$bolt11Lower]);
-                }
-            }
-
-            if ($proActivated > 0) {
-                $io->success(sprintf('Processed %d Updates Pro payment(s).', $proActivated));
-            }
         }
 
         return Command::SUCCESS;

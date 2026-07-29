@@ -376,7 +376,6 @@ services:
     # Active Indexing Service
     App\Service\ActiveIndexingService:
         arguments:
-            $recipientPubkey: '%active_indexing_recipient_pubkey%'
             $recipientLud16: '%active_indexing_recipient_lud16%'
 
     # Updates Pro Service — paywall for NIP-51 set subscriptions and higher caps

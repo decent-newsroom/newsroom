@@ -1132,7 +1132,7 @@ pricing:
         name: 'Active Indexing'
         period: 'per month · or 10,000 sats/year'
         feature1: 'Content fetched from your preferred relays'
-        feature2: 'Bypass quality gates, reliable indexing'
+        feature2: 'Reliable, ongoing indexing'
         feature3: 'Dashboard to monitor indexing status'
         cta: 'Subscribe'
     unfold:

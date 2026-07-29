@@ -23,7 +23,6 @@ If no relay list is found, you will be prompted to list a relay that has it, or 
 If you do not provide any relays, the indexer will default to its own public relay list.
 
 The indexer will periodically check the declared relays for new content from the subscribed npub and index it accordingly.
-By default, we have minimal requirements for the articles. Actively indexed npubs will be exempt from the QA gates we use in the indexer before indexing content.
 
 Users also get access to a dashboard where they can monitor the indexing status of their content, view statistics, and manage their subscription.
 

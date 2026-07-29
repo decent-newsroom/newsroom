@@ -11,36 +11,22 @@ use App\Enum\ActiveIndexingTier;
 use App\Enum\RolesEnum;
 use App\Repository\ActiveIndexingSubscriptionRepository;
 use App\Repository\UserEntityRepository;
-use App\Service\Nostr\NostrSigner;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use swentel\nostr\Key\Key;
 
 /**
  * Manages Active Indexing subscriptions
  */
 class ActiveIndexingService
 {
-    private readonly string $recipientPubkeyHex;
-
     public function __construct(
         private readonly ActiveIndexingSubscriptionRepository $subscriptionRepository,
         private readonly UserEntityRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly LNURLResolver $lnurlResolver,
-        private readonly NostrSigner $nostrSigner,
         private readonly LoggerInterface $logger,
-        string $recipientPubkey,
         private readonly string $recipientLud16,
     ) {
-        // Normalize and convert npub to hex if needed
-        $recipientPubkey = strtolower(trim($recipientPubkey));
-        if (str_starts_with($recipientPubkey, 'npub1')) {
-            $key = new Key();
-            $this->recipientPubkeyHex = $key->convertToHex($recipientPubkey);
-        } else {
-            $this->recipientPubkeyHex = $recipientPubkey;
-        }
     }
 
     /**
@@ -88,9 +74,11 @@ class ActiveIndexingService
             // Resolve DN's Lightning address
             $lnurlInfo = $this->lnurlResolver->resolve($this->recipientLud16);
 
-            // For subscription payments, we create a regular LNURL invoice (not a zap)
-            // This is more compatible with services like Geyser that may not support full NIP-57
-            // We'll match the payment by the BOLT11 invoice string instead of requiring a zap receipt
+            // For subscription payments, we create a regular LNURL invoice (not a zap).
+            // This is more compatible with services (e.g. Geyser) that may not support full NIP-57.
+            // Because a plain invoice produces no kind-9735 zap receipt, activation is not
+            // automatic: it is confirmed manually via `active-indexing:activate` or the admin
+            // dashboard once payment is verified.
 
             // Request invoice without zap request (regular LNURL-pay)
             $bolt11 = $this->lnurlResolver->requestInvoice(
