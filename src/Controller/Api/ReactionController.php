@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Enum\KindsEnum;
+use App\Message\PublishReactionMessage;
 use App\Service\GenericEventProjector;
-use App\Service\Nostr\NostrClient;
 use App\Service\Nostr\UserRelayListService;
 use App\Util\NostrKeyUtil;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,6 +15,7 @@ use swentel\nostr\Event\Event as NostrEvent;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/reactions')]
@@ -75,9 +76,9 @@ final class ReactionController extends AbstractController
     #[Route('/publish', name: 'api_reactions_publish', methods: ['POST'])]
     public function publish(
         Request $request,
-        NostrClient $nostrClient,
         UserRelayListService $userRelayListService,
         GenericEventProjector $eventProjector,
+        MessageBusInterface $messageBus,
         EntityManagerInterface $em,
     ): JsonResponse {
         try {
@@ -122,7 +123,7 @@ final class ReactionController extends AbstractController
                 return new JsonResponse(['error' => 'Event signature verification failed'], 400);
             }
 
-            $rawEvent = (object) [
+            $rawEventArray = [
                 'id' => (string) $signedEvent['id'],
                 'pubkey' => (string) $signedEvent['pubkey'],
                 'created_at' => (int) $signedEvent['created_at'],
@@ -131,6 +132,7 @@ final class ReactionController extends AbstractController
                 'content' => (string) $signedEvent['content'],
                 'sig' => (string) $signedEvent['sig'],
             ];
+            $rawEvent = (object) $rawEventArray;
             $eventProjector->projectEventFromNostrEvent($rawEvent, 'local');
 
             $articleAuthorPubkey = explode(':', $coordinate, 3)[1];
@@ -140,22 +142,18 @@ final class ReactionController extends AbstractController
                 $userRelayListService,
             );
 
-            $this->logger->info('Publishing article reaction', [
+            // Relay publishing is blocking network I/O and, done inline for many
+            // relays, can exceed PHP's max execution time and trigger an
+            // uncatchable fatal (bypassing this try/catch and surfacing as a
+            // generic 500). The reaction is already persisted and counted
+            // locally above, so hand the relay fan-out to an async worker.
+            $messageBus->dispatch(new PublishReactionMessage($rawEventArray, $relays));
+
+            $this->logger->info('Queued article reaction for relay broadcast', [
                 'event_id' => $signedEvent['id'],
                 'coordinate' => $coordinate,
                 'relay_count' => count($relays),
             ]);
-
-            $relayResults = $nostrClient->publishEvent($eventObj, $relays);
-            $successCount = 0;
-            $failCount = 0;
-            $relayStatuses = [];
-
-            foreach ($relayResults as $relayUrl => $result) {
-                $isSuccess = $result === true || (is_object($result) && isset($result->type) && $result->type === 'OK');
-                $isSuccess ? $successCount++ : $failCount++;
-                $relayStatuses[$relayUrl] = $isSuccess ? 'ok' : 'failed';
-            }
 
             return new JsonResponse([
                 'status' => 'ok',
@@ -163,9 +161,7 @@ final class ReactionController extends AbstractController
                 'count' => $this->countLikes($coordinate, $em),
                 'relays' => [
                     'total' => count($relays),
-                    'success' => $successCount,
-                    'failed' => $failCount,
-                    'statuses' => $relayStatuses,
+                    'queued' => true,
                 ],
             ]);
         } catch (\Throwable $e) {

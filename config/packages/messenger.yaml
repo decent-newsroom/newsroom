@@ -134,6 +134,10 @@ framework:
             'App\Message\FetchHighlightsMessage': async_low_priority
             # Gateway event persistence — dispatched by relay gateway, background.
             'App\Message\PersistGatewayEventsMessage': async_low_priority
+            # Article reaction (kind 7) relay broadcast — event is already persisted and
+            # counted locally in the request; relay fan-out runs async to avoid blocking
+            # the web request on many sequential relay connections.
+            'App\Message\PublishReactionMessage': async_low_priority
             # Relay list warming on login - fetch from network and persist to DB
             'App\Message\UpdateRelayListMessage': async_low_priority
             # Gateway connection warming - open persistent WebSocket connections for user
