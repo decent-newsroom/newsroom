@@ -905,6 +905,7 @@ profile:
     highlights: 'Highlights'
     drafts: 'Drafts'
     stats: 'Stats'
+    mute: 'Mute'
 
 # ── Profile Stats page ───────────────────────────────────────────
 stats:

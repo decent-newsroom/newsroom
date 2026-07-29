@@ -736,6 +736,7 @@ profile:
     highlights: 'Highlights'
     drafts: 'Entwürfe'
     stats: 'Statistiken'
+    mute: 'Stummschalten'
 
 # ── Profilstatistiken ────────────────────────────────────────────
 stats:

@@ -725,6 +725,7 @@ profile:
     highlights: 'Poudarki'
     drafts: 'Osnutki'
     stats: 'Statistika'
+    mute: 'Utišaj'
 
 # ── Statistika profila ───────────────────────────────────────────
 stats:

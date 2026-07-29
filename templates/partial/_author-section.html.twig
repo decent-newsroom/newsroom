@@ -80,6 +80,9 @@
                 :recipientLud06="author.lud06 is defined and author.lud06 ? (author.lud06 is iterable ? author.lud06|first : author.lud06) : null"
             />
         {% endif %}
+        {% if is_granted('ROLE_ADMIN') %}
+            <twig:Molecules:AdminMuteButton :npub="npub" />
+        {% endif %}
         <div class="dropdown"
              data-controller="utility--share-dropdown">
             <button class="btn menu"

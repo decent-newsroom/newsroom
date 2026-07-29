@@ -725,6 +725,7 @@ profile:
     highlights: 'Destacados'
     drafts: 'Borradores'
     stats: 'Estadísticas'
+    mute: 'Silenciar'
 
 # ── Estadísticas de perfil ───────────────────────────────────────
 stats:

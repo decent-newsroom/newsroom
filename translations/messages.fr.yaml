@@ -725,6 +725,7 @@ profile:
     highlights: 'Points forts'
     drafts: 'Brouillons'
     stats: 'Statistiques'
+    mute: 'Masquer'
 
 # ── Statistiques de profil ───────────────────────────────────────
 stats:
