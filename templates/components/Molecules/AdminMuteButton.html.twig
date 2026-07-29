@@ -1,0 +1,10 @@
+<div {{ attributes }}>
+    {% if is_granted('ROLE_ADMIN') and not muted %}
+        <button type="button"
+                class="btn btn--outline"
+                data-action="live#action"
+                data-live-action-param="mute">
+            {{ 'profile.mute'|trans }}
+        </button>
+    {% endif %}
+</div>
