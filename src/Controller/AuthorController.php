@@ -1553,12 +1553,8 @@ class AuthorController extends AbstractController
 
         $filtered = array_filter($allIndices, function (Event $event) {
             $tags = $event->getTags();
-            $isMagType = false;
             $isTopLevel = false;
             foreach ($tags as $tag) {
-                if (($tag[0] ?? '') === 'type' && ($tag[1] ?? '') === 'magazine') {
-                    $isMagType = true;
-                }
                 if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
                     $parts = explode(':', $tag[1] ?? '');
                     if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
@@ -1566,7 +1562,7 @@ class AuthorController extends AbstractController
                     }
                 }
             }
-            return $isMagType && $isTopLevel;
+            return $isTopLevel;
         });
 
         // Deduplicate by slug, keeping the newest
