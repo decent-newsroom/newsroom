@@ -1547,27 +1547,13 @@ class AuthorController extends AbstractController
 
         // Fallback: query Event table (same logic as ZineList used to use)
         $allIndices = $em->getRepository(Event::class)->findBy([
-            'kind' => KindsEnum::PUBLICATION_INDEX,
+            'kind' => KindsEnum::PUBLICATION_INDEX->value,
             'pubkey' => $pubkey,
         ]);
 
-        $filtered = array_filter($allIndices, function (Event $event) {
-            $tags = $event->getTags();
-            $isTopLevel = false;
-            foreach ($tags as $tag) {
-                if (($tag[0] ?? '') === 'a' && !$isTopLevel) {
-                    $parts = explode(':', $tag[1] ?? '');
-                    if (($parts[0] ?? '') === (string) KindsEnum::PUBLICATION_INDEX->value) {
-                        $isTopLevel = true;
-                    }
-                }
-            }
-            return $isTopLevel;
-        });
-
         // Deduplicate by slug, keeping the newest
         $bySlug = [];
-        foreach ($filtered as $mag) {
+        foreach ($allIndices as $mag) {
             $slug = $mag->getSlug();
             if ($slug === null) {
                 continue;
