@@ -31,7 +31,7 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <div class="mt-2">
+        <div class="mt-2 break-word">
             {% if author.about is defined and author.about %}
                 {{ author.about|markdown_to_html|mentionify|linkify  }}
             {% endif %}
@@ -52,7 +52,7 @@
         {% endif %}
 
         {% if websites is not empty %}
-            <div class="mt-2">
+            <div class="mt-2 break-word">
                 {% for website in websites %}
                     {% set websiteLabel = website|replace({'https://': '', 'http://': ''}) %}
                     {% if websiteLabel starts with 'www.' %}
