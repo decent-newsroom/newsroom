@@ -44,9 +44,9 @@ parameters:
     relay_registry.project_relays:
         - 'wss://relay.decentnewsroom.com'
     relay_registry.signer_relays:
-        - 'wss://relay.nsec.app'
         - 'wss://relay.decentnewsroom.com'
         - 'wss://relay.primal.net'
+        - 'wss://nos.lol'
 
     # NIP-11 Relay Information Document fetcher
     relay_information.fetch_timeout_seconds: 5.0
