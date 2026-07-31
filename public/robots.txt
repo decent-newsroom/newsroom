@@ -13,6 +13,11 @@ Allow: /about
 Allow: /discover
 Allow: /newsstand
 Allow: /follow-packs
+Allow: /lists
+Allow: /forum
+Allow: /bookshelf
+Allow: /search
+Allow: /users
 Allow: /pricing
 Allow: /roadmap
 Allow: /changelog
@@ -26,5 +31,5 @@ Allow: /sitemap.xml
 Crawl-delay: 1
 
 # Sitemap
-Sitemap: /sitemap.xml
+Sitemap: https://decentnewsroom.com/sitemap.xml
 
