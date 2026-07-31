@@ -4,28 +4,51 @@
         {% if authorMagazines|default([])|length > 0 %}
             <div class="overview-section">
                 <div class="w-container">
-                    {% for mag in authorMagazines %}
-                        {% set magSlug = mag.slug|default(null) %}
+                    {% for item in authorMagazines %}
+                        {% set magSlug = item.slug|default(null) %}
                         {% if magSlug %}
-                        <div class="card p-3 ln-section--reader">
-                            {% if mag.image|default(null) %}
-                                <div class="card-header m-0">
-                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
-                                        <img src="{{ mag.image }}" alt="{{ mag.title|default(magSlug) }}" loading="lazy">
-                                    </a>
+                            <article class="card article-card reading-list-card{% if not item.image|default(null) %} article-card--text-only{% endif %}">
+                                <div class="article-card__body">
+                                    <div class="article-card__content">
+                                        <div class="metadata">
+                                              <span>
+                                                  {{ 'text.by'|trans }}
+                                                  {% if item.author is defined and item.author %}
+                                                      {{ item.author }}
+                                                  {% else %}
+                                                      <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                                  {% endif %}
+                                              </span>
+                                            <span>
+                                                <time datetime="{{ item.createdAt|date('c') }}">{{ item.createdAt|date('M j, Y') }}</time>
+                                            </span>
+                                        </div>
+
+                                        <div class="card-sources reading-list-card__sources">
+                                            <span class="source-badge source-badge--category">Magazine</span>
+                                        </div>
+
+                                        <h2 class="card-title line-clamp-5">
+                                            <a class="article-card__title-link" href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">{{ item.title }}</a>
+                                        </h2>
+
+                                        {% if item.summary is defined and item.summary %}
+                                            <p class="lede line-clamp-5">{{ item.summary }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if item.image|default(null) %}
+                                        <figure class="article-card__media reading-list-card__media">
+                                            <img
+                                                src="{{ item.image }}"
+                                                alt="{{ 'card.coverImageAlt'|trans({'%title%': item.title}) }}"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                        </figure>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
-                            <div class="card-body text-center">
-                                <h2 class="card-title">
-                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
-                                        {{ mag.title|default(magSlug) }}
-                                    </a>
-                                </h2>
-                                {% if mag.summary|default(null) %}
-                                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ mag.summary }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
+                            </article>
                         {% endif %}
                     {% endfor %}
                 </div>
@@ -36,29 +59,51 @@
         {% if featuredMagazines|default([])|length > 0 %}
             <div class="overview-section">
                 <div class="w-container">
-                    {% for mag in featuredMagazines %}
-                        {% set magSlug = mag.slug|default(null) %}
+                    {% for item in featuredMagazines %}
+                        {% set magSlug = item.slug|default(null) %}
                         {% if magSlug %}
-                        <div class="card p-3 ln-section--reader">
-                            {% if mag.image|default(null) %}
-                                <div class="card-header m-0">
-                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
-                                        <img src="{{ mag.image }}" alt="{{ mag.title|default(magSlug) }}" loading="lazy">
-                                    </a>
+                            <article class="card article-card reading-list-card{% if not item.image|default(null) %} article-card--text-only{% endif %}">
+                                <div class="article-card__body">
+                                    <div class="article-card__content">
+                                        <div class="metadata">
+                                              <span>
+                                                  {{ 'text.by'|trans }}
+                                                  {% if item.author is defined and item.author %}
+                                                      {{ item.author }}
+                                                  {% else %}
+                                                      <twig:Molecules:UserFromNpub :ident="item.pubkey" />
+                                                  {% endif %}
+                                              </span>
+                                            <span>
+                                                <time datetime="{{ item.createdAt|date('c') }}">{{ item.createdAt|date('M j, Y') }}</time>
+                                            </span>
+                                        </div>
+
+                                        <div class="card-sources reading-list-card__sources">
+                                            <span class="source-badge source-badge--category">Featured in</span>
+                                        </div>
+
+                                        <h2 class="card-title line-clamp-5">
+                                            <a class="article-card__title-link" href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">{{ item.title }}</a>
+                                        </h2>
+
+                                        {% if item.summary is defined and item.summary %}
+                                            <p class="lede line-clamp-5">{{ item.summary }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if item.image|default(null) %}
+                                        <figure class="article-card__media reading-list-card__media">
+                                            <img
+                                                src="{{ item.image }}"
+                                                alt="{{ 'card.coverImageAlt'|trans({'%title%': item.title}) }}"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                        </figure>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
-                            <div class="card-body text-center">
-                                <h2 class="card-title">
-                                    <a href="{{ path('magazine-index', {mag: magSlug}) }}" data-turbo-frame="_top">
-                                        {{ mag.title|default(magSlug) }}
-                                    </a>
-                                </h2>
-                                <p class="text-muted">Featured in this magazine</p>
-                                {% if mag.summary|default(null) %}
-                                    <p class="lede" data-controller="utility--katex" data-utility--katex-display-value="false">{{ mag.summary }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
+                            </article>
                         {% endif %}
                     {% endfor %}
                 </div>
@@ -70,16 +115,44 @@
             <div class="overview-section">
                 <div class="w-container">
                     {% for pack in existingFollowPacks %}
-                        <div class="card p-3 ln-section--reader">
-                            <div class="card-body text-center">
-                                <h2 class="card-title">
-                                    <a href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
-                                        {{ pack.title|default(pack.dTag) }}
-                                    </a>
-                                </h2>
-                                <p class="text-muted">{{ pack.memberCount }} {{ pack.memberCount == 1 ? 'writer' : 'writers' }}</p>
+                        <article class="card article-card follow-pack-card{% if not pack.image %} article-card--text-only{% endif %}">
+                            <div class="article-card__body">
+                                <div class="article-card__content">
+                                    <div class="metadata">
+                                        <span>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></span>
+                                        {% if pack.createdAt is defined and pack.createdAt %}
+                                            <span><time datetime="{{ pack.createdAt|date('c') }}">{{ pack.createdAt|date('M j, Y') }}</time></span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="card-sources follow-pack-card__sources">
+                                        <span class="source-badge source-badge--category">{{ 'followPacks.type'|trans }}</span>
+                                        <span class="source-badge">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
+                                    </div>
+
+                                    <h2 class="card-title line-clamp-5">
+                                        <a class="article-card__title-link" href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
+                                            {{ pack.title ?? pack.dTag }}
+                                        </a>
+                                    </h2>
+
+                                    {% if pack.description %}
+                                        <p class="lede line-clamp-3">{{ pack.description }}</p>
+                                    {% endif %}
+                                </div>
+
+                                {% if pack.image %}
+                                    <figure class="article-card__media follow-pack-card__media">
+                                        <img
+                                            src="{{ pack.image }}"
+                                            alt="{{ 'card.coverImageAlt'|trans({'%title%': pack.title ?? pack.dTag}) }}"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </figure>
+                                {% endif %}
                             </div>
-                        </div>
+                        </article>
                     {% endfor %}
                 </div>
             </div>
@@ -90,17 +163,45 @@
             <div class="overview-section">
                 <div class="w-container">
                     {% for pack in featuredInFollowPacks %}
-                        <div class="card p-3 ln-section--reader">
-                            <div class="card-body text-center">
-                                <h2 class="card-title">
-                                    <a href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
-                                        {{ pack.title|default(pack.dTag) }}
-                                    </a>
-                                </h2>
-                                <p class="text-muted">Featured in this follow pack</p>
-                                <p class="text-muted">{{ pack.memberCount }} {{ pack.memberCount == 1 ? 'writer' : 'writers' }}</p>
+                        <article class="card article-card follow-pack-card{% if not pack.image %} article-card--text-only{% endif %}">
+                            <div class="article-card__body">
+                                <div class="article-card__content">
+                                    <div class="metadata">
+                                        <span>{{ 'followPacks.curatedBy'|trans }} <twig:Molecules:UserFromNpub :ident="pack.pubkey" /></span>
+                                        {% if pack.createdAt is defined and pack.createdAt %}
+                                            <span><time datetime="{{ pack.createdAt|date('c') }}">{{ pack.createdAt|date('M j, Y') }}</time></span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="card-sources follow-pack-card__sources">
+                                        <span class="source-badge source-badge--category">Featured in</span>
+                                        <span class="source-badge source-badge--category">{{ 'followPacks.type'|trans }}</span>
+                                        <span class="source-badge">{{ pack.memberCount }} {{ 'followPacks.writers'|trans }}</span>
+                                    </div>
+
+                                    <h2 class="card-title line-clamp-5">
+                                        <a class="article-card__title-link" href="{{ path('follow_pack_view', { npub: pack.pubkey|hex_to_npub, dtag: pack.dTag }) }}" data-turbo-frame="_top">
+                                            {{ pack.title ?? pack.dTag }}
+                                        </a>
+                                    </h2>
+
+                                    {% if pack.description %}
+                                        <p class="lede line-clamp-3">{{ pack.description }}</p>
+                                    {% endif %}
+                                </div>
+
+                                {% if pack.image %}
+                                    <figure class="article-card__media follow-pack-card__media">
+                                        <img
+                                            src="{{ pack.image }}"
+                                            alt="{{ 'card.coverImageAlt'|trans({'%title%': pack.title ?? pack.dTag}) }}"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </figure>
+                                {% endif %}
                             </div>
-                        </div>
+                        </article>
                     {% endfor %}
                 </div>
             </div>
@@ -115,7 +216,7 @@
                         <a href="{{ path('editor-create') }}" class="btn btn-primary" data-turbo-frame="_top">Create a magazine</a>
                     </p>
                 {% else %}
-                    <p>This author is not publishing or featured in magazines or follow packs yet.</p>
+                    <p>This author is not publishing or featured in magazines, reading lists, or follow packs yet.</p>
                 {% endif %}
             </div>
         {% endif %}
