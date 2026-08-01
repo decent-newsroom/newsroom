@@ -505,141 +505,130 @@ class RevalidateProfileCacheHandler
     }
 
     /**
+     * jsonb containment needle matching a flat reading-list publication.
+     * Used with the idx_event_tags_gin GIN index for fast `@>` filtering.
+     */
+    private const READING_LIST_TYPE_NEEDLE = '[["type","reading-list"]]';
+
+    /**
      * Get reading lists (flat kind 30040, type=reading-list) created by the given pubkey.
+     *
+     * A jsonb containment prefilter restricts the scan to the author's reading-list
+     * events (via idx_event_tags_gin), avoiding hydration of every 30040 entity.
      * Returns plain arrays for cache serialization.
      */
     private function getAuthorReadingLists(string $pubkey): array
     {
-        $events = $this->em->getRepository(Event::class)->findBy(
-            ['kind' => KindsEnum::PUBLICATION_INDEX->value, 'pubkey' => $pubkey],
-            ['created_at' => 'DESC'],
-        );
+        $rows = $this->em->getConnection()->executeQuery(
+            "SELECT e.pubkey, e.tags, e.created_at
+             FROM   event e
+             WHERE  e.kind = :kind
+               AND  e.pubkey = :pubkey
+               AND  e.tags @> :readingListType::jsonb
+             ORDER BY e.created_at DESC",
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'pubkey' => $pubkey,
+                'readingListType' => self::READING_LIST_TYPE_NEEDLE,
+            ],
+        )->fetchAllAssociative();
 
         $bySlug = [];
-        foreach ($events as $event) {
-            if (!$event instanceof Event) {
-                continue;
+        foreach ($rows as $row) {
+            $card = $this->mapReadingListRow($row);
+            if ($card === null || isset($bySlug[$card['slug']])) {
+                continue; // rows ordered DESC by created_at, newest revision wins
             }
-
-            $type = null;
-            $hasNested = false;
-            foreach ($event->getTags() as $tag) {
-                if (($tag[0] ?? '') === 'type' && isset($tag[1])) {
-                    $type = (string) $tag[1];
-                }
-                if (($tag[0] ?? '') === 'a' && isset($tag[1]) && str_starts_with((string) $tag[1], '30040:')) {
-                    $hasNested = true;
-                }
-            }
-            if ($type !== 'reading-list' || $hasNested) {
-                continue;
-            }
-
-            $slug = $event->getSlug();
-            if ($slug === null || $slug === '') {
-                continue;
-            }
-            if (!isset($bySlug[$slug]) || $event->getCreatedAt() > $bySlug[$slug]->getCreatedAt()) {
-                $bySlug[$slug] = $event;
-            }
+            $bySlug[$card['slug']] = $card;
         }
 
-        return array_values(array_map(function (Event $event) {
-            $title = null;
-            $summary = null;
-            $image = null;
-            foreach ($event->getTags() as $tag) {
-                if (($tag[0] ?? '') === 'title' && isset($tag[1])) {
-                    $title = $tag[1];
-                }
-                if (($tag[0] ?? '') === 'summary' && isset($tag[1])) {
-                    $summary = $tag[1];
-                }
-                if (($tag[0] ?? '') === 'image' && isset($tag[1])) {
-                    $image = $tag[1];
-                }
-            }
-            return [
-                'slug' => $event->getSlug(),
-                'title' => $title,
-                'summary' => $summary,
-                'image' => $image,
-                'pubkey' => $event->getPubkey(),
-                'createdAt' => $event->getCreatedAt(),
-            ];
-        }, $bySlug));
+        return array_values($bySlug);
     }
 
     /**
      * Get reading lists authored by others that feature at least one article by $pubkey.
-     * Detection is coordinate-based (article 'a' tags), so it works retroactively.
+     *
+     * A jsonb containment prefilter (`tags @> [["type","reading-list"]]`, backed by
+     * idx_event_tags_gin) restricts the scan to reading-list events before the
+     * per-row coordinate check runs. Detection is coordinate-based (article 'a' tags),
+     * so it works retroactively for all existing lists without requiring a republish.
      */
     private function getFeaturedReadingLists(string $pubkey): array
     {
-        $conn = $this->em->getConnection();
-
-        $sql = "
-            SELECT e.pubkey, e.tags, e.created_at
-            FROM   event e
-            WHERE  e.kind = :kind
-              AND  e.pubkey != :pubkey
-              AND  EXISTS (
-                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                       WHERE  tag->>0 = 'type' AND tag->>1 = 'reading-list'
-                   )
-              AND  EXISTS (
-                       SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
-                       WHERE  tag->>0 = 'a'
-                         AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
-                   )
-            ORDER BY e.created_at DESC
-            LIMIT 50
-        ";
-
-        $rows = $conn->executeQuery($sql, [
-            'kind'    => KindsEnum::PUBLICATION_INDEX->value,
-            'pubkey'  => $pubkey,
-            'coord23' => '30023:' . $pubkey . ':%',
-            'coord24' => '30024:' . $pubkey . ':%',
-        ])->fetchAllAssociative();
+        $rows = $this->em->getConnection()->executeQuery(
+            "SELECT e.pubkey, e.tags, e.created_at
+             FROM   event e
+             WHERE  e.kind = :kind
+               AND  e.pubkey != :pubkey
+               AND  e.tags @> :readingListType::jsonb
+               AND  EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(e.tags) AS tag
+                        WHERE  tag->>0 = 'a'
+                          AND  (tag->>1 LIKE :coord23 OR tag->>1 LIKE :coord24)
+                    )
+             ORDER BY e.created_at DESC
+             LIMIT 50",
+            [
+                'kind' => KindsEnum::PUBLICATION_INDEX->value,
+                'pubkey' => $pubkey,
+                'readingListType' => self::READING_LIST_TYPE_NEEDLE,
+                'coord23' => '30023:' . $pubkey . ':%',
+                'coord24' => '30024:' . $pubkey . ':%',
+            ],
+        )->fetchAllAssociative();
 
         $byCoordinate = [];
         foreach ($rows as $row) {
-            $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : $row['tags'];
-
-            $slug = null;
-            $title = null;
-            $summary = null;
-            $image = null;
-            foreach ($tags as $tag) {
-                switch ($tag[0] ?? '') {
-                    case 'd': $slug = $tag[1] ?? null; break;
-                    case 'title': $title = $tag[1] ?? null; break;
-                    case 'summary': $summary = $tag[1] ?? null; break;
-                    case 'image': $image = $tag[1] ?? null; break;
-                }
-            }
-
-            if ($slug === null || $slug === '') {
+            $card = $this->mapReadingListRow($row);
+            if ($card === null) {
                 continue;
             }
-
-            $coordinate = $row['pubkey'] . ':' . $slug;
+            $coordinate = $row['pubkey'] . ':' . $card['slug'];
             if (isset($byCoordinate[$coordinate])) {
-                continue;
+                continue; // rows ordered DESC by created_at, newest revision wins
             }
-
-            $byCoordinate[$coordinate] = [
-                'slug' => $slug,
-                'title' => $title,
-                'summary' => $summary,
-                'image' => $image,
-                'pubkey' => $row['pubkey'],
-                'createdAt' => (int) $row['created_at'],
-                'featured' => true,
-            ];
+            $card['featured'] = true;
+            $byCoordinate[$coordinate] = $card;
         }
 
         return array_values($byCoordinate);
+    }
+
+    /**
+     * Map a raw event row (pubkey, tags, created_at) into a reading-list card array.
+     * Returns null when the row has no usable d-tag slug.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>|null
+     */
+    private function mapReadingListRow(array $row): ?array
+    {
+        $tags = is_string($row['tags']) ? (json_decode($row['tags'], true) ?? []) : ($row['tags'] ?? []);
+
+        $slug = null;
+        $title = null;
+        $summary = null;
+        $image = null;
+        foreach ($tags as $tag) {
+            switch ($tag[0] ?? '') {
+                case 'd': $slug = $tag[1] ?? null; break;
+                case 'title': $title = $tag[1] ?? null; break;
+                case 'summary': $summary = $tag[1] ?? null; break;
+                case 'image': $image = $tag[1] ?? null; break;
+            }
+        }
+
+        if ($slug === null || $slug === '') {
+            return null;
+        }
+
+        return [
+            'slug' => $slug,
+            'title' => $title,
+            'summary' => $summary,
+            'image' => $image,
+            'pubkey' => $row['pubkey'],
+            'createdAt' => (int) $row['created_at'],
+        ];
     }
 }
